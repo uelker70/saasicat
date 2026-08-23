@@ -15,6 +15,7 @@
         "lint": "eslint .",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
+        "release:version": "changeset version && node scripts/stamp-spec-version.mjs",
         "coverage": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs",
         "coverage:update": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs --update",
         "tokens": "node scripts/token-audit.mjs",
@@ -32,7 +33,8 @@
         "typescript": "^6.0.2",
         "typescript-eslint": "^8.58.1",
         "vue": "^3.5.0",
-        "vue-eslint-parser": "^10.4.1"
+        "vue-eslint-parser": "^10.4.1",
+        "yaml": "^2.9.0"
     },
     "packageManager": "pnpm@11.3.0+sha512.2c403d6594527287672b1f7056343a1f7c3634036a67ffabfcc2b3d7595d843768f8787148d1b57cf7956c90606bbd192857c363af19e96d2d0ec9ec5741d215"
 }

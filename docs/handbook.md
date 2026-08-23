@@ -619,7 +619,7 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             {
                 id: 'platform.tenants.active',
                 label: 'Aktive Mandanten',
-                endpoint: '/api/v1/admin/dashboard/stats',
+                endpoint: '/api/v1/admin/stats/dashboard',
                 displayHint: { type: 'value+delta', icon: 'business' },
                 slotPriority: 90,
                 requiredCapability: 'dashboard.read',

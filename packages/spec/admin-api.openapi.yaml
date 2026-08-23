@@ -17,10 +17,19 @@ openapi: 3.1.0
 #   - Tenant end-customer API (self-service plan change) — separate file
 #   - Onboarding API — separate file (uses PromoCode preview)
 #   - X-Rechnung — its own package, its own OpenAPI file
+#
+# Who serves what: an operation marked `x-served-by: app` is part of this
+# contract but NOT shipped by @saasicat/nest — the tenant model, platform user
+# administration and the promo-code detail view reach into data the application
+# owns, so the application serves those routes and the admin UI calls them.
+# Everything else is served by the reference implementation.
+# `tests/openapi-covers-the-implementation.test.js` holds both directions: no
+# undocumented route, and no documented operation without an implementation or
+# that marker.
 
 info:
     title: SaaS Platform SuperAdmin API
-    version: 0.1.0-draft
+    version: 1.0.0-rc.3
     description: |
         Read and write operations for platform administration:
         tenants, users, subscriptions, promo codes, audit log,
@@ -141,7 +150,7 @@ paths:
     # ────────────────────────────────────────────────────────
     # Dashboard
     # ────────────────────────────────────────────────────────
-    /dashboard/stats:
+    /stats/dashboard:
         get:
             tags: [dashboard]
             summary: Global platform metrics
@@ -152,53 +161,6 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/DashboardStats'
-
-    # ────────────────────────────────────────────────────────
-    # Plan catalog (read-only — maintained via file + reload endpoint)
-    # ────────────────────────────────────────────────────────
-    /plans:
-        get:
-            tags: [plans]
-            summary: Currently loaded plan catalog
-            responses:
-                '200':
-                    description: Catalog
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PlanCatalog'
-
-    /plans/reload:
-        post:
-            tags: [plans]
-            summary: Reload the plan catalog from file (for admin CLI / hot-reload dev)
-            x-mfa-required: true
-            responses:
-                '200':
-                    description: Loaded
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                properties:
-                                    loadedAt: { type: string, format: date-time }
-                                    planCount: { type: integer }
-                                    source: { type: string, description: Path or URL }
-
-    /plans/last-update:
-        get:
-            tags: [plans]
-            summary: When the catalog was last loaded + hash
-            responses:
-                '200':
-                    description: Meta
-                    content:
-                        application/json:
-                            schema:
-                                type: object
-                                properties:
-                                    loadedAt: { type: string, format: date-time }
-                                    hash: { type: string, description: SHA-256 of the YAML content }
 
     # ────────────────────────────────────────────────────────
     # Tenants
@@ -234,6 +196,7 @@ paths:
 
         post:
             tags: [tenants]
+            x-served-by: app # the tenant model is the application's
             summary: Create a tenant manually (bypasses the onboarding flow)
             x-mfa-required: true
             requestBody:
@@ -262,6 +225,7 @@ paths:
                             schema: { $ref: '#/components/schemas/AdminTenantDetail' }
         delete:
             tags: [tenants]
+            x-served-by: app # the tenant model is the application's
             summary: Soft-delete a tenant (set deletedAt)
             x-mfa-required: true
             requestBody:
@@ -315,6 +279,7 @@ paths:
             - $ref: '#/components/parameters/TenantSlug'
         post:
             tags: [tenants]
+            x-served-by: app # the tenant model is the application's
             summary: Short-lived JWT as TENANT_ADMIN for support insight
             x-mfa-required: true
             requestBody:
@@ -344,6 +309,7 @@ paths:
             - $ref: '#/components/parameters/TenantSlug'
         get:
             tags: [tenants]
+            x-served-by: app # the tenant model is the application's
             summary: GDPR / audit export of all tenant data as a ZIP
             x-mfa-required: true
             responses:
@@ -361,6 +327,7 @@ paths:
             - $ref: '#/components/parameters/TenantSlug'
         get:
             tags: [subscriptions]
+            x-served-by: app # no admin-side subscription route ships
             summary: Current subscription + add-ons + effective limits
             responses:
                 '200':
@@ -371,6 +338,7 @@ paths:
 
         patch:
             tags: [subscriptions]
+            x-served-by: app # no admin-side subscription route ships
             summary: Change plan, custom limits, or pilot flag
             x-mfa-required: true
             requestBody:
@@ -435,6 +403,7 @@ paths:
               schema: { type: string }
         post:
             tags: [users]
+            x-served-by: app # platform users live in the application's identity store
             summary: Trigger a password-reset email (sends no plaintext passwords)
             x-mfa-required: true
             requestBody:
@@ -457,6 +426,7 @@ paths:
               schema: { type: string }
         post:
             tags: [users]
+            x-served-by: app # platform users live in the application's identity store
             summary: Deactivate a user (block login)
             x-mfa-required: true
             requestBody:
@@ -476,6 +446,7 @@ paths:
             - $ref: '#/components/parameters/TenantSlug'
         post:
             tags: [users]
+            x-served-by: app # the tenant model is the application's
             summary: Transfer the TENANT_ADMIN role to another user
             x-mfa-required: true
             requestBody:
@@ -546,6 +517,7 @@ paths:
               schema: { type: string, format: uuid }
         get:
             tags: [promo-codes]
+            x-served-by: app # the detail view joins application data
             responses:
                 '200':
                     description: Detail
@@ -622,41 +594,190 @@ paths:
                                               items: { $ref: '#/components/schemas/AuditEntryDto' }
 
     # ────────────────────────────────────────────────────────
-    # MFA
+    # First-run setup (SetupModule, packages/nest/src/setup/*)
+    #
+    # Public by design: before the first SUPER_ADMIN there is no session to
+    # authenticate. The window is open only while zero SUPER_ADMIN exist and
+    # is additionally gated by the operator-set SETUP_TOKEN.
     # ────────────────────────────────────────────────────────
-    /mfa/setup:
-        post:
-            tags: [mfa]
-            summary: Start TOTP setup (returns QR-code URI + secret)
+    /setup/status:
+        get:
+            tags: [setup]
+            security: [] # PUBLIC — answers whether the window is still open
+            summary: Whether first-run setup is still open
             responses:
                 '200':
-                    description: Setup data
+                    description: Status
                     content:
                         application/json:
                             schema:
                                 type: object
+                                required: [needsSetup]
                                 properties:
-                                    otpauthUri: { type: string }
-                                    secret: { type: string }
-                                    recoveryCodes:
-                                        type: array
-                                        items: { type: string }
+                                    needsSetup:
+                                        type: boolean
+                                        description: true as long as no SUPER_ADMIN exists
 
-    /mfa/confirm:
+    /setup:
         post:
-            tags: [mfa]
-            summary: Confirm setup with the first code
+            tags: [setup]
+            security: [] # PUBLIC — see the section note
+            summary: Create the first SUPER_ADMIN and start its MFA enrolment
             requestBody:
                 required: true
                 content:
                     application/json:
                         schema:
                             type: object
-                            required: [code]
+                            required: [token, email]
                             properties:
+                                token: { type: string, description: Must match SETUP_TOKEN }
+                                email: { type: string, format: email }
+                                password:
+                                    type: string
+                                    minLength: 8
+                                    description: Generated by the server when omitted
+            responses:
+                '201':
+                    description: Created — the response carries the enrolment secret once
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [userId, email, otpauthUri, qrDataUrl, secret]
+                                properties:
+                                    userId: { type: string }
+                                    email: { type: string, format: email }
+                                    otpauthUri: { type: string }
+                                    qrDataUrl: { type: string, description: PNG data URL }
+                                    secret: { type: string, description: Base32 TOTP secret }
+                                    generatedPassword:
+                                        type: string
+                                        description: Present only when the server generated it
+                '403':
+                    description: Setup window closed or token wrong
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+
+    /setup/confirm-mfa:
+        post:
+            tags: [setup]
+            security: [] # PUBLIC — see the section note
+            summary: Confirm the enrolment with the first TOTP code, closing the window
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [token, userId, code]
+                            properties:
+                                token: { type: string }
+                                userId: { type: string }
                                 code: { type: string, pattern: '^[0-9]{6}$' }
             responses:
-                '200': { description: Activated }
+                '200':
+                    description: Activated
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [ok]
+                                properties:
+                                    ok: { type: boolean }
+                '403':
+                    description: Setup window closed or token wrong
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+
+    # ────────────────────────────────────────────────────────
+    # Plan catalog import (PlanCatalogImporterModule)
+    # ────────────────────────────────────────────────────────
+    /billing/plan-catalog/import:
+        post:
+            tags: [plans]
+            summary: Import a plan catalog YAML into the catalog tables
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [yamlContent]
+                            properties:
+                                yamlContent: { type: string, description: Contents of saas.yaml }
+                                crossFieldChecks:
+                                    type: boolean
+                                    default: true
+                                    description: Validate references between plans, features and quotas
+            responses:
+                '201':
+                    description: Import report — the counters say what was new and what already matched
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - plansCreated
+                                    - plansSkipped
+                                    - planVersionsCreated
+                                    - planVersionsSkipped
+                                    - featureEntriesCreated
+                                    - featureEntriesSkipped
+                                    - warnings
+                                properties:
+                                    plansCreated: { type: integer }
+                                    plansSkipped: { type: integer }
+                                    planVersionsCreated: { type: integer }
+                                    planVersionsSkipped: { type: integer }
+                                    featureEntriesCreated: { type: integer }
+                                    featureEntriesSkipped: { type: integer }
+                                    warnings: { type: array, items: { type: string } }
+                '400':
+                    description: The YAML failed schema validation
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+
+    # ────────────────────────────────────────────────────────
+    # Subscriptions
+    # ────────────────────────────────────────────────────────
+    /subscriptions:
+        get:
+            tags: [subscriptions]
+            summary: Every tenant subscription, one row each
+            responses:
+                '200':
+                    description: Rows
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    required: [id, tenant, plan, status, billingCycle]
+                                    properties:
+                                        id: { type: string }
+                                        tenant:
+                                            type: object
+                                            required: [slug, name]
+                                            properties:
+                                                slug: { type: string }
+                                                name: { type: string }
+                                        plan: { type: string }
+                                        status: { type: string }
+                                        billingCycle: { type: string }
+                                        periodEndsAt:
+                                            type: string
+                                            format: date-time
+                                            nullable: true
+                                        monthlyNet: { type: string, nullable: true }
+                                    additionalProperties: true
 
     # ────────────────────────────────────────────────────────
     # Catalog V2 — Plan/Bundle/Marketing/Promotion + Discovery

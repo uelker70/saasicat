@@ -6,6 +6,10 @@
 // `SaaSiCatModule.forRoot({ tenantManifest: { controller: {...} } })`
 // the default is `controller: { guards: [JwtAuthGuard] }`.
 //
+// openapi-scope: none. This is the tenant-facing surface, which
+// `admin-api.openapi.yaml` names as deliberately out of scope, and its path
+// is the app's choice — so no document can pin it.
+//
 
 import {
     type CanActivate,
