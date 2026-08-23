@@ -210,8 +210,11 @@
                         <h3 class="pr-card-title">{{ msg.review.cardRegression }}</h3>
                         <p class="pr-card-hint">{{ msg.review.regressionHint }}</p>
                         <label class="pr-toggle">
-                            <input v-model="forceRegressive" type="checkbox" />
-                            <span>{{ msg.review.forceRegressive }}</span>
+                            <q-checkbox
+                                v-model="forceRegressive"
+                                dense
+                                :label="msg.review.forceRegressive"
+                            />
                         </label>
                     </div>
 
@@ -219,8 +222,11 @@
                         <h3 class="pr-card-title">{{ msg.review.cardZeroPrice }}</h3>
                         <p class="pr-card-hint">{{ msg.review.zeroPriceHint }}</p>
                         <label class="pr-toggle">
-                            <input v-model="allowZeroPrice" type="checkbox" />
-                            <span>{{ msg.review.allowZeroPrice }}</span>
+                            <q-checkbox
+                                v-model="allowZeroPrice"
+                                dense
+                                :label="msg.review.allowZeroPrice"
+                            />
                         </label>
                     </div>
 

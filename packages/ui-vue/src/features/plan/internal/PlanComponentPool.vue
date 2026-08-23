@@ -20,10 +20,14 @@
                     <path d="M21 21l-4.35-4.35" />
                 </svg>
             </span>
-            <input
-                :value="searchTerm"
+            <q-input
+                :model-value="searchTerm"
+                outlined
+                dense
+                borderless
+                class="pve-pool-search"
                 :placeholder="msg.componentPool.searchPlaceholder"
-                @input="updateSearchTerm"
+                @update:model-value="updateSearchTerm"
             />
             <span class="pve-kbd">⌘ K</span>
         </div>

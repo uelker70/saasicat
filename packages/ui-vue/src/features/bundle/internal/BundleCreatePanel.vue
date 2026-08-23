@@ -37,7 +37,6 @@
                             dense
                             ref="labelInput"
                             v-model="form.label"
-                            class="bcp-input"
                             :placeholder="msg.create.labelPlaceholder"
                         />
                     </label>
@@ -50,7 +49,7 @@
                             outlined
                             dense
                             v-model="form.bundleKey"
-                            class="bcp-input bcp-input--mono"
+                            class="bcp-mono"
                             placeholder="COMMUNICATION_PRO"
                             @input="onBundleKeyInput"
                         />
@@ -60,10 +59,12 @@
                     </label>
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">{{ common.description }}</span>
-                        <textarea
+                        <q-input
                             v-model="form.description"
-                            rows="2"
-                            class="bcp-input bcp-textarea"
+                            outlined
+                            dense
+                            type="textarea"
+                            :rows="2"
                             :placeholder="msg.create.descriptionPlaceholder"
                         />
                     </label>
@@ -112,13 +113,7 @@
                     </label>
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">{{ msg.fields.validFrom }}</span>
-                        <q-input
-                            outlined
-                            dense
-                            v-model="form.validFrom"
-                            type="date"
-                            class="bcp-input"
-                        />
+                        <q-input outlined dense v-model="form.validFrom" type="date" />
                         <span class="bcp-field-hint">{{ validFromHint }}</span>
                     </label>
                 </div>
@@ -503,6 +498,11 @@ async function submit(): Promise<void> {
 </script>
 
 <style scoped>
+/* The key is an identifier; a proportional face hides a transposed character. */
+.bcp-mono :deep(input) {
+    font-family: var(--sa-font-mono);
+}
+
 .bcp {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border-strong);
@@ -608,36 +608,13 @@ async function submit(): Promise<void> {
     color: var(--sa-color-fg-subtle);
     font-weight: 500;
 }
-.bcp-input {
-    padding: var(--sa-space-3) var(--sa-space-3);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: var(--sa-radius-badge);
-    font-family: inherit;
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-heading);
-    background: var(--sa-color-bg-surface);
-}
-.bcp-input--mono {
-    font:
-        600 var(--sa-text-md) 'JetBrains Mono',
-        ui-monospace,
-        monospace;
-    letter-spacing: var(--sa-tracking-wide);
-}
-.bcp-textarea {
-    resize: vertical;
-}
 .bcp-input-grp {
     display: inline-flex;
     align-items: stretch;
     border: 1px solid var(--sa-color-border-strong);
     border-radius: var(--sa-radius-badge);
 }
-.bcp-input-grp .bcp-input {
-    border: 0;
-    border-radius: var(--sa-radius-badge) 0 0 var(--sa-radius-badge);
-}
-.bcp-input-unit {
+.bcp-input-grp .bcp-input-unit {
     display: inline-flex;
     align-items: center;
     padding: 0 var(--sa-space-3);

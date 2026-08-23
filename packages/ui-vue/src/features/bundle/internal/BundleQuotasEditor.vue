@@ -52,19 +52,15 @@
                 <div class="bd-quota-key">{{ q.quotaKey }}</div>
             </div>
             <div class="bd-quota-valwrap">
-                <input
+                <q-input
+                    :model-value="quotas[q.quotaKey] ?? ''"
+                    outlined
+                    dense
                     type="number"
                     class="bd-quota-val"
-                    :value="quotas[q.quotaKey] ?? ''"
-                    :disabled="!(q.quotaKey in quotas) || locked"
+                    :disable="!(q.quotaKey in quotas) || locked"
                     :placeholder="String(0)"
-                    @input="
-                        $emit(
-                            'setValue',
-                            q.quotaKey,
-                            Number(($event.target as HTMLInputElement).value),
-                        )
-                    "
+                    @update:model-value="$emit('setValue', q.quotaKey, Number($event) || 0)"
                 />
                 <span class="bd-quota-unit">{{ quotaUnit(q) }}</span>
             </div>

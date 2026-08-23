@@ -14,16 +14,17 @@
                         {{ msg.createDialog.labelPlanKey }}
                         <span class="pcd-kbd">UNIQUE</span>
                     </div>
-                    <input
+                    <q-input
                         ref="keyInput"
-                        class="pcd-input"
-                        :class="{ 'pcd-input--error': keyError }"
+                        :model-value="form.planKey"
+                        outlined
+                        dense
                         :placeholder="msg.createDialog.placeholderPlanKey"
-                        :value="form.planKey"
-                        @input="onPlanKeyInput"
+                        :error="Boolean(keyError)"
+                        :error-message="keyError ?? undefined"
+                        :hint="msg.createDialog.hintPlanKey"
+                        @update:model-value="onPlanKeyInput"
                     />
-                    <div v-if="keyError" class="pcd-hint pcd-hint--error">{{ keyError }}</div>
-                    <div v-else class="pcd-hint">{{ msg.createDialog.hintPlanKey }}</div>
                 </div>
                 <div class="pcd-field">
                     <div class="pcd-field-label">{{ msg.createDialog.labelDisplayName }}</div>
@@ -31,7 +32,6 @@
                         outlined
                         dense
                         v-model="form.label"
-                        class="pcd-input"
                         :placeholder="msg.createDialog.placeholderDisplayName"
                     />
                     <div class="pcd-hint">{{ msg.createDialog.hintDisplayName }}</div>
@@ -40,10 +40,12 @@
 
             <div class="pcd-field">
                 <div class="pcd-field-label">{{ common.description }}</div>
-                <textarea
+                <q-input
                     v-model="form.description"
-                    class="pcd-input pcd-input--textarea"
-                    rows="2"
+                    outlined
+                    dense
+                    type="textarea"
+                    :rows="2"
                     :placeholder="msg.createDialog.placeholderDescription"
                 />
             </div>
@@ -290,43 +292,11 @@ function onCancel(): void {
     border: 1px solid var(--sa-color-border);
     letter-spacing: var(--sa-tracking-wide);
 }
-.pcd-input {
-    width: 100%;
-    padding: var(--sa-space-3) var(--sa-space-4);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: var(--sa-radius-control);
-    font: var(--sa-text-md) var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-    outline: none;
-    transition:
-        border-color 0.12s,
-        box-shadow 0.12s;
-}
-.pcd-input--textarea {
-    resize: vertical;
-    min-height: 56px;
-    line-height: 1.5;
-}
-.pcd-input:focus {
-    border-color: var(--sa-color-accent);
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
-}
-.pcd-input--error {
-    border-color: var(--sa-color-negative);
-}
-.pcd-input--error:focus {
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
-}
 .pcd-hint {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     margin-top: var(--sa-space-2);
 }
-.pcd-hint--error {
-    color: var(--sa-color-negative);
-}
-
 .pcd-choice-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
