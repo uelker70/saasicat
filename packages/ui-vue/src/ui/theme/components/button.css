@@ -6,8 +6,9 @@
  * The Quasar selectors are the second way: any `q-btn` placed in a hero's or a
  * section's action area adopts the same shape. That is what reaches the buttons
  * a consumer app puts into those slots — a component could only style what the
- * platform itself renders, and autohauspro's `#card-actions` button would have
- * stayed behind in the Quasar look while everything around it changed.
+ * platform itself renders, so an app's own button in a section's action area
+ * would have stayed behind in the Quasar look while everything around it
+ * changed.
  *
  * Colour is left to Quasar on its own buttons: `color="primary"` stays a filled
  * primary, `flat` becomes the bordered surface below. Only shape and typography

@@ -228,7 +228,9 @@ retroactively break historical invoices or quotas.
 
 ### 4.1 `@saasicat/nest` — Sub-Entries
 
-Always import the sub-entry, never the root:
+Import the sub-entry. Each one is a bundle of its own, so taking
+`DiscoveryModule` from `@saasicat/nest/discovery` costs you the discovery slice
+rather than the whole package:
 
 ```ts
 import { PlanCatalogModule, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
@@ -255,6 +257,14 @@ import {
 } from '@saasicat/nest/admin';
 import { RegistrationModule } from '@saasicat/nest/registration';
 ```
+
+The one exception is the platform composition itself. `SaaSiCatModule`,
+`defineSaaSiCat` and their option types are exported from the root **as well
+as** from `@saasicat/nest/platform`, deliberately: an app that already injects
+them from the root keeps working, and both paths hand out the same classes
+because the CommonJS build is one bundle behind thin re-export stubs (see
+[CONTRIBUTING](../CONTRIBUTING.md), "One bundle, many entries"). New
+applications take the narrower `/platform` entry.
 
 `RegistrationModule` is the one entry `SaaSiCatModule` does not compose: it takes
 ten ports no persistence bundle supplies, and you wire it yourself. See
@@ -348,9 +358,10 @@ as a step to remember. `--create-only` is what makes that work: an applied
 migration cannot take an edit, and Prisma would see its checksum change. It is
 idempotent: a migration that already carries them is left alone.
 
-`schema apply` only ever adds whole models — it does not carry enums and it
-never touches a model you already have. So after a package upgrade your schema
-falls behind silently. `saasicat schema check` reports that gap:
+`schema apply` only ever adds: it brings each fragment's enums and models, and
+never touches a block you already have. So a field added to an existing model
+in a later release does not arrive on its own, and after a package upgrade your
+schema falls behind silently. `saasicat schema check` reports that gap:
 
 ```bash
 pnpm exec saasicat schema check          # exit 1 on drift — gate CI on it
@@ -959,7 +970,6 @@ export const loaders = createPlatformLoaders({
     endpoints: ADMIN_ENDPOINTS,
     http: platformHttpClient,
     storageKeyPrefix: 'myapp:',
-    getAuthToken: () => localStorage.getItem('myapp-admin-token'),
 });
 ```
 
@@ -1054,44 +1064,38 @@ export const useManifestStore = createManifestStore({
 
 ### 8.3 Router
 
+`createAdminRoutes()` supplies the shell every SuperAdmin app has: a public
+`/login`, a fail-closed `/admin-error`, and `/admin` with its index redirect and
+the catch-all that mounts manifest-declared project pages in the right order.
+`standardAdminChildren()` fills in the platform's own screens.
+
 ```ts
-// router/index.ts
-import { createProjectPageHostRoute } from '@saasicat/ui-vue';
+// router/routes.ts
+import type { RouteRecordRaw } from 'vue-router';
+import { createAdminRoutes } from '@saasicat/ui-vue';
+import { standardAdminChildren } from '@saasicat/ui-vue/pages';
 import SuperAdminLoginPage from '@saasicat/ui-vue/auth/SuperAdminLoginPage.vue';
 import AdminLayout from '@saasicat/ui-vue/layouts/AdminLayout.vue';
-import AdminDiscoveryPage from '../pages/AdminDiscoveryPage.vue';
-import AdminTenantsPage from '../pages/AdminTenantsPage.vue';
-import AdminPlansPage from '../pages/AdminPlansPage.vue';
-// …
+import AdminManifestErrorPage from '@saasicat/ui-vue/pages/AdminManifestErrorPage.vue';
 
-export const adminRoutes = [
-    { path: '/login', component: SuperAdminLoginPage, meta: { public: true } },
-    {
-        path: '/admin-error',
-        component: () => import('@saasicat/ui-vue/pages/AdminManifestErrorPage.vue'),
-        meta: { public: true },
-    },
-    {
-        path: '/admin',
-        component: AdminLayout,
-        children: [
-            { path: '', redirect: '/admin/dashboard' },
-            { path: 'dashboard', component: () => import('../pages/AdminDashboardPage.vue') },
-            { path: 'tenants', component: AdminTenantsPage },
-            { path: 'plans', component: AdminPlansPage },
-            { path: 'bundles', component: () => import('../pages/AdminBundlesPage.vue') },
-            { path: 'discovery', component: AdminDiscoveryPage },
-            {
-                path: 'marketing-catalog',
-                component: () => import('../pages/AdminMarketingCatalogPage.vue'),
-            },
-            { path: 'audit', component: () => import('../pages/AdminAuditPage.vue') },
-            // …
-            createProjectPageHostRoute(), // Catch-all for manifest project pages
-        ],
-    },
-];
+export const appRoutes: RouteRecordRaw[] = createAdminRoutes({
+    loginPage: SuperAdminLoginPage,
+    adminLayout: AdminLayout,
+    adminErrorPage: AdminManifestErrorPage,
+    children: standardAdminChildren(),
+});
 ```
+
+Pass your own routes to `standardAdminChildren()` and yours win on a matching
+path — that is how you replace one standard page without giving up the other
+twelve:
+
+```ts
+children: standardAdminChildren([{ path: 'tenants', component: MyTenantsPage }]);
+```
+
+The error page is imported statically on purpose: a screen that reports a failed
+load must not be behind a load of its own.
 
 ### 8.4 App Bootstrap
 
@@ -1099,9 +1103,12 @@ export const adminRoutes = [
 // main.ts
 import { createSuperAdminApp } from '@saasicat/ui-vue/quasar';
 import { type SuperAdminLoginAdapter, type ActionsMap } from '@saasicat/ui-vue';
-import { ADMIN_ENDPOINTS, loaders } from './services/platform-loaders';
+import App from './App.vue';
+import { appRoutes } from './router/routes';
+import { ADMIN_ENDPOINTS, platformHttpClient } from './services/platform-loaders';
 import { adminApi } from './services/admin-api';
-import { useAuthStore } from './stores/auth';
+import { useAuthStore, isAuthenticated } from './stores/auth';
+import { useManifestStore } from './stores/manifest';
 
 const loginAdapter: SuperAdminLoginAdapter = {
     async login(email, password) {
@@ -1118,11 +1125,23 @@ const actions: ActionsMap = {
 };
 
 const app = createSuperAdminApp({
-    loginAdapter,
+    rootComponent: App,
+    brand: { logoText: 'MA', name: 'MyApp Admin' },
     endpoints: ADMIN_ENDPOINTS,
-    loaders,
+    appRoutes,
+    loginAdapter,
     actions,
-    manifestErrorRoute: '/admin-error',
+    // The platform pages issue their own requests. Without the client they have
+    // no way to carry your auth — the shell refuses to boot rather than
+    // falling back to a bare `fetch()`.
+    http: platformHttpClient,
+    authGuard: { isAuthenticated, onUnauthenticated: () => '/login' },
+    manifestGuard: {
+        // Lazy store access: Pinia exists once createSuperAdminApp() has run.
+        ensureLoaded: () => useManifestStore().ensureLoaded(),
+        getManifest: () => useManifestStore().manifest,
+        errorRoute: '/admin-error',
+    },
 });
 
 app.mount('#app');

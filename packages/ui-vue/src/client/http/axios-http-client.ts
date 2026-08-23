@@ -1,8 +1,8 @@
 // The axios implementation of `HttpClient` — without depending on axios.
 //
-// Six near-identical copies of this function exist across the known consumer
-// apps and the documentation: the notesapp admin and web apps, the scaffolder
-// template, the handbook, vereinsfux and autohauspro. They differ in the
+// Six near-identical copies of this function existed across the apps and
+// documents that needed one: the notesapp admin and web apps, the scaffolder
+// template, the handbook and two production consumers. They differed in the
 // prefix they strip and in nothing else that matters.
 //
 // `AxiosLike` is structural on purpose. A `dependencies` entry would make every

@@ -30,7 +30,17 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
 @Module({
     imports: [
         PrismaModule,
-        PlanCatalogModule.forRoot({ path: './config/plans.yaml' }),
+        PlanCatalogModule.forRoot({
+            projectKey: 'myapp',
+            currency: 'EUR',
+            vatRate: 19,
+            // The catalogue is read from the database, not from a file — the
+            // CLI's `plan-catalog import` puts it there.
+            sink: {
+                useFactory: (p) => new PrismaPlanCatalogReadSink(p),
+                inject: [PrismaService],
+            },
+        }),
         AdminModule.forRoot({
             mfaPort: { useFactory: (p) => new PrismaMfaAdapter(p), inject: [PrismaService] },
             auditPort: { useFactory: (p) => new PrismaAuditAdapter(p), inject: [PrismaService] },
