@@ -20,7 +20,7 @@ import PromoCodeDialogFields, {
     type PromoCodeSharedForm,
 } from '../../src/internal/dialogs/PromoCodeDialogFields.vue';
 import { createSuperAdminI18n, SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 const mounted: { unmount: () => void }[] = [];
 afterEach(() => {

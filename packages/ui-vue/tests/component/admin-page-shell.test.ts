@@ -20,7 +20,7 @@ import { defineComponent, h } from 'vue';
 import AdminHero from '../../src/ui/page/AdminHero.vue';
 import AdminPage from '../../src/ui/page/AdminPage.vue';
 import AdminSection from '../../src/ui/page/AdminSection.vue';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 // Vite rewrites `import.meta.url` to an http:// URL in the transformed module,
 // so the package root has to come from the runner's cwd, which vitest sets to

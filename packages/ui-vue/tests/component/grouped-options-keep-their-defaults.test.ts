@@ -22,7 +22,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import PromoCodesPage from '../../src/pages/PromoCodesPage.vue';
 import TenantsPage from '../../src/pages/TenantsPage.vue';
 import { provideStubResources } from './support/stub-resources.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 const TENANT = {
     id: 't-1',

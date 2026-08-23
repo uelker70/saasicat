@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, test } from 'vitest';
 
 import DiscoveryPage from '../../src/pages/DiscoveryPage.vue';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { provideStubResources } from './support/stub-resources.js';
 
 const FEATURE = {

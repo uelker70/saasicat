@@ -9,7 +9,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import TenantDetailPage from '../../src/pages/TenantDetailPage.vue';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { provideStubResources } from './support/stub-resources.js';
 
 const mounted: { unmount: () => void }[] = [];

@@ -33,10 +33,18 @@ export default defineConfig([
         external: ['@saasicat/core', 'vue', 'vue-router', 'pinia', 'quasar'],
     },
     {
-        entry: { 'admin-pages-suite': 'src/testing/admin-pages-suite.ts' },
+        entry: {
+            'admin-pages-suite': 'src/testing/admin-pages-suite.ts',
+            // Two packages had a byte-identical copy of this, and a consumer
+            // testing a page they mounted needs the same one: `app.use(Quasar)`
+            // installs the plugin but registers no components, so without it
+            // every `q-*` stays an unresolved element and assertions pass or
+            // fail for reasons unrelated to the component under test.
+            'mount-with-quasar': 'src/testing/mount-with-quasar.ts',
+        },
         outDir: 'dist/testing',
         format: ['esm', 'cjs'],
         dts: true,
-        external: ['@playwright/test'],
+        external: ['@playwright/test', 'vue', 'quasar', '@vue/test-utils'],
     },
 ]);

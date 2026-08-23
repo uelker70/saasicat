@@ -11,7 +11,7 @@ import PromoCodeCreateDialog from '../../src/internal/dialogs/PromoCodeCreateDia
 import PromoCodeEditDialog from '../../src/internal/dialogs/PromoCodeEditDialog.vue';
 import { SA_MESSAGES } from '../../src/client/i18n/messages.js';
 import { SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 // QDialog teleports into `body`; without cleanup the next case reads what the
 // previous one left behind.

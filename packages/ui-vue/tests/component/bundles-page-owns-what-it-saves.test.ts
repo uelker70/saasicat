@@ -11,7 +11,7 @@ import {
     SUPER_ADMIN_ENDPOINTS_KEY,
     SUPER_ADMIN_HTTP_KEY,
 } from '../../src/vue/super-admin-context.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { provideStubResources } from './support/stub-resources.js';
 
 const BUNDLE = {
