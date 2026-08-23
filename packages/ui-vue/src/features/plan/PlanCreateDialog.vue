@@ -29,9 +29,9 @@
                 <div class="pcd-field">
                     <div class="pcd-field-label">{{ msg.createDialog.labelDisplayName }}</div>
                     <q-input
+                        v-model="form.label"
                         outlined
                         dense
-                        v-model="form.label"
                         :placeholder="msg.createDialog.placeholderDisplayName"
                     />
                     <div class="pcd-hint">{{ msg.createDialog.hintDisplayName }}</div>

@@ -7,12 +7,12 @@
         <template #actions>
             <div class="pd-panel-head-right">
                 <q-btn
+                    v-if="!draftVersion"
                     class="btn btn--sm primary"
                     flat
                     dense
                     no-caps
                     :label="newDraftButtonLabel"
-                    v-if="!draftVersion"
                     @click="$emit('createDraft')"
                 />
             </div>

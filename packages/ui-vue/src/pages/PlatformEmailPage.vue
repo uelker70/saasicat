@@ -3,12 +3,12 @@
         <AdminHero :title="resolvedTitle" :subtitle="msg.provider.subtitle">
             <template #actions>
                 <q-btn
+                    v-if="rows.length === 0"
                     unelevated
                     no-caps
                     color="primary"
                     icon="add"
                     :label="msg.sender"
-                    v-if="rows.length === 0"
                     @click="openCreate"
                 />
                 <AdminRefreshBtn :loading="loading" @refresh="reload" />

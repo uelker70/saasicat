@@ -2,10 +2,10 @@
     <span class="pd-title-edit">
         <template v-if="editing">
             <q-input
-                outlined
-                dense
                 ref="nameInput"
                 v-model="nameDraft"
+                outlined
+                dense
                 class="pd-title-edit__input"
                 :aria-label="msg.header.editNameAria"
                 @keydown.enter="commit"

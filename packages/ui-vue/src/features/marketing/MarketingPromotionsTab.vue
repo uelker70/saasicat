@@ -123,13 +123,13 @@
                         <label class="mc-promo-label">{{ common.type }}</label>
                         <div class="mc-promo-typegrid">
                             <q-btn
+                                v-for="t in typeOptions"
+                                :key="t.id"
                                 class="mc-promo-typeopt"
                                 flat
                                 dense
                                 no-caps
                                 :label="t.label"
-                                v-for="t in typeOptions"
-                                :key="t.id"
                                 :class="{ active: p.type === t.id }"
                                 @click="changeType(p, t.id)"
                             />
@@ -225,13 +225,13 @@
                         </label>
                         <div class="mc-promo-typegrid">
                             <q-btn
+                                v-for="c in cycleOptions"
+                                :key="c.id"
                                 class="mc-promo-typeopt"
                                 flat
                                 dense
                                 no-caps
                                 :label="c.label"
-                                v-for="c in cycleOptions"
-                                :key="c.id"
                                 :class="{ active: p.billingCycle === c.id }"
                                 @click="patch(p, { billingCycle: c.id })"
                             />

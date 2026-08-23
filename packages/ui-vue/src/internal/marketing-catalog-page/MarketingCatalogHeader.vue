@@ -38,13 +38,13 @@
                 />
                 <div v-if="localePickerOpen" class="sa-marketing-locale-picker">
                     <q-btn
+                        v-for="l in addableLocales"
+                        :key="l"
                         class="sa-marketing-locale-picker-row"
                         flat
                         dense
                         no-caps
                         :label="l.toUpperCase()"
-                        v-for="l in addableLocales"
-                        :key="l"
                         @click="$emit('addLocale', l)"
                     />
                 </div>

@@ -158,10 +158,10 @@
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <q-btn
+                                v-if="hasAnyPublished(p)"
                                 flat
                                 dense
                                 no-caps
-                                v-if="hasAnyPublished(p)"
                                 disable
                                 :title="msg.list.actionDeleteBlocked"
                             >
@@ -179,10 +179,10 @@
                                 </svg>
                             </q-btn>
                             <q-btn
+                                v-else
                                 flat
                                 no-caps
                                 color="negative"
-                                v-else
                                 :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
                             >
@@ -348,10 +348,10 @@
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <q-btn
+                                v-if="sub.publishedAt === null"
                                 flat
                                 no-caps
                                 color="negative"
-                                v-if="sub.publishedAt === null"
                                 :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
                             >
@@ -369,10 +369,10 @@
                                 </svg>
                             </q-btn>
                             <q-btn
+                                v-if="sub.publishedAt === null"
                                 flat
                                 dense
                                 no-caps
-                                v-if="sub.publishedAt === null"
                                 :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
                             >

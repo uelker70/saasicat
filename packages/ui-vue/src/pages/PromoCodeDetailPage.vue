@@ -23,12 +23,12 @@
             </template>
             <template #actions>
                 <q-btn
+                    v-if="data"
                     unelevated
                     no-caps
                     color="primary"
                     icon="edit"
                     :label="labels.edit"
-                    v-if="data"
                     @click="openEdit"
                 />
                 <slot name="header-actions" />

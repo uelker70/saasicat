@@ -70,12 +70,12 @@
             </template>
         </div>
         <q-btn
+            v-if="status === 'scheduled' || status === 'draft'"
             class="bv-status-discard"
             flat
             dense
             no-caps
             :label="common.discard"
-            v-if="status === 'scheduled' || status === 'draft'"
             :title="msg.statusBanner.discardTooltip"
             @click="$emit('discard')"
         />

@@ -59,12 +59,12 @@
                 <span>{{ msg.timeline.compareHint }}</span>
             </div>
             <q-btn
+                v-if="compareId"
                 class="sa-pv-timeline__clear-btn"
                 flat
                 dense
                 no-caps
                 :label="msg.compareEnd"
-                v-if="compareId"
                 @click="emit('clearCompare')"
             />
         </div>

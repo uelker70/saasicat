@@ -106,13 +106,13 @@
             <AdminField :label="msg.form.durationLabel">
                 <div class="pc-seg pc-seg--fill">
                     <q-btn
+                        v-for="o in durationOptions"
+                        :key="o.k"
                         class="pc-seg-opt"
                         flat
                         dense
                         no-caps
                         :label="o.label"
-                        v-for="o in durationOptions"
-                        :key="o.k"
                         :class="{ 'pc-seg-opt--active': form.durationType === o.k }"
                         @click="form.durationType = o.k"
                     />

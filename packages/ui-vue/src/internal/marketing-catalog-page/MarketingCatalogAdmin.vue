@@ -46,13 +46,13 @@
                             "
                         >
                             <q-btn
+                                v-for="v in row.publishedVersions"
+                                :key="v.id"
                                 class="sa-marketing-version-tab"
                                 flat
                                 dense
                                 no-caps
                                 :label="formatVersionTab(v)"
-                                v-for="v in row.publishedVersions"
-                                :key="v.id"
                                 role="tab"
                                 :class="{
                                     'sa-marketing-version-tab--active':

@@ -4,12 +4,12 @@
             <template #actions>
                 <slot name="head-options?.actions">
                     <q-btn
+                        v-if="options?.enableCreate"
                         unelevated
                         no-caps
                         color="primary"
                         icon="add"
                         :label="resolvedCreateLabel"
-                        v-if="options?.enableCreate"
                         @click="showCreate = true"
                     />
                 </slot>

@@ -46,12 +46,12 @@
             <template v-else-if="mode === 'cockpit' && selectedPlan" #actions>
                 <q-btn flat no-caps icon="arrow_back" :label="common.back" @click="onBackToList" />
                 <q-btn
+                    v-if="detailIsDeletable"
                     flat
                     no-caps
                     color="negative"
                     icon="delete_outline"
                     :label="planDetailMsg.header.deletePlan"
-                    v-if="detailIsDeletable"
                     :title="planDetailMsg.header.deletePlanTitle"
                     @click="onArchiveSelectedPlan"
                 />
@@ -63,21 +63,21 @@
                     @click="onCloneSelectedPlan"
                 />
                 <q-btn
+                    v-if="!detailDraftVersion"
                     unelevated
                     no-caps
                     color="primary"
                     icon="add"
                     :label="planDetailMsg.header.newDraftVersion"
-                    v-if="!detailDraftVersion"
                     @click="openCreateDraft"
                 />
                 <q-btn
+                    v-else
                     unelevated
                     no-caps
                     color="primary"
                     icon="bolt"
                     :label="publishDraftLabel"
-                    v-else
                     @click="openPublish(detailDraftVersion)"
                 />
             </template>

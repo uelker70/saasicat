@@ -32,9 +32,9 @@
                     <label class="bvpd__field">
                         <span>{{ msg.fields.validFrom }}</span>
                         <q-input
+                            v-model="validFromInput"
                             outlined
                             dense
-                            v-model="validFromInput"
                             class="bvpd__input"
                             type="date"
                         />
@@ -42,9 +42,9 @@
                     <label class="bvpd__field">
                         <span>{{ msg.fields.validUntil }}</span>
                         <q-input
+                            v-model="validUntilInput"
                             outlined
                             dense
-                            v-model="validUntilInput"
                             class="bvpd__input"
                             type="date"
                         />
