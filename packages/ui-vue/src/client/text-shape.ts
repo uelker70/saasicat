@@ -11,8 +11,9 @@
 
 /**
  * Whether `value` looks like an address: one `@`, something on either side,
- * a dot somewhere after the `@`, and no whitespace anywhere. The same
- * acceptance the old pattern had, stated in words a reader can check.
+ * a dot somewhere after the `@`, and no whitespace anywhere — whitespace as
+ * `\s` defines it, Unicode spaces included. The same acceptance the old
+ * pattern had, stated in words a reader can check.
  */
 export function looksLikeEmail(value: string): boolean {
     const at = value.indexOf('@');
@@ -21,10 +22,34 @@ export function looksLikeEmail(value: string): boolean {
     const dot = domain.indexOf('.');
     if (dot <= 0 || dot === domain.length - 1) return false;
     for (let i = 0; i < value.length; i += 1) {
-        const ch = value[i];
-        if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') return false;
+        if (isWhitespace(value[i])) return false;
     }
     return true;
+}
+
+/**
+ * What `\s` means: the ECMAScript WhiteSpace and LineTerminator sets, so a
+ * pasted non-breaking or ideographic space is refused the way the old
+ * pattern refused it. One character, one comparison each — still linear.
+ */
+function isWhitespace(ch: string): boolean {
+    return (
+        ch === ' ' ||
+        ch === '\t' ||
+        ch === '\n' ||
+        ch === '\r' ||
+        ch === '\v' ||
+        ch === '\f' ||
+        ch === '\u00a0' ||
+        ch === '\u1680' ||
+        (ch >= '\u2000' && ch <= '\u200a') ||
+        ch === '\u2028' ||
+        ch === '\u2029' ||
+        ch === '\u202f' ||
+        ch === '\u205f' ||
+        ch === '\u3000' ||
+        ch === '\ufeff'
+    );
 }
 
 /** `value` without any run of `ch` at either end — `trim()` for one character. */

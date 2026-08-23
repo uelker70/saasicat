@@ -26,6 +26,11 @@ describe('looksLikeEmail', () => {
             'a b@c.d',
             'a@b@c.d',
             'a@b.c\n',
+            // The Unicode spaces `\s` matches and four ASCII comparisons did not.
+            'a@b.c\u00a0',
+            'a\u2003@b.c',
+            'a@b.c\u3000',
+            '\ufeffa@b.c',
         ]) {
             assert.equal(looksLikeEmail(bad), false, JSON.stringify(bad));
         }
