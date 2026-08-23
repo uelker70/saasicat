@@ -43,9 +43,14 @@
                     role="alert"
                 >
                     <strong>{{ common.error }}:</strong> {{ pageError }}
-                    <button class="sa-marketing-banner-x" type="button" @click="pageError = null">
-                        ×
-                    </button>
+                    <q-btn
+                        class="sa-marketing-banner-x"
+                        flat
+                        dense
+                        size="sm"
+                        icon="close"
+                        @click="pageError = null"
+                    />
                 </div>
 
                 <MarketingCatalogToolbar

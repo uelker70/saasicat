@@ -27,13 +27,14 @@
                                         <div class="pm-plan-key">{{ p.planKey }}</div>
                                         <div class="pm-plan-label">{{ p.label }}</div>
                                     </div>
-                                    <button
+                                    <q-btn
                                         class="pm-kebab"
-                                        type="button"
+                                        flat
+                                        dense
+                                        size="sm"
+                                        icon="more_horiz"
                                         @click="$emit('openPlan', p.plan)"
-                                    >
-                                        ⋯
-                                    </button>
+                                    />
                                 </div>
                                 <div class="pm-plan-desc">{{ p.description || NBSP }}</div>
                                 <div class="pm-plan-divider" />

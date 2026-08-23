@@ -364,24 +364,24 @@
                                             @blur="$emit('persist-features', row)"
                                         />
                                         <div class="sa-marketing-tf-actions">
-                                            <button
-                                                type="button"
+                                            <q-btn
                                                 class="sa-marketing-iconbtn"
+                                                flat
+                                                dense
+                                                icon="arrow_upward"
                                                 :title="msg.admin.moveUp"
-                                                :disabled="i === 0 || busy"
+                                                :disable="i === 0 || busy"
                                                 @click="$emit('move-feature', row, i, -1)"
-                                            >
-                                                ▲
-                                            </button>
-                                            <button
-                                                type="button"
+                                            />
+                                            <q-btn
                                                 class="sa-marketing-iconbtn"
+                                                flat
+                                                dense
+                                                icon="arrow_downward"
                                                 :title="msg.admin.moveDown"
-                                                :disabled="i === editFeatures.length - 1 || busy"
+                                                :disable="i === editFeatures.length - 1 || busy"
                                                 @click="$emit('move-feature', row, i, 1)"
-                                            >
-                                                ▼
-                                            </button>
+                                            />
                                             <q-btn
                                                 class="sa-marketing-iconbtn"
                                                 flat
@@ -428,12 +428,15 @@
                                         <span class="sa-marketing-expand-hint">
                                             {{ msg.admin.suggestionsLabel }}
                                         </span>
-                                        <button
+                                        <q-btn
                                             v-for="(s, i) in suggestionsFor(row)"
                                             :key="i"
-                                            type="button"
                                             class="sa-marketing-tf-chip"
-                                            :disabled="busy"
+                                            flat
+                                            dense
+                                            no-caps
+                                            icon="add"
+                                            :disable="busy"
                                             :title="
                                                 formatMessage(msg.admin.addSuggestionTitle, {
                                                     label: s.label,
@@ -441,19 +444,9 @@
                                             "
                                             @click="$emit('add-suggestion', row, s)"
                                         >
-                                            <svg
-                                                width="11"
-                                                height="11"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width="2.5"
-                                            >
-                                                <path d="M12 5v14M5 12h14" />
-                                            </svg>
                                             <span>{{ s.label }}</span>
                                             <em v-if="s.strong">· {{ s.strong }}</em>
-                                        </button>
+                                        </q-btn>
                                     </div>
                                 </div>
                             </div>

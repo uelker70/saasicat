@@ -329,9 +329,15 @@
                             />
                         </div>
 
-                        <button class="mc-promo-delete" type="button" @click="onRemove(p)">
-                            {{ msg.promotionsTab.delete }}
-                        </button>
+                        <q-btn
+                            class="mc-promo-delete"
+                            flat
+                            dense
+                            no-caps
+                            color="negative"
+                            :label="msg.promotionsTab.delete"
+                            @click="onRemove(p)"
+                        />
                     </div>
                 </div>
             </AdminAccordion>

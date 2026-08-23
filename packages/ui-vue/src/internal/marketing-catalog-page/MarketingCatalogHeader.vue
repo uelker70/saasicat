@@ -16,15 +16,16 @@
                     {{ loc.toUpperCase() }}
                     <span v-if="loc === defaultLocale" :title="msg.header.defaultLocale">★</span>
                 </button>
-                <button
+                <q-btn
                     v-if="loc !== defaultLocale"
-                    type="button"
+                    flat
+                    dense
+                    size="sm"
+                    icon="close"
                     class="sa-marketing-locale-x"
                     :title="msg.header.deactivateLocale"
                     @click="$emit('removeLocale', loc)"
-                >
-                    ×
-                </button>
+                />
             </span>
             <div class="sa-marketing-locale-add-wrap">
                 <q-btn

@@ -16,16 +16,17 @@
         </template>
         <template v-else>
             {{ plan.label }}
-            <button
+            <q-btn
                 v-if="editable"
                 class="pd-title-edit__btn"
-                type="button"
+                flat
+                dense
+                icon="edit"
+                size="sm"
                 :title="msg.header.editNameTitle"
                 :aria-label="msg.header.editNameAria"
                 @click="start"
-            >
-                <q-icon name="edit" size="15px" />
-            </button>
+            />
         </template>
     </span>
 </template>
