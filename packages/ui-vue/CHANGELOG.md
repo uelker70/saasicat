@@ -1,5 +1,22 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.3
+
+### Patch Changes
+
+- 08d1f52: **"Weiter · Review" reaches the review again.** The plan editor navigated to `/admin/plans/review`
+  while the standard route table registers `plans/version/review`, so step 2 → 3 of the plan wizard
+  landed on the manifest catch-all in every consumer app. The editor pushes the registered path now,
+  and a test reads every `router.push` target out of the plan pages and refuses one the route table
+  does not know.
+- b1aa10e: **`runAdminPagesSuite` finds the dashboard distributions again.** Phase 4 replaced the dashboard's
+  hand-rolled distribution rows with `AdminSection`, and the shipped Playwright suite kept asking
+  for the old `.sa-dashboard__row-head h2` — so every consumer with `expectedDistributionTitles`
+  failed the dashboard test against 1.0 with "Distribution '…' missing" while the page rendered it.
+  The selector is one exported constant now, and a component test asks the suite's question of the
+  mounted page, so the two cannot drift apart unseen again.
+    - @saasicat/core@1.0.0-rc.3
+
 ## 1.0.0-rc.2
 
 ### Patch Changes

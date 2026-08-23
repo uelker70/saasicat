@@ -1,5 +1,11 @@
 # @saasicat/persistence-testing
 
+## 1.0.0-rc.3
+
+### Patch Changes
+
+- @saasicat/core@1.0.0-rc.3
+
 ## 1.0.0-rc.2
 
 ### Patch Changes

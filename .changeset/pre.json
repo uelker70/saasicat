@@ -23,6 +23,8 @@
     "one-name-per-thing",
     "one-surface-for-the-admin-ui",
     "pages-read-their-own-data",
+    "review-step-has-a-route",
+    "suite-finds-the-distributions",
     "the-primitive-roster-and-its-consumers"
   ]
 }
