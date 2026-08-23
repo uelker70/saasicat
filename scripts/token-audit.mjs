@@ -116,7 +116,7 @@ const CSS_WIDE_KEYWORDS = new Set(['inherit', 'initial', 'unset', 'revert', 'rev
 const isCssWideKeyword = (value) =>
     CSS_WIDE_KEYWORDS.has(
         value
-            .replace(/\s*!\s*important\s*$/i, '')
+            .replace(/!\s*important\s*$/i, '')
             .trim()
             .toLowerCase(),
     );
@@ -310,7 +310,15 @@ const NAMED_COLOUR_WORDS = [
     'whitesmoke',
     'yellow',
     'yellowgreen',
-].join('|');
+];
+const NAMED_COLOUR_SET = new Set(NAMED_COLOUR_WORDS);
+
+/** The maximal `[\w-]` runs of a text — what `(?<![\w-])…(?![\w-])` used to bound. */
+const wordsOf = (text) => text.match(/[\w-]+/g) ?? [];
+
+/** Whether a value carries a named colour as a whole word, ASCII case-insensitively. */
+const hasNamedColourWord = (value) =>
+    wordsOf(value).some((word) => NAMED_COLOUR_SET.has(word.toLowerCase()));
 
 /**
  * Properties where a colour WORD is an identifier rather than a colour.
@@ -397,11 +405,13 @@ const CATEGORIES = {
     // Group 1 is the PROPERTY and group 2 the value, because the property is
     // filtered against `NON_PAINT_PROPERTIES` rather than matched against a
     // list of paint ones — see there for why the list had to be inverted.
-    namedColor: new RegExp(
-        `(?:^|[;{])\\s*([-\\w]+)\\s*:\\s*` +
-            `([^;}\\n]*(?<![\\w-])(?:${NAMED_COLOUR_WORDS})(?![\\w-])[^;}\\n]*)`,
-        'gi',
-    ),
+    //
+    // Every declaration, through a lookahead so the match consumes nothing
+    // but its lead character: a declaration can then never hide inside the
+    // value of the one before it. Whether the value holds a colour word is
+    // asked in `namedColourValue`, as data — a word list welded into a
+    // pattern was what kept this file on the regex ratchet.
+    namedColor: /(?:^|[;{])(?=\s*([-\w]+)\s*:([^;}\n]*))/gi,
     pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/gi,
     // Filled by the declaration pass; see SCALE_PROPERTY below.
     scalePixel: /(?!)/g,
@@ -483,7 +493,8 @@ const COLOUR_CATEGORIES = new Set(
 function namedColourValue(match) {
     const property = (match[1] ?? '').trim().toLowerCase();
     if (NON_PAINT_PROPERTIES.has(property)) return null;
-    return (match[2] ?? '').trim();
+    const value = (match[2] ?? '').trim();
+    return hasNamedColourWord(value) ? value : null;
 }
 
 /**
@@ -589,11 +600,13 @@ export const QUASAR_PALETTE_NAMES = [
  * about the class rather than a use of it. The first is handled by requiring a
  * word boundary that is not `-`, the second by only ever running this over a
  * template's `class` attributes.
+ *
+ * The pattern reads the shape — a hyphenated name and an optional shade — and
+ * group 1 is looked up in the palette afterwards. A match it consumes always
+ * ends at a word boundary, so a later palette name can never start inside it.
  */
-const QUASAR_COLOUR_CLASS = new RegExp(
-    `(?<![\\w-])(?:text|bg)-(?:${QUASAR_PALETTE_NAMES.join('|')})(?:-\\d{1,2})?(?![\\w-])`,
-    'g',
-);
+const QUASAR_COLOUR_CLASS = /(?<![\w-])(?:text|bg)-([a-z]+(?:-[a-z]+)*)(?:-\d{1,2})?(?![\w-])/g;
+const QUASAR_PALETTE_SET = new Set(QUASAR_PALETTE_NAMES);
 
 /**
  * The props that take a palette name.
@@ -694,11 +707,13 @@ export const isQuasarComponent = (tag) => hyphenate(tag).startsWith('q-');
  * other — so the alternation is safe unordered and `blue-grey-7` cannot be read
  * as `blue`.
  */
-const QUASAR_PALETTE_VALUE = new RegExp(`^(?:${QUASAR_PALETTE_NAMES.join('|')})(?:-\\d{1,2})?$`);
-const QUOTED_PALETTE_VALUE = new RegExp(
-    `(['"\`])\\s*((?:${QUASAR_PALETTE_NAMES.join('|')})(?:-\\d{1,2})?)\\s*\\1`,
-    'g',
-);
+const PALETTE_VALUE_SHAPE = /^([a-z]+(?:-[a-z]+)*)(?:-\d{1,2})?$/;
+const isQuasarPaletteValue = (value) => {
+    const shape = PALETTE_VALUE_SHAPE.exec(value);
+    return shape !== null && QUASAR_PALETTE_SET.has(shape[1]);
+};
+// Sticky, for `scanAccepted`: group 2 is the name, group 3 the shade.
+const QUOTED_PALETTE_VALUE = /(['"`])\s*([a-z]+(?:-[a-z]+)*)((?:-\d{1,2})?)\s*\1/y;
 
 /**
  * Vue's `Namespaces.SVG`. The parser tracks it, so nothing here has to.
@@ -746,8 +761,34 @@ const URL_FRAGMENT = /url\([^)]*\)/gi;
  * static attribute IS the colour, a bound one is JavaScript that may contain it
  * as a string.
  */
-const BARE_NAMED_COLOUR = new RegExp(`^\\s*(?:${NAMED_COLOUR_WORDS})\\s*$`, 'i');
-const QUOTED_NAMED_COLOUR = new RegExp(`(['"\`])\\s*(?:${NAMED_COLOUR_WORDS})\\s*\\1`, 'gi');
+const isBareNamedColour = (value) => NAMED_COLOUR_SET.has(value.trim().toLowerCase());
+// Sticky, for `scanAccepted`: group 2 is the word.
+const QUOTED_NAMED_COLOUR = /(['"`])\s*([a-z]+)\s*\1/iy;
+const isQuotedNamedColour = (match) => NAMED_COLOUR_SET.has(match[2].toLowerCase());
+
+/**
+ * Every match of a sticky `pattern` that `accept` keeps, advancing the way a
+ * global scan does: past an accepted match, one character past anything else.
+ *
+ * This is what lets a word list live in a Set instead of in the pattern. A
+ * global pattern that matched the shape of a quoted word and was filtered
+ * afterwards would have consumed the rejected ones too, and with them any
+ * closing quote that opened the next; scanning by hand keeps the two readings
+ * identical.
+ */
+function* scanAccepted(text, pattern, accept) {
+    let at = 0;
+    while (at < text.length) {
+        pattern.lastIndex = at;
+        const match = pattern.exec(text);
+        if (match === null || !accept(match)) {
+            at += 1;
+            continue;
+        }
+        yield match;
+        at = match.index + Math.max(match[0].length, 1);
+    }
+}
 
 /**
  * A colour tint built by gluing two hex digits onto a colour: `accent + '15'`,
@@ -1136,13 +1177,17 @@ export function inlineStyleFragments(file, content) {
  * was real and is fixed; see `pathContinuesAt`.
  */
 
-/** A member path, so a name is matched whole rather than from its last part. */
-const NAME_PATH = '[A-Za-z_$][\\w$]*(?:(?:\\?\\.|!\\.|\\.)[A-Za-z_$][\\w$]*)*';
-const COMPARED_STRING = new RegExp(
-    `(?<left>${NAME_PATH})\\s*\\)*\\s*[=!]==?\\s*\\(*\\s*(?<lit>(['"\`])(?:(?!\\3)[^\\n])*\\3)` +
-        `|(?<lit2>(['"\`])(?:(?!\\5)[^\\n])*\\5)\\s*\\)*\\s*[=!]==?\\s*\\(*\\s*(?<right>${NAME_PATH})`,
-    'g',
-);
+/**
+ * `<member path> === '…'` and its mirror image.
+ *
+ * The member path — `[A-Za-z_$][\w$]*` joined by `.`, `?.` or `!.` — appears
+ * twice, once per side, so a name is matched whole rather than from its last
+ * part. It is anchored on a character no path contains, which is also what
+ * keeps the scan linear: without the anchor every position inside a long name
+ * was a fresh attempt at the same comparison.
+ */
+const COMPARED_STRING =
+    /(?<![\w$])(?<left>[A-Za-z_$][\w$]*(?:(?:\?\.|!\.|\.)[A-Za-z_$][\w$]*)*)\s*(?:\)+\s*)?[=!]==?\s*(?:\(+\s*)?(?<lit>(['"`])(?:(?!\3)[^\n])*\3)|(?<lit2>(['"`])(?:(?!\5)[^\n])*\5)\s*(?:\)+\s*)?[=!]==?\s*(?:\(+\s*)?(?<right>[A-Za-z_$][\w$]*(?:(?:\?\.|!\.|\.)[A-Za-z_$][\w$]*)*)/g;
 
 /**
  * The alphabet a member path is written in.
@@ -1269,6 +1314,7 @@ export function templateColourClasses(file, content) {
             ),
         );
         for (const match of text.matchAll(QUASAR_COLOUR_CLASS)) {
+            if (!QUASAR_PALETTE_SET.has(match[1])) continue;
             sites.push({ line: line + lineOf(text, match.index) - 1, value: match[0] });
         }
     }
@@ -1309,7 +1355,7 @@ export function templatePaletteProps(file, content) {
         if (!isQuasarPaletteAttribute(name)) continue;
         if (isStatic) {
             const trimmed = value.trim();
-            if (QUASAR_PALETTE_VALUE.test(trimmed)) sites.push({ line, value: trimmed });
+            if (isQuasarPaletteValue(trimmed)) sites.push({ line, value: trimmed });
             continue;
         }
         // A bound value is JavaScript and can carry a `//` comment; the idiom
@@ -1322,8 +1368,9 @@ export function templatePaletteProps(file, content) {
                 (m, lead) => lead + ' '.repeat(m.length - lead.length),
             ),
         );
-        for (const match of text.matchAll(QUOTED_PALETTE_VALUE)) {
-            sites.push({ line: line + lineOf(text, match.index) - 1, value: match[2] });
+        const isPalette = (match) => QUASAR_PALETTE_SET.has(match[2]);
+        for (const match of scanAccepted(text, QUOTED_PALETTE_VALUE, isPalette)) {
+            sites.push({ line: line + lineOf(text, match.index) - 1, value: match[2] + match[3] });
         }
     }
     return sites.sort((a, b) => a.line - b.line);
@@ -1383,10 +1430,10 @@ export function templateColourSites(file, content) {
         // Every other paint attribute holds the colour on its own.
         if (attribute === 'style') continue;
         if (isStatic) {
-            if (BARE_NAMED_COLOUR.test(paint)) sites.push({ line, value: paint.trim() });
+            if (isBareNamedColour(paint)) sites.push({ line, value: paint.trim() });
             continue;
         }
-        for (const match of paint.matchAll(QUOTED_NAMED_COLOUR)) {
+        for (const match of scanAccepted(paint, QUOTED_NAMED_COLOUR, isQuotedNamedColour)) {
             sites.push({ line: at(line, paint, match.index), value: match[0] });
         }
     }
@@ -1437,7 +1484,7 @@ export function audit(root = UI_SRC) {
         if (!isTokenDefinition) {
             const script = scriptSource(file, content)
                 .replace(/\/\*[\s\S]*?\*\//g, '')
-                .replace(/^\s*\/\/.*$/gm, '');
+                .replace(/^[ \t]*\/\/.*$/gm, '');
             if (file !== SCRIPT_PALETTE_FILE) {
                 for (const match of script.matchAll(CATEGORIES.hexColor)) {
                     findings.scriptColor.push({ file: rel, line: 0, value: match[0] });

@@ -926,3 +926,23 @@ describe('a Quasar palette prop is the same colour decision', () => {
         assert.equal(only.line, 4);
     });
 });
+
+describe('the vocabulary is data, the pattern is the shape', () => {
+    // The palette and the colour words used to be welded into the patterns.
+    // Now a pattern reads the shape and a Set answers the name, so the two
+    // halves of each question get their own refusal.
+    test('a prop in palette shape but not in the palette is not counted', () => {
+        assert.deepEqual(props('<q-btn color="brand-7" /><q-icon color="grey-7" />'), ['grey-7']);
+    });
+
+    test('a rejected quoted word does not swallow the accepted one after it', () => {
+        assert.deepEqual(props(`<q-btn :color="ok ? 'brand' : 'grey-7'" />`), ['grey-7']);
+        assert.deepEqual(values(`<svg><path :fill="ok ? 'brand' : 'red'" /></svg>`), ["'red'"]);
+    });
+
+    test('named colours are ASCII case-insensitive, as CSS keywords are', () => {
+        assert.deepEqual(values('<svg><path fill="RED" /></svg>'), ['RED']);
+        assert.deepEqual(values(`<svg><path :fill="x ? 'Red' : ''" /></svg>`), ["'Red'"]);
+        assert.deepEqual(values('<i style="color: WHITE" />'), ['WHITE']);
+    });
+});

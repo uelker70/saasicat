@@ -55,7 +55,6 @@
         "packages/ui-vue/tests/theme-role-contrast.test.js",
         "packages/ui-vue/tests/theme-token-parity.test.js",
         "packages/ui-vue/tests/use-resource-list.test.js",
-        "scripts/token-audit.mjs",
         "tests/dist-is-self-contained.test.js",
         "tests/docs-links-resolve.test.js",
         "tests/pre-release-mode-is-documented.test.js",
