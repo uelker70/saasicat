@@ -115,6 +115,24 @@ on `createSuperAdminApp()` is the seam for the one call you want diverted. The
 4. **A `file:` override that points into this repository** — the package directories are their
    npm names now (`packages/nest`, not `packages/saas-platform-nest`). The codemod does not scan
    `package.json`; update the path by hand.
+5. **A feature guard of your own.** With `globalFeatureGuard: false`, 1.0 refuses to boot when a
+   `@RequireFeature` route has no feature guard in front of it — and it recognises a guard only by
+   `FEATURE_GUARD_MARKER`, which `StaticFeatureGuard` and `FeatureGuard` carry. A guard you wrote
+   yourself enforces the annotation just as well and is still reported, route by route. Mark it:
+
+    ```ts
+    import { FEATURE_GUARD_MARKER } from '@saasicat/nest';
+
+    @Injectable()
+    export class FeatureGuard implements CanActivate {
+        static readonly [FEATURE_GUARD_MARKER] = true;
+        // …
+    }
+    ```
+
+    Only a guard that really enforces `@RequireFeature` may carry the marker: it is the claim the
+    check trusts. A guard bound globally as an `APP_GUARD` is the other shape the check cannot see;
+    there, `enforcementChainCheck: false` turns the check off and nothing else.
 
 ## Order for a workspace with several apps
 
