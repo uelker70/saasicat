@@ -14,10 +14,14 @@
         >
             <template #prepend><q-icon name="translate" size="18px" /></template>
         </q-select>
-        <button class="sa-btn sa-btn--primary" type="button" @click="emit('create')">
-            <q-icon name="add" size="16px" />
-            <span>{{ msg.header.newBundle }}</span>
-        </button>
+        <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            icon="add"
+            :label="msg.header.newBundle"
+            @click="emit('create')"
+        />
         <AdminRefreshBtn :loading="loading" @refresh="emit('refresh')" />
     </div>
 </template>

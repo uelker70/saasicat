@@ -7,33 +7,31 @@
                 {{ msg.review.subtitleTail }}
             </template>
             <template #actions>
-                <button
-                    class="sa-btn"
-                    type="button"
-                    :disabled="publishing || saving"
+                <q-btn
+                    flat
+                    no-caps
+                    icon="arrow_back"
+                    :label="common.back"
+                    :disable="publishing || saving"
                     @click="$emit('back')"
-                >
-                    <q-icon name="arrow_back" size="16px" />
-                    <span>{{ common.back }}</span>
-                </button>
-                <button
-                    class="sa-btn"
-                    type="button"
-                    :disabled="publishing || saving"
+                />
+                <q-btn
+                    flat
+                    no-caps
+                    :label="saving ? msg.review.saving : msg.review.saveAsDraft"
+                    :disable="publishing || saving"
                     @click="$emit('saveAndExit')"
-                >
-                    <span>{{ saving ? msg.review.saving : msg.review.saveAsDraft }}</span>
-                </button>
-                <button
-                    class="sa-btn sa-btn--primary"
-                    type="button"
-                    :disabled="!canPublish || publishing || saving"
+                />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="bolt"
+                    :label="publishing ? msg.review.publishing : publishLabel"
+                    :disable="!canPublish || publishing || saving"
                     :title="canPublish ? undefined : msg.review.publishBlocked"
                     @click="onPublish"
-                >
-                    <q-icon name="bolt" size="16px" />
-                    <span>{{ publishing ? msg.review.publishing : publishLabel }}</span>
-                </button>
+                />
             </template>
         </AdminHero>
 

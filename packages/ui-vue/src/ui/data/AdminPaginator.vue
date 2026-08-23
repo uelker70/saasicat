@@ -13,20 +13,22 @@
             @update:model-value="onSizeChange"
         />
 
-        <button
+        <q-btn
+            flat
+            dense
             class="sa-paginator__step"
-            type="button"
-            :disabled="page <= 1"
+            icon="chevron_left"
+            :disable="page <= 1"
             :aria-label="msg.paginator.previous"
             @click="goTo(page - 1)"
-        >
-            <q-icon name="chevron_left" size="18px" />
-        </button>
+        />
 
-        <input
+        <q-input
             v-if="editing"
             ref="pageInput"
             v-model="draft"
+            outlined
+            dense
             class="sa-paginator__input"
             type="number"
             inputmode="numeric"
@@ -37,25 +39,26 @@
             @keydown.escape="cancel"
             @blur="commit"
         />
-        <button
+        <q-btn
             v-else
+            flat
+            dense
+            no-caps
             class="sa-paginator__page"
-            type="button"
-            :disabled="pageCount <= 1"
+            :label="pageLabel"
+            :disable="pageCount <= 1"
             @click="startEdit"
-        >
-            {{ pageLabel }}
-        </button>
+        />
 
-        <button
+        <q-btn
+            flat
+            dense
             class="sa-paginator__step"
-            type="button"
-            :disabled="page >= pageCount"
+            icon="chevron_right"
+            :disable="page >= pageCount"
             :aria-label="msg.paginator.next"
             @click="goTo(page + 1)"
-        >
-            <q-icon name="chevron_right" size="18px" />
-        </button>
+        />
     </nav>
 </template>
 
@@ -174,7 +177,14 @@ onMounted(() => {
 
 const editing = ref(false);
 const draft = ref('');
-const pageInput = ref<HTMLInputElement | null>(null);
+/**
+ * The `q-input` itself, not the element inside it.
+ *
+ * `select()` belongs to the native field, which the component owns — asking the
+ * component for it (`select()`) keeps this from reaching through the wrapper
+ * and breaking when the wrapper changes.
+ */
+const pageInput = ref<{ select: () => void } | null>(null);
 
 function startEdit(): void {
     draft.value = String(props.page);

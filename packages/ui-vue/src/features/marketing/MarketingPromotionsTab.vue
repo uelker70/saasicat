@@ -17,9 +17,14 @@
                     {{ counts.expired }} {{ msg.promotionsTab.statusExpired }}
                 </span>
             </div>
-            <button class="sa-btn sa-btn--primary" type="button" :disabled="busy" @click="onAdd">
-                {{ msg.promotionsTab.add }}
-            </button>
+            <q-btn
+                unelevated
+                no-caps
+                color="primary"
+                :label="msg.promotionsTab.add"
+                :disable="busy"
+                @click="onAdd"
+            />
         </div>
 
         <!-- Timeline -->

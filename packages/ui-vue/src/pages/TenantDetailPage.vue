@@ -13,10 +13,7 @@
                 card rather than on the tenant.
             -->
             <template #actions>
-                <button class="sa-btn" type="button" @click="goBack">
-                    <q-icon name="arrow_back" size="16px" />
-                    <span>{{ labels.back }}</span>
-                </button>
+                <q-btn flat no-caps icon="arrow_back" :label="labels.back" @click="goBack" />
                 <button
                     v-for="action in manifestActions"
                     :key="action.def.id"

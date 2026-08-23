@@ -13,29 +13,25 @@
             {{ msg.header.supersedeNoteAfter }}
         </template>
         <template #actions>
-            <button
-                class="sa-btn"
-                type="button"
-                :disabled="!hasPredecessor"
+            <q-btn
+                flat
+                no-caps
+                icon="visibility"
+                :label="msg.header.diffButton"
+                :disable="!hasPredecessor"
                 :title="hasPredecessor ? undefined : msg.header.noPredecessorHint"
                 @click="$emit('showDiff')"
-            >
-                <q-icon name="visibility" size="16px" />
-                <span>{{ msg.header.diffButton }}</span>
-            </button>
-            <button class="sa-btn" type="button" @click="$emit('cancel')">
-                <q-icon name="arrow_back" size="16px" />
-                <span>{{ common.back }}</span>
-            </button>
-            <button
-                class="sa-btn sa-btn--primary"
-                type="button"
-                :disabled="!canSave"
+            />
+            <q-btn flat no-caps icon="arrow_back" :label="common.back" @click="$emit('cancel')" />
+            <q-btn
+                unelevated
+                no-caps
+                color="primary"
+                icon="arrow_forward"
+                :label="msg.header.saveButton"
+                :disable="!canSave"
                 @click="$emit('save')"
-            >
-                <span>{{ msg.header.saveButton }}</span>
-                <q-icon name="arrow_forward" size="16px" />
-            </button>
+            />
         </template>
     </AdminHero>
 </template>

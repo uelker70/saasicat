@@ -10,62 +10,76 @@
             </template>
 
             <template v-if="mode === 'list'" #actions>
-                <button class="sa-btn" type="button" @click="mode = 'matrix'">
-                    <q-icon name="grid_view" size="16px" />
-                    <span>{{ msg.list.matrixView }}</span>
-                </button>
-                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
-                    <q-icon name="add" size="16px" />
-                    <span>{{ msg.list.newPlan }}</span>
-                </button>
+                <q-btn
+                    flat
+                    no-caps
+                    icon="grid_view"
+                    :label="msg.list.matrixView"
+                    @click="mode = 'matrix'"
+                />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="add"
+                    :label="msg.list.newPlan"
+                    @click="openCreate"
+                />
             </template>
             <template v-else-if="mode === 'matrix'" #actions>
-                <button class="sa-btn" type="button" @click="mode = 'list'">
-                    <q-icon name="storefront" size="16px" />
-                    <span>{{ msg.matrix.catalogPreview }}</span>
-                </button>
-                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
-                    <q-icon name="add" size="16px" />
-                    <span>{{ msg.matrix.createPlan }}</span>
-                </button>
+                <q-btn
+                    flat
+                    no-caps
+                    icon="storefront"
+                    :label="msg.matrix.catalogPreview"
+                    @click="mode = 'list'"
+                />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="add"
+                    :label="msg.matrix.createPlan"
+                    @click="openCreate"
+                />
             </template>
             <template v-else-if="mode === 'cockpit' && selectedPlan" #actions>
-                <button class="sa-btn" type="button" @click="onBackToList">
-                    <q-icon name="arrow_back" size="16px" />
-                    <span>{{ common.back }}</span>
-                </button>
-                <button
+                <q-btn flat no-caps icon="arrow_back" :label="common.back" @click="onBackToList" />
+                <q-btn
+                    flat
+                    no-caps
+                    color="negative"
+                    icon="delete_outline"
+                    :label="planDetailMsg.header.deletePlan"
                     v-if="detailIsDeletable"
-                    class="sa-btn sa-btn--danger"
-                    type="button"
                     :title="planDetailMsg.header.deletePlanTitle"
                     @click="onArchiveSelectedPlan"
-                >
-                    <q-icon name="delete_outline" size="16px" />
-                    <span>{{ planDetailMsg.header.deletePlan }}</span>
-                </button>
-                <button class="sa-btn" type="button" @click="onCloneSelectedPlan">
-                    <q-icon name="content_copy" size="16px" />
-                    <span>{{ planDetailMsg.header.clonePlan }}</span>
-                </button>
-                <button
+                />
+                <q-btn
+                    flat
+                    no-caps
+                    icon="content_copy"
+                    :label="planDetailMsg.header.clonePlan"
+                    @click="onCloneSelectedPlan"
+                />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="add"
+                    :label="planDetailMsg.header.newDraftVersion"
                     v-if="!detailDraftVersion"
-                    class="sa-btn sa-btn--primary"
-                    type="button"
                     @click="openCreateDraft"
-                >
-                    <q-icon name="add" size="16px" />
-                    <span>{{ planDetailMsg.header.newDraftVersion }}</span>
-                </button>
-                <button
+                />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="bolt"
+                    :label="publishDraftLabel"
                     v-else
-                    class="sa-btn sa-btn--primary"
-                    type="button"
                     @click="openPublish(detailDraftVersion)"
-                >
-                    <q-icon name="bolt" size="16px" />
-                    <span>{{ publishDraftLabel }}</span>
-                </button>
+                />
             </template>
         </AdminHero>
 

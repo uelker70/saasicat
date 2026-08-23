@@ -6,15 +6,15 @@
         >
             <template #actions>
                 <slot name="head-options?.actions">
-                    <button
+                    <q-btn
+                        unelevated
+                        no-caps
+                        color="primary"
+                        icon="add"
+                        :label="resolvedCreateLabel"
                         v-if="options?.enableCreate"
-                        class="sa-btn sa-btn--primary"
-                        type="button"
                         @click="showCreate = true"
-                    >
-                        <q-icon name="add" size="16px" />
-                        <span>{{ resolvedCreateLabel }}</span>
-                    </button>
+                    />
                 </slot>
             </template>
         </AdminHero>
