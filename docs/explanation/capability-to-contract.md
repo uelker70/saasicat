@@ -90,9 +90,9 @@ with ready-made NestJS modules, PostgreSQL adapters and a Vue SuperAdmin UI.
 
 ## See the loop running
 
-The [NotesApp example](../examples/notesapp/) declares `notes.create` and
+The [NotesApp example](../../examples/notesapp/) declares `notes.create` and
 `notes.export`, discovers both at boot, packages them into Starter and Pro,
 and demonstrates allowed, feature-blocked and quota-blocked requests.
 
-Continue with the [quickstart](quickstart.md) to add the same flow to an
+Continue with the [quickstart](../quickstart.md) to add the same flow to an
 existing multi-tenant NestJS application.

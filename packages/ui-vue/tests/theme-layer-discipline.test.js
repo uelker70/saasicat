@@ -91,7 +91,7 @@ const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
  *
  * A CSS property name is ASCII case-insensitive, so `FONT-SIZE: 22px` sets the
  * same thing `font-size: 22px` does. Without the `i` flag it slipped past the
- * rule below, while `docs/design-guide.md` published that rule as "no
+ * rule below, while `docs/explanation/design-guide.md` published that rule as "no
  * `font-size:` declaration in the package names a number" — a guard with a hole
  * and a sentence about it, which is the combination this file keeps paying for.
  *

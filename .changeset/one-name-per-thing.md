@@ -14,7 +14,7 @@
 **One name for everything — and a codemod that applies it.** Phase 5 of the 1.0 cut.
 
 `npx @saasicat/cli@latest codemod v1 --dir=.` does the surface cut from the previous
-candidates and everything below in one run. `docs/migrating-to-1.0.md` is the written
+candidates and everything below in one run. `docs/guides/upgrade-to-1.0.md` is the written
 form, with before/after for each change.
 
 **`SaasPlatformModule` is gone; `SaaSiCatModule` is the class**, not an alias of it.

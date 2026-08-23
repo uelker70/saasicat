@@ -65,7 +65,7 @@ If you inject through the exported constants (`MFA_PORT_TOKEN`, `SUPER_ADMIN_HTT
 nothing changes for you. If you wrote a key string yourself — `Symbol.for('saas-platform/MfaPort')`
 in your own provider — the codemod rewrites it; left alone, that injection would resolve to
 nothing at boot. The keys will not be renamed again: see the `Symbol.for` section of
-[CONTRIBUTING.md](../CONTRIBUTING.md).
+[CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ### One token that meant two things
 

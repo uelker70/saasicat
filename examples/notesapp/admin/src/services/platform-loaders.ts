@@ -1,6 +1,6 @@
 // BootLoader + ManifestLoader built from the same endpoint constant that
 // `main.ts` passes to `createSuperAdminApp()` — endpoints live in exactly
-// one place (handbook §8.1).
+// one place (docs/guides/build-the-admin-frontend.md, "Platform Loaders").
 
 import { createPlatformLoaders, type SuperAdminEndpoints } from '@saasicat/ui-vue';
 import { platformHttp } from './http';

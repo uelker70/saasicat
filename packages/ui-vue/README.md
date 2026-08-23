@@ -125,7 +125,8 @@ pnpm create saasicat-admin admin --project-key=myapp
 ```
 
 See the [quickstart](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md) (step 9) for the full setup
-and the [handbook](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md) for the architecture.
+and the [architecture](https://github.com/uelker70/saasicat/blob/main/docs/explanation/architecture.md)
+for how the pieces fit.
 
 ## Language
 
@@ -145,7 +146,7 @@ own call: `i18n.locales` narrows the set, `i18n.additionalLocales` adds
 languages the platform does not ship, `i18n.overrides` replaces individual
 strings, and `i18n.switcher: false` drops the control entirely. Components read
 the catalog via `useSaMessages('<namespace>')` / `useSuperAdminI18n()`.
-See [handbook §8.7](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md#87-ui-language-i18n).
+See [UI language](https://github.com/uelker70/saasicat/blob/main/docs/guides/build-the-admin-frontend.md#ui-language-i18n).
 
 ## Build
 

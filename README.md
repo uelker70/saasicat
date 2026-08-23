@@ -25,7 +25,7 @@ HTTP stack.
 | **4. Contract**    | Checkout freezes the selected offer into an immutable customer contract. Later catalog edits do not rewrite what was sold. |
 | **5. Enforcement** | `@RequireFeature(...)` and `@EnforceQuota(...)` apply the active contract at runtime with structured, predictable errors.  |
 
-Read the full [capability-to-contract guide](docs/capability-to-contract.md)
+Read the full [capability-to-contract guide](docs/explanation/capability-to-contract.md)
 or run the [NotesApp reference implementation](examples/notesapp/).
 
 ## What you get around the loop
@@ -125,14 +125,17 @@ Scaffold the SuperAdmin frontend in one command:
 pnpm create saasicat-admin admin --project-key=myapp --brand-name=MyApp
 ```
 
-Then follow the **[quickstart](docs/quickstart.md)** — 10 steps from an
-existing CRUD backend to a discovered, packaged and enforced feature in about
-30 minutes and under 100 lines of app-owned code. The
-[handbook](docs/handbook.md) is the in-depth reference behind it, and the
-[design guide](docs/design-guide.md) is what you read before writing an admin
-page of your own: the page recipe, the colour roles, the scales and the dark
-theme that comes with them. Coming from a 0.x release? [Migrating to 1.0](docs/migrating-to-1.0.md) is one
-command and a table of what changed.
+Then follow the **[quickstart](docs/quickstart.md)** — from an existing CRUD
+backend to a discovered, packaged and enforced feature in about 30 minutes and
+under 100 lines of app-owned code. [The documentation](docs/README.md) is sorted
+by the question that brought you there: guides for a task, reference for a name,
+explanation for a why. Two to know about before you start are
+[wire the backend](docs/guides/wire-the-backend.md) and the
+[design guide](docs/explanation/design-guide.md), which is what you read before
+writing an admin page of your own: the page recipe, the colour roles, the scales
+and the dark theme that comes with them. Coming from a 0.x release?
+[Upgrade to 1.0](docs/guides/upgrade-to-1.0.md) is one command and a table of
+what changed.
 
 > The Admin UI ships German and English messages; users switch in the header.
 > Apps choose which of them to offer and can add languages of their own — the

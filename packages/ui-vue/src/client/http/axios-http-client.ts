@@ -2,7 +2,8 @@
 //
 // Six near-identical copies of this function existed across the apps and
 // documents that needed one: the notesapp admin and web apps, the scaffolder
-// template, the handbook and two production consumers. They differed in the
+// template, the admin-frontend guide and two production consumers. They
+// differed in the
 // prefix they strip and in nothing else that matters.
 //
 // `AxiosLike` is structural on purpose. A `dependencies` entry would make every

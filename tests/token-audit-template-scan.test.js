@@ -401,7 +401,7 @@ describe('the line is the line the literal is on', () => {
 // a long time so did the audit: it walked the AST, pulled `style` out of
 // `PAINT_ATTRIBUTES`, and applied nothing but the colour patterns to it. A
 // `style="font-size: 22px"` was therefore invisible to `distinctFontSizes`,
-// which read 0 — and `docs/design-guide.md` published that 0 as "no `font-size`
+// which read 0 — and `docs/explanation/design-guide.md` published that 0 as "no `font-size`
 // in the package names a number". A guard satisfied exactly in the damaging
 // case, with a sentence about it in the manual.
 //

@@ -16,7 +16,7 @@ export const persistence = prismaPersistence({
     // If your models are called something else, map them here:
     // `adminResources: { delegates: { tenant: 'organization' },
     //                    fields: { tenant: { users: 'members' } } }`
-    // — see docs/migrating-an-existing-app.md. Left out on purpose otherwise:
+    // — see docs/guides/integrate-into-an-existing-app.md. Left out on purpose otherwise:
     // the tenant row counter defaults to whatever the mapping says the users
     // relation is called, and naming it here would hardcode `users` past that.
 });

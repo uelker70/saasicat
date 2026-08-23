@@ -2,7 +2,7 @@
 //
 // The adapter used to resolve `tenant`, `user` and `subscription` by hardcoded
 // name and read `isActive`, `deletedAt`, `firstName`, `lastName` off them.
-// `docs/migrating-an-existing-app.md` was honest about it and drew the only
+// `docs/guides/integrate-into-an-existing-app.md` was honest about it and drew the only
 // conclusion available: an app whose tenant model is called `organization`, or
 // whose flag is `enabled`, should set `adminResources: false` — and lose every
 // SuperAdmin endpoint over a naming difference.

@@ -237,7 +237,7 @@ npm dist-tag add @saasicat/<package>@<version> rc
 Otherwise `pnpm add @saasicat/*@rc` installs a mixed set — it did at
 `1.0.0-rc.2`, where `@saasicat/core@rc` still resolved to `rc.1`. The workflow's
 OIDC token can publish but not tag, which is why this is not automated.
-The consumer-facing account of the break is [`docs/migrating-to-1.0.md`](docs/migrating-to-1.0.md);
+The consumer-facing account of the break is [`docs/guides/upgrade-to-1.0.md`](docs/guides/upgrade-to-1.0.md);
 the codemod it names is `saasicat codemod v1`.
 
 ## Commits and pull requests
@@ -262,7 +262,7 @@ that the conflicts came from the shape rather than from the work.
 `pnpm run coverage` is a ratchet: it fails when coverage drops, and has no
 threshold to reach. It rebuilds only the packages whose inputs changed since
 their last build (a stamp in `dist/`, see `scripts/build-stamp.mjs`), so it
-is cheap enough to run after every change. [`docs/test-coverage.md`](docs/test-coverage.md) says which
+is cheap enough to run after every change. [`docs/explanation/test-coverage.md`](docs/explanation/test-coverage.md) says which
 parts each suite exercises, names the adapters the persistence contract does not
 reach, and ranks the remaining gaps by what a failure would cost rather than by
 percentage. Read it before assuming a number means what it looks like — two
@@ -278,7 +278,7 @@ summarised:
 > Any purpose is a permitted purpose, except for providing any product that competes with the software or any product the licensor or any of its affiliates provides using the software.
 
 That covers the applications the author builds with SaaSiCat, not only SaaSiCat itself. The
-reasoning is in [ADR 0001](docs/adr/0001-source-available-licensing.md).
+reasoning is in [ADR 0001](docs/explanation/adr/0001-source-available-licensing.md).
 
 That has one consequence for pull requests: by opening one you agree that your
 contribution is licensed under the same terms, and that the project may relicense

@@ -96,7 +96,8 @@ export function composeBaseModules(
             imports: options.imports,
             // Global like AdminModule above: apps register their manifest
             // contribution by injecting AdminManifestService into one of their
-            // own modules (handbook §6.6). Re-exporting the module from here
+            // own modules (docs/guides/wire-the-backend.md, "Manifest
+            // Contributions"). Re-exporting the module from here
             // does not make that injection resolvable.
             global: true,
         }),

@@ -22,9 +22,11 @@ lines of app-owned platform code.
 > reached through subpath exports (`@saasicat/nest/platform`), and the old
 > `"node"` resolution does not see those. `saasicat init` checks and says so.
 >
-> A full explanation of every step lives in the [SaaSiCat handbook](handbook.md).
+> A full explanation of every step lives in the guides —
+> [wire the backend](guides/wire-the-backend.md) and
+> [build the admin frontend](guides/build-the-admin-frontend.md).
 > The quickstart shows the fastest path — if you need different schemas,
-> databases or more control, continue in the handbook.
+> databases or more control, continue in the guides.
 
 **Example app used in this guide:** a NestJS app `notesapp` with:
 
@@ -37,7 +39,7 @@ package them as Starter and Pro, and enforce the resulting feature and quota
 rules per tenant.
 
 For the reasoning behind each stage, read
-[From Capability to Contract](capability-to-contract.md).
+[From Capability to Contract](explanation/capability-to-contract.md).
 
 ---
 
@@ -133,7 +135,7 @@ subscription CHECK — and only then applies it. The order matters: a migration
 that has already been applied cannot take an edit, and Prisma would see its
 recorded checksum change and offer a reset. Those constraints are part of the
 canonical schema, not optional hardening: the adapter contract tests run against
-a database that has them (details: [data model](data-model.md)). Running the
+a database that has them (details: [data model](explanation/data-model.md)). Running the
 command again does not append them twice.
 
 `--all` gives the standard module its catalog, subscription, contract, bundle,
@@ -401,7 +403,7 @@ Both checks now run **automatically** — you no longer have to build anything
 into your service code. For race-critical operations (e.g. a large file
 upload against a storage-GB quota), the transactional path
 `EntitlementService.enforceLimit({ tenantId, dimension, currentUsage, insert })`
-is still the cleaner option; see the [handbook](handbook.md), §6.
+is still the cleaner option; see [wire the backend](guides/wire-the-backend.md).
 
 ## Step 8 — Start the backend + create the first SuperAdmin
 
@@ -418,7 +420,8 @@ jq '.capabilities[].capabilityKey' var/discovery-snapshot.json
 
 Create the first SuperAdmin + MFA via the **first-run setup wizard** in the
 Admin UI (set `SETUP_TOKEN`; the login page then shows the wizard as long as
-no SUPER_ADMIN exists). See the [handbook](handbook.md), §6.10.
+no SUPER_ADMIN exists). See
+[first-run setup](guides/wire-the-backend.md#first-run-setup-superadmin-bootstrap-via-the-admin-ui).
 
 > Prerequisite: `prismaPersistence({ passwordHasher })` is set (step 5) —
 > that activates the shipped `PrismaSuperAdminBootstrapAdapter` against the
@@ -454,7 +457,8 @@ This produces a runnable Vue 3 + Quasar + Vite project with:
 - branding variables in `src/styles/theme.scss`
 - German and English ship with the shell; the header switcher changes it per
   user. Which languages you offer, and whether you add your own, is set in
-  `main.ts` via `i18n` (see [handbook §8.7](handbook.md#87-ui-language-i18n))
+  `main.ts` via `i18n` (see
+  [UI language](guides/build-the-admin-frontend.md#ui-language-i18n))
 
 The only thing left to do is adapt **`src/services/http.ts#adminLogin`** to
 your backend auth.
@@ -594,12 +598,12 @@ Add these in this order:
 2. **Manifest contributions** for your own SuperAdmin KPI cards, tenant
    actions and project pages. **Tenant navigation** contributions via
    `TenantManifestService.registerNavItem(...)` in `OnModuleInit`.
-   → [handbook](handbook.md), §6.6
+   → [manifest contributions](guides/wire-the-backend.md#manifest-contributions)
 
 3. **Extend the CLI**: `notesapp manifest hash` (CI pinning),
    `notesapp audit tail`. Plus `defaultDoctorChecks: true` for the 4
    platform health checks.
-   → [handbook](handbook.md), §9
+   → [extend your CLI](guides/extend-your-cli.md)
 
 4. **Tests:** `createSaaSiCatTestModule({ planCatalog, defaultPlanId, quotaProviders })`
    from `@saasicat/nest/testing` for integration tests without your own
@@ -627,4 +631,4 @@ Add these in this order:
 | Setup wizard does not appear / `403 SETUP_DISABLED`     | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).          |
 | `tenantManifest` throws at boot                         | Enable `tenantBilling`, or provide `defaultPlanId`/`adapters.planResolver`.                         |
 
-For deeper troubleshooting, see the [handbook](handbook.md), §11.
+For deeper troubleshooting, see [troubleshooting](guides/troubleshooting.md).
