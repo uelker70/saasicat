@@ -224,19 +224,19 @@ this repository, workflow `release.yml`. From then on the workflow publishes it
 like the others. Changesets treats the already-published version as done, so a
 failed run is repaired by re-running the workflow after the manual publish.
 
-One consequence lasts until the package's first stable release: while the group is
-in pre mode, Changesets publishes a package that has never had a regular release
-to the `latest` dist-tag instead of the pre-release tag ("because there has not
-been a regular release of it yet"), so `@rc` keeps pointing at the previous
-candidate. After each candidate release, move the tag by hand:
+One consequence lasts until the package's first stable release: while the group
+is in pre mode, Changesets publishes a package that has never had a regular
+release to the `latest` dist-tag instead of the pre-release tag ("because there
+has not been a regular release of it yet"), so `@rc` keeps pointing at the
+previous candidate. After each candidate release, move the tag by hand:
 
 ```bash
 npm dist-tag add @saasicat/<package>@<version> rc
 ```
 
-Otherwise `pnpm add @saasicat/*@rc` installs a mixed set — it did at `1.0.0-rc.2`,
-where `@saasicat/core@rc` still resolved to `rc.1`. The workflow's OIDC token can
-publish but not tag, which is why this is not automated.
+Otherwise `pnpm add @saasicat/*@rc` installs a mixed set — it did at
+`1.0.0-rc.2`, where `@saasicat/core@rc` still resolved to `rc.1`. The workflow's
+OIDC token can publish but not tag, which is why this is not automated.
 The consumer-facing account of the break is [`docs/migrating-to-1.0.md`](docs/migrating-to-1.0.md);
 the codemod it names is `saasicat codemod v1`.
 
