@@ -78,7 +78,7 @@ describe('the configured release line can reach the version it is for', () => {
         const { tag, mode } = JSON.parse(readFileSync(PRE, 'utf8'));
         assert.equal(mode, 'pre', `pre.json exists with mode "${mode}"`);
         assert.ok(
-            new RegExp(`\`${tag}\``).test(readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')),
+            readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8').includes(`\`${tag}\``),
             `pre mode uses the tag "${tag}", which CONTRIBUTING.md never names`,
         );
     });
