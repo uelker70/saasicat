@@ -47,6 +47,7 @@ import {
     findFkPointers,
     hasConstraints,
     assertValidProjectKey,
+    judgeModuleResolution,
     buildImportMap,
     migrationCreatedBy,
     rewriteImports,
@@ -721,6 +722,19 @@ async function cmdInit(args, argv) {
     }
 
     const root = resolve(args.dir ?? '.');
+
+    // Before anything is written: the files below import subpath exports,
+    // and under `moduleResolution: node` none of them resolves. Found by
+    // running the quickstart against an app that predates `nodenext`.
+    const tsconfigPath = join(root, 'tsconfig.json');
+    if (existsSync(tsconfigPath)) {
+        const verdict = judgeModuleResolution(await readFile(tsconfigPath, 'utf8'));
+        if (!verdict.ok) {
+            console.error(`✗ ${verdict.reason}`);
+            process.exit(1);
+        }
+    }
+
     const plan = planInit({
         projectKey: args['project-key'],
         appName: args['app-name'],

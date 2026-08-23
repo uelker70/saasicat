@@ -321,6 +321,28 @@ describe('init', () => {
         assert.match(stdout + stderr, /config\/saas\.yaml/, 'it has to name what it refused');
     });
 
+    test('a tsconfig on the old moduleResolution is refused before any write', async () => {
+        // The generated files import subpath exports; under "node" none of
+        // them resolves, in files the command just wrote.
+        const root = await project('init-old-resolution');
+        await writeFile(
+            join(root, 'tsconfig.json'),
+            '{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node" } }\n',
+            'utf8',
+        );
+        const { stderr, code } = await cli(
+            ['init', '--project-key=notesapp', '--quota=notes:Note'],
+            { cwd: root },
+        );
+        assert.equal(code, 1);
+        assert.match(stderr, /moduleResolution/);
+        assert.match(stderr, /nodenext/);
+        await assert.rejects(
+            readFile(join(root, 'config', 'saas.yaml'), 'utf8'),
+            'it wrote anyway',
+        );
+    });
+
     test('a key the platform would refuse is refused here, before any write', async () => {
         const root = await project('init-bad-key');
         const { stderr, code } = await cli(['init', '--project-key=NotesApp'], { cwd: root });
