@@ -1,16 +1,15 @@
 name: Claude Review
 
-# Review auf Zuruf. Es läuft nichts von allein: Erst ein Kommentar mit
-# `@claude` startet einen Lauf — auf einem PR, in einer Inline-Diskussion oder
-# an einem Issue. Damit kostet ein Nachpushen nichts, und ein zweiter Blick
-# bleibt eine bewusste Entscheidung.
+# Review on request. Nothing runs by itself: a comment containing `@claude`
+# starts a run — on a pull request, in an inline thread, or on an issue. A
+# push therefore costs nothing, and a second look stays a deliberate choice.
 #
-#   @claude review          — vollständige Durchsicht des PR
-#   @claude <frage>         — gezielte Rückfrage zu einer Stelle
+#   @claude review          — full review of the pull request
+#   @claude <question>      — a targeted question about one place
 #
-# Der Lauf kommentiert und schreibt nicht in den Branch (`contents: read`).
-# Soll Claude auch Korrekturen pushen dürfen, wird daraus `contents: write` —
-# das ist eine bewusste Rechteerweiterung, keine Nebensache.
+# The run comments and does not write to the branch (`contents: read`).
+# Letting Claude push fixes would make that `contents: write` — a deliberate
+# widening of permissions, not a detail.
 
 on:
     issue_comment:
@@ -26,7 +25,7 @@ concurrency:
 
 jobs:
     claude:
-        # Ohne diese Bedingung startete jeder Kommentar im Repo einen Lauf.
+        # Without this condition every comment in the repository started a run.
         if: |
             (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
             (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
@@ -37,7 +36,7 @@ jobs:
             pull-requests: write
             issues: write
             id-token: write
-            # Damit die Review die CI-Ergebnisse des PR mitlesen kann.
+            # So the review can read the pull request's CI results.
             actions: read
         steps:
             - name: Check out saasicat
@@ -74,10 +73,15 @@ jobs:
                   # above are enough for a run that only comments.
                   github_token: ${{ secrets.GITHUB_TOKEN }}
 
-                  # Der Maßstab steht im Repo, nicht hier: Die Review liest ihn
-                  # bei jedem Lauf frisch. Eine Kopie an dieser Stelle wäre
-                  # dieselbe Regel ein zweites Mal — und veraltete als Erstes.
+                  # The standard lives in the repository, not here: the review
+                  # reads it fresh on every run. A copy in this place would be
+                  # the same rule a second time — and the first to go stale.
+                  #
+                  # The language is named here as well as in the brief, because
+                  # a model answers in the language it is instructed in: the
+                  # brief and this prompt used to be German, and so were the
+                  # reviews — on a source-available project read in English.
                   claude_args: |
                       --model claude-opus-5
                       --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(gh run view:*)"
-                      --append-system-prompt "Verbindlich fuer diesen Lauf: Lies zuerst .github/claude-review-context.md und folge ihr, bevor du irgendetwas anderes tust."
+                      --append-system-prompt "Binding for this run: write everything you post — findings, summary, inline comments, questions — in English, whatever language the pull request or the comment you are answering is in. Then read .github/claude-review-context.md first and follow it before doing anything else."
