@@ -64,7 +64,7 @@
                     </div>
                 </header>
                 <div class="pl-end-row">
-                    <input v-model="form.endsAt" class="pl-input" type="date" />
+                    <q-input v-model="form.endsAt" outlined dense type="date" class="pl-end-date" />
                     <button
                         v-if="form.endsAt"
                         type="button"
@@ -98,10 +98,12 @@
                         <div class="pl-section__sub">{{ msg.editDialog.sectionNoteSub }}</div>
                     </div>
                 </header>
-                <textarea
+                <q-input
                     v-model="form.note"
-                    class="pl-input pl-textarea"
-                    rows="3"
+                    outlined
+                    dense
+                    type="textarea"
+                    :rows="3"
                     :placeholder="notePlaceholder"
                 />
             </section>

@@ -72,25 +72,6 @@
     margin-top: var(--sa-space-1);
 }
 
-.pl-input {
-    width: 100%;
-    padding: var(--sa-space-3) var(--sa-space-4);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: var(--sa-radius-field);
-    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-color-fg-body);
-    outline: 0;
-    transition:
-        border-color 0.12s,
-        box-shadow 0.12s;
-}
-
-.pl-input:focus {
-    border-color: var(--sa-color-accent);
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
-}
-
 .pl-plan-select {
     display: flex;
     flex-direction: column;
@@ -160,7 +141,7 @@
     gap: var(--sa-space-2);
 }
 
-.pl-end-row .pl-input {
+.pl-end-row .pl-end-date {
     flex: 1;
 }
 

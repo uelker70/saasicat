@@ -28,9 +28,10 @@
                 <div class="pl-grid">
                     <div class="pl-field pl-field--full">
                         <label>{{ copy.tenantNameLabel }}</label>
-                        <input
+                        <q-input
                             v-model="form.tenant.name"
-                            class="pl-input"
+                            outlined
+                            dense
                             :placeholder="copy.tenantNamePlaceholder"
                             autofocus
                         />
@@ -41,27 +42,27 @@
                             {{ msg.form.slugLabel }}
                             <span class="pl-field__hint">{{ msg.form.slugHint }}</span>
                         </label>
-                        <div class="pl-slug-input">
-                            <span v-if="slugPrefix" class="pl-slug-input__prefix">{{
-                                slugPrefix
-                            }}</span>
-                            <input
-                                v-model="form.tenant.slug"
-                                class="pl-input pl-input--flush"
-                                :placeholder="copy.slugPlaceholder"
-                                @input="onSlugInput"
-                            />
-                        </div>
-                        <div v-if="slugConflict" class="pl-field__error">
-                            {{ msg.form.slugConflict }}
-                        </div>
+                        <q-input
+                            v-model="form.tenant.slug"
+                            outlined
+                            dense
+                            :placeholder="copy.slugPlaceholder"
+                            :error="slugConflict"
+                            :error-message="slugConflict ? msg.form.slugConflict : undefined"
+                            @update:model-value="onSlugInput"
+                        >
+                            <template v-if="slugPrefix" #prepend>
+                                <span class="pl-slug-prefix">{{ slugPrefix }}</span>
+                            </template>
+                        </q-input>
                     </div>
 
                     <div v-if="showLegalFields" class="pl-field">
                         <label>{{ msg.createDialog.legalFormLabel }}</label>
-                        <input
+                        <q-input
                             v-model="form.tenant.legalForm"
-                            class="pl-input"
+                            outlined
+                            dense
                             :placeholder="msg.createDialog.legalFormPlaceholder"
                         />
                     </div>
@@ -70,9 +71,10 @@
                             {{ msg.createDialog.vatIdLabel }}
                             <span class="pl-field__hint">{{ msg.createDialog.vatIdHint }}</span>
                         </label>
-                        <input
+                        <q-input
                             v-model="form.tenant.vatId"
-                            class="pl-input"
+                            outlined
+                            dense
                             :placeholder="msg.createDialog.vatIdPlaceholder"
                         />
                     </div>
@@ -94,30 +96,31 @@
                 <div class="pl-grid">
                     <div class="pl-field pl-field--full">
                         <label>{{ msg.createDialog.emailLabel }}</label>
-                        <input
+                        <q-input
                             v-model="form.admin.email"
-                            class="pl-input"
-                            :class="{ 'pl-input--invalid': form.admin.email && !emailValid }"
+                            outlined
+                            dense
                             type="email"
                             :placeholder="copy.adminEmailPlaceholder"
+                            :error="Boolean(form.admin.email) && !emailValid"
+                            :error-message="msg.createDialog.emailInvalid"
                         />
-                        <div v-if="form.admin.email && !emailValid" class="pl-field__error">
-                            {{ msg.createDialog.emailInvalid }}
-                        </div>
                     </div>
                     <div class="pl-field">
                         <label>{{ msg.createDialog.firstNameLabel }}</label>
-                        <input
+                        <q-input
                             v-model="form.admin.firstName"
-                            class="pl-input"
+                            outlined
+                            dense
                             :placeholder="msg.createDialog.firstNamePlaceholder"
                         />
                     </div>
                     <div class="pl-field">
                         <label>{{ msg.createDialog.lastNameLabel }}</label>
-                        <input
+                        <q-input
                             v-model="form.admin.lastName"
-                            class="pl-input"
+                            outlined
+                            dense
                             :placeholder="msg.createDialog.lastNamePlaceholder"
                         />
                     </div>
@@ -128,9 +131,10 @@
                                 msg.createDialog.initialPasswordHint
                             }}</span>
                         </label>
-                        <input
+                        <q-input
                             v-model="form.admin.initialPassword"
-                            class="pl-input"
+                            outlined
+                            dense
                             :placeholder="msg.createDialog.initialPasswordPlaceholder"
                         />
                     </div>
@@ -181,7 +185,7 @@
                     <div class="pl-field">
                         <label>{{ msg.form.endsAtLabel }}</label>
                         <div class="pl-end-row">
-                            <input v-model="form.pilot.endsAt" class="pl-input" type="date" />
+                            <q-input v-model="form.pilot.endsAt" outlined dense type="date" />
                             <button
                                 v-if="form.pilot.endsAt"
                                 type="button"
@@ -211,10 +215,12 @@
                             {{ msg.form.noteLabel }}
                             <span class="pl-field__hint">{{ msg.form.noteHint }}</span>
                         </label>
-                        <textarea
+                        <q-input
                             v-model="form.pilot.note"
-                            class="pl-input pl-textarea"
-                            rows="3"
+                            outlined
+                            dense
+                            type="textarea"
+                            :rows="3"
                             :placeholder="copy.notePlaceholder"
                         />
                     </div>
@@ -530,52 +536,5 @@ async function doSubmit(code: string): Promise<void> {
     letter-spacing: 0;
     color: var(--sa-color-fg-subtle);
     font-size: var(--sa-text-xs);
-}
-
-.pl-field__error {
-    font-size: var(--sa-text-sm);
-    color: var(--sa-color-negative-fg);
-}
-
-.pl-input--invalid {
-    border-color: var(--sa-color-negative-border);
-}
-
-.pl-input::placeholder {
-    color: var(--sa-color-fg-disabled);
-}
-
-.pl-textarea {
-    resize: vertical;
-    min-height: 64px;
-    font-family: var(--sa-font-body, system-ui, sans-serif);
-}
-
-.pl-slug-input {
-    display: flex;
-    align-items: stretch;
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: var(--sa-radius-field);
-    overflow: hidden;
-}
-
-.pl-slug-input__prefix {
-    padding: var(--sa-space-3) var(--sa-space-4);
-    background: var(--sa-color-bg-sunken);
-    color: var(--sa-color-fg-subtle);
-    font: 500 var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);
-    border-right: 1px solid var(--sa-color-border);
-    white-space: nowrap;
-}
-
-.pl-input--flush {
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-}
-
-.pl-input--flush:focus {
-    box-shadow: none !important;
 }
 </style>
