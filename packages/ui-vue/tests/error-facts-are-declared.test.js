@@ -152,10 +152,9 @@ describe('the empty-body sentinel is declared at its throw site', () => {
     // three lines are the same declaration. The first version of this guard
     // compared fixed-width slices and went red the moment Prettier broke a
     // line, which is a guard measuring the formatter rather than the rule.
-    const names = errorClasses.map(({ name }) => name);
-    const CLASS_ALTERNATION = names.join('|');
-    /** A construction of one of ours with a literal zero status. */
-    const zeroStatus = new RegExp(`new (?:${CLASS_ALTERNATION})\\(\\s*0\\s*,`, 'g');
+    const classNames = new Set(errorClasses.map(({ name }) => name));
+    /** Any construction with a literal zero status; whether it is one of ours is asked of the name. */
+    const zeroStatus = /new ([A-Za-z_$][\w$]*)\(\s*0\s*,/g;
 
     test('every status-0 platform error is marked as one', () => {
         const unmarked = [];
@@ -163,6 +162,7 @@ describe('the empty-body sentinel is declared at its throw site', () => {
 
         for (const { path, text } of sources) {
             for (const match of text.matchAll(zeroStatus)) {
+                if (!classNames.has(match[1])) continue;
                 found += 1;
                 const before = text.slice(0, match.index).trimEnd();
                 if (!/(?<![\w$])markEmptyResponse\($/.test(before)) {
@@ -184,7 +184,7 @@ describe('the empty-body sentinel is declared at its throw site', () => {
         // The reverse direction: the marker stays attached to the case it
         // describes, so it cannot be sprinkled on a failure that did reach a
         // status.
-        const wrapped = new RegExp(`^\\s*new (?:${CLASS_ALTERNATION})\\(\\s*0\\s*,`);
+        const wrapped = /^\s*new ([A-Za-z_$][\w$]*)\(\s*0\s*,/;
         const wrong = [];
         let calls = 0;
 
@@ -193,7 +193,10 @@ describe('the empty-body sentinel is declared at its throw site', () => {
             for (const match of text.matchAll(/(?<![\w$])markEmptyResponse\(/g)) {
                 calls += 1;
                 const argument = text.slice(match.index + match[0].length);
-                if (!wrapped.test(argument)) wrong.push(`${path}:${lineAt(text, match.index)}`);
+                const head = wrapped.exec(argument);
+                if (!head || !classNames.has(head[1])) {
+                    wrong.push(`${path}:${lineAt(text, match.index)}`);
+                }
             }
         }
 

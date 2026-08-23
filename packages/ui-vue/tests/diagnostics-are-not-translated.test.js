@@ -73,7 +73,7 @@ function i18nNamesIn(text) {
             const name = part
                 .replace(/^\s*type\s+/, '')
                 .trim()
-                .split(/\s+as\s+/)
+                .split(/(?<!\s)\s+as\s+/)
                 .pop();
             if (name) names.add(name);
         }
@@ -107,6 +107,16 @@ function argumentsAt(text, start) {
     return text.slice(open + 1);
 }
 
+/** Whether `text` contains `name` bounded by non-identifier characters — `(?<![\w$])name(?![\w$])`, without building a pattern. */
+function mentionsIdentifier(text, name) {
+    for (let at = text.indexOf(name); at !== -1; at = text.indexOf(name, at + 1)) {
+        const before = text[at - 1] ?? '';
+        const after = text[at + name.length] ?? '';
+        if (!/[\w$]/.test(before) && !/[\w$]/.test(after)) return true;
+    }
+    return false;
+}
+
 describe('the diagnostics this package brands are not translated', () => {
     const classNames = declaredErrorClassNames();
 
@@ -115,8 +125,8 @@ describe('the diagnostics this package brands are not translated', () => {
     });
 
     test('no construction of one takes its message from the catalog', () => {
-        const alternation = [...classNames].join('|');
-        const construction = new RegExp(`new (?:${alternation})\\s*\\(`, 'g');
+        // Any construction; whether it is one of ours is asked of the name.
+        const construction = /new ([A-Za-z_$][\w$]*)\s*\(/g;
         const offenders = [];
         let found = 0;
 
@@ -124,11 +134,10 @@ describe('the diagnostics this package brands are not translated', () => {
             const i18nNames = i18nNamesIn(text);
             if (i18nNames.size === 0) continue;
             for (const match of text.matchAll(construction)) {
+                if (!classNames.has(match[1])) continue;
                 found += 1;
                 const args = argumentsAt(text, match.index);
-                const used = [...i18nNames].filter((name) =>
-                    new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(args),
-                );
+                const used = [...i18nNames].filter((name) => mentionsIdentifier(args, name));
                 if (used.length > 0) {
                     offenders.push(`${path}:${lineAt(text, match.index)} — via ${used.join(', ')}`);
                 }

@@ -303,7 +303,7 @@ describe('createResourceRegistry — overrides', () => {
         for (const name of ['toString', 'constructor', 'hasOwnProperty', 'valueOf']) {
             assert.throws(
                 () => registryWith(http, { plans: { ops: { [name]: async (next) => next() } } }),
-                new RegExp(`has no operation "${name}"`),
+                (error) => error.message.includes(`has no operation "${name}"`),
                 name,
             );
         }

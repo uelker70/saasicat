@@ -78,6 +78,48 @@ function allVueFiles(): string[] {
     return found.sort();
 }
 
+/**
+ * Every opening tag, read through a lookahead so one tag's attributes can
+ * never hide the `<` of the next. Group 1 is the tag past its `<`, group 2
+ * its name; the caller compares the name, so no pattern is built from one.
+ */
+const OPENING_TAG = /<(?=(([A-Za-z]\w*)\b[^>]*>))/g;
+
+/**
+ * A declaration of the name in group 1 or 2: `function name(`, with or
+ * without `async`, or `const name =` — never `props.name =`. `=(?![=>])`
+ * keeps a comparison and an arrow out, exactly as in the attribute check.
+ */
+const DECLARATION =
+    /(?<![.\w$])(?:(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=(?![=>]))/g;
+
+/**
+ * A member path: a name, then `.key` or `[subscript]` steps, whitespace
+ * allowed around each. Anchored on a character no path contains, which is
+ * what keeps the scan linear over a long name.
+ */
+const PATH = /(?<![\w$])[A-Za-z_$][\w$]*(?:\s*\.\s*[\w$]+|\s*\[[^\]]*\])*/g;
+
+/**
+ * An assignment to a whole path — `=` alone, so a comparison or an arrow is
+ * not one. The left-hand side is `PATH` spelled out rather than interpolated:
+ * a pattern is not built from a value, even one this file owns.
+ */
+const ASSIGNMENT =
+    /(?<![\w$])([A-Za-z_$][\w$]*(?:\s*\.\s*[\w$]+|\s*\[[^\]]*\])*)\s*=(?![=>])\s*(\S.*)/g;
+
+/** Whether `tag` carries `name` as an attribute: after `:` or whitespace, before `=`, whitespace or `>`. */
+function carriesAttribute(tag: string, name: string): boolean {
+    for (let at = tag.indexOf(name); at !== -1; at = tag.indexOf(name, at + 1)) {
+        const before = tag[at - 1] ?? '';
+        const after = tag[at + name.length] ?? '';
+        const opens = before === ':' || /\s/.test(before);
+        const closes = after === '=' || after === '>' || /\s/.test(after);
+        if (opens && closes) return true;
+    }
+    return false;
+}
+
 /** Event names from a `defineEmits<{ (e: 'x'): void }>()` block. */
 function declaredEmits(source: string): string[] {
     const block = /defineEmits<\{([\s\S]*?)\}>\(\)/.exec(source);
@@ -353,8 +395,9 @@ describe('page shell contract', () => {
 
             for (const other of allVueFiles()) {
                 const template = templateOf(readFileSync(other, 'utf8'));
-                const usage = new RegExp(`<${component}\\b[^>]*>`, 'g');
-                for (const [tag] of template.matchAll(usage)) {
+                for (const [, rest, name] of template.matchAll(OPENING_TAG)) {
+                    if (name !== component) continue;
+                    const tag = `<${rest}`;
                     const arg = emits[0]!.startsWith('update:')
                         ? emits[0]!.slice('update:'.length)
                         : '';
@@ -368,7 +411,8 @@ describe('page shell contract', () => {
                     // fire, so there is nothing to listen for.
                     const reachable =
                         gate === null ||
-                        new RegExp(`[:\\s]${kebab(gate)}[=\\s>]|[:\\s]${gate}[=\\s>]`).test(tag);
+                        carriesAttribute(tag, kebab(gate)) ||
+                        carriesAttribute(tag, gate);
                     const pair = `${basename(other)}: ${component}`;
                     if (!heard && reachable && !DELIBERATELY_IGNORED.has(pair)) {
                         offenders.push(
@@ -404,7 +448,7 @@ describe('page shell contract', () => {
         // a name that claims to be one, and a surface. A right-aligned
         // label/value pair in a diff header is not an eighth tile, and neither
         // is a `__status` badge that merely contains the letters "stat".
-        const RULE = /\.([\w-]+)[^{]*\{([^}]*)\}/g;
+        const RULE = /\.([\w-]+)(?![\w-])[^{]*\{([^}]*)\}/g;
         const NAMES_A_TILE = /(?:^|[-_])(?:kpi|kpis|stat|stats)(?:$|[-_])/;
 
         const offenders = contentPageFiles().filter((file) => {
@@ -801,15 +845,11 @@ describe('page shell contract', () => {
          * package writes both.
          */
         const handlerBody = (script: string, name: string): string => {
-            const declaration = new RegExp(
-                // `function name(`, with or without `async`, or `const name =`
-                // — never `props.name =`. `=(?![=>])` keeps a comparison and an
-                // arrow out, exactly as in the attribute below.
-                String.raw`(?<![.\w$])(?:(?:async\s+)?function\s+${name}\s*\(` +
-                    String.raw`|(?:const|let|var)\s+${name}\s*=(?![=>]))`,
-            ).exec(script);
+            const declaration = [...script.matchAll(DECLARATION)].find(
+                (candidate) => (candidate[1] ?? candidate[2]) === name,
+            );
             if (!declaration) return '';
-            let at = declaration.index + declaration[0].length;
+            let at = declaration.index! + declaration[0].length;
 
             if (declaration[0].endsWith('(')) {
                 // `at - 1` is that `(`: the match ends on it.
@@ -882,12 +922,11 @@ describe('page shell contract', () => {
          * something that is not a disclosure — which teaches the next reader
          * that these markers are how you get past the rule.
          */
-        const PATH = String.raw`[A-Za-z_$][\w$]*(?:\s*\.\s*[\w$]+|\s*\[[^\]]*\])*`;
         const statePath = (path: string): string =>
             path
                 .replace(/\s+/g, '')
                 .replace(/\.value(?![\w$])/g, '')
-                .replace(/\[[^\]]*\]/g, '[]');
+                .replace(/(?<!\[)\[[^\]]*\]/g, '[]');
 
         /**
          * Every path a snippet reads, reduced the same way. Whole paths only:
@@ -895,7 +934,7 @@ describe('page shell contract', () => {
          * `expanded[row.id]` contributes `expanded[]` and not `row.id`.
          */
         const pathsIn = (text: string): Set<string> =>
-            new Set([...text.matchAll(new RegExp(PATH, 'g'))].map((match) => statePath(match[0])));
+            new Set([...text.matchAll(PATH)].map((match) => statePath(match[0])));
 
         /** What makes this file a disclosure of its own, if anything does. */
         const ownDisclosures = (file: string, source: string): string[] => {
@@ -923,9 +962,7 @@ describe('page shell contract', () => {
                     // `v-if="expanded[row.id]"` is the ordinary way to hold
                     // per-row state, and reading only the dotted form let it
                     // through.
-                    const assignments = region.matchAll(
-                        new RegExp(String.raw`(${PATH})\s*=(?![=>])\s*(.+)`, 'g'),
-                    );
+                    const assignments = region.matchAll(ASSIGNMENT);
                     for (const assignment of assignments) {
                         // A flip is one path: the right-hand side reads what
                         // the left-hand side writes, and a body hangs off that

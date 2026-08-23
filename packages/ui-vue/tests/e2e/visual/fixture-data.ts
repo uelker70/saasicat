@@ -1013,7 +1013,7 @@ export const unmatchedRequests: string[] = [];
 
 /** Returns the fixture body for a URL. */
 export function respondTo(url: string, _method: string): unknown {
-    const path = url.split('?')[0].replace(/\/+$/, '');
+    const path = url.split('?')[0].replace(/(?<!\/)\/+$/, '');
     for (const [route, body] of ROUTES) {
         if (path === route) return body;
     }
