@@ -1,5 +1,9 @@
 packages:
     - 'packages/*'
+    # Workspace tooling. Private, never published — the fixed group is
+    # `packages/*` and `every-published-package-is-in-the-fixed-group` reads it
+    # from there.
+    - 'tools/*'
     - 'examples/*'
     - 'examples/*/admin'
     - 'examples/*/web'
