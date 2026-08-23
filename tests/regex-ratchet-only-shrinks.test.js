@@ -20,6 +20,16 @@ describe('the regex ratchet', () => {
         assert.deepEqual(gone, [], 'remove these from regex-ratchet.json');
     });
 
+    test('admits no file that was not on it the day it was frozen', () => {
+        // The invariant is membership, not size. A count lets a contributor
+        // clean one file and list a new offender in the same change; the frozen
+        // list does not. `frozen` is never edited; `files` only loses entries.
+        assert.ok(Array.isArray(ratchet.frozen), 'regex-ratchet.json needs the frozen list');
+        const frozen = new Set(ratchet.frozen);
+        const joined = ratchet.files.filter((file) => !frozen.has(file));
+        assert.deepEqual(joined, [], 'these files were added to the ratchet — fix them instead');
+    });
+
     test('has a subject', () => {
         assert.ok(
             ratchet.files.length > 0,

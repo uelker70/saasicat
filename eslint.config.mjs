@@ -9,6 +9,36 @@ import { createRequire } from 'node:module';
 
 const regexRatchet = createRequire(import.meta.url)('./regex-ratchet.json');
 
+/**
+ * A regular expression built from a value: a template literal with an
+ * expression, a concatenation, or a bare identifier handed to `new RegExp`.
+ * Shared by the error block (everything) and the ratchet block (warning in
+ * the files that carried findings the day the rule arrived).
+ */
+const REGEX_FROM_VALUE = [
+    {
+        selector:
+            "NewExpression[callee.name='RegExp'] > TemplateLiteral.arguments:first-child[expressions.length>0]",
+        message:
+            'A regular expression built from a value. Parse the text and compare data, ' +
+            'or escape EVERY metacharacter through one tested function and say so in a ' +
+            'disable comment — hand escaping is what CodeQL reports as incomplete.',
+    },
+    {
+        selector:
+            "NewExpression[callee.name='RegExp'] > BinaryExpression.arguments:first-child[operator='+']",
+        message:
+            'A regular expression concatenated from a value. Parse the text and compare ' +
+            'data, or escape every metacharacter through one tested function.',
+    },
+    {
+        selector: "NewExpression[callee.name='RegExp'] > Identifier.arguments:first-child",
+        message:
+            'A regular expression from a variable. If it is a literal pattern, write it ' +
+            'as one; if it is a value, parse and compare instead.',
+    },
+];
+
 export default tseslint.config(
     eslint.configs.recommended,
     ...tseslint.configs.recommended,
@@ -38,31 +68,7 @@ export default tseslint.config(
         rules: {
             'regexp/no-super-linear-backtracking': 'error',
             'regexp/no-super-linear-move': 'error',
-            'no-restricted-syntax': [
-                'error',
-                {
-                    selector:
-                        "NewExpression[callee.name='RegExp'] > TemplateLiteral.arguments:first-child[expressions.length>0]",
-                    message:
-                        'A regular expression built from a value. Parse the text and compare data, ' +
-                        'or escape EVERY metacharacter through one tested function and say so in a ' +
-                        'disable comment — hand escaping is what CodeQL reports as incomplete.',
-                },
-                {
-                    selector:
-                        "NewExpression[callee.name='RegExp'] > BinaryExpression.arguments:first-child[operator='+']",
-                    message:
-                        'A regular expression concatenated from a value. Parse the text and compare ' +
-                        'data, or escape every metacharacter through one tested function.',
-                },
-                {
-                    selector:
-                        "NewExpression[callee.name='RegExp'] > Identifier.arguments:first-child",
-                    message:
-                        'A regular expression from a variable. If it is a literal pattern, write it ' +
-                        'as one; if it is a value, parse and compare instead.',
-                },
-            ],
+            'no-restricted-syntax': ['error', ...REGEX_FROM_VALUE],
         },
     },
     {
@@ -77,7 +83,9 @@ export default tseslint.config(
         rules: {
             'regexp/no-super-linear-backtracking': 'warn',
             'regexp/no-super-linear-move': 'warn',
-            'no-restricted-syntax': 'off',
+            // `warn`, not `off`: a new value-built pattern in a listed file
+            // still has to show up in `pnpm lint`, or the debt grows unseen.
+            'no-restricted-syntax': ['warn', ...REGEX_FROM_VALUE],
         },
     },
     {
