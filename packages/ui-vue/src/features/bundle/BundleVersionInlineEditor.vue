@@ -488,16 +488,16 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .bve-overlap-banner {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
     line-height: 1.5;
@@ -508,7 +508,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 18px;
+    gap: var(--sa-space-5);
 }
 @media (max-width: 1023.98px) {
     .bve-grid {
@@ -518,22 +518,22 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-col {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bve-section-label {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--sa-space-4);
     font-size: var(--sa-text-sm);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-secondary);
-    padding-top: 2px;
+    padding-top: var(--sa-space-1);
 }
 .bve-section-label--top {
-    margin-top: 8px;
+    margin-top: var(--sa-space-3);
 }
 .bve-section-count {
     font-size: var(--sa-text-xs);
@@ -544,7 +544,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 }
 .bve-row {
     display: grid;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bve-row--pricing {
     grid-template-columns: 1fr 1fr auto;
@@ -556,7 +556,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .bve-field-label {
     font-size: var(--sa-text-xs);
@@ -571,27 +571,27 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     display: inline-flex;
     align-items: stretch;
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-bg-surface);
 }
 .bve-input-grp .bve-input {
     border: 0;
-    border-radius: 6px 0 0 6px;
+    border-radius: var(--sa-radius-badge) 0 0 var(--sa-radius-badge);
 }
 .bve-input-unit {
     display: inline-flex;
     align-items: center;
-    padding: 0 8px;
+    padding: 0 var(--sa-space-3);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-bg-sunken);
     border-left: 1px solid var(--sa-color-border);
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 var(--sa-radius-badge) var(--sa-radius-badge) 0;
 }
 .bve-input {
-    padding: 6px 10px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font-size: var(--sa-text-md);
     font-family: inherit;
     color: var(--sa-color-fg-heading);
@@ -606,22 +606,22 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     color: var(--sa-color-fg-secondary);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding-bottom: 6px;
+    gap: var(--sa-space-3);
+    padding-bottom: var(--sa-space-2);
 }
 .bve-savings-pill {
-    padding: 1px 6px;
+    padding: var(--sa-space-0) var(--sa-space-2);
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
-    border-radius: 4px;
+    border-radius: var(--sa-radius-badge);
     font-weight: 700;
     font-size: var(--sa-text-xs);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .bve-toggle-row {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     cursor: pointer;
     font-size: var(--sa-text-md);
 }
@@ -629,9 +629,9 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     color: var(--sa-color-fg-heading);
 }
 .bve-textarea {
-    padding: 8px 10px;
+    padding: var(--sa-space-3) var(--sa-space-3);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font-size: var(--sa-text-md);
     font-family: inherit;
     color: var(--sa-color-fg-heading);
@@ -641,13 +641,13 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .bve-btn {
-    padding: 7px 14px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
     font-size: var(--sa-text-md);
     font-family: inherit;
@@ -669,10 +669,10 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     background: var(--sa-color-accent-strong);
 }
 .bve-error {
-    padding: 8px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
 }

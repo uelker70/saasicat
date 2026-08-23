@@ -196,15 +196,15 @@ const rawJson = computed(() => {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
+    gap: var(--sa-space-5);
     flex-wrap: wrap;
 }
 .sp-package-snapshot__eyebrow {
     font-size: var(--sa-text-sm);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sp-text-muted);
-    margin-bottom: 4px;
+    margin-bottom: var(--sa-space-2);
     font-weight: 600;
 }
 .sp-package-snapshot__sub {
@@ -220,8 +220,8 @@ const rawJson = computed(() => {
 .sp-package-snapshot__list {
     display: grid;
     grid-template-columns: max-content 1fr;
-    column-gap: 24px;
-    row-gap: 8px;
+    column-gap: var(--sa-space-7);
+    row-gap: var(--sa-space-3);
     margin: 0;
 }
 .sp-package-snapshot__list dt {
@@ -238,19 +238,19 @@ const rawJson = computed(() => {
 }
 .sp-package-snapshot__bundles {
     margin: 0;
-    padding-left: 16px;
+    padding-left: var(--sa-space-5);
     list-style: disc;
 }
 .sp-package-snapshot__raw {
-    margin-top: 16px;
+    margin-top: var(--sa-space-5);
     border-top: 1px solid var(--sp-border);
-    padding-top: 12px;
+    padding-top: var(--sa-space-4);
 }
 .sp-package-snapshot__raw-body {
-    margin: 8px 0 0;
-    padding: 12px;
+    margin: var(--sa-space-3) 0 0;
+    padding: var(--sa-space-4);
     background: var(--sp-pre-bg);
-    border-radius: 4px;
+    border-radius: var(--sa-radius-badge);
     font-size: var(--sa-text-sm);
     overflow-x: auto;
     max-height: 320px;
@@ -259,7 +259,7 @@ code {
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
     font-size: var(--sa-text-sm);
     background: var(--sp-pre-bg);
-    padding: 1px 4px;
-    border-radius: 3px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 </style>

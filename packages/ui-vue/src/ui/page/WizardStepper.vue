@@ -53,17 +53,17 @@ defineProps<{
 .wz-stepper {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 14px 26px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-4) var(--sa-space-7);
     background: var(--sa-color-bg-surface);
     border-bottom: 1px solid var(--sa-color-border);
 }
 .wz-step {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    border-radius: 999px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-2) var(--sa-space-4);
+    border-radius: var(--sa-radius-pill);
     font: 500 var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-muted);
 }
@@ -97,7 +97,7 @@ defineProps<{
     width: 14px;
     height: 1px;
     background: var(--sa-color-border);
-    margin: 0 2px;
+    margin: 0 var(--sa-space-1);
 }
 .wz-stepper-hint {
     margin-left: auto;

@@ -412,9 +412,9 @@ async function executeTerminate(): Promise<void> {
 .btn {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-radius: var(--sa-radius-control);
     font: 500 var(--sa-text-md) var(--sa-font-body);
     cursor: pointer;
     border: 1px solid var(--sa-color-border-strong);
@@ -436,16 +436,16 @@ async function executeTerminate(): Promise<void> {
     background: var(--sa-color-accent-strong);
 }
 .btn.btn--sm {
-    padding: 5px 9px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     font-size: var(--sa-text-sm);
-    gap: 5px;
+    gap: var(--sa-space-2);
 }
 .chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 999px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-size: var(--sa-text-xs);
     font-weight: 600;
     background: var(--sa-color-bg-sunken);
@@ -483,7 +483,7 @@ async function executeTerminate(): Promise<void> {
 .pd-body {
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-    gap: 16px;
+    gap: var(--sa-space-5);
     align-items: start;
 }
 /* Surface, border and radius come from `.sa-section` — the panel IS one.
@@ -494,40 +494,40 @@ async function executeTerminate(): Promise<void> {
 .pd-panel-head {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px 12px;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-4) var(--sa-space-5) var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .pd-panel-title {
     font-size: var(--sa-text-lg);
     font-weight: 700;
     margin: 0;
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
     color: var(--sa-color-fg-heading);
 }
 .pd-panel-sub {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 3px;
+    margin-top: var(--sa-space-1);
 }
 .pd-panel-head-right {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 
 /* timeline */
 .pd-timeline {
-    padding: 14px 16px 6px;
+    padding: var(--sa-space-4) var(--sa-space-5) var(--sa-space-2);
 }
 .pd-timeline-hint {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-bottom: 8px;
+    margin-bottom: var(--sa-space-3);
     font-weight: 500;
 }
 .pd-timeline-hint svg {
@@ -538,7 +538,7 @@ async function executeTerminate(): Promise<void> {
 .pd-timeline-bar {
     display: flex;
     height: 24px;
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     overflow: hidden;
     background: var(--sa-color-border-soft);
     border: 1px solid var(--sa-color-border);
@@ -551,7 +551,7 @@ async function executeTerminate(): Promise<void> {
     color: var(--sa-color-fg-secondary);
     border-right: 1px solid var(--sa-color-border-soft);
     white-space: nowrap;
-    padding: 0 8px;
+    padding: 0 var(--sa-space-3);
     min-width: 0;
     cursor: pointer;
     transition:
@@ -614,7 +614,7 @@ async function executeTerminate(): Promise<void> {
 .pd-timeline-ticks {
     display: flex;
     justify-content: space-between;
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
     font: 500 var(--sa-text-xs) var(--sa-font-mono);
     color: var(--sa-color-fg-subtle);
 }
@@ -633,17 +633,17 @@ async function executeTerminate(): Promise<void> {
         minmax(96px, auto);
     align-items: stretch;
     border-top: 1px solid var(--sa-color-border-soft);
-    margin-top: 12px;
+    margin-top: var(--sa-space-4);
 }
 .pd-versions-head {
     display: contents;
 }
 .pd-versions-head > div {
     background: var(--sa-color-bg-surface-raised);
-    padding: 9px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     font-size: var(--sa-text-2xs);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
     font-weight: 700;
     border-bottom: 1px solid var(--sa-color-border);
@@ -653,7 +653,7 @@ async function executeTerminate(): Promise<void> {
     cursor: pointer;
 }
 .pd-vrow > div {
-    padding: 13px 12px;
+    padding: var(--sa-space-4) var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border-soft);
     display: flex;
     align-items: center;
@@ -693,7 +693,7 @@ async function executeTerminate(): Promise<void> {
 .pd-vcol {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
     align-items: flex-start;
 }
 .pd-v-num {
@@ -702,12 +702,12 @@ async function executeTerminate(): Promise<void> {
 .pd-validity {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--sa-space-1);
 }
 .pd-validity-line {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .pd-validity-sub {
     font-size: var(--sa-text-xs);
@@ -726,7 +726,7 @@ async function executeTerminate(): Promise<void> {
 .pd-pricing-y {
     font: 500 var(--sa-text-xs) var(--sa-font-body);
     color: var(--sa-color-fg-subtle);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .pd-impact-num {
     font: 700 var(--sa-text-lg) var(--sa-font-body);
@@ -744,15 +744,15 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-row-actions {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
     justify-content: flex-end;
     align-items: center;
 }
 .pd-endsat-badge {
     display: inline-flex;
     align-items: center;
-    padding: 3px 8px;
-    border-radius: 999px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font: 600 var(--sa-text-xs) var(--sa-font-mono);
     background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
@@ -763,12 +763,12 @@ async function executeTerminate(): Promise<void> {
 /* diff */
 .pd-diff-chips {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .pd-diff-chip {
     font: 700 var(--sa-text-xs) var(--sa-font-mono);
-    padding: 3px 8px;
-    border-radius: 6px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
 }
 .pd-diff-chip.add {
     background: var(--sa-color-positive-surface);
@@ -786,19 +786,19 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid var(--sa-color-border);
 }
 .pd-diff-list {
-    padding: 12px;
+    padding: var(--sa-space-4);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .pd-diff-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 11px 12px 11px 0;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-4) var(--sa-space-4) var(--sa-space-4) 0;
     overflow: hidden;
 }
 .pd-diff-row.add {
@@ -886,13 +886,13 @@ async function executeTerminate(): Promise<void> {
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 .pd-diff-kind {
     font: 700 var(--sa-text-2xs) var(--sa-font-mono);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
 }
 .pd-diff-label {
@@ -907,7 +907,7 @@ async function executeTerminate(): Promise<void> {
 .pd-diff-vals {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font: 500 var(--sa-text-sm) var(--sa-font-mono);
 }
 .pd-diff-strike {
@@ -925,8 +925,8 @@ async function executeTerminate(): Promise<void> {
     margin-left: auto;
     font-size: var(--sa-text-xs);
     font-weight: 600;
-    padding: 2px 9px;
-    border-radius: 999px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     border: 1px solid;
 }
 .pd-diff-tag.add {
@@ -947,17 +947,17 @@ async function executeTerminate(): Promise<void> {
 .pd-diff-row.plain {
     background: var(--sa-color-bg-surface);
     border-color: var(--sa-color-border);
-    padding: 11px 12px 11px 0;
+    padding: var(--sa-space-4) var(--sa-space-4) var(--sa-space-4) 0;
 }
 .pd-diff-section {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 6px;
-    padding: 0 2px;
+    gap: var(--sa-space-3);
+    margin-top: var(--sa-space-2);
+    padding: 0 var(--sa-space-1);
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
@@ -970,7 +970,7 @@ async function executeTerminate(): Promise<void> {
     border-top: 1px dashed var(--sa-color-border);
 }
 .pd-diff-empty {
-    padding: 28px 18px;
+    padding: var(--sa-space-7) var(--sa-space-5);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-size: var(--sa-text-md);
@@ -979,21 +979,21 @@ async function executeTerminate(): Promise<void> {
     display: block;
     color: var(--sa-color-fg-secondary);
     font-size: var(--sa-text-lg);
-    margin-bottom: 4px;
+    margin-bottom: var(--sa-space-2);
 }
 
 /* audit */
 .pd-audit {
-    margin-top: 16px;
+    margin-top: var(--sa-space-5);
 }
 .pd-audit-body {
-    padding: 4px 16px 14px;
+    padding: var(--sa-space-2) var(--sa-space-5) var(--sa-space-4);
 }
 .pd-audit-row {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 9px 0;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-3) 0;
     border-top: 1px solid var(--sa-color-border-soft);
 }
 .pd-audit-row:first-child {

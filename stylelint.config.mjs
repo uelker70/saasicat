@@ -52,14 +52,14 @@ const SETTLED = [
 ];
 
 /**
- * Spacing, radii and tracking: not migrated yet.
+ * Spacing, radii and tracking.
  *
- * The layout pass is a single connected change — around 956 of the spacing
- * values sit notation-identical on a twelve-rung ladder and the rest have to
- * snap, moving layout — so half-migrated is worse than either end. Until then
- * these warn, and `pnpm lint:css` carries the measured count as a ceiling that
- * only moves down. A rule that fails on the day it lands teaches people to
- * disable it.
+ * These warned against a ceiling of 625 for exactly as long as the layout pass
+ * took: the values were one connected change — 949 declarations in one commit,
+ * because the same pixel had to land on the same rung everywhere — and a rule
+ * that fails on the day it lands teaches people to disable it. The ceiling is
+ * 0 now, which is what a ratchet is for. They stay `warning` rather than
+ * `error` so the count is what fails, in one line, rather than 600 messages.
  */
 const RATCHETED = ['letter-spacing', 'border-radius', 'gap', 'row-gap', 'column-gap'];
 

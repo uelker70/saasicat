@@ -67,7 +67,7 @@ const menu = computed(() => reviewMenuActions(props.status, msg.value));
 .sa-stc {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     flex-shrink: 0;
 }
 .sa-stc__danger {

@@ -143,9 +143,9 @@ const supersededTail = computed(() =>
 .bv-status-banner {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: 8px;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-4) var(--sa-space-4);
+    border-radius: var(--sa-radius-field);
     border: 1px solid transparent;
     font-size: var(--sa-text-md);
     line-height: 1.4;
@@ -189,11 +189,11 @@ const supersededTail = computed(() =>
 .bv-status-discard {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 10px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-2) var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
     font-size: var(--sa-text-sm);
     color: var(--sa-color-negative-fg);

@@ -464,28 +464,28 @@ function onPublish(): void {
     background: var(--sa-color-warning-surface);
     border: 1px solid var(--sa-color-warning-border);
     color: var(--sa-color-warning);
-    border-radius: 8px;
-    padding: 10px 14px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-4);
     font-size: var(--sa-text-md);
-    margin-bottom: 14px;
+    margin-bottom: var(--sa-space-4);
 }
 
 .pr-grid {
     display: grid;
     grid-template-columns: 1.2fr 1fr;
-    gap: 16px;
+    gap: var(--sa-space-5);
     align-items: start;
 }
 .pr-col {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .pr-card {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    padding: 16px 20px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-5) var(--sa-space-6);
 }
 .pr-card--regress {
     background: var(--sa-color-warning-surface);
@@ -501,9 +501,9 @@ function onPublish(): void {
 }
 .pr-card-title {
     font: 700 var(--sa-text-lg) var(--sa-font-head);
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
     color: var(--sa-color-fg-heading);
-    margin: 0 0 12px;
+    margin: 0 0 var(--sa-space-4);
 }
 .pr-req {
     color: var(--sa-color-negative);
@@ -511,15 +511,15 @@ function onPublish(): void {
 .pr-card-hint {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin: -6px 0 10px;
+    margin: calc(-1 * var(--sa-space-2)) 0 var(--sa-space-3);
     line-height: 1.5;
 }
 
 .pr-row {
     display: flex;
     align-items: baseline;
-    gap: 12px;
-    padding: 8px 0;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-3) 0;
     border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .pr-row:last-child {
@@ -547,8 +547,8 @@ function onPublish(): void {
 .pr-chip {
     display: inline-flex;
     align-items: center;
-    padding: 2px 9px;
-    border-radius: 999px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-size: var(--sa-text-xs);
     font-weight: 600;
     border: 1px solid;
@@ -567,14 +567,14 @@ function onPublish(): void {
 .pr-components {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .pr-comp-head {
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     font-weight: 700;
-    margin-bottom: 6px;
+    margin-bottom: var(--sa-space-2);
 }
 .pr-comp-head--quota {
     color: var(--sa-color-quota);
@@ -588,9 +588,9 @@ function onPublish(): void {
 .pr-comp-item {
     display: flex;
     justify-content: space-between;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-sm);
-    padding: 3px 0;
+    padding: var(--sa-space-1) 0;
     border-bottom: 1px solid var(--sa-color-border-soft);
     color: var(--sa-color-fg-body);
 }
@@ -601,7 +601,7 @@ function onPublish(): void {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     font-style: italic;
-    padding: 3px 0;
+    padding: var(--sa-space-1) 0;
 }
 
 .pr-note {
@@ -609,8 +609,8 @@ function onPublish(): void {
     line-height: 1.55;
     color: var(--sa-color-fg-body);
     background: var(--sa-color-border-soft);
-    border-radius: 7px;
-    padding: 10px 12px;
+    border-radius: var(--sa-radius-control);
+    padding: var(--sa-space-3) var(--sa-space-4);
 }
 .pr-note--missing {
     background: var(--sa-color-warning-surface);
@@ -620,12 +620,12 @@ function onPublish(): void {
 .pr-checks {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: var(--sa-space-3);
 }
 .pr-check {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: var(--sa-space-3);
     font-size: var(--sa-text-md);
 }
 .pr-check--ok {
@@ -654,7 +654,7 @@ function onPublish(): void {
 .pr-toggle {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
     cursor: pointer;
@@ -662,12 +662,12 @@ function onPublish(): void {
 
 .pr-impact {
     display: flex;
-    gap: 16px;
+    gap: var(--sa-space-5);
     align-items: center;
 }
 .pr-impact-num {
     font: 700 40px/1 var(--sa-font-head);
-    letter-spacing: -0.03em;
+    letter-spacing: var(--sa-tracking-tight);
     color: var(--sa-color-fg-heading);
 }
 .pr-impact-text {

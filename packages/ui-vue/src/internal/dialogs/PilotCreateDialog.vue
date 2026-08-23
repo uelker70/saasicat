@@ -485,29 +485,29 @@ async function doSubmit(code: string): Promise<void> {
     margin-right: auto;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     background: var(--sa-color-accent-surface-strong);
     border: 1px solid var(--sa-color-info-border);
-    border-radius: 999px;
-    padding: 4px 12px;
+    border-radius: var(--sa-radius-pill);
+    padding: var(--sa-space-2) var(--sa-space-4);
 }
 
 .pl-section {
-    margin-bottom: 20px;
+    margin-bottom: var(--sa-space-6);
 }
 
 .pl-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px 14px;
+    gap: var(--sa-space-4) var(--sa-space-4);
 }
 
 .pl-field {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--sa-space-2);
 }
 
 .pl-field--full {
@@ -516,12 +516,12 @@ async function doSubmit(code: string): Promise<void> {
 
 .pl-field label {
     font: 600 var(--sa-text-xs) var(--sa-font-body, system-ui, sans-serif);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     text-transform: uppercase;
     color: var(--sa-color-fg-muted);
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 
 .pl-field__hint {
@@ -556,12 +556,12 @@ async function doSubmit(code: string): Promise<void> {
     align-items: stretch;
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     overflow: hidden;
 }
 
 .pl-slug-input__prefix {
-    padding: 9px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-sunken);
     color: var(--sa-color-fg-subtle);
     font: 500 var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);

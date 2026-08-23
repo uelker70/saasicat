@@ -487,31 +487,31 @@ watch(
 }
 .sp-wizard__intro {
     color: var(--sp-wiz-text-muted);
-    margin-bottom: 16px;
+    margin-bottom: var(--sa-space-5);
 }
 .sp-wizard__loading {
     display: flex;
-    gap: 12px;
+    gap: var(--sa-space-4);
     align-items: center;
-    padding: 24px 0;
+    padding: var(--sa-space-7) 0;
 }
 .sp-wizard__error {
     color: var(--sa-color-negative);
     background: var(--sa-color-negative-surface);
-    padding: 12px;
-    border-radius: 4px;
+    padding: var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
 }
 .sp-wizard__type {
-    margin-bottom: 12px;
+    margin-bottom: var(--sa-space-4);
 }
 .sp-wizard__proration {
     background: var(--sa-color-info-surface);
-    padding: 12px 14px;
-    border-radius: 4px;
-    margin-top: 12px;
+    padding: var(--sa-space-4) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
+    margin-top: var(--sa-space-4);
 }
 .sp-wizard__proration h4 {
-    margin: 0 0 6px;
+    margin: 0 0 var(--sa-space-2);
     font-size: var(--sa-text-lg);
 }
 .sp-wizard__proration p {
@@ -520,10 +520,10 @@ watch(
 .sp-wizard__limits {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
 }
 .sp-wizard__limits thead th {
-    padding: 6px 12px;
+    padding: var(--sa-space-2) var(--sa-space-4);
     text-align: left;
     font-size: var(--sa-text-sm);
     color: var(--sp-wiz-text-faint);
@@ -533,11 +533,11 @@ watch(
 .sp-wizard__feat,
 .sp-wizard__blockers,
 .sp-wizard__warnings {
-    margin-top: 16px;
+    margin-top: var(--sa-space-5);
 }
 .sp-wizard__feat h4,
 .sp-wizard__blockers h4 {
-    margin: 0 0 6px;
+    margin: 0 0 var(--sa-space-2);
     font-size: var(--sa-text-lg);
 }
 .sp-wizard__feat--warn {
@@ -546,8 +546,8 @@ watch(
 .sp-wizard__blockers {
     color: var(--sa-color-negative);
     background: var(--sa-color-negative-surface);
-    padding: 12px 14px;
-    border-radius: 4px;
+    padding: var(--sa-space-4) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
 }
 .sp-wizard__warnings {
     color: var(--sa-color-warning);
@@ -557,24 +557,24 @@ watch(
     color: var(--sp-wiz-text-muted);
 }
 .sp-wizard__price-summary {
-    margin-top: 16px;
+    margin-top: var(--sa-space-5);
     background: var(--sa-color-info-surface);
-    padding: 12px 14px;
-    border-radius: 4px;
+    padding: var(--sa-space-4) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
 }
 .sp-wizard__price-summary h4 {
-    margin: 0 0 8px;
+    margin: 0 0 var(--sa-space-3);
     font-size: var(--sa-text-lg);
 }
 .sp-wizard__price-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 16px;
-    padding: 2px 0;
+    gap: var(--sa-space-5);
+    padding: var(--sa-space-1) 0;
 }
 .sp-wizard__price-note {
     color: var(--sp-wiz-text-muted);
-    padding: 2px 0 6px;
+    padding: var(--sa-space-1) 0 var(--sa-space-2);
 }
 </style>

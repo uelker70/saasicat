@@ -576,44 +576,44 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--sa-space-5);
 }
 .sp-plan-section__loading,
 .sp-plan-section__empty {
     display: flex;
-    gap: 12px;
+    gap: var(--sa-space-4);
     align-items: center;
-    padding: 24px;
+    padding: var(--sa-space-7);
     color: var(--sp-text-secondary);
 }
 .sp-plan-section__error {
     color: var(--sa-color-negative);
     background: var(--sa-color-negative-surface);
-    padding: 12px 16px;
-    border-radius: 4px;
+    padding: var(--sa-space-4) var(--sa-space-5);
+    border-radius: var(--sa-radius-badge);
 }
 .sp-plan-section__card-head {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 16px;
+    gap: var(--sa-space-5);
     flex-wrap: wrap;
 }
 .sp-plan-section__eyebrow {
     font-size: var(--sa-text-sm);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sp-text-muted);
-    margin-bottom: 4px;
+    margin-bottom: var(--sa-space-2);
 }
 .sp-plan-section__plan-name {
-    margin: 0 0 8px;
+    margin: 0 0 var(--sa-space-3);
     font-size: var(--sa-text-2xl);
     font-weight: 600;
 }
 .sp-plan-section__meta {
     display: flex;
-    gap: 12px;
+    gap: var(--sa-space-4);
     align-items: center;
     flex-wrap: wrap;
 }
@@ -624,18 +624,18 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
     font-weight: 600;
 }
 .sp-plan-section__sub {
-    margin: 6px 0 0;
+    margin: var(--sa-space-2) 0 0;
     color: var(--sp-text-muted);
     font-size: var(--sa-text-md);
 }
 .sp-plan-section__usage-title {
     font-weight: 600;
-    margin-bottom: 12px;
+    margin-bottom: var(--sa-space-4);
 }
 .sp-plan-section__usage-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
+    gap: var(--sa-space-5);
 }
 .sp-plan-section__item-list {
     list-style: none;
@@ -643,19 +643,19 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sp-plan-section__item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     border: 1px solid var(--sp-border);
-    padding: 10px 14px;
-    border-radius: 4px;
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
 }
 .sp-plan-section__item-label {
     font-weight: 500;
-    margin-right: 12px;
+    margin-right: var(--sa-space-4);
 }
 .sp-plan-section__item-price {
     color: var(--sp-text-secondary);

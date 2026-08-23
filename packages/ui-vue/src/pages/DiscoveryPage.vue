@@ -591,16 +591,16 @@ onMounted(async () => {
 
 <style>
 .sa-discovery {
-    padding: 16px;
+    padding: var(--sa-space-5);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .sa-discovery__panel {
     display: flex;
     flex-direction: column;
     background-color: var(--sa-color-bg-surface);
-    padding: 16px 0 0;
+    padding: var(--sa-space-5) 0 0;
 }
 .sa-discovery__banner {
     display: flex;
@@ -608,13 +608,13 @@ onMounted(async () => {
     align-items: center;
     background: var(--sa-color-inverse-bg);
     color: var(--sa-color-inverse-fg-muted);
-    border-radius: 12px;
-    padding: 14px 18px;
+    border-radius: var(--sa-radius-card);
+    padding: var(--sa-space-4) var(--sa-space-5);
 }
 .sa-discovery__banner-app {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-discovery__banner-name {
     font-weight: 700;
@@ -630,7 +630,7 @@ onMounted(async () => {
 .sa-discovery__banner-time-lbl {
     font-size: var(--sa-text-2xs);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-subtle);
 }
 .sa-discovery__banner-time-val {
@@ -649,10 +649,10 @@ onMounted(async () => {
 .sa-discovery__cardlist {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-discovery__group {
-    margin-bottom: 16px;
+    margin-bottom: var(--sa-space-5);
 }
 .sa-discovery__group--orphan .sa-section__title {
     color: var(--sa-color-warning-fg);
@@ -662,39 +662,39 @@ onMounted(async () => {
     font-weight: 700;
     background: var(--sa-color-border);
     color: var(--sa-color-fg-secondary);
-    padding: 1px 7px;
-    border-radius: 8px;
+    padding: var(--sa-space-0) var(--sa-space-3);
+    border-radius: var(--sa-radius-field);
 }
 .sa-discovery__orphan-hint {
-    margin: 0 0 8px;
+    margin: 0 0 var(--sa-space-3);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-warning-fg);
 }
 .sa-discovery__orphan-hint code {
     font-size: var(--sa-text-2xs);
     background: var(--sa-color-warning-surface);
-    padding: 1px 4px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-discovery__empty-row {
-    padding: 36px;
+    padding: var(--sa-space-8);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-size: var(--sa-text-md);
     border: 1px dashed var(--sa-color-border-strong);
-    border-radius: 12px;
+    border-radius: var(--sa-radius-card);
 }
 .sa-muted {
     color: var(--sa-color-fg-subtle);
-    margin-right: 3px;
+    margin-right: var(--sa-space-1);
 }
 /* Status badge (review lifecycle) — shared by feature and quota card. */
 .sa-review {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 6px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
     flex-shrink: 0;
@@ -718,8 +718,8 @@ onMounted(async () => {
 .sa-chip {
     font-size: var(--sa-text-2xs);
     font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 6px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
 }
@@ -727,11 +727,11 @@ onMounted(async () => {
 .sa-cov-pill {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 8px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-field);
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-sunken);
     color: var(--sa-color-fg-secondary);

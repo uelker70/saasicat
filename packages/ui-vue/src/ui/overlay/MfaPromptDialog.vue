@@ -98,13 +98,13 @@ function onConfirm() {
 .header {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     padding-bottom: 0;
 }
 code {
     background: var(--sa-color-bg-sunken);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     font-size: var(--sa-text-xs);
 }
 </style>

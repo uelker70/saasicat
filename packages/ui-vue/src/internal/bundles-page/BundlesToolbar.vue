@@ -55,7 +55,7 @@ const localeOptions = computed(() =>
 .sa-bundles__toolbar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-bundles__locale {
     min-width: 150px;

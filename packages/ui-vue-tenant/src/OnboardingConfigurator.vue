@@ -281,17 +281,17 @@ defineExpose({ draft });
 
 <style scoped>
 .sp-onb {
-    padding: 28px 24px 80px;
+    padding: var(--sa-space-7) var(--sa-space-7) var(--sa-space-11);
     max-width: 1480px;
     margin: 0 auto;
 }
 .sp-onb__header {
-    margin-bottom: 22px;
+    margin-bottom: var(--sa-space-6);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 20px;
+    gap: var(--sa-space-6);
 }
 .sp-onb__header > div:first-child {
     flex: 1 1 320px;
@@ -300,22 +300,22 @@ defineExpose({ draft });
 .sp-onb__eyebrow {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-xs);
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
     color: var(--sa-color-accent-strong);
     background: var(--sa-color-accent-surface);
-    padding: 6px 11px;
-    border-radius: 999px;
+    padding: var(--sa-space-2) var(--sa-space-4);
+    border-radius: var(--sa-radius-pill);
     border: 1px solid var(--sa-color-accent-border);
 }
 .sp-onb__header h1 {
-    margin: 12px 0 8px;
+    margin: var(--sa-space-4) 0 var(--sa-space-3);
     font-size: var(--sa-text-4xl);
     line-height: 1.1;
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .sp-onb__header p {
     margin: 0;
@@ -325,7 +325,7 @@ defineExpose({ draft });
 .sp-onb__layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 380px;
-    gap: 24px;
+    gap: var(--sa-space-7);
     align-items: start;
 }
 @media (max-width: 1023.98px) {
@@ -336,27 +336,27 @@ defineExpose({ draft });
 .sp-onb__main {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: var(--sa-space-6);
 }
 .sp-onb__section {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 22px;
-    padding: 26px 28px 24px;
+    border-radius: var(--sa-radius-hero);
+    padding: var(--sa-space-7) var(--sa-space-7) var(--sa-space-7);
     box-shadow: 0 24px 80px var(--sa-shadow-tint-1);
 }
 .sp-onb__sec-head {
-    padding-bottom: 14px;
-    margin-bottom: 18px;
+    padding-bottom: var(--sa-space-4);
+    margin-bottom: var(--sa-space-5);
     border-bottom: 1px dashed var(--sa-color-border);
 }
 .sp-onb__sec-head h2 {
-    margin: 6px 0 0;
+    margin: var(--sa-space-2) 0 0;
     font-size: var(--sa-text-2xl);
-    letter-spacing: -0.005em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .sp-onb__sec-head p {
-    margin: 4px 0 0;
+    margin: var(--sa-space-2) 0 0;
     color: var(--sa-color-fg-muted);
     font-size: var(--sa-text-md);
     max-width: 520px;
@@ -364,10 +364,10 @@ defineExpose({ draft });
 .sp-onb__sec-num {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-xs);
-    letter-spacing: 0.16em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
     color: var(--sa-color-accent);
     font-weight: 700;
@@ -379,7 +379,7 @@ defineExpose({ draft });
     background: var(--sa-color-accent);
 }
 .sp-onb__loading {
-    padding: 40px;
+    padding: var(--sa-space-9);
     text-align: center;
     color: var(--sa-color-fg-subtle);
 }
@@ -387,14 +387,14 @@ defineExpose({ draft });
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    padding-top: 8px;
+    gap: var(--sa-space-4);
+    padding-top: var(--sa-space-3);
 }
 .sp-onb__back-btn {
     background: none;
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 10px;
-    padding: 10px 16px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-3) var(--sa-space-5);
     font-family: inherit;
     font-size: var(--sa-text-md);
     cursor: pointer;
@@ -406,8 +406,8 @@ defineExpose({ draft });
 .sp-onb__error {
     color: var(--sa-color-negative-fg);
     background: var(--sa-color-negative-surface);
-    padding: 10px 14px;
-    border-radius: 8px;
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-radius: var(--sa-radius-field);
     font-size: var(--sa-text-md);
 }
 </style>

@@ -86,7 +86,7 @@ function cancel(): void {
 .pd-title-edit {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 /* `font: inherit` on purpose: the heading's type comes from the hero, so the
  * input keeps matching it when that changes. */
@@ -96,7 +96,7 @@ function cancel(): void {
     border: 0;
     background: var(--sa-color-warning-surface);
     outline: 2px solid var(--sa-color-warning-strong);
-    padding: 2px 8px;
+    padding: var(--sa-space-1) var(--sa-space-3);
     border-radius: var(--sa-radius-control);
     min-width: 220px;
 }
@@ -107,7 +107,7 @@ function cancel(): void {
     background: var(--sa-color-warning-surface);
     border: 1px solid var(--sa-color-warning-border);
     border-radius: var(--sa-radius-control);
-    padding: 3px 8px;
+    padding: var(--sa-space-1) var(--sa-space-3);
 }
 .pd-title-edit__btn {
     display: inline-flex;

@@ -194,22 +194,22 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
 
 <style scoped>
 .sa-pv-diff {
-    padding: 20px 28px;
+    padding: var(--sa-space-6) var(--sa-space-7);
 }
 .sa-pv-diff__overview {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 18px;
+    border-radius: var(--sa-radius-card);
+    padding: var(--sa-space-5) var(--sa-space-6);
+    margin-bottom: var(--sa-space-5);
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: var(--sa-space-5);
 }
 .sa-pv-diff__hero {
     width: 44px;
     height: 44px;
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     /* Invariant: the icon inside is explicitly white. The `warning` roles
      * lighten in dark, which would leave it at 1.67:1 on its own badge. */
     background: linear-gradient(
@@ -224,7 +224,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
 .sa-pv-diff__legend {
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
 }
@@ -243,7 +243,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
 }
 .sa-pv-diff__stats {
     display: flex;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .sa-pv-diff__stat {
     text-align: right;
@@ -251,7 +251,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
 .sa-pv-diff__stat-label {
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
 }
@@ -268,12 +268,12 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
 }
 
 .sa-pv-diff__section {
-    margin: 22px 0 10px;
+    margin: var(--sa-space-6) 0 var(--sa-space-3);
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
 }
 </style>

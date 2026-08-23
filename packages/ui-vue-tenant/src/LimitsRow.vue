@@ -47,7 +47,7 @@ function formatMax(n: number): string {
     border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .sp-limits-row td {
-    padding: 8px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     font-variant-numeric: tabular-nums;
 }
 .sp-limits-row__label {

@@ -104,6 +104,26 @@ const READ_CONTROLS = () => {
 };
 
 /**
+ * Waits until what is measured has stopped changing width.
+ *
+ * The header is a `nowrap` flex row of icon buttons, and an icon button before
+ * its font has loaded is a fallback glyph of a different width. Measuring
+ * between those two states reports an overflow that is real for one frame and
+ * gone by the next — which is exactly what this suite did under full parallel
+ * load, on one of the two identity cases, and never on the same one twice.
+ *
+ * A flaky guard is worse than no guard: it teaches the reader that a red run
+ * means nothing.
+ */
+async function settled(page: Page): Promise<void> {
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    // One frame after the fonts resolve, so a relayout they caused is done.
+    await page.evaluate(
+        () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+}
+
+/**
  * Fills the identity block the way a consumer passing `userName`/`userEmail`
  * fills it.
  *
@@ -166,6 +186,7 @@ test.describe('the shell header keeps its controls reachable', () => {
                 await page.setViewportSize({ width, height: 900 });
                 await page.goto('/admin/tenants');
                 await page.waitForSelector('.q-header .q-toolbar');
+                await settled(page);
                 if (identity === 'with a name and an email') await fillIdentity(page);
 
                 const reading = await page.evaluate(READ_CONTROLS);
@@ -208,6 +229,7 @@ test.describe('the shell header keeps its controls reachable', () => {
         await page.setViewportSize({ width: 320, height: 900 });
         await page.goto('/admin/tenants');
         await page.waitForSelector('.q-header .q-toolbar');
+        await settled(page);
 
         const reading = await page.evaluate(READ_CONTROLS);
         expect(reading!.controls.map((c) => c.name)).toContain('sa-theme-switcher');

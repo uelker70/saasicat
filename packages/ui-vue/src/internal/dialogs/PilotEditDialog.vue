@@ -330,7 +330,7 @@ async function doSubmit(code: string): Promise<void> {
 
 <style scoped>
 .pl-section {
-    margin-bottom: 18px;
+    margin-bottom: var(--sa-space-5);
 }
 
 .pl-textarea {

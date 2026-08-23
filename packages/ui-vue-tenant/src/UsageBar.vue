@@ -67,7 +67,7 @@ const formattedMax = computed(() => {
 .sp-usage-bar {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .sp-usage-bar__head {
     display: flex;
@@ -87,13 +87,13 @@ const formattedMax = computed(() => {
     width: 100%;
     height: 8px;
     background: var(--sa-color-bg-sunken);
-    border-radius: 4px;
+    border-radius: var(--sa-radius-badge);
     overflow: hidden;
 }
 .sp-usage-bar__fill {
     height: 100%;
     transition: width 200ms ease;
-    border-radius: 4px;
+    border-radius: var(--sa-radius-badge);
 }
 .sp-usage-bar--ok .sp-usage-bar__fill {
     background: var(--sa-color-positive);

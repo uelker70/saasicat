@@ -395,10 +395,10 @@ function formatDate(date: Date | string | null | undefined): string {
 
 <style scoped>
 .msb {
-    padding: 16px;
+    padding: var(--sa-space-5);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--sa-space-5);
     font-family:
         'Inter',
         -apple-system,
@@ -411,32 +411,32 @@ function formatDate(date: Date | string | null | undefined): string {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
+    gap: var(--sa-space-5);
 }
 .msb-title {
     margin: 0;
     font-size: var(--sa-text-xl);
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .msb-sub {
-    margin: 4px 0 0;
+    margin: var(--sa-space-2) 0 0;
     color: var(--sa-color-fg-muted);
     font-size: var(--sa-text-md);
     max-width: 580px;
     line-height: 1.5;
 }
 .msb-loading {
-    padding: 32px;
+    padding: var(--sa-space-8);
     text-align: center;
     color: var(--sa-color-fg-muted);
 }
 .msb-empty {
-    padding: 32px 24px;
+    padding: var(--sa-space-8) var(--sa-space-7);
     text-align: center;
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
-    border-radius: 12px;
+    border-radius: var(--sa-radius-card);
     color: var(--sa-color-fg-secondary);
 }
 .msb-empty-link {
@@ -448,23 +448,23 @@ function formatDate(date: Date | string | null | undefined): string {
     text-decoration: underline;
 }
 .msb-error {
-    padding: 10px 14px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
 }
 .msb-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .msb-card {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 12px;
-    padding: 14px 18px;
+    border-radius: var(--sa-radius-card);
+    padding: var(--sa-space-4) var(--sa-space-5);
 }
 .msb-card--canceled-pending {
     border-color: var(--sa-color-warning-border);
@@ -477,12 +477,12 @@ function formatDate(date: Date | string | null | undefined): string {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .msb-card-title {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 .msb-card-key {
@@ -490,10 +490,10 @@ function formatDate(date: Date | string | null | undefined): string {
         700 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .msb-card-meta {
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
 }
@@ -501,9 +501,9 @@ function formatDate(date: Date | string | null | undefined): string {
     font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 2px 8px;
-    border-radius: 999px;
+    letter-spacing: var(--sa-tracking-wider);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
 }
 .msb-chip--active {
     background: var(--sa-color-positive-surface-strong);
@@ -518,11 +518,11 @@ function formatDate(date: Date | string | null | undefined): string {
     color: var(--sa-color-fg-secondary);
 }
 .msb-cancel-info {
-    margin-top: 10px;
-    padding: 8px 12px;
+    margin-top: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-warning-surface);
     border: 1px solid var(--sa-color-warning-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     color: var(--sa-color-warning-fg);
     font-size: var(--sa-text-md);
 }
@@ -530,11 +530,11 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 7px;
+    border-radius: var(--sa-radius-control);
     cursor: pointer;
     font-family: inherit;
     font-size: var(--sa-text-md);
@@ -575,7 +575,7 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-modal {
     width: min(520px, 96vw);
     background: var(--sa-color-bg-surface);
-    border-radius: 12px;
+    border-radius: var(--sa-radius-card);
     box-shadow: 0 20px 60px var(--sa-shadow-tint-4);
     display: flex;
     flex-direction: column;
@@ -584,7 +584,7 @@ function formatDate(date: Date | string | null | undefined): string {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px 10px;
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-3);
     border-bottom: 1px solid var(--sa-color-border);
 }
 .msb-modal-title {
@@ -596,32 +596,32 @@ function formatDate(date: Date | string | null | undefined): string {
     border: 0;
     cursor: pointer;
     color: var(--sa-color-fg-muted);
-    padding: 4px;
-    border-radius: 4px;
+    padding: var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .msb-modal-x:hover {
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-heading);
 }
 .msb-modal-body {
-    padding: 16px 20px;
+    padding: var(--sa-space-5) var(--sa-space-6);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .msb-modal-foot {
-    padding: 12px 20px;
+    padding: var(--sa-space-4) var(--sa-space-6);
     border-top: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-sunken);
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 var(--sa-radius-card) var(--sa-radius-card);
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .msb-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .msb-field-label {
     font-size: var(--sa-text-sm);
@@ -633,9 +633,9 @@ function formatDate(date: Date | string | null | undefined): string {
     color: var(--sa-color-fg-subtle);
 }
 .msb-input {
-    padding: 7px 10px;
+    padding: var(--sa-space-3) var(--sa-space-3);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font-family: inherit;
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);

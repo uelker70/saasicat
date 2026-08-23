@@ -125,7 +125,7 @@ function logout(): void | Promise<void> {
 
 <style scoped>
 .sa-manifest-error {
-    padding: 32px;
+    padding: var(--sa-space-8);
     display: flex;
     justify-content: center;
     /* The page frame is a full viewport tall, and a stretched flex item would
@@ -139,7 +139,7 @@ function logout(): void | Promise<void> {
 .sa-manifest-error__head {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-manifest-error__title {
     margin: 0;
@@ -147,22 +147,22 @@ function logout(): void | Promise<void> {
 }
 .sa-manifest-error__lead,
 .sa-manifest-error__detail {
-    margin: 0 0 12px;
+    margin: 0 0 var(--sa-space-4);
     color: var(--sa-color-fg-secondary);
     line-height: 1.6;
 }
 .sa-manifest-error__detail {
     background: var(--sa-color-negative-surface);
     border-left: 3px solid var(--sa-color-negative);
-    padding: 8px 12px;
-    border-radius: 4px;
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: var(--sa-text-md);
     color: var(--sa-color-negative-fg);
 }
 .sa-manifest-error__actions {
     display: flex;
-    gap: 8px;
-    margin-top: 16px;
+    gap: var(--sa-space-3);
+    margin-top: var(--sa-space-5);
 }
 </style>

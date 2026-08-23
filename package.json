@@ -13,7 +13,7 @@
         "test:repo": "node --test tests/*.test.js",
         "typecheck": "pnpm -r typecheck",
         "lint": "eslint .",
-        "lint:css": "stylelint \"packages/ui-vue/src/{pages,features,internal}/**/*.{vue,css}\" \"packages/ui-vue-tenant/src/**/*.{vue,css}\" --max-warnings 625",
+        "lint:css": "stylelint \"packages/ui-vue/src/{pages,features,internal}/**/*.{vue,css}\" \"packages/ui-vue-tenant/src/**/*.{vue,css}\" --max-warnings 0",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "release:version": "changeset version && node scripts/stamp-spec-version.mjs",

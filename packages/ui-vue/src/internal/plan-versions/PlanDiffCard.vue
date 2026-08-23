@@ -72,22 +72,22 @@ const changeCountLabel = computed(() => {
 .sa-pv-diff-card {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    margin-bottom: 12px;
+    border-radius: var(--sa-radius-tile);
+    margin-bottom: var(--sa-space-4);
     overflow: hidden;
 }
 .sa-pv-diff-card--noop {
-    padding: 12px 16px;
-    margin-bottom: 8px;
+    padding: var(--sa-space-4) var(--sa-space-5);
+    margin-bottom: var(--sa-space-3);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
     opacity: 0.65;
 }
 .sa-pv-diff-card__noop-icon {
     width: 28px;
     height: 28px;
-    border-radius: 7px;
+    border-radius: var(--sa-radius-control);
     background: var(--sa-color-positive-surface);
     display: flex;
     align-items: center;
@@ -98,17 +98,17 @@ const changeCountLabel = computed(() => {
 }
 
 .sa-pv-diff-card__head {
-    padding: 12px 16px;
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-border-soft);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
     background: var(--sa-color-bg-surface-raised);
 }
 .sa-pv-diff-card__accent {
     width: 28px;
     height: 28px;
-    border-radius: 7px;
+    border-radius: var(--sa-radius-control);
     border: 1px solid;
     display: flex;
     align-items: center;
@@ -126,8 +126,8 @@ const changeCountLabel = computed(() => {
     font-weight: 600;
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-border-soft);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-pv-diff-card__sub {
     font-size: var(--sa-text-sm);
@@ -136,14 +136,14 @@ const changeCountLabel = computed(() => {
 .sa-pv-diff-card__count {
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
     background: var(--sa-color-warning-surface-strong);
     color: var(--sa-color-warning-fg);
-    padding: 2px 8px;
-    border-radius: 4px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
     margin-left: auto;
 }
 .sa-pv-diff-card__body {
-    padding: 12px 16px;
+    padding: var(--sa-space-4) var(--sa-space-5);
 }
 </style>

@@ -73,20 +73,20 @@ defineEmits<{ accept: [] }>();
 .sp-pending-version {
     border: 1px solid var(--sa-color-warning-border);
     background: var(--sa-color-warning-surface);
-    border-radius: 6px;
-    padding: 12px 16px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-4) var(--sa-space-5);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sp-pending-version__head {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sp-pending-version__chip {
-    padding: 2px 8px;
-    border-radius: 12px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-card);
     font-size: var(--sa-text-sm);
     font-weight: 600;
     text-transform: uppercase;
@@ -111,8 +111,8 @@ defineEmits<{ accept: [] }>();
 }
 .sp-pending-version__btn {
     align-self: flex-start;
-    padding: 6px 14px;
-    border-radius: 4px;
+    padding: var(--sa-space-2) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
     border: 0;
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);

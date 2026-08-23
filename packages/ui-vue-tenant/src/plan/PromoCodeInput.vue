@@ -102,27 +102,27 @@ function remove(): void {
 <style scoped>
 .sp-promo__toggle {
     width: 100%;
-    padding: 10px 12px;
-    margin: 10px 0 6px;
+    padding: var(--sa-space-3) var(--sa-space-4);
+    margin: var(--sa-space-3) 0 var(--sa-space-2);
     border: 1px dashed var(--sa-color-accent-border);
     background: var(--sa-color-accent-surface-soft);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     color: var(--sa-color-accent-strong);
     font-weight: 700;
     font-size: var(--sa-text-sm);
     cursor: pointer;
     font-family: inherit;
-    letter-spacing: 0.01em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .sp-promo__toggle:hover {
     background: var(--sa-color-accent-surface);
 }
 .sp-promo {
-    margin: 10px 0 6px;
-    padding: 10px;
+    margin: var(--sa-space-3) 0 var(--sa-space-2);
+    padding: var(--sa-space-3);
     background: var(--sa-color-accent-surface-soft);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
 }
 .sp-promo--valid {
     border-color: var(--sa-color-positive-border);
@@ -138,16 +138,16 @@ function remove(): void {
 }
 .sp-promo__field {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sp-promo__field input {
     flex: 1;
-    padding: 8px 10px;
+    padding: var(--sa-space-3) var(--sa-space-3);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-sm);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     background: var(--sa-color-bg-surface);
     outline: none;
     text-transform: uppercase;
@@ -156,11 +156,11 @@ function remove(): void {
     border-color: var(--sa-color-accent);
 }
 .sp-promo__btn {
-    padding: 8px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     font-family: inherit;
     font-size: var(--sa-text-xs);
     font-weight: 700;
@@ -176,7 +176,7 @@ function remove(): void {
     color: var(--sa-color-negative-fg);
 }
 .sp-promo__msg {
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
     font-size: var(--sa-text-xs);
     font-weight: 600;
 }

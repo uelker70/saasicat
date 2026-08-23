@@ -90,7 +90,7 @@ function planPrice(plan: CatalogPlan): number | null {
 .sp-models {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 /* This component's knobs, all of them reading a role. The dark set that used to
  * sit below is gone: the roles carry the theme now, so nine values were being
@@ -118,11 +118,11 @@ function planPrice(plan: CatalogPlan): number | null {
     font-family: inherit;
     background: var(--sp-card-bg);
     border: 1.5px solid var(--sp-card-border);
-    border-radius: 18px;
-    padding: 16px;
+    border-radius: var(--sa-radius-hero);
+    padding: var(--sa-space-5);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
     transition: all 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
     color: var(--sp-text-strong);
 }
@@ -140,15 +140,15 @@ function planPrice(plan: CatalogPlan): number | null {
 }
 .sp-model__flag {
     position: absolute;
-    top: -10px;
-    right: 14px;
+    top: calc(-1 * var(--sa-space-3));
+    right: var(--sa-space-4);
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 999px;
-    letter-spacing: 0.04em;
+    padding: var(--sa-space-2) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
+    letter-spacing: var(--sa-tracking-wide);
     text-transform: uppercase;
 }
 .sp-model__flag--current {
@@ -168,8 +168,8 @@ function planPrice(plan: CatalogPlan): number | null {
 .sp-model__price {
     display: flex;
     align-items: baseline;
-    gap: 4px;
-    margin-top: 4px;
+    gap: var(--sa-space-2);
+    margin-top: var(--sa-space-2);
 }
 .sp-model__price strong {
     font-size: var(--sa-text-2xl);
@@ -183,15 +183,15 @@ function planPrice(plan: CatalogPlan): number | null {
 .sp-model__quotas {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-    gap: 6px;
-    margin-top: 4px;
-    padding-top: 10px;
+    gap: var(--sa-space-2);
+    margin-top: var(--sa-space-2);
+    padding-top: var(--sa-space-3);
     border-top: 1px dashed var(--sp-card-border-soft);
 }
 .sp-model__quota {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: var(--sa-space-0);
     font-size: var(--sa-text-xs);
 }
 .sp-model__quota strong {
@@ -202,6 +202,6 @@ function planPrice(plan: CatalogPlan): number | null {
     color: var(--sp-text-muted);
     font-size: var(--sa-text-2xs);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
 }
 </style>

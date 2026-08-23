@@ -550,7 +550,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-wrap {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     /* Scrolls rather than clips. `overflow: hidden` was here to keep the corner
      * radius, and it also cut the six-column grid off below ~790px — six data
      * columns squeezed into a phone are not readable anyway, so the honest
@@ -562,8 +562,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-sunken);
 }
@@ -599,17 +599,17 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     display: flex;
     align-items: center;
     background: var(--sa-color-bg-surface-raised);
-    padding: 10px 16px;
+    padding: var(--sa-space-3) var(--sa-space-5);
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-secondary);
     font-weight: 700;
     border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-empty {
     grid-column: 1 / -1;
-    padding: 32px 24px;
+    padding: var(--sa-space-8) var(--sa-space-7);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
@@ -625,7 +625,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 14px 16px;
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-border-soft);
     transition: background 0.12s;
 }
@@ -648,8 +648,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 /* Sub-rows (drafts + future-scheduled versions, indented under the parent) */
 .sa-plan-list-row--sub > .sa-plan-list-cell {
     background: var(--sa-color-bg-surface-raised);
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: var(--sa-space-3);
+    padding-bottom: var(--sa-space-3);
 }
 .sa-plan-list-row--sub:hover > .sa-plan-list-cell {
     background: var(--sa-color-border-soft);
@@ -662,8 +662,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
      * elbow pointing at nothing. */
     justify-content: flex-start;
     align-items: center;
-    gap: 12px;
-    padding-left: 32px !important;
+    gap: var(--sa-space-4);
+    padding-left: var(--sa-space-8) !important;
 }
 .sa-plan-list-sub-tree {
     display: inline-flex;
@@ -677,7 +677,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     position: absolute;
     top: 0;
     bottom: 50%;
-    left: 12px;
+    left: var(--sa-space-4);
     width: 14px;
     border-left: 1.5px solid var(--sa-color-border-strong);
     border-bottom: 1.5px solid var(--sa-color-border-strong);
@@ -692,12 +692,12 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     color: var(--sa-color-fg-secondary);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-plan-list-sub-desc {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -714,16 +714,16 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-plan-name {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-plan-list-plan-mark {
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     display: grid;
     place-items: center;
     font: 700 var(--sa-text-xs) var(--sa-font-mono);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     flex: 0 0 auto;
     border: 1px solid;
 }
@@ -734,16 +734,16 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 .sa-plan-list-plan-desc {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -752,7 +752,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-cell--status {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sa-space-1);
     align-items: flex-start;
 }
 
@@ -760,9 +760,9 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 999px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-size: var(--sa-text-xs);
     font-weight: 600;
     background: var(--sa-color-bg-sunken);
@@ -770,7 +770,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     border: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-chip--tiny {
-    padding: 1px 6px;
+    padding: var(--sa-space-0) var(--sa-space-2);
     font-size: var(--sa-text-2xs);
 }
 .sa-plan-list-chip--new {
@@ -818,7 +818,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-version-sub {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 
 .sa-plan-list-price-big {
@@ -833,7 +833,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-price-sub {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .sa-plan-list-price-text {
     font-size: var(--sa-text-md);
@@ -846,7 +846,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sa-plan-list-tenant-num {
     font-size: var(--sa-text-lg);
@@ -857,7 +857,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     flex: 1;
     height: 6px;
     background: var(--sa-color-border-soft);
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     overflow: hidden;
 }
 .sa-plan-list-tenant-bar-fill {
@@ -869,6 +869,6 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     flex-direction: row;
     align-items: center;
     justify-content: flex-end;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 </style>

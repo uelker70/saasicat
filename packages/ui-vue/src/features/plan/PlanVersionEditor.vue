@@ -776,8 +776,8 @@ function emitSave(): void {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 22px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-6);
     background: var(--sa-color-negative-surface);
     border-bottom: 1px solid var(--sa-color-negative-border);
     color: var(--sa-color-negative-fg);
@@ -792,10 +792,10 @@ function emitSave(): void {
 .pve-kicker {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-subtle);
 }
 .pve-mono {
@@ -810,12 +810,12 @@ function emitSave(): void {
 .pve-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 999px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-size: var(--sa-text-xs);
     font-weight: 600;
-    letter-spacing: 0.01em;
+    letter-spacing: var(--sa-tracking-normal);
     background: var(--sa-color-bg-sunken);
     color: var(--sa-color-fg-secondary);
     border: 1px solid var(--sa-color-border);
@@ -847,8 +847,8 @@ function emitSave(): void {
     font: 600 var(--sa-text-xs) var(--sa-font-mono);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     border: 1px solid var(--sa-color-border);
 }
 
@@ -880,28 +880,28 @@ function emitSave(): void {
     border-right: 0;
 }
 .pve-col-header {
-    padding: 16px 18px 12px;
+    padding: var(--sa-space-5) var(--sa-space-5) var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--sa-space-3);
     flex: 0 0 auto;
 }
 .pve-col-header--basket {
-    padding: 16px 22px 12px;
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-4);
 }
 .pve-col-header--preview {
-    padding: 16px 18px 12px;
+    padding: var(--sa-space-5) var(--sa-space-5) var(--sa-space-4);
 }
 .pve-col-title {
     font-size: var(--sa-text-lg);
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .pve-col-sub {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 
 /* ── LEFT — Pool ───────────────────────────────────────────────── */
@@ -911,12 +911,12 @@ function emitSave(): void {
 .pve-search {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    margin: 10px 14px 0;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    margin: var(--sa-space-3) var(--sa-space-4) 0;
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
 }
 .pve-search input {
     flex: 1;
@@ -932,20 +932,20 @@ function emitSave(): void {
 }
 .pve-tabs {
     display: flex;
-    gap: 4px;
-    padding: 12px 14px 6px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-4) var(--sa-space-4) var(--sa-space-2);
 }
 .pve-tab {
     background: transparent;
     border: 0;
-    padding: 5px 10px;
-    border-radius: 6px;
+    padding: var(--sa-space-2) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
     font: 500 var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-secondary);
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .pve-tab--active {
     background: var(--sa-color-inverse-bg);
@@ -953,8 +953,8 @@ function emitSave(): void {
 }
 .pve-tab-count {
     font-size: var(--sa-text-xs);
-    padding: 1px 5px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-border);
     color: var(--sa-color-fg-secondary);
 }
@@ -966,25 +966,25 @@ function emitSave(): void {
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 6px 14px 18px;
+    padding: var(--sa-space-2) var(--sa-space-4) var(--sa-space-5);
 }
 .pve-pool-group {
     font-size: var(--sa-text-2xs);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-subtle);
     font-weight: 700;
-    padding: 12px 4px 6px;
+    padding: var(--sa-space-4) var(--sa-space-2) var(--sa-space-2);
 }
 .pve-pool-card {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 9px 10px;
-    margin-bottom: 6px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-3);
+    margin-bottom: var(--sa-space-2);
     cursor: grab;
     transition:
         box-shadow 0.12s,
@@ -1008,7 +1008,7 @@ function emitSave(): void {
 }
 .pve-pool-grip {
     color: var(--sa-color-fg-disabled);
-    padding-top: 3px;
+    padding-top: var(--sa-space-1);
     flex: 0 0 auto;
 }
 .pve-pool-card-main {
@@ -1018,7 +1018,7 @@ function emitSave(): void {
 .pve-pool-card-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .pve-pool-card-label {
     font-size: var(--sa-text-md);
@@ -1030,19 +1030,19 @@ function emitSave(): void {
     place-items: center;
     width: 16px;
     height: 16px;
-    border-radius: 4px;
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
     margin-left: auto;
 }
 .pve-pool-card-meta {
     display: flex;
-    gap: 5px;
+    gap: var(--sa-space-2);
     align-items: center;
     flex-wrap: wrap;
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .pve-pool-card-key {
     font: 500 var(--sa-text-2xs) var(--sa-font-mono);
@@ -1053,7 +1053,7 @@ function emitSave(): void {
 }
 
 .pve-empty {
-    padding: 24px 4px;
+    padding: var(--sa-space-7) var(--sa-space-2);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-size: var(--sa-text-md);
@@ -1079,15 +1079,15 @@ function emitSave(): void {
         var(--sa-color-bg-surface) 100%
     );
     border-bottom: 1px solid var(--sa-color-border);
-    padding: 14px 22px 16px;
+    padding: var(--sa-space-4) var(--sa-space-6) var(--sa-space-5);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .pve-bs-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .pve-bs-label {
     font-size: var(--sa-text-sm);
@@ -1097,13 +1097,13 @@ function emitSave(): void {
 }
 .pve-bs-label--inline {
     min-width: 0;
-    margin-left: 8px;
+    margin-left: var(--sa-space-3);
 }
 .pve-bs-input {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font: var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-heading);
     outline: none;
@@ -1123,8 +1123,8 @@ function emitSave(): void {
 .pve-bs-error {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin: -2px 0 2px;
+    gap: var(--sa-space-2);
+    margin: calc(-1 * var(--sa-space-1)) 0 var(--sa-space-1);
     font-size: var(--sa-text-sm);
     font-weight: 500;
     color: var(--sa-color-negative-fg);
@@ -1134,29 +1134,29 @@ function emitSave(): void {
 }
 .pve-bs-input--grow {
     flex: 1;
-    margin-left: 10px;
+    margin-left: var(--sa-space-3);
 }
 .pve-bs-input-grp {
     display: flex;
     align-items: stretch;
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-bg-surface);
     overflow: hidden;
 }
 .pve-bs-input-grp--gap {
-    margin-left: 6px;
+    margin-left: var(--sa-space-2);
 }
 .pve-bs-input--flush {
     border: 0 !important;
     border-radius: 0 !important;
-    padding: 6px 8px !important;
+    padding: var(--sa-space-2) var(--sa-space-3) !important;
     width: 90px;
 }
 .pve-bs-prefix,
 .pve-bs-suffix {
     background: var(--sa-color-bg-sunken);
-    padding: 6px 10px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     display: grid;
@@ -1184,14 +1184,14 @@ function emitSave(): void {
     position: absolute;
     inset: 0;
     background: var(--sa-color-border-strong);
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     transition: background 0.15s;
 }
 .pve-toggle span::before {
     content: '';
     position: absolute;
-    top: 2px;
-    left: 2px;
+    top: var(--sa-space-1);
+    left: var(--sa-space-1);
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -1206,7 +1206,7 @@ function emitSave(): void {
 }
 
 .pve-basket-group {
-    padding: 14px 22px;
+    padding: var(--sa-space-4) var(--sa-space-6);
     border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .pve-basket-group:last-child {
@@ -1215,8 +1215,8 @@ function emitSave(): void {
 .pve-bg-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--sa-space-3);
+    margin-bottom: var(--sa-space-3);
 }
 .pve-bg-dot {
     width: 8px;
@@ -1235,20 +1235,20 @@ function emitSave(): void {
 .pve-bg-title {
     font-size: var(--sa-text-sm);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     font-weight: 700;
     color: var(--sa-color-fg-body);
 }
 .pve-bg-count {
-    margin-left: 6px;
+    margin-left: var(--sa-space-2);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
 
 .pve-dz {
     border: 1.5px dashed var(--sa-color-border-strong);
-    border-radius: 10px;
-    padding: 12px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-4);
     background: var(--sa-color-bg-surface-raised);
     min-height: 60px;
 }
@@ -1260,21 +1260,21 @@ function emitSave(): void {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
     text-align: center;
-    padding: 4px 0;
+    padding: var(--sa-space-2) 0;
 }
 .pve-dz-empty--center {
-    padding: 8px 0;
+    padding: var(--sa-space-3) 0;
 }
 
 .pve-sel-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
-    margin-bottom: 4px;
+    border-radius: var(--sa-radius-badge);
+    margin-bottom: var(--sa-space-2);
 }
 .pve-sel-row:last-child {
     margin-bottom: 0;
@@ -1310,10 +1310,10 @@ function emitSave(): void {
 .pve-sel-val-edit {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--sa-space-2);
     background: var(--sa-color-bg-sunken);
-    padding: 3px 8px;
-    border-radius: 5px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
     border: 1px solid var(--sa-color-border);
 }
 .pve-sel-val-input {
@@ -1340,8 +1340,8 @@ function emitSave(): void {
     border: 0;
     color: var(--sa-color-fg-subtle);
     cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
+    padding: var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     display: grid;
     place-items: center;
 }
@@ -1357,13 +1357,13 @@ function emitSave(): void {
 }
 .pve-preview-toggle {
     display: flex;
-    gap: 4px;
+    gap: var(--sa-space-2);
     margin-left: auto;
 }
 .pve-prev-window {
-    margin: 14px 18px;
+    margin: var(--sa-space-4) var(--sa-space-5);
     background: var(--sa-color-bg-surface);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     border: 1px solid var(--sa-color-border);
     overflow: hidden;
     transition: max-width 0.18s;
@@ -1374,8 +1374,8 @@ function emitSave(): void {
 .pve-prev-chrome {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-border-soft);
     border-bottom: 1px solid var(--sa-color-border);
 }
@@ -1387,46 +1387,46 @@ function emitSave(): void {
 .pve-prev-url {
     flex: 1;
     background: var(--sa-color-bg-surface);
-    border-radius: 4px;
-    padding: 3px 10px;
-    margin-left: 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    margin-left: var(--sa-space-3);
     font: 500 var(--sa-text-xs) var(--sa-font-mono);
     color: var(--sa-color-fg-muted);
     border: 1px solid var(--sa-color-border);
 }
 .pve-prev-body {
-    padding: 18px 18px 16px;
+    padding: var(--sa-space-5) var(--sa-space-5) var(--sa-space-5);
 }
 .pve-prev-eyebrow {
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
     font-weight: 700;
 }
 .pve-prev-title {
     font-size: var(--sa-text-3xl);
     font-weight: 700;
-    letter-spacing: -0.03em;
-    margin-top: 6px;
+    letter-spacing: var(--sa-tracking-tight);
+    margin-top: var(--sa-space-2);
     color: var(--sa-color-fg-heading);
 }
 .pve-prev-desc {
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-secondary);
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
     line-height: 1.5;
 }
 .pve-prev-price {
     display: flex;
     align-items: baseline;
-    gap: 4px;
-    margin-top: 14px;
+    gap: var(--sa-space-2);
+    margin-top: var(--sa-space-4);
 }
 .pve-prev-price-big {
     font-size: var(--sa-text-4xl);
     font-weight: 700;
-    letter-spacing: -0.03em;
+    letter-spacing: var(--sa-tracking-tight);
     color: var(--sa-color-fg-heading);
 }
 .pve-prev-price-unit {
@@ -1436,43 +1436,43 @@ function emitSave(): void {
 .pve-prev-price-yearly {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-positive-fg);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     font-weight: 500;
 }
 .pve-prev-cta {
     display: block;
     width: 100%;
-    margin-top: 14px;
-    padding: 10px;
+    margin-top: var(--sa-space-4);
+    padding: var(--sa-space-3);
     background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
     border: 0;
-    border-radius: 7px;
+    border-radius: var(--sa-radius-control);
     font: 600 var(--sa-text-md) var(--sa-font-body);
     cursor: pointer;
 }
 .pve-prev-sep {
-    margin-top: 18px;
-    padding-top: 14px;
+    margin-top: var(--sa-space-5);
+    padding-top: var(--sa-space-4);
     border-top: 1px solid var(--sa-color-border-soft);
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 .pve-prev-list {
     list-style: none;
     padding: 0;
-    margin: 8px 0 0;
+    margin: var(--sa-space-3) 0 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .pve-prev-list li {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
 }
@@ -1494,8 +1494,8 @@ function emitSave(): void {
     font-style: italic;
 }
 .pve-prev-foot {
-    margin-top: 16px;
-    padding-top: 14px;
+    margin-top: var(--sa-space-5);
+    padding-top: var(--sa-space-4);
     border-top: 1px solid var(--sa-color-border-soft);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
@@ -1503,17 +1503,17 @@ function emitSave(): void {
 }
 
 .pve-prev-validate {
-    margin: 0 18px 18px;
+    margin: 0 var(--sa-space-5) var(--sa-space-5);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-4);
 }
 .pve-prev-validate-head {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: var(--sa-space-3);
+    margin-bottom: var(--sa-space-2);
 }
 .pve-prev-validate-tick {
     color: var(--sa-color-positive-strong);
@@ -1531,9 +1531,9 @@ function emitSave(): void {
 .pve-vchk {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-sm);
-    padding: 3px 0;
+    padding: var(--sa-space-1) 0;
 }
 .pve-vchk--ok {
     color: var(--sa-color-fg-secondary);
@@ -1587,7 +1587,7 @@ function emitSave(): void {
     background: var(--sa-color-bg-surface);
     width: 560px;
     max-width: 92vw;
-    border-radius: 14px;
+    border-radius: var(--sa-radius-section);
     box-shadow: 0 24px 60px var(--sa-shadow-tint-4);
     overflow: hidden;
     font-family: var(--sa-font-body);
@@ -1597,27 +1597,27 @@ function emitSave(): void {
     box-sizing: border-box;
 }
 .pve-diff-head {
-    padding: 16px 20px;
+    padding: var(--sa-space-5) var(--sa-space-6);
     border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .pve-diff-title {
     font-size: var(--sa-text-lg);
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .pve-diff-sub {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 3px;
+    margin-top: var(--sa-space-1);
 }
 .pve-diff-close {
     margin-left: auto;
     width: 28px;
     height: 28px;
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     background: transparent;
     border: 0;
     color: var(--sa-color-fg-subtle);
@@ -1631,25 +1631,25 @@ function emitSave(): void {
     color: var(--sa-color-fg-heading);
 }
 .pve-diff-body {
-    padding: 14px 20px 18px;
+    padding: var(--sa-space-4) var(--sa-space-6) var(--sa-space-5);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
     max-height: 60vh;
     overflow-y: auto;
 }
 .pve-diff-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 9px 11px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
     border: 1px solid;
-    border-radius: 7px;
+    border-radius: var(--sa-radius-control);
 }
 .pve-diff-sign {
     width: 20px;
     height: 20px;
-    border-radius: 5px;
+    border-radius: var(--sa-radius-badge);
     color: var(--sa-color-fg-on-accent);
     font-weight: 800;
     font-size: var(--sa-text-md);
@@ -1664,13 +1664,13 @@ function emitSave(): void {
 .pve-diff-headline {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 .pve-diff-section {
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     font-weight: 700;
 }
 .pve-diff-label {
@@ -1681,8 +1681,8 @@ function emitSave(): void {
 .pve-diff-change {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 3px;
+    gap: var(--sa-space-3);
+    margin-top: var(--sa-space-1);
     font-size: var(--sa-text-sm);
 }
 .pve-diff-from {
@@ -1701,7 +1701,7 @@ function emitSave(): void {
     background: var(--sa-color-bg-surface);
 }
 .pve-diff-empty {
-    padding: 24px 8px;
+    padding: var(--sa-space-7) var(--sa-space-3);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-style: italic;

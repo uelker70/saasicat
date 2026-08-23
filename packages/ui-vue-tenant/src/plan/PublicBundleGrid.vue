@@ -166,7 +166,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
 .sp-public-bundles {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sp-public-bundle {
     cursor: pointer;
@@ -174,11 +174,11 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     text-align: left;
     background: var(--sa-color-bg-surface);
     border: 1.5px solid var(--sa-color-border);
-    border-radius: 14px;
-    padding: 14px 16px 12px;
+    border-radius: var(--sa-radius-section);
+    padding: var(--sa-space-4) var(--sa-space-5) var(--sa-space-4);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
     transition: all 160ms;
 }
 .sp-public-bundle:hover {
@@ -204,7 +204,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
 .sp-public-bundle__head {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sp-public-bundle__name {
     font-size: var(--sa-text-lg);
@@ -212,7 +212,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     color: var(--sa-color-fg-heading);
 }
 .sp-public-bundle__desc {
-    margin: 4px 0 0;
+    margin: var(--sa-space-2) 0 0;
     color: var(--sa-color-fg-muted);
     font-size: var(--sa-text-sm);
     line-height: 1.4;
@@ -222,11 +222,11 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     white-space: nowrap;
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-2xs);
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-positive-fg);
     background: var(--sa-color-positive-surface-strong);
-    padding: 3px 7px;
-    border-radius: 999px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -234,8 +234,8 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     align-self: flex-start;
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    padding: 3px 8px;
-    border-radius: 999px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     line-height: 1.3;
 }
 .sp-public-bundle__state--covered {
@@ -250,7 +250,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
 .sp-public-bundle__quotas {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sa-space-1);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     line-height: 1.4;
@@ -265,7 +265,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    padding-top: 8px;
+    padding-top: var(--sa-space-3);
     margin-top: auto;
     border-top: 1px dashed var(--sa-color-border);
 }
@@ -278,14 +278,14 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-2xs);
     color: var(--sa-color-fg-muted);
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
 }
 .sp-public-bundles__empty {
     grid-column: 1 / -1;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: var(--sa-text-md);
-    padding: 20px;
+    padding: var(--sa-space-6);
     text-align: center;
 }
 </style>

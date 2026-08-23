@@ -492,7 +492,7 @@ async function submit(): Promise<void> {
 .bcp {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 12px;
+    border-radius: var(--sa-radius-card);
     display: flex;
     flex-direction: column;
     box-shadow: 0 8px 24px var(--sa-shadow-tint-2);
@@ -501,18 +501,18 @@ async function submit(): Promise<void> {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
-    padding: 18px 22px 12px;
+    gap: var(--sa-space-5);
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border);
 }
 .bcp-title {
     font-size: var(--sa-text-xl);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .bcp-sub {
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
     max-width: 580px;
@@ -523,35 +523,35 @@ async function submit(): Promise<void> {
     border: 0;
     cursor: pointer;
     color: var(--sa-color-fg-muted);
-    padding: 4px;
-    border-radius: 4px;
+    padding: var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .bcp-close:hover {
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-heading);
 }
 .bcp-body {
-    padding: 16px 22px;
+    padding: var(--sa-space-5) var(--sa-space-6);
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: var(--sa-space-5);
 }
 .bcp-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bcp-section-head {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bcp-section-num {
     display: inline-grid;
     place-items: center;
     width: 24px;
     height: 24px;
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     font:
@@ -568,13 +568,13 @@ async function submit(): Promise<void> {
 .bcp-section-sub {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     line-height: 1.4;
 }
 .bcp-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .bcp-col-2 {
     grid-column: span 2;
@@ -582,7 +582,7 @@ async function submit(): Promise<void> {
 .bcp-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .bcp-field-label {
     font-size: var(--sa-text-sm);
@@ -595,9 +595,9 @@ async function submit(): Promise<void> {
     font-weight: 500;
 }
 .bcp-input {
-    padding: 7px 10px;
+    padding: var(--sa-space-3) var(--sa-space-3);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font-family: inherit;
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
@@ -608,7 +608,7 @@ async function submit(): Promise<void> {
         600 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
-    letter-spacing: 0.02em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .bcp-textarea {
     resize: vertical;
@@ -617,48 +617,48 @@ async function submit(): Promise<void> {
     display: inline-flex;
     align-items: stretch;
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
 }
 .bcp-input-grp .bcp-input {
     border: 0;
-    border-radius: 6px 0 0 6px;
+    border-radius: var(--sa-radius-badge) 0 0 var(--sa-radius-badge);
 }
 .bcp-input-unit {
     display: inline-flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 var(--sa-space-3);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-bg-sunken);
     border-left: 1px solid var(--sa-color-border);
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 var(--sa-radius-badge) var(--sa-radius-badge) 0;
 }
 .bcp-error-inline {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-negative-fg);
 }
 .bcp-error {
-    padding: 10px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
 }
 .bcp-foot {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 22px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-4) var(--sa-space-6);
     border-top: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-sunken);
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 var(--sa-radius-card) var(--sa-radius-card);
 }
 .bcp-foot-hint {
     flex: 1;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
 }
@@ -667,10 +667,10 @@ async function submit(): Promise<void> {
     font-weight: 600;
 }
 .bcp-btn {
-    padding: 7px 14px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
     font-size: var(--sa-text-md);
     font-family: inherit;

@@ -228,19 +228,19 @@ function onCancel(): void {
 
 <style scoped>
 .tenant-action-confirm__lead {
-    margin: 0 0 12px;
+    margin: 0 0 var(--sa-space-4);
     color: var(--sa-color-fg-secondary);
     line-height: 1.5;
 }
 .tenant-action-confirm__hint {
-    margin: 0 0 8px;
+    margin: 0 0 var(--sa-space-3);
     color: var(--sa-color-fg-secondary);
     font-size: var(--sa-text-md);
 }
 .tenant-action-confirm__hint code {
     background: var(--sa-color-border-soft);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: var(--sa-text-md);
 }

@@ -179,7 +179,7 @@ function onToggle(planKey: string): void {
 .bv-compat {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bv-compat-hint {
     font-size: var(--sa-text-sm);
@@ -189,16 +189,16 @@ function onToggle(planKey: string): void {
 .bv-compat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .bv-compat-card {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 10px 12px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     cursor: pointer;
     text-align: left;
     font-family: inherit;
@@ -225,7 +225,7 @@ function onToggle(planKey: string): void {
 .bv-compat-head {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bv-compat-mark {
     width: 26px;
@@ -235,12 +235,12 @@ function onToggle(planKey: string): void {
     background: var(--sa-color-scheduled-surface-strong);
     color: var(--sa-color-scheduled-fg);
     border: 1px solid var(--sa-color-scheduled-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font:
         700 var(--sa-text-2xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     flex: 0 0 auto;
 }
 .bv-compat-body {
@@ -263,25 +263,25 @@ function onToggle(planKey: string): void {
     display: inline-flex;
 }
 .bv-compat-overlap {
-    padding: 6px 8px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-negative-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
     color: var(--sa-color-negative-fg);
 }
 .bv-compat-overlap-head {
     font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
 }
 .bv-compat-overlap-list {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--sa-space-2);
     flex-wrap: wrap;
     font-size: var(--sa-text-sm);
 }
@@ -290,14 +290,14 @@ function onToggle(planKey: string): void {
     font-weight: 600;
 }
 .bv-compat-overlap-chip {
-    padding: 1px 6px;
+    padding: var(--sa-space-0) var(--sa-space-2);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 4px;
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-bg-surface);
     color: var(--sa-color-negative-fg);
 }
 .bv-compat-empty {
-    padding: 12px;
+    padding: var(--sa-space-4);
     color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: var(--sa-text-md);
@@ -306,11 +306,11 @@ function onToggle(planKey: string): void {
 .bv-compat-summary {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
     line-height: 1.5;

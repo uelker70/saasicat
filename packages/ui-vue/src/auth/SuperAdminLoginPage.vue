@@ -216,7 +216,7 @@ async function handleSubmit(): Promise<void> {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: var(--sa-space-7);
     background: linear-gradient(
         180deg,
         var(--sa-color-inverse-bg) 0%,
@@ -227,15 +227,15 @@ async function handleSubmit(): Promise<void> {
     width: 420px;
     max-width: 92vw;
     background: var(--sa-color-bg-surface);
-    border-radius: 18px;
-    padding: 32px;
+    border-radius: var(--sa-radius-hero);
+    padding: var(--sa-space-8);
     box-shadow: 0 24px 48px var(--sa-shadow-tint-4);
 }
 .sa-login-brand {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 22px;
+    gap: var(--sa-space-4);
+    margin-bottom: var(--sa-space-6);
 }
 .sa-login-logo {
     width: 44px;
@@ -247,7 +247,7 @@ async function handleSubmit(): Promise<void> {
        put it — it wraps. `min-width: 0` on that text is the other half; without
        it the text refuses the deficit too and the row leaves the viewport. */
     flex: none;
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -292,19 +292,19 @@ async function handleSubmit(): Promise<void> {
     font-size: var(--sa-text-sm);
     color: var(--sa-login-tag-color, var(--sa-color-fg-secondary));
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
 }
 
 .sa-login-title {
     font-size: var(--sa-text-2xl);
     font-weight: 800;
     color: var(--sa-color-fg-heading);
-    margin: 0 0 6px;
+    margin: 0 0 var(--sa-space-2);
 }
 .sa-login-subtitle {
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-secondary);
-    margin: 0 0 20px;
+    margin: 0 0 var(--sa-space-6);
     line-height: 1.5;
 }
 
@@ -321,23 +321,23 @@ async function handleSubmit(): Promise<void> {
     width: 100%;
 }
 .sa-login-hint {
-    margin-top: 18px;
-    padding: 10px 12px;
+    margin-top: var(--sa-space-5);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-border-soft);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
 }
 .sa-login-hint code {
     background: var(--sa-color-border);
-    padding: 1px 5px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-login-env {
-    margin-top: 18px;
+    margin-top: var(--sa-space-5);
     color: var(--sa-color-inverse-fg-muted);
     font-size: var(--sa-text-sm);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
 }
 </style>

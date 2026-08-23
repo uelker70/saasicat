@@ -380,18 +380,18 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--sa-color-border-soft);
-    padding-bottom: 14px;
-    margin-bottom: 16px;
+    padding-bottom: var(--sa-space-4);
+    margin-bottom: var(--sa-space-5);
 }
 .sa-tenant-detail__card-sub {
     color: var(--sa-color-fg-muted);
     font-size: var(--sa-text-md);
-    margin: 4px 0 0;
+    margin: var(--sa-space-2) 0 0;
 }
 .sa-tenant-detail__card-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--sa-space-3);
     align-items: center;
 }
 .sa-tenant-detail__empty {
@@ -400,8 +400,8 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
 }
 code {
     background: var(--sa-color-bg-sunken);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     font-size: var(--sa-text-sm);
 }
 </style>

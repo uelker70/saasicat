@@ -140,7 +140,7 @@ function onToggle(featureKey: string): void {
 .bd-features {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .bd-features.bd-locked {
     opacity: 0.7;
@@ -148,28 +148,28 @@ function onToggle(featureKey: string): void {
 .bd-features-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .bd-features-group-label {
     font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
 }
 .bd-features-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .bd-feature-pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-2) var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     cursor: pointer;
     font-family: inherit;
     font-size: var(--sa-text-sm);
@@ -205,7 +205,7 @@ function onToggle(featureKey: string): void {
         ui-monospace,
         monospace;
     color: var(--sa-color-fg-subtle);
-    margin-left: 4px;
+    margin-left: var(--sa-space-2);
 }
 .bd-feature-pill.on .bd-feature-key {
     /* `-strong`, not the bare accent: the pill's `on` surface is a 24 % tint of
@@ -219,7 +219,7 @@ function onToggle(featureKey: string): void {
     color: var(--sa-color-negative-fg);
 }
 .bd-features-empty {
-    padding: 12px;
+    padding: var(--sa-space-4);
     color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: var(--sa-text-md);

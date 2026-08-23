@@ -111,22 +111,22 @@ function formatValue(value: unknown): string {
 .sa-diff-preview__empty {
     color: var(--sa-color-fg-muted);
     font-style: italic;
-    padding: 12px;
+    padding: var(--sa-space-4);
     background: var(--sa-color-bg-sunken);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     border: 1px dashed var(--sa-color-border-strong);
 }
 .sa-diff-preview__list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-diff-preview__row {
     display: grid;
     grid-template-columns: 160px 200px 1fr;
-    gap: 12px;
-    padding: 8px 12px;
-    border-radius: 8px;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-radius: var(--sa-radius-field);
     border: 1px solid;
     font-size: var(--sa-text-md);
     align-items: center;
@@ -149,11 +149,11 @@ function formatValue(value: unknown): string {
 .sa-diff-preview__direction {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-weight: 600;
     font-size: var(--sa-text-sm);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .sa-diff-preview__field {
     color: var(--sa-color-fg-heading);
@@ -162,7 +162,7 @@ function formatValue(value: unknown): string {
 .sa-diff-preview__values {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-diff-preview__values .old {
     color: var(--sa-color-fg-subtle);

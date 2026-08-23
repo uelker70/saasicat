@@ -431,8 +431,8 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 <style scoped>
 .pc-section {
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    padding: 14px 16px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-4) var(--sa-space-5);
     background: var(--sa-color-bg-surface-raised);
 }
 
@@ -441,8 +441,8 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     font-weight: 700;
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
-    margin-bottom: 12px;
-    letter-spacing: -0.005em;
+    margin-bottom: var(--sa-space-4);
+    letter-spacing: var(--sa-tracking-normal);
 }
 
 /* The same title, in a header that already spaces itself. */
@@ -453,13 +453,13 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 .pc-advanced {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 
 .pc-grid {
     display: grid;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: var(--sa-space-4);
+    margin-bottom: var(--sa-space-4);
 }
 
 .pc-grid--2 {
@@ -479,7 +479,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 .pc-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 
 .pc-field__label {
@@ -487,7 +487,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     font-weight: 600;
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 
 .pc-field__hint {
@@ -499,8 +499,8 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     width: 100%;
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
-    border-radius: 7px;
-    padding: 8px 10px;
+    border-radius: var(--sa-radius-control);
+    padding: var(--sa-space-3) var(--sa-space-3);
     font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-body);
     outline: 0;
@@ -513,7 +513,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 
 .pc-input--code {
     font: 600 var(--sa-text-lg) var(--sa-font-mono, ui-monospace, monospace);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     text-transform: uppercase;
 }
 
@@ -524,15 +524,15 @@ textarea.pc-input {
 
 .pc-code-input {
     display: flex;
-    gap: 8px;
+    gap: var(--sa-space-3);
     align-items: center;
 }
 
 .pc-btn-mini {
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
-    border-radius: 7px;
-    padding: 6px 10px;
+    border-radius: var(--sa-radius-control);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
@@ -545,14 +545,14 @@ textarea.pc-input {
 .pc-type-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 
 .pc-type-opt {
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
-    border-radius: 8px;
-    padding: 8px 10px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-3);
     text-align: left;
     cursor: pointer;
     transition:
@@ -577,23 +577,23 @@ textarea.pc-input {
 .pc-type-opt__sub {
     font: var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);
     color: var(--sa-color-fg-muted);
-    margin-top: 1px;
+    margin-top: var(--sa-space-0);
 }
 
 .pc-plan-pick {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 
 .pc-plan-opt {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 999px;
-    padding: 5px 12px 5px 8px;
+    border-radius: var(--sa-radius-pill);
+    padding: var(--sa-space-2) var(--sa-space-4) var(--sa-space-2) var(--sa-space-3);
     font: 600 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
@@ -625,7 +625,7 @@ textarea.pc-input {
  * restating it. */
 .pc-seg {
     display: flex;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 /* The duration options divide the row; the status options size to their label. */
 .pc-seg--fill .pc-seg-opt {
@@ -639,8 +639,8 @@ textarea.pc-input {
     gap: var(--sa-gap-inline);
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
-    border-radius: 7px;
-    padding: 6px 10px;
+    border-radius: var(--sa-radius-control);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
@@ -664,7 +664,7 @@ textarea.pc-input {
 .pc-check {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-body);
     cursor: pointer;
@@ -673,8 +673,8 @@ textarea.pc-input {
 .pc-preview {
     background: var(--sa-color-accent-surface-soft);
     border: 1px solid var(--sa-color-accent-border);
-    border-radius: 10px;
-    padding: 12px 14px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-4) var(--sa-space-4);
 }
 
 .pc-preview__eyebrow {
@@ -682,24 +682,24 @@ textarea.pc-input {
     font-weight: 700;
     color: var(--sa-color-accent);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 6px;
+    letter-spacing: var(--sa-tracking-wider);
+    margin-bottom: var(--sa-space-2);
 }
 
 .pc-preview__body {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 
 .pc-preview__code {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
-    padding: 3px 8px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-1) var(--sa-space-3);
     font: 600 var(--sa-text-md) var(--sa-font-mono, ui-monospace, monospace);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-heading);
 }
 

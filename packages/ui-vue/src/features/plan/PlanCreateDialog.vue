@@ -255,16 +255,16 @@ function onCancel(): void {
 
 <style scoped>
 .pcd-row {
-    margin-bottom: 16px;
+    margin-bottom: var(--sa-space-5);
 }
 .pcd-row--2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 16px;
+    gap: var(--sa-space-4);
+    margin-bottom: var(--sa-space-5);
 }
 .pcd-field {
-    margin-bottom: 16px;
+    margin-bottom: var(--sa-space-5);
 }
 .pcd-row--2col .pcd-field {
     margin-bottom: 0;
@@ -276,24 +276,24 @@ function onCancel(): void {
     color: var(--sa-color-fg-body);
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
+    gap: var(--sa-space-2);
+    margin-bottom: var(--sa-space-2);
 }
 .pcd-kbd {
     font: 600 var(--sa-text-xs) var(--sa-font-mono);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     border: 1px solid var(--sa-color-border);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .pcd-input {
     width: 100%;
-    padding: 9px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 7px;
+    border-radius: var(--sa-radius-control);
     font: var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-heading);
     outline: none;
@@ -319,7 +319,7 @@ function onCancel(): void {
 .pcd-hint {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
 }
 .pcd-hint--error {
     color: var(--sa-color-negative);
@@ -328,12 +328,12 @@ function onCancel(): void {
 .pcd-choice-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .pcd-choice {
     border: 1.5px solid var(--sa-color-border);
-    border-radius: 9px;
-    padding: 12px 14px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-4) var(--sa-space-4);
     cursor: pointer;
     background: var(--sa-color-bg-surface);
     text-align: left;
@@ -343,7 +343,7 @@ function onCancel(): void {
         box-shadow 0.12s;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sa-space-1);
     font-family: inherit;
 }
 .pcd-choice:hover {
@@ -365,19 +365,19 @@ function onCancel(): void {
 }
 
 .pcd-foot {
-    padding: 14px 22px;
+    padding: var(--sa-space-4) var(--sa-space-6);
     background: var(--sa-color-bg-surface-raised);
     border-top: 1px solid var(--sa-color-border);
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .pcd-btn {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 9px 16px;
-    border-radius: 7px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-5);
+    border-radius: var(--sa-radius-control);
     font: 500 var(--sa-text-md) var(--sa-font-body);
     cursor: pointer;
     border: 1px solid var(--sa-color-border-strong);

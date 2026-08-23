@@ -128,20 +128,20 @@ const emit = defineEmits<{
 .sp-summary {
     background: var(--sa-color-bg-surface);
     border: 1.5px solid var(--sa-color-inverse-bg);
-    border-radius: 22px;
+    border-radius: var(--sa-radius-hero);
     overflow: hidden;
     box-shadow: 0 24px 80px var(--sa-shadow-tint-2);
     position: sticky;
-    top: 24px;
+    top: var(--sa-space-7);
 }
 .sp-summary__head {
-    padding: 16px 20px 14px;
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-4);
     background: var(--sa-color-bg-overlay);
     color: var(--sa-color-fg-on-accent);
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sp-summary__title {
     font-size: var(--sa-text-xl);
@@ -150,37 +150,37 @@ const emit = defineEmits<{
 .sp-summary__cycle {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-2xs);
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
     background: var(--sa-color-inverse-border-strong);
-    padding: 4px 9px;
-    border-radius: 999px;
+    padding: var(--sa-space-2) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
 }
 .sp-summary__body {
-    padding: 16px 20px 4px;
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-2);
     max-height: 50vh;
     overflow-y: auto;
 }
 .sp-summary__group {
-    margin-bottom: 14px;
+    margin-bottom: var(--sa-space-4);
 }
 .sp-summary__group-head {
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-2xs);
-    letter-spacing: 0.12em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);
     font-weight: 700;
-    padding-bottom: 6px;
+    padding-bottom: var(--sa-space-2);
     border-bottom: 1px solid var(--sa-color-border);
-    margin-bottom: 6px;
+    margin-bottom: var(--sa-space-2);
 }
 .sp-summary__line {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 10px;
+    gap: var(--sa-space-3);
     align-items: baseline;
-    padding: 4px 0;
+    padding: var(--sa-space-2) 0;
     font-size: var(--sa-text-md);
 }
 .sp-summary__line strong {
@@ -190,10 +190,10 @@ const emit = defineEmits<{
     display: block;
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-2xs);
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .sp-summary__price {
     white-space: nowrap;
@@ -201,7 +201,7 @@ const emit = defineEmits<{
     font-size: var(--sa-text-lg);
 }
 .sp-summary__empty {
-    padding: 20px 8px;
+    padding: var(--sa-space-6) var(--sa-space-3);
     text-align: center;
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
@@ -210,7 +210,7 @@ const emit = defineEmits<{
 }
 .sp-summary__foot {
     border-top: 1px solid var(--sa-color-border);
-    padding: 16px 20px 18px;
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-5);
     background: var(--sa-color-accent-surface-soft);
 }
 .sp-summary__row {
@@ -219,7 +219,7 @@ const emit = defineEmits<{
     align-items: baseline;
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-bottom: 4px;
+    margin-bottom: var(--sa-space-2);
 }
 .sp-summary__row--discount {
     color: var(--sa-color-positive-fg);
@@ -228,7 +228,7 @@ const emit = defineEmits<{
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
 }
 .sp-summary__total-l {
     font-size: var(--sa-text-lg);
@@ -238,41 +238,41 @@ const emit = defineEmits<{
     display: block;
     font-family: 'SF Mono', Consolas, monospace;
     font-size: var(--sa-text-2xs);
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);
     font-weight: 500;
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .sp-summary__total-r {
     font-size: var(--sa-text-4xl);
     font-weight: 800;
     color: var(--sa-color-accent);
-    letter-spacing: -0.02em;
+    letter-spacing: var(--sa-tracking-tight);
     line-height: 1;
 }
 .sp-summary__savings {
-    margin-top: 10px;
-    padding: 8px 10px;
+    margin-top: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-3);
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     font-size: var(--sa-text-sm);
     font-weight: 600;
 }
 .sp-summary__cta {
     display: block;
     width: 100%;
-    margin-top: 14px;
-    padding: 14px 18px;
+    margin-top: var(--sa-space-4);
+    padding: var(--sa-space-4) var(--sa-space-5);
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     border: none;
-    border-radius: 14px;
+    border-radius: var(--sa-radius-section);
     font-family: inherit;
     font-size: var(--sa-text-lg);
     font-weight: 700;
-    letter-spacing: 0.01em;
+    letter-spacing: var(--sa-tracking-normal);
     cursor: pointer;
     transition: all 200ms;
 }
@@ -284,7 +284,7 @@ const emit = defineEmits<{
     cursor: not-allowed;
 }
 .sp-summary__disclaimer {
-    margin-top: 12px;
+    margin-top: var(--sa-space-4);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     line-height: 1.5;

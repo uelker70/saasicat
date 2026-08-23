@@ -368,8 +368,8 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__rows {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 14px;
+    gap: var(--sa-space-4);
+    margin-bottom: var(--sa-space-4);
     align-items: start;
 }
 @media (max-width: 1439.98px) {
@@ -383,8 +383,8 @@ function barWidth(value: number, max?: number): number {
     color: var(--sa-color-accent-strong);
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 5px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
 }
 
 .sa-dashboard__bar-list {
@@ -393,13 +393,13 @@ function barWidth(value: number, max?: number): number {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-dashboard__bar-row {
     display: grid;
     grid-template-columns: 130px 1fr 50px;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font-size: var(--sa-text-md);
 }
 .sa-dashboard__bar-name {
@@ -409,13 +409,13 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__bar-track {
     background: var(--sa-color-border-soft);
     height: 8px;
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     overflow: hidden;
 }
 .sa-dashboard__bar-fill {
     display: block;
     height: 100%;
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     transition: width 0.18s;
 }
 .sa-dashboard__bar-count {
@@ -430,15 +430,15 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__shortcut-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sa-dashboard__shortcut {
     display: flex;
-    gap: 12px;
+    gap: var(--sa-space-4);
     align-items: flex-start;
-    padding: 12px 14px;
+    padding: var(--sa-space-4) var(--sa-space-4);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     text-decoration: none;
     color: inherit;
     background: var(--sa-color-bg-surface-raised);
@@ -460,15 +460,15 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__shortcut-sub {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 
 .sa-dashboard__loading,
 .sa-dashboard__empty {
-    padding: 32px 28px;
+    padding: var(--sa-space-8) var(--sa-space-7);
     color: var(--sa-color-fg-muted);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 </style>

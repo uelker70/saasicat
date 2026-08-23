@@ -298,24 +298,24 @@ const redemptionRows = computed(() => data.value?.redemptions ?? []);
 
 <style scoped>
 .sa-promo-detail__back {
-    margin-bottom: 6px;
+    margin-bottom: var(--sa-space-2);
 }
 .sa-promo-detail__head-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     margin-left: auto;
 }
 .sa-promo-detail__body {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .sa-promo-detail__kv {
     background: var(--sa-color-bg-surface-raised);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-4);
     font-size: var(--sa-text-sm);
     margin: 0;
     overflow-x: auto;
