@@ -63,48 +63,48 @@
                         </div>
                     </div>
                     <div>
-                        <label class="sa-marketing-toggle" :class="{ disabled: !row.liveVersion }">
-                            <input
-                                type="checkbox"
-                                :checked="row.m.visible"
-                                :disabled="!row.liveVersion || busy"
-                                @change="$emit('patch', row, { visible: checked($event) })"
-                            />
-                            <span />
-                        </label>
-                    </div>
-                    <div>
-                        <input
-                            class="sa-marketing-field"
-                            style="max-width: 120px"
-                            placeholder="—"
-                            :value="row.m.badge"
-                            :disabled="!row.liveVersion || busy"
-                            @change="$emit('patch', row, { badge: textValue($event) })"
+                        <q-toggle
+                            :model-value="row.m.visible"
+                            dense
+                            :disable="!row.liveVersion || busy"
+                            @update:model-value="$emit('patch', row, { visible: $event })"
                         />
                     </div>
                     <div>
-                        <input
+                        <q-input
+                            :model-value="row.m.badge"
+                            outlined
+                            dense
+                            class="sa-marketing-field--badge"
+                            placeholder="—"
+                            :disable="!row.liveVersion || busy"
+                            @update:model-value="
+                                $emit('patch', row, { badge: String($event ?? '') })
+                            "
+                        />
+                    </div>
+                    <div>
+                        <q-input
+                            :model-value="row.m.priority"
+                            outlined
+                            dense
                             type="number"
                             min="0"
                             max="9999"
-                            class="sa-marketing-field"
-                            style="max-width: 72px"
-                            :value="row.m.priority"
-                            :disabled="!row.liveVersion || busy"
-                            @change="$emit('patch', row, { priority: numberValue($event) })"
+                            class="sa-marketing-field--priority"
+                            :disable="!row.liveVersion || busy"
+                            @update:model-value="
+                                $emit('patch', row, { priority: Number($event) || 0 })
+                            "
                         />
                     </div>
                     <div>
-                        <label class="sa-marketing-toggle" :class="{ disabled: !row.liveVersion }">
-                            <input
-                                type="checkbox"
-                                :checked="row.m.highlight"
-                                :disabled="!row.liveVersion || busy"
-                                @change="$emit('patch', row, { highlight: checked($event) })"
-                            />
-                            <span />
-                        </label>
+                        <q-toggle
+                            :model-value="row.m.highlight"
+                            dense
+                            :disable="!row.liveVersion || busy"
+                            @update:model-value="$emit('patch', row, { highlight: $event })"
+                        />
                     </div>
                     <div class="sa-marketing-admin-row-end">
                         <span
@@ -191,13 +191,16 @@
                                         {{ msg.admin.planNameLocked }}
                                     </span>
                                 </div>
-                                <input
+                                <q-input
                                     v-else
-                                    class="sa-marketing-field"
+                                    :model-value="row.m.displayLabel"
+                                    outlined
+                                    dense
                                     :placeholder="row.plan.label"
-                                    :value="row.m.displayLabel"
-                                    :disabled="busy"
-                                    @change="$emit('patch-display-label', row, textValue($event))"
+                                    :disable="busy"
+                                    @update:model-value="
+                                        $emit('patch-display-label', row, String($event ?? ''))
+                                    "
                                 />
                                 <div
                                     v-if="activeLocale !== defaultLocale && !row.m.displayLabel"
@@ -215,14 +218,16 @@
                                 <label class="sa-marketing-expand-label">{{
                                     msg.admin.teaserLabel
                                 }}</label>
-                                <textarea
-                                    class="sa-marketing-field sa-marketing-field--area"
-                                    rows="2"
+                                <q-input
+                                    :model-value="row.m.description"
+                                    outlined
+                                    dense
+                                    type="textarea"
+                                    :rows="2"
                                     :placeholder="msg.admin.teaserPlaceholder"
-                                    :value="row.m.description"
-                                    :disabled="busy"
-                                    @change="
-                                        $emit('patch', row, { description: textValue($event) })
+                                    :disable="busy"
+                                    @update:model-value="
+                                        $emit('patch', row, { description: String($event ?? '') })
                                     "
                                 />
                                 <div class="sa-marketing-expand-hint">
@@ -235,19 +240,14 @@
                                     msg.admin.trialLabel
                                 }}</label>
                                 <div class="sa-marketing-trial-row">
-                                    <label class="sa-marketing-toggle">
-                                        <input
-                                            type="checkbox"
-                                            :checked="row.m.trialEnabled"
-                                            :disabled="busy"
-                                            @change="
-                                                $emit('patch', row, {
-                                                    trialEnabled: checked($event),
-                                                })
-                                            "
-                                        />
-                                        <span />
-                                    </label>
+                                    <q-toggle
+                                        :model-value="row.m.trialEnabled"
+                                        dense
+                                        :disable="busy"
+                                        @update:model-value="
+                                            $emit('patch', row, { trialEnabled: $event })
+                                        "
+                                    />
                                     <span class="sa-marketing-trial-label">
                                         {{
                                             row.m.trialEnabled
@@ -256,17 +256,18 @@
                                         }}
                                     </span>
                                     <span class="sa-marketing-trial-days">
-                                        <input
+                                        <q-input
+                                            :model-value="row.m.trialDays"
+                                            outlined
+                                            dense
                                             type="number"
                                             min="1"
                                             max="365"
-                                            class="sa-marketing-field"
-                                            style="max-width: 72px"
-                                            :value="row.m.trialDays"
-                                            :disabled="!row.m.trialEnabled || busy"
-                                            @change="
+                                            class="sa-marketing-field--priority"
+                                            :disable="!row.m.trialEnabled || busy"
+                                            @update:model-value="
                                                 $emit('patch', row, {
-                                                    trialDays: numberValue($event),
+                                                    trialDays: Number($event) || 0,
                                                 })
                                             "
                                         />
@@ -282,14 +283,15 @@
                                 <label class="sa-marketing-expand-label">
                                     {{ msg.admin.ctaOverrideLabel }}
                                 </label>
-                                <input
-                                    class="sa-marketing-field"
+                                <q-input
+                                    :model-value="row.m.ctaLabel ?? ''"
+                                    outlined
+                                    dense
                                     :placeholder="autoCtaText(row)"
-                                    :value="row.m.ctaLabel ?? ''"
-                                    :disabled="busy"
-                                    @change="
+                                    :disable="busy"
+                                    @update:model-value="
                                         $emit('patch', row, {
-                                            ctaLabel: ctaValue(textValue($event)),
+                                            ctaLabel: ctaValue(String($event ?? '')),
                                         })
                                     "
                                 />
@@ -324,29 +326,41 @@
                                         class="sa-marketing-tf-row"
                                     >
                                         <span class="sa-marketing-tf-num">{{ i + 1 }}</span>
-                                        <input
-                                            class="sa-marketing-field sa-marketing-tf-label"
+                                        <q-input
+                                            :model-value="f.label"
+                                            outlined
+                                            dense
+                                            class="sa-marketing-tf-label"
                                             :placeholder="
                                                 f.key
                                                     ? resolveComponentLabel(f.key)
                                                     : msg.admin.featureLabelPlaceholder
                                             "
-                                            :value="f.label"
-                                            :disabled="busy"
-                                            @input="
-                                                $emit('update-feature-label', i, textValue($event))
+                                            :disable="busy"
+                                            @update:model-value="
+                                                $emit(
+                                                    'update-feature-label',
+                                                    i,
+                                                    String($event ?? ''),
+                                                )
                                             "
-                                            @change="$emit('persist-features', row)"
+                                            @blur="$emit('persist-features', row)"
                                         />
-                                        <input
-                                            class="sa-marketing-field sa-marketing-tf-strong"
+                                        <q-input
+                                            :model-value="f.strong"
+                                            outlined
+                                            dense
+                                            class="sa-marketing-tf-strong"
                                             :placeholder="msg.admin.featureStrongPlaceholder"
-                                            :value="f.strong"
-                                            :disabled="busy"
-                                            @input="
-                                                $emit('update-feature-strong', i, textValue($event))
+                                            :disable="busy"
+                                            @update:model-value="
+                                                $emit(
+                                                    'update-feature-strong',
+                                                    i,
+                                                    String($event ?? ''),
+                                                )
                                             "
-                                            @change="$emit('persist-features', row)"
+                                            @blur="$emit('persist-features', row)"
                                         />
                                         <div class="sa-marketing-tf-actions">
                                             <button
@@ -537,17 +551,5 @@ function panelId(row: MarketingRow): string {
 function trialCtaHint(row: MarketingRow): string {
     const cta = formatMessage(msg.value.cta.trial, { days: row.m.trialDays });
     return formatMessage(msg.value.admin.ctaAutoHint, { cta });
-}
-
-function textValue(event: Event): string {
-    return (event.target as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? '';
-}
-
-function numberValue(event: Event): number {
-    return Number((event.target as HTMLInputElement | null)?.value ?? 0);
-}
-
-function checked(event: Event): boolean {
-    return (event.target as HTMLInputElement | null)?.checked ?? false;
 }
 </script>

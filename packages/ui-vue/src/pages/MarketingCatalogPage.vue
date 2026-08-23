@@ -1417,48 +1417,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     color: var(--sa-color-fg-subtle);
 }
 
-.sa-marketing-field {
-    width: 100%;
-    padding: var(--sa-space-2) var(--sa-space-3);
-    font: 400 var(--sa-text-sm) var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: var(--sa-radius-badge);
-}
-.sa-marketing-field:focus {
-    outline: none;
-    border-color: var(--sa-color-accent);
-    box-shadow: 0 0 0 3px var(--sa-color-accent-surface-strong);
-}
-.sa-marketing-field:disabled {
-    background: var(--sa-color-border-soft);
-    color: var(--sa-color-fg-subtle);
-    cursor: not-allowed;
-}
-.sa-marketing-field--area {
-    resize: vertical;
-    font-size: var(--sa-text-md);
-    line-height: 1.4;
-}
-
-.sa-marketing-toggle {
-    position: relative;
-    display: inline-block;
-    width: 36px;
-    height: 20px;
-}
-.sa-marketing-toggle input {
-    display: none;
-}
-.sa-marketing-toggle span {
-    position: absolute;
-    inset: 0;
-    background: var(--sa-color-border-strong);
-    border-radius: var(--sa-radius-pill);
-    transition: background 0.15s;
-    cursor: pointer;
-}
 .sa-marketing-toggle span::before {
     content: '';
     position: absolute;
@@ -1470,9 +1428,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     top: var(--sa-space-1);
     transition: transform 0.15s;
     box-shadow: 0 1px 2px var(--sa-shadow-tint-4);
-}
-.sa-marketing-toggle input:checked + span {
-    background: var(--sa-color-accent);
 }
 .sa-marketing-toggle input:checked + span::before {
     transform: translateX(16px);
@@ -1587,6 +1542,15 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
+/* Widths, not looks: the look is the theme's `field.css`. */
+.sa-marketing-field--badge {
+    max-width: 120px;
+}
+
+.sa-marketing-field--priority {
+    max-width: 96px;
+}
+
 .sa-marketing-field-head {
     display: flex;
     align-items: baseline;
