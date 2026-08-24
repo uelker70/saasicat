@@ -7,22 +7,31 @@
         :close-label="i18n.close"
         persistent
     >
-        <q-stepper
-            v-model="step"
-            animated
-            flat
-            keep-alive
-            active-color="primary"
-            class="sp-wizard__stepper"
-        >
+        <div class="sp-wizard__stepper">
+            <ol class="sp-steps">
+                <li
+                    v-for="(entry, position) in stepHeadings"
+                    :key="entry.step"
+                    class="sp-steps__step"
+                    :class="`sp-steps__step--${stepStatus(entry.step)}`"
+                    :aria-current="stepStatus(entry.step) === 'current' ? 'step' : undefined"
+                >
+                    <span class="sp-steps__marker" aria-hidden="true">{{ position + 1 }}</span>
+                    <span class="sp-steps__label">{{ entry.title }}</span>
+                </li>
+            </ol>
+
             <!-- Step 1: Plan + Cycle -->
-            <q-step :name="1" :title="i18n.stepChoose" icon="grade" :done="step > 1">
+            <section v-if="currentStep === 'choose'" class="sp-wizard__panel">
+                <h3 ref="stepHeadingRef" v-bind="stepHeadingProps" class="sp-wizard__step-title">
+                    {{ i18n.stepChoose }}
+                </h3>
                 <p class="sp-wizard__intro">{{ i18n.stepChooseIntro }}</p>
 
                 <PlanCycleToggle
                     :model-value="targetCycle"
                     :i18n="cycleI18n"
-                    class="q-mb-md"
+                    class="sp-wizard__cycle"
                     @update:model-value="targetCycle = $event"
                 />
 
@@ -39,21 +48,20 @@
                     @update:model-value="targetPlan = $event"
                 />
 
-                <q-stepper-navigation>
-                    <q-btn
-                        color="primary"
-                        :label="i18n.next"
-                        :disable="!targetPlan || !canAdvanceFromStep1"
-                        unelevated
-                        @click="goToPreview"
-                    />
-                </q-stepper-navigation>
-            </q-step>
+                <div class="sp-wizard__nav">
+                    <TenantButton variant="solid" tone="accent" @click="goToPreview">
+                        {{ i18n.next }}
+                    </TenantButton>
+                </div>
+            </section>
 
             <!-- Step 2: Preview -->
-            <q-step :name="2" :title="i18n.stepPreview" icon="preview" :done="step > 2">
+            <section v-else-if="currentStep === 'preview'" class="sp-wizard__panel">
+                <h3 ref="stepHeadingRef" v-bind="stepHeadingProps" class="sp-wizard__step-title">
+                    {{ i18n.stepPreview }}
+                </h3>
                 <div v-if="previewLoading" class="sp-wizard__loading">
-                    <q-spinner size="32px" />
+                    <span class="sp-spinner" aria-hidden="true"></span>
                     <span>{{ i18n.previewLoading }}</span>
                 </div>
 
@@ -63,11 +71,9 @@
 
                 <template v-else-if="preview">
                     <div class="sp-wizard__type">
-                        <q-badge
-                            :color="changeTypeColor"
-                            :label="changeTypeLabel"
-                            class="q-mr-sm"
-                        />
+                        <span class="sp-badge" :class="`sp-badge--${changeTypeTone}`">
+                            {{ changeTypeLabel }}
+                        </span>
                         <span v-if="preview.effectiveAt && !preview.isImmediate">
                             {{ i18n.effectiveAtLabel }}: {{ formatDate(preview.effectiveAt) }}
                         </span>
@@ -86,7 +92,7 @@
                         </p>
                     </div>
 
-                    <h4 class="q-mt-lg">{{ i18n.limitsTitle }}</h4>
+                    <h4 class="sp-wizard__limits-title">{{ i18n.limitsTitle }}</h4>
                     <table class="sp-wizard__limits">
                         <thead>
                             <tr>
@@ -142,21 +148,24 @@
                     </div>
                 </template>
 
-                <q-stepper-navigation>
-                    <q-btn flat :label="i18n.back" @click="step = 1" />
-                    <q-btn
-                        color="primary"
-                        :label="i18n.next"
-                        unelevated
-                        class="q-ml-sm"
-                        :disable="!canAdvanceFromPreview"
-                        @click="step = 3"
-                    />
-                </q-stepper-navigation>
-            </q-step>
+                <div class="sp-wizard__nav">
+                    <TenantButton @click="goToPreviousStep()">{{ i18n.back }}</TenantButton>
+                    <TenantButton
+                        variant="solid"
+                        tone="accent"
+                        :disabled="!canAdvanceFromPreview"
+                        @click="goToNextStep()"
+                    >
+                        {{ i18n.next }}
+                    </TenantButton>
+                </div>
+            </section>
 
             <!-- Step 3: Confirm -->
-            <q-step :name="3" :title="i18n.stepConfirm" icon="check_circle">
+            <section v-else class="sp-wizard__panel">
+                <h3 ref="stepHeadingRef" v-bind="stepHeadingProps" class="sp-wizard__step-title">
+                    {{ i18n.stepConfirm }}
+                </h3>
                 <p>
                     <strong>{{ targetPlanName }}</strong>
                     ({{ targetCycle === 'YEARLY' ? i18n.cycleYearly : i18n.cycleMonthly }})
@@ -187,24 +196,25 @@
                     </div>
                 </div>
 
-                <div v-if="submitError" class="sp-wizard__error q-mt-md">
+                <div v-if="submitError" class="sp-wizard__error sp-wizard__error--spaced">
                     {{ submitError }}
                 </div>
 
-                <q-stepper-navigation>
-                    <q-btn flat :label="i18n.back" @click="step = 2" />
-                    <q-btn
-                        color="primary"
-                        :label="submitting ? i18n.confirmInProgress : i18n.confirmAction"
-                        unelevated
-                        class="q-ml-sm"
+                <div class="sp-wizard__nav">
+                    <TenantButton :disabled="submitting" @click="goToPreviousStep()">
+                        {{ i18n.back }}
+                    </TenantButton>
+                    <TenantButton
+                        variant="solid"
+                        tone="accent"
                         :loading="submitting"
-                        :disable="submitting"
                         @click="submit"
-                    />
-                </q-stepper-navigation>
-            </q-step>
-        </q-stepper>
+                    >
+                        {{ submitting ? i18n.confirmInProgress : i18n.confirmAction }}
+                    </TenantButton>
+                </div>
+            </section>
+        </div>
     </TenantDialog>
 </template>
 
@@ -213,8 +223,10 @@ import { computed, ref, watch } from 'vue';
 import LimitsRow from './LimitsRow.vue';
 import PlanCycleToggle from './plan/PlanCycleToggle.vue';
 import PlanGrid from './plan/PlanGrid.vue';
+import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
-import { useSuperAdminI18n } from '@saasicat/ui-vue';
+import './ui/tenant-ui.css';
+import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { BillingCycleStr, PlanChangePreviewShape } from '@saasicat/ui-vue';
 import type { CatalogPlan } from '@saasicat/ui-vue';
 import type { PlanChangeWizardI18n } from './default-i18n.js';
@@ -277,7 +289,9 @@ const model = computed({
     set: (v) => emit('update:modelValue', v),
 });
 
-const step = ref(1);
+const WIZARD_STEPS = ['choose', 'preview', 'confirm'] as const;
+type WizardStep = (typeof WIZARD_STEPS)[number];
+
 const targetPlan = ref<string | null>(null);
 const targetCycle = ref<BillingCycleStr>(props.currentCycle);
 
@@ -342,6 +356,34 @@ const canAdvanceFromPreview = computed(
     () => !!preview.value && preview.value.blockers.length === 0,
 );
 
+// One guard for both the button and the move: `useSteps` reads the same
+// predicates that disable the buttons, so the two cannot drift into a button
+// that enables while the move refuses. Declared below them on purpose — a
+// closure over a `const` that is not yet initialised is a trap waiting for the
+// first render that reaches the later branch.
+const {
+    current: currentStep,
+    statusOf: stepStatus,
+    headingRef: stepHeadingRef,
+    headingProps: stepHeadingProps,
+    next: goToNextStep,
+    back: goToPreviousStep,
+    reset: resetSteps,
+} = useSteps<WizardStep>({
+    steps: WIZARD_STEPS,
+    canLeave: (step) => {
+        if (step === 'choose') return canAdvanceFromStep1.value;
+        if (step === 'preview') return canAdvanceFromPreview.value;
+        return true;
+    },
+});
+
+const stepHeadings = computed(() => [
+    { step: 'choose' as const, title: props.i18n.stepChoose },
+    { step: 'preview' as const, title: props.i18n.stepPreview },
+    { step: 'confirm' as const, title: props.i18n.stepConfirm },
+]);
+
 const changeTypeLabel = computed(() => {
     if (!preview.value) return '';
     switch (preview.value.changeType) {
@@ -356,8 +398,11 @@ const changeTypeLabel = computed(() => {
     }
 });
 
-const changeTypeColor = computed(() => {
-    if (!preview.value) return 'grey';
+// A tone from the badge's own vocabulary, not a Quasar colour name. The two
+// happened to spell four of five the same way; `grey` did not, and a name that
+// is right by coincidence is the kind that breaks quietly.
+const changeTypeTone = computed(() => {
+    if (!preview.value) return 'neutral';
     switch (preview.value.changeType) {
         case 'UPGRADE':
             return 'positive';
@@ -366,7 +411,7 @@ const changeTypeColor = computed(() => {
         case 'CYCLE_CHANGE':
             return 'info';
         default:
-            return 'grey';
+            return 'neutral';
     }
 });
 
@@ -399,12 +444,16 @@ const planGridI18n = computed(() => ({
 }));
 
 async function goToPreview() {
-    if (!targetPlan.value) return;
-    step.value = 2;
+    const plan = targetPlan.value;
+    // The step guard is the authority on whether this move may happen — it
+    // reads the same predicate that disabled the button. The null check beside
+    // it says the same thing to the compiler, which cannot see through the
+    // guard.
+    if (!plan || !goToNextStep()) return;
     previewLoading.value = true;
     previewError.value = null;
     try {
-        preview.value = await props.previewPlanChange(targetPlan.value, targetCycle.value);
+        preview.value = await props.previewPlanChange(plan, targetCycle.value);
     } catch (err) {
         preview.value = null;
         previewError.value = err instanceof Error ? err.message : String(err);
@@ -432,7 +481,7 @@ function close() {
     model.value = false;
     // Reset state so the next open starts fresh.
     setTimeout(() => {
-        step.value = 1;
+        resetSteps();
         targetPlan.value = null;
         targetCycle.value = props.currentCycle;
         preview.value = null;
@@ -459,6 +508,80 @@ watch(
     --sp-wiz-text-muted: var(--sa-color-fg-secondary);
     --sp-wiz-text-faint: var(--sa-color-fg-muted);
     --sp-wiz-border-soft: var(--sa-color-border-soft);
+}
+/* The progress list. A list, not a set of controls: Quasar's header was only
+ * navigable under `header-nav`, which this wizard never set. */
+.sp-steps {
+    display: flex;
+    align-items: center;
+    gap: var(--sa-space-5);
+    flex-wrap: wrap;
+    list-style: none;
+    margin: 0 0 var(--sa-space-6);
+    padding: 0 0 var(--sa-space-5);
+    border-bottom: 1px solid var(--sp-wiz-border);
+}
+.sp-steps__step {
+    display: flex;
+    align-items: center;
+    gap: var(--sa-space-3);
+    font-size: var(--sa-text-md);
+    color: var(--sp-wiz-text-faint);
+}
+.sp-steps__marker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--sa-color-border-strong);
+    border-radius: var(--sa-radius-pill);
+    font-size: var(--sa-text-sm);
+    font-weight: 600;
+}
+/* The state is carried by weight and a mark as well as by colour — a step list
+ * that says "you are here" only in blue says it to nobody who cannot see blue. */
+.sp-steps__step--current {
+    color: var(--sa-color-fg-heading);
+    font-weight: 600;
+}
+.sp-steps__step--current .sp-steps__marker {
+    background: var(--sa-color-accent);
+    border-color: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
+}
+.sp-steps__step--done {
+    color: var(--sa-color-fg-secondary);
+}
+.sp-steps__step--done .sp-steps__marker {
+    background: var(--sa-color-positive-surface);
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
+}
+.sp-wizard__step-title {
+    margin: 0 0 var(--sa-space-4);
+    font-size: var(--sa-text-lg);
+    font-weight: 600;
+    color: var(--sp-wiz-text-strong);
+}
+.sp-wizard__step-title:focus-visible {
+    outline: 2px solid var(--sa-color-border-focus);
+    outline-offset: 2px;
+}
+.sp-wizard__cycle {
+    margin-bottom: var(--sa-space-5);
+}
+.sp-wizard__nav {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sa-space-3);
+    margin-top: var(--sa-space-7);
+}
+.sp-wizard__limits-title {
+    margin-top: var(--sa-space-7);
+}
+.sp-wizard__error--spaced {
+    margin-top: var(--sa-space-5);
 }
 .sp-wizard__intro {
     color: var(--sp-wiz-text-muted);

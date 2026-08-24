@@ -17,6 +17,48 @@
  * was left behind.
  */
 
+/* ── Badge ───────────────────────────────────────────────────────────────
+ * A status word beside the thing it describes. Foreground and surface come
+ * from the same role, which is the pairing `theme-role-contrast` guards.
+ */
+.sp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sa-space-1);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--sa-radius-badge);
+    font-size: var(--sa-text-sm);
+    font-weight: 600;
+    line-height: var(--sa-leading-2xs);
+    white-space: nowrap;
+}
+.sp-badge--neutral {
+    background: var(--sa-color-bg-sunken);
+    border-color: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
+}
+.sp-badge--positive {
+    background: var(--sa-color-positive-surface);
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
+}
+.sp-badge--negative {
+    background: var(--sa-color-negative-surface);
+    border-color: var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
+}
+.sp-badge--warning {
+    background: var(--sa-color-warning-surface);
+    border-color: var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
+}
+.sp-badge--info {
+    background: var(--sa-color-info-surface);
+    border-color: var(--sa-color-info-border);
+    color: var(--sa-color-info-fg);
+}
+
 /* ── Spinner ─────────────────────────────────────────────────────────────
  * A ring, not a component. Every call site puts a sentence beside it, so the
  * ring is decoration and carries `aria-hidden` at each of them.
