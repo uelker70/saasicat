@@ -68,6 +68,16 @@ export {
     type SeedGateMode,
     type SeedGateRunOptions,
 } from './seed-gate-runner.js';
+// Exported so the rules a publish is refused by can be tested where they are
+// decided, rather than twice through two services that call the same function.
+export {
+    resolveValidityWindow,
+    BUNDLE_VERSION_WINDOW_CODES,
+    PLAN_VERSION_WINDOW_CODES,
+    type PreviousWindow,
+    type ValidityWindowCodes,
+    type ValidityWindowInput,
+} from './validity-window.js';
 export {
     CreateBundleDto,
     CreateBundleVersionDraftDto,

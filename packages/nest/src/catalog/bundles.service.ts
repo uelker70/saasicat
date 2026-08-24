@@ -42,6 +42,7 @@ import {
 } from '@saasicat/core';
 
 import { classifyBundleVersionDiff } from '../billing/version-diff.js';
+import { BUNDLE_VERSION_WINDOW_CODES, resolveValidityWindow } from './validity-window.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { DiscoveryScanner } from '../discovery/discovery.scanner.js';
 import {
@@ -421,79 +422,12 @@ export class BundlesService {
 
         const previous = await this.repo.findLatestLive(draft.bundleId);
 
-        // ─── validFrom (required on publish) ───
-        const validFromInput = publishMeta.validFrom ?? draft.validFrom;
-        if (!validFromInput) {
-            throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_REQUIRED,
-                message:
-                    'validFrom must be set when publishing (on the draft or the publish call)..',
-            });
-        }
-        const validFrom = new Date(validFromInput);
-        if (Number.isNaN(validFrom.getTime())) {
-            throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_INVALID,
-                message: `validFrom '${validFromInput}' is not a valid date`,
-                params: { validFrom: validFromInput },
-            });
-        }
-        if (previous?.validFrom) {
-            const prevFrom = new Date(previous.validFrom);
-            if (validFrom <= prevFrom) {
-                throw new UnprocessableEntityException({
-                    code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS,
-                    message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the previous version (${previous.validFrom}).`,
-                    params: {
-                        validFrom: validFrom.toISOString(),
-                        previousValidFrom: previous.validFrom,
-                    },
-                });
-            }
-            // Gapless succession analogous to Plan: if the predecessor already
-            // has an explicit validUntil, the successor must start seamlessly
-            // on the following day (otherwise a gap or overlap).
-            if (previous.validUntil) {
-                const prevUntil = new Date(previous.validUntil);
-                const dayMs = 24 * 60 * 60 * 1000;
-                const requiredStart = new Date(prevUntil.getTime() + dayMs);
-                if (validFrom.getTime() !== requiredStart.getTime()) {
-                    throw new UnprocessableEntityException({
-                        code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS,
-                        message:
-                            `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
-                            `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
-                            `Received: ${validFrom.toISOString().slice(0, 10)}.`,
-                        params: { received: validFrom.toISOString().slice(0, 10) },
-                        requiredValidFrom: requiredStart.toISOString().slice(0, 10),
-                        previousValidUntil: previous.validUntil,
-                    });
-                }
-            }
-        }
-
-        // validUntil (optional, null = unbounded). Consistency check
-        // against validFrom; auto-succession of the predecessor happens in the repo.
-        const validUntilInput =
-            publishMeta.validUntil !== undefined ? publishMeta.validUntil : draft.validUntil;
-        const validUntil = validUntilInput ? new Date(validUntilInput) : null;
-        if (validUntil && Number.isNaN(validUntil.getTime())) {
-            throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_UNTIL_INVALID,
-                message: `validUntil '${validUntilInput}' is not a valid date`,
-                params: { validUntil: validUntilInput },
-            });
-        }
-        if (validUntil && validUntil <= validFrom) {
-            throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM,
-                message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}).`,
-                params: {
-                    validUntil: validUntil.toISOString(),
-                    validFrom: validFrom.toISOString(),
-                },
-            });
-        }
+        const { validFrom, validUntil } = resolveValidityWindow(
+            publishMeta,
+            draft,
+            previous,
+            BUNDLE_VERSION_WINDOW_CODES,
+        );
 
         const diff = previous
             ? classifyBundleVersionDiff(

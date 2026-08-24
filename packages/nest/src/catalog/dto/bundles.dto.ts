@@ -14,11 +14,56 @@ import {
     MinLength,
     ValidateIf,
 } from 'class-validator';
+import { applyDecorators } from '@nestjs/common';
 
 // DTOs for `BundlesController` — class-validator validation at the HTTP
 // boundary. Inherited required fields are validated here; spec-conformant
 // options (compatibility, pricingOverrides) pass through as a generic object/
 // array and are used structurally in the service.
+
+// Constraints that repeat, declared once.
+//
+// The four bundle DTOs are two pairs — create and update of a bundle, create
+// and update of a version draft — and a pair differs in what is REQUIRED, not
+// in what a value has to look like. Written out per class, the same stack was
+// copied eight times, and the copies had already drifted: the update draft's
+// price and feature rules carried no message, so the same bad payload came
+// back explained on one route and unexplained on the other.
+//
+// `applyDecorators` composes property decorators without changing what
+// class-validator sees — each still registers its own constraint on the
+// property. Optionality stays at the call site, because that IS the difference
+// between the two halves of a pair.
+const IsBoundedText = (max: number) => applyDecorators(IsString(), MaxLength(max));
+
+const IsFeatureKeyList = () =>
+    applyDecorators(
+        IsArray(),
+        IsString({ each: true }),
+        Matches(FEATURE_KEY_PATTERN, {
+            each: true,
+            message: 'features entries must be SCREAMING_SNAKE_CASE',
+        }),
+    );
+
+/** A price, or `null` for "none of its own". Two fraction digits, no more. */
+const IsDecimalAmountOrNull = (field: string) =>
+    applyDecorators(
+        ValidateIf((_o, value) => value !== null),
+        IsNumberString({ no_symbols: false }),
+        Matches(DECIMAL_PATTERN, {
+            message: `${field} must be a decimal with at most 2 fraction digits (e.g. "9.90")`,
+        }),
+    );
+
+/** A calendar day, or `null` for "unbounded". */
+const IsIsoDateOrNull = (field: string) =>
+    applyDecorators(
+        ValidateIf((_o, value) => value !== null),
+        Matches(ISO_DATE_PATTERN, { message: `${field} must be an ISO date (YYYY-MM-DD)` }),
+    );
+
+const IsSortOrder = () => applyDecorators(IsInt(), Min(0), Max(10_000));
 
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const FEATURE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
@@ -48,19 +93,15 @@ export class CreateBundleDto {
     label!: string;
 
     @IsOptional()
-    @IsString()
-    @MaxLength(2000)
+    @IsBoundedText(2000)
     description?: string;
 
     @IsOptional()
-    @IsString()
-    @MaxLength(64)
+    @IsBoundedText(64)
     icon?: string;
 
     @IsOptional()
-    @IsInt()
-    @Min(0)
-    @Max(10_000)
+    @IsSortOrder()
     sortOrder?: number;
 
     /** Locale translations { "en": { label, description }, … }. */
@@ -77,19 +118,15 @@ export class UpdateBundleDto {
     label?: string;
 
     @IsOptional()
-    @IsString()
-    @MaxLength(2000)
+    @IsBoundedText(2000)
     description?: string | null;
 
     @IsOptional()
-    @IsString()
-    @MaxLength(64)
+    @IsBoundedText(64)
     icon?: string | null;
 
     @IsOptional()
-    @IsInt()
-    @Min(0)
-    @Max(10_000)
+    @IsSortOrder()
     sortOrder?: number;
 
     /** Locale translations { "en": { label, description }, … }. */
@@ -98,15 +135,20 @@ export class UpdateBundleDto {
     i18n?: Record<string, { label?: string; description?: string }>;
 }
 
-export class CreateBundleVersionDraftDto {
-    @IsArray()
-    @IsString({ each: true })
-    @Matches(FEATURE_KEY_PATTERN, {
-        each: true,
-        message: 'features entries must be SCREAMING_SNAKE_CASE',
-    })
-    features!: string[];
-
+/**
+ * Everything a version draft may carry apart from its feature list.
+ *
+ * A base class rather than two copies, and the split is where the pair actually
+ * differs: a create needs features, an update may leave them alone. Everything
+ * else — quotas, compatibility, prices, the window — is optional on both, and
+ * was written out twice.
+ *
+ * `features` is deliberately NOT here. Declared in the base as optional, the
+ * inherited `@IsOptional()` would follow into the create DTO and make the one
+ * required field of that request optional again; class-validator reads the
+ * whole prototype chain.
+ */
+export class BundleVersionDraftFieldsDto {
     @IsOptional()
     @IsObject()
     quotas?: Record<string, number>;
@@ -124,19 +166,11 @@ export class CreateBundleVersionDraftDto {
     }>;
 
     @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @IsNumberString({ no_symbols: false })
-    @Matches(DECIMAL_PATTERN, {
-        message: 'monthlyNet must be a decimal with at most 2 fraction digits (e.g. "9.90")',
-    })
+    @IsDecimalAmountOrNull('monthlyNet')
     monthlyNet?: string | null;
 
     @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @IsNumberString({ no_symbols: false })
-    @Matches(DECIMAL_PATTERN, {
-        message: 'yearlyNet must be a decimal with at most 2 fraction digits',
-    })
+    @IsDecimalAmountOrNull('yearlyNet')
     yearlyNet?: string | null;
 
     @IsOptional()
@@ -144,8 +178,7 @@ export class CreateBundleVersionDraftDto {
     marketed?: boolean;
 
     @IsOptional()
-    @IsString()
-    @MaxLength(2000)
+    @IsBoundedText(2000)
     changeNote?: string;
 
     @IsOptional()
@@ -153,75 +186,23 @@ export class CreateBundleVersionDraftDto {
     baseVersionId?: string | null;
 
     @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(ISO_DATE_PATTERN, {
-        message: 'validFrom must be an ISO date (YYYY-MM-DD)',
-    })
+    @IsIsoDateOrNull('validFrom')
     validFrom?: string | null;
 
     @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(ISO_DATE_PATTERN, {
-        message: 'validUntil must be an ISO date (YYYY-MM-DD)',
-    })
+    @IsIsoDateOrNull('validUntil')
     validUntil?: string | null;
 }
 
-export class UpdateBundleVersionDraftDto {
+export class CreateBundleVersionDraftDto extends BundleVersionDraftFieldsDto {
+    @IsFeatureKeyList()
+    features!: string[];
+}
+
+export class UpdateBundleVersionDraftDto extends BundleVersionDraftFieldsDto {
     @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    @Matches(FEATURE_KEY_PATTERN, { each: true })
+    @IsFeatureKeyList()
     features?: string[];
-
-    @IsOptional()
-    @IsObject()
-    quotas?: Record<string, number>;
-
-    @IsOptional()
-    @IsObject()
-    compatibility?: { planIds?: string[] };
-
-    @IsOptional()
-    @IsArray()
-    pricingOverrides?: Array<{
-        planId?: string;
-        monthlyNet?: string | null;
-        yearlyNet?: string | null;
-    }>;
-
-    @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(DECIMAL_PATTERN)
-    monthlyNet?: string | null;
-
-    @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(DECIMAL_PATTERN)
-    yearlyNet?: string | null;
-
-    @IsOptional()
-    @IsBoolean()
-    marketed?: boolean;
-
-    @IsOptional()
-    @IsString()
-    @MaxLength(2000)
-    changeNote?: string;
-
-    @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(ISO_DATE_PATTERN, {
-        message: 'validFrom must be an ISO date (YYYY-MM-DD)',
-    })
-    validFrom?: string | null;
-
-    @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(ISO_DATE_PATTERN, {
-        message: 'validUntil must be an ISO date (YYYY-MM-DD)',
-    })
-    validUntil?: string | null;
 }
 
 export class PublishBundleVersionDto {
@@ -244,17 +225,11 @@ export class PublishBundleVersionDto {
      * Service strictly checks > `validFrom` of the predecessor version.
      */
     @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(ISO_DATE_PATTERN, {
-        message: 'validFrom must be an ISO date (YYYY-MM-DD)',
-    })
+    @IsIsoDateOrNull('validFrom')
     validFrom?: string | null;
 
     @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @Matches(ISO_DATE_PATTERN, {
-        message: 'validUntil must be an ISO date (YYYY-MM-DD)',
-    })
+    @IsIsoDateOrNull('validUntil')
     validUntil?: string | null;
 }
 
