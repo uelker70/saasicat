@@ -28,10 +28,16 @@ const QUASAR_VAR_PREFIX = '--q-';
 /**
  * The status colours Quasar's own components paint, taken from the theme.
  *
- * Each SaaSiCat status tone is a family of six contrast-tuned values, and a
- * single Quasar variable cannot say which rung it is — so these point at the
- * rung Quasar means by `color="positive"`. Through `var()`, not a copy: the
- * roles differ between light and dark, and a copied hex would stay light.
+ * Each SaaSiCat status tone is a family of contrast-tuned values, and a single
+ * Quasar variable cannot say which one it is. Quasar means the FILLED one: it
+ * paints `--q-positive` as a background and puts white text on it. So these
+ * point at `-solid`, not at the plain role — the plain role is a foreground and
+ * goes lighter in the dark theme, where white on it reads 1.67:1 for warning.
+ * That is not a hypothetical: linking the plain role is what this did first,
+ * and the browser contrast sweep failed three pages in the dark theme.
+ *
+ * Through `var()` rather than a copy, so a consumer who retunes the role moves
+ * Quasar's components with it.
  *
  * This is not branding, which is why it is not a consumer option: it is the
  * platform making Quasar agree with its own roles. The Sass file it replaces
@@ -41,10 +47,10 @@ const QUASAR_VAR_PREFIX = '--q-';
  * paints 4.8:1. Restating a value is how it drifts.
  */
 const QUASAR_ROLE_LINKS: Record<string, string> = {
-    positive: 'var(--sa-color-positive)',
-    negative: 'var(--sa-color-negative)',
-    warning: 'var(--sa-color-warning)',
-    info: 'var(--sa-color-info)',
+    positive: 'var(--sa-color-positive-solid)',
+    negative: 'var(--sa-color-negative-solid)',
+    warning: 'var(--sa-color-warning-solid)',
+    info: 'var(--sa-color-info-solid)',
 };
 
 /**

@@ -55,6 +55,22 @@ export interface VisualCase {
      * exactly the surfaces the case was added for leaves the snapshot
      * untouched.
      */
+    /**
+     * What this case puts on the screen: a page, or a single overlay.
+     *
+     * The contrast sweep refuses a case that rendered nothing to judge, and
+     * "nothing" is a different number for the two. A page is built from the
+     * admin skeleton and carries a heading, a section and a table's worth of
+     * strings; an overlay is a card with a title, a sentence and two buttons —
+     * `mfa-prompt` has five, and the page floor rejected it as empty.
+     *
+     * Declared rather than derived, because the case's subject is only visible
+     * inside its `load` closure. So the sweep checks the declaration instead of
+     * trusting it: an `overlay` must render nothing into the app root, which is
+     * what makes it an overlay. A page mislabelled here would lower its own
+     * floor, and that assertion is what stops it.
+     */
+    kind?: 'page' | 'overlay';
     revealBy?: readonly string[];
     /**
      * Selectors to hover, one at a time, each read on its own.
@@ -222,6 +238,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // reusable overlay that can be opened by a prop belongs here for the
         // same reason.
         id: 'mfa-prompt',
+        kind: 'overlay',
         load: () => import('../../../src/ui/overlay/MfaPromptDialog.vue'),
         props: () => ({ modelValue: true }),
     }),

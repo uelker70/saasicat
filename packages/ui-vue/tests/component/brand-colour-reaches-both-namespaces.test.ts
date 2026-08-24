@@ -137,38 +137,24 @@ describe('the status tones follow the roles instead of being restated', () => {
         boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
         for (const tone of STATUS_TONES) {
             expect(document.documentElement.style.getPropertyValue(`--q-${tone}`)).toBe(
-                `var(--sa-color-${tone})`,
+                `var(--sa-color-${tone}-solid)`,
             );
         }
     });
 
-    test('a copy would not survive the dark theme, and var() does', () => {
-        // The roles differ between schemes — `--sa-color-warning` is
-        // `--sa-amber-700` in light and `--sa-amber-400` in dark. A hex written
-        // here would stay light in both, which is the whole reason for the
-        // indirection and the one thing a "was it written" check cannot see.
-        const light = readFileSync(
-            join(process.cwd(), 'src/ui/theme/tokens.semantic.light.css'),
-            'utf8',
-        );
+    test('the tone it points at is the filled one, not the foreground', () => {
+        // Quasar paints `--q-warning` as a BACKGROUND with white text. The
+        // plain role is a foreground and goes lighter in the dark theme, where
+        // white on it reads 1.67:1 — which is what the browser sweep failed on
+        // when this pointed at the plain role. `tests/filled-status-carries-
+        // white-text.test.js` pins the pair; this pins which one is used.
         const dark = readFileSync(
             join(process.cwd(), 'src/ui/theme/tokens.semantic.dark.css'),
             'utf8',
         );
-        const roleIn = (css: string, tone: string) =>
-            new Map(
-                css
-                    .split('\n')
-                    .map((line) => /^\s*--sa-color-([a-z0-9-]+):([^;]+);/.exec(line))
-                    .filter((match): match is RegExpExecArray => match !== null)
-                    .map((match) => [match[1], match[2].trim()]),
-            ).get(tone);
-
         for (const tone of STATUS_TONES) {
-            expect(roleIn(light, tone), `${tone} is not declared in the light theme`).toBeDefined();
-            expect(roleIn(dark, tone), `${tone} is not declared in the dark theme`).toBeDefined();
-            expect(roleIn(dark, tone), `${tone} reads the same in both schemes`).not.toBe(
-                roleIn(light, tone),
+            expect(dark, `--sa-color-${tone}-solid is missing from the dark theme`).toContain(
+                `--sa-color-${tone}-solid:`,
             );
         }
     });
@@ -178,7 +164,7 @@ describe('the status tones follow the roles instead of being restated', () => {
         // an option the consumer may omit.
         boot({ name: 'Fixture', logoText: 'FX' });
         expect(document.documentElement.style.getPropertyValue('--q-warning')).toBe(
-            'var(--sa-color-warning)',
+            'var(--sa-color-warning-solid)',
         );
     });
 
