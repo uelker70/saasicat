@@ -1,5 +1,142 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.4
+
+### Minor Changes
+
+- ed230d3: Every form control and every action button in the admin UI is now a Quasar
+  component: `q-input`, `q-select`, `q-checkbox`, `q-toggle`, `q-btn`.
+
+    **Why it matters to you.** The package had eight independent `input`
+    implementations and six `button` families — 784 lines of CSS reproducing what
+    Quasar and the theme already give you. A field built that way misses the theme's
+    corrections (dark-mode surface, focus ring, the fix for a field inside a
+    teleported dialog) and every Quasar-level setting you make: an app that themed
+    `$primary` or `q-field` reached the filter rows and missed the editors. Two
+    inputs on one page reacted differently to the same setting, and nothing in the
+    markup said which was which.
+
+    **What changed for you.** If you styled these by selector — `.pc-input`,
+    `.bve-btn`, `.bcp-btn`, `.pcd-btn`, `.sa-btn` and their kin — those classes are
+    gone; style `q-input`/`q-btn`, or the design tokens, instead. Spacing shifts by
+    a rung or two in places and the paginator's buttons are 4.5px taller, which is
+    Quasar's hit area.
+
+    Twenty-one native `<button>`s remain on purpose — segmented cards, chips with a
+    colour mark, a bar in a chart, a disclosure trigger — and each says at the
+    element why. `saasicat/no-hand-built-controls` refuses the rest.
+
+- ed230d3: Spacing, radii and tracking in the shipped components now read the design
+  tokens instead of pixel literals — 1,165 declarations across both packages.
+
+    **What moves.** Values that sat between two rungs snap to the nearer one, and
+    ties round down: `gap: 6px` becomes `var(--sa-space-2)` (4px), `padding: 14px`
+    becomes `var(--sa-space-4)` (12px), `border-radius: 6px` becomes
+    `var(--sa-radius-control)` (7px). Nothing moves by more than 2px, and the visual
+    suite confirms no page overflows at any breakpoint.
+
+    **Why it matters to you.** These are the subpaths that ship source, so your
+    build compiles them — and from here, overriding `--sa-space-*` or
+    `--sa-radius-*` changes the whole surface at once rather than the one component
+    that happened to read a token already. See
+    [design tokens](https://github.com/uelker70/saasicat/blob/main/docs/reference/design-tokens.md).
+
+    If you override individual component paddings in your own stylesheet, check
+    them once: the value they sit next to may have shifted by a rung.
+
+- ed230d3: The marketing catalog's plan list is reordered by dragging, and every disclosure
+  in the admin UI opens the way the others do.
+
+    **Order is a gesture now, not a number.** The "Priority" column held a number
+    field per row, and the list sorted by it — so moving a plan up meant working out
+    which number would put it there, in a list that re-sorted under the cursor while
+    you typed. A drag handle sits on the left of each row instead: drag it, or focus
+    it and press ↑/↓, and the platform computes the priorities that produce that
+    order. Existing values are kept and only reassigned, so the gaps an operator
+    chose (100 / 50 / 10) survive; rows that keep their value are not written. Plans
+    that start out tied at `0` are pulled apart on the first move, because equal
+    priorities cannot carry an order. A plan with no live version has no handle: it
+    cannot hold a marketing projection, so there is no priority to write.
+
+    **The whole row opens the editor.** Clicking anywhere in a row that is not one of
+    its fields opens the teaser and top-features editor; before, only a chevron at
+    the far right did. The chevron is gone, and the plan cell is still the element a
+    keyboard tabs to and a screen reader hears as the disclosure. A row's status —
+    `live`, `hidden`, `Featured` — now sits beside the plan name rather than in a
+    column of its own, which is where the bundle list already put it.
+
+    **Accordions animate and have lost their chevron.** `AdminAccordion`'s body
+    slides open and shut through `q-slide-transition` instead of appearing, so a list
+    where several rows open no longer jumps; the badge deepens to report which row is
+    open. This affects every surface built on it — discovery, bundles, promotions,
+    the promo-code form, the setup wizard.
+
+    New in the package: `useRowReorder` (from `@saasicat/ui-vue/vue`) for the pointer
+    half of a drag, `reorderedPriorities` (from `@saasicat/ui-vue/client`) for the
+    arithmetic, and a `.sa-sr-only` utility in the theme.
+
+    **Every page now sits in the same frame.** Two pages drew their own: the
+    discovery page set a 16px page padding and the marketing catalog a 24px one
+    against the theme's 28px, so the heading and the content below it sat at three
+    different distances from the sidebar depending on where you were. The dashboard
+    had no `AdminBody` at all, so its cards ran 20px wider than every other page's.
+    Both are the shared frame now, and a rule reads the theme's own `.sa-page`
+    declarations to keep it that way. The bundles and discovery pages also added a
+    16px gap on top of the hero's own margin, so those two put 36px between the
+    heading and the content where every other page puts 20px — and the same 16px
+    again between their sections. Gone; the rule covers that too.
+
+    **The plan matrix reads like the plan list.** Its four KPIs sit in a card above
+    the table, in the same rhythm as the list's, rather than bare on the page
+    background. Two contrast defects that surfaced with it are fixed: the "not
+    included" dash in the matrix rendered at 1.48:1, and the _Create plan_ card's
+    title and subtitle at 2.0:1 and 2.5:1 on their own tint.
+
+### Patch Changes
+
+- ed230d3: The handbook is gone, and its twelve chapters are documents you can enter
+  directly: guides for a task, reference for a name, explanation for a why.
+  [`docs/README.md`](https://github.com/uelker70/saasicat/blob/main/docs/README.md)
+  is the map.
+
+    If you linked to a numbered section — `handbook.md#87-ui-language-i18n` and its
+    kin — the sections carry names now. The comments in the scaffolded files and in
+    `examples/notesapp` point at the new documents, and the numbered references they
+    used to carry are gone: a number was exactly what broke every time a section was
+    inserted.
+
+    Two contradictions the split removed, both of which sent readers the wrong way:
+    the architecture chapter presented seven individual `forRoot` calls as the way to
+    wire the backend while the quickstart used `SaaSiCatModule.forRoot`, and the
+    sub-entry rule said "never import the root" while the platform composition is
+    exported from there deliberately.
+
+- ed230d3: Every package README now answers the same three questions in the same order:
+  what this is, what this is **not**, and where to go next.
+
+    The middle one is the addition. `@saasicat/core` is not a types-only package,
+    `@saasicat/spec` does not run your migrations, `@saasicat/cli` has no binary of
+    its own for the flows it ships, and `@saasicat/ui-vue-tenant` renders in your
+    application rather than in the admin — each of those was a question rather than
+    a sentence.
+
+    `@saasicat/nest` and `@saasicat/ui-vue` list all twelve and thirteen of their
+    entry points with what is in each and when to take it; the previous tables
+    covered one and four. A repository test checks those tables against the export
+    map in both directions.
+
+- ed230d3: `@saasicat/ui-vue/testing/mount-with-quasar` mounts a component with Quasar's
+  components registered — the fixture the platform's own component tests use.
+
+    `app.use(Quasar)` installs the plugin but registers nothing, so without it every
+    `q-*` in the component under test stays an unresolved element and assertions
+    pass or fail for reasons that have nothing to do with the component. Two
+    packages in this repository had a byte-identical copy of it; a consumer testing
+    a page they mounted needs the same one.
+
+- Updated dependencies [ed230d3]
+    - @saasicat/core@1.0.0-rc.4
+
 ## 1.0.0-rc.3
 
 ### Patch Changes

@@ -1,5 +1,61 @@
 # @saasicat/spec
 
+## 1.0.0-rc.4
+
+### Patch Changes
+
+- ed230d3: `POST /admin/billing/plan-catalog/import` answers **400** for a body it could
+  not read, where it previously answered 500.
+
+    Unparseable YAML and a schema or cross-field violation both reached Nest as
+    plain `Error`s, so a caller could not tell a bad upload from a broken server —
+    and the one they could fix was the one that looked unfixable. They now carry
+    `PLAN_CATALOG_UNREADABLE` and `PLAN_CATALOG_INVALID` — both in
+    `CATALOG_ERROR_CODES` with English and German text, so `resolveErrorMessage`
+    answers them like every other coded error instead of falling through to a raw
+    validator dump. A failure from the store keeps its 500, which is the honest
+    status for it.
+
+    The OpenAPI contract also had the first-run setup statuses wrong: `POST /setup`
+    answers 401 for a wrong token, 409 once a SUPER_ADMIN exists, 400 for an
+    unusable email and 403 only when `SETUP_TOKEN` is unset. It documented 403 for
+    all of them.
+
+- ed230d3: Every package README now answers the same three questions in the same order:
+  what this is, what this is **not**, and where to go next.
+
+    The middle one is the addition. `@saasicat/core` is not a types-only package,
+    `@saasicat/spec` does not run your migrations, `@saasicat/cli` has no binary of
+    its own for the flows it ships, and `@saasicat/ui-vue-tenant` renders in your
+    application rather than in the admin — each of those was a question rather than
+    a sentence.
+
+    `@saasicat/nest` and `@saasicat/ui-vue` list all twelve and thirteen of their
+    entry points with what is in each and when to take it; the previous tables
+    covered one and four. A repository test checks those tables against the export
+    map in both directions.
+
+- ed230d3: The SuperAdmin OpenAPI contract now describes the routes that exist.
+
+    `admin-api.openapi.yaml` had drifted from the reference implementation in both
+    directions. Corrected:
+
+    - `GET /dashboard/stats` is `GET /stats/dashboard` — the path every client
+      already calls. If you implemented the documented one, it was never reached.
+    - Removed `/plans`, `/plans/reload` and `/plans/last-update` (the plan catalog
+      is imported through `POST /billing/plan-catalog/import` and read through
+      `/catalog/plans`) and `/mfa/setup`, `/mfa/confirm` (admin MFA enrolment runs
+      through the CLI and first-run setup). Nothing served any of them.
+    - Added the five operations the platform serves and the document omitted:
+      `GET /setup/status`, `POST /setup`, `POST /setup/confirm-mfa`,
+      `GET /subscriptions`, `POST /billing/plan-catalog/import`.
+    - Operations your application serves rather than the platform — tenant
+      lifecycle, user administration, the promo-code detail view — now carry
+      `x-served-by: app` and say why.
+
+    `info.version` follows the release instead of standing at `0.1.0-draft`, and a
+    repository test holds the document against the controllers from now on.
+
 ## 1.0.0-rc.3
 
 ## 1.0.0-rc.2
