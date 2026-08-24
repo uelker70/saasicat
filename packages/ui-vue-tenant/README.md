@@ -48,15 +48,17 @@ to re-export.
 pnpm add @saasicat/ui-vue-tenant
 ```
 
-`@saasicat/ui-vue`, `vue` and `quasar` are peer dependencies — this package
-consumes the platform's primitives and design tokens rather than shipping its
-own.
+`vue`, `@saasicat/ui-vue` and `@saasicat/core` are peer dependencies. **No UI
+framework** — these components are built from plain elements and the theme's CSS
+custom properties, so embedding a plan section costs you Vue and a stylesheet,
+not a framework decision you already made differently.
 
-**The `quasar` requirement is being removed.** These components render inside
-your application, so asking it to adopt a UI framework is the wrong price for a
-plan section. [ADR 0010](../../docs/explanation/adr/0010-tenant-ui-without-quasar.md)
-records the decision and what is left to replace; until it lands, the peer
-dependency is still required.
+`@saasicat/ui-vue` is here for types, composables and the theme, not for
+components. Its own `quasar` peer is declared optional, so installing this
+package does not ask you for it either. The reasoning is
+[ADR 0010](../../docs/explanation/adr/0010-tenant-ui-without-quasar.md), and
+`tests/the-tenant-package-needs-no-quasar.test.js` keeps it true — including the
+utility classes a prefix check would miss.
 
 ## Usage
 
@@ -80,9 +82,10 @@ import '@saasicat/ui-vue/theme.css';
 ## Source, not a build
 
 Like `@saasicat/ui-vue`'s page subpaths, this package hands out `.vue` and `.ts`
-from `src/`: consumers need the source for Quasar and Sass theming. Your
-`tsconfig` therefore compiles these files, so they stay within **ES2021** — the
-same language floor the platform package documents.
+from `src/` — here because your bundler already compiles Vue components and a
+build step would only add one. Your `tsconfig` therefore compiles these files,
+so they stay within **ES2021** — the same language floor the platform package
+documents.
 
 ## License
 

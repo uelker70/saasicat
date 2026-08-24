@@ -1,10 +1,12 @@
 # ADR 0010 — The tenant surface stands without Quasar
 
-**Status:** accepted, not yet implemented · **Date:** 2026-08-24
+**Status:** accepted and implemented · **Date:** 2026-08-24
 
-The work is [issue #206](https://github.com/uelker70/saasicat/issues/206). Until
-it lands, `quasar` is still a peer dependency of that package and new code there
-writes plain elements rather than adding to the 69 usages this removes.
+The work was [issue #206](https://github.com/uelker70/saasicat/issues/206). All
+69 usages are gone, `quasar` is out of the package's manifest, and
+`tests/the-tenant-package-needs-no-quasar.test.js` holds all three claims —
+manifest, imports, and the markup, including the utility classes a `q-` prefix
+check does not see.
 
 A second route was weighed and rejected: ship the tenant surface as a built
 bundle carrying its own Vue instance and Quasar, mounted into an element the
@@ -120,10 +122,9 @@ UI framework they never installed, or whose account page renders an unstyled
 control because they installed Quasar without its stylesheet. Neither is visible
 from inside SaaSiCat, and both are reported as "your component does not work".
 
-The second failure is quieter and has already happened once in this package: a
+The second failure is quieter and had already happened once in this package: a
 hand-written control beside a Quasar one, each carrying half of the disabled,
 focus and keyboard behaviour, with nothing saying which is the pattern. The
-package sat at 15 `q-btn` against 17 `<button>` for exactly that reason. Until
-the migration is finished, new code in the tenant package writes plain elements
-— that is the direction of travel, and the mixed state is the thing being paid
-off rather than a licence to add to it.
+package sat at 15 `q-btn` against 17 `<button>` for exactly that reason. There
+is one button now, `src/ui/TenantButton.vue`, and the guard names the direction
+rather than describing it.

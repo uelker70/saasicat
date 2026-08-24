@@ -14,7 +14,7 @@
 import { Dark } from 'quasar';
 import { watch, type WatchStopHandle } from 'vue';
 
-import type { SaColorScheme, SaTheme } from '../vue/use-sa-theme.js';
+import { bindSaThemeAttribute, type SaColorScheme, type SaTheme } from '../vue/use-sa-theme.js';
 
 /**
  * Mirrors a theme context onto the document and Quasar. Returns the stop
@@ -37,12 +37,15 @@ export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
     // decision the application made — see the comment on that watcher.
     let mirroring = false;
 
+    // The platform half — `data-sa-theme` on <html> — is `bindSaThemeAttribute`,
+    // in the framework-free layer, because an app that embeds only the tenant
+    // components needs it and must not need Quasar to get it. What is left here
+    // is the Quasar half and the two-way agreement between them.
+    const stopAttribute = bindSaThemeAttribute(theme);
+
     const toQuasar = watch(
         theme.resolved,
         (resolved) => {
-            if (typeof document !== 'undefined') {
-                document.documentElement.setAttribute('data-sa-theme', resolved);
-            }
             mirroring = true;
             try {
                 Dark.set(resolved === 'dark');
@@ -97,6 +100,7 @@ export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
     );
 
     return () => {
+        stopAttribute();
         toQuasar();
         fromQuasar();
     };

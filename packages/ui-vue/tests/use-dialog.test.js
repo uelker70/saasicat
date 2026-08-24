@@ -1,9 +1,3 @@
-import { afterEach, describe, expect, test } from 'vitest';
-import { mount, type VueWrapper } from '@vue/test-utils';
-import { defineComponent, h, nextTick } from 'vue';
-
-import { useDialog } from '../../src/vue/use-dialog.js';
-
 // The half of a dialog that no snapshot sees.
 //
 // Focus return is the one everybody forgets: the dialog closes, the page looks
@@ -11,23 +5,33 @@ import { useDialog } from '../../src/vue/use-dialog.js';
 // where they were. It has no visual output at all, so it needs a test of its
 // own — and so does every other claim here, because the whole point of a
 // headless primitive is that a behaviour proved once is then correct in all
-// three dialogs that use it.
+// four dialogs that use it.
 //
-// The host below renders with `h()` rather than a template string: the runtime
-// compiler is not in the build vitest loads, and a render function shows the
-// binding contract — panel ref, panel props, backdrop props — more plainly than
-// a template does.
+// In this suite rather than the component runner, and imported from `dist/`,
+// for the two reasons that suite exists: it is what the coverage ratchet
+// measures, and it is the bundle a consumer actually loads. The component
+// runner is for files that need compiling; these do not.
+//
+// The host below renders with `h()` rather than a template: no compiler is
+// loaded here, and a render function shows the binding contract — panel ref,
+// panel props, backdrop props — more plainly than a template does.
 
-interface HostProps {
-    open: boolean;
-    persistent?: boolean;
-    to?: string;
-    tabbables?: number;
-}
+import { after, beforeEach, describe, test } from 'node:test';
+import assert from 'node:assert/strict';
 
-const closes: string[] = [];
+import { installDom } from './support/dom.mjs';
 
-function makeHost(name: string) {
+const { document, KeyboardEvent, teardown: teardownDom } = installDom();
+const { mount } = await import('@vue/test-utils');
+const { defineComponent, h, nextTick } = await import('vue');
+const { useDialog } = await import('../dist/index.js');
+
+after(teardownDom);
+
+const closes = [];
+const mounted = [];
+
+function makeHost(name) {
     return defineComponent({
         name,
         props: {
@@ -41,7 +45,7 @@ function makeHost(name: string) {
                 open: () => props.open,
                 onClose: () => closes.push(name),
                 persistent: () => props.persistent,
-                to: props.to ? () => props.to as string : undefined,
+                to: props.to ? () => props.to : undefined,
             });
             return { dialog };
         },
@@ -61,19 +65,15 @@ function makeHost(name: string) {
 }
 
 const Host = makeHost('host');
-const mounted: VueWrapper[] = [];
 
-function open(props: Partial<HostProps> = {}, component = Host) {
-    const wrapper = mount(component, {
-        props: { open: true, ...props },
-        attachTo: document.body,
-    });
-    mounted.push(wrapper as VueWrapper);
+function open(props = {}, component = Host) {
+    const wrapper = mount(component, { props: { open: true, ...props }, attachTo: document.body });
+    mounted.push(wrapper);
     return wrapper;
 }
 
 /** A real, focused element for the dialog to come back to. */
-function trigger(): HTMLButtonElement {
+function trigger() {
     const button = document.createElement('button');
     button.textContent = 'Change plan';
     document.body.append(button);
@@ -81,7 +81,13 @@ function trigger(): HTMLButtonElement {
     return button;
 }
 
-afterEach(() => {
+function press(key, shiftKey = false) {
+    const event = new KeyboardEvent('keydown', { key, shiftKey, cancelable: true });
+    document.dispatchEvent(event);
+    return event;
+}
+
+beforeEach(() => {
     for (const wrapper of mounted.splice(0)) wrapper.unmount();
     document.body.innerHTML = '';
     document.body.style.overflow = '';
@@ -92,12 +98,12 @@ describe('the dialog is announced as one', () => {
     test('the panel carries the modal role and is named by its heading', () => {
         const wrapper = open();
         const panel = wrapper.get('.panel');
-        expect(panel.attributes('role')).toBe('dialog');
-        expect(panel.attributes('aria-modal')).toBe('true');
+        assert.equal(panel.attributes('role'), 'dialog');
+        assert.equal(panel.attributes('aria-modal'), 'true');
 
         const named = panel.attributes('aria-labelledby');
-        expect(named).toBeTruthy();
-        expect(wrapper.get('h2').attributes('id')).toBe(named);
+        assert.ok(named);
+        assert.equal(wrapper.get('h2').attributes('id'), named);
     });
 });
 
@@ -106,17 +112,17 @@ describe('focus enters and comes back', () => {
         trigger();
         const wrapper = open();
         await nextTick();
-        expect(document.activeElement).toBe(wrapper.get('.panel').element);
+        assert.equal(document.activeElement, wrapper.get('.panel').element);
     });
 
     test('closing puts focus back where it was', async () => {
         const button = trigger();
         const wrapper = open();
         await nextTick();
-        expect(document.activeElement).not.toBe(button);
+        assert.notEqual(document.activeElement, button);
 
         await wrapper.setProps({ open: false });
-        expect(document.activeElement).toBe(button);
+        assert.equal(document.activeElement, button);
     });
 
     test('a trigger that is gone by then leaves focus at the document body', async () => {
@@ -132,7 +138,7 @@ describe('focus enters and comes back', () => {
 
         button.remove();
         await wrapper.setProps({ open: false });
-        expect(document.activeElement).toBe(document.body);
+        assert.equal(document.activeElement, document.body);
     });
 
     test('unmounting while open still gives the focus back', async () => {
@@ -140,39 +146,33 @@ describe('focus enters and comes back', () => {
         const wrapper = mount(Host, { props: { open: true }, attachTo: document.body });
         await nextTick();
         wrapper.unmount();
-        expect(document.activeElement).toBe(button);
+        assert.equal(document.activeElement, button);
     });
 });
 
 describe('the trap keeps tab inside the panel', () => {
-    function tab(shiftKey = false) {
-        const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, cancelable: true });
-        document.dispatchEvent(event);
-        return event;
-    }
-
     test('tab from the last control wraps to the first', async () => {
         const wrapper = open();
         await nextTick();
-        const first = wrapper.get('.focusable-0').element as HTMLElement;
-        const last = wrapper.get('.focusable-1').element as HTMLElement;
+        const first = wrapper.get('.focusable-0').element;
+        const last = wrapper.get('.focusable-1').element;
 
         last.focus();
-        const event = tab();
-        expect(event.defaultPrevented).toBe(true);
-        expect(document.activeElement).toBe(first);
+        const event = press('Tab');
+        assert.equal(event.defaultPrevented, true);
+        assert.equal(document.activeElement, first);
     });
 
     test('shift+tab from the first control wraps to the last', async () => {
         const wrapper = open();
         await nextTick();
-        const first = wrapper.get('.focusable-0').element as HTMLElement;
-        const last = wrapper.get('.focusable-1').element as HTMLElement;
+        const first = wrapper.get('.focusable-0').element;
+        const last = wrapper.get('.focusable-1').element;
 
         first.focus();
-        const event = tab(true);
-        expect(event.defaultPrevented).toBe(true);
-        expect(document.activeElement).toBe(last);
+        const event = press('Tab', true);
+        assert.equal(event.defaultPrevented, true);
+        assert.equal(document.activeElement, last);
     });
 
     test('shift+tab from the panel itself wraps to the last control', async () => {
@@ -180,10 +180,8 @@ describe('the trap keeps tab inside the panel', () => {
         // panel — so backwards from there leaves without an interception.
         const wrapper = open();
         await nextTick();
-        const last = wrapper.get('.focusable-1').element as HTMLElement;
-
-        tab(true);
-        expect(document.activeElement).toBe(last);
+        press('Tab', true);
+        assert.equal(document.activeElement, wrapper.get('.focusable-1').element);
     });
 
     test('a tab from outside the panel is pulled back in', async () => {
@@ -192,37 +190,31 @@ describe('the trap keeps tab inside the panel', () => {
         await nextTick();
 
         outside.focus();
-        tab();
-        expect(document.activeElement).toBe(wrapper.get('.focusable-0').element);
+        press('Tab');
+        assert.equal(document.activeElement, wrapper.get('.focusable-0').element);
     });
 
     test('a panel with nothing tabbable keeps the caret on itself', async () => {
         const wrapper = open({ tabbables: 0 });
         await nextTick();
-        tab();
-        expect(document.activeElement).toBe(wrapper.get('.panel').element);
+        press('Tab');
+        assert.equal(document.activeElement, wrapper.get('.panel').element);
     });
 });
 
 describe('escape and the backdrop', () => {
-    function escape() {
-        const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
-        document.dispatchEvent(event);
-        return event;
-    }
-
     test('escape asks the caller to close', async () => {
         open();
         await nextTick();
-        expect(escape().defaultPrevented).toBe(true);
-        expect(closes).toEqual(['host']);
+        assert.equal(press('Escape').defaultPrevented, true);
+        assert.deepEqual(closes, ['host']);
     });
 
     test('a persistent dialog ignores escape', async () => {
         open({ persistent: true });
         await nextTick();
-        expect(escape().defaultPrevented).toBe(false);
-        expect(closes).toEqual([]);
+        assert.equal(press('Escape').defaultPrevented, false);
+        assert.deepEqual(closes, []);
     });
 
     test('a click on the backdrop closes, a click in the panel does not', async () => {
@@ -230,25 +222,25 @@ describe('escape and the backdrop', () => {
         await nextTick();
 
         await wrapper.get('.panel').trigger('click');
-        expect(closes).toEqual([]);
+        assert.deepEqual(closes, []);
 
         await wrapper.get('.backdrop').trigger('click');
-        expect(closes).toEqual(['host']);
+        assert.deepEqual(closes, ['host']);
     });
 
     test('a persistent dialog ignores the backdrop too', async () => {
         const wrapper = open({ persistent: true });
         await nextTick();
         await wrapper.get('.backdrop').trigger('click');
-        expect(closes).toEqual([]);
+        assert.deepEqual(closes, []);
     });
 
     test('a closed dialog no longer answers escape', async () => {
         const wrapper = open();
         await nextTick();
         await wrapper.setProps({ open: false });
-        escape();
-        expect(closes).toEqual([]);
+        press('Escape');
+        assert.deepEqual(closes, []);
     });
 });
 
@@ -257,10 +249,10 @@ describe('the page behind does not scroll', () => {
         document.body.style.overflow = 'auto';
         const wrapper = open();
         await nextTick();
-        expect(document.body.style.overflow).toBe('hidden');
+        assert.equal(document.body.style.overflow, 'hidden');
 
         await wrapper.setProps({ open: false });
-        expect(document.body.style.overflow).toBe('auto');
+        assert.equal(document.body.style.overflow, 'auto');
     });
 
     test('an inner dialog closing does not give the page back to the outer one', async () => {
@@ -268,27 +260,26 @@ describe('the page behind does not scroll', () => {
         const outer = open();
         const inner = open({}, Inner);
         await nextTick();
-        expect(document.body.style.overflow).toBe('hidden');
+        assert.equal(document.body.style.overflow, 'hidden');
 
         await inner.setProps({ open: false });
-        expect(document.body.style.overflow).toBe('hidden');
+        assert.equal(document.body.style.overflow, 'hidden');
 
         await outer.setProps({ open: false });
-        expect(document.body.style.overflow).toBe('');
+        assert.equal(document.body.style.overflow, '');
     });
 });
 
 describe('the panel can be teleported somewhere other than body', () => {
     test('the default is body', () => {
         const wrapper = open();
-        // Nested in the returned object, so `setup`'s unwrapping does not
-        // reach it — which is also true in a template, where the caller writes
-        // `dialog.teleportTo.value` or destructures first.
-        expect(wrapper.vm.dialog.teleportTo.value).toBe('body');
+        // Nested in the returned object, so `setup`'s unwrapping does not reach
+        // it — which is what a caller sees too unless it destructures first.
+        assert.equal(wrapper.vm.dialog.teleportTo.value, 'body');
     });
 
     test('a host that names a container gets it', () => {
         const wrapper = open({ to: '#host-theme-root' });
-        expect(wrapper.vm.dialog.teleportTo.value).toBe('#host-theme-root');
+        assert.equal(wrapper.vm.dialog.teleportTo.value, '#host-theme-root');
     });
 });

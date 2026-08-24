@@ -1,7 +1,7 @@
 {
     "name": "@saasicat/ui-vue-tenant",
     "version": "1.0.0-rc.4",
-    "description": "Vue 3 components for the tenant-facing side of SaaSiCat: the plan section, the plan-change wizard, the onboarding configurator and the bundle store. Rendered inside the customer's own application, under the customer's branding and in the customer's language.",
+    "description": "Vue 3 components for the tenant-facing side of SaaSiCat: the plan section, the plan-change wizard, the onboarding configurator and the bundle store. Rendered inside the customer's own application, under the customer's branding and in the customer's language — with Vue and CSS custom properties, and no UI framework.",
     "type": "module",
     "exports": {
         "./*.vue": "./src/*.vue",
@@ -19,7 +19,6 @@
     "peerDependencies": {
         "@saasicat/core": "workspace:^",
         "@saasicat/ui-vue": "workspace:^",
-        "quasar": "^2.22.0",
         "vue": "^3.5.0"
     },
     "devDependencies": {
@@ -29,7 +28,6 @@
         "@vitejs/plugin-vue": "^6.0.8",
         "@vue/test-utils": "^2.4.11",
         "jsdom": "^30.0.1",
-        "quasar": "^2.22.0",
         "vitest": "^4.1.10",
         "vue": "^3.5.0",
         "vue-tsc": "^3.2.0"
@@ -37,7 +35,6 @@
     "keywords": [
         "saasicat",
         "vue",
-        "quasar",
         "tenant",
         "self-service"
     ],
