@@ -6,6 +6,15 @@ The work is [issue #206](https://github.com/uelker70/saasicat/issues/206). Until
 it lands, `quasar` is still a peer dependency of that package and new code there
 writes plain elements rather than adding to the 69 usages this removes.
 
+**The decision below is the goal; the route to it is not settled.** A second one
+reaches the same end without removing anything: ship the tenant surface as a
+built bundle that carries its own Vue instance and Quasar, mounted into an
+element the consumer places. The consumer's `package.json` is untouched either
+way — what differs is whether Quasar is removed or enclosed, and that turns on a
+single measurement nobody has taken: what Quasar's global stylesheet does inside
+a document it does not own. The option space and the reasoning are recorded on
+the issue.
+
 ## Context
 
 `@saasicat/ui-vue-tenant` renders inside the **customer's own application** —
