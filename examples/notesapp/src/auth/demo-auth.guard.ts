@@ -10,7 +10,13 @@ import {
  * authentication, so the example can be driven with curl:
  *
  *     x-demo-tenant: tenant-a          (required)
- *     x-demo-role:   SUPER_ADMIN       (optional; for the admin endpoints)
+ *     x-demo-role:   SUPER_ADMIN       (the admin app)
+ *                    TENANT_ADMIN      (the tenant app's own billing actions)
+ *
+ * The role is NOT only for the admin endpoints, and describing it that way is
+ * what let the web app ship without it: `TenantAdminGuard` guards the five
+ * cost-relevant tenant routes and reads the same field, so a caller without a
+ * role gets 403 on every one of them.
  *
  * It fills `request.user` with the shape the platform guards read by
  * default (`request.tenantId ?? request.user?.tenantId` + `platformRole`).
