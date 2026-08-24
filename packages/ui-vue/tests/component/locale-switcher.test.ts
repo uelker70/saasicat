@@ -9,7 +9,7 @@ import { ref } from 'vue';
 
 import LocaleSwitcher from '../../src/ui/page/LocaleSwitcher.vue';
 import { SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 type I18nStub = Record<string, unknown>;
 

@@ -10,62 +10,76 @@
             </template>
 
             <template v-if="mode === 'list'" #actions>
-                <button class="sa-btn" type="button" @click="mode = 'matrix'">
-                    <q-icon name="grid_view" size="16px" />
-                    <span>{{ msg.list.matrixView }}</span>
-                </button>
-                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
-                    <q-icon name="add" size="16px" />
-                    <span>{{ msg.list.newPlan }}</span>
-                </button>
+                <q-btn
+                    flat
+                    no-caps
+                    icon="grid_view"
+                    :label="msg.list.matrixView"
+                    @click="mode = 'matrix'"
+                />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="add"
+                    :label="msg.list.newPlan"
+                    @click="openCreate"
+                />
             </template>
             <template v-else-if="mode === 'matrix'" #actions>
-                <button class="sa-btn" type="button" @click="mode = 'list'">
-                    <q-icon name="storefront" size="16px" />
-                    <span>{{ msg.matrix.catalogPreview }}</span>
-                </button>
-                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
-                    <q-icon name="add" size="16px" />
-                    <span>{{ msg.matrix.createPlan }}</span>
-                </button>
+                <q-btn
+                    flat
+                    no-caps
+                    icon="storefront"
+                    :label="msg.matrix.catalogPreview"
+                    @click="mode = 'list'"
+                />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="add"
+                    :label="msg.matrix.createPlan"
+                    @click="openCreate"
+                />
             </template>
             <template v-else-if="mode === 'cockpit' && selectedPlan" #actions>
-                <button class="sa-btn" type="button" @click="onBackToList">
-                    <q-icon name="arrow_back" size="16px" />
-                    <span>{{ common.back }}</span>
-                </button>
-                <button
+                <q-btn flat no-caps icon="arrow_back" :label="common.back" @click="onBackToList" />
+                <q-btn
                     v-if="detailIsDeletable"
-                    class="sa-btn sa-btn--danger"
-                    type="button"
+                    flat
+                    no-caps
+                    color="negative"
+                    icon="delete_outline"
+                    :label="planDetailMsg.header.deletePlan"
                     :title="planDetailMsg.header.deletePlanTitle"
                     @click="onArchiveSelectedPlan"
-                >
-                    <q-icon name="delete_outline" size="16px" />
-                    <span>{{ planDetailMsg.header.deletePlan }}</span>
-                </button>
-                <button class="sa-btn" type="button" @click="onCloneSelectedPlan">
-                    <q-icon name="content_copy" size="16px" />
-                    <span>{{ planDetailMsg.header.clonePlan }}</span>
-                </button>
-                <button
+                />
+                <q-btn
+                    flat
+                    no-caps
+                    icon="content_copy"
+                    :label="planDetailMsg.header.clonePlan"
+                    @click="onCloneSelectedPlan"
+                />
+                <q-btn
                     v-if="!detailDraftVersion"
-                    class="sa-btn sa-btn--primary"
-                    type="button"
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="add"
+                    :label="planDetailMsg.header.newDraftVersion"
                     @click="openCreateDraft"
-                >
-                    <q-icon name="add" size="16px" />
-                    <span>{{ planDetailMsg.header.newDraftVersion }}</span>
-                </button>
-                <button
+                />
+                <q-btn
                     v-else
-                    class="sa-btn sa-btn--primary"
-                    type="button"
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="bolt"
+                    :label="publishDraftLabel"
                     @click="openPublish(detailDraftVersion)"
-                >
-                    <q-icon name="bolt" size="16px" />
-                    <span>{{ publishDraftLabel }}</span>
-                </button>
+                />
             </template>
         </AdminHero>
 
@@ -117,21 +131,20 @@
             </template>
 
             <!-- V1 matrix: component comparison -->
-            <AdminSection v-else-if="mode === 'matrix'">
-                <PlanMatrix
-                    :plans="plans"
-                    :versions-by-plan-id="versionsByPlanId"
-                    :available-quotas="availableQuotas"
-                    :available-bundles="availableBundles"
-                    :feature-registry="featureRegistry"
-                    :tenant-counts-by-plan-key="tenantCountsByPlanKey"
-                    :plan-accents="props.planAccents"
-                    :loading="bulkVersionsLoading"
-                    @open-plan="onOpenPlan"
-                    @create-plan="openCreate"
-                    @clone-plan="onClonePlan"
-                />
-            </AdminSection>
+            <PlanMatrix
+                v-else-if="mode === 'matrix'"
+                :plans="plans"
+                :versions-by-plan-id="versionsByPlanId"
+                :available-quotas="availableQuotas"
+                :available-bundles="availableBundles"
+                :feature-registry="featureRegistry"
+                :tenant-counts-by-plan-key="tenantCountsByPlanKey"
+                :plan-accents="props.planAccents"
+                :loading="bulkVersionsLoading"
+                @open-plan="onOpenPlan"
+                @create-plan="openCreate"
+                @clone-plan="onClonePlan"
+            />
 
             <!-- Plan detail: drill-in for a single Plan (plan simulation) -->
             <PlanDetail

@@ -1,11 +1,13 @@
 // schema-apply — pure-function helpers for the `saasicat schema apply`
-// command. Idempotently inserts missing `model X { ... }` blocks from a Prisma
-// fragment into an existing `schema.prisma`.
+// command. Idempotently inserts the `enum Y { ... }` and `model X { ... }`
+// blocks a Prisma fragment declares into an existing `schema.prisma`.
 //
-// `schema apply` only ever ADDS whole models. It does not carry enums, does
-// not update models that already exist, and does not enable the commented-out
-// consumer relations — use `saasicat schema check` to find out what a
-// schema is missing after a package upgrade.
+// `schema apply` only ever ADDS. It does not update a block that already
+// exists, and it does not enable the commented-out consumer relations — use
+// `saasicat schema check` to find out what a schema is missing after a package
+// upgrade. Enums travel with the models that reference them: carrying the
+// model alone produced a schema Prisma refuses to validate, for every consumer
+// whose schema did not already have them by hand.
 //
 
 import { extractBlockNames, extractBlocks } from './prisma-blocks.js';

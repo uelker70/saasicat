@@ -118,6 +118,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     DISCOVERY_STATUS_TRANSITION_INVALID: "Der Übergang '{from}' → '{to}' ist nicht erlaubt",
     DISCOVERY_NOT_INITIALIZED:
         'Die Freigabe braucht einen Discovery-Snapshot — Discovery ist nicht initialisiert (#25)',
+    // ── catalogue import ──
+    PLAN_CATALOG_UNREADABLE:
+        'Diese Datei ist kein Plankatalog — sie ließ sich nicht als einer lesen. Prüfe, ob es die YAML-Datei ist, in der deine App ihre Pläne deklariert.',
+    PLAN_CATALOG_INVALID: 'Der Plankatalog wurde gelesen und dann abgelehnt: {message}',
     // ── billing ──
     BUNDLE_ALREADY_SUBSCRIBED:
         "Abonnement '{subscriptionId}' hat dieses Bundle bereits aktiv gebucht.",

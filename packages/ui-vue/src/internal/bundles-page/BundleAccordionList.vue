@@ -100,8 +100,8 @@ function translationCount(bundle: BundleRow): string {
 .sa-bundle-chip {
     font-size: var(--sa-text-2xs);
     font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 6px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
 }

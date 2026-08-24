@@ -539,9 +539,14 @@ describe('a role background and a role foreground stay readable together', () =>
             // the alpha test ever stops firing, these translucent stops get
             // judged against a backdrop nobody knows, and the floor is what
             // says so.
+            //
+            // 20 until `.pve-diff-close` was deleted — a rule for a dialog that
+            // had been replaced, found by `css-classes-have-a-user`. Its
+            // `background: transparent` was one of the pairings counted here,
+            // so the number follows the population rather than the mechanism.
             const deliberate = skipped.length - unreadable.length;
             assert.ok(
-                deliberate >= 20,
+                deliberate >= 19,
                 `only ${deliberate} pairings were held back for a backdrop this file cannot ` +
                     'know — the translucency test is no longer reaching them',
             );

@@ -1,5 +1,7 @@
 # @saasicat/adapter-prisma
 
+## What this is
+
 The Prisma + PostgreSQL persistence adapter for SaaSiCat. Targets the
 canonical schema from `@saasicat/spec` (`prisma-fragments/` +
 `sql/constraints.postgres.sql`) and passes the executable persistence
@@ -8,6 +10,16 @@ transaction rollback and atomic promo claims are verified, not asserted.
 
 > Renamed from `@saasicat/prisma` (deprecated). Same ports, superset of the
 > old exports.
+
+## What this is not
+
+Not a Prisma schema. It targets the canonical tables from `@saasicat/spec`;
+`saasicat schema apply` puts them into your `schema.prisma`, and Prisma
+migrates them. This package reads and writes them.
+
+Not a place for domain rules. An adapter translates a port to a store — which
+rows, which order, which lock — and every decision above that lives in
+`@saasicat/nest`, so the two adapters stay interchangeable.
 
 ## Quickstart — the bundle
 
@@ -260,3 +272,9 @@ generates a client from the composed fragments and executes the
 `@saasicat/persistence-testing` contract — CI does the same against a
 postgres service. **The database is disposable: the harness drops and
 recreates its `public` schema.**
+
+## Next
+
+- [Quickstart](../../docs/quickstart.md) — from an existing backend to an enforced feature
+- [Data model](../../docs/explanation/data-model.md) — the canonical tables, and who owns which
+- [Ports and adapters](../../docs/explanation/adr/0007-ports-and-adapters.md) — why an adapter never decides

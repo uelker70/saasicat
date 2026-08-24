@@ -11,7 +11,7 @@ import PromoCodeCreateDialog from '../../src/internal/dialogs/PromoCodeCreateDia
 import PromoCodeEditDialog from '../../src/internal/dialogs/PromoCodeEditDialog.vue';
 import { SA_MESSAGES } from '../../src/client/i18n/messages.js';
 import { SUPER_ADMIN_I18N_KEY } from '../../src/vue/use-super-admin-i18n.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 // QDialog teleports into `body`; without cleanup the next case reads what the
 // previous one left behind.
@@ -77,6 +77,30 @@ describe('PromoCodeCreateDialog', () => {
             value: 25,
             durationType: 'BILLING_CYCLES',
         });
+    });
+
+    test('reopening starts from an empty form', async () => {
+        // The dialog holds its form in a `ref` so the two-way binding to
+        // `PromoCodeDialogFields` has something to assign to, and reopening
+        // REPLACES the object rather than assigning over the old one. Whether
+        // the child follows that swap is not visible from the parent — the
+        // fields component keeps its own `defineModel` handle on it — so this
+        // asks the child's rendered input rather than the parent's state.
+        const submit = vi.fn().mockResolvedValue(undefined);
+        const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
+        await wrapper.vm.$nextTick();
+
+        const vm = wrapper.vm as unknown as { form: Record<string, unknown> };
+        vm.form.code = 'SOMMER25';
+        await flushPromises();
+
+        await wrapper.setProps({ modelValue: false });
+        await wrapper.setProps({ modelValue: true });
+        await flushPromises();
+
+        expect(vm.form.code).toBe('');
+        const code = document.querySelector('.pc-code input') as HTMLInputElement | null;
+        expect(code?.value ?? '').toBe('');
     });
 
     test('does not submit while the code is malformed', async () => {
@@ -192,7 +216,7 @@ describe('Shared form body', () => {
         });
         await wrapper.vm.$nextTick();
 
-        const input = document.querySelector<HTMLInputElement>('.pc-input--code');
+        const input = document.querySelector<HTMLInputElement>('.pc-code input');
         expect(input).not.toBeNull();
         input!.value = 'sommer-25!';
         input!.dispatchEvent(new Event('input'));
@@ -210,7 +234,9 @@ describe('Shared form body', () => {
         });
         await wrapper.vm.$nextTick();
 
-        const buttons = [...document.querySelectorAll<HTMLButtonElement>('.pc-btn-mini')];
+        // The generator sits in the field's `after` slot, so it is the only
+        // button inside the code field.
+        const buttons = [...document.querySelectorAll<HTMLButtonElement>('.pc-code button')];
         expect(buttons.length).toBe(1);
         buttons[0].click();
         await wrapper.vm.$nextTick();
@@ -239,11 +265,11 @@ describe('Shared form body', () => {
         });
         await wrapper.vm.$nextTick();
 
-        const input = document.querySelector<HTMLInputElement>('.pc-input--code');
+        const input = document.querySelector<HTMLInputElement>('.pc-code input');
         expect(input?.value).toBe('WINTER10');
         expect(input?.disabled).toBe(true);
         // No random button on edit.
-        expect(document.querySelectorAll('.pc-btn-mini').length).toBe(0);
+        expect(document.querySelectorAll('.pc-code button').length).toBe(0);
     });
 
     test('the status switch appears on edit only', async () => {

@@ -18,9 +18,9 @@
 // </FeatureGate>
 //
 // <FeatureGate :feature="['DMS', 'STORAGE_PRO']">
-//     <Hochladen />
+//     <UploadButton />
 //     <template #fallback>
-//         <UpgradeHinweis />
+//         <UpgradeHint />
 //     </template>
 // </FeatureGate>
 // ```

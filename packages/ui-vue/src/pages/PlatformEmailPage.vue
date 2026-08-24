@@ -2,15 +2,15 @@
     <AdminPage class="sa-pemail">
         <AdminHero :title="resolvedTitle" :subtitle="msg.provider.subtitle">
             <template #actions>
-                <button
+                <q-btn
                     v-if="rows.length === 0"
-                    class="sa-btn sa-btn--primary"
-                    type="button"
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon="add"
+                    :label="msg.sender"
                     @click="openCreate"
-                >
-                    <q-icon name="add" size="16px" />
-                    <span>{{ msg.sender }}</span>
-                </button>
+                />
                 <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
@@ -36,30 +36,34 @@
                         </q-td>
                     </template>
                     <template #row-actions="{ row }">
-                        <button
-                            type="button"
+                        <q-btn
+                            flat
+                            dense
+                            round
+                            icon="send"
                             class="sa-icon-btn"
                             :title="msg.provider.sendTestMail"
                             @click="openTest(row)"
-                        >
-                            <q-icon name="send" size="18px" />
-                        </button>
-                        <button
-                            type="button"
+                        />
+                        <q-btn
+                            flat
+                            dense
+                            round
+                            icon="edit"
                             class="sa-icon-btn"
                             :title="common.edit"
                             @click="openEdit(row)"
-                        >
-                            <q-icon name="edit" size="18px" />
-                        </button>
-                        <button
-                            type="button"
-                            class="sa-icon-btn sa-icon-btn--negative"
+                        />
+                        <q-btn
+                            flat
+                            dense
+                            round
+                            color="negative"
+                            icon="delete"
+                            class="sa-icon-btn"
                             :title="common.delete"
                             @click="onDelete(row)"
-                        >
-                            <q-icon name="delete" size="18px" />
-                        </button>
+                        />
                     </template>
                 </AdminTable>
             </AdminSection>

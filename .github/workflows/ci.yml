@@ -106,6 +106,13 @@ jobs:
               run: pnpm --filter @saasicat/ui-vue-tenant test:shipped-source
             - name: Lint
               run: pnpm exec eslint .
+            # The two questions ESLint cannot answer, because they are about a
+            # CSS value: is this a token, and is this one of the five
+            # breakpoints. Colour and type are errors; spacing, radii and
+            # tracking warn against a ceiling, and that ceiling is 0 since the
+            # layout pass — so a single raw value fails the job.
+            - name: Lint stylesheets
+              run: pnpm run lint:css
             # Prettier is configured; without this nothing makes a diff obey it.
             - name: Check formatting
               run: pnpm run format:check

@@ -93,21 +93,21 @@ function compatLabel(bundle: BundleEntry): string {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-border);
-    border-radius: 999px;
-    padding: 1px 8px;
+    border-radius: var(--sa-radius-pill);
+    padding: var(--sa-space-0) var(--sa-space-3);
 }
 .sa-bundle-overview__empty {
     color: var(--sa-color-fg-muted);
     font-size: var(--sa-text-lg);
-    padding: 8px 0;
+    padding: var(--sa-space-3) 0;
 }
 .sa-bundles__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-bundle__header {
-    padding-bottom: 8px;
+    padding-bottom: var(--sa-space-3);
 }
 .sa-bundle__label {
     font-weight: 600;
@@ -121,14 +121,14 @@ function compatLabel(bundle: BundleEntry): string {
 .sa-bundle__caption {
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-subtle);
-    margin-bottom: 4px;
+    margin-bottom: var(--sa-space-2);
 }
 .sa-bundle__chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .sa-bundle__chip {
     background: var(--sa-color-scheduled-surface);

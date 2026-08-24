@@ -20,14 +20,20 @@
                     <path d="M21 21l-4.35-4.35" />
                 </svg>
             </span>
-            <input
-                :value="searchTerm"
+            <q-input
+                :model-value="searchTerm"
+                outlined
+                dense
+                borderless
+                class="pve-pool-search"
                 :placeholder="msg.componentPool.searchPlaceholder"
-                @input="updateSearchTerm"
+                @update:model-value="updateSearchTerm"
             />
             <span class="pve-kbd">⌘ K</span>
         </div>
         <div class="pve-tabs" role="tablist">
+            <!-- @optionSurface
+                 A tab in the pool, with its own count badge and active state. -->
             <button
                 v-for="tab in poolTabs"
                 :key="tab.id"
@@ -274,7 +280,7 @@ function featureCount(count: number): string {
     return formatMessage(msg.value.componentPool.featureCount, { count });
 }
 
-function updateSearchTerm(event: Event): void {
-    emit('update:searchTerm', (event.target as HTMLInputElement | null)?.value ?? '');
+function updateSearchTerm(value: string | number | null): void {
+    emit('update:searchTerm', String(value ?? ''));
 }
 </script>

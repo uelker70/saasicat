@@ -1097,7 +1097,7 @@ function templatePaint(file, content) {
  * the AST, pulled the attribute out, and then applied only the colour patterns
  * to it — so `style="font-size: 22px"` was invisible to `distinctFontSizes`,
  * `style="margin-top: 6px"` to `scalePixels`, and the report answered `0` to a
- * question it had never asked. That number then reached `docs/design-guide.md`
+ * question it had never asked. That number then reached `docs/explanation/design-guide.md`
  * as a published claim, which is the combination that costs the most: a guard
  * satisfied exactly in the damaging case, and a sentence about it.
  *

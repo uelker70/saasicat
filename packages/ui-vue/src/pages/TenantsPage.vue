@@ -550,12 +550,12 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 .sa-tenants__tenant {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sa-tenants__avatar {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     font-weight: 800;
     font-size: var(--sa-text-sm);
     font-family: var(--sa-font-head, system-ui, sans-serif);
@@ -578,27 +578,27 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 .sa-tenants__plan {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-tenants__plan-dot {
     width: 6px;
     height: 6px;
-    border-radius: 3px;
+    border-radius: var(--sa-radius-badge);
 }
 
 .sa-tenants__pills {
     display: flex;
-    gap: 4px;
+    gap: var(--sa-space-2);
     flex-wrap: wrap;
 }
 
 .sa-tenants__usage {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
-    margin-left: 8px;
+    margin-left: var(--sa-space-3);
 }
 .sa-tenants__usage :deep(.q-icon) {
     color: var(--sa-color-fg-muted);

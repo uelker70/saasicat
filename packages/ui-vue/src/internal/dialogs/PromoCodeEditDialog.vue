@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PromoCodeDialogFields from './PromoCodeDialogFields.vue';
 import AdminFormDialog from '../../ui/overlay/AdminFormDialog.vue';
 import { formatMessage } from '../../client/i18n/format.js';
@@ -146,14 +146,17 @@ function fromRow(row: PromoCodeEditRow): EditForm {
     };
 }
 
-const form = reactive<EditForm>(emptyForm());
+const form = ref<EditForm>(emptyForm());
 const initial = ref<EditForm>(emptyForm());
 const advancedOpen = ref(false);
 
 const isValid = computed(() => {
-    if (!form.value || form.value <= 0) return false;
-    if (form.valueType === 'PERCENT' && form.value > 100) return false;
-    if (form.durationType !== 'ONCE' && (!form.durationValue || form.durationValue < 1))
+    if (!form.value.value || form.value.value <= 0) return false;
+    if (form.value.valueType === 'PERCENT' && form.value.value > 100) return false;
+    if (
+        form.value.durationType !== 'ONCE' &&
+        (!form.value.durationValue || form.value.durationValue < 1)
+    )
         return false;
     return true;
 });
@@ -180,22 +183,22 @@ const subtitleText = computed(() => {
 const hasChanges = computed(() => {
     const i = initial.value;
     return (
-        form.status !== i.status ||
-        form.valueType !== i.valueType ||
-        form.value !== i.value ||
-        form.durationType !== i.durationType ||
-        form.durationValue !== i.durationValue ||
-        form.maxRedemptions !== i.maxRedemptions ||
-        form.validFrom !== i.validFrom ||
-        form.validUntil !== i.validUntil ||
-        form.appliesToBilling !== i.appliesToBilling ||
-        form.firstTimeCustomersOnly !== i.firstTimeCustomersOnly ||
-        form.minimumPlanAmountGross !== i.minimumPlanAmountGross ||
-        form.allowZeroInvoice !== i.allowZeroInvoice ||
-        !plansEqual(form.appliesToPlans, i.appliesToPlans) ||
-        (form.campaignTag ?? '') !== (i.campaignTag ?? '') ||
-        (form.revenueDeductionAccount ?? '') !== (i.revenueDeductionAccount ?? '') ||
-        (form.description ?? '') !== (i.description ?? '')
+        form.value.status !== i.status ||
+        form.value.valueType !== i.valueType ||
+        form.value.value !== i.value ||
+        form.value.durationType !== i.durationType ||
+        form.value.durationValue !== i.durationValue ||
+        form.value.maxRedemptions !== i.maxRedemptions ||
+        form.value.validFrom !== i.validFrom ||
+        form.value.validUntil !== i.validUntil ||
+        form.value.appliesToBilling !== i.appliesToBilling ||
+        form.value.firstTimeCustomersOnly !== i.firstTimeCustomersOnly ||
+        form.value.minimumPlanAmountGross !== i.minimumPlanAmountGross ||
+        form.value.allowZeroInvoice !== i.allowZeroInvoice ||
+        !plansEqual(form.value.appliesToPlans, i.appliesToPlans) ||
+        (form.value.campaignTag ?? '') !== (i.campaignTag ?? '') ||
+        (form.value.revenueDeductionAccount ?? '') !== (i.revenueDeductionAccount ?? '') ||
+        (form.value.description ?? '') !== (i.description ?? '')
     );
 });
 
@@ -204,7 +207,7 @@ watch(
     ([open, row]) => {
         if (!open) return;
         const next = row ? fromRow(row) : emptyForm();
-        Object.assign(form, next);
+        form.value = next;
         initial.value = { ...next, appliesToPlans: [...next.appliesToPlans] };
         advancedOpen.value = false;
     },
@@ -218,32 +221,33 @@ async function submitForm(): Promise<void> {
     if (!props.row) return;
     const i = initial.value;
     const payload: PromoCodeUpdatePayload = {};
-    if (form.status !== i.status) payload.status = form.status;
-    if (form.valueType !== i.valueType) payload.valueType = form.valueType;
-    if (form.value !== i.value) payload.value = form.value;
-    if (form.durationType !== i.durationType) payload.durationType = form.durationType;
-    if (form.durationValue !== i.durationValue)
-        payload.durationValue = form.durationType === 'ONCE' ? null : form.durationValue;
-    if (form.maxRedemptions !== i.maxRedemptions)
-        payload.maxRedemptions = form.maxRedemptions ?? null;
-    if (form.validFrom !== i.validFrom) payload.validFrom = form.validFrom || null;
-    if (form.validUntil !== i.validUntil) payload.validUntil = form.validUntil || null;
-    if (!plansEqual(form.appliesToPlans, i.appliesToPlans))
-        payload.appliesToPlans = [...form.appliesToPlans];
-    if (form.appliesToBilling !== i.appliesToBilling)
-        payload.appliesToBilling = form.appliesToBilling;
-    if (form.firstTimeCustomersOnly !== i.firstTimeCustomersOnly)
-        payload.firstTimeCustomersOnly = form.firstTimeCustomersOnly;
-    if (form.minimumPlanAmountGross !== i.minimumPlanAmountGross)
-        payload.minimumPlanAmountGross = form.minimumPlanAmountGross ?? null;
-    if (form.allowZeroInvoice !== i.allowZeroInvoice)
-        payload.allowZeroInvoice = form.allowZeroInvoice;
-    if ((form.campaignTag ?? '') !== (i.campaignTag ?? ''))
-        payload.campaignTag = form.campaignTag || null;
-    if ((form.revenueDeductionAccount ?? '') !== (i.revenueDeductionAccount ?? ''))
-        payload.revenueDeductionAccount = form.revenueDeductionAccount || null;
-    if ((form.description ?? '') !== (i.description ?? ''))
-        payload.description = form.description || null;
+    if (form.value.status !== i.status) payload.status = form.value.status;
+    if (form.value.valueType !== i.valueType) payload.valueType = form.value.valueType;
+    if (form.value.value !== i.value) payload.value = form.value.value;
+    if (form.value.durationType !== i.durationType) payload.durationType = form.value.durationType;
+    if (form.value.durationValue !== i.durationValue)
+        payload.durationValue =
+            form.value.durationType === 'ONCE' ? null : form.value.durationValue;
+    if (form.value.maxRedemptions !== i.maxRedemptions)
+        payload.maxRedemptions = form.value.maxRedemptions ?? null;
+    if (form.value.validFrom !== i.validFrom) payload.validFrom = form.value.validFrom || null;
+    if (form.value.validUntil !== i.validUntil) payload.validUntil = form.value.validUntil || null;
+    if (!plansEqual(form.value.appliesToPlans, i.appliesToPlans))
+        payload.appliesToPlans = [...form.value.appliesToPlans];
+    if (form.value.appliesToBilling !== i.appliesToBilling)
+        payload.appliesToBilling = form.value.appliesToBilling;
+    if (form.value.firstTimeCustomersOnly !== i.firstTimeCustomersOnly)
+        payload.firstTimeCustomersOnly = form.value.firstTimeCustomersOnly;
+    if (form.value.minimumPlanAmountGross !== i.minimumPlanAmountGross)
+        payload.minimumPlanAmountGross = form.value.minimumPlanAmountGross ?? null;
+    if (form.value.allowZeroInvoice !== i.allowZeroInvoice)
+        payload.allowZeroInvoice = form.value.allowZeroInvoice;
+    if ((form.value.campaignTag ?? '') !== (i.campaignTag ?? ''))
+        payload.campaignTag = form.value.campaignTag || null;
+    if ((form.value.revenueDeductionAccount ?? '') !== (i.revenueDeductionAccount ?? ''))
+        payload.revenueDeductionAccount = form.value.revenueDeductionAccount || null;
+    if ((form.value.description ?? '') !== (i.description ?? ''))
+        payload.description = form.value.description || null;
     await props.submit(props.row.id, payload);
 }
 </script>

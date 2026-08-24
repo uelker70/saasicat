@@ -8,7 +8,7 @@
 import { describe, expect, test } from 'vitest';
 
 import PromoCodesPage from '../../src/pages/PromoCodesPage.vue';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 import { provideStubResources } from './support/stub-resources.js';
 
 const ROWS = [

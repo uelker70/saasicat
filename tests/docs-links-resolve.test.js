@@ -7,11 +7,13 @@ import { fileURLToPath } from 'node:url';
 // Every relative link in the documentation points at something that exists —
 // the file, and the heading inside it.
 //
-// Written after breaking three links in one edit: inserting a section into the
-// handbook renumbered `### 8.6 UI Language` to `8.7`, and the quickstart, the
-// package README and the scaffolder template all pointed at `#86-ui-language`.
-// Nothing complained. `no-dangling-doc-refs` only knows the names of private
-// documents, and a wrong anchor is not a wrong name.
+// Written after breaking three links in one edit: inserting a section into what
+// was then one handbook renumbered `### 8.6 UI Language` to `8.7`, and the
+// quickstart, the package README and the scaffolder template all pointed at
+// `#86-ui-language`. Nothing complained. `no-dangling-doc-refs` only knows the
+// names of private documents, and a wrong anchor is not a wrong name. Numbered
+// headings are gone with the handbook — the sections carry names now, and this
+// test is what makes renaming one safe.
 //
 // A dead link is the cheapest possible way to lose a reader's trust: they click
 // it precisely because they wanted the detail, and they land nowhere.
@@ -60,10 +62,14 @@ describe('documentation links resolve', () => {
         // Every assertion below reports "nothing broken" on an empty list, so a
         // moved directory would read as a clean bill of health.
         assert.ok(files.length >= 10, `only ${files.length} markdown files found`);
-        assert.ok(
-            files.some((f) => f.endsWith(join('docs', 'handbook.md'))),
-            'the handbook is not among the files checked',
-        );
+        // One file per level, so a whole directory going missing is caught
+        // rather than reported as nothing-broken.
+        for (const level of ['guides', 'reference', 'explanation']) {
+            assert.ok(
+                files.some((f) => f.includes(join('docs', level, ''))),
+                `no file under docs/${level}/ is among the files checked`,
+            );
+        }
     });
 
     test('every relative link points at a file that exists', () => {

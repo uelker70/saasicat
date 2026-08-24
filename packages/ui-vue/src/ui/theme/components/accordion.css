@@ -88,16 +88,16 @@
     min-width: 0;
 }
 
-/* Points right when closed, down when open. Not `transform: rotate(90deg)` on a
- * `chevron_down`: the resting state is the one a reader sees most, and a glyph
- * that means "there is more this way" is the honest one to rest on. */
-.sa-accordion__chev {
-    flex: 0 0 auto;
-    color: var(--sa-color-fg-subtle);
-    transition: transform 0.15s;
+/* The badge reports the state, now that no chevron does: it deepens when the
+ * row is open, which is the same cue the row's border already gives — a reader
+ * scanning a list of six sees which one is unfolded without reading it. */
+.sa-accordion--open .sa-accordion__mark {
+    background: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
 }
-.sa-accordion--open .sa-accordion__chev {
-    transform: rotate(90deg);
+.sa-accordion--open .sa-accordion__mark--negative {
+    background: var(--sa-color-negative);
+    color: var(--sa-color-fg-on-accent);
 }
 
 /* Outside the trigger, so a control here does not toggle the row. Padded on

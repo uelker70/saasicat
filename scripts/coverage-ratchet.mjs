@@ -46,18 +46,31 @@ const BASELINE = join(REPO_ROOT, 'coverage-baseline.json');
 /** Last measurement, for the CI artefact. Not committed. */
 const REPORT = join(REPO_ROOT, 'coverage-report.json');
 
-/** Packages whose `test` script is a plain `node --test` run. */
-const PACKAGES = [
-    'spec',
-    'core',
-    'nest',
-    'adapter-prisma',
-    'adapter-drizzle',
-    'persistence-testing',
-    'cli',
-    'ui-vue',
-    'create-saasicat-admin',
-];
+/**
+ * Packages whose `test` script is a plain `node --test` run.
+ *
+ * Read from the manifests rather than listed. The list was correct on the day
+ * it was written and stayed correct by luck: the two packages added since
+ * (`ui-vue-tenant`, `saasicat`) happen to have no such script, so nobody
+ * noticed that a package which did would have gone unmeasured — silently, and
+ * with a green ratchet.
+ *
+ * The predicate is the thing that decides: this file spawns `node --test`
+ * itself, under coverage, so a package whose suite is a vitest runner or a
+ * shell script cannot be measured here and says so by its own script.
+ */
+function measurablePackages() {
+    return readdirSync(join(REPO_ROOT, 'packages'))
+        .filter((dir) => {
+            const manifest = join(REPO_ROOT, 'packages', dir, 'package.json');
+            if (!existsSync(manifest)) return false;
+            const test = JSON.parse(readFileSync(manifest, 'utf8')).scripts?.test ?? '';
+            return test.startsWith('node --test');
+        })
+        .sort();
+}
+
+const PACKAGES = measurablePackages();
 
 /**
  * What counts as this package's own code.

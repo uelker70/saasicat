@@ -17,7 +17,7 @@ import { featureCatalogEntries, plans, planVersions } from './schema.js';
  * `PlanCatalogReadSink` against the canonical `plans`, `plan_versions` and
  * `feature_catalog_entries` tables — DB hydration of the plan catalog at
  * boot. `validFrom`/`validUntil` are reported as null: the canonical schema
- * does not persist booking windows yet (see docs/data-model.md, Known gaps).
+ * does not persist booking windows yet (see docs/explanation/data-model.md, Known gaps).
  */
 @Injectable()
 export class DrizzlePlanCatalogReadSink implements PlanCatalogReadSink {

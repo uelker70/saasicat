@@ -17,47 +17,33 @@
 .sa-paginator__select {
     min-width: 92px;
 }
+/* The three controls are `q-btn`s and a `q-input` now, so what is left here is
+ * the shape a pager needs and Quasar's defaults do not give it: a bordered
+ * step the width of its icon, a wide page button, and a centred field. Hover,
+ * disabled and focus come from `button.css` and `field.css` with everything
+ * else. */
 .sa-paginator__step,
 .sa-paginator__page {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     min-height: 30px;
-    padding: 0 8px;
     border: 1px solid var(--sa-color-border);
     border-radius: var(--sa-radius-control);
     background: var(--sa-color-bg-surface);
+    /* Explicit, because `q-btn --flat` inherits its colour and the pager sits
+     * in a footer whose text is muted — the step arrows came out grey and the
+     * page number, which is the one thing here a reader looks for, came out
+     * greyer than the rows above it. */
     color: var(--sa-color-fg-body);
-    font: inherit;
-    cursor: pointer;
-    transition:
-        background 0.12s,
-        border-color 0.12s;
 }
 .sa-paginator__page {
+    min-width: 96px;
     font-weight: 600;
     color: var(--sa-color-fg-heading);
-    min-width: 96px;
-}
-.sa-paginator__step:hover:not(:disabled),
-.sa-paginator__page:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-    border-color: var(--sa-color-border-strong);
-}
-.sa-paginator__step:disabled,
-.sa-paginator__page:disabled {
-    opacity: 0.45;
-    cursor: default;
 }
 .sa-paginator__input {
     min-width: 96px;
-    min-height: 30px;
-    padding: 0 8px;
-    border: 1px solid var(--sa-color-accent);
-    border-radius: var(--sa-radius-control);
-    background: var(--sa-color-bg-surface);
-    color: var(--sa-color-fg-heading);
-    font: inherit;
-    font-weight: 600;
+}
+.sa-paginator__input :deep(input),
+.sa-paginator__input input {
     text-align: center;
+    font-weight: 600;
 }

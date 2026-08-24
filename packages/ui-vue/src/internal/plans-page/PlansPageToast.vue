@@ -27,16 +27,16 @@ defineProps<{
 <style scoped>
 .sa-plans__toast {
     position: fixed;
-    bottom: 24px;
+    bottom: var(--sa-space-7);
     left: 50%;
     transform: translateX(-50%);
     background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
-    padding: 12px 18px;
-    border-radius: 10px;
+    padding: var(--sa-space-4) var(--sa-space-5);
+    border-radius: var(--sa-radius-tile);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     font:
         500 var(--sa-text-md) 'Inter',
         system-ui,

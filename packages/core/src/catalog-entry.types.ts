@@ -355,6 +355,19 @@ export interface MarketingTopFeature {
 }
 
 /**
+ * The range a marketing projection's `priority` may take.
+ *
+ * Declared here rather than in the DTO because two sides need the same answer:
+ * the request pipe rejects anything outside it, and the admin UI computes
+ * priorities when an operator drags a plan into a new position. A UI that
+ * picked its own bounds would produce a value the pipe refuses — and it did,
+ * at the top of the range, where a list of tied plans was lifted past the
+ * maximum to pull the ties apart.
+ */
+export const MARKETING_PRIORITY_MIN = 0;
+export const MARKETING_PRIORITY_MAX = 10_000;
+
+/**
  * Locale-specific marketing texts per plan/bundle version.
  * Read and projected by the Public-Catalog-Controller
  * (`GET /public/catalog?locale=de`).

@@ -97,19 +97,19 @@ const features = computed<FeatureRow[]>(() => {
     margin: 0;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 8px 24px;
+    gap: var(--sa-space-3) var(--sa-space-7);
 }
 .sp-feature-matrix__row {
     display: flex;
-    gap: 10px;
+    gap: var(--sa-space-3);
     align-items: flex-start;
-    padding: 6px 0;
+    padding: var(--sa-space-2) 0;
 }
 .sp-feature-matrix__row--locked {
     opacity: 0.6;
 }
 .sp-feature-matrix__status {
-    margin-top: 1px;
+    margin-top: var(--sa-space-0);
     flex: 0 0 auto;
 }
 .sp-feature-matrix__label {
@@ -121,6 +121,6 @@ const features = computed<FeatureRow[]>(() => {
 .sp-feature-matrix__desc {
     font-size: var(--sa-text-sm);
     color: var(--sp-text-muted, var(--sa-color-fg-muted));
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 </style>

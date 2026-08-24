@@ -55,13 +55,14 @@
                     <label class="bve-field">
                         <span class="bve-field-label">{{ msg.fields.monthlyPrice }}</span>
                         <div class="bve-input-grp">
-                            <input
-                                type="text"
+                            <q-input
+                                :model-value="form.monthlyNet ?? ''"
+                                outlined
+                                dense
                                 inputmode="decimal"
-                                class="bve-input"
-                                :value="form.monthlyNet ?? ''"
-                                :disabled="locked"
-                                @input="onPriceInput('monthlyNet', $event)"
+                                class="bve-money"
+                                :disable="locked"
+                                @update:model-value="onPrice('monthlyNet', $event)"
                             />
                             <span class="bve-input-unit">{{ msg.fields.perMonthUnit }}</span>
                         </div>
@@ -69,13 +70,14 @@
                     <label class="bve-field">
                         <span class="bve-field-label">{{ msg.fields.yearlyPrice }}</span>
                         <div class="bve-input-grp">
-                            <input
-                                type="text"
+                            <q-input
+                                :model-value="form.yearlyNet ?? ''"
+                                outlined
+                                dense
                                 inputmode="decimal"
-                                class="bve-input"
-                                :value="form.yearlyNet ?? ''"
-                                :disabled="locked"
-                                @input="onPriceInput('yearlyNet', $event)"
+                                class="bve-money"
+                                :disable="locked"
+                                @update:model-value="onPrice('yearlyNet', $event)"
                             />
                             <span class="bve-input-unit">{{ msg.fields.perYearUnit }}</span>
                         </div>
@@ -97,22 +99,18 @@
                 <div class="bve-row bve-row--validity">
                     <label class="bve-field">
                         <span class="bve-field-label">{{ msg.fields.validFrom }}</span>
-                        <input
+                        <q-input
+                            :model-value="form.validFrom ?? ''"
+                            outlined
+                            dense
                             type="date"
-                            class="bve-input"
-                            :value="form.validFrom ?? ''"
-                            :disabled="locked"
-                            @input="onValidFromInput"
+                            :disable="locked"
+                            @update:model-value="onValidFrom"
                         />
                     </label>
                     <label class="bve-field">
                         <span class="bve-field-label">{{ msg.fields.validUntil }}</span>
-                        <input
-                            type="text"
-                            class="bve-input bve-input--readonly"
-                            :value="validUntilDisplay"
-                            disabled
-                        />
+                        <q-input :model-value="validUntilDisplay" outlined dense disable />
                         <span class="bve-field-hint">{{ msg.editor.validUntilHint }}</span>
                     </label>
                 </div>
@@ -121,26 +119,27 @@
                     <span>{{ msg.editor.sectionMarketing }}</span>
                 </div>
                 <label class="bve-toggle-row">
-                    <input
-                        type="checkbox"
-                        :checked="form.marketed"
-                        :disabled="locked"
-                        @change="onMarketedToggle"
+                    <q-toggle
+                        :model-value="form.marketed"
+                        dense
+                        :disable="locked"
+                        :label="msg.editor.marketed"
+                        @update:model-value="form.marketed = $event"
                     />
-                    <span class="bve-toggle-label">{{ msg.editor.marketed }}</span>
                 </label>
 
                 <div class="bve-section-label bve-section-label--top">
                     <span>{{ msg.editor.sectionChangeNote }}</span>
                     <span class="bve-section-count">{{ msg.editor.changeNoteRequired }}</span>
                 </div>
-                <textarea
-                    class="bve-textarea"
-                    rows="2"
-                    :value="form.changeNote"
-                    :disabled="locked"
+                <q-input
+                    v-model="form.changeNote"
+                    outlined
+                    dense
+                    type="textarea"
+                    :rows="2"
+                    :disable="locked"
                     :placeholder="msg.editor.changeNotePlaceholder"
-                    @input="onChangeNoteInput"
                 />
 
                 <div class="bve-section-label bve-section-label--top">
@@ -163,23 +162,23 @@
         </div>
 
         <div v-if="!locked" class="bve-actions">
-            <button
-                type="button"
-                class="bve-btn"
-                :disabled="saving || !hasChanges"
+            <q-btn
+                flat
+                dense
+                no-caps
+                :label="common.reset"
+                :disable="saving || !hasChanges"
                 @click="onReset"
-            >
-                {{ common.reset }}
-            </button>
-            <button
-                type="button"
-                class="bve-btn bve-btn--primary"
-                :disabled="!canSave || saving"
+            />
+            <q-btn
+                unelevated
+                no-caps
+                color="primary"
+                :label="saving ? common.saving : common.save"
+                :disable="!canSave || saving"
                 :title="!canSave ? msg.editor.saveDisabledTooltip : msg.editor.saveTooltip"
                 @click="onSave"
-            >
-                {{ saving ? common.saving : common.save }}
-            </button>
+            />
         </div>
         <div v-if="saveError" class="bve-error">
             {{ saveError }}
@@ -428,22 +427,15 @@ function onTogglePlan(planKey: string): void {
     else form.planIds.push(planKey);
 }
 
-function onPriceInput(field: 'monthlyNet' | 'yearlyNet', event: Event): void {
-    const value = (event.target as HTMLInputElement).value.trim();
+/** An empty field is `null`, not `''` — the version has no price rather than a blank one. */
+function onPrice(field: 'monthlyNet' | 'yearlyNet', raw: string | number | null): void {
+    const value = String(raw ?? '').trim();
     form[field] = value.length === 0 ? null : value;
 }
 
-function onValidFromInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
+function onValidFrom(raw: string | number | null): void {
+    const value = String(raw ?? '');
     form.validFrom = value.length === 0 ? null : value;
-}
-
-function onChangeNoteInput(event: Event): void {
-    form.changeNote = (event.target as HTMLTextAreaElement).value;
-}
-
-function onMarketedToggle(event: Event): void {
-    form.marketed = (event.target as HTMLInputElement).checked;
 }
 
 function onReset(): void {
@@ -488,16 +480,16 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .bve-overlap-banner {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
     line-height: 1.5;
@@ -508,7 +500,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 18px;
+    gap: var(--sa-space-5);
 }
 @media (max-width: 1023.98px) {
     .bve-grid {
@@ -518,22 +510,22 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-col {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bve-section-label {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--sa-space-4);
     font-size: var(--sa-text-sm);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-secondary);
-    padding-top: 2px;
+    padding-top: var(--sa-space-1);
 }
 .bve-section-label--top {
-    margin-top: 8px;
+    margin-top: var(--sa-space-3);
 }
 .bve-section-count {
     font-size: var(--sa-text-xs);
@@ -544,7 +536,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 }
 .bve-row {
     display: grid;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bve-row--pricing {
     grid-template-columns: 1fr 1fr auto;
@@ -553,10 +545,27 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-row--validity {
     grid-template-columns: 1fr 1fr;
 }
+/* The row a money field and its unit share. */
+.bve-input-grp {
+    display: flex;
+    align-items: center;
+    gap: var(--sa-space-2);
+}
+
+.bve-input-unit {
+    color: var(--sa-color-fg-muted);
+    font-size: var(--sa-text-sm);
+}
+
+/* A width, not a look. */
+.bve-money {
+    max-width: 120px;
+}
+
 .bve-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .bve-field-label {
     font-size: var(--sa-text-xs);
@@ -567,112 +576,40 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
-.bve-input-grp {
-    display: inline-flex;
-    align-items: stretch;
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    background: var(--sa-color-bg-surface);
-}
-.bve-input-grp .bve-input {
-    border: 0;
-    border-radius: 6px 0 0 6px;
-}
-.bve-input-unit {
-    display: inline-flex;
-    align-items: center;
-    padding: 0 8px;
-    font-size: var(--sa-text-sm);
-    color: var(--sa-color-fg-muted);
-    background: var(--sa-color-bg-sunken);
-    border-left: 1px solid var(--sa-color-border);
-    border-radius: 0 6px 6px 0;
-}
-.bve-input {
-    padding: 6px 10px;
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    font-size: var(--sa-text-md);
-    font-family: inherit;
-    color: var(--sa-color-fg-heading);
-    background: var(--sa-color-bg-surface);
-}
-.bve-input--readonly {
-    color: var(--sa-color-fg-subtle);
-    background: var(--sa-color-bg-sunken);
-}
-.bve-savings {
+.bve-input-grp .bve-savings {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding-bottom: 6px;
+    gap: var(--sa-space-3);
+    padding-bottom: var(--sa-space-2);
 }
 .bve-savings-pill {
-    padding: 1px 6px;
+    padding: var(--sa-space-0) var(--sa-space-2);
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
-    border-radius: 4px;
+    border-radius: var(--sa-radius-badge);
     font-weight: 700;
     font-size: var(--sa-text-xs);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .bve-toggle-row {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     cursor: pointer;
     font-size: var(--sa-text-md);
-}
-.bve-toggle-label {
-    color: var(--sa-color-fg-heading);
-}
-.bve-textarea {
-    padding: 8px 10px;
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    font-size: var(--sa-text-md);
-    font-family: inherit;
-    color: var(--sa-color-fg-heading);
-    background: var(--sa-color-bg-surface);
-    resize: vertical;
 }
 .bve-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-}
-.bve-btn {
-    padding: 7px 14px;
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: var(--sa-text-md);
-    font-family: inherit;
-    color: var(--sa-color-fg-heading);
-}
-.bve-btn:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-}
-.bve-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.bve-btn--primary {
-    background: var(--sa-color-accent);
-    border-color: var(--sa-color-accent);
-    color: var(--sa-color-fg-on-accent);
-}
-.bve-btn--primary:hover:not(:disabled) {
-    background: var(--sa-color-accent-strong);
+    gap: var(--sa-space-3);
 }
 .bve-error {
-    padding: 8px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
 }

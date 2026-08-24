@@ -9,6 +9,9 @@
                 overlap: overlapKeys.includes(q.quotaKey),
             }"
         >
+            <!-- @optionSurface
+                 A quota toggle with its own tick, sitting in a row with the value field.
+                 Its shape belongs to the row, not to a button. -->
             <button
                 type="button"
                 class="bd-quota-toggle"
@@ -52,19 +55,15 @@
                 <div class="bd-quota-key">{{ q.quotaKey }}</div>
             </div>
             <div class="bd-quota-valwrap">
-                <input
+                <q-input
+                    :model-value="quotas[q.quotaKey] ?? ''"
+                    outlined
+                    dense
                     type="number"
                     class="bd-quota-val"
-                    :value="quotas[q.quotaKey] ?? ''"
-                    :disabled="!(q.quotaKey in quotas) || locked"
+                    :disable="!(q.quotaKey in quotas) || locked"
                     :placeholder="String(0)"
-                    @input="
-                        $emit(
-                            'setValue',
-                            q.quotaKey,
-                            Number(($event.target as HTMLInputElement).value),
-                        )
-                    "
+                    @update:model-value="$emit('setValue', q.quotaKey, Number($event) || 0)"
                 />
                 <span class="bd-quota-unit">{{ quotaUnit(q) }}</span>
             </div>
@@ -121,7 +120,7 @@ function quotaUnit(q: DiscoveredQuota): string {
 .bd-quotas {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .bd-quotas.bd-locked {
     opacity: 0.7;
@@ -130,11 +129,11 @@ function quotaUnit(q: DiscoveredQuota): string {
     display: grid;
     grid-template-columns: 28px 1fr auto;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     transition:
         background 0.12s,
         border-color 0.12s;
@@ -155,7 +154,7 @@ function quotaUnit(q: DiscoveredQuota): string {
     height: 22px;
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
 }
@@ -188,13 +187,13 @@ function quotaUnit(q: DiscoveredQuota): string {
 .bd-quota-valwrap {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .bd-quota-val {
     width: 90px;
-    padding: 5px 8px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font:
         600 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
@@ -214,7 +213,7 @@ function quotaUnit(q: DiscoveredQuota): string {
     min-width: 32px;
 }
 .bd-quotas-empty {
-    padding: 12px;
+    padding: var(--sa-space-4);
     color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: var(--sa-text-md);

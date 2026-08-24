@@ -14,6 +14,9 @@
                     class="sa-pv-timeline__line"
                     aria-hidden="true"
                 />
+                <!-- @optionSurface
+                     A node on a timeline. The button IS the node: its position and its dot
+                     carry the version, and a button chrome would cover the line. -->
                 <button
                     type="button"
                     class="sa-pv-timeline__btn"
@@ -58,14 +61,15 @@
                 <q-icon name="info" size="13px" />
                 <span>{{ msg.timeline.compareHint }}</span>
             </div>
-            <button
+            <q-btn
                 v-if="compareId"
-                type="button"
                 class="sa-pv-timeline__clear-btn"
+                flat
+                dense
+                no-caps
+                :label="msg.compareEnd"
                 @click="emit('clearCompare')"
-            >
-                {{ msg.compareEnd }}
-            </button>
+            />
         </div>
     </aside>
 </template>
@@ -124,7 +128,7 @@ function metaText(s: CatalogSnapshot): string {
     overflow: hidden;
 }
 .sa-pv-timeline__head {
-    padding: 14px 16px;
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface-raised);
 }
@@ -136,12 +140,12 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__title {
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
 }
 .sa-pv-timeline__count {
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
 }
@@ -149,16 +153,16 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__list {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 4px;
+    padding: var(--sa-space-3) var(--sa-space-2);
 }
 .sa-pv-timeline__item {
     position: relative;
 }
 .sa-pv-timeline__line {
     position: absolute;
-    left: 22px;
-    top: 36px;
-    bottom: -6px;
+    left: var(--sa-space-6);
+    top: var(--sa-space-8);
+    bottom: calc(-1 * var(--sa-space-2));
     width: 2px;
     background: var(--sa-color-border);
     z-index: 0;
@@ -169,12 +173,12 @@ function metaText(s: CatalogSnapshot): string {
     width: calc(100% - 8px);
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    margin: 2px 4px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    margin: var(--sa-space-1) var(--sa-space-2);
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     cursor: pointer;
     text-align: left;
     transition: all 0.12s;
@@ -230,8 +234,8 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__top {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 2px;
+    gap: var(--sa-space-2);
+    margin-bottom: var(--sa-space-1);
 }
 .sa-pv-timeline__label {
     font-family: var(--sa-font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
@@ -242,9 +246,9 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__status {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    letter-spacing: 0.06em;
-    padding: 2px 6px;
-    border-radius: 4px;
+    letter-spacing: var(--sa-tracking-wider);
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-pv-timeline__status--draft {
     background: var(--sa-color-warning-surface-strong);
@@ -261,11 +265,11 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__vs {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
     background: var(--sa-color-warning-surface-strong);
     color: var(--sa-color-warning-fg);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-pv-timeline__h2 {
     font-size: var(--sa-text-sm);
@@ -279,14 +283,14 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__meta {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 
 .sa-pv-timeline__foot {
-    padding: 10px 14px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     border-top: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface-raised);
     font-size: var(--sa-text-xs);
@@ -295,14 +299,14 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__hint {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-pv-timeline__clear-btn {
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
-    padding: 4px 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font-size: var(--sa-text-xs);
     font-weight: 600;
     color: var(--sa-color-fg-body);

@@ -191,7 +191,7 @@ function coverage(locale: string): number {
 }
 .sa-qc__titlerow {
     display: flex;
-    gap: 8px;
+    gap: var(--sa-space-3);
     align-items: center;
     flex-wrap: wrap;
 }
@@ -206,8 +206,8 @@ function coverage(locale: string): number {
 .sa-qc__flag {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 5px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-qc__flag--succ {
     background: var(--sa-color-warning-surface-strong);
@@ -220,7 +220,7 @@ function coverage(locale: string): number {
 .sa-qc__sub {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .sa-qc__missing {
     color: var(--sa-color-negative-fg);
@@ -229,21 +229,21 @@ function coverage(locale: string): number {
 .sa-qc__warning {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-negative-fg);
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
 }
 .sa-qc__coverage {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
     flex-shrink: 0;
 }
 .sa-qc__banner {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font-size: var(--sa-text-sm);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 10px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    margin-bottom: var(--sa-space-3);
     background: var(--sa-color-warning-surface);
     border: 1px solid var(--sa-color-warning-border);
     color: var(--sa-color-warning-fg);

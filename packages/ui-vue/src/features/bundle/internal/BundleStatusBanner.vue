@@ -69,27 +69,16 @@
                 <b>{{ msg.statusBanner.draft }}</b> {{ msg.statusBanner.draftTail }}
             </template>
         </div>
-        <button
+        <q-btn
             v-if="status === 'scheduled' || status === 'draft'"
             class="bv-status-discard"
-            type="button"
+            flat
+            dense
+            no-caps
+            :label="common.discard"
             :title="msg.statusBanner.discardTooltip"
             @click="$emit('discard')"
-        >
-            <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <path
-                    d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
-                />
-            </svg>
-            <span>{{ common.discard }}</span>
-        </button>
+        />
     </div>
 </template>
 
@@ -143,9 +132,9 @@ const supersededTail = computed(() =>
 .bv-status-banner {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    border-radius: 8px;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-4) var(--sa-space-4);
+    border-radius: var(--sa-radius-field);
     border: 1px solid transparent;
     font-size: var(--sa-text-md);
     line-height: 1.4;
@@ -189,11 +178,11 @@ const supersededTail = computed(() =>
 .bv-status-discard {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 10px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-2) var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
     font-size: var(--sa-text-sm);
     color: var(--sa-color-negative-fg);

@@ -6,7 +6,7 @@ import { provideTenantI18n, useTenantI18n } from '../../src/tenant-i18n';
 import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
-import { mountWithQuasar } from './support/mount-with-quasar';
+import { mountWithQuasar } from '@saasicat/ui-vue/testing/mount-with-quasar';
 
 // Six children read the tenant catalog. They used to receive it as a prop from
 // TenantPlanSection, four levels of pass-through in places; now they inject it.

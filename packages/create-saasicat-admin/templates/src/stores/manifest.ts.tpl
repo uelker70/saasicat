@@ -1,5 +1,6 @@
 // Manifest Pinia store — the router guard in `main.ts` awaits
-// `ensureLoaded()` before rendering admin routes (handbook §8.2).
+// `ensureLoaded()` before rendering admin routes
+// (docs/guides/build-the-admin-frontend.md, "Manifest Store").
 
 import { createManifestStore } from '@saasicat/ui-vue';
 import { loaders } from '../services/platform-loaders';

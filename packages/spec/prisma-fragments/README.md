@@ -11,7 +11,7 @@ related:
 # Prisma Fragments
 
 Prisma-DSL rendering of the SaaSiCat data model, **derived from the normative
-sources**: the logical data model in [`docs/data-model.md`](../../../docs/data-model.md)
+sources**: the logical data model in [`docs/explanation/data-model.md`](../../../docs/explanation/data-model.md)
 and the PostgreSQL artifacts in [`../sql/`](../sql/)
 (`reference-schema.postgres.sql` is generated FROM these fragments via
 `pnpm run gen:sql`; `constraints.postgres.sql` carries the invariants Prisma

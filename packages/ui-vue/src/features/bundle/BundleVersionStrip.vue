@@ -2,6 +2,9 @@
     <div class="bv-vstrip">
         <div class="bv-vstrip-label">{{ msg.versionStrip.label }}</div>
         <div class="bv-vstrip-tabs">
+            <!-- @optionSurface
+                 A version tab in a strip — a tablist entry, not an action. `q-btn` would
+                 bring a button chrome the strip spends CSS undoing. -->
             <button
                 v-for="v in sortedVersions"
                 :key="v.id"
@@ -27,29 +30,20 @@
                     {{ msg.versionStrip.perMonth }}
                 </span>
             </button>
-            <button
-                type="button"
+            <q-btn
                 class="bv-vtab bv-vtab-new"
-                :disabled="!canAddVersion"
+                flat
+                dense
+                no-caps
+                :label="msg.versionStrip.addVersion"
+                :disable="!canAddVersion"
                 :title="
                     canAddVersion
                         ? msg.versionStrip.addTooltip
                         : msg.versionStrip.addDisabledTooltip
                 "
                 @click="$emit('addVersion')"
-            >
-                <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path d="M12 5v14M5 12h14" />
-                </svg>
-                <span>{{ msg.versionStrip.addVersion }}</span>
-            </button>
+            />
         </div>
     </div>
 </template>
@@ -107,36 +101,36 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 .bv-vstrip {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 14px 16px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-4) var(--sa-space-5);
     background: var(--sa-color-bg-surface-raised);
     border: 1px solid var(--bv-border, var(--sa-color-border));
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
 }
 .bv-vstrip-label {
     font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
 }
 .bv-vstrip-tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 
 .bv-vtab {
     display: grid;
     grid-template-columns: auto auto;
     grid-template-rows: auto auto;
-    column-gap: 8px;
-    row-gap: 2px;
+    column-gap: var(--sa-space-3);
+    row-gap: var(--sa-space-1);
     align-items: center;
-    padding: 8px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     cursor: pointer;
     font-family: inherit;
     color: var(--sa-color-fg-heading);
@@ -158,15 +152,15 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
         700 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
-    letter-spacing: 0.02em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .bv-vtab-status {
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     text-transform: uppercase;
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     justify-self: end;
 }
 .bv-vtab-status.live {
@@ -200,8 +194,8 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 .bv-vtab-new {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
     color: var(--sa-color-accent);

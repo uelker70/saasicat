@@ -14,22 +14,24 @@
                         {{ msg.createDialog.labelPlanKey }}
                         <span class="pcd-kbd">UNIQUE</span>
                     </div>
-                    <input
+                    <q-input
                         ref="keyInput"
-                        class="pcd-input"
-                        :class="{ 'pcd-input--error': keyError }"
+                        :model-value="form.planKey"
+                        outlined
+                        dense
                         :placeholder="msg.createDialog.placeholderPlanKey"
-                        :value="form.planKey"
-                        @input="onPlanKeyInput"
+                        :error="Boolean(keyError)"
+                        :error-message="keyError ?? undefined"
+                        :hint="msg.createDialog.hintPlanKey"
+                        @update:model-value="onPlanKeyInput"
                     />
-                    <div v-if="keyError" class="pcd-hint pcd-hint--error">{{ keyError }}</div>
-                    <div v-else class="pcd-hint">{{ msg.createDialog.hintPlanKey }}</div>
                 </div>
                 <div class="pcd-field">
                     <div class="pcd-field-label">{{ msg.createDialog.labelDisplayName }}</div>
-                    <input
+                    <q-input
                         v-model="form.label"
-                        class="pcd-input"
+                        outlined
+                        dense
                         :placeholder="msg.createDialog.placeholderDisplayName"
                     />
                     <div class="pcd-hint">{{ msg.createDialog.hintDisplayName }}</div>
@@ -38,10 +40,12 @@
 
             <div class="pcd-field">
                 <div class="pcd-field-label">{{ common.description }}</div>
-                <textarea
+                <q-input
                     v-model="form.description"
-                    class="pcd-input pcd-input--textarea"
-                    rows="2"
+                    outlined
+                    dense
+                    type="textarea"
+                    :rows="2"
                     :placeholder="msg.createDialog.placeholderDescription"
                 />
             </div>
@@ -49,6 +53,9 @@
             <div class="pcd-field">
                 <div class="pcd-field-label">{{ msg.createDialog.labelBasis }}</div>
                 <div class="pcd-choice-grid">
+                    <!-- @optionSurface
+                         A choice card with a title and a description, one of a group. A radio in
+                         card form rather than an action. -->
                     <button
                         v-for="opt in choiceOptions"
                         :key="opt.key"
@@ -64,31 +71,16 @@
         </div>
         <template #footer>
             <div class="pcd-foot">
-                <button class="pcd-btn pcd-btn--ghost" type="button" @click="onCancel">
-                    {{ common.cancel }}
-                </button>
-                <button
-                    class="pcd-btn pcd-btn--primary"
-                    type="button"
-                    :disabled="!canSubmit || submitting"
+                <q-btn flat dense no-caps :label="common.cancel" @click="onCancel" />
+                <q-btn
+                    unelevated
+                    no-caps
+                    color="primary"
+                    icon-right="arrow_forward"
+                    :label="submitting ? msg.createDialog.submitting : msg.createDialog.submit"
+                    :disable="!canSubmit || submitting"
                     @click="onSubmit"
-                >
-                    <span>{{
-                        submitting ? msg.createDialog.submitting : msg.createDialog.submit
-                    }}</span>
-                    <span class="pcd-ico" aria-hidden="true">
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path d="M5 12h14M13 5l7 7-7 7" />
-                        </svg>
-                    </span>
-                </button>
+                />
             </div>
         </template>
     </AdminDialog>
@@ -184,9 +176,10 @@ watch(
     },
 );
 
-function onPlanKeyInput(e: Event): void {
-    const raw = (e.target as HTMLInputElement).value;
-    form.planKey = raw.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+function onPlanKeyInput(value: string | number | null): void {
+    form.planKey = String(value ?? '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9_]/g, '');
 }
 
 const keyError = computed<string | null>(() => {
@@ -255,16 +248,16 @@ function onCancel(): void {
 
 <style scoped>
 .pcd-row {
-    margin-bottom: 16px;
+    margin-bottom: var(--sa-space-5);
 }
 .pcd-row--2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 16px;
+    gap: var(--sa-space-4);
+    margin-bottom: var(--sa-space-5);
 }
 .pcd-field {
-    margin-bottom: 16px;
+    margin-bottom: var(--sa-space-5);
 }
 .pcd-row--2col .pcd-field {
     margin-bottom: 0;
@@ -276,64 +269,32 @@ function onCancel(): void {
     color: var(--sa-color-fg-body);
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
+    gap: var(--sa-space-2);
+    margin-bottom: var(--sa-space-2);
 }
 .pcd-kbd {
     font: 600 var(--sa-text-xs) var(--sa-font-mono);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     border: 1px solid var(--sa-color-border);
-    letter-spacing: 0.04em;
-}
-.pcd-input {
-    width: 100%;
-    padding: 9px 12px;
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: 7px;
-    font: var(--sa-text-md) var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-    outline: none;
-    transition:
-        border-color 0.12s,
-        box-shadow 0.12s;
-}
-.pcd-input--textarea {
-    resize: vertical;
-    min-height: 56px;
-    line-height: 1.5;
-}
-.pcd-input:focus {
-    border-color: var(--sa-color-accent);
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
-}
-.pcd-input--error {
-    border-color: var(--sa-color-negative);
-}
-.pcd-input--error:focus {
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
+    letter-spacing: var(--sa-tracking-wide);
 }
 .pcd-hint {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
 }
-.pcd-hint--error {
-    color: var(--sa-color-negative);
-}
-
 .pcd-choice-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .pcd-choice {
     border: 1.5px solid var(--sa-color-border);
-    border-radius: 9px;
-    padding: 12px 14px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-4) var(--sa-space-4);
     cursor: pointer;
     background: var(--sa-color-bg-surface);
     text-align: left;
@@ -343,7 +304,7 @@ function onCancel(): void {
         box-shadow 0.12s;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sa-space-1);
     font-family: inherit;
 }
 .pcd-choice:hover {
@@ -365,54 +326,13 @@ function onCancel(): void {
 }
 
 .pcd-foot {
-    padding: 14px 22px;
+    padding: var(--sa-space-4) var(--sa-space-6);
     background: var(--sa-color-bg-surface-raised);
     border-top: 1px solid var(--sa-color-border);
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
-.pcd-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 16px;
-    border-radius: 7px;
-    font: 500 var(--sa-text-md) var(--sa-font-body);
-    cursor: pointer;
-    border: 1px solid var(--sa-color-border-strong);
-    background: var(--sa-color-bg-surface);
-    color: var(--sa-color-fg-heading);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.pcd-btn:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-}
-.pcd-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.pcd-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.pcd-btn--ghost:hover {
-    background: var(--sa-color-bg-sunken);
-}
-.pcd-btn--primary {
-    background: var(--sa-color-accent);
-    border-color: var(--sa-color-accent);
-    color: var(--sa-color-fg-on-accent);
-}
-.pcd-btn--primary:hover:not(:disabled) {
-    background: var(--sa-color-accent-strong);
-}
-.pcd-ico {
-    display: inline-flex;
-}
-
 @media (max-width: 599.98px) {
     .pcd-row--2col,
     .pcd-choice-grid {

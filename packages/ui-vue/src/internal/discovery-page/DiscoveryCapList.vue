@@ -84,16 +84,16 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
 .sa-caps {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-caps-row {
     display: flex;
-    gap: 10px;
+    gap: var(--sa-space-3);
     align-items: flex-start;
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 8px 10px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-3);
 }
 .sa-caps-row.dep {
     border-color: var(--sa-color-negative-border);
@@ -103,11 +103,11 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
-    padding: 2px 6px;
-    border-radius: 5px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     border: 1px solid;
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: var(--sa-space-0);
 }
 .sa-caps-row__main {
     flex: 1;
@@ -115,7 +115,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
 }
 .sa-caps-row__titlerow {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
     align-items: center;
     flex-wrap: wrap;
 }
@@ -126,8 +126,8 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
 .sa-caps-row__flag {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    padding: 1px 5px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-caps-row__flag--new {
     background: var(--sa-color-warning-surface-strong);
@@ -150,11 +150,11 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
 }
 .sa-caps-row__meta {
     display: flex;
-    gap: 12px;
+    gap: var(--sa-space-4);
     flex-wrap: wrap;
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-secondary);
-    margin-top: 1px;
+    margin-top: var(--sa-space-0);
 }
 .sa-caps-row__meta code {
     font-size: var(--sa-text-2xs);
@@ -162,12 +162,12 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
 .sa-caps__empty {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-warning-fg);
     background: var(--sa-color-warning-surface);
     border: 1px dashed var(--sa-color-warning-border);
-    border-radius: 8px;
-    padding: 10px 12px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-4);
 }
 </style>

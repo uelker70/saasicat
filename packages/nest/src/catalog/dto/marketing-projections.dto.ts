@@ -14,6 +14,7 @@ import {
     ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { MARKETING_PRIORITY_MAX, MARKETING_PRIORITY_MIN } from '@saasicat/core';
 
 const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const LOCALE_PATTERN = /^[a-z]{2}(-[A-Z]{2})?$/;
@@ -106,8 +107,8 @@ export class CreateMarketingProjectionDto {
 
     @IsOptional()
     @IsInt()
-    @Min(0)
-    @Max(10_000)
+    @Min(MARKETING_PRIORITY_MIN)
+    @Max(MARKETING_PRIORITY_MAX)
     priority?: number;
 
     @IsOptional()
@@ -165,8 +166,8 @@ export class UpdateMarketingProjectionDto {
 
     @IsOptional()
     @IsInt()
-    @Min(0)
-    @Max(10_000)
+    @Min(MARKETING_PRIORITY_MIN)
+    @Max(MARKETING_PRIORITY_MAX)
     priority?: number;
 
     @IsOptional()

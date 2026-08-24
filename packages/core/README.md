@@ -1,5 +1,7 @@
 # @saasicat/core
 
+## What this is
+
 The shared core of the SaaS platform: the wire-format types — AdminManifest,
 PlanCatalog, PromoCode, AuditEvent, Subscription, PlanVersion, the adapter
 ports — **and the pure domain logic both sides run**: the error-code catalogues
@@ -14,6 +16,18 @@ Derived from the JSON Schemas in
 types are generated from the schemas via `pnpm gen:types`
 (`json-schema-to-typescript`); a drift test keeps schemas and snapshots in
 sync.
+
+## What this is not
+
+Not a types-only package, despite what its predecessor's name promised. It
+carries 45 runtime exports — `classifyPlanDiff`, `applyPromo`,
+`resolveErrorMessage`, the error-code catalogues, the feature-requires rules —
+because backend and admin UI must reach the same verdict, and two
+implementations of the same rule reach two.
+
+Not the source of truth for the wire formats either. That is `@saasicat/spec`;
+the types under `src/generated/` are produced from its JSON Schemas, and a
+drift test rejects an edit made here.
 
 ## Contents
 
@@ -56,3 +70,9 @@ Produces `dist/index.{js,cjs,d.ts,d.cts}` via `tsup`.
   there bumps this package's version as well.
 - **Required fields mirror the schemas.** Anything non-optional here must be
   non-optional in the schema too — otherwise it drifts.
+
+## Next
+
+- [The vocabulary](../../docs/explanation/concepts.md) — capability, feature, quota, plan, contract
+- [Codegen](../../docs/explanation/adr/0006-spec-to-types-codegen.md) — what is generated, and what is not
+- [`@saasicat/spec`](../spec/README.md) — the schemas these types come from

@@ -1,5 +1,7 @@
 # @saasicat/persistence-testing
 
+## What this is
+
 The executable persistence contract for SaaSiCat adapters. One `node:test`
 suite that every adapter (Prisma and Drizzle ship today, TypeORM plugs into
 the same harness) must pass **against a real database** — this is what makes
@@ -25,6 +27,17 @@ Scenario groups gate on declared capabilities and provided slices; a
 gated-off group reports as **skipped with reason** — coverage gaps stay
 visible, never silent. Roadmap scenarios (subscription contracts, reference
 migrations N→N+1) are registered as visible skips until the slices ship.
+
+## What this is not
+
+Not a test framework and not a set of fixtures for your application. It is one
+executable contract: the suite an adapter must pass before it can claim to
+implement the ports.
+
+Not runnable without a database. The semantics it checks — row locks, rollback,
+atomic promo redemption, tenant isolation — are exactly the ones an in-memory
+double cannot have, so it needs a real PostgreSQL and says so when it does not
+find one.
 
 ## Usage
 
@@ -64,3 +77,8 @@ fixture writes are schema-specific. See
 In-memory fakes must not be used to "verify" an adapter — they cannot
 emulate lock semantics (declare `pessimisticLocking: false` and the lock
 scenarios gate off, visibly).
+
+## Next
+
+- [Ports and adapters](../../docs/explanation/adr/0007-ports-and-adapters.md) — what a port promises
+- [Test coverage](../../docs/explanation/test-coverage.md) — what this contract reaches, and what it does not

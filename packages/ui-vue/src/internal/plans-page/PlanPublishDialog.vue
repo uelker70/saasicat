@@ -100,12 +100,12 @@ defineEmits<{
 <style scoped>
 .sa-publish-regression {
     margin: 0;
-    padding-left: 18px;
+    padding-left: var(--sa-space-5);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-body);
 }
 .sa-publish-regression li {
-    margin: 4px 0;
+    margin: var(--sa-space-2) 0;
 }
 .sa-publish-regression__old {
     color: var(--sa-color-fg-subtle);

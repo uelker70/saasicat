@@ -190,6 +190,15 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/PlansPage.vue'),
     }),
     visualCase({
+        // The same page in its other mode. Nothing rendered the matrix until
+        // its KPIs were moved into a section like the list's — the change was
+        // to a surface no baseline covered, which is the state that makes a
+        // green suite say nothing.
+        id: 'plans-matrix',
+        load: () => import('../../../src/pages/PlansPage.vue'),
+        revealBy: ['header .q-btn[tabindex]:first-of-type'],
+    }),
+    visualCase({
         id: 'login',
         load: () => import('../../../src/auth/SuperAdminLoginPage.vue'),
     }),
@@ -253,7 +262,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // Ordered: the tab mounts the admin view, the expand button mounts
         // its editors. Stopping after the tab left every editor guarded by
         // `expandedKey` unrendered — the surfaces this case exists for.
-        revealBy: ['.sa-marketing-tab:nth-of-type(2)', '.sa-marketing-expand-btn'],
+        revealBy: ['.sa-marketing-tab:nth-of-type(2)', '.sa-marketing-plan-cell'],
         // The chip whose `<em>` measured 2.92:1 in the dark theme — `:hover`
         // moved the surface to a 22 % accent tint and the `<em>` kept its own
         // colour. It is fixed; this is what stops it coming back.

@@ -29,7 +29,7 @@ import {
     SUPER_ADMIN_LOGIN_ADAPTER_KEY,
     SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY,
 } from '../../src/vue/super-admin-context.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 const SRC_DIR = resolve(process.cwd(), 'src');
 

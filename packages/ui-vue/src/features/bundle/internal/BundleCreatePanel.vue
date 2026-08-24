@@ -5,7 +5,7 @@
                 <div class="bcp-title">{{ msg.create.title }}</div>
                 <div class="bcp-sub">{{ msg.create.subtitle }}</div>
             </div>
-            <button class="bcp-close" type="button" :aria-label="common.close" @click="close">
+            <q-btn class="bcp-close" flat dense no-caps :aria-label="common.close" @click="close">
                 <svg
                     width="14"
                     height="14"
@@ -16,7 +16,7 @@
                 >
                     <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
-            </button>
+            </q-btn>
         </div>
 
         <div class="bcp-body">
@@ -32,10 +32,11 @@
                 <div class="bcp-grid">
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">{{ msg.fields.label }}</span>
-                        <input
+                        <q-input
                             ref="labelInput"
                             v-model="form.label"
-                            class="bcp-input"
+                            outlined
+                            dense
                             :placeholder="msg.create.labelPlaceholder"
                         />
                     </label>
@@ -44,11 +45,13 @@
                             {{ msg.create.bundleKey }}
                             <span class="bcp-field-hint">{{ msg.create.bundleKeyHint }}</span>
                         </span>
-                        <input
-                            v-model="form.bundleKey"
-                            class="bcp-input bcp-input--mono"
+                        <q-input
+                            :model-value="form.bundleKey"
+                            outlined
+                            dense
+                            class="bcp-mono"
                             placeholder="COMMUNICATION_PRO"
-                            @input="onBundleKeyInput"
+                            @update:model-value="onBundleKeyInput"
                         />
                         <span v-if="bundleKeyError" class="bcp-error-inline">
                             {{ bundleKeyError }}
@@ -56,10 +59,12 @@
                     </label>
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">{{ common.description }}</span>
-                        <textarea
+                        <q-input
                             v-model="form.description"
-                            rows="2"
-                            class="bcp-input bcp-textarea"
+                            outlined
+                            dense
+                            type="textarea"
+                            :rows="2"
                             :placeholder="msg.create.descriptionPlaceholder"
                         />
                     </label>
@@ -79,8 +84,10 @@
                     <label class="bcp-field">
                         <span class="bcp-field-label">{{ msg.fields.monthlyPrice }}</span>
                         <div class="bcp-input-grp">
-                            <input
+                            <q-input
                                 v-model="form.monthlyNet"
+                                outlined
+                                dense
                                 type="text"
                                 inputmode="decimal"
                                 class="bcp-input"
@@ -92,8 +99,10 @@
                     <label class="bcp-field">
                         <span class="bcp-field-label">{{ msg.fields.yearlyPrice }}</span>
                         <div class="bcp-input-grp">
-                            <input
+                            <q-input
                                 v-model="form.yearlyNet"
+                                outlined
+                                dense
                                 type="text"
                                 inputmode="decimal"
                                 class="bcp-input"
@@ -104,7 +113,7 @@
                     </label>
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">{{ msg.fields.validFrom }}</span>
-                        <input v-model="form.validFrom" type="date" class="bcp-input" />
+                        <q-input v-model="form.validFrom" outlined dense type="date" />
                         <span class="bcp-field-hint">{{ validFromHint }}</span>
                     </label>
                 </div>
@@ -212,15 +221,15 @@
                     </template>
                 </span>
             </span>
-            <button class="bcp-btn" type="button" @click="close">{{ common.cancel }}</button>
-            <button
-                class="bcp-btn bcp-btn--primary"
-                type="button"
-                :disabled="!canSubmit || submitting"
+            <q-btn flat dense no-caps :label="common.cancel" @click="close" />
+            <q-btn
+                unelevated
+                no-caps
+                color="primary"
+                :label="submitting ? msg.create.submitting : msg.create.submit"
+                :disable="!canSubmit || submitting"
                 @click="submit"
-            >
-                {{ submitting ? msg.create.submitting : msg.create.submit }}
-            </button>
+            />
         </div>
     </section>
 </template>
@@ -350,9 +359,9 @@ function bundleKeyify(s: string): string {
     return trimChar(collapsed, '_').slice(0, 32);
 }
 
-function onBundleKeyInput(event: Event): void {
+function onBundleKeyInput(value: string | number | null): void {
     keyTouched.value = true;
-    form.bundleKey = bundleKeyify((event.target as HTMLInputElement).value);
+    form.bundleKey = bundleKeyify(String(value ?? ''));
 }
 
 // ── Validation ────────────────────────────────────────────
@@ -489,10 +498,15 @@ async function submit(): Promise<void> {
 </script>
 
 <style scoped>
+/* The key is an identifier; a proportional face hides a transposed character. */
+.bcp-mono :deep(input) {
+    font-family: var(--sa-font-mono);
+}
+
 .bcp {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 12px;
+    border-radius: var(--sa-radius-card);
     display: flex;
     flex-direction: column;
     box-shadow: 0 8px 24px var(--sa-shadow-tint-2);
@@ -501,18 +515,18 @@ async function submit(): Promise<void> {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
-    padding: 18px 22px 12px;
+    gap: var(--sa-space-5);
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border);
 }
 .bcp-title {
     font-size: var(--sa-text-xl);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
 }
 .bcp-sub {
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
     max-width: 580px;
@@ -523,35 +537,35 @@ async function submit(): Promise<void> {
     border: 0;
     cursor: pointer;
     color: var(--sa-color-fg-muted);
-    padding: 4px;
-    border-radius: 4px;
+    padding: var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .bcp-close:hover {
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-heading);
 }
 .bcp-body {
-    padding: 16px 22px;
+    padding: var(--sa-space-5) var(--sa-space-6);
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: var(--sa-space-5);
 }
 .bcp-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bcp-section-head {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .bcp-section-num {
     display: inline-grid;
     place-items: center;
     width: 24px;
     height: 24px;
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     font:
@@ -568,13 +582,13 @@ async function submit(): Promise<void> {
 .bcp-section-sub {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     line-height: 1.4;
 }
 .bcp-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .bcp-col-2 {
     grid-column: span 2;
@@ -582,7 +596,7 @@ async function submit(): Promise<void> {
 .bcp-field {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .bcp-field-label {
     font-size: var(--sa-text-sm);
@@ -594,101 +608,53 @@ async function submit(): Promise<void> {
     color: var(--sa-color-fg-subtle);
     font-weight: 500;
 }
-.bcp-input {
-    padding: 7px 10px;
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-heading);
-    background: var(--sa-color-bg-surface);
-}
-.bcp-input--mono {
-    font:
-        600 var(--sa-text-md) 'JetBrains Mono',
-        ui-monospace,
-        monospace;
-    letter-spacing: 0.02em;
-}
-.bcp-textarea {
-    resize: vertical;
-}
 .bcp-input-grp {
     display: inline-flex;
     align-items: stretch;
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
 }
-.bcp-input-grp .bcp-input {
-    border: 0;
-    border-radius: 6px 0 0 6px;
-}
-.bcp-input-unit {
+.bcp-input-grp .bcp-input-unit {
     display: inline-flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 var(--sa-space-3);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-bg-sunken);
     border-left: 1px solid var(--sa-color-border);
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 var(--sa-radius-badge) var(--sa-radius-badge) 0;
 }
 .bcp-error-inline {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-negative-fg);
 }
 .bcp-error {
-    padding: 10px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     color: var(--sa-color-negative-fg);
     font-size: var(--sa-text-md);
 }
 .bcp-foot {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 22px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-4) var(--sa-space-6);
     border-top: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-sunken);
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 var(--sa-radius-card) var(--sa-radius-card);
 }
 .bcp-foot-hint {
     flex: 1;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
 }
 .bcp-foot-hint--warn {
     color: var(--sa-color-negative-fg);
     font-weight: 600;
-}
-.bcp-btn {
-    padding: 7px 14px;
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: var(--sa-text-md);
-    font-family: inherit;
-    color: var(--sa-color-fg-heading);
-}
-.bcp-btn:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-}
-.bcp-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.bcp-btn--primary {
-    background: var(--sa-color-accent);
-    border-color: var(--sa-color-accent);
-    color: var(--sa-color-fg-on-accent);
-}
-.bcp-btn--primary:hover:not(:disabled) {
-    background: var(--sa-color-accent-strong);
 }
 </style>

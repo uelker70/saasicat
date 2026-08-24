@@ -66,12 +66,12 @@ const labels = computed(() => ({
     --sp-cycle-btn-active-bg: var(--sa-color-bg-surface);
     --sp-cycle-btn-active-fg: var(--sa-color-accent);
     background: var(--sp-cycle-bg);
-    border-radius: 12px;
-    padding: 3px;
-    gap: 2px;
+    border-radius: var(--sa-radius-card);
+    padding: var(--sa-space-1);
+    gap: var(--sa-space-1);
 }
 .sp-cycle__btn {
-    padding: 8px 14px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     border: none;
     background: none;
     font-family: inherit;
@@ -79,11 +79,11 @@ const labels = computed(() => ({
     font-weight: 700;
     color: var(--sp-cycle-btn-fg);
     cursor: pointer;
-    border-radius: 9px;
+    border-radius: var(--sa-radius-field);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    letter-spacing: 0.02em;
+    gap: var(--sa-space-2);
+    letter-spacing: var(--sa-tracking-wide);
     transition: all 180ms;
 }
 .sp-cycle__btn--active {
@@ -95,9 +95,9 @@ const labels = computed(() => ({
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
     font-size: var(--sa-text-2xs);
-    padding: 2px 7px;
-    border-radius: 999px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-family: 'SF Mono', Consolas, monospace;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 </style>

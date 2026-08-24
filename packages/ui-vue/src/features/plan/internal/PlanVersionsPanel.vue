@@ -6,24 +6,15 @@
         </template>
         <template #actions>
             <div class="pd-panel-head-right">
-                <button
+                <q-btn
                     v-if="!draftVersion"
                     class="btn btn--sm primary"
-                    type="button"
+                    flat
+                    dense
+                    no-caps
+                    :label="newDraftButtonLabel"
                     @click="$emit('createDraft')"
-                >
-                    <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                    >
-                        <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span>{{ newDraftButtonLabel }}</span>
-                </button>
+                />
             </div>
         </template>
 
@@ -143,9 +134,11 @@
                         {{ msg.versions.preActiveChip }}
                     </span>
                     <template v-if="statusOf(v) === 'draft'">
-                        <button
+                        <q-btn
                             class="btn btn--sm primary"
-                            type="button"
+                            flat
+                            dense
+                            no-caps
                             :title="msg.versions.publishDraftTitle"
                             @click="$emit('publish', v)"
                         >
@@ -159,12 +152,14 @@
                             >
                                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                             </svg>
-                        </button>
+                        </q-btn>
                     </template>
                     <template v-if="editabilityOf(v).editable">
-                        <button
+                        <q-btn
                             class="btn btn--sm"
-                            type="button"
+                            flat
+                            dense
+                            no-caps
                             :title="
                                 editabilityOf(v).reason === 'pre-active'
                                     ? msg.versions.editFutureVersionTitle
@@ -184,7 +179,7 @@
                                     d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
                                 />
                             </svg>
-                        </button>
+                        </q-btn>
                     </template>
                     <template v-if="statusOf(v) === 'live'">
                         <span
@@ -194,35 +189,23 @@
                         >
                             {{ endsAtBadge(v.endsAt) }}
                         </span>
-                        <button
+                        <q-btn
                             class="btn btn--sm"
-                            type="button"
+                            flat
+                            dense
+                            no-caps
+                            :label="
+                                v.endsAt
+                                    ? msg.versions.changeEndDateAction
+                                    : msg.versions.terminateAction
+                            "
                             :title="
                                 v.endsAt
                                     ? msg.terminateDialog.titleChangeEndDate
                                     : msg.terminateDialog.titleTerminate
                             "
                             @click="$emit('openTerminate', v)"
-                        >
-                            <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                                <line x1="16" y1="2" x2="16" y2="6" />
-                                <line x1="8" y1="2" x2="8" y2="6" />
-                                <line x1="3" y1="10" x2="21" y2="10" />
-                            </svg>
-                            <span>{{
-                                v.endsAt
-                                    ? msg.versions.changeEndDateAction
-                                    : msg.versions.terminateAction
-                            }}</span>
-                        </button>
+                        />
                     </template>
                 </div>
             </div>

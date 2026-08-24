@@ -295,7 +295,7 @@ function coverage(locale: string): number {
 .sa-fc__titlerow {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 .sa-fc__key {
@@ -303,8 +303,8 @@ function coverage(locale: string): number {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
-    padding: 2px 6px;
-    border-radius: 5px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     white-space: nowrap;
 }
 .sa-fc__label {
@@ -315,8 +315,8 @@ function coverage(locale: string): number {
 .sa-fc__flag {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 5px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-fc__flag--new {
     background: var(--sa-color-warning-surface-strong);
@@ -337,35 +337,35 @@ function coverage(locale: string): number {
 .sa-fc__sub {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
-    margin-top: 1px;
+    margin-top: var(--sa-space-0);
 }
 /* `-subtle`, not `-disabled`. Nothing here is disabled: this is the quietest
  * rung of readable text, and the disabled rung is not on that ladder — it read
  * 1.48:1 on the card's own surface, which the contrast check only saw once a
  * fixture rendered a feature row for the first time. */
 .sa-fc__dot {
-    margin: 0 4px;
+    margin: 0 var(--sa-space-2);
     color: var(--sa-color-fg-subtle);
 }
 .sa-fc__tier {
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-scheduled);
 }
 .sa-fc__coverage {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
     flex-shrink: 0;
 }
 .sa-fc__banner {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     font-size: var(--sa-text-sm);
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 10px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    margin-bottom: var(--sa-space-3);
 }
 .sa-fc__banner.warn {
     background: var(--sa-color-warning-surface);
@@ -378,21 +378,21 @@ function coverage(locale: string): number {
     color: var(--sa-color-fg-secondary);
 }
 .sa-fc__subtabs {
-    margin-bottom: 12px;
+    margin-bottom: var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-fc__split {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .sa-fc__split-head {
     font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-subtle);
-    margin-bottom: 8px;
+    margin-bottom: var(--sa-space-3);
 }
 /* Same swap, same reason: "2 · read-only" sat at 1.42:1 on the sunken column. */
 .sa-fc__split-count {
@@ -400,17 +400,17 @@ function coverage(locale: string): number {
     text-transform: none;
     letter-spacing: 0;
     color: var(--sa-color-fg-subtle);
-    margin-left: 6px;
+    margin-left: var(--sa-space-2);
 }
 .sa-fc__fields {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sa-fc-field {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sa-space-1);
 }
 .sa-fc-field__cap {
     font-size: var(--sa-text-xs);

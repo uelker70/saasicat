@@ -43,9 +43,14 @@
                     role="alert"
                 >
                     <strong>{{ common.error }}:</strong> {{ pageError }}
-                    <button class="sa-marketing-banner-x" type="button" @click="pageError = null">
-                        ×
-                    </button>
+                    <q-btn
+                        class="sa-marketing-banner-x"
+                        flat
+                        dense
+                        size="sm"
+                        icon="close"
+                        @click="pageError = null"
+                    />
                 </div>
 
                 <MarketingCatalogToolbar
@@ -117,6 +122,7 @@
                     @update-feature-label="updateFeatureLabel"
                     @update-feature-strong="updateFeatureStrong"
                     @persist-features="persistFeatures"
+                    @reorder="reorderRows"
                     @move-feature="moveFeature"
                     @remove-feature="removeFeature"
                     @add-feature="addFeature"
@@ -152,6 +158,7 @@ import {
     type PromotionResult,
     type PromotionRow,
 } from '@saasicat/core';
+import { reorderedPriorities } from '../client/reorder-priorities.js';
 import { usePlans } from '../vue/use-plans.js';
 import { useMarketingProjections } from '../vue/use-marketing-projections.js';
 import { usePromotions } from '../vue/use-promotions.js';
@@ -162,16 +169,16 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import MarketingPromotionsTab from '../features/marketing/MarketingPromotionsTab.vue';
-import MarketingCatalogAdmin from '../internal/marketing-catalog/MarketingCatalogAdmin.vue';
-import MarketingCatalogHeader from '../internal/marketing-catalog/MarketingCatalogHeader.vue';
-import MarketingCatalogPreview from '../internal/marketing-catalog/MarketingCatalogPreview.vue';
-import MarketingCatalogToolbar from '../internal/marketing-catalog/MarketingCatalogToolbar.vue';
+import MarketingCatalogAdmin from '../internal/marketing-catalog-page/MarketingCatalogAdmin.vue';
+import MarketingCatalogHeader from '../internal/marketing-catalog-page/MarketingCatalogHeader.vue';
+import MarketingCatalogPreview from '../internal/marketing-catalog-page/MarketingCatalogPreview.vue';
+import MarketingCatalogToolbar from '../internal/marketing-catalog-page/MarketingCatalogToolbar.vue';
 import type {
     FeatureSuggestion,
     MarketingCatalogTab,
     MarketingRow,
     ResolvedMarketing,
-} from '../internal/marketing-catalog/types.js';
+} from '../internal/marketing-catalog-page/types.js';
 
 import { IDENTITY_NEUTRAL, identityAccentAt } from '../client/identity-accents.js';
 
@@ -824,6 +831,37 @@ async function removeFeature(row: MarketingRow, idx: number): Promise<void> {
     await persistFeatures(row);
 }
 
+/**
+ * Turns "this row belongs here" into the priorities that say so.
+ *
+ * The positions are indices into the DRAGGABLE rows — those with a live
+ * version — and not into `adminRows`, because a plan without one cannot hold a
+ * marketing projection and `patch` returns early for it. The arithmetic assigns
+ * a value to every position it is given, so a row nobody can write would take
+ * one of those values with it and the stored order would not be the dragged
+ * one. `MarketingCatalogAdmin` builds the same subset for the handles.
+ *
+ * Only the rows whose value actually changes are written, and they are written
+ * one at a time because that is the shape of the endpoint: there is no bulk
+ * reorder, and inventing one client-side would only hide that a failure in the
+ * middle leaves the order half-applied. It does not, visibly — the list is
+ * re-read from the projections either way, so what the operator sees after an
+ * error is what was actually stored.
+ */
+async function reorderRows(from: number, to: number): Promise<void> {
+    const rows = adminRows.value.filter((row) => row.liveVersion);
+    const updates = reorderedPriorities(
+        rows.map((row) => row.m.priority),
+        from,
+        to,
+    );
+    for (const [index, priority] of updates.entries()) {
+        if (priority === null) continue;
+        await patch(rows[index]!, { priority });
+        if (pageError.value) return;
+    }
+}
+
 async function moveFeature(row: MarketingRow, idx: number, dir: -1 | 1): Promise<void> {
     const j = idx + dir;
     if (j < 0 || j >= editFeatures.value.length) return;
@@ -853,47 +891,16 @@ async function onLocaleChange(loc: string): Promise<void> {
 </script>
 
 <style>
-.sa-marketing {
-    padding: 22px 26px;
-    background: var(--sa-color-bg-app);
-    color: var(--sa-color-fg-heading);
-    font-family: var(--sa-font-body);
-    min-height: 100%;
-    box-sizing: border-box;
-}
-
 .sa-marketing-head-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 
-.sa-marketing-locale-switch {
-    display: inline-flex;
-    gap: 2px;
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 3px;
-}
-.sa-marketing-locale-btn {
-    padding: 5px 10px;
-    border: 0;
-    background: transparent;
-    border-radius: 6px;
-    font: 500 var(--sa-text-sm) var(--sa-font-mono);
-    color: var(--sa-color-fg-secondary);
-    cursor: pointer;
-}
-.sa-marketing-locale-btn.active {
-    background: var(--sa-color-accent-surface-strong);
-    color: var(--sa-color-accent-strong);
-    font-weight: 600;
-}
 .sa-marketing-locale-mgr {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
     flex-wrap: wrap;
 }
 .sa-marketing-locale-mgr-label {
@@ -904,7 +911,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     display: inline-flex;
     align-items: center;
     border: 1px solid var(--sa-color-border);
-    border-radius: 7px;
+    border-radius: var(--sa-radius-control);
     overflow: hidden;
 }
 .sa-marketing-locale-pill.active {
@@ -914,7 +921,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-locale-pill-btn {
     border: 0;
     background: transparent;
-    padding: 4px 8px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     font: 600 var(--sa-text-xs) var(--sa-font-mono);
     color: var(--sa-color-fg-secondary);
     cursor: pointer;
@@ -925,7 +932,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-locale-x {
     border: 0;
     background: transparent;
-    padding: 4px 7px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     color: var(--sa-color-fg-subtle);
     cursor: pointer;
     font-size: var(--sa-text-md);
@@ -939,8 +946,8 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-locale-add {
     border: 1px dashed var(--sa-color-border);
     background: transparent;
-    border-radius: 7px;
-    padding: 4px 9px;
+    border-radius: var(--sa-radius-control);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-secondary);
     cursor: pointer;
@@ -953,24 +960,24 @@ async function onLocaleChange(loc: string): Promise<void> {
     position: absolute;
     top: 100%;
     right: 0;
-    margin-top: 4px;
+    margin-top: var(--sa-space-2);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     box-shadow: 0 8px 24px var(--sa-shadow-tint-3);
-    padding: 4px;
+    padding: var(--sa-space-2);
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--sa-space-1);
     z-index: 20;
     min-width: 80px;
 }
 .sa-marketing-locale-picker-row {
     border: 0;
     background: transparent;
-    padding: 6px 10px;
+    padding: var(--sa-space-2) var(--sa-space-3);
     text-align: left;
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font: 600 var(--sa-text-xs) var(--sa-font-mono);
     cursor: pointer;
 }
@@ -979,13 +986,13 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 
 .sa-marketing-banner {
-    border-radius: 8px;
-    padding: 10px 14px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-4);
     font-size: var(--sa-text-md);
-    margin-bottom: 14px;
+    margin-bottom: var(--sa-space-4);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-marketing-banner--error {
     background: var(--sa-color-negative-surface);
@@ -1007,7 +1014,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     color: inherit;
 }
 .sa-marketing-loading {
-    padding: 40px;
+    padding: var(--sa-space-9);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-size: var(--sa-text-md);
@@ -1020,9 +1027,9 @@ async function onLocaleChange(loc: string): Promise<void> {
      * viewport narrower than that, not just the smallest. Nothing measured it
      * until the overflow guard started asking at each breakpoint band. */
     flex-wrap: wrap;
-    gap: 12px;
+    gap: var(--sa-space-4);
     align-items: center;
-    margin: 0px;
+    margin: var(--sa-space-0);
 }
 .sa-marketing-tabbar {
     display: inline-flex;
@@ -1031,15 +1038,15 @@ async function onLocaleChange(loc: string): Promise<void> {
      * tabs need 389px. */
     overflow-x: auto;
     max-width: 100%;
-    gap: 2px;
+    gap: var(--sa-space-1);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 3px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-1);
 }
 .sa-marketing-tab {
-    padding: 6px 14px;
-    border-radius: 6px;
+    padding: var(--sa-space-2) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
     font: 500 var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-secondary);
     background: transparent;
@@ -1059,13 +1066,13 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-tab-count {
     display: inline-block;
-    margin-left: 5px;
+    margin-left: var(--sa-space-2);
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 999px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-pill);
 }
 .sa-marketing-meta {
     margin-left: auto;
@@ -1077,21 +1084,21 @@ async function onLocaleChange(loc: string): Promise<void> {
     color: var(--sa-color-fg-secondary);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-marketing-meta code {
     font: 500 var(--sa-text-xs) var(--sa-font-mono);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
-    padding: 2px 7px;
-    border-radius: 4px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
 }
 
 /* ── Public catalog preview ── */
 .sa-marketing-window {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 12px;
+    border-radius: var(--sa-radius-card);
     overflow: hidden;
 }
 .sa-marketing-chrome {
@@ -1100,8 +1107,8 @@ async function onLocaleChange(loc: string): Promise<void> {
     border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: center;
-    padding: 0 14px;
-    gap: 6px;
+    padding: 0 var(--sa-space-4);
+    gap: var(--sa-space-2);
 }
 .sa-marketing-chrome-dot {
     width: 10px;
@@ -1109,12 +1116,12 @@ async function onLocaleChange(loc: string): Promise<void> {
     border-radius: 50%;
 }
 .sa-marketing-chrome-url {
-    margin-left: 18px;
+    margin-left: var(--sa-space-5);
     flex: 1;
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
-    padding: 4px 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font: 500 var(--sa-text-sm) var(--sa-font-mono);
     color: var(--sa-color-fg-secondary);
     max-width: 380px;
@@ -1125,11 +1132,11 @@ async function onLocaleChange(loc: string): Promise<void> {
         var(--sa-color-bg-surface-raised) 0%,
         var(--sa-color-bg-surface) 100%
     );
-    padding: 36px 32px 28px;
+    padding: var(--sa-space-8) var(--sa-space-8) var(--sa-space-7);
 }
 .sa-marketing-eyebrow {
     font: 700 var(--sa-text-xs) var(--sa-font-body);
-    letter-spacing: 0.14em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
     color: var(--sa-color-accent);
     text-align: center;
@@ -1137,28 +1144,28 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-hero {
     font-size: var(--sa-text-4xl);
     font-weight: 700;
-    letter-spacing: -0.025em;
+    letter-spacing: var(--sa-tracking-tight);
     color: var(--sa-color-fg-heading);
     text-align: center;
-    margin: 10px 0 6px;
+    margin: var(--sa-space-3) 0 var(--sa-space-2);
 }
 .sa-marketing-sub {
     font-size: var(--sa-text-lg);
     color: var(--sa-color-fg-secondary);
     text-align: center;
     max-width: 540px;
-    margin: 0 auto 26px;
+    margin: 0 auto var(--sa-space-7);
 }
 .sa-marketing-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 16px;
+    gap: var(--sa-space-5);
 }
 .sa-marketing-card {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 12px;
-    padding: 22px 20px 20px;
+    border-radius: var(--sa-radius-card);
+    padding: var(--sa-space-6) var(--sa-space-6) var(--sa-space-6);
     display: flex;
     flex-direction: column;
     position: relative;
@@ -1177,30 +1184,30 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-card-badge {
     position: absolute;
-    top: -10px;
+    top: calc(-1 * var(--sa-space-3));
     left: 50%;
     transform: translateX(-50%);
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     font: 700 var(--sa-text-xs) var(--sa-font-body);
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
-    padding: 4px 12px;
-    border-radius: 999px;
+    padding: var(--sa-space-2) var(--sa-space-4);
+    border-radius: var(--sa-radius-pill);
     white-space: nowrap;
 }
 .sa-marketing-card-key {
     font: 700 var(--sa-text-xs) var(--sa-font-mono);
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-subtle);
     text-transform: uppercase;
 }
 .sa-marketing-card-name {
     font-size: var(--sa-text-2xl);
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: var(--sa-tracking-tight);
     color: var(--sa-color-fg-heading);
-    margin: 2px 0 4px;
+    margin: var(--sa-space-1) 0 var(--sa-space-2);
 }
 .sa-marketing-card-desc {
     font-size: var(--sa-text-md);
@@ -1209,15 +1216,15 @@ async function onLocaleChange(loc: string): Promise<void> {
     min-height: 36px;
 }
 .sa-marketing-card-price {
-    margin: 18px 0 4px;
+    margin: var(--sa-space-5) 0 var(--sa-space-2);
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-marketing-card-price-big {
     font-size: var(--sa-text-4xl);
     font-weight: 700;
-    letter-spacing: -0.03em;
+    letter-spacing: var(--sa-tracking-tight);
     color: var(--sa-color-fg-heading);
 }
 .sa-marketing-card-price-unit {
@@ -1227,13 +1234,13 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-card-price-y {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
-    margin-bottom: 12px;
+    margin-bottom: var(--sa-space-4);
 }
 .sa-marketing-card-cta {
     width: 100%;
-    margin-top: 14px;
-    padding: 9px 12px;
-    border-radius: 8px;
+    margin-top: var(--sa-space-4);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    border-radius: var(--sa-radius-field);
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
     color: var(--sa-color-fg-heading);
@@ -1258,26 +1265,26 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     text-align: center;
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
 }
 .sa-marketing-card.has-promo {
     border-color: var(--sa-color-positive-strong);
 }
 .sa-marketing-promo-ribbon {
     position: absolute;
-    top: 12px;
-    right: -2px;
+    top: var(--sa-space-4);
+    right: calc(-1 * var(--sa-space-1));
     color: var(--sa-color-fg-on-accent);
     font-size: var(--sa-text-xs);
     font-weight: 700;
-    padding: 3px 12px 3px 10px;
-    border-radius: 4px 0 0 4px;
+    padding: var(--sa-space-1) var(--sa-space-4) var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge) 0 0 var(--sa-radius-badge);
 }
 .sa-marketing-card-price-strike {
     display: flex;
-    gap: 8px;
+    gap: var(--sa-space-3);
     align-items: baseline;
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .sa-marketing-card-price-strike s {
     color: var(--sa-color-fg-subtle);
@@ -1286,50 +1293,50 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-price-regular {
     font-size: var(--sa-text-2xs);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-subtle);
 }
 .sa-marketing-card-fineprint {
     font-size: var(--sa-text-2xs);
     color: var(--sa-color-positive);
     text-align: center;
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
 }
 .sa-marketing-card-includes {
-    margin-top: 18px;
+    margin-top: var(--sa-space-5);
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 .sa-marketing-card-features {
     list-style: none;
     padding: 0;
-    margin: 8px 0 0;
+    margin: var(--sa-space-3) 0 0;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: var(--sa-space-3);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-body);
 }
 .sa-marketing-card-features li {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--sa-space-3);
     line-height: 1.35;
 }
 .sa-marketing-card-features .sa-marketing-tick {
     color: var(--sa-color-positive-strong);
     flex: 0 0 14px;
-    margin-top: 1px;
+    margin-top: var(--sa-space-0);
 }
 .sa-marketing-card-features b {
     color: var(--sa-color-fg-heading);
     font-weight: 700;
 }
 .sa-marketing-card-features-empty {
-    margin-top: 8px;
+    margin-top: var(--sa-space-3);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
 }
@@ -1338,19 +1345,19 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-admin {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
 }
 .sa-marketing-admin-head {
-    padding: 14px 16px;
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-border-soft);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-marketing-admin-title {
     font-size: var(--sa-text-lg);
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
     color: var(--sa-color-fg-heading);
 }
 .sa-marketing-admin-sub {
@@ -1359,7 +1366,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-admin-grid {
     display: grid;
-    grid-template-columns: 1.6fr 1fr 1.4fr 1fr 1fr 150px;
+    grid-template-columns: 40px 1.6fr 1fr 1.4fr 1fr;
     align-items: stretch;
 }
 .sa-marketing-admin-thead {
@@ -1367,10 +1374,10 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-admin-thead > div {
     background: var(--sa-color-bg-surface-raised);
-    padding: 10px 14px;
+    padding: var(--sa-space-3) var(--sa-space-4);
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-secondary);
     font-weight: 700;
     border-bottom: 1px solid var(--sa-color-border);
@@ -1378,8 +1385,64 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-admin-row {
     display: contents;
 }
+/* The row opens the editor, so it feeds back like something that does — but it
+ * is `display: contents` and has no box to paint, so the feedback goes on its
+ * cells. `:hover` still matches here: the element stays in the tree for hit
+ * testing even without a box of its own. */
+.sa-marketing-admin-row:not(.sa-marketing-admin-row--disabled) > div {
+    cursor: pointer;
+}
+.sa-marketing-admin-row:not(.sa-marketing-admin-row--disabled):hover > div,
+.sa-marketing-admin-row--open > div {
+    background: var(--sa-color-bg-sunken);
+}
+
+/* The drag: the row being moved recedes, and the line marks where releasing
+ * would put it. Both are drawn on the cells for the same reason the hover is —
+ * a `display: contents` row has no box to draw on. `box-shadow` rather than a
+ * border, so the line does not add a pixel to the row's height and shift the
+ * rest of the list under the pointer. */
+.sa-marketing-admin-row--dragging > div {
+    opacity: 0.5;
+}
+.sa-marketing-admin-row--drop-above > div {
+    box-shadow: inset 0 2px 0 0 var(--sa-color-accent);
+}
+.sa-marketing-admin-row--drop-below > div {
+    box-shadow: inset 0 -2px 0 0 var(--sa-color-accent);
+}
+
+.sa-marketing-grip-cell {
+    padding-right: 0 !important;
+    justify-content: center;
+}
+.sa-marketing-grip {
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: none;
+    padding: var(--sa-space-1);
+    border-radius: var(--sa-radius-field);
+    color: var(--sa-color-fg-subtle);
+    cursor: grab;
+    /* Without this the browser scrolls the page instead of letting the handle
+     * have the gesture — on a touch device the drag would never start. */
+    touch-action: none;
+}
+.sa-marketing-grip:hover:not(:disabled) {
+    color: var(--sa-color-fg-body);
+    background: var(--sa-color-border-soft);
+}
+.sa-marketing-grip:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+.sa-marketing-grip--dragging {
+    cursor: grabbing;
+    color: var(--sa-color-accent);
+}
 .sa-marketing-admin-row > div {
-    padding: 12px 14px;
+    padding: var(--sa-space-4) var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border-soft);
     display: flex;
     align-items: center;
@@ -1389,23 +1452,48 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-admin-row--disabled > div {
     background: var(--sa-color-bg-surface-raised);
 }
-.sa-marketing-admin-row-end {
-    justify-content: flex-end;
-    gap: 8px;
-}
+/* The identity block is the row's keyboard path into the editor. It is a
+ * `<button>`, and it must not look like one: the row already reports that it is
+ * clickable, and a framed control in the first cell would read as an action
+ * rather than as the row's name. What it keeps is the focus ring — the one
+ * piece of button chrome a keyboard user cannot do without. */
 .sa-marketing-plan-cell {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: var(--sa-space-2);
+    margin: calc(-1 * var(--sa-space-2));
+    border-radius: var(--sa-radius-field);
 }
+
+.sa-marketing-plan-cell--static {
+    cursor: default;
+}
+
 .sa-marketing-plan-mark {
     width: 32px;
     height: 32px;
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     display: grid;
     place-items: center;
     font: 700 var(--sa-text-2xs) var(--sa-font-mono);
     border: 1px solid;
+}
+/* Key, name and status on one line, as in the bundle list: the status belongs
+ * to the plan, and a column of its own put it five cells away from the name it
+ * describes. */
+.sa-marketing-plan-titlerow {
+    display: flex;
+    align-items: center;
+    gap: var(--sa-space-3);
+    flex-wrap: wrap;
 }
 .sa-marketing-plan-label {
     font-size: var(--sa-text-md);
@@ -1417,77 +1505,12 @@ async function onLocaleChange(loc: string): Promise<void> {
     color: var(--sa-color-fg-subtle);
 }
 
-.sa-marketing-field {
-    width: 100%;
-    padding: 5px 8px;
-    font: 400 var(--sa-text-sm) var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-}
-.sa-marketing-field:focus {
-    outline: none;
-    border-color: var(--sa-color-accent);
-    box-shadow: 0 0 0 3px var(--sa-color-accent-surface-strong);
-}
-.sa-marketing-field:disabled {
-    background: var(--sa-color-border-soft);
-    color: var(--sa-color-fg-subtle);
-    cursor: not-allowed;
-}
-.sa-marketing-field--area {
-    resize: vertical;
-    font-size: var(--sa-text-md);
-    line-height: 1.4;
-}
-
-.sa-marketing-toggle {
-    position: relative;
-    display: inline-block;
-    width: 36px;
-    height: 20px;
-}
-.sa-marketing-toggle input {
-    display: none;
-}
-.sa-marketing-toggle span {
-    position: absolute;
-    inset: 0;
-    background: var(--sa-color-border-strong);
-    border-radius: 999px;
-    transition: background 0.15s;
-    cursor: pointer;
-}
-.sa-marketing-toggle span::before {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background: var(--sa-color-bg-surface);
-    border-radius: 50%;
-    left: 2px;
-    top: 2px;
-    transition: transform 0.15s;
-    box-shadow: 0 1px 2px var(--sa-shadow-tint-4);
-}
-.sa-marketing-toggle input:checked + span {
-    background: var(--sa-color-accent);
-}
-.sa-marketing-toggle input:checked + span::before {
-    transform: translateX(16px);
-}
-.sa-marketing-toggle.disabled span {
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
 .sa-marketing-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 999px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-size: var(--sa-text-xs);
     font-weight: 600;
     border: 1px solid;
@@ -1515,34 +1538,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     background: currentColor;
 }
 
-.sa-marketing-expand-btn {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--sa-color-fg-subtle);
-    transition:
-        background 0.12s,
-        color 0.12s,
-        border-color 0.12s;
-}
-.sa-marketing-expand-btn:hover {
-    background: var(--sa-color-border-soft);
-    color: var(--sa-color-accent);
-    border-color: var(--sa-color-border);
-}
-.sa-marketing-chev {
-    display: inline-flex;
-    transition: transform 0.15s;
-}
-.sa-marketing-chev.open {
-    transform: rotate(90deg);
-}
-
 /* The open editor is a WELL under its row, not another row.
  *
  * It used to end on a gradient whose last stop was `--sa-color-bg-surface` —
@@ -1559,27 +1554,27 @@ async function onLocaleChange(loc: string): Promise<void> {
     background: var(--sa-color-bg-sunken);
     border-left: 2px solid var(--sa-color-accent);
     border-bottom: 2px solid var(--sa-color-border-strong);
-    padding: 18px 20px 22px;
+    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-6);
 }
 .sa-marketing-expand-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-    gap: 24px;
+    gap: var(--sa-space-7);
 }
 .sa-marketing-expand-col {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .sa-marketing-expand-sec {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-marketing-expand-label {
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-secondary);
     font-weight: 700;
 }
@@ -1587,10 +1582,20 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
+/* Widths, not looks: the look is the theme's `field.css`. */
+.sa-marketing-field--badge {
+    max-width: 120px;
+}
+
+/* The trial-days field: a number that is two digits wide, in a row of prose. */
+.sa-marketing-field--number {
+    max-width: 96px;
+}
+
 .sa-marketing-field-head {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 .sa-marketing-source-hint {
@@ -1604,11 +1609,11 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-locked-value {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-3) var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
 }
@@ -1617,18 +1622,18 @@ async function onLocaleChange(loc: string): Promise<void> {
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);
     background: var(--sa-color-bg-sunken);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     margin-left: auto;
 }
 .sa-marketing-trial-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-4);
 }
 .sa-marketing-trial-label {
     font-size: var(--sa-text-md);
@@ -1638,7 +1643,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-marketing-trial-unit {
     font-size: var(--sa-text-sm);
@@ -1652,12 +1657,12 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-tf-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .sa-marketing-tf-row {
     display: grid;
     grid-template-columns: 22px minmax(0, 1.4fr) minmax(0, 1fr) auto;
-    gap: 8px;
+    gap: var(--sa-space-3);
     align-items: center;
 }
 .sa-marketing-tf-num {
@@ -1667,7 +1672,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-tf-actions {
     display: flex;
-    gap: 2px;
+    gap: var(--sa-space-1);
 }
 .sa-marketing-iconbtn {
     width: 24px;
@@ -1676,7 +1681,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     place-items: center;
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 5px;
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
     font: 600 var(--sa-text-2xs) var(--sa-font-body);
     color: var(--sa-color-fg-secondary);
@@ -1693,40 +1698,33 @@ async function onLocaleChange(loc: string): Promise<void> {
     opacity: 0.35;
     cursor: not-allowed;
 }
-.sa-marketing-iconbtn--danger {
-    color: var(--sa-color-negative-fg);
-}
-.sa-marketing-iconbtn--danger:hover:not(:disabled) {
-    background: var(--sa-color-negative-surface);
-    border-color: var(--sa-color-negative-border);
-}
 .sa-marketing-tf-empty {
-    padding: 14px;
+    padding: var(--sa-space-4);
     text-align: center;
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
 }
 .sa-marketing-tf-add {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: 4px;
+    gap: var(--sa-space-3);
+    margin-top: var(--sa-space-2);
 }
 .sa-marketing-tf-suggestions {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--sa-space-2);
     align-items: center;
 }
 .sa-marketing-tf-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 9px;
-    border-radius: 999px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
     font-size: var(--sa-text-sm);
@@ -1770,18 +1768,18 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-version-tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
+    gap: var(--sa-space-2);
+    margin-top: var(--sa-space-2);
 }
 .sa-marketing-version-tab {
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
-    border-radius: 6px;
-    padding: 2px 8px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-1) var(--sa-space-3);
     font: 600 var(--sa-text-xs) var(--sa-font-mono, ui-monospace, monospace);
     color: var(--sa-color-fg-muted);
     cursor: pointer;
-    letter-spacing: 0.02em;
+    letter-spacing: var(--sa-tracking-wide);
     transition:
         border-color 0.1s,
         background 0.1s,

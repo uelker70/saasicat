@@ -13,7 +13,7 @@ import AdminStatusPill from '../../src/ui/data/AdminStatusPill.vue';
 import AdminRowActions from '../../src/ui/data/AdminRowActions.vue';
 import { flushPromises } from '@vue/test-utils';
 
-import { mountWithQuasar } from './support/mount-with-quasar';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 // Dialogs teleport into `document.body` and stay there until unmounted. Without
 // this, the second test in a block queries the FIRST test's buttons — which is

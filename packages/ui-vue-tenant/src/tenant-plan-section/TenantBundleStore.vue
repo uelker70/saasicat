@@ -250,15 +250,15 @@ const availableRows = computed<AvailableRow[]>(() =>
     font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sp-text-strong, var(--sa-color-fg-body));
-    margin: 4px 0 8px;
+    margin: var(--sa-space-2) 0 var(--sa-space-3);
 }
 .sp-bundle-store__available {
-    margin-top: 16px;
+    margin-top: var(--sa-space-5);
 }
 .sp-bundle-store__booked-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sp-bundle-store__empty {
     color: var(--sp-text-muted, var(--sa-color-fg-muted));
@@ -267,13 +267,13 @@ const availableRows = computed<AvailableRow[]>(() =>
 .sp-bundle-store__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
+    gap: var(--sa-space-5);
 }
 .sp-bundle-store__card {
-    padding: 14px;
+    padding: var(--sa-space-4);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sp-bundle-store__card--disabled {
     opacity: 0.6;
@@ -285,7 +285,7 @@ const availableRows = computed<AvailableRow[]>(() =>
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sp-bundle-store__card-name {
     font-weight: 600;
@@ -310,11 +310,11 @@ const availableRows = computed<AvailableRow[]>(() =>
 }
 .sp-bundle-store__card-feats-label {
     font-weight: 500;
-    margin-bottom: 2px;
+    margin-bottom: var(--sa-space-1);
 }
 .sp-bundle-store__card-feats ul {
     list-style: disc;
-    padding-left: 18px;
+    padding-left: var(--sa-space-5);
     margin: 0;
 }
 .sp-bundle-store__card-action {

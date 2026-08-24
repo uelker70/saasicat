@@ -21,7 +21,7 @@ import PlanReviewPage from '../../src/pages/PlanReviewPage.vue';
 import PlanVersionEditorPage from '../../src/pages/PlanVersionEditorPage.vue';
 import { providePlanArea } from '../../src/features/plan/plan-area-context.js';
 import { providePlanWizard, type PlanWizardState } from '../../src/vue/plan-wizard.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 const PLAN = { id: 'plan-1', planKey: 'PRO', label: 'Pro', description: null, sortOrder: 1 };
 

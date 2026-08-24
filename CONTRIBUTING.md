@@ -23,28 +23,20 @@ for you.
 Tests run with `--workspace-concurrency=1` because parallel workers each bootstrap
 NestJS test apps; running them serially keeps memory use sane.
 
-Lint and formatting (`eslint`, `prettier`) configs at the repo root are binding —
-run `pnpm lint` and `pnpm typecheck` before opening a PR.
+Lint and formatting configs at the repo root are binding — run `pnpm lint`,
+`pnpm run lint:css` and `pnpm typecheck` before opening a PR.
+
+`lint:css` is Stylelint, and it answers the one question ESLint cannot: whether
+a CSS value comes from the design system. Colour, shadow and type are errors —
+those have been at zero literals since the token migration. Spacing, radii and
+tracking warn against the ceiling in the script, which only ever moves down
+(see [ADR 0009](docs/explanation/adr/0009-three-layer-design-tokens.md)).
 
 ## The `Symbol.for` rule for DI tokens
 
 This is the most important codebase-specific rule. Violating it has caused a
-production outage.
-
-**Why:** `@saasicat/nest` is bundled by tsup/esbuild into **12 separate entry
-points** (`.`, `./promo`, `./billing`, `./admin`, …) in both ESM and CJS. A module
-that ends up in more than one chunk yields more than one copy, each with its own
-module scope — a token declared as plain `Symbol('X')` is then a _different_
-symbol per copy, and a provider registered through one entry silently fails to
-resolve when injected via a token imported from another.
-
-The build removes the largest source of that split (see **One bundle, many
-entries** below), but not all of it: the ESM and CJS outputs are separate files,
-so an app that reaches the package through both paths still sees two copies, as
-does a test that loads a module once from `dist` and once from `src`. The rule
-below is what makes tokens survive all of those cases.
-
-**The rule:**
+production outage. The reasoning, the alternatives and what breaks are in
+[ADR 0002](docs/explanation/adr/0002-symbol-for-di-tokens.md); the rule itself:
 
 - Any DI token that is (or may be) referenced from **more than one entry point** —
   which includes every token a consumer app injects an adapter into — MUST use the
@@ -54,41 +46,22 @@ below is what makes tokens survive all of those cases.
     export const MFA_PORT_TOKEN = Symbol.for('saasicat/nest/MfaPort');
     ```
 
-    `Symbol.for` resolves through the process-wide registry, so all bundle copies
-    agree on the same symbol.
-
 - Plain `Symbol('X')` is acceptable **only** for tokens created and consumed
   strictly within a single entry point, with no consumer-facing surface.
 
-Note on the namespace: every registry key is `saasicat/<package>/<Name>` — the
-package directory under `packages/` is the package name, so the prefix is the
-directory the token is declared in. These keys are part of the runtime contract
-between platform and consumer apps: a consumer may `Symbol.for` the same string
-in their own code, so **do not rename an existing key**. They were renamed
-exactly once, at 1.0, when four historical prefixes (`saas-platform/`,
-`saas-platform-nest/`, `saas-platform-cli/`, `@saasicat/ui-vue/`) became this
-one — that is what the `major` in that release paid for, and
-`tests/di-tokens-share-one-namespace.test.js` refuses any other prefix since.
+Every registry key is `saasicat/<package>/<Name>` — the package directory under
+`packages/` is the package name, so the prefix is the directory the token is
+declared in. These keys are part of the runtime contract between platform and
+consumer apps, so **do not rename an existing key**.
+`tests/di-tokens-share-one-namespace.test.js` refuses any other prefix.
 
 ## One bundle, many entries (the CJS build)
 
 `Symbol.for` fixes tokens, but **classes have no such registry** — and Nest
-resolves providers by class reference. Two copies of `MfaService` are two
-different providers, so an app that takes `SetupModule` from `@saasicat/nest`
-while `SaaSiCatModule` (from `@saasicat/nest/platform`) registers the admin
-stack used to fail at boot with `UnknownDependenciesException`.
-
-esbuild only code-splits ESM, so the CJS build is done in three passes:
-
-1. `tsup.config.ts` — ESM (code-split, one identity) plus all `.d.ts`/`.d.cts`.
-   Its CJS output is a placeholder.
-2. `tsup.cjs.config.ts` — **one** CommonJS bundle, `dist/_entries.cjs`, built
-   from the synthetic `src/_all-entries.ts` barrel.
-3. `scripts/build-cjs-stubs.mjs` — overwrites each entry's `.cjs` with a thin
-   re-export of the matching namespace from that bundle.
-
-Every entry therefore hands out the same objects, in CJS as in ESM. Consumers
-do not have to know which entry a class "really" lives in.
+resolves providers by class reference. esbuild only code-splits ESM, so the
+CommonJS build is done in three passes and every entry re-exports one shared
+bundle. Why, and what it costs, is
+[ADR 0003](docs/explanation/adr/0003-one-bundle-many-entries.md).
 
 **When adding a public entry point**, update all four places together:
 `package.json` `exports`, `tsup.config.ts` `entry`, the namespace list in
@@ -97,11 +70,7 @@ do not have to know which entry a class "really" lives in.
 drift apart, and `tests/cjs-entry-identity.test.js` fails if any export ends up
 with two identities.
 
-No two entries export the same name for different things. Until 1.0 one pair did
-— `FEATURE_UI_REGISTRY_TOKEN` meant one registry in `billing` and another in
-`catalog` — and the identity test carried it as an exception. They are
-`BILLING_FEATURE_UI_REGISTRY_TOKEN` and `CATALOG_FEATURE_UI_REGISTRY_TOKEN`
-now, and the test has no exception list.
+No two entries export the same name for different things.
 
 ## Layer boundaries in `@saasicat/ui-vue`
 
@@ -111,9 +80,13 @@ package entry, and ESLint `no-restricted-imports` rules in the root config
 enforce the boundaries — `pnpm exec eslint .` fails on an upward import.
 New logic goes into a composable (`src/vue/`) or, when framework-free, into
 `src/client/`; `.ts` files may import `quasar` only under `src/quasar/`.
+Why the layers exist: [ADR 0004](docs/explanation/adr/0004-ui-vue-layer-boundaries.md).
 Details: [`packages/ui-vue/README.md`](packages/ui-vue/README.md).
 
 ### The shipped source has a language floor: ES2021
+
+Why source rather than a build, and the two-module-instance consequence it
+carries, is [ADR 0005](docs/explanation/adr/0005-ship-sfc-source-not-dist.md).
 
 Several of that package's export subpaths — `pages/*`, `layouts/*`, `auth/*`, `ui/*`
 — hand out `.vue` and `.ts` straight from `src/` instead of from a build, because
@@ -150,7 +123,9 @@ way to make a build pass.
 ## Codegen: never edit generated types
 
 The DTO types in `@saasicat/core` are **generated** from the JSON Schemas in
-`@saasicat/spec`:
+`@saasicat/spec` — about 7% of the package, and
+[ADR 0006](docs/explanation/adr/0006-spec-to-types-codegen.md) says which 7% and
+why the rest is hand-written:
 
 ```bash
 pnpm --filter @saasicat/core gen:types
@@ -237,7 +212,7 @@ npm dist-tag add @saasicat/<package>@<version> rc
 Otherwise `pnpm add @saasicat/*@rc` installs a mixed set — it did at
 `1.0.0-rc.2`, where `@saasicat/core@rc` still resolved to `rc.1`. The workflow's
 OIDC token can publish but not tag, which is why this is not automated.
-The consumer-facing account of the break is [`docs/migrating-to-1.0.md`](docs/migrating-to-1.0.md);
+The consumer-facing account of the break is [`docs/guides/upgrade-to-1.0.md`](docs/guides/upgrade-to-1.0.md);
 the codemod it names is `saasicat codemod v1`.
 
 ## Commits and pull requests
@@ -262,7 +237,7 @@ that the conflicts came from the shape rather than from the work.
 `pnpm run coverage` is a ratchet: it fails when coverage drops, and has no
 threshold to reach. It rebuilds only the packages whose inputs changed since
 their last build (a stamp in `dist/`, see `scripts/build-stamp.mjs`), so it
-is cheap enough to run after every change. [`docs/test-coverage.md`](docs/test-coverage.md) says which
+is cheap enough to run after every change. [`docs/explanation/test-coverage.md`](docs/explanation/test-coverage.md) says which
 parts each suite exercises, names the adapters the persistence contract does not
 reach, and ranks the remaining gaps by what a failure would cost rather than by
 percentage. Read it before assuming a number means what it looks like — two
@@ -278,7 +253,7 @@ summarised:
 > Any purpose is a permitted purpose, except for providing any product that competes with the software or any product the licensor or any of its affiliates provides using the software.
 
 That covers the applications the author builds with SaaSiCat, not only SaaSiCat itself. The
-reasoning is in [ADR 0001](docs/adr/0001-source-available-licensing.md).
+reasoning is in [ADR 0001](docs/explanation/adr/0001-source-available-licensing.md).
 
 That has one consequence for pull requests: by opening one you agree that your
 contribution is licensed under the same terms, and that the project may relicense

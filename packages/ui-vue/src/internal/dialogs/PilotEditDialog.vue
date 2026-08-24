@@ -24,6 +24,8 @@
                     </div>
                 </header>
                 <div class="pl-plan-select">
+                    <!-- @optionSurface
+                         A plan option with a colour dot, one of a group — a radio in chip form. -->
                     <button
                         v-for="p in effectivePlanOptions"
                         :key="p.value"
@@ -64,28 +66,28 @@
                     </div>
                 </header>
                 <div class="pl-end-row">
-                    <input v-model="form.endsAt" class="pl-input" type="date" />
-                    <button
+                    <q-input v-model="form.endsAt" outlined dense type="date" class="pl-end-date" />
+                    <q-btn
                         v-if="form.endsAt"
-                        type="button"
-                        class="pl-btn-mini"
+                        flat
+                        dense
+                        no-caps
+                        icon="close"
+                        :label="common.unlimited"
                         :title="msg.editDialog.clearDateTitle"
                         @click="form.endsAt = ''"
-                    >
-                        <q-icon name="close" size="12px" />
-                        {{ common.unlimited }}
-                    </button>
+                    />
                 </div>
                 <div class="pl-end-presets">
-                    <button
+                    <q-btn
                         v-for="p in presetEnds"
                         :key="p.days"
-                        type="button"
-                        class="pl-preset-btn"
+                        flat
+                        dense
+                        no-caps
+                        :label="`+${p.label}`"
                         @click="setEndsAtDays(p.days)"
-                    >
-                        +{{ p.label }}
-                    </button>
+                    />
                 </div>
             </section>
 
@@ -98,10 +100,12 @@
                         <div class="pl-section__sub">{{ msg.editDialog.sectionNoteSub }}</div>
                     </div>
                 </header>
-                <textarea
+                <q-input
                     v-model="form.note"
-                    class="pl-input pl-textarea"
-                    rows="3"
+                    outlined
+                    dense
+                    type="textarea"
+                    :rows="3"
                     :placeholder="notePlaceholder"
                 />
             </section>
@@ -330,11 +334,6 @@ async function doSubmit(code: string): Promise<void> {
 
 <style scoped>
 .pl-section {
-    margin-bottom: 18px;
-}
-
-.pl-textarea {
-    resize: vertical;
-    min-height: 64px;
+    margin-bottom: var(--sa-space-5);
 }
 </style>

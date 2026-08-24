@@ -128,9 +128,14 @@
                         type="submit"
                     />
                 </q-form>
-                <button class="sa-setup-skip" type="button" @click="step = 'done'">
-                    {{ msg.setup.skip }}
-                </button>
+                <q-btn
+                    class="sa-setup-skip"
+                    flat
+                    dense
+                    no-caps
+                    :label="msg.setup.skip"
+                    @click="step = 'done'"
+                />
             </div>
 
             <!-- Step 3: done -->
@@ -300,7 +305,7 @@ async function submitConfirm(): Promise<void> {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: var(--sa-space-7);
     background: linear-gradient(
         180deg,
         var(--sa-color-inverse-bg) 0%,
@@ -311,15 +316,15 @@ async function submitConfirm(): Promise<void> {
     width: 460px;
     max-width: 92vw;
     background: var(--sa-color-bg-surface);
-    border-radius: 18px;
-    padding: 32px;
+    border-radius: var(--sa-radius-hero);
+    padding: var(--sa-space-8);
     box-shadow: 0 24px 48px var(--sa-shadow-tint-4);
 }
 .sa-setup-head {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: var(--sa-space-4);
+    margin-bottom: var(--sa-space-6);
 }
 .sa-setup-locale,
 .sa-setup-theme {
@@ -339,7 +344,7 @@ async function submitConfirm(): Promise<void> {
        platform's own fixture, 33.56px in the example app — because the two
        switchers made the row's content wider than the card outright. */
     flex: none;
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -376,12 +381,12 @@ async function submitConfirm(): Promise<void> {
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-secondary);
     line-height: 1.5;
-    margin: 0 0 16px;
+    margin: 0 0 var(--sa-space-5);
 }
 .sa-setup-hint code {
     background: var(--sa-color-border);
-    padding: 1px 5px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-setup-form {
     display: flex;
@@ -394,13 +399,13 @@ async function submitConfirm(): Promise<void> {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 12px;
+    gap: var(--sa-space-2);
+    margin-bottom: var(--sa-space-4);
 }
 .sa-setup-qr img {
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 8px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3);
     background: var(--sa-color-bg-surface);
 }
 .sa-setup-qr__hint {
@@ -409,40 +414,40 @@ async function submitConfirm(): Promise<void> {
 }
 .sa-setup-secret {
     background: var(--sa-color-border-soft);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-4);
+    margin-bottom: var(--sa-space-3);
 }
 .sa-setup-secret__label {
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-muted);
-    margin-bottom: 4px;
+    margin-bottom: var(--sa-space-2);
 }
 .sa-setup-secret__value {
     font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
     word-break: break-all;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
 }
 .sa-setup-uri {
-    margin: 4px 0 4px;
+    margin: var(--sa-space-2) 0 var(--sa-space-2);
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
 }
 .sa-setup-uri__value {
     display: block;
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
     word-break: break-all;
     color: var(--sa-color-fg-body);
     background: var(--sa-color-bg-sunken);
-    padding: 6px 8px;
-    border-radius: 6px;
+    padding: var(--sa-space-2) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-setup-skip {
-    margin-top: 14px;
+    margin-top: var(--sa-space-4);
     width: 100%;
     background: none;
     border: none;
@@ -456,6 +461,6 @@ async function submitConfirm(): Promise<void> {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 </style>

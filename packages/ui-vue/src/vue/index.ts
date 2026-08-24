@@ -52,6 +52,7 @@ export * from './use-actions.js';
 export * from './use-tenant-action-flow.js';
 export * from './use-platform-tenant-actions.js';
 export * from './use-batch-columns.js';
+export * from './use-row-reorder.js';
 export * from './platform-loaders.js';
 export * from './project-page-host.js';
 export * from './manifest-store-factory.js';

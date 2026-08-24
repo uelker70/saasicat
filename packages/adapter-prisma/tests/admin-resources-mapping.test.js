@@ -9,7 +9,7 @@ import {
 
 // An application whose tenant model is called `organization` and whose activity
 // flag is `enabled` used to have one option: `adminResources: false`, and no
-// SuperAdmin endpoints at all. `docs/migrating-an-existing-app.md` said so, and
+// SuperAdmin endpoints at all. `docs/guides/integrate-into-an-existing-app.md` said so, and
 // it was the honest thing to say about an adapter that resolved delegates by
 // hardcoded name.
 //

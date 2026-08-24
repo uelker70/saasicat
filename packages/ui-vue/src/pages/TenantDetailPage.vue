@@ -13,20 +13,17 @@
                 card rather than on the tenant.
             -->
             <template #actions>
-                <button class="sa-btn" type="button" @click="goBack">
-                    <q-icon name="arrow_back" size="16px" />
-                    <span>{{ labels.back }}</span>
-                </button>
-                <button
+                <q-btn flat no-caps icon="arrow_back" :label="labels.back" @click="goBack" />
+                <q-btn
                     v-for="action in manifestActions"
                     :key="action.def.id"
-                    :class="['sa-btn', toneClass(action.def.actionKey)]"
-                    type="button"
+                    unelevated
+                    no-caps
+                    :color="toneOf(action.def.actionKey)"
+                    :icon="iconForActionKey(action.def.actionKey)"
+                    :label="action.def.label"
                     @click="action.onClick"
-                >
-                    <q-icon :name="iconForActionKey(action.def.actionKey)" size="16px" />
-                    <span>{{ action.def.label }}</span>
-                </button>
+                />
                 <slot name="header-actions" :data="data" :reload="load" />
             </template>
         </AdminHero>
@@ -337,10 +334,11 @@ function iconForActionKey(actionKey: string): string {
     return 'bolt';
 }
 
-function toneClass(actionKey: string): string {
-    if (actionKey.endsWith('.suspend')) return 'sa-btn--danger';
-    if (actionKey.endsWith('.reactivate')) return 'sa-btn--positive';
-    return 'sa-btn--primary';
+/** Suspending is destructive, reactivating restores, everything else is ordinary. */
+function toneOf(actionKey: string): 'negative' | 'positive' | 'primary' {
+    if (actionKey.endsWith('.suspend')) return 'negative';
+    if (actionKey.endsWith('.reactivate')) return 'positive';
+    return 'primary';
 }
 
 const defaultUserColumns = computed<QTableColumn[]>(() => [
@@ -375,33 +373,10 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
 </script>
 
 <style scoped>
-.sa-tenant-detail__card-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--sa-color-border-soft);
-    padding-bottom: 14px;
-    margin-bottom: 16px;
-}
-.sa-tenant-detail__card-sub {
-    color: var(--sa-color-fg-muted);
-    font-size: var(--sa-text-md);
-    margin: 4px 0 0;
-}
-.sa-tenant-detail__card-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-.sa-tenant-detail__empty {
-    color: var(--sa-color-fg-muted);
-    font-size: var(--sa-text-md);
-}
 code {
     background: var(--sa-color-bg-sunken);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
     font-size: var(--sa-text-sm);
 }
 </style>

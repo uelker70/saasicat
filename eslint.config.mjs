@@ -5,6 +5,7 @@ import pluginVue from 'eslint-plugin-vue';
 import vueParser from 'vue-eslint-parser';
 import globals from 'globals';
 import regexp from 'eslint-plugin-regexp';
+import saasicat from 'eslint-plugin-saasicat';
 
 /**
  * A regular expression built from a value: a template literal with an
@@ -123,33 +124,95 @@ export default tseslint.config(
         // single sanctioned implementation — `defaultHttpClient()` delegates to
         // it — so the exemption stays one file wide.
         //
-        // Structurally this closes when the resource registry REQUIRES an
-        // `http` — until then, this rule is what prevents a relapse.
+        // `saasicat/no-raw-http` replaced a `no-restricted-globals` +
+        // `no-restricted-properties` pair that answered the same question in
+        // two rules and still missed `import axios` — the import that would
+        // make axios a dependency of every consumer, which is exactly what
+        // `createAxiosHttpClient` being structural avoids.
         files: ['packages/ui-vue/src/**/*.{ts,vue}'],
-        ignores: ['packages/ui-vue/src/client/http/fetch-http-client.ts'],
+        plugins: { saasicat },
         rules: {
-            'no-restricted-globals': [
+            'saasicat/no-raw-http': [
                 'error',
                 {
-                    name: 'fetch',
-                    message:
-                        'Use the injected HttpClient (useSuperAdminHttp() in a component, or the ' +
-                        '`http` option of a composable). A bare fetch() bypasses the consumer’s ' +
-                        'auth. The only sanctioned implementation is createFetchHttpClient() in ' +
-                        'src/client/http/fetch-http-client.ts.',
+                    allow: [
+                        'src/client/http/fetch-http-client.ts',
+                        'src/client/http/axios-http-client.ts',
+                    ],
                 },
             ],
-            'no-restricted-properties': [
+        },
+    },
+    {
+        // The page contract from ADR 0008, as far as one file can see it: at
+        // most five props, none of them a callback. The half that needs the
+        // type checker — a callback behind an alias — is
+        // `packages/ui-vue/tests/pages-take-no-callbacks.test.js`; this half
+        // answers in the editor, before the commit.
+        //
+        // The limits differ by directory because the roles do: a page arranges
+        // and binds, a feature component carries a domain, a primitive is
+        // configured.
+        //
+        // `@saasicat/ui-vue-tenant` is deliberately outside this block, and the
+        // reason is a decision rather than an omission: those components render
+        // inside the CUSTOMER's application, so `no-hand-built-controls` — which
+        // says "use the Quasar component" — would be arguing for a framework
+        // requirement that ADR 0010 is removing from that package. Its controls
+        // stay plain elements until the Quasar usages there are gone, and after
+        // that a rule pointing the other way is the one it needs.
+        files: ['packages/ui-vue/src/**/*.vue'],
+        plugins: { saasicat },
+        rules: {
+            // Pages and primitives are at their target. `features` is a
+            // ratchet on the measured worst (`PlanCatalogPreview` 15,
+            // `PlanVersionEditor` 13) rather than AP6's target of 12: the two
+            // are presentational leaves of components the plan explicitly does
+            // not re-cut, and a rule that fails on the day it lands teaches
+            // people to disable it. It only moves down.
+            'saasicat/max-props': [
                 'error',
                 {
-                    object: 'window',
-                    property: 'fetch',
-                    message: 'Use the injected HttpClient — see no-restricted-globals above.',
+                    'packages/ui-vue/src/pages': 5,
+                    'packages/ui-vue/src/features': 15,
+                    'packages/ui-vue/src/ui': 10,
                 },
+            ],
+            'saasicat/no-function-props': ['error', { directories: ['packages/ui-vue/src/pages'] }],
+            // A control the design system ships is not written again by hand.
+            // Eight input families and six button families were, in 784 lines
+            // of CSS reproducing what the theme already corrects — and a
+            // consumer theming Quasar reached the filters and missed the
+            // editors. An option surface that Quasar has no component for
+            // stays native and says so at the element.
+            'saasicat/no-hand-built-controls': [
+                'error',
                 {
-                    object: 'globalThis',
-                    property: 'fetch',
-                    message: 'Use the injected HttpClient — see no-restricted-globals above.',
+                    components: {
+                        input: 'q-input, q-checkbox or q-toggle',
+                        textarea: 'q-input with type="textarea"',
+                        select: 'q-select',
+                        button: 'q-btn',
+                    },
+                    allow: ['packages/ui-vue/src/ui/theme/'],
+                },
+            ],
+            // Four, not the five AP6 listed. `q-card` is off the list on
+            // purpose: the roster has no card, and the two places that use one
+            // are a tile in a grid and the frame of the fail-closed screen that
+            // cannot use `AdminPage` — sending either to `AdminSection` would
+            // be sending it to the wrong component. A rule that names a
+            // replacement has to have one.
+            'saasicat/no-restricted-components': [
+                'error',
+                {
+                    components: {
+                        'q-dialog': 'AdminDialog, AdminFormDialog or AdminConfirmDialog',
+                        'q-table': 'AdminTable',
+                        'q-page': 'AdminPage',
+                        'q-banner': 'AdminBanner or AdminErrorBanner',
+                    },
+                    allow: ['packages/ui-vue/src/ui/'],
                 },
             ],
         },

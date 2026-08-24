@@ -215,8 +215,8 @@ function formatTs(iso: string | null | undefined): string {
 .sa-audit__kv {
     background: var(--sa-color-bg-sunken);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-4);
     font-size: var(--sa-text-sm);
     margin: 0;
     overflow-x: auto;

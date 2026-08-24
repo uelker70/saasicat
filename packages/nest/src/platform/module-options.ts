@@ -241,7 +241,7 @@ export interface SaaSiCatSubscriptionContractOptions extends Omit<
  * have no executable contract yet (`@saasicat/persistence-testing` covers the
  * catalogue, subscription, promo and audit ports and none of these), and
  * folding unverified ports into a bundle would move the problem rather than
- * check it. See `docs/self-registration.md`.
+ * check it. See `docs/guides/self-registration.md`.
  *
  * Everything else — an operator creating tenants through the SuperAdmin UI, a
  * CLI, or your own onboarding form — is composed here.

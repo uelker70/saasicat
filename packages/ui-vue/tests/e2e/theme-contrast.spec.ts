@@ -512,7 +512,7 @@ test.describe('an embedded consumer stays in step with its host', () => {
 });
 
 test.describe('a consumer can override a role', () => {
-    // The documented recipe (docs/design-guide.md#overriding-a-role) and the
+    // The documented recipe (docs/explanation/design-guide.md#overriding-a-role) and the
     // warning that comes with it, both pinned by measurement.
     //
     // The warning is the half worth testing: `:root` alone LOOKS like it works,

@@ -12,29 +12,37 @@
     <!-- Section: Code & Discount -->
     <div class="pc-section">
         <div class="pc-section__title">{{ msg.form.sectionCodeDiscount }}</div>
-        <div class="pc-grid pc-grid--2">
-            <div class="pc-field">
-                <div class="pc-field__label">{{ msg.form.codeLabel }}</div>
-                <div v-if="mode === 'create'" class="pc-code-input">
-                    <input
-                        :value="code"
-                        class="pc-input pc-input--code"
-                        :placeholder="msg.form.codePlaceholder"
-                        @input="onCodeInput"
-                    />
-                    <button type="button" class="pc-btn-mini" @click="onRandomCode">
-                        {{ msg.form.codeRandom }}
-                    </button>
-                </div>
-                <input v-else :value="code" class="pc-input pc-input--code" disabled />
-                <div class="pc-field__hint">
-                    {{ mode === 'create' ? msg.form.codeHint : msg.form.codeStableHint }}
-                </div>
-            </div>
+        <AdminFieldGrid>
+            <AdminField
+                :label="msg.form.codeLabel"
+                :hint="mode === 'create' ? msg.form.codeHint : msg.form.codeStableHint"
+            >
+                <q-input
+                    :model-value="code"
+                    outlined
+                    dense
+                    class="pc-code"
+                    :disable="mode !== 'create'"
+                    :placeholder="mode === 'create' ? msg.form.codePlaceholder : undefined"
+                    @update:model-value="onCodeInput"
+                >
+                    <template v-if="mode === 'create'" #after>
+                        <q-btn
+                            flat
+                            dense
+                            no-caps
+                            :label="msg.form.codeRandom"
+                            @click="onRandomCode"
+                        />
+                    </template>
+                </q-input>
+            </AdminField>
 
-            <div class="pc-field">
-                <div class="pc-field__label">{{ msg.form.valueTypeLabel }}</div>
+            <AdminField :label="msg.form.valueTypeLabel">
                 <div class="pc-type-grid">
+                    <!-- @optionSurface
+                         A segmented option with a label and a sub-label. The two lines are what
+                         makes the choice legible, and `q-btn` renders one. -->
                     <button
                         v-for="o in typeOptions"
                         :key="o.k"
@@ -47,34 +55,40 @@
                         <div class="pc-type-opt__sub">{{ o.sub }}</div>
                     </button>
                 </div>
-            </div>
-        </div>
+            </AdminField>
+        </AdminFieldGrid>
 
-        <div class="pc-field" style="max-width: 280px">
-            <div class="pc-field__label">
-                {{
-                    form.valueType === 'PERCENT'
-                        ? msg.form.valuePercentLabel
-                        : msg.form.valueAbsoluteLabel
-                }}
-            </div>
-            <input
+        <AdminField
+            class="pc-field--narrow"
+            :label="
+                form.valueType === 'PERCENT'
+                    ? msg.form.valuePercentLabel
+                    : msg.form.valueAbsoluteLabel
+            "
+        >
+            <q-input
                 v-model.number="form.value"
-                class="pc-input"
+                outlined
+                dense
                 type="number"
                 min="1"
                 :max="form.valueType === 'PERCENT' ? 100 : undefined"
             />
-        </div>
+        </AdminField>
     </div>
 
     <!-- Section: Validity & Duration -->
     <div class="pc-section">
         <div class="pc-section__title">{{ msg.form.sectionValidity }}</div>
 
-        <div v-if="plans.length > 0" class="pc-field">
-            <div class="pc-field__label">{{ msg.form.plansLabel }}</div>
+        <AdminField
+            v-if="plans.length > 0"
+            :label="msg.form.plansLabel"
+            :hint="formatMessage(msg.form.plansHint, { count: form.appliesToPlans.length })"
+        >
             <div class="pc-plan-pick">
+                <!-- @optionSurface
+                     A plan chip with a colour mark, one of a multi-select group. -->
                 <button
                     v-for="p in plans"
                     :key="p.key"
@@ -91,79 +105,73 @@
                     {{ p.label }}
                 </button>
             </div>
-            <div class="pc-field__hint">
-                {{
-                    formatMessage(msg.form.plansHint, {
-                        count: form.appliesToPlans.length,
-                    })
-                }}
-            </div>
-        </div>
+        </AdminField>
 
-        <div class="pc-grid pc-grid--2">
-            <div class="pc-field">
-                <div class="pc-field__label">{{ msg.form.durationLabel }}</div>
+        <AdminFieldGrid>
+            <AdminField :label="msg.form.durationLabel">
                 <div class="pc-seg pc-seg--fill">
-                    <button
+                    <q-btn
                         v-for="o in durationOptions"
                         :key="o.k"
-                        type="button"
                         class="pc-seg-opt"
+                        flat
+                        dense
+                        no-caps
+                        :label="o.label"
                         :class="{ 'pc-seg-opt--active': form.durationType === o.k }"
                         @click="form.durationType = o.k"
-                    >
-                        {{ o.label }}
-                    </button>
+                    />
                 </div>
-                <input
+                <q-input
                     v-if="form.durationType !== 'ONCE'"
                     v-model.number="form.durationValue"
-                    class="pc-input"
+                    outlined
+                    dense
                     type="number"
                     min="1"
-                    style="margin-top: var(--sa-space-3); max-width: 120px"
+                    class="pc-duration-value"
                     :placeholder="
                         form.durationType === 'MONTHS'
                             ? msg.form.durationMonthsPlaceholder
                             : msg.form.durationCyclesPlaceholder
                     "
                 />
-            </div>
+            </AdminField>
 
-            <div class="pc-field">
-                <div class="pc-field__label">{{ msg.form.maxRedemptionsLabel }}</div>
-                <input
+            <AdminField
+                :label="msg.form.maxRedemptionsLabel"
+                :hint="
+                    mode === 'create'
+                        ? msg.form.maxRedemptionsHintCreate
+                        : msg.form.maxRedemptionsHintEdit
+                "
+            >
+                <q-input
                     v-model.number="form.maxRedemptions"
-                    class="pc-input"
+                    outlined
+                    dense
                     type="number"
                     min="1"
                     :placeholder="msg.form.maxRedemptionsPlaceholder"
                 />
-                <div class="pc-field__hint">
-                    {{
-                        mode === 'create'
-                            ? msg.form.maxRedemptionsHintCreate
-                            : msg.form.maxRedemptionsHintEdit
-                    }}
-                </div>
-            </div>
-        </div>
+            </AdminField>
+        </AdminFieldGrid>
 
-        <div class="pc-grid pc-grid--2">
-            <div class="pc-field">
-                <div class="pc-field__label">{{ msg.form.validFromLabel }}</div>
-                <input v-model="form.validFrom" class="pc-input" type="date" />
-            </div>
-            <div class="pc-field">
-                <div class="pc-field__label">{{ msg.form.validUntilLabel }}</div>
-                <input v-model="form.validUntil" class="pc-input" type="date" />
-            </div>
-        </div>
+        <AdminFieldGrid>
+            <AdminField :label="msg.form.validFromLabel">
+                <q-input v-model="form.validFrom" outlined dense type="date" />
+            </AdminField>
+            <AdminField :label="msg.form.validUntilLabel">
+                <q-input v-model="form.validUntil" outlined dense type="date" />
+            </AdminField>
+        </AdminFieldGrid>
 
-        <div v-if="mode === 'edit'" class="pc-grid pc-grid--2">
-            <div class="pc-field">
-                <div class="pc-field__label">{{ common.status }}</div>
+        <AdminFieldGrid v-if="mode === 'edit'">
+            <AdminField :label="common.status" :hint="msg.form.statusHint">
                 <div class="pc-seg pc-status">
+                    <!-- @optionSurface
+                         A segment in a segmented control — the group carries the frame, and each
+                         segment is a radio rather than a button. -->
                     <button
                         v-for="o in statusOptions"
                         :key="o.k"
@@ -176,32 +184,35 @@
                         {{ o.label }}
                     </button>
                 </div>
-                <div class="pc-field__hint">{{ msg.form.statusHint }}</div>
-            </div>
-        </div>
+            </AdminField>
+        </AdminFieldGrid>
     </div>
 
     <!-- Section: Campaign & Note -->
     <div class="pc-section">
         <div class="pc-section__title">{{ msg.form.sectionCampaign }}</div>
-        <div v-if="showCampaignTag" class="pc-field">
-            <div class="pc-field__label">{{ msg.form.campaignLabel }}</div>
-            <input
+        <AdminField
+            v-if="showCampaignTag"
+            :label="msg.form.campaignLabel"
+            :hint="msg.form.campaignHint"
+        >
+            <q-input
                 v-model="form.campaignTag"
-                class="pc-input"
+                outlined
+                dense
                 :placeholder="msg.form.campaignPlaceholder"
             />
-            <div class="pc-field__hint">{{ msg.form.campaignHint }}</div>
-        </div>
-        <div class="pc-field">
-            <div class="pc-field__label">{{ msg.form.noteLabel }}</div>
-            <textarea
+        </AdminField>
+        <AdminField :label="msg.form.noteLabel">
+            <q-input
                 v-model="form.description"
-                class="pc-input"
-                rows="2"
+                outlined
+                dense
+                type="textarea"
+                :rows="2"
                 :placeholder="msg.form.notePlaceholder"
             />
-        </div>
+        </AdminField>
     </div>
 
     <!-- Section: Advanced (backend-only fields, collapsed).
@@ -218,46 +229,48 @@
             </span>
         </template>
         <div class="pc-advanced">
-            <div class="pc-grid pc-grid--2">
-                <div class="pc-field">
-                    <div class="pc-field__label">{{ msg.form.billingCycleLabel }}</div>
-                    <select v-model="form.appliesToBilling" class="pc-input">
-                        <option :value="mode === 'create' ? undefined : null">
-                            {{ common.both }}
-                        </option>
-                        <option value="MONTHLY">{{ common.monthly }}</option>
-                        <option value="YEARLY">{{ common.yearly }}</option>
-                    </select>
-                </div>
-                <div class="pc-field">
-                    <div class="pc-field__label">{{ msg.form.minAmountLabel }}</div>
-                    <input
+            <AdminFieldGrid>
+                <AdminField :label="msg.form.billingCycleLabel">
+                    <q-select
+                        v-model="form.appliesToBilling"
+                        outlined
+                        dense
+                        emit-value
+                        map-options
+                        :options="billingCycleOptions"
+                    />
+                </AdminField>
+                <AdminField :label="msg.form.minAmountLabel">
+                    <q-input
                         v-model.number="form.minimumPlanAmountGross"
-                        class="pc-input"
+                        outlined
+                        dense
                         type="number"
                         min="0"
                         :placeholder="msg.form.minAmountPlaceholder"
                     />
-                </div>
-            </div>
-            <div class="pc-grid pc-grid--2">
-                <label class="pc-check">
-                    <input v-model="form.firstTimeCustomersOnly" type="checkbox" />
-                    <span>{{ msg.form.firstTimeOnly }}</span>
-                </label>
-                <label class="pc-check">
-                    <input v-model="form.allowZeroInvoice" type="checkbox" />
-                    <span>{{ msg.form.allowZeroInvoice }}</span>
-                </label>
-            </div>
-            <div class="pc-field">
-                <div class="pc-field__label">{{ msg.form.revenueAccountLabel }}</div>
-                <input
+                </AdminField>
+            </AdminFieldGrid>
+            <AdminFieldGrid>
+                <q-checkbox
+                    v-model="form.firstTimeCustomersOnly"
+                    dense
+                    :label="msg.form.firstTimeOnly"
+                />
+                <q-checkbox
+                    v-model="form.allowZeroInvoice"
+                    dense
+                    :label="msg.form.allowZeroInvoice"
+                />
+            </AdminFieldGrid>
+            <AdminField :label="msg.form.revenueAccountLabel">
+                <q-input
                     v-model="form.revenueDeductionAccount"
-                    class="pc-input"
+                    outlined
+                    dense
                     :placeholder="msg.form.revenueAccountPlaceholder"
                 />
-            </div>
+            </AdminField>
         </div>
     </AdminAccordion>
 
@@ -275,6 +288,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
+import AdminField from '../../ui/page/AdminField.vue';
+import AdminFieldGrid from '../../ui/page/AdminFieldGrid.vue';
 import { IDENTITY_NEUTRAL, identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
@@ -363,6 +378,19 @@ const durationOptions = computed<ReadonlyArray<{ k: PromoCodeDurationType; label
     { k: 'BILLING_CYCLES', label: msg.value.form.durationBillingCycles },
 ]);
 
+/**
+ * `undefined` on create and `null` on edit both mean "either cycle".
+ *
+ * The two are not interchangeable here: create omits the field from the payload
+ * and edit clears it, which is the distinction the hand-written `<option>` also
+ * carried.
+ */
+const billingCycleOptions = computed(() => [
+    { value: props.mode === 'create' ? undefined : null, label: common.value.both },
+    { value: 'MONTHLY', label: common.value.monthly },
+    { value: 'YEARLY', label: common.value.yearly },
+]);
+
 const statusOptions = computed<
     ReadonlyArray<{ k: 'ACTIVE' | 'PAUSED'; label: string; icon: string }>
 >(() => [
@@ -370,9 +398,15 @@ const statusOptions = computed<
     { k: 'PAUSED', label: msg.value.form.statusPaused, icon: 'pause' },
 ]);
 
-/** The code round-trips through the caller so its form stays the source of truth. */
-function onCodeInput(event: Event): void {
-    const raw = (event.target as HTMLInputElement).value;
+/**
+ * The code round-trips through the caller so its form stays the source of truth.
+ *
+ * `q-input` hands over the value rather than the event, which is also why the
+ * field is bound one-way: the normalisation below has to run between what was
+ * typed and what is shown, and `v-model` would show the raw keystroke first.
+ */
+function onCodeInput(value: string | number | null): void {
+    const raw = String(value ?? '');
     emit('update:code', raw.toUpperCase().replace(/[^A-Z0-9_-]/g, ''));
 }
 
@@ -431,8 +465,8 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 <style scoped>
 .pc-section {
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    padding: 14px 16px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-4) var(--sa-space-5);
     background: var(--sa-color-bg-surface-raised);
 }
 
@@ -441,8 +475,8 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     font-weight: 700;
     font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
-    margin-bottom: 12px;
-    letter-spacing: -0.005em;
+    margin-bottom: var(--sa-space-4);
+    letter-spacing: var(--sa-tracking-normal);
 }
 
 /* The same title, in a header that already spaces itself. */
@@ -453,106 +487,32 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 .pc-advanced {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 
-.pc-grid {
-    display: grid;
-    gap: 12px;
-    margin-bottom: 12px;
+/* The generator sits in the field's `after` slot; without this it reads as a
+ * second field rather than as part of the one it belongs to. */
+.pc-code :deep(.q-field__after) {
+    padding-left: var(--sa-space-2);
 }
 
-.pc-grid--2 {
-    grid-template-columns: 1fr 1fr;
-}
-
-@media (max-width: 599.98px) {
-    .pc-grid--2 {
-        grid-template-columns: 1fr;
-    }
-}
-
-.pc-grid:last-child {
-    margin-bottom: 0;
-}
-
-.pc-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.pc-field__label {
-    font-size: var(--sa-text-sm);
-    font-weight: 600;
-    color: var(--sa-color-fg-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.pc-field__hint {
-    font-size: var(--sa-text-sm);
-    color: var(--sa-color-fg-subtle);
-}
-
-.pc-input {
-    width: 100%;
-    border: 1px solid var(--sa-color-border);
-    background: var(--sa-color-bg-surface);
-    border-radius: 7px;
-    padding: 8px 10px;
-    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-color-fg-body);
-    outline: 0;
-}
-
-.pc-input:focus {
-    border-color: var(--sa-color-accent);
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
-}
-
-.pc-input--code {
-    font: 600 var(--sa-text-lg) var(--sa-font-mono, ui-monospace, monospace);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-textarea.pc-input {
-    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
-    resize: vertical;
-}
-
-.pc-code-input {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.pc-btn-mini {
-    border: 1px solid var(--sa-color-border);
-    background: var(--sa-color-bg-surface);
-    border-radius: 7px;
-    padding: 6px 10px;
-    font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
-    cursor: pointer;
-    color: var(--sa-color-fg-secondary);
-}
-
-.pc-btn-mini:hover {
-    background: var(--sa-color-border-soft);
+/* A count, not a measurement — the field would otherwise stretch to the grid. */
+.pc-duration-value,
+.pc-field--narrow {
+    max-width: 280px;
 }
 
 .pc-type-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 
 .pc-type-opt {
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
-    border-radius: 8px;
-    padding: 8px 10px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-3) var(--sa-space-3);
     text-align: left;
     cursor: pointer;
     transition:
@@ -577,23 +537,23 @@ textarea.pc-input {
 .pc-type-opt__sub {
     font: var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);
     color: var(--sa-color-fg-muted);
-    margin-top: 1px;
+    margin-top: var(--sa-space-0);
 }
 
 .pc-plan-pick {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 
 .pc-plan-opt {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 999px;
-    padding: 5px 12px 5px 8px;
+    border-radius: var(--sa-radius-pill);
+    padding: var(--sa-space-2) var(--sa-space-4) var(--sa-space-2) var(--sa-space-3);
     font: 600 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
@@ -625,7 +585,7 @@ textarea.pc-input {
  * restating it. */
 .pc-seg {
     display: flex;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 /* The duration options divide the row; the status options size to their label. */
 .pc-seg--fill .pc-seg-opt {
@@ -639,8 +599,8 @@ textarea.pc-input {
     gap: var(--sa-gap-inline);
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
-    border-radius: 7px;
-    padding: 6px 10px;
+    border-radius: var(--sa-radius-control);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
@@ -661,20 +621,11 @@ textarea.pc-input {
     color: var(--sa-color-accent-strong);
 }
 
-.pc-check {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-color-fg-body);
-    cursor: pointer;
-}
-
 .pc-preview {
     background: var(--sa-color-accent-surface-soft);
     border: 1px solid var(--sa-color-accent-border);
-    border-radius: 10px;
-    padding: 12px 14px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-4) var(--sa-space-4);
 }
 
 .pc-preview__eyebrow {
@@ -682,24 +633,24 @@ textarea.pc-input {
     font-weight: 700;
     color: var(--sa-color-accent);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 6px;
+    letter-spacing: var(--sa-tracking-wider);
+    margin-bottom: var(--sa-space-2);
 }
 
 .pc-preview__body {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 
 .pc-preview__code {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 6px;
-    padding: 3px 8px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-1) var(--sa-space-3);
     font: 600 var(--sa-text-md) var(--sa-font-mono, ui-monospace, monospace);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-heading);
 }
 

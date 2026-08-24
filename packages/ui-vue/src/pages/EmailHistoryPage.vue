@@ -74,22 +74,25 @@
                         </q-td>
                     </template>
                     <template #row-actions="{ row }">
-                        <button
-                            type="button"
+                        <q-btn
+                            flat
+                            dense
+                            round
+                            icon="send"
                             class="sa-icon-btn"
                             :title="msg.history.resend"
                             @click.stop="onResend(row.id)"
-                        >
-                            <q-icon name="send" size="18px" />
-                        </button>
-                        <button
-                            type="button"
-                            class="sa-icon-btn sa-icon-btn--negative"
+                        />
+                        <q-btn
+                            flat
+                            dense
+                            round
+                            color="negative"
+                            icon="delete"
+                            class="sa-icon-btn"
                             :title="msg.history.removeFromHistory"
                             @click.stop="askDelete(row.id)"
-                        >
-                            <q-icon name="delete" size="18px" />
-                        </button>
+                        />
                     </template>
                     <template #no-data>
                         <div class="sa-emh__empty">{{ msg.history.empty }}</div>
@@ -515,24 +518,24 @@ function formatTs(iso: string | null | undefined): string {
     width: 100%;
     text-align: center;
     color: var(--sa-color-fg-secondary, var(--sa-color-fg-muted));
-    padding: 24px 0;
+    padding: var(--sa-space-7) 0;
 }
 .sa-emh__frame {
     width: 100%;
     min-height: 320px;
     max-height: 60vh;
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     background: var(--sa-color-bg-surface);
 }
 .sa-emh__text,
 .sa-emh__smtp {
     background: var(--sa-color-bg-sunken);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: var(--sa-radius-field);
+    padding: var(--sa-space-4);
     font-size: var(--sa-text-sm);
-    margin: 4px 0 0;
+    margin: var(--sa-space-2) 0 0;
     overflow-x: auto;
     max-height: 50vh;
     white-space: pre-wrap;

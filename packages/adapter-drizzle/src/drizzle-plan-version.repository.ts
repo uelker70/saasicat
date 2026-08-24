@@ -13,7 +13,7 @@ import { planVersions } from './schema.js';
 /**
  * `PlanVersionRepository` against the canonical `plan_versions` table.
  * `findActive` is deliberately not implemented — the canonical schema has no
- * `validFrom`/`validUntil` columns yet (see docs/data-model.md, Known gaps).
+ * `validFrom`/`validUntil` columns yet (see docs/explanation/data-model.md, Known gaps).
  */
 @Injectable()
 export class DrizzlePlanVersionRepository implements PlanVersionRepository {

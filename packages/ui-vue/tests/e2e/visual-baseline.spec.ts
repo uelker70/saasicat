@@ -125,17 +125,119 @@ const TRACKED_PROPERTIES = [
  *
  * So the condition is the honest one — two identical readings in a row — and it
  * needs no knowledge of what is animating or how.
+ *
+ * Two readings alone were not enough, and the gap is worth writing down: a
+ * transition that is REMOVING a node changes nothing between two samples 50 ms
+ * apart, and the node is still there for both. `AdminRefreshBtn`'s spinner
+ * fades out over 300 ms after the page's first load resolves, so on a slow
+ * runner three extra nodes — the fade wrapper, its `svg`, its `circle` — got
+ * into the reading. Locally they never did, and the pages it hit differed per
+ * run. Hence the wait below, which asks the browser what is still moving
+ * instead of naming anything.
  */
 async function settledStyles(page: Page): Promise<string> {
     let previous = '';
     for (let attempt = 0; attempt < 40; attempt += 1) {
+        await animationsFinished(page);
         const current = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
-        if (current === previous) return current;
-        previous = current;
+        const stillMoving = await page.evaluate(PAGE_IS_MOVING);
+        // A reading taken while something is mid-flight cannot be half of a
+        // matching pair: two readings 50 ms apart both land inside a 300 ms
+        // departure and agree with each other about a node on its way out.
+        if (!stillMoving && current === previous) return current;
+        previous = stillMoving ? '' : current;
         await page.waitForTimeout(50);
     }
     throw new Error('the page never stopped changing — nothing settled within two seconds');
 }
+
+/**
+ * Waits out every animation that has an end.
+ *
+ * A spinner repeats forever, so waiting for all of them would wait for the test
+ * timeout. The distinction is in the animation itself — its computed iteration
+ * count — rather than in a list of selectors that would have to be maintained.
+ */
+async function animationsFinished(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+        // A frame first: a transition begins on the frame after its class is
+        // applied, so asking before that returns nothing and the wait would
+        // pass through the very thing it exists to wait for.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const ending = document
+            .getAnimations()
+            .filter((animation) =>
+                Number.isFinite(animation.effect?.getComputedTiming().iterations ?? 1),
+            );
+        // A cancelled animation rejects; that is still "no longer moving".
+        await Promise.all(ending.map((animation) => animation.finished.catch(() => undefined)));
+    });
+}
+
+/**
+ * Whether anything on the page is still on its way in or out.
+ *
+ * Two conditions, because animations alone missed the case that started this:
+ * Quasar's refresh spinner leaves from `opacity: 0`, so its fade transitions
+ * from a value to itself and the browser starts NO animation at all —
+ * `getAnimations()` is empty while three nodes sit in the DOM for the length of
+ * a transition nobody is running. What marks them is Vue's own class
+ * convention: an element being removed carries `<name>-leave-active` until the
+ * transition it is not performing is deemed over.
+ */
+const PAGE_IS_MOVING = () => {
+    const running = document
+        .getAnimations()
+        .filter((animation) =>
+            Number.isFinite(animation.effect?.getComputedTiming().iterations ?? 1),
+        ).length;
+    return running + document.querySelectorAll('[class*="-leave-active"]').length;
+};
+
+test.describe('the collector reads a page at rest', () => {
+    // `marketing-catalog` failed twice on CI with three extra nodes in its
+    // reading: the refresh button's spinner, mid-departure. It never failed
+    // locally, not even under an 8x CPU throttle — the window is a few frames
+    // wide and the runner is where they come apart.
+    //
+    // So this makes the window rather than waiting for one. Vue keeps a
+    // departing element in the DOM for the length of its transition, and
+    // Quasar's spinner leaves from `opacity: 0`: the transition animates a
+    // value to itself, the browser starts nothing, and `getAnimations()` is
+    // empty while the nodes are still there. That is why waiting on animations
+    // alone did not fix it, and why this test still fails if the collector goes
+    // back to that.
+    test('a node on its way out never reaches the reading', async ({ page }) => {
+        await page.goto('/?page=marketing-catalog');
+        await page.waitForSelector('body[data-visual-ready="true"]');
+
+        const leaving = () =>
+            page.evaluate(() => document.querySelectorAll('[class*="-leave-active"]').length);
+
+        // The departure lasts a few frames, which is short enough that both
+        // readings of a settle can miss it — on this machine. Widening it to
+        // 700 ms makes the window observable here instead of only on a loaded
+        // runner, and it does NOT create an animation to wait for: the spinner
+        // leaves from `opacity: 0`, so a longer duration on a value that does
+        // not change still animates nothing. That is the whole point.
+        await page.addStyleTag({
+            content: '[class*="-leave-active"] { transition-duration: 700ms !important; }',
+        });
+
+        await page.locator('header button').last().click();
+
+        // The premise: the state this guards against does occur here. Without
+        // it a green run would only mean the click did nothing.
+        let sawDeparture = false;
+        for (let attempt = 0; attempt < 40 && !sawDeparture; attempt += 1) {
+            sawDeparture = (await leaving()) > 0;
+            if (!sawDeparture) await page.waitForTimeout(10);
+        }
+        expect(sawDeparture, 'clicking refresh no longer makes anything leave').toBe(true);
+
+        expect(await settledStyles(page)).not.toContain('-leave-active');
+    });
+});
 
 test.describe('design-token visual baselines', () => {
     test('the roster still covers every page it claims to', () => {

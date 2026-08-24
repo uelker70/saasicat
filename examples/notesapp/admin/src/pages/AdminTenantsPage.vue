@@ -16,7 +16,7 @@ const manifestStore = useManifestStore();
 
 const options = computed<TenantsPageOptions>(() => ({
     manifest: manifestStore.manifest,
-    subtitle: 'Mandanten mit Plan, Status und Notiz-Nutzung.',
+    subtitle: 'Tenants with their plan, status and note usage.',
     planOptions: ['STARTER', 'PRO'],
     usageFields: [{ icon: 'sticky_note_2', field: 'notes' }],
     // A custom link into the detail page, beside the manifest's own actions.

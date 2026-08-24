@@ -14,7 +14,7 @@ import {
     createResourceRegistry,
     platformResources,
 } from '../../src/index.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo', locale: 'en' };
 

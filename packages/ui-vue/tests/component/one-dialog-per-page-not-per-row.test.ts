@@ -13,7 +13,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import UsersPage from '../../src/pages/UsersPage.vue';
 import { provideStubResources } from './support/stub-resources.js';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 const USERS = ['ada', 'grace', 'alan', 'edsger'].map((name, index) => ({
     id: `u-${index}`,

@@ -17,9 +17,14 @@
                     {{ counts.expired }} {{ msg.promotionsTab.statusExpired }}
                 </span>
             </div>
-            <button class="sa-btn sa-btn--primary" type="button" :disabled="busy" @click="onAdd">
-                {{ msg.promotionsTab.add }}
-            </button>
+            <q-btn
+                unelevated
+                no-caps
+                color="primary"
+                :label="msg.promotionsTab.add"
+                :disable="busy"
+                @click="onAdd"
+            />
         </div>
 
         <!-- Timeline -->
@@ -37,6 +42,9 @@
                 <div class="mc-promo-today" :style="{ left: `${todayX}%` }">
                     <span>{{ msg.promotionsTab.today }}</span>
                 </div>
+                <!-- @optionSurface
+                     A bar in a timeline chart. It is clickable because the bar IS the target;
+                     its width and colour carry the data. -->
                 <button
                     v-for="bar in bars"
                     :key="bar.id"
@@ -108,34 +116,38 @@
                         <label class="mc-promo-label">
                             {{ msg.promotionsTab.internalLabelLabel }}
                         </label>
-                        <input
-                            class="mc-promo-input"
-                            :value="p.internalLabel"
-                            @change="patch(p, { internalLabel: inputVal($event) })"
+                        <q-input
+                            outlined
+                            dense
+                            :model-value="p.internalLabel"
+                            @update:model-value="patch(p, { internalLabel: String($event ?? '') })"
                         />
 
                         <label class="mc-promo-label">{{ common.type }}</label>
                         <div class="mc-promo-typegrid">
-                            <button
+                            <q-btn
                                 v-for="t in typeOptions"
                                 :key="t.id"
-                                type="button"
                                 class="mc-promo-typeopt"
+                                flat
+                                dense
+                                no-caps
+                                :label="t.label"
                                 :class="{ active: p.type === t.id }"
                                 @click="changeType(p, t.id)"
-                            >
-                                {{ t.label }}
-                            </button>
+                            />
                         </div>
 
                         <label class="mc-promo-label">{{ msg.promotionsTab.valueLabel }}</label>
                         <div class="mc-promo-valrow">
                             <template v-if="p.type === 'percent' || p.type === 'amount'">
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="numValue(p)"
-                                    @change="patch(p, { value: numInput($event) })"
+                                    class="mc-promo-input--sm"
+                                    :model-value="numValue(p)"
+                                    @update:model-value="patch(p, { value: toNumber($event) })"
                                 />
                                 <span class="mc-promo-muted">
                                     {{
@@ -149,20 +161,24 @@
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.introForPrefix }}
                                 </span>
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="introMonths(p)"
-                                    @change="patchIntro(p, 'months', numInput($event))"
+                                    class="mc-promo-input--sm"
+                                    :model-value="introMonths(p)"
+                                    @update:model-value="patchIntro(p, 'months', toNumber($event))"
                                 />
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.introMonthsUnit }}
                                 </span>
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="introPrice(p)"
-                                    @change="patchIntro(p, 'price', numInput($event))"
+                                    class="mc-promo-input--sm"
+                                    :model-value="introPrice(p)"
+                                    @update:model-value="patchIntro(p, 'price', toNumber($event))"
                                 />
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.introPriceUnit }}
@@ -172,11 +188,13 @@
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.freeMonthsPrefix }}
                                 </span>
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="numValue(p)"
-                                    @change="patch(p, { value: numInput($event) })"
+                                    class="mc-promo-input--sm"
+                                    :model-value="numValue(p)"
+                                    @update:model-value="patch(p, { value: toNumber($event) })"
                                 />
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.freeMonthsUnit }}
@@ -188,18 +206,20 @@
                             {{ common.validity }}
                         </label>
                         <div class="mc-promo-valrow">
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 type="date"
-                                :value="p.validFrom"
-                                @change="patch(p, { validFrom: inputVal($event) })"
+                                :model-value="p.validFrom"
+                                @update:model-value="patch(p, { validFrom: String($event ?? '') })"
                             />
                             <span class="mc-promo-muted">→</span>
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 type="date"
-                                :value="p.validTo"
-                                @change="patch(p, { validTo: inputVal($event) })"
+                                :model-value="p.validTo"
+                                @update:model-value="patch(p, { validTo: String($event ?? '') })"
                             />
                         </div>
 
@@ -207,26 +227,29 @@
                             {{ msg.promotionsTab.billingCycleLabel }}
                         </label>
                         <div class="mc-promo-typegrid">
-                            <button
+                            <q-btn
                                 v-for="c in cycleOptions"
                                 :key="c.id"
-                                type="button"
                                 class="mc-promo-typeopt"
+                                flat
+                                dense
+                                no-caps
+                                :label="c.label"
                                 :class="{ active: p.billingCycle === c.id }"
                                 @click="patch(p, { billingCycle: c.id })"
-                            >
-                                {{ c.label }}
-                            </button>
+                            />
                         </div>
 
                         <label class="mc-promo-label">
                             {{ msg.promotionsTab.priorityLabel }}
                         </label>
-                        <input
-                            class="mc-promo-input mc-promo-input--sm"
+                        <q-input
+                            outlined
+                            dense
                             type="number"
-                            :value="p.priority"
-                            @change="patch(p, { priority: numInput($event) })"
+                            class="mc-promo-input--sm"
+                            :model-value="p.priority"
+                            @update:model-value="patch(p, { priority: toNumber($event) })"
                         />
                     </div>
 
@@ -235,6 +258,9 @@
                             {{ msg.promotionsTab.appliesToLabel }}
                         </label>
                         <div class="mc-promo-planlist">
+                            <!-- @optionSurface
+                                 A plan chip in a multi-select: label, key and selected state in one
+                                 surface, repeated per plan. -->
                             <button
                                 v-for="pl in plans"
                                 :key="pl.key"
@@ -252,14 +278,17 @@
                             {{ msg.promotionsTab.localeRestrictionLabel }}
                         </label>
                         <div class="mc-promo-typegrid">
-                            <button
-                                type="button"
+                            <q-btn
                                 class="mc-promo-typeopt"
+                                flat
+                                dense
+                                no-caps
+                                :label="msg.promotionsTab.allLocales"
                                 :class="{ active: !p.onlyLocales }"
                                 @click="patch(p, { onlyLocales: null })"
-                            >
-                                {{ msg.promotionsTab.allLocales }}
-                            </button>
+                            />
+                            <!-- @optionSurface
+                                 A locale chip in a multi-select, same shape as the plan chips above it. -->
                             <button
                                 v-for="l in activeLocales"
                                 :key="l"
@@ -277,22 +306,29 @@
                         </label>
                         <div v-for="l in activeLocales" :key="l" class="mc-promo-i18n-block">
                             <span class="mc-promo-i18n-code">{{ l.toUpperCase() }}</span>
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 :placeholder="msg.promotionsTab.badgePlaceholder"
-                                :value="p.i18n?.[l]?.badge || ''"
-                                @change="patchI18n(p, l, 'badge', inputVal($event))"
+                                :model-value="p.i18n?.[l]?.badge || ''"
+                                @update:model-value="patchI18n(p, l, 'badge', String($event ?? ''))"
                             />
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 :placeholder="msg.promotionsTab.fineprintPlaceholder"
-                                :value="p.i18n?.[l]?.fineprint || ''"
-                                @change="patchI18n(p, l, 'fineprint', inputVal($event))"
+                                :model-value="p.i18n?.[l]?.fineprint || ''"
+                                @update:model-value="
+                                    patchI18n(p, l, 'fineprint', String($event ?? ''))
+                                "
                             />
                         </div>
 
                         <label class="mc-promo-label">{{ msg.promotionsTab.colorLabel }}</label>
                         <div class="mc-promo-colors">
+                            <!-- @optionSurface
+                                 A colour swatch that opens the picker — the button IS the colour, so a
+                                 button chrome around it would hide what it shows. -->
                             <button
                                 v-for="c in COLORS"
                                 :key="c"
@@ -304,9 +340,15 @@
                             />
                         </div>
 
-                        <button class="mc-promo-delete" type="button" @click="onRemove(p)">
-                            {{ msg.promotionsTab.delete }}
-                        </button>
+                        <q-btn
+                            class="mc-promo-delete"
+                            flat
+                            dense
+                            no-caps
+                            color="negative"
+                            :label="msg.promotionsTab.delete"
+                            @click="onRemove(p)"
+                        />
                     </div>
                 </div>
             </AdminAccordion>
@@ -517,11 +559,9 @@ const timelineHeight = computed(() => {
 });
 
 // ─── Mutations ───
-function inputVal(e: Event): string {
-    return (e.target as HTMLInputElement).value;
-}
-function numInput(e: Event): number {
-    return Number((e.target as HTMLInputElement).value) || 0;
+/** `q-input` hands over the value, and a number field hands over a string. */
+function toNumber(value: string | number | null): number {
+    return Number(value) || 0;
 }
 function numValue(p: PromotionRow): number {
     return typeof p.value === 'number' ? p.value : 0;
@@ -602,12 +642,12 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--sa-space-4);
 }
 .mc-promo-head {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--sa-space-5);
 }
 .mc-promo-head-text {
     flex: 1;
@@ -622,13 +662,13 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-stats {
     display: flex;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .mc-promo-stat {
     font-size: var(--sa-text-xs);
     font-weight: 600;
-    padding: 3px 9px;
-    border-radius: 999px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
 }
@@ -647,13 +687,13 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-timeline {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    padding: 12px 14px;
+    border-radius: var(--sa-radius-tile);
+    padding: var(--sa-space-4) var(--sa-space-4);
 }
 .mc-promo-timeline-head {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
-    margin-bottom: 6px;
+    margin-bottom: var(--sa-space-2);
 }
 .mc-promo-timeline-chart {
     position: relative;
@@ -669,7 +709,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-tick-label {
     position: absolute;
     bottom: 0;
-    left: 3px;
+    left: var(--sa-space-1);
     font-size: var(--sa-text-2xs);
     color: var(--sa-color-fg-subtle);
     white-space: nowrap;
@@ -677,14 +717,14 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-today {
     position: absolute;
     top: 0;
-    bottom: 18px;
+    bottom: var(--sa-space-5);
     width: 0;
     border-left: 2px dashed var(--sa-color-negative-strong);
 }
 .mc-promo-today span {
     position: absolute;
-    top: -2px;
-    left: 3px;
+    top: calc(-1 * var(--sa-space-1));
+    left: var(--sa-space-1);
     font-size: var(--sa-text-2xs);
     color: var(--sa-color-negative-strong);
     font-weight: 700;
@@ -696,7 +736,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     height: 20px;
     border: 0;
     padding: 0;
-    border-radius: 5px;
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -712,21 +752,21 @@ async function onRemove(p: PromotionRow): Promise<void> {
     font-size: var(--sa-text-2xs);
     color: var(--sa-color-fg-on-accent);
     font-weight: 600;
-    padding: 0 6px;
+    padding: 0 var(--sa-space-2);
     white-space: nowrap;
 }
 .mc-promo-empty {
-    padding: 28px;
+    padding: var(--sa-space-7);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-size: var(--sa-text-md);
     border: 1px dashed var(--sa-color-border-strong);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
 }
 .mc-promo-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 /* Only what a PROMOTION puts in the header. The surface, border, radius, the
  * padding, the open border and the hover feedback are `AdminAccordion`'s — this
@@ -736,12 +776,12 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .mc-promo-color {
     width: 10px;
     height: 28px;
-    border-radius: 3px;
+    border-radius: var(--sa-radius-badge);
     flex-shrink: 0;
 }
 .mc-promo-row-main {
@@ -754,25 +794,25 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-row-sub {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
     align-items: center;
     flex-wrap: wrap;
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .mc-promo-typechip {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     background: var(--sa-color-accent-surface-strong);
     color: var(--sa-color-accent-strong);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .mc-promo-planchip {
     font-size: var(--sa-text-2xs);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: var(--sa-space-0) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .mc-promo-muted {
     font-size: var(--sa-text-xs);
@@ -791,8 +831,8 @@ async function onRemove(p: PromotionRow): Promise<void> {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 6px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
 }
 .mc-promo-status.active {
     background: var(--sa-color-positive-surface-strong);
@@ -809,45 +849,40 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-editor-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 18px;
+    gap: var(--sa-space-5);
 }
 .mc-promo-editor-col {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .mc-promo-label {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-secondary);
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
 }
-.mc-promo-input {
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    padding: 6px 8px;
-    font-size: var(--sa-text-md);
-}
+/* A width, not a look: the look comes from the theme's `field.css`. */
 .mc-promo-input--sm {
     max-width: 90px;
 }
 .mc-promo-valrow {
     display: flex;
-    gap: 8px;
+    gap: var(--sa-space-3);
     align-items: center;
 }
 .mc-promo-typegrid {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .mc-promo-typeopt {
     border: 1px solid var(--sa-color-border-strong);
     background: var(--sa-color-bg-surface);
-    border-radius: 6px;
-    padding: 5px 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font-size: var(--sa-text-sm);
     cursor: pointer;
 }
@@ -860,15 +895,15 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-planlist {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 .mc-promo-planopt {
     display: flex;
     justify-content: space-between;
     border: 1px solid var(--sa-color-border-strong);
     background: var(--sa-color-bg-surface);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-2) var(--sa-space-3);
     font-size: var(--sa-text-sm);
     cursor: pointer;
 }
@@ -883,28 +918,28 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-i18n-block {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-3);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     background: var(--sa-color-bg-surface);
 }
 .mc-promo-i18n-code {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     background: var(--sa-color-border-soft);
-    padding: 2px 7px;
-    border-radius: 5px;
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
     align-self: flex-start;
 }
 .mc-promo-colors {
     display: flex;
-    gap: 6px;
+    gap: var(--sa-space-2);
 }
 .mc-promo-colorbtn {
     width: 24px;
     height: 24px;
-    border-radius: 6px;
+    border-radius: var(--sa-radius-badge);
     border: 2px solid transparent;
     cursor: pointer;
 }
@@ -912,15 +947,15 @@ async function onRemove(p: PromotionRow): Promise<void> {
     border-color: var(--sa-color-fg-heading);
 }
 .mc-promo-delete {
-    margin-top: 12px;
+    margin-top: var(--sa-space-4);
     align-self: flex-start;
     border: 1px solid var(--sa-color-negative-border);
     background: var(--sa-color-negative-surface);
     color: var(--sa-color-negative-fg);
     font-weight: 600;
     font-size: var(--sa-text-sm);
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: var(--sa-space-2) var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
     cursor: pointer;
 }
 </style>

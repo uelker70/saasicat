@@ -157,11 +157,12 @@
                         </div>
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
-                            <button
+                            <q-btn
                                 v-if="hasAnyPublished(p)"
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
-                                disabled
+                                flat
+                                dense
+                                no-caps
+                                disable
                                 :title="msg.list.actionDeleteBlocked"
                             >
                                 <svg
@@ -176,11 +177,12 @@
                                     <rect x="3" y="11" width="18" height="11" rx="2" />
                                     <path d="M7 11V7a5 5 0 0110 0v4" />
                                 </svg>
-                            </button>
-                            <button
+                            </q-btn>
+                            <q-btn
                                 v-else
-                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
-                                type="button"
+                                flat
+                                no-caps
+                                color="negative"
                                 :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
                             >
@@ -196,10 +198,11 @@
                                         d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
                                     />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionClonePlan"
                                 @click="$emit('clonePlan', p.plan)"
                             >
@@ -214,12 +217,13 @@
                                     <rect x="9" y="9" width="11" height="11" rx="2" />
                                     <path d="M5 15V5a2 2 0 012-2h10" />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionNewVersion"
-                                :disabled="!!p.draft"
+                                :disable="!!p.draft"
                                 @click="onNewVersion(p)"
                             >
                                 <svg
@@ -234,10 +238,11 @@
                                         d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
                                     />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionOpenPlan"
                                 @click="$emit('openPlan', p.plan)"
                             >
@@ -251,7 +256,7 @@
                                 >
                                     <path d="M9 18l6-6-6-6" />
                                 </svg>
-                            </button>
+                            </q-btn>
                         </div>
                     </div>
 
@@ -342,10 +347,11 @@
                         </div>
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
-                            <button
+                            <q-btn
                                 v-if="sub.publishedAt === null"
-                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
-                                type="button"
+                                flat
+                                no-caps
+                                color="negative"
                                 :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
                             >
@@ -361,11 +367,12 @@
                                         d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
                                     />
                                 </svg>
-                            </button>
-                            <button
+                            </q-btn>
+                            <q-btn
                                 v-if="sub.publishedAt === null"
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
                             >
@@ -381,10 +388,11 @@
                                         d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
                                     />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionOpenInCockpit"
                                 @click="$emit('openPlan', p.plan)"
                             >
@@ -398,7 +406,7 @@
                                 >
                                     <path d="M9 18l6-6-6-6" />
                                 </svg>
-                            </button>
+                            </q-btn>
                         </div>
                     </div>
                 </template>
@@ -550,7 +558,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-wrap {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     /* Scrolls rather than clips. `overflow: hidden` was here to keep the corner
      * radius, and it also cut the six-column grid off below ~790px — six data
      * columns squeezed into a phone are not readable anyway, so the honest
@@ -562,8 +570,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-sunken);
 }
@@ -599,17 +607,17 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     display: flex;
     align-items: center;
     background: var(--sa-color-bg-surface-raised);
-    padding: 10px 16px;
+    padding: var(--sa-space-3) var(--sa-space-5);
     font-size: var(--sa-text-xs);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-color-fg-secondary);
     font-weight: 700;
     border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-empty {
     grid-column: 1 / -1;
-    padding: 32px 24px;
+    padding: var(--sa-space-8) var(--sa-space-7);
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
@@ -625,7 +633,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 14px 16px;
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-border-soft);
     transition: background 0.12s;
 }
@@ -648,8 +656,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 /* Sub-rows (drafts + future-scheduled versions, indented under the parent) */
 .sa-plan-list-row--sub > .sa-plan-list-cell {
     background: var(--sa-color-bg-surface-raised);
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: var(--sa-space-3);
+    padding-bottom: var(--sa-space-3);
 }
 .sa-plan-list-row--sub:hover > .sa-plan-list-cell {
     background: var(--sa-color-border-soft);
@@ -662,8 +670,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
      * elbow pointing at nothing. */
     justify-content: flex-start;
     align-items: center;
-    gap: 12px;
-    padding-left: 32px !important;
+    gap: var(--sa-space-4);
+    padding-left: var(--sa-space-8) !important;
 }
 .sa-plan-list-sub-tree {
     display: inline-flex;
@@ -677,7 +685,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     position: absolute;
     top: 0;
     bottom: 50%;
-    left: 12px;
+    left: var(--sa-space-4);
     width: 14px;
     border-left: 1.5px solid var(--sa-color-border-strong);
     border-bottom: 1.5px solid var(--sa-color-border-strong);
@@ -692,12 +700,12 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     color: var(--sa-color-fg-secondary);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-plan-list-sub-desc {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -714,16 +722,16 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-plan-name {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-plan-list-plan-mark {
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
     display: grid;
     place-items: center;
     font: 700 var(--sa-text-xs) var(--sa-font-mono);
-    letter-spacing: 0.04em;
+    letter-spacing: var(--sa-tracking-wide);
     flex: 0 0 auto;
     border: 1px solid;
 }
@@ -734,16 +742,16 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
-    letter-spacing: -0.01em;
+    letter-spacing: var(--sa-tracking-normal);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     flex-wrap: wrap;
 }
 .sa-plan-list-plan-desc {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -752,7 +760,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-cell--status {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sa-space-1);
     align-items: flex-start;
 }
 
@@ -760,9 +768,9 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-chip {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 999px;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-pill);
     font-size: var(--sa-text-xs);
     font-weight: 600;
     background: var(--sa-color-bg-sunken);
@@ -770,7 +778,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     border: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-chip--tiny {
-    padding: 1px 6px;
+    padding: var(--sa-space-0) var(--sa-space-2);
     font-size: var(--sa-text-2xs);
 }
 .sa-plan-list-chip--new {
@@ -818,7 +826,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-version-sub {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 
 .sa-plan-list-price-big {
@@ -833,7 +841,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-price-sub {
     font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
 }
 .sa-plan-list-price-text {
     font-size: var(--sa-text-md);
@@ -846,7 +854,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
-    gap: 10px;
+    gap: var(--sa-space-3);
 }
 .sa-plan-list-tenant-num {
     font-size: var(--sa-text-lg);
@@ -857,7 +865,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     flex: 1;
     height: 6px;
     background: var(--sa-color-border-soft);
-    border-radius: 999px;
+    border-radius: var(--sa-radius-pill);
     overflow: hidden;
 }
 .sa-plan-list-tenant-bar-fill {
@@ -869,6 +877,6 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     flex-direction: row;
     align-items: center;
     justify-content: flex-end;
-    gap: 4px;
+    gap: var(--sa-space-2);
 }
 </style>

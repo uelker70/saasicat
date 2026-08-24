@@ -11,7 +11,7 @@
 // `<section>`, no `<main>`), and no page quietly reintroduces the hand-written
 // markup they replace.
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 
 import { describe, expect, test } from 'vitest';
@@ -20,7 +20,7 @@ import { defineComponent, h } from 'vue';
 import AdminHero from '../../src/ui/page/AdminHero.vue';
 import AdminPage from '../../src/ui/page/AdminPage.vue';
 import AdminSection from '../../src/ui/page/AdminSection.vue';
-import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 // Vite rewrites `import.meta.url` to an http:// URL in the transformed module,
 // so the package root has to come from the runner's cwd, which vitest sets to
@@ -183,14 +183,62 @@ function stripComments(markup: string): string {
     return current;
 }
 
+/** Drops every `{{ … }}` from markup, by index rather than by pattern. */
+function removeInterpolations(markup: string): string {
+    let out = '';
+    let index = 0;
+    while (index < markup.length) {
+        const open = markup.indexOf('{{', index);
+        if (open === -1) return out + markup.slice(index);
+        const close = markup.indexOf('}}', open + 2);
+        if (close === -1) return out + markup.slice(index);
+        out += markup.slice(index, open);
+        index = close + 2;
+    }
+    return out;
+}
+
 function templateOf(source: string): string {
     // Only the template matters here; a `<style>` block legitimately mentions
     // the class names this test forbids in markup, and a comment may well spell
     // out the very tag it is explaining why not to use.
+    //
+    // The closing tag is found by depth rather than by `lastIndexOf`. A
+    // component whose template nests `<template v-if>` and whose script
+    // documents its usage in a fenced example — `FeatureGate` is both — has a
+    // `</template>` inside a comment AFTER the real one, and the naive search
+    // returned the whole script as if it were markup.
+    //
+    // The close is matched WITHOUT its `>`, because Prettier may put it on the
+    // next line: `BundlesPage` has a `</template\n    >`, so a search for the
+    // literal `</template>` found one closer than there were openers, ran out,
+    // and returned an empty template. Every rule below then passed on that page
+    // by having nothing to read — the shape a guard takes when it stops
+    // watching without failing.
     const start = source.indexOf('<template>');
-    const end = source.lastIndexOf('</template>');
-    if (start === -1 || end === -1) return '';
-    return stripComments(source.slice(start, end));
+    if (start === -1) return '';
+
+    let depth = 0;
+    let index = start;
+    while (index < source.length) {
+        const open = source.indexOf('<template', index);
+        const close = source.indexOf('</template', index);
+        if (close === -1) return '';
+        if (open !== -1 && open < close) {
+            depth += 1;
+            index = open + '<template'.length;
+            continue;
+        }
+        depth -= 1;
+        if (depth === 0) return stripComments(source.slice(start, close));
+        const closed = source.indexOf('>', close);
+        // An unclosed `</template` would send `indexOf` to -1 and the scan back
+        // to the start of the file, forever. Prettier cannot produce that; a
+        // half-saved file can.
+        if (closed === -1) return '';
+        index = closed + 1;
+    }
+    return '';
 }
 
 /**
@@ -475,13 +523,13 @@ describe('page shell contract', () => {
         // arrangement — a scoped style cannot reach them. Reaching anywhere
         // else is a leak, and it only shows up once the other page has been
         // visited, which is why it survives review.
-        const OWN_CHILDREN: Record<string, string> = {
-            BundlesPage: 'bundles-page',
-            DiscoveryPage: 'discovery-page',
-            MarketingCatalogPage: 'marketing-catalog',
-            PlanDetail: 'plan-detail',
-            PlanVersionEditor: 'plan-version-editor',
-        };
+        // The directory convention IS the map: a page's own children live in
+        // `internal/<kebab(its own name)>`. The hand-written version had five
+        // entries, two of which named directories that do not exist — a list
+        // accumulates dead rows exactly the way documentation does, and nothing
+        // there could tell you which two.
+        const ownChildrenOf = (stem: string): string =>
+            stem.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 
         const files = contentPageFiles();
         const markupClasses = (file: string): Set<string> => {
@@ -510,7 +558,7 @@ describe('page shell contract', () => {
             const declared = unscopedClasses(source);
             if (declared.size === 0) continue;
             const stem = basename(source, '.vue');
-            const allowed = new Set([dirName(source), OWN_CHILDREN[stem]]);
+            const allowed = new Set([dirName(source), ownChildrenOf(stem)]);
 
             for (const other of files) {
                 if (other === source || allowed.has(dirName(other))) continue;
@@ -524,6 +572,15 @@ describe('page shell contract', () => {
         }
 
         expect(leaks).toEqual([]);
+
+        // Vacuously satisfied if the convention names nothing: a rename of
+        // `internal/` would make every page's own directory unreachable and the
+        // check would report a clean tree while allowing none of what it means
+        // to allow.
+        const reached = files.filter((file) =>
+            existsSync(join(SRC_DIR, 'internal', ownChildrenOf(basename(file, '.vue')))),
+        );
+        expect(reached.length).toBeGreaterThan(2);
     });
 
     test('no page block titles itself with a heading-shaped <div>', () => {
@@ -1325,5 +1382,198 @@ describe('page shell contract', () => {
 
         expect(unexplained).toEqual([]);
         expect(stale).toEqual([]);
+    });
+});
+
+describe('the boundaries a page keeps', () => {
+    // AP6 rules 18, 19, 24 and 15. Each of them was a sentence in a document
+    // that four phases of migration made true; without a rule, staying true is
+    // a matter of everyone remembering, and the count that is at zero today is
+    // the count that starts climbing on the next deadline.
+
+    const pages = contentPageFiles();
+
+    test('the sweep reaches the pages it claims to check', () => {
+        // Every assertion below is vacuously true on an empty list.
+        expect(pages.length).toBeGreaterThan(15);
+    });
+
+    test('no page reaches for Quasar directly', () => {
+        // The ports exist — `useUiNotify`, `useUiConfirm` — and they are what
+        // lets an application with its own notification centre replace the
+        // behaviour without touching a page. `useQuasar()` in a page hard-wires
+        // Quasar's, and it does it invisibly: the page still renders.
+        const leaks: string[] = [];
+        for (const file of pages) {
+            const code = scriptOf(readFileSync(file, 'utf8'));
+            if (/\buseQuasar\s*\(/.test(code)) leaks.push(relative(SRC_DIR, file));
+        }
+        expect(leaks).toEqual([]);
+    });
+
+    test('no page redeclares the frame the theme draws', () => {
+        // Two did, and it showed: `.sa-discovery` set a 16px page padding and
+        // `.sa-marketing` a 24px one against the theme's 28px, so the hero sat
+        // at three different distances from the sidebar depending on which page
+        // you were on. `.sa-marketing` also repeated four declarations of the
+        // frame verbatim.
+        //
+        // The forbidden properties are read from the theme's own `.sa-page`
+        // rule rather than listed here: whatever that rule decides IS the
+        // frame, and a page that decides it again is deciding it twice.
+        const themeRule = readFileSync(resolve(SRC_DIR, 'ui/theme/base.css'), 'utf8');
+        const frameBlock = themeRule.slice(
+            themeRule.indexOf('{', themeRule.indexOf('\n.sa-page {')) + 1,
+            themeRule.indexOf('}', themeRule.indexOf('\n.sa-page {')),
+        );
+        const frameProperties = frameBlock
+            .split(';')
+            .map((declaration) => declaration.split(':')[0]?.trim() ?? '')
+            .filter(Boolean);
+        expect(frameProperties.length).toBeGreaterThan(3);
+
+        // The rhythm between the hero and the body is the hero's
+        // `margin-bottom`. A page root that also declares a gap adds to it —
+        // `.sa-bundles` and `.sa-discovery` did, so those two pages put 36px
+        // there while every other page put 20px, and the same 16px appeared
+        // again between their sections.
+        //
+        // This half is a list, and it is a list because the derivable version
+        // is not expressible: nothing in the theme says which properties can
+        // move the hero, only which ones draw the frame. Three names, each
+        // measured against a page that had one.
+        const rhythmProperties = ['gap', 'row-gap', 'column-gap'];
+
+        const offences: string[] = [];
+        for (const file of pages) {
+            const source = readFileSync(file, 'utf8');
+            const rootClass = /<AdminPage[^>]*\sclass="([^"]+)"/.exec(templateOf(source))?.[1];
+            if (!rootClass) continue;
+            for (const name of rootClass.split(/\s+/).filter(Boolean)) {
+                const marker = `\n.${name} {`;
+                const at = source.indexOf(marker);
+                if (at === -1) continue;
+                const block = source.slice(at + marker.length, source.indexOf('}', at));
+                const declared = new Set(
+                    block.split(';').map((declaration) => declaration.split(':')[0]?.trim() ?? ''),
+                );
+                for (const property of [...frameProperties, ...rhythmProperties]) {
+                    if (declared.has(property)) {
+                        offences.push(`${relative(SRC_DIR, file)}: .${name} sets ${property}`);
+                    }
+                }
+            }
+        }
+        expect(offences).toEqual([]);
+    });
+
+    test('a page imports only from the layers below it', () => {
+        // The import surface of a page, as a rule rather than as a habit: the
+        // primitives, the feature components, the internal parts, the two
+        // framework-free layers, the contracts, and the framework.
+        //
+        // `../quasar/` is on the list and belongs there: the port ACCESSORS
+        // live in that layer because their default implementation is Quasar's
+        // — a page imports `useSuperAdminNotify`, not `Notify`. What the list
+        // refuses is a page importing another page, a layout, or the login
+        // screens; and it refuses a new top-level directory arriving unnoticed,
+        // which is the failure that has no symptom until someone asks where a
+        // page's dependencies actually go.
+        //
+        // AP6 wanted this narrower — a page reaching only
+        // `internal/<kebab(its own name)>/`. The tree phase 4 produced does not
+        // have that shape: five internal directories (`dialogs`,
+        // `tenant-detail`, `tenants`, `platform-email`, `email-history`) are
+        // topics shared by two or three pages, and per-page ownership would
+        // mean splitting them. That is a restructuring, not a rule.
+        const ALLOWED_PREFIXES = [
+            '../ui/',
+            '../features/',
+            '../internal/',
+            '../vue/',
+            '../client/',
+            '../quasar/',
+            './',
+        ];
+        const ALLOWED_PACKAGES = ['@saasicat/core', 'vue', 'vue-router', 'quasar'];
+
+        const offenders: string[] = [];
+        for (const file of pages.filter((f) => dirName(f) === 'pages')) {
+            const code = scriptOf(readFileSync(file, 'utf8'));
+            for (const [, specifier] of code.matchAll(/from '([^']+)'/g)) {
+                const source = specifier!;
+                if (ALLOWED_PACKAGES.includes(source)) continue;
+                if (ALLOWED_PREFIXES.some((prefix) => source.startsWith(prefix))) continue;
+                offenders.push(`${relative(SRC_DIR, file)} → ${source}`);
+            }
+        }
+        expect(offenders).toEqual([]);
+    });
+
+    test('no primitive hard-codes a user-visible string', () => {
+        // The i18n layer makes a missing English translation a *compile* error.
+        // That contract is worth exactly as much as the share of text that goes
+        // through it, and a primitive is the worst place to leak one: it is
+        // rendered on every page, so one hard-coded word appears everywhere at
+        // once, in one language.
+        const uiFiles: string[] = [];
+        const walk = (dir: string): void => {
+            for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                const full = join(dir, entry.name);
+                if (entry.isDirectory() && entry.name !== 'theme') walk(full);
+                else if (entry.name.endsWith('.vue')) uiFiles.push(full);
+            }
+        };
+        walk(resolve(SRC_DIR, 'ui'));
+        expect(uiFiles.length).toBeGreaterThan(15);
+
+        const offenders: string[] = [];
+        for (const file of uiFiles) {
+            const template = templateOf(readFileSync(file, 'utf8'));
+            // Text between tags, with interpolations and entities removed. What
+            // is left is literal prose the component renders as it stands.
+            //
+            // The interpolations come out with a scanner rather than a pattern:
+            // `/\{\{[\s\S]*?\}\}/` has two quantifiers over overlapping input
+            // and backtracks quadratically on a run of braces.
+            const withoutInterpolation = removeInterpolations(template);
+            for (const [, text] of withoutInterpolation.matchAll(/>([^<>]+)</g)) {
+                const prose = text!.replace(/&[a-z]+;/g, ' ').trim();
+                if (prose.length < 2) continue;
+                if (!/[A-Za-z]{2}/.test(prose)) continue;
+                offenders.push(`${relative(SRC_DIR, file)}: "${prose}"`);
+            }
+        }
+        expect(offenders).toEqual([]);
+    });
+
+    test('no file grows past the budget for its layer', () => {
+        // A ratchet on the measured worst per layer, not a target. The three
+        // components the plan explicitly does not re-cut set the ceiling for
+        // `features/`; everything else is far below its own. It only moves
+        // down, and it is what stops a new file being written at the size of
+        // the largest existing one — which is how the largest one happened.
+        const BUDGET: Record<string, number> = {
+            pages: 1810,
+            features: 1720,
+            internal: 720,
+            ui: 400,
+        };
+
+        const oversized: string[] = [];
+        const walk = (dir: string, layer: string): void => {
+            for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                const full = join(dir, entry.name);
+                if (entry.isDirectory()) walk(full, layer);
+                else if (entry.name.endsWith('.vue')) {
+                    const lines = readFileSync(full, 'utf8').split('\n').length;
+                    if (lines > BUDGET[layer]!) {
+                        oversized.push(`${relative(SRC_DIR, full)}: ${lines} > ${BUDGET[layer]}`);
+                    }
+                }
+            }
+        };
+        for (const layer of Object.keys(BUDGET)) walk(resolve(SRC_DIR, layer), layer);
+        expect(oversized).toEqual([]);
     });
 });

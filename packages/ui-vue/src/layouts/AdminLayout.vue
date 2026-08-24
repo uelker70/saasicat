@@ -309,10 +309,10 @@ const currentPageTitle = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 6px 12px;
+    gap: var(--sa-space-3);
+    padding: var(--sa-space-2) var(--sa-space-4);
     font-size: var(--sa-text-sm);
-    letter-spacing: 0.05em;
+    letter-spacing: var(--sa-tracking-wider);
     text-transform: uppercase;
 }
 .sa-admin-banner--prod {
@@ -363,15 +363,15 @@ const currentPageTitle = computed(() => {
     background: var(--sa-admin-badge-bg, var(--sa-color-inverse-accent));
     color: var(--sa-admin-badge-fg, var(--sa-color-inverse-accent-fg));
     font-weight: 800;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
     font-size: var(--sa-text-2xs);
-    padding: 4px 8px;
+    padding: var(--sa-space-2) var(--sa-space-3);
 }
 
 .sa-admin-user {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
     /* The row's flexible member. Without this the identity block below sits at
      * its content width, and a long name pushes the sign-out button off the
      * end of a `nowrap` toolbar instead of being shortened. */
@@ -473,14 +473,14 @@ const currentPageTitle = computed(() => {
 .sa-admin-drawer__brand {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 18px 16px;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-5) var(--sa-space-5);
     border-bottom: 1px solid var(--sa-color-inverse-border);
 }
 .sa-admin-drawer__logo {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     background: var(
         --sa-admin-drawer-logo-bg,
         linear-gradient(
@@ -503,33 +503,33 @@ const currentPageTitle = computed(() => {
     font-size: var(--sa-text-xs);
     color: var(--sa-admin-drawer-brand-tag, var(--sa-color-inverse-accent));
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--sa-tracking-wider);
 }
 
 .sa-admin-drawer__list {
     flex: 1;
-    padding: 6px 4px;
+    padding: var(--sa-space-2) var(--sa-space-2);
 }
 .sa-admin-drawer__section {
     font-size: var(--sa-text-2xs);
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: var(--sa-tracking-wider);
     color: var(--sa-admin-drawer-section-fg, var(--sa-color-inverse-fg-muted));
-    padding: 14px 18px 6px;
+    padding: var(--sa-space-4) var(--sa-space-5) var(--sa-space-2);
     font-weight: 600;
 }
 .sa-admin-drawer__list :deep(.q-item) {
     color: var(--sa-admin-drawer-item-fg, var(--sa-color-inverse-fg-muted));
-    border-radius: 7px;
-    margin: 1px 6px;
+    border-radius: var(--sa-radius-control);
+    margin: var(--sa-space-0) var(--sa-space-2);
     min-height: 36px;
-    padding: 6px 12px;
+    padding: var(--sa-space-2) var(--sa-space-4);
     font-size: var(--sa-text-md);
     font-weight: 500;
 }
 .sa-admin-drawer__list :deep(.q-item__section--avatar) {
     min-width: 28px;
-    padding-right: 8px;
+    padding-right: var(--sa-space-3);
 }
 .sa-admin-drawer__list :deep(.q-item .q-icon) {
     color: var(--sa-color-inverse-fg-subtle);
@@ -554,7 +554,7 @@ const currentPageTitle = computed(() => {
 }
 
 .sa-admin-drawer__footer {
-    padding: 12px 16px;
+    padding: var(--sa-space-4) var(--sa-space-5);
     border-top: 1px solid var(--sa-color-inverse-border);
     font-size: var(--sa-text-xs);
     color: var(--sa-color-inverse-fg-muted);
@@ -562,8 +562,8 @@ const currentPageTitle = computed(() => {
 .sa-admin-drawer__doc {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-top: 6px;
+    gap: var(--sa-space-2);
+    margin-top: var(--sa-space-2);
     color: var(--sa-color-inverse-fg-muted);
     text-decoration: none;
 }
@@ -574,7 +574,7 @@ const currentPageTitle = computed(() => {
 .sa-admin-content {
     max-width: 1600px;
     margin: 0 auto;
-    padding: 16px 24px 32px;
+    padding: var(--sa-space-5) var(--sa-space-7) var(--sa-space-8);
 }
 .sa-admin-content--fullbleed {
     max-width: none;

@@ -17,22 +17,25 @@
         <div class="pve-basket-settings">
             <div class="pve-bs-row">
                 <div class="pve-bs-label">{{ msg.basket.validFrom }}</div>
-                <input
-                    class="pve-bs-input"
-                    :class="{ 'pve-bs-input--error': !!validFromError }"
+                <q-input
+                    :model-value="form.validFrom ?? ''"
+                    outlined
+                    dense
                     type="date"
                     :min="minValidFrom"
-                    :value="form.validFrom ?? ''"
+                    :error="Boolean(validFromError)"
+                    hide-bottom-space
                     placeholder="YYYY-MM-DD"
-                    @input="emitTextInput('update:validFrom', $event)"
+                    @update:model-value="emitText('update:validFrom', $event)"
                 />
                 <div class="pve-bs-label pve-bs-label--inline">{{ msg.basket.until }}</div>
-                <input
-                    class="pve-bs-input"
+                <q-input
+                    :model-value="form.validUntil ?? ''"
+                    outlined
+                    dense
                     type="date"
-                    :value="form.validUntil ?? ''"
                     placeholder="∞"
-                    @input="emitTextInput('update:validUntil', $event)"
+                    @update:model-value="emitText('update:validUntil', $event)"
                 />
             </div>
             <div v-if="validFromError" class="pve-bs-error">
@@ -54,21 +57,25 @@
                 <div class="pve-bs-label">{{ msg.sections.price }}</div>
                 <div class="pve-bs-input-grp">
                     <span class="pve-bs-prefix">€</span>
-                    <input
-                        class="pve-bs-input pve-bs-input--flush"
-                        :value="form.monthlyNet"
+                    <q-input
+                        :model-value="form.monthlyNet"
+                        outlined
+                        dense
                         inputmode="decimal"
-                        @input="emitTextInput('update:monthlyNet', $event)"
+                        class="pve-bs-money"
+                        @update:model-value="emitText('update:monthlyNet', $event)"
                     />
                     <span class="pve-bs-suffix">{{ msg.perMonthShort }}</span>
                 </div>
                 <div class="pve-bs-input-grp pve-bs-input-grp--gap">
                     <span class="pve-bs-prefix">€</span>
-                    <input
-                        class="pve-bs-input pve-bs-input--flush"
-                        :value="form.yearlyNet"
+                    <q-input
+                        :model-value="form.yearlyNet"
+                        outlined
+                        dense
                         inputmode="decimal"
-                        @input="emitTextInput('update:yearlyNet', $event)"
+                        class="pve-bs-money"
+                        @update:model-value="emitText('update:yearlyNet', $event)"
                     />
                     <span class="pve-bs-suffix">{{ msg.perYearShort }}</span>
                 </div>
@@ -76,14 +83,19 @@
             <div class="pve-bs-row">
                 <div class="pve-bs-label">{{ msg.basket.inPublicCatalog }}</div>
                 <label class="pve-toggle">
-                    <input type="checkbox" :checked="form.marketed" @change="emitCheckboxInput" />
-                    <span />
+                    <q-toggle
+                        :model-value="form.marketed"
+                        dense
+                        @update:model-value="emit('update:marketed', $event)"
+                    />
                 </label>
-                <input
-                    class="pve-bs-input pve-bs-input--grow"
-                    :value="form.changeNote"
+                <q-input
+                    :model-value="form.changeNote"
+                    outlined
+                    dense
+                    class="pve-bs-grow"
                     :placeholder="msg.basket.changeNotePlaceholder"
-                    @input="emitTextInput('update:changeNote', $event)"
+                    @update:model-value="emitText('update:changeNote', $event)"
                 />
             </div>
         </div>
@@ -102,17 +114,23 @@
                         <div class="pve-sel-sub">{{ row.sub }}</div>
                     </div>
                     <div class="pve-sel-val-edit">
-                        <input
-                            class="pve-sel-val-input"
+                        <q-input
+                            :model-value="form.quotas[row.quotaKey]"
+                            outlined
+                            dense
                             type="number"
-                            :value="form.quotas[row.quotaKey]"
-                            @input="emitQuotaInput(row.quotaKey, $event)"
+                            class="pve-sel-val-input"
+                            @update:model-value="
+                                emit('set-quota-value', row.quotaKey, Number($event) || 0)
+                            "
                         />
                         <span class="pve-sel-val-unit">{{ row.unit }}</span>
                     </div>
-                    <button
+                    <q-btn
                         class="pve-sel-x"
-                        type="button"
+                        flat
+                        dense
+                        no-caps
                         :aria-label="msg.basket.removeQuota"
                         @click="$emit('toggle-quota', row.quotaKey, false)"
                     >
@@ -126,7 +144,7 @@
                         >
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </q-btn>
                 </div>
                 <div v-if="selectedQuotaList.length === 0" class="pve-dz-empty">
                     {{ msg.basket.emptyQuotas }}
@@ -147,9 +165,11 @@
                         <div class="pve-sel-label">{{ featureLabel(key) }}</div>
                         <div class="pve-sel-sub">{{ key }}</div>
                     </div>
-                    <button
+                    <q-btn
                         class="pve-sel-x"
-                        type="button"
+                        flat
+                        dense
+                        no-caps
                         :aria-label="msg.basket.removeFeature"
                         @click="$emit('toggle-feature', key, false)"
                     >
@@ -163,7 +183,7 @@
                         >
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </q-btn>
                 </div>
                 <div v-if="form.features.length === 0" class="pve-dz-empty">
                     {{ msg.basket.emptyFeatures }}
@@ -186,9 +206,11 @@
                             {{ b.bundleKey }} · {{ bundleFeatureCount(b.features.length) }}
                         </div>
                     </div>
-                    <button
+                    <q-btn
                         class="pve-sel-x"
-                        type="button"
+                        flat
+                        dense
+                        no-caps
                         :aria-label="msg.basket.removeBundle"
                         @click="$emit('toggle-bundle', b, false)"
                     >
@@ -202,7 +224,7 @@
                         >
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </q-btn>
                 </div>
                 <div v-if="activeBundles.length === 0" class="pve-dz-empty pve-dz-empty--center">
                     {{ msg.basket.emptyBundles }}
@@ -271,8 +293,9 @@ type TextInputEvent =
     | 'update:yearlyNet'
     | 'update:changeNote';
 
-function emitTextInput(name: TextInputEvent, event: Event): void {
-    const value = (event.target as HTMLInputElement | null)?.value ?? '';
+/** `q-input` hands over the value; the routing below is unchanged. */
+function emitText(name: TextInputEvent, raw: string | number | null): void {
+    const value = String(raw ?? '');
     switch (name) {
         case 'update:validFrom':
             emit('update:validFrom', value || null);
@@ -289,14 +312,5 @@ function emitTextInput(name: TextInputEvent, event: Event): void {
         case 'update:changeNote':
             emit('update:changeNote', value);
     }
-}
-
-function emitCheckboxInput(event: Event): void {
-    emit('update:marketed', (event.target as HTMLInputElement | null)?.checked ?? false);
-}
-
-function emitQuotaInput(key: string, event: Event): void {
-    const value = Number((event.target as HTMLInputElement | null)?.value ?? 0);
-    emit('set-quota-value', key, value);
 }
 </script>

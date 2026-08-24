@@ -1,14 +1,17 @@
 <template>
-    <button
-        class="sa-btn sa-btn--icon"
-        type="button"
-        :disabled="loading"
+    <q-btn
+        flat
+        dense
+        class="sa-btn--icon"
+        :loading="loading"
         :aria-label="label ?? common.reload"
         @click="emit('refresh')"
     >
-        <q-spinner v-if="loading" size="16px" />
-        <q-icon v-else name="refresh" size="16px" />
-    </button>
+        <q-icon name="refresh" size="16px" />
+        <template #loading>
+            <q-spinner size="16px" />
+        </template>
+    </q-btn>
 </template>
 
 <script setup lang="ts">

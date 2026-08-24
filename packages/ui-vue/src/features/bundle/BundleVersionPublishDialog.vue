@@ -31,11 +31,23 @@
                 <div class="bvpd__validity-grid">
                     <label class="bvpd__field">
                         <span>{{ msg.fields.validFrom }}</span>
-                        <input v-model="validFromInput" class="bvpd__input" type="date" />
+                        <q-input
+                            v-model="validFromInput"
+                            outlined
+                            dense
+                            class="bvpd__input"
+                            type="date"
+                        />
                     </label>
                     <label class="bvpd__field">
                         <span>{{ msg.fields.validUntil }}</span>
-                        <input v-model="validUntilInput" class="bvpd__input" type="date" />
+                        <q-input
+                            v-model="validUntilInput"
+                            outlined
+                            dense
+                            class="bvpd__input"
+                            type="date"
+                        />
                     </label>
                 </div>
                 <p v-if="validityError" class="bvpd__error">{{ validityError }}</p>
@@ -278,35 +290,35 @@ function formatValue(v: unknown): string {
 .bvpd__body {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--sa-space-5);
 }
 .bvpd__label {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    letter-spacing: var(--sa-tracking-wide);
+    margin-bottom: var(--sa-space-2);
 }
 .bvpd__loading {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 32px;
+    padding: var(--sa-space-8);
 }
 .bvpd__validity {
-    padding: 12px;
+    padding: var(--sa-space-4);
     background: var(--sa-color-bg-sunken);
     border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
+    border-radius: var(--sa-radius-field);
 }
 .bvpd__validity-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .bvpd__field {
     display: grid;
-    gap: 6px;
+    gap: var(--sa-space-2);
     font-size: var(--sa-text-sm);
     font-weight: 700;
     color: var(--sa-color-fg-secondary);
@@ -314,21 +326,21 @@ function formatValue(v: unknown): string {
 .bvpd__input {
     min-height: 36px;
     border: 1px solid var(--sa-color-border-strong);
-    border-radius: 6px;
-    padding: 0 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: 0 var(--sa-space-3);
     font: inherit;
     color: var(--sa-color-fg-heading);
     background: var(--sa-color-bg-surface);
 }
 .bvpd__error {
-    margin: 8px 0 0;
+    margin: var(--sa-space-3) 0 0;
     color: var(--sa-color-negative);
     font-size: var(--sa-text-sm);
     font-weight: 700;
 }
 .bvpd__list {
-    margin: 8px 0 0;
-    padding-left: 20px;
+    margin: var(--sa-space-3) 0 0;
+    padding-left: var(--sa-space-6);
     font-size: var(--sa-text-md);
 }
 .bvpd__old {

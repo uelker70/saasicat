@@ -5,7 +5,7 @@
 // `moduleResolution` `node16`, `nodenext` or `bundler`. Under the old `node`
 // setting every one of those imports is "Cannot find module", in files the
 // command just wrote. `nest new` has set `nodenext` for years; an app that
-// predates that is exactly the app `docs/migrating-an-existing-app.md` is
+// predates that is exactly the app `docs/guides/integrate-into-an-existing-app.md` is
 // for, so this is checked before anything is written, and said plainly.
 //
 // The config is read the way the build will read it: through TypeScript's

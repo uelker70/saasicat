@@ -168,13 +168,13 @@ function copyFromDefault(locale: string): void {
 .sa-trans {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 12px;
+    gap: var(--sa-space-4);
 }
 .sa-trans-lang {
     border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     background: var(--sa-color-bg-surface);
-    padding: 10px 12px;
+    padding: var(--sa-space-3) var(--sa-space-4);
 }
 .sa-trans-lang--source {
     background: var(--sa-color-bg-sunken);
@@ -183,16 +183,16 @@ function copyFromDefault(locale: string): void {
 .sa-trans-lang__head {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--sa-space-3);
+    margin-bottom: var(--sa-space-3);
 }
 .sa-trans-lang__code {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
-    padding: 2px 6px;
-    border-radius: 5px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-trans-lang__name {
     font-size: var(--sa-text-sm);
@@ -204,11 +204,11 @@ function copyFromDefault(locale: string): void {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-secondary);
     background: var(--sa-color-border);
-    padding: 2px 6px;
-    border-radius: 5px;
+    padding: var(--sa-space-1) var(--sa-space-2);
+    border-radius: var(--sa-radius-badge);
 }
 .sa-trans-lang__copy {
     color: var(--sa-color-fg-secondary);
@@ -216,18 +216,18 @@ function copyFromDefault(locale: string): void {
 .sa-trans-fields {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-trans-field {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: var(--sa-space-1);
 }
 .sa-trans-field__cap {
     font-size: var(--sa-text-2xs);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: var(--sa-tracking-wide);
     color: var(--sa-color-fg-subtle);
 }
 .sa-trans-locked {
@@ -235,11 +235,11 @@ function copyFromDefault(locale: string): void {
     color: var(--sa-color-fg-body);
     background: var(--sa-color-border-soft);
     border: 1px dashed var(--sa-color-border-strong);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: var(--sa-radius-badge);
+    padding: var(--sa-space-2) var(--sa-space-3);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--sa-space-3);
 }
 .sa-trans-locked__hint {
     font-size: var(--sa-text-2xs);
@@ -248,11 +248,11 @@ function copyFromDefault(locale: string): void {
 }
 .sa-trans__empty {
     grid-column: 1 / -1;
-    padding: 16px;
+    padding: var(--sa-space-5);
     text-align: center;
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
     border: 1px dashed var(--sa-color-border-strong);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
 }
 </style>

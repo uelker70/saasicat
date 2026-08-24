@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 
 import { beforeAll, describe, expect, test } from 'vitest';
 
-import { mountWithQuasar } from './support/mount-with-quasar';
+import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
 // A field that is wrong may not be painted like a field that is fine.
 //

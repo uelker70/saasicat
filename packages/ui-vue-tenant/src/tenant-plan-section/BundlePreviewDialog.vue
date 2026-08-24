@@ -244,20 +244,20 @@ function close() {
     max-width: 560px;
 }
 .sp-bundle-preview__head {
-    padding-bottom: 8px;
+    padding-bottom: var(--sa-space-3);
 }
 .sp-bundle-preview__title {
     font-size: var(--sa-text-lg);
     font-weight: 600;
 }
 .sp-bundle-preview__bundle {
-    margin-top: 2px;
+    margin-top: var(--sa-space-1);
     color: var(--sp-text-secondary, var(--sa-color-fg-secondary));
 }
 .sp-bundle-preview__loading {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--sa-space-4);
     color: var(--sp-text-secondary, var(--sa-color-fg-secondary));
 }
 .sp-bundle-preview__error {
@@ -273,7 +273,7 @@ function close() {
 .sp-bundle-preview__block-title {
     font-weight: 600;
     font-size: var(--sa-text-md);
-    margin-bottom: 6px;
+    margin-bottom: var(--sa-space-2);
 }
 .sp-bundle-preview__block-subtitle {
     font-weight: 500;
@@ -281,18 +281,18 @@ function close() {
 .sp-bundle-preview__blockers ul,
 .sp-bundle-preview__warnings ul {
     margin: 0;
-    padding-left: 18px;
+    padding-left: var(--sa-space-5);
     font-size: var(--sa-text-md);
 }
 .sp-bundle-preview__requires {
-    margin-top: 6px;
+    margin-top: var(--sa-space-2);
     font-size: var(--sa-text-md);
 }
 .sp-bundle-preview__price-row {
     display: flex;
     justify-content: space-between;
-    gap: 16px;
-    padding: 4px 0;
+    gap: var(--sa-space-5);
+    padding: var(--sa-space-2) 0;
     font-size: var(--sa-text-lg);
 }
 .sp-bundle-preview__price-row small {
@@ -302,6 +302,6 @@ function close() {
 .sp-bundle-preview__note {
     font-size: var(--sa-text-md);
     color: var(--sp-text-muted, var(--sa-color-fg-muted));
-    padding: 4px 0;
+    padding: var(--sa-space-2) 0;
 }
 </style>
