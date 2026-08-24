@@ -1,5 +1,75 @@
 # @saasicat/nest
 
+## 1.0.0-rc.4
+
+### Patch Changes
+
+- ed230d3: `POST /admin/billing/plan-catalog/import` answers **400** for a body it could
+  not read, where it previously answered 500.
+
+    Unparseable YAML and a schema or cross-field violation both reached Nest as
+    plain `Error`s, so a caller could not tell a bad upload from a broken server —
+    and the one they could fix was the one that looked unfixable. They now carry
+    `PLAN_CATALOG_UNREADABLE` and `PLAN_CATALOG_INVALID` — both in
+    `CATALOG_ERROR_CODES` with English and German text, so `resolveErrorMessage`
+    answers them like every other coded error instead of falling through to a raw
+    validator dump. A failure from the store keeps its 500, which is the honest
+    status for it.
+
+    The OpenAPI contract also had the first-run setup statuses wrong: `POST /setup`
+    answers 401 for a wrong token, 409 once a SUPER_ADMIN exists, 400 for an
+    unusable email and 403 only when `SETUP_TOKEN` is unset. It documented 403 for
+    all of them.
+
+- ed230d3: Every package README now answers the same three questions in the same order:
+  what this is, what this is **not**, and where to go next.
+
+    The middle one is the addition. `@saasicat/core` is not a types-only package,
+    `@saasicat/spec` does not run your migrations, `@saasicat/cli` has no binary of
+    its own for the flows it ships, and `@saasicat/ui-vue-tenant` renders in your
+    application rather than in the admin — each of those was a question rather than
+    a sentence.
+
+    `@saasicat/nest` and `@saasicat/ui-vue` list all twelve and thirteen of their
+    entry points with what is in each and when to take it; the previous tables
+    covered one and four. A repository test checks those tables against the export
+    map in both directions.
+
+- 09fa5f1: **Correction to the 1.0.0-rc.0 notes on the enforcement-chain check.** They said neither known
+  consumer was affected because every `@RequireFeature` sat in a file that also binds a feature
+  guard. One consumer binds a feature guard of its own — a class that enforces the annotation
+  through `EntitlementService` but is not the platform's — and the check recognises a guard only
+  by `FEATURE_GUARD_MARKER`, so that application stopped booting with "63 annotated route(s) have
+  no feature guard in front of them". The way out was already in the message and is now in
+  [`docs/guides/upgrade-to-1.0.md`](https://github.com/uelker70/saasicat/blob/main/docs/guides/upgrade-to-1.0.md):
+  put `static readonly [FEATURE_GUARD_MARKER] = true` on a guard that really enforces
+  `@RequireFeature`, or set `enforcementChainCheck: false` for a guard bound as a global `APP_GUARD`.
+- ed230d3: The rules that decide whether a version may be published are written once now,
+  not once per entity.
+
+    Plans and bundles asked the same five questions of a publish — is there a start,
+    is it a date, is it after the predecessor's, does it meet a predecessor that
+    ends, is the end after the start — in sixty-five lines each, differing only in
+    which error code they named. Nothing changes for a caller: the codes, the
+    messages and the extra fields on the gapless refusal are the same on both
+    routes. What changes is that a correction now lands in one place; the second
+    copy carried a comment saying "analogous to Plan" instead of the reasoning, and
+    that is what a divergence looks like before it happens.
+
+    The bundle DTOs lost the same kind of repetition. Their constraints are composed
+    from named decorators (`IsBoundedText`, `IsDecimalAmountOrNull`,
+    `IsIsoDateOrNull`, `IsFeatureKeyList`, `IsSortOrder`) and the two version-draft
+    DTOs share a base class for everything except the feature list, which is what
+    actually separates them. One drift is fixed on the way: the update route's price
+    and feature errors carried no message, so the same bad payload came back
+    explained on create and unexplained on update. Both explain now.
+
+- Updated dependencies [ed230d3]
+- Updated dependencies [ed230d3]
+- Updated dependencies [ed230d3]
+    - @saasicat/spec@1.0.0-rc.4
+    - @saasicat/core@1.0.0-rc.4
+
 ## 1.0.0-rc.3
 
 ### Patch Changes

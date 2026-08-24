@@ -1,5 +1,26 @@
 # @saasicat/persistence-testing
 
+## 1.0.0-rc.4
+
+### Patch Changes
+
+- ed230d3: Every package README now answers the same three questions in the same order:
+  what this is, what this is **not**, and where to go next.
+
+    The middle one is the addition. `@saasicat/core` is not a types-only package,
+    `@saasicat/spec` does not run your migrations, `@saasicat/cli` has no binary of
+    its own for the flows it ships, and `@saasicat/ui-vue-tenant` renders in your
+    application rather than in the admin — each of those was a question rather than
+    a sentence.
+
+    `@saasicat/nest` and `@saasicat/ui-vue` list all twelve and thirteen of their
+    entry points with what is in each and when to take it; the previous tables
+    covered one and four. A repository test checks those tables against the export
+    map in both directions.
+
+- Updated dependencies [ed230d3]
+    - @saasicat/core@1.0.0-rc.4
+
 ## 1.0.0-rc.3
 
 ### Patch Changes

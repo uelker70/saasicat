@@ -15,16 +15,29 @@
     "@saasicat/core": "0.27.0",
     "@saasicat/ui-vue": "0.27.0",
     "saasicat": "0.27.0",
-    "@saasicat/ui-vue-tenant": "0.27.0"
+    "@saasicat/ui-vue-tenant": "0.27.0",
+    "eslint-plugin-saasicat": "0.0.0"
   },
   "changesets": [
     "apply-carries-the-enums",
+    "catalog-import-answers-400",
+    "cli-readme-shows-the-real-catalog-module",
+    "controls-come-from-quasar",
     "core-carries-the-domain",
+    "documentation-has-four-levels",
+    "every-readme-answers-the-same-questions",
+    "guard-of-your-own",
+    "one-mount-helper-for-both-packages",
     "one-name-per-thing",
+    "one-rule-for-a-validity-window",
     "one-surface-for-the-admin-ui",
+    "openapi-describes-what-runs",
     "pages-read-their-own-data",
     "review-step-has-a-route",
+    "spacing-comes-from-the-scale",
     "suite-finds-the-distributions",
-    "the-primitive-roster-and-its-consumers"
+    "the-example-speaks-english",
+    "the-primitive-roster-and-its-consumers",
+    "the-row-carries-the-order"
   ]
 }

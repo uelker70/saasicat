@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/core",
-    "version": "1.0.0-rc.3",
+    "version": "1.0.0-rc.4",
     "description": "TypeScript contracts for SaaSiCat — capabilities, catalogs, subscriptions, entitlements, admin manifests, persistence ports — and the pure domain logic both server and browser run: error catalogues, plan-diff classification, promo arithmetic, feature requirements.",
     "type": "module",
     "main": "./dist/index.cjs",

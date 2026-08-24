@@ -1,5 +1,40 @@
 # create-saasicat-admin
 
+## 1.0.0-rc.4
+
+### Patch Changes
+
+- ed230d3: The handbook is gone, and its twelve chapters are documents you can enter
+  directly: guides for a task, reference for a name, explanation for a why.
+  [`docs/README.md`](https://github.com/uelker70/saasicat/blob/main/docs/README.md)
+  is the map.
+
+    If you linked to a numbered section — `handbook.md#87-ui-language-i18n` and its
+    kin — the sections carry names now. The comments in the scaffolded files and in
+    `examples/notesapp` point at the new documents, and the numbered references they
+    used to carry are gone: a number was exactly what broke every time a section was
+    inserted.
+
+    Two contradictions the split removed, both of which sent readers the wrong way:
+    the architecture chapter presented seven individual `forRoot` calls as the way to
+    wire the backend while the quickstart used `SaaSiCatModule.forRoot`, and the
+    sub-entry rule said "never import the root" while the platform composition is
+    exported from there deliberately.
+
+- ed230d3: Every package README now answers the same three questions in the same order:
+  what this is, what this is **not**, and where to go next.
+
+    The middle one is the addition. `@saasicat/core` is not a types-only package,
+    `@saasicat/spec` does not run your migrations, `@saasicat/cli` has no binary of
+    its own for the flows it ships, and `@saasicat/ui-vue-tenant` renders in your
+    application rather than in the admin — each of those was a question rather than
+    a sentence.
+
+    `@saasicat/nest` and `@saasicat/ui-vue` list all twelve and thirteen of their
+    entry points with what is in each and when to take it; the previous tables
+    covered one and four. A repository test checks those tables against the export
+    map in both directions.
+
 ## 1.0.0-rc.3
 
 ## 1.0.0-rc.2
