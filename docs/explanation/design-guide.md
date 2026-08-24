@@ -148,9 +148,15 @@ the components themselves, so it cannot fall behind them. The recipe above uses
 `#empty` slot; both ship, along with the dialog and row-action primitives.
 
 Anything not on that roster comes from Quasar directly, styled through the
-theme. Buttons, inputs, tabs and badges are Quasar components: a wrapper around
-one would add a layer that only forwards, and the roster is not extended on a
-whim.
+theme. Buttons, inputs, tabs, badges and icons are Quasar components: a wrapper
+around one would add a layer that only forwards, and the roster is not extended
+on a whim.
+
+Icons are the entry that had been missing from that sentence, and the package
+paid for it: it drew 51 glyphs by hand while asking `q-icon` for the same
+pictures in 112 other places, so the same checkmark existed in three geometries
+and — at one size — three stroke widths. A glyph is `<q-icon name="check">`;
+`saasicat/no-restricted-components` refuses a raw `<svg>` in the package.
 
 ---
 
@@ -208,8 +214,8 @@ dimensions are a table in a section. Never more than five KPIs in a row.
 
 Everything on this list is in `@saasicat/ui-vue`, imported from `@saasicat/ui-vue/ui/…`.
 Everything not on it comes from Quasar directly and is styled by the theme — buttons,
-inputs, tabs, selects and badges are Quasar components, and wrapping one in an `Admin*`
-of your own puts a second answer next to the first.
+inputs, tabs, selects, badges and icons are Quasar components, and wrapping one in an
+`Admin*` of your own puts a second answer next to the first.
 
 | Component                       | Use it for                                                               |
 | ------------------------------- | ------------------------------------------------------------------------ |

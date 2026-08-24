@@ -169,8 +169,6 @@
              `plan-area-context.ts` for why that matters. -->
         <router-view />
 
-        <PlansPageToast :message="toastMessage" />
-
         <!-- Create Plan master record (V1 plan simulation step 1) -->
         <PlanCreateDialog
             v-model="createDialogOpen"
@@ -261,7 +259,7 @@ import PlanArchiveDialog from '../internal/plans-page/PlanArchiveDialog.vue';
 import PlanDiscardDraftDialog from '../internal/plans-page/PlanDiscardDraftDialog.vue';
 import PlanPublishDialog from '../internal/plans-page/PlanPublishDialog.vue';
 import PlanBundleOverview from '../internal/plans-page/PlanBundleOverview.vue';
-import PlansPageToast from '../internal/plans-page/PlansPageToast.vue';
+import { useSuperAdminNotify } from '../quasar/notify.js';
 import type {
     PlanArchiveTarget,
     PlanDiscardTarget,
@@ -316,6 +314,7 @@ const props = defineProps<{
 
 const router = useRouter();
 const route = useRoute();
+const notify = useSuperAdminNotify();
 const msg = useSaMessages('plans');
 // The plan detail's own strings: its header moved into this page's hero.
 const planDetailMsg = useSaMessages('planDetail');
@@ -432,17 +431,7 @@ const reviewError = ref<string | null>(null);
 
 // NEW highlight after plan create / version publish (see plan simulation).
 const highlightPlanKey = ref<string | null>(null);
-const toastMessage = ref<string | null>(null);
-let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let highlightTimer: ReturnType<typeof setTimeout> | null = null;
-
-function flashToast(msg: string, ms = 4000): void {
-    toastMessage.value = msg;
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-        toastMessage.value = null;
-    }, ms);
-}
 
 function flashHighlight(planKey: string, ms = 4500): void {
     highlightPlanKey.value = planKey;
@@ -523,7 +512,10 @@ async function onCreateSubmit(payload: PlanCreateSubmit): Promise<void> {
 
         await reloadAllVersions();
         flashHighlight(created.planKey);
-        flashToast(formatMessage(msg.value.page.toastPlanCreated, { planKey: created.planKey }));
+        notify(
+            'positive',
+            formatMessage(msg.value.page.toastPlanCreated, { planKey: created.planKey }),
+        );
         await onOpenPlan(created);
         openCreateDraftWithPrefill({
             features: payload.initialFeatures,
@@ -922,7 +914,8 @@ async function onReviewSaveExit(): Promise<boolean> {
         if (!saved) return false;
         const planKey = selectedPlan.value?.planKey ?? '';
         flashHighlight(planKey);
-        flashToast(
+        notify(
+            'positive',
             formatMessage(msg.value.page.toastDraftSaved, {
                 version: saved.version,
                 planKey,
@@ -960,7 +953,8 @@ async function onReviewPublish(payload: {
         await reloadCockpitVersions();
         const planKey = selectedPlan.value.planKey;
         flashHighlight(planKey);
-        flashToast(
+        notify(
+            'positive',
             formatMessage(msg.value.page.toastPlanPublished, {
                 planKey,
                 version: result.planVersion.version,
@@ -1003,7 +997,10 @@ async function executeArchive(): Promise<void> {
         await hardDelete(plan.id);
         await reloadAllVersions();
         archiveOpen.value = false;
-        flashToast(formatMessage(msg.value.page.toastPlanDeleted, { planKey: plan.planKey }));
+        notify(
+            'positive',
+            formatMessage(msg.value.page.toastPlanDeleted, { planKey: plan.planKey }),
+        );
     } catch (err: unknown) {
         console.error('[PlansPage] Archive/purge failed', err);
         const status = (err as { status?: number })?.status;
@@ -1061,7 +1058,8 @@ async function executeDiscard(): Promise<void> {
         await pv.discardDraft(draft.id);
         await reloadAllVersions();
         discardOpen.value = false;
-        flashToast(
+        notify(
+            'positive',
             formatMessage(msg.value.page.toastDraftDiscarded, {
                 version: draft.version,
                 planKey: plan.planKey,
@@ -1111,7 +1109,8 @@ async function onSubmitTerminate(versionId: string, endsAt: string): Promise<voi
     await planVersions.value.terminateVersion(versionId, endsAt);
     await reloadCockpitVersions();
     if (selectedPlan.value) {
-        flashToast(
+        notify(
+            'positive',
             formatMessage(msg.value.page.toastVersionTerminated, {
                 version: versions.value.find((v) => v.id === versionId)?.version ?? '?',
             }),
@@ -1220,7 +1219,8 @@ async function executePublish(): Promise<void> {
         regressionChanges.value = [];
         if (selectedPlan.value) {
             flashHighlight(selectedPlan.value.planKey);
-            flashToast(
+            notify(
+                'positive',
                 formatMessage(msg.value.page.toastPlanPublished, {
                     planKey: selectedPlan.value.planKey,
                     version: result.planVersion.version,

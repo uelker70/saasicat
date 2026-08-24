@@ -21,16 +21,7 @@
         <div v-if="chronological.length > 0" class="pd-timeline">
             <div class="pd-timeline-hint">
                 <span aria-hidden="true">
-                    <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                    </svg>
+                    <q-icon name="bolt" size="12px" />
                 </span>
                 {{ msg.versions.timelineHint }}
             </div>
@@ -142,16 +133,7 @@
                             :title="msg.versions.publishDraftTitle"
                             @click="$emit('publish', v)"
                         >
-                            <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                            </svg>
+                            <q-icon name="bolt" size="12px" />
                         </q-btn>
                     </template>
                     <template v-if="editabilityOf(v).editable">
@@ -167,18 +149,7 @@
                             "
                             @click="$emit('editDraft', v)"
                         >
-                            <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                            >
-                                <path
-                                    d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
-                                />
-                            </svg>
+                            <q-icon name="edit" size="12px" />
                         </q-btn>
                     </template>
                     <template v-if="statusOf(v) === 'live'">

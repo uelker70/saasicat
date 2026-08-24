@@ -26,28 +26,8 @@
                 @click="$emit('toggle', q.quotaKey)"
             >
                 <span class="bd-quota-tick" aria-hidden="true">
-                    <svg
-                        v-if="q.quotaKey in quotas"
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                    >
-                        <path d="M5 13l4 4L19 7" />
-                    </svg>
-                    <svg
-                        v-else
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M12 5v14M5 12h14" />
-                    </svg>
+                    <q-icon v-if="q.quotaKey in quotas" name="check" size="11px" />
+                    <q-icon v-else name="add" size="11px" />
                 </span>
             </button>
             <div class="bd-quota-main">

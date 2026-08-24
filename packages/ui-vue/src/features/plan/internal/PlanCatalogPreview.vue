@@ -58,32 +58,14 @@
                 <ul class="pve-prev-list">
                     <li v-for="row in selectedQuotaList" :key="`pq-${row.quotaKey}`">
                         <span class="pve-prev-tick" aria-hidden="true">
-                            <svg
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="3"
-                            >
-                                <path d="M5 13l4 4L19 7" />
-                            </svg>
+                            <q-icon name="check" size="10px" />
                         </span>
                         <b>{{ quotas[row.quotaKey] }}</b>
                         {{ (row.unit || row.label).toLowerCase() }}
                     </li>
                     <li v-for="key in sortedSelectedFeatures" :key="`pf-${key}`">
                         <span class="pve-prev-tick" aria-hidden="true">
-                            <svg
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="3"
-                            >
-                                <path d="M5 13l4 4L19 7" />
-                            </svg>
+                            <q-icon name="check" size="10px" />
                         </span>
                         {{ featureLabel(key) }}
                     </li>
@@ -106,16 +88,7 @@
         <div class="pve-prev-validate">
             <div class="pve-prev-validate-head">
                 <span class="pve-prev-validate-tick" aria-hidden="true">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                    >
-                        <path d="M5 13l4 4L19 7" />
-                    </svg>
+                    <q-icon name="check" size="14px" />
                 </span>
                 <span class="pve-prev-validate-title">{{ msg.catalogPreview.checklistTitle }}</span>
                 <span class="pve-prev-validate-count">{{ checklistCountLabel }}</span>
@@ -126,31 +99,8 @@
                 :class="['pve-vchk', item.ok ? 'pve-vchk--ok' : 'pve-vchk--warn']"
             >
                 <span aria-hidden="true">
-                    <svg
-                        v-if="item.ok"
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                    >
-                        <path d="M5 13l4 4L19 7" />
-                    </svg>
-                    <svg
-                        v-else
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                        />
-                        <path d="M12 9v4M12 17h.01" />
-                    </svg>
+                    <q-icon v-if="item.ok" name="check" size="14px" />
+                    <q-icon v-else name="warning" size="14px" />
                 </span>
                 <!-- Checklist labels come from the i18n catalog, where one
                      entry (`checklistTenantImpact`) emphasises the affected

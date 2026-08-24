@@ -16,19 +16,7 @@
             <!-- Save error banner, e.g. PLAN_DRAFT_ALREADY_EXISTS -->
             <div v-if="saveError" class="pve-error" role="alert">
                 <span class="pve-error-ico" aria-hidden="true">
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                        />
-                        <path d="M12 9v4M12 17h.01" />
-                    </svg>
+                    <q-icon name="warning" size="16px" />
                 </span>
                 <span>{{ saveError }}</span>
             </div>
@@ -1108,7 +1096,7 @@ function emitSave(): void {
     font-weight: 500;
     color: var(--sa-color-negative-fg);
 }
-.pve-bs-error svg {
+.pve-bs-error .q-icon {
     flex: 0 0 auto;
 }
 /* Widths, not looks. */

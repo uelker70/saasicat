@@ -60,6 +60,22 @@ export default {
                         type: 'object',
                         additionalProperties: { type: 'string' },
                     },
+                    /**
+                     * Plain markup the design system answers, rather than a
+                     * component. `allow` deliberately does NOT reach these.
+                     *
+                     * The path escape exists because `src/ui/` is where the
+                     * primitives that wrap `<q-dialog>` live — a directory
+                     * cannot implement `AdminDialog` without writing one. No
+                     * directory implements `<svg>`: the answer is Quasar's
+                     * `q-icon` everywhere, and `src/ui/page/WizardStepper.vue`
+                     * drew its own checkmark for exactly as long as the escape
+                     * covered it.
+                     */
+                    elements: {
+                        type: 'object',
+                        additionalProperties: { type: 'string' },
+                    },
                     allow: { type: 'array', items: { type: 'string' } },
                 },
                 additionalProperties: false,
@@ -75,9 +91,11 @@ export default {
     },
 
     create(context) {
-        const [{ components = {}, prefixes = {}, allow = [] } = {}] = context.options;
+        const [{ components = {}, prefixes = {}, elements = {}, allow = [] } = {}] =
+            context.options;
         const filename = context.filename ?? context.getFilename();
-        if (allow.some((allowed) => filename.includes(allowed))) return {};
+        const exempt = allow.some((allowed) => filename.includes(allowed));
+        if (exempt && Object.keys(elements).length === 0) return {};
 
         const parserServices = context.sourceCode.parserServices ?? context.parserServices;
         const template = parserServices?.defineTemplateBodyVisitor;
@@ -86,6 +104,15 @@ export default {
         return template({
             VElement(node) {
                 const name = kebabCase(node.rawName);
+                if (elements[name]) {
+                    context.report({
+                        node,
+                        messageId: 'restricted',
+                        data: { name: node.rawName, use: elements[name] },
+                    });
+                    return;
+                }
+                if (exempt) return;
                 // A named component wins over its namespace: the specific
                 // replacement is the more useful sentence to read.
                 if (components[name]) {
