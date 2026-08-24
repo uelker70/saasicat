@@ -6,16 +6,7 @@
                 <div class="bcp-sub">{{ msg.create.subtitle }}</div>
             </div>
             <q-btn class="bcp-close" flat dense no-caps :aria-label="common.close" @click="close">
-                <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+                <q-icon name="close" size="14px" />
             </q-btn>
         </div>
 
@@ -191,16 +182,7 @@
                 {{ overlapWarningText }}
             </span>
             <span v-else-if="form.features.length > 0" class="bcp-foot-hint">
-                <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="3"
-                >
-                    <path d="M5 13l4 4L19 7" />
-                </svg>
+                <q-icon name="check" size="12px" />
                 <span>
                     <b>{{ form.features.length }}</b>
                     {{

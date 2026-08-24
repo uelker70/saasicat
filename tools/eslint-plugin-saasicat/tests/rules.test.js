@@ -306,6 +306,65 @@ describe('no-restricted-components', () => {
             });
         });
     });
+
+    // `elements` is the third key, and the only one `allow` does not reach.
+    // `src/ui/` may write a `<q-dialog>` because that is where `AdminDialog`
+    // wraps one; no directory wraps an `<svg>`, and while the escape covered
+    // them `WizardStepper.vue` drew its own checkmark under it.
+    describe('markup the path escape must not reach', () => {
+        const withElements = [
+            {
+                components: { 'q-dialog': 'AdminDialog' },
+                elements: { svg: 'q-icon with a Material Icons name' },
+                allow: ['src/ui/'],
+            },
+        ];
+
+        test('reports an element even inside an allowed path', () => {
+            sfc.run('no-restricted-components', rules['no-restricted-components'], {
+                valid: [
+                    {
+                        // The escape still does its job for the component half.
+                        code: '<template><q-dialog v-model="open" /></template>',
+                        filename: '/repo/src/ui/overlay/AdminDialog.vue',
+                        options: withElements,
+                    },
+                    {
+                        code: '<template><q-icon name="check" size="11px" /></template>',
+                        filename: '/repo/src/ui/page/WizardStepper.vue',
+                        options: withElements,
+                    },
+                    {
+                        // Not configured as an element: the tenant package
+                        // draws its own glyphs and passes no `elements`.
+                        code: '<template><svg viewBox="0 0 24 24" /></template>',
+                        filename: '/repo/packages/ui-vue-tenant/src/ui/TenantDialog.vue',
+                        options: [{ prefixes: { 'q-': 'a plain element' } }],
+                    },
+                ],
+                invalid: [
+                    {
+                        code: '<template><svg viewBox="0 0 24 24" /></template>',
+                        filename: '/repo/src/features/plan/PlanReview.vue',
+                        options: withElements,
+                        errors: [
+                            {
+                                messageId: 'restricted',
+                                data: { name: 'svg', use: 'q-icon with a Material Icons name' },
+                            },
+                        ],
+                    },
+                    {
+                        // The one the whole key exists for.
+                        code: '<template><svg viewBox="0 0 24 24" /></template>',
+                        filename: '/repo/src/ui/page/WizardStepper.vue',
+                        options: withElements,
+                        errors: [{ messageId: 'restricted' }],
+                    },
+                ],
+            });
+        });
+    });
 });
 
 describe('no-hand-built-controls', () => {

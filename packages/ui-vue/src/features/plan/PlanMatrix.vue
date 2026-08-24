@@ -135,17 +135,7 @@
                                         :aria-label="msg.matrix.clonePlan"
                                         @click="$emit('clonePlan', p.plan)"
                                     >
-                                        <svg
-                                            width="12"
-                                            height="12"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <rect x="9" y="9" width="11" height="11" rx="2" />
-                                            <path d="M5 15V5a2 2 0 012-2h10" />
-                                        </svg>
+                                        <q-icon name="content_copy" size="12px" />
                                     </q-btn>
                                 </div>
                             </div>
@@ -156,16 +146,7 @@
                                  size of the cell, not a button placed in one. -->
                             <button class="pm-add" type="button" @click="$emit('createPlan')">
                                 <div class="pm-add-icon">
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2.5"
-                                    >
-                                        <path d="M12 5v14M5 12h14" />
-                                    </svg>
+                                    <q-icon name="add" size="14px" />
                                 </div>
                                 <div class="pm-add-title">{{ msg.matrix.createPlan }}</div>
                                 <div class="pm-add-sub">{{ msg.matrix.createPlanSub }}</div>
@@ -240,16 +221,7 @@
                             :colspan="resolvedPlans.length"
                         >
                             <span class="pm-base-badge">
-                                <svg
-                                    width="11"
-                                    height="11"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                >
-                                    <path d="M5 13l4 4L19 7" />
-                                </svg>
+                                <q-icon name="check" size="11px" />
                                 {{ msg.matrix.baseBadge }}
                             </span>
                         </td>
@@ -268,16 +240,7 @@
                                     class="pm-check"
                                     :style="identityChipStyle(planAccent(p.planKey))"
                                 >
-                                    <svg
-                                        width="12"
-                                        height="12"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="3"
-                                    >
-                                        <path d="M5 13l4 4L19 7" />
-                                    </svg>
+                                    <q-icon name="check" size="12px" />
                                 </span>
                                 <span v-else class="pm-dash">—</span>
                             </td>
@@ -316,16 +279,7 @@
                                 class="pm-check"
                                 :style="identityChipStyle(planAccent(p.planKey))"
                             >
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="3"
-                                >
-                                    <path d="M5 13l4 4L19 7" />
-                                </svg>
+                                <q-icon name="check" size="12px" />
                             </span>
                             <span v-else class="pm-dash">—</span>
                         </td>
@@ -337,17 +291,7 @@
 
         <div class="pm-legend">
             <span class="pm-legend-item">
-                <span class="pm-legend-check"
-                    ><svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3"
-                    >
-                        <path d="M5 13l4 4L19 7" /></svg
-                ></span>
+                <span class="pm-legend-check"><q-icon name="check" size="10px" /></span>
                 {{ msg.matrix.legendIncluded }}
             </span>
             <span class="pm-legend-item">

@@ -174,30 +174,8 @@
                                 :class="c.ok ? 'pr-check--ok' : 'pr-check--warn'"
                             >
                                 <span class="pr-check-mark">
-                                    <svg
-                                        v-if="c.ok"
-                                        width="11"
-                                        height="11"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="3.5"
-                                    >
-                                        <path d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <svg
-                                        v-else
-                                        width="11"
-                                        height="11"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2.5"
-                                    >
-                                        <path
-                                            d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"
-                                        />
-                                    </svg>
+                                    <q-icon v-if="c.ok" name="check" size="11px" />
+                                    <q-icon v-else name="warning" size="11px" />
                                 </span>
                                 <span>{{ c.label }}</span>
                             </div>

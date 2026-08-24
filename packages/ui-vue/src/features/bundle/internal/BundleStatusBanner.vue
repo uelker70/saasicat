@@ -1,53 +1,10 @@
 <template>
     <div :class="['bv-status-banner', `bv-status-${status}`]">
         <span class="bv-status-icon" aria-hidden="true">
-            <svg
-                v-if="status === 'live'"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-            <svg
-                v-else-if="status === 'scheduled'"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
-            </svg>
-            <svg
-                v-else-if="status === 'superseded'"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <path
-                    d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M5 6l1 14a2 2 0 002 2h8a2 2 0 002-2l1-14"
-                />
-            </svg>
-            <svg
-                v-else
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <path d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
+            <q-icon v-if="status === 'live'" name="bolt" size="16px" />
+            <q-icon v-else-if="status === 'scheduled'" name="schedule" size="16px" />
+            <q-icon v-else-if="status === 'superseded'" name="delete" size="16px" />
+            <q-icon v-else name="edit" size="16px" />
         </span>
         <div class="bv-status-text">
             <template v-if="status === 'live'">

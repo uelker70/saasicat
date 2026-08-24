@@ -177,6 +177,22 @@ function quasarClasses() {
     return definedClasses(readFileSync(stylesheet, 'utf8'));
 }
 
+/**
+ * Whether a package name belongs to Quasar — the framework or its org scope.
+ *
+ * The scope is not a formality. `@quasar/extras` ships the icon geometry the
+ * admin package renders through `q-icon`, and reaching for it here would be the
+ * tempting way to share one checkmark across both packages. It carries no
+ * framework, which is exactly why it would pass unnoticed: `quasar` is not a
+ * prefix of `@quasar/extras`, and the manifest field would name something the
+ * old reading did not recognise. ADR 0010 removed a UI framework from this
+ * package's surface, and a consumer reading `@quasar/*` in the dependency list
+ * has no way to tell that this one is only data.
+ */
+function isQuasarPackage(name) {
+    return name === 'quasar' || name.startsWith('quasar/') || name.startsWith('@quasar/');
+}
+
 describe('the tenant package needs no Quasar', () => {
     const manifest = JSON.parse(readFileSync(join(PACKAGE, 'package.json'), 'utf8'));
     const files = sourceFiles();
@@ -189,11 +205,13 @@ describe('the tenant package needs no Quasar', () => {
 
     test('no dependency field names it', () => {
         const fields = Object.keys(manifest).filter((key) => key.endsWith('ependencies'));
-        const naming = fields.filter((field) => 'quasar' in (manifest[field] ?? {}));
+        const naming = fields.filter((field) =>
+            Object.keys(manifest[field] ?? {}).some(isQuasarPackage),
+        );
         assert.deepEqual(
             naming,
             [],
-            `ADR 0010 removed this requirement. Found \`quasar\` in: ${naming.join(', ')}`,
+            `ADR 0010 removed this requirement. Found Quasar in: ${naming.join(', ')}`,
         );
     });
 
@@ -206,7 +224,7 @@ describe('the tenant package needs no Quasar', () => {
         const found = [];
         for (const file of files) {
             for (const specifier of moduleSpecifiers(readFileSync(file, 'utf8'))) {
-                if (specifier === 'quasar' || specifier.startsWith('quasar/')) {
+                if (isQuasarPackage(specifier)) {
                     found.push(`${relative(ROOT, file)}: ${specifier}`);
                 } else if (specifier.endsWith('/quasar')) {
                     // `@saasicat/ui-vue/quasar` is the admin's bootstrap entry.

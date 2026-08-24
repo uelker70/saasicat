@@ -511,10 +511,8 @@ async function executeTerminate(): Promise<void> {
     margin-bottom: var(--sa-space-3);
     font-weight: 500;
 }
-.pd-timeline-hint svg {
+.pd-timeline-hint .q-icon {
     color: var(--sa-color-fg-disabled);
-    width: 12px;
-    height: 12px;
 }
 .pd-timeline-bar {
     display: flex;

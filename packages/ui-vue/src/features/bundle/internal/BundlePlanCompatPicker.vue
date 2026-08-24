@@ -35,16 +35,7 @@
                         class="bv-compat-check"
                         aria-hidden="true"
                     >
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="3"
-                        >
-                            <path d="M5 13l4 4L19 7" />
-                        </svg>
+                        <q-icon name="check" size="14px" />
                     </span>
                 </div>
                 <div v-if="showOverlap(entry)" class="bv-compat-overlap">

@@ -8,17 +8,7 @@
         </div>
         <div class="pve-search">
             <span class="pve-search-ico" aria-hidden="true">
-                <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M21 21l-4.35-4.35" />
-                </svg>
+                <q-icon name="search" size="14px" />
             </span>
             <q-input
                 :model-value="searchTerm"
@@ -61,20 +51,7 @@
                         @dragend="$emit('drag-end')"
                     >
                         <span class="pve-pool-grip" aria-hidden="true">
-                            <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                            >
-                                <circle cx="9" cy="6" r="1.5" fill="currentColor" />
-                                <circle cx="15" cy="6" r="1.5" fill="currentColor" />
-                                <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-                                <circle cx="15" cy="12" r="1.5" fill="currentColor" />
-                                <circle cx="9" cy="18" r="1.5" fill="currentColor" />
-                                <circle cx="15" cy="18" r="1.5" fill="currentColor" />
-                            </svg>
+                            <q-icon name="drag_indicator" size="14px" />
                         </span>
                         <div class="pve-pool-card-main">
                             <div class="pve-pool-card-row">
@@ -86,16 +63,7 @@
                                     class="pve-pool-card-check"
                                     aria-hidden="true"
                                 >
-                                    <svg
-                                        width="12"
-                                        height="12"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="3"
-                                    >
-                                        <path d="M5 13l4 4L19 7" />
-                                    </svg>
+                                    <q-icon name="check" size="12px" />
                                 </span>
                             </div>
                             <div class="pve-pool-card-meta">
@@ -123,20 +91,7 @@
                     @dragend="$emit('drag-end')"
                 >
                     <span class="pve-pool-grip" aria-hidden="true">
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                        >
-                            <circle cx="9" cy="6" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="6" r="1.5" fill="currentColor" />
-                            <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="12" r="1.5" fill="currentColor" />
-                            <circle cx="9" cy="18" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="18" r="1.5" fill="currentColor" />
-                        </svg>
+                        <q-icon name="drag_indicator" size="14px" />
                     </span>
                     <div class="pve-pool-card-main">
                         <div class="pve-pool-card-row">
@@ -146,16 +101,7 @@
                                 class="pve-pool-card-check"
                                 aria-hidden="true"
                             >
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="3"
-                                >
-                                    <path d="M5 13l4 4L19 7" />
-                                </svg>
+                                <q-icon name="check" size="12px" />
                             </span>
                         </div>
                         <div class="pve-pool-card-meta">
@@ -187,20 +133,7 @@
                     @dragend="$emit('drag-end')"
                 >
                     <span class="pve-pool-grip" aria-hidden="true">
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                        >
-                            <circle cx="9" cy="6" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="6" r="1.5" fill="currentColor" />
-                            <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="12" r="1.5" fill="currentColor" />
-                            <circle cx="9" cy="18" r="1.5" fill="currentColor" />
-                            <circle cx="15" cy="18" r="1.5" fill="currentColor" />
-                        </svg>
+                        <q-icon name="drag_indicator" size="14px" />
                     </span>
                     <div class="pve-pool-card-main">
                         <div class="pve-pool-card-row">
@@ -210,16 +143,7 @@
                                 class="pve-pool-card-check"
                                 aria-hidden="true"
                             >
-                                <svg
-                                    width="12"
-                                    height="12"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="3"
-                                >
-                                    <path d="M5 13l4 4L19 7" />
-                                </svg>
+                                <q-icon name="check" size="12px" />
                             </span>
                         </div>
                         <div class="pve-pool-card-meta">

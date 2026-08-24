@@ -9,18 +9,7 @@
                 }"
             >
                 <span class="wz-step-num">
-                    <svg
-                        v-if="i < currentIndex"
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="3.5"
-                        aria-hidden="true"
-                    >
-                        <path d="M5 13l4 4L19 7" />
-                    </svg>
+                    <q-icon v-if="i < currentIndex" name="check" size="11px" />
                     <template v-else>{{ i + 1 }}</template>
                 </span>
                 <span>{{ step.label }}</span>

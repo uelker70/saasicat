@@ -128,16 +128,7 @@
                     <ul v-if="row.m.topFeatures.length > 0" class="sa-marketing-card-features">
                         <li v-for="(f, i) in row.m.topFeatures" :key="i">
                             <span class="sa-marketing-tick">
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="3"
-                                >
-                                    <path d="M20 6 9 17l-5-5" />
-                                </svg>
+                                <q-icon name="check" size="14px" />
                             </span>
                             <span>
                                 {{ topFeatureLabel(f) }}<template v-if="f.strong"> · </template>

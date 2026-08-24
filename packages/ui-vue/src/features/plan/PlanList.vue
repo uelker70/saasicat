@@ -165,18 +165,7 @@
                                 disable
                                 :title="msg.list.actionDeleteBlocked"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    opacity="0.4"
-                                >
-                                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                                    <path d="M7 11V7a5 5 0 0110 0v4" />
-                                </svg>
+                                <q-icon name="lock" size="14px" />
                             </q-btn>
                             <q-btn
                                 v-else
@@ -186,18 +175,7 @@
                                 :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
-                                    />
-                                </svg>
+                                <q-icon name="delete" size="14px" />
                             </q-btn>
                             <q-btn
                                 flat
@@ -206,17 +184,7 @@
                                 :title="msg.list.actionClonePlan"
                                 @click="$emit('clonePlan', p.plan)"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <rect x="9" y="9" width="11" height="11" rx="2" />
-                                    <path d="M5 15V5a2 2 0 012-2h10" />
-                                </svg>
+                                <q-icon name="content_copy" size="14px" />
                             </q-btn>
                             <q-btn
                                 flat
@@ -226,18 +194,7 @@
                                 :disable="!!p.draft"
                                 @click="onNewVersion(p)"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
-                                    />
-                                </svg>
+                                <q-icon name="edit" size="14px" />
                             </q-btn>
                             <q-btn
                                 flat
@@ -246,16 +203,7 @@
                                 :title="msg.list.actionOpenPlan"
                                 @click="$emit('openPlan', p.plan)"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path d="M9 18l6-6-6-6" />
-                                </svg>
+                                <q-icon name="chevron_right" size="14px" />
                             </q-btn>
                         </div>
                     </div>
@@ -355,18 +303,7 @@
                                 :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
-                                    />
-                                </svg>
+                                <q-icon name="delete" size="14px" />
                             </q-btn>
                             <q-btn
                                 v-if="sub.publishedAt === null"
@@ -376,18 +313,7 @@
                                 :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path
-                                        d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
-                                    />
-                                </svg>
+                                <q-icon name="edit" size="14px" />
                             </q-btn>
                             <q-btn
                                 flat
@@ -396,16 +322,7 @@
                                 :title="msg.list.actionOpenInCockpit"
                                 @click="$emit('openPlan', p.plan)"
                             >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path d="M9 18l6-6-6-6" />
-                                </svg>
+                                <q-icon name="chevron_right" size="14px" />
                             </q-btn>
                         </div>
                     </div>

@@ -210,6 +210,13 @@ export default tseslint.config(
             // cannot use `AdminPage` — sending either to `AdminSection` would
             // be sending it to the wrong component. A rule that names a
             // replacement has to have one.
+            //
+            // `elements` sits beside `components` because `allow` must not
+            // reach it. Fifty-one hand-drawn glyphs stood in seventeen files —
+            // one checkmark in three geometries, and at 11px in three stroke
+            // widths — beside 112 places that already asked Quasar for the same
+            // picture. The package never chose between the two; both arrived
+            // with the extraction commit and nobody looked again.
             'saasicat/no-restricted-components': [
                 'error',
                 {
@@ -218,6 +225,9 @@ export default tseslint.config(
                         'q-table': 'AdminTable',
                         'q-page': 'AdminPage',
                         'q-banner': 'AdminBanner or AdminErrorBanner',
+                    },
+                    elements: {
+                        svg: 'q-icon with a Material Icons name',
                     },
                     allow: ['packages/ui-vue/src/ui/'],
                 },
