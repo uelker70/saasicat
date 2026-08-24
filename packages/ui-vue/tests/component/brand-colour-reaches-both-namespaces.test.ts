@@ -69,6 +69,38 @@ describe('the brand colour replaces $primary', () => {
     });
 });
 
+describe('disposing gives the document back', () => {
+    // The value is written on `<html>`, which outlives the shell that wrote it.
+    // A hot reload or a micro-frontend swapping views creates a second shell in
+    // the same document, and without this it inherits the first one's brand.
+
+    test('a shell that set a colour removes it again', () => {
+        const { dispose } = boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
+        expect(brandOn(document.documentElement)).toBe('#3f6bff');
+
+        dispose();
+        expect(brandOn(document.documentElement)).toBe('');
+    });
+
+    test('a value the host set itself is put back, not deleted', () => {
+        // Removing unconditionally would take a host's own branding with it —
+        // the failure is silent and permanent for that page.
+        document.documentElement.style.setProperty('--q-primary', 'rebeccapurple');
+
+        const { dispose } = boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
+        expect(brandOn(document.documentElement)).toBe('#3f6bff');
+
+        dispose();
+        expect(brandOn(document.documentElement)).toBe('rebeccapurple');
+    });
+
+    test('a shell that named no colour touches nothing on the way out', () => {
+        document.documentElement.style.setProperty('--q-primary', 'rebeccapurple');
+        boot({ name: 'Fixture', logoText: 'FX' }).dispose();
+        expect(brandOn(document.documentElement)).toBe('rebeccapurple');
+    });
+});
+
 describe('the theme declares the link the option relies on', () => {
     test('the accent role reads Quasar’s variable', () => {
         // Without this declaration the option above sets a variable nothing

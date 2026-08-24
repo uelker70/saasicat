@@ -1,17 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import { quasar } from '@quasar/vite-plugin';
 
 export default defineConfig({
     base: '/admin/',
     plugins: [
         vue(),
-        quasar({
-            // Absolute path — sass resolves plain relative paths against the
-            // importing file inside node_modules/quasar, not the project root.
-            sassVariables: fileURLToPath(new URL('./src/styles/theme.scss', import.meta.url)),
-        }),
     ],
     // Exactly one copy of each of these, always.
     //
@@ -32,7 +26,7 @@ export default defineConfig({
     // The list is `@saasicat/ui-vue`'s peerDependencies: a peer is precisely a
     // dependency the host is expected to own exactly one of.
     resolve: {
-        dedupe: ['vue', 'vue-router', 'pinia', 'quasar'],
+        dedupe: ['vue', 'vue-router', 'pinia'],
     },
     server: {
         port: __DEV_PORT__,

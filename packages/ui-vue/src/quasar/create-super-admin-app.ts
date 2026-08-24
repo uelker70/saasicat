@@ -80,12 +80,28 @@ import { quasarConfirm } from './confirm.js';
  * where Quasar publishes its own `:root` defaults and where
  * `--sa-color-accent: var(--q-primary, …)` is resolved.
  */
-function applyBrandColour(colour: string | undefined): void {
-    if (!colour) return;
+function applyBrandColour(colour: string | undefined): () => void {
+    if (!colour) return () => {};
     // The composable half of this app is usable under SSR; the brand colour is
     // a paint instruction and has nowhere to go on a server.
-    if (typeof document === 'undefined') return;
-    setCssVar('primary', colour, document.documentElement);
+    if (typeof document === 'undefined') return () => {};
+
+    const root = document.documentElement;
+    // What the document said before, so `dispose()` can put it back. Without
+    // this the value outlives the shell that set it: a second shell created
+    // without `brand.color` — a hot reload, a micro-frontend swapping views —
+    // inherits the first one's branding, and a host that had set `--q-primary`
+    // itself never gets it back.
+    const previous = root.style.getPropertyValue('--q-primary');
+    setCssVar('primary', colour, root);
+
+    return () => {
+        // An empty string is what `getPropertyValue` returns for "the inline
+        // style did not set it", and removing is how that is restored —
+        // setting it to `''` would leave an empty declaration behind.
+        if (previous) setCssVar('primary', previous, root);
+        else root.style.removeProperty('--q-primary');
+    };
 }
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
@@ -320,7 +336,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
             (typeof configuredDark === 'boolean' ? (configuredDark ? 'dark' : 'light') : undefined),
     });
     const stopThemeBridge = bindSaThemeToDocument(theme);
-    applyBrandColour(options.brand.color);
+    const restoreBrandColour = applyBrandColour(options.brand.color);
 
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);
@@ -379,6 +395,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
         mount: (selector) => app.mount(selector),
         dispose: () => {
             stopThemeBridge();
+            restoreBrandColour();
             theme.dispose();
         },
     };
