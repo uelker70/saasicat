@@ -143,14 +143,28 @@ What you do change:
    platform's own roles, and asking you to restate them is how they drifted — the scaffolded
    `$warning: #f59e0b` sat beside a `--sa-color-warning` that resolves to `#b45309`, so
    `color="warning"` painted 2.15:1 on white next to a role painting 4.8:1. The platform now points
-   Quasar's `--q-positive`, `--q-negative`, `--q-warning` and `--q-info` at its roles through
-   `var()`, so they follow the colour scheme. If you had changed one, change the role instead:
+   Quasar's `--q-positive`, `--q-negative`, `--q-warning` and `--q-info` at `--sa-color-*-solid`
+   through `var()`. If you had changed one, change that role — not the one without the suffix:
+
+    | Sass variable you had | Role to override now        |
+    | --------------------- | --------------------------- |
+    | `$positive`           | `--sa-color-positive-solid` |
+    | `$negative`           | `--sa-color-negative-solid` |
+    | `$warning`            | `--sa-color-warning-solid`  |
+    | `$info`               | `--sa-color-info-solid`     |
 
     ```css
     :root {
-        --sa-color-warning: #b45309;
+        --sa-color-warning-solid: #b45309;
     }
     ```
+
+    The suffix is the whole point, and it is the one thing to read twice. `--sa-color-warning` is a
+    foreground: text and icons, measured against the page, so it goes lighter in the dark theme.
+    Quasar uses its variable the other way round — as a background, with white text of its own on
+    top — so `--sa-color-warning-solid` carries the same value in both themes. White on the dark
+    foreground rung reads 1.67:1. Whatever you put here, keep white legible on it; the shipped
+    values run 4.83:1 to 5.48:1.
 
 5. **`resolve.dedupe` loses `quasar`** unless your own application uses Quasar too. If it does, keep
    it: two Quasar instances mean `Dark.set()` in one leaves the other light. It is your singleton

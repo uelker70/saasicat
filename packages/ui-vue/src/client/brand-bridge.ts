@@ -62,18 +62,43 @@ const QUASAR_ROLE_LINKS: Record<string, string> = {
  * blue anyway. `:root` is where Quasar publishes its defaults and where
  * `--sa-color-accent: var(--q-primary, …)` is resolved.
  */
-function writeVar(root: HTMLElement, name: string, value: string): void {
-    root.style.setProperty(`${QUASAR_VAR_PREFIX}${name}`, value);
+function writeVar(root: HTMLElement, name: string, declaration: Declaration): void {
+    root.style.setProperty(`${QUASAR_VAR_PREFIX}${name}`, declaration.value, declaration.priority);
 }
 
+/**
+ * An inline declaration as the document holds it: a value and its priority.
+ *
+ * The priority is not decoration. A host that wrote `--q-primary: … !important`
+ * did so to outrank an author-level rule, and restoring the value alone hands
+ * that rule the win — the page is a different colour after our shell leaves
+ * than before it arrived, which is the opposite of what disposal promises.
+ */
+interface Declaration {
+    value: string;
+    priority: string;
+}
+
+/** What the document declares inline for `--q-<name>` right now. */
+function readVar(root: HTMLElement, name: string): Declaration {
+    const property = `${QUASAR_VAR_PREFIX}${name}`;
+    return {
+        value: root.style.getPropertyValue(property),
+        priority: root.style.getPropertyPriority(property),
+    };
+}
+
+/** Ours, which never needs to outrank anything. */
+const plain = (value: string): Declaration => ({ value, priority: '' });
+
 /** Restores whatever the document declared inline before we wrote to it. */
-function restoreInline(root: HTMLElement, previous: Map<string, string>): () => void {
+function restoreInline(root: HTMLElement, previous: Map<string, Declaration>): () => void {
     return () => {
-        for (const [name, value] of previous) {
+        for (const [name, declaration] of previous) {
             // An empty string is what `getPropertyValue` returns for "the
             // inline style did not set it", and removing is how that is
             // restored — setting it to `''` leaves an empty declaration behind.
-            if (value) writeVar(root, name, value);
+            if (declaration.value) writeVar(root, name, declaration);
             else root.style.removeProperty(`${QUASAR_VAR_PREFIX}${name}`);
         }
     };
@@ -92,13 +117,10 @@ export function linkQuasarStatusColours(): () => void {
 
     const root = document.documentElement;
     const previous = new Map(
-        Object.keys(QUASAR_ROLE_LINKS).map((name) => [
-            name,
-            root.style.getPropertyValue(`${QUASAR_VAR_PREFIX}${name}`),
-        ]),
+        Object.keys(QUASAR_ROLE_LINKS).map((name) => [name, readVar(root, name)]),
     );
     for (const [name, value] of Object.entries(QUASAR_ROLE_LINKS)) {
-        writeVar(root, name, value);
+        writeVar(root, name, plain(value));
     }
     return restoreInline(root, previous);
 }
@@ -117,9 +139,7 @@ export function applyBrandColour(colour: string | undefined): () => void {
     if (typeof document === 'undefined') return () => {};
 
     const root = document.documentElement;
-    const previous = new Map([
-        ['primary', root.style.getPropertyValue(`${QUASAR_VAR_PREFIX}primary`)],
-    ]);
-    writeVar(root, 'primary', colour);
+    const previous = new Map([['primary', readVar(root, 'primary')]]);
+    writeVar(root, 'primary', plain(colour));
     return restoreInline(root, previous);
 }

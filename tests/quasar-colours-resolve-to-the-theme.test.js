@@ -32,6 +32,8 @@ const BRIDGE = join(ROOT, 'packages/ui-vue/src/client/brand-bridge.ts');
 const SEMANTIC = ['light', 'dark'].map((scheme) =>
     join(ROOT, `packages/ui-vue/src/ui/theme/tokens.semantic.${scheme}.css`),
 );
+/** The documents that tell a consumer which role to override. */
+const GUIDES = ['docs/guides/upgrade-to-1.0.md', 'docs/explanation/design-guide.md'];
 
 /**
  * Quasar colour names that carry no scheme because they have no lighter or
@@ -154,3 +156,51 @@ describe('quasar colours resolve to the theme', () => {
 function isNeutral(value) {
     return value === 'grey' || value.startsWith('grey-');
 }
+
+/**
+ * Every `--sa-color-*` a guide names, in prose or in a code block.
+ *
+ * Not only declarations: a migration table row that says "override
+ * `--sa-color-positive-solid`" is telling the reader exactly that, and a reader
+ * searching for the name has to find it. One quantifier on one class after a
+ * literal prefix — nothing here backtracks over a document.
+ */
+function rolesNamedIn(file) {
+    const text = readFileSync(join(ROOT, file), 'utf8');
+    return new Set([...text.matchAll(/--sa-color-([a-z0-9-]+)/g)].map((match) => match[1]));
+}
+
+describe('the guides name the role the bridge actually reads', () => {
+    // The failure this exists for: the bridge moved from `--sa-color-warning`
+    // to `--sa-color-warning-solid`, and three documents kept telling consumers
+    // to override the first. Following that guide changes a role Quasar never
+    // reads, so the customised badge silently reverts to the platform default.
+    //
+    // The question is "does each link target appear in the guides", not "does
+    // any status role appear that is not a link target". The second one was the
+    // first draft, and it flagged the design guide teaching how to override a
+    // role at all — where `--sa-color-negative` is an example of the mechanic
+    // and overriding the foreground is exactly what the reader wants. A rule
+    // that has to tell those apart is reading intent out of prose; this one
+    // reads names out of a map.
+
+    const linked = linkedTones();
+    const documented = new Set(GUIDES.flatMap((file) => [...rolesNamedIn(file)]));
+
+    test('the guides show some overrides', () => {
+        // The assertion below is a lookup in this list. Empty, it fails for the
+        // wrong reason — say so here instead.
+        assert.ok(documented.size > 0, 'no --sa-color-* role named in any guide');
+        assert.ok(linked.size > 0, 'the brand bridge links no status tone');
+    });
+
+    test('every role the bridge links is one a guide tells you to override', () => {
+        const missing = [...linked.values()].filter((role) => !documented.has(role));
+        assert.deepEqual(
+            missing.map((role) => `--sa-color-${role}`),
+            [],
+            'the bridge reads this role and no guide shows it. A consumer who ' +
+                'follows the migration changes something Quasar does not paint.',
+        );
+    });
+});

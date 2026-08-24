@@ -91,6 +91,28 @@ describe('disposing gives the document back', () => {
         expect(brandOn(document.documentElement)).toBe('');
     });
 
+    test('a host value marked !important keeps its priority', () => {
+        // Restoring the value alone silently demotes the declaration, and an
+        // author-level `!important` rule then outranks what used to win. The
+        // page would be a different colour after this shell leaves than before
+        // it arrived — the opposite of what disposal promises.
+        document.documentElement.style.setProperty('--q-primary', 'rebeccapurple', 'important');
+
+        boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' }).dispose();
+
+        expect(brandOn(document.documentElement)).toBe('rebeccapurple');
+        expect(document.documentElement.style.getPropertyPriority('--q-primary')).toBe('important');
+    });
+
+    test('our own writes claim no priority of their own', () => {
+        // A shell that wrote `!important` would outrank the consumer's own
+        // stylesheet for as long as it lives, which is not a decision this
+        // package gets to make on their behalf.
+        boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
+        expect(document.documentElement.style.getPropertyPriority('--q-primary')).toBe('');
+        expect(document.documentElement.style.getPropertyPriority('--q-warning')).toBe('');
+    });
+
     test('a value the host set itself is put back, not deleted', () => {
         // Removing unconditionally would take a host's own branding with it —
         // the failure is silent and permanent for that page.

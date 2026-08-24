@@ -24,9 +24,12 @@ by nothing. The four status colours are the platform's own roles, and the
 scaffolder asked you to restate them — which is how they drifted: `$warning`
 was `#f59e0b` against a `--sa-color-warning` that resolves to `#b45309`, so
 `color="warning"` painted 2.15:1 on white beside a role that paints 4.8:1. The
-platform now points Quasar's status slots at its roles itself, through `var()`,
-so they follow the colour scheme instead of staying light in dark mode. If you
-had overridden one, override the role instead.
+platform now points Quasar's status slots at `--sa-color-*-solid` itself,
+through `var()`. If you had overridden one, override that role — the suffixed
+one. Each tone has two: `--sa-color-warning` is a foreground, measured against
+the page, and goes lighter in the dark theme; `--sa-color-warning-solid` is a
+fill with white text on it, measured against that white, and is the same value
+in both. Quasar's `color=` is always the second kind.
 
 Quasar's stylesheet is shipped but not bundled. It restyles `html`, `body` and
 typography — 76 computed properties across every element of a page that styles

@@ -550,11 +550,18 @@ stylesheets meet.
 
 The four status tones are not yours to pass, and not yours to restate. The
 package points Quasar's `--q-positive`, `--q-negative`, `--q-warning` and
-`--q-info` at the matching `--sa-color-*` role through `var()`, so
-`color="warning"` on a Quasar button and a `.sa-`-prefixed surface beside it
-paint the same thing, in both schemes. Change the role if you want a different
-tone; a Sass `$warning` would only move one of the two, which is exactly how the
-pair drifted while the scaffolder still emitted one.
+`--q-info` at `--sa-color-*-solid` through `var()`. Change that role if you want
+a different tone; a Sass `$warning` would move only one of the two, which is
+exactly how the pair drifted while the scaffolder still emitted one.
+
+**The suffix is not decoration.** Each tone has two roles because it has two
+jobs. `--sa-color-warning` is a foreground — text, an icon, a border — measured
+against the page it sits on, so it goes lighter in the dark theme.
+`--sa-color-warning-solid` is a fill with white text on top, measured against
+that white, so it carries the same value in both themes. Quasar's `color=`
+attribute is always the second kind. Pointing it at the first is not a
+hypothetical mistake: it is what this package shipped for one commit, and the
+contrast sweep found three pages at 1.67:1 in the dark theme.
 
 **One exception, and it is the one to know about.** `--sa-color-fg-on-accent` is
 white, and that is an assumption rather than a derivation: CSS cannot branch on
