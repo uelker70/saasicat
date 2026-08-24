@@ -216,6 +216,96 @@ describe('no-restricted-components', () => {
             ],
         });
     });
+
+    // The other direction, for `@saasicat/ui-vue-tenant`: no Quasar component is
+    // right there, and naming them would be a list that goes stale the day
+    // Quasar adds one (ADR 0010).
+    describe('a whole namespace', () => {
+        const namespaced = [{ prefixes: { 'q-': 'a plain element or a primitive in `src/ui/`' } }];
+
+        test('refuses every component in it, in both spellings', () => {
+            sfc.run('no-restricted-components', rules['no-restricted-components'], {
+                valid: [
+                    {
+                        // The point of the package: plain elements are right.
+                        code: '<template><button type="button">Book</button></template>',
+                        filename: '/repo/packages/ui-vue-tenant/src/ui/TenantButton.vue',
+                        options: namespaced,
+                    },
+                    {
+                        // A component of the package's own, whose name merely
+                        // starts with the same letter.
+                        code: '<template><TenantCard /></template>',
+                        filename: '/repo/packages/ui-vue-tenant/src/TenantPlanSection.vue',
+                        options: namespaced,
+                    },
+                    {
+                        // Prose about what was replaced, which this package now
+                        // carries in several files.
+                        code: '<template><!-- q-card was here --><div /></template>',
+                        filename: '/repo/packages/ui-vue-tenant/src/ui/TenantCard.vue',
+                        options: namespaced,
+                    },
+                ],
+                invalid: [
+                    {
+                        code: '<template><q-btn label="Book" /></template>',
+                        filename: '/repo/packages/ui-vue-tenant/src/TenantPlanSection.vue',
+                        options: namespaced,
+                        errors: [
+                            {
+                                messageId: 'outside',
+                                data: {
+                                    name: 'q-btn',
+                                    use: 'a plain element or a primitive in `src/ui/`',
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        code: '<template><QSpinner /></template>',
+                        filename: '/repo/packages/ui-vue-tenant/src/TenantPlanSection.vue',
+                        options: namespaced,
+                        errors: [
+                            {
+                                messageId: 'outside',
+                                data: {
+                                    name: 'QSpinner',
+                                    use: 'a plain element or a primitive in `src/ui/`',
+                                },
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+
+        test('a named component still gets its own replacement named', () => {
+            // Both options at once: the specific sentence is the useful one, so
+            // it wins over the namespace it also matches.
+            sfc.run('no-restricted-components', rules['no-restricted-components'], {
+                valid: [],
+                invalid: [
+                    {
+                        code: '<template><q-dialog v-model="open" /></template>',
+                        filename: '/repo/src/pages/UsersPage.vue',
+                        options: [
+                            {
+                                components: { 'q-dialog': 'AdminDialog' },
+                                prefixes: { 'q-': 'a plain element' },
+                            },
+                        ],
+                        errors: [
+                            {
+                                messageId: 'restricted',
+                                data: { name: 'q-dialog', use: 'AdminDialog' },
+                            },
+                        ],
+                    },
+                ],
+            });
+        });
+    });
 });
 
 describe('no-hand-built-controls', () => {
