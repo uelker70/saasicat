@@ -14,7 +14,7 @@
 //     app's own `main.ts`, because tsup does not bundle CSS.
 
 import { createApp, type App, type Component } from 'vue';
-import { Quasar, Notify, Dialog, Loading, setCssVar, type QuasarPluginOptions } from 'quasar';
+import { Quasar, Notify, Dialog, Loading, type QuasarPluginOptions } from 'quasar';
 import { createPinia, type Pinia } from 'pinia';
 import {
     createRouter,
@@ -67,42 +67,7 @@ import { bindSaThemeToDocument } from './dark-bridge.js';
 import { resolveSuperAdminEndpoints } from '../vue/platform-loaders.js';
 import { quasarNotify } from './notify.js';
 import { quasarConfirm } from './confirm.js';
-
-/**
- * Writes the brand colour where both namespaces read it.
- *
- * `setCssVar` rather than a hand-written property name, so the `--q-` prefix
- * lives in Quasar's own utility and moves if they ever move it. What is NOT
- * left to Quasar is the element: its default is `document.body`, and this
- * repository has already paid for that once — a role computed on `:root` never
- * sees a value written to the body, which is how a brand colour arrived on the
- * page and the accent role stayed blue anyway. `document.documentElement` is
- * where Quasar publishes its own `:root` defaults and where
- * `--sa-color-accent: var(--q-primary, …)` is resolved.
- */
-function applyBrandColour(colour: string | undefined): () => void {
-    if (!colour) return () => {};
-    // The composable half of this app is usable under SSR; the brand colour is
-    // a paint instruction and has nowhere to go on a server.
-    if (typeof document === 'undefined') return () => {};
-
-    const root = document.documentElement;
-    // What the document said before, so `dispose()` can put it back. Without
-    // this the value outlives the shell that set it: a second shell created
-    // without `brand.color` — a hot reload, a micro-frontend swapping views —
-    // inherits the first one's branding, and a host that had set `--q-primary`
-    // itself never gets it back.
-    const previous = root.style.getPropertyValue('--q-primary');
-    setCssVar('primary', colour, root);
-
-    return () => {
-        // An empty string is what `getPropertyValue` returns for "the inline
-        // style did not set it", and removing is how that is restored —
-        // setting it to `''` would leave an empty declaration behind.
-        if (previous) setCssVar('primary', previous, root);
-        else root.style.removeProperty('--q-primary');
-    };
-}
+import { applyBrandColour, linkQuasarStatusColours } from '../client/brand-bridge.js';
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
     /** App root component (`App.vue`). */
@@ -337,6 +302,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     });
     const stopThemeBridge = bindSaThemeToDocument(theme);
     const restoreBrandColour = applyBrandColour(options.brand.color);
+    const restoreStatusColours = linkQuasarStatusColours();
 
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);
@@ -396,6 +362,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
         dispose: () => {
             stopThemeBridge();
             restoreBrandColour();
+            restoreStatusColours();
             theme.dispose();
         },
     };

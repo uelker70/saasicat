@@ -44,7 +44,9 @@ const ADMIN_ACTIONS: ActionsMap = {
 
 const handle = createSuperAdminApp({
     rootComponent: App,
-    brand: { logoText: 'NA', name: 'NotesApp' },
+    // The brand colour lives here since the admin stopped compiling Quasar:
+    // it writes `--q-primary`, which `--sa-color-accent` reads.
+    brand: { logoText: 'NA', name: 'NotesApp', color: '#1e40af' },
     endpoints: ADMIN_ENDPOINTS,
     appRoutes,
     // `logout` is not optional in practice: the platform's sign-out only

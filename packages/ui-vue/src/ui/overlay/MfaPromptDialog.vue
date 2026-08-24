@@ -6,7 +6,7 @@
     >
         <q-card class="mfa-card">
             <q-card-section class="header">
-                <q-icon name="lock" size="22px" color="amber-9" />
+                <q-icon name="lock" size="22px" color="warning" />
                 <div class="text-h6">{{ msg.mfa.title }}</div>
             </q-card-section>
             <q-card-section>
@@ -40,8 +40,7 @@
                 <q-btn v-close-popup flat :label="common.cancel" />
                 <q-btn
                     unelevated
-                    color="amber-9"
-                    text-color="black"
+                    color="primary"
                     :label="common.confirm"
                     :disable="code.length !== 6"
                     @click="onConfirm"

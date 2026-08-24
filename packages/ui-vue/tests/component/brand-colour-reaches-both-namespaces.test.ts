@@ -31,14 +31,23 @@ function boot(brand: Record<string, unknown>) {
 
 const brandOn = (element: HTMLElement) => element.style.getPropertyValue('--q-primary');
 
+/** The status tones the platform owns rather than the consumer. */
+const STATUS_TONES = ['positive', 'negative', 'warning', 'info'] as const;
+
+const WRITTEN = ['--q-primary', ...STATUS_TONES.map((tone) => `--q-${tone}`)];
+
 beforeEach(() => {
-    document.documentElement.style.removeProperty('--q-primary');
-    document.body.style.removeProperty('--q-primary');
+    for (const name of WRITTEN) {
+        document.documentElement.style.removeProperty(name);
+        document.body.style.removeProperty(name);
+    }
 });
 
 afterEach(() => {
-    document.documentElement.style.removeProperty('--q-primary');
-    document.body.style.removeProperty('--q-primary');
+    for (const name of WRITTEN) {
+        document.documentElement.style.removeProperty(name);
+        document.body.style.removeProperty(name);
+    }
 });
 
 describe('the brand colour replaces $primary', () => {
@@ -113,5 +122,79 @@ describe('the theme declares the link the option relies on', () => {
             'utf8',
         );
         expect(css).toMatch(/--sa-color-accent:\s*var\(--q-primary/);
+    });
+});
+
+describe('the status tones follow the roles instead of being restated', () => {
+    // These are not branding, and until phase 8 the scaffolder asked the
+    // consumer to restate them in Sass. One of the four had drifted:
+    // `$warning: #f59e0b` against a `--sa-color-warning` that resolves to
+    // `#b45309`, so `color="warning"` painted 2.15:1 on white beside a role
+    // painting 4.8:1. Restating a value is how it drifts, so the shell points
+    // Quasar at the role itself.
+
+    test('each one is linked through var(), not copied', () => {
+        boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
+        for (const tone of STATUS_TONES) {
+            expect(document.documentElement.style.getPropertyValue(`--q-${tone}`)).toBe(
+                `var(--sa-color-${tone})`,
+            );
+        }
+    });
+
+    test('a copy would not survive the dark theme, and var() does', () => {
+        // The roles differ between schemes — `--sa-color-warning` is
+        // `--sa-amber-700` in light and `--sa-amber-400` in dark. A hex written
+        // here would stay light in both, which is the whole reason for the
+        // indirection and the one thing a "was it written" check cannot see.
+        const light = readFileSync(
+            join(process.cwd(), 'src/ui/theme/tokens.semantic.light.css'),
+            'utf8',
+        );
+        const dark = readFileSync(
+            join(process.cwd(), 'src/ui/theme/tokens.semantic.dark.css'),
+            'utf8',
+        );
+        const roleIn = (css: string, tone: string) =>
+            new Map(
+                css
+                    .split('\n')
+                    .map((line) => /^\s*--sa-color-([a-z0-9-]+):([^;]+);/.exec(line))
+                    .filter((match): match is RegExpExecArray => match !== null)
+                    .map((match) => [match[1], match[2].trim()]),
+            ).get(tone);
+
+        for (const tone of STATUS_TONES) {
+            expect(roleIn(light, tone), `${tone} is not declared in the light theme`).toBeDefined();
+            expect(roleIn(dark, tone), `${tone} is not declared in the dark theme`).toBeDefined();
+            expect(roleIn(dark, tone), `${tone} reads the same in both schemes`).not.toBe(
+                roleIn(light, tone),
+            );
+        }
+    });
+
+    test('an app that names no brand colour still gets them', () => {
+        // They are the platform's, not the consumer's — so they do not hang off
+        // an option the consumer may omit.
+        boot({ name: 'Fixture', logoText: 'FX' });
+        expect(document.documentElement.style.getPropertyValue('--q-warning')).toBe(
+            'var(--sa-color-warning)',
+        );
+    });
+
+    test('disposing unlinks them again', () => {
+        const { dispose } = boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
+        dispose();
+        for (const tone of STATUS_TONES) {
+            expect(document.documentElement.style.getPropertyValue(`--q-${tone}`)).toBe('');
+        }
+    });
+
+    test('a host that set one itself gets it back', () => {
+        document.documentElement.style.setProperty('--q-negative', 'rebeccapurple');
+        boot({ name: 'Fixture', logoText: 'FX' }).dispose();
+        expect(document.documentElement.style.getPropertyValue('--q-negative')).toBe(
+            'rebeccapurple',
+        );
     });
 });

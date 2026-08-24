@@ -216,6 +216,16 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/UsersPage.vue'),
     }),
     visualCase({
+        // The MFA prompt, which no case rendered until now. Its confirm button
+        // painted Quasar's `amber-9` under black text and nothing measured it,
+        // because a dialog nobody opens has no computed style to read. Every
+        // reusable overlay that can be opened by a prop belongs here for the
+        // same reason.
+        id: 'mfa-prompt',
+        load: () => import('../../../src/ui/overlay/MfaPromptDialog.vue'),
+        props: () => ({ modelValue: true }),
+    }),
+    visualCase({
         id: 'promo-codes',
         load: () => import('../../../src/pages/PromoCodesPage.vue'),
     }),

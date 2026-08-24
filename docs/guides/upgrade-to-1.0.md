@@ -138,7 +138,21 @@ What you do change:
 
     One value moves both namespaces — it writes `--q-primary`, and `--sa-color-accent` reads it.
 
-4. **`resolve.dedupe` loses `quasar`** unless your own application uses Quasar too. If it does, keep
+4. **Delete `src/styles/theme.scss`.** Nothing compiles it any more, and only `$primary` was ever
+   yours. `$secondary` and `$accent` were read by nothing. The four status colours are the
+   platform's own roles, and asking you to restate them is how they drifted — the scaffolded
+   `$warning: #f59e0b` sat beside a `--sa-color-warning` that resolves to `#b45309`, so
+   `color="warning"` painted 2.15:1 on white next to a role painting 4.8:1. The platform now points
+   Quasar's `--q-positive`, `--q-negative`, `--q-warning` and `--q-info` at its roles through
+   `var()`, so they follow the colour scheme. If you had changed one, change the role instead:
+
+    ```css
+    :root {
+        --sa-color-warning: #b45309;
+    }
+    ```
+
+5. **`resolve.dedupe` loses `quasar`** unless your own application uses Quasar too. If it does, keep
    it: two Quasar instances mean `Dark.set()` in one leaves the other light. It is your singleton
    now rather than this package's peer.
 

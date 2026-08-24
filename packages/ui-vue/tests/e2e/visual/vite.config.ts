@@ -17,9 +17,11 @@ export default defineConfig({
     root: fileURLToPath(new URL('.', import.meta.url)),
     plugins: [
         vue(),
-        quasar({
-            sassVariables: fileURLToPath(new URL('./theme.scss', import.meta.url)),
-        }),
+        // No `sassVariables`. Since phase 8 the admin ships Quasar compiled, so
+        // a consumer's palette is written at runtime by the brand bridge and
+        // never through Sass. A fixture that brands itself in Sass would bake
+        // in colours no app can produce, and the baselines would record them.
+        quasar(),
     ],
     resolve: {
         alias: [

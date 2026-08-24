@@ -17,6 +17,7 @@
 //   - i18n:                 SaLocale, typed DE/EN catalogs, formatMessage
 //   - version:              ADMIN_UI_VERSION
 
+export * from './brand-bridge.js';
 export * from './version.js';
 export * from './types.js';
 export * from './http/index.js';

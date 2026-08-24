@@ -18,7 +18,17 @@ import { useManifestStore } from './stores/manifest';
 
 const handle = createSuperAdminApp({
     rootComponent: App,
-    brand: { logoText: '__LOGO_TEXT__', name: '__BRAND_NAME__' },
+    // `color` is the ONE place your admin's brand colour is decided:
+    // `--sa-color-accent` reads Quasar's `--q-primary`, which this writes, so
+    // the hero, the buttons, the focus ring, the tinted surfaces, Quasar's own
+    // components and the tenant-facing pages all follow. There is no second
+    // switch. The default is SaaSiCat's own, so a fresh admin looks like the
+    // documentation until you decide otherwise.
+    //
+    // One caveat if you pick a LIGHT brand: text on accent-filled controls is
+    // white, and CSS cannot work out that white on a light amber is 2.15:1.
+    // Override `--sa-color-fg-on-accent` in your own CSS if so — in both themes.
+    brand: { logoText: '__LOGO_TEXT__', name: '__BRAND_NAME__', color: '#3f6bff' },
     endpoints: ADMIN_ENDPOINTS,
     appRoutes,
     loginAdapter: { login: adminLogin },

@@ -5,54 +5,82 @@ import { fileURLToPath } from 'node:url';
 
 // The visual fixture must brand itself the way a scaffolded app does.
 //
-// Since the accent and the four status roles read Quasar's `--q-*` variables,
-// the brand variables are an INPUT to every colour the baselines record. A
-// fixture with different ones measures a screen no user ever sees — and that is
-// not hypothetical: the previous fixture carried Quasar's stock palette under a
-// comment claiming "these are the defaults the scaffolder emits", and the two
-// had diverged on five of seven values.
+// `--sa-color-accent` reads Quasar's `--q-primary`, so the brand colour is an
+// INPUT to every colour the baselines record. A fixture branded differently
+// measures a screen no user ever sees — and that is not hypothetical twice
+// over: the first fixture carried Quasar's stock palette under a comment
+// claiming to be the scaffolder's defaults, and its replacement had drifted
+// from the scaffolder on `$warning` while the same comment still claimed
+// agreement. Both were Sass files restating a value. This compares the two
+// declarations that remain.
 
-const TEMPLATE = fileURLToPath(
-    new URL('../../create-saasicat-admin/templates/src/styles/theme.scss.tpl', import.meta.url),
+const SCAFFOLDER = fileURLToPath(
+    new URL('../../create-saasicat-admin/templates/src/main.ts.tpl', import.meta.url),
 );
-const FIXTURE = fileURLToPath(new URL('./e2e/visual/theme.scss', import.meta.url));
+const FIXTURE = fileURLToPath(new URL('./e2e/visual/main.ts', import.meta.url));
 
-/** `$name: #value;` pairs, ignoring comments and blank lines. */
-function brandVariables(path) {
-    const found = new Map();
-    for (const line of readFileSync(path, 'utf8').split('\n')) {
-        const match = /^\s*\$([a-z-]+)\s*:([^;]+);/.exec(line);
-        if (match) found.set(match[1], match[2].trim());
-    }
-    return found;
+/** The `color:` of the `brand` option the scaffolder writes into a new app. */
+function scaffolderBrandColour() {
+    const source = readFileSync(SCAFFOLDER, 'utf8');
+    const brand = source.indexOf('brand:');
+    assert.notEqual(brand, -1, 'the scaffolder template no longer declares a `brand` option');
+    const end = source.indexOf('}', brand);
+    return /\bcolor:\s*'(#[0-9a-fA-F]+)'/.exec(source.slice(brand, end))?.[1];
+}
+
+/** The colour the fixture hands to the shipped brand bridge. */
+function fixtureBrandColour() {
+    const source = readFileSync(FIXTURE, 'utf8');
+    const name = /applyBrandColour\(([A-Za-z0-9_$]+)\)/.exec(source)?.[1];
+    if (!name) return undefined;
+    // `indexOf` and not a regex built from `name`: the repository forbids
+    // turning a value read from a file into a pattern, and hand-escaping it
+    // would be the incomplete kind CodeQL flags.
+    const declaration = source.indexOf(`const ${name} =`);
+    if (declaration === -1) return undefined;
+    return /'(#[0-9a-fA-F]+)'/.exec(
+        source.slice(declaration, source.indexOf(';', declaration)),
+    )?.[1];
 }
 
 describe('the visual fixture brands itself like a scaffolded app', () => {
-    const template = brandVariables(TEMPLATE);
-    const fixture = brandVariables(FIXTURE);
-
-    test('the template declares the brand variables the platform reads', () => {
-        // Without this the next two assertions pass vacuously on an empty map —
-        // a renamed template or a changed syntax would read as agreement.
-        assert.deepEqual(
-            [...template.keys()].sort(),
-            ['accent', 'info', 'negative', 'positive', 'primary', 'secondary', 'warning'],
-            'the scaffolder template no longer declares the expected brand variables',
+    test('both declarations are found', () => {
+        // Without this the comparison below passes vacuously on two undefineds
+        // — a renamed option or a moved constant would read as agreement, which
+        // is the failure mode this file exists to prevent.
+        assert.match(
+            String(scaffolderBrandColour()),
+            /^#[0-9a-fA-F]{3,8}$/,
+            'no brand colour found in the scaffolder template',
+        );
+        assert.match(
+            String(fixtureBrandColour()),
+            /^#[0-9a-fA-F]{3,8}$/,
+            'no brand colour found in the visual fixture',
         );
     });
 
-    test('fixture and template agree on every value', () => {
-        for (const [name, value] of template) {
-            assert.equal(
-                fixture.get(name),
-                value,
-                `$${name} is ${fixture.get(name)} in the visual fixture and ${value} in the ` +
-                    `scaffolder template. The baselines would record a brand no app ships.`,
-            );
-        }
+    test('they are the same colour', () => {
+        assert.equal(
+            fixtureBrandColour(),
+            scaffolderBrandColour(),
+            'the visual baselines would record a brand no scaffolded app ships',
+        );
     });
 
-    test('the fixture adds no brand variable of its own', () => {
-        assert.deepEqual([...fixture.keys()].sort(), [...template.keys()].sort());
+    test('the fixture takes the status colours from the bridge, not from a copy', () => {
+        // The four status tones are the platform's own roles. Restating them is
+        // exactly how the last two fixtures drifted, so the fixture must call
+        // the shipped bridge and declare nothing of its own.
+        const source = readFileSync(FIXTURE, 'utf8');
+        assert.match(source, /linkQuasarStatusColours\(\)/);
+        // Not "does it write --q-warning" but "can it write anything at all":
+        // a fixture without `setCssVar` cannot restate a role however it is
+        // formatted, and the check does not depend on Prettier's spacing.
+        assert.doesNotMatch(
+            source,
+            /setCssVar/,
+            'the fixture writes Quasar variables itself instead of going through the bridge',
+        );
     });
 });
