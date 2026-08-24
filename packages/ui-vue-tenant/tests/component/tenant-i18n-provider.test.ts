@@ -6,7 +6,7 @@ import { provideTenantI18n, useTenantI18n } from '../../src/tenant-i18n';
 import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
-import { mountWithQuasar } from '@saasicat/ui-vue/testing/mount-with-quasar';
+import { mount } from '@vue/test-utils';
 
 // Six children read the tenant catalog. They used to receive it as a prop from
 // TenantPlanSection, four levels of pass-through in places; now they inject it.
@@ -78,12 +78,12 @@ describe('the tenant catalog reaches a child without a prop', () => {
                 return () => h('div', [h(Grandchild)]);
             },
         });
-        const wrapper = mountWithQuasar(Ancestor);
+        const wrapper = mount(Ancestor);
         expect(wrapper.text()).toBe('Verbrauch dieses Mandanten');
     });
 
     test('without a provider the shipped catalog fills in, so nothing renders blank', () => {
-        const wrapper = mountWithQuasar(TenantUsageGrid, { props: gridProps });
+        const wrapper = mount(TenantUsageGrid, { props: gridProps });
         const shipped = defaultTenantPlanSectionI18n(DEFAULT_SA_LOCALE);
         expect(wrapper.text()).toContain(shipped.usageTitle);
         expect(shipped.usageTitle.length).toBeGreaterThan(0);
@@ -96,7 +96,7 @@ describe('the tenant catalog reaches a child without a prop', () => {
                 return () => h(TenantUsageGrid, gridProps);
             },
         });
-        const wrapper = mountWithQuasar(Host);
+        const wrapper = mount(Host);
         expect(wrapper.text()).toContain('Verbrauch dieses Mandanten');
         expect(wrapper.text()).not.toContain(
             defaultTenantPlanSectionI18n(DEFAULT_SA_LOCALE).usageTitle,

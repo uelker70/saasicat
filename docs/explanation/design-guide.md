@@ -119,8 +119,8 @@ still a failure, and so is a note left behind after its surface was migrated:
   header is also six cells carrying checkboxes and text inputs, which cannot sit
   inside a `<button>`.
 - **`PackageSnapshotPanel.vue`** — it lives in `@saasicat/ui-vue-tenant` now,
-  a different package for a different audience, and a raw-JSON toggle at the
-  foot of a `q-card` is not a row in a list.
+  a different package for a different audience with no UI framework in it, and a
+  raw-JSON toggle at the foot of a card is not a row in a list.
 - **`auth/SuperAdminSetupWizard.vue`** — a native `<details>`, already
   keyboard-operable and already announced. The screen is a centred first-run
   card outside `AdminLayout`, and the body it opens is one line of text.
@@ -441,11 +441,15 @@ Following the OS therefore lives one level up, where both halves move together:
 box. An app that embeds `@saasicat/ui-vue-tenant` and wants the same says so:
 
 ```ts
-import { createSaTheme } from '@saasicat/ui-vue';
-import { bindSaThemeToDocument } from '@saasicat/ui-vue/quasar';
+import { bindSaThemeAttribute, createSaTheme } from '@saasicat/ui-vue';
 
-bindSaThemeToDocument(createSaTheme());
+bindSaThemeAttribute(createSaTheme());
 ```
+
+That import is the framework-free entry on purpose. The role tokens key off one
+attribute on `<html>`, and writing it needs no UI framework — `@saasicat/ui-vue/quasar`
+adds the second half, keeping Quasar's own `Dark` in step, which an app that
+does not use Quasar has no second half to keep.
 
 ```ts
 const handle = createSuperAdminApp({ /* … */, theme: { scheme: 'system' } });

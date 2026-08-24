@@ -5,7 +5,7 @@
                 <h2 class="msb-title">{{ effectiveI18n.myBundlesTitle }}</h2>
                 <p class="msb-sub">{{ effectiveI18n.myBundlesSubtitle }}</p>
             </div>
-            <button class="msb-btn msb-btn--primary" type="button" @click="openAddDialog">
+            <TenantButton variant="solid" tone="accent" @click="openAddDialog">
                 <svg
                     width="14"
                     height="14"
@@ -13,11 +13,12 @@
                     fill="none"
                     stroke="currentColor"
                     stroke-width="2"
+                    aria-hidden="true"
                 >
                     <path d="M12 5v14M5 12h14" />
                 </svg>
                 <span>{{ effectiveI18n.bundleBookAction }}</span>
-            </button>
+            </TenantButton>
         </header>
 
         <div v-if="error" class="msb-error" role="alert">
@@ -30,9 +31,9 @@
 
         <div v-else-if="bundles.length === 0" class="msb-empty">
             {{ effectiveI18n.myBundlesEmptyPrefix }}
-            <button type="button" class="msb-empty-link" @click="openAddDialog">
+            <TenantButton variant="quiet" tone="accent" @click="openAddDialog">
                 {{ effectiveI18n.bundleBookAction }}
-            </button>
+            </TenantButton>
             {{ effectiveI18n.myBundlesEmptySuffix }}
         </div>
 
@@ -54,11 +55,10 @@
                             </template>
                         </div>
                     </div>
-                    <button
+                    <TenantButton
                         v-if="b.canceledAt === null"
-                        class="msb-btn msb-btn--ghost"
-                        type="button"
-                        :disabled="cancellingId === b.id"
+                        tone="danger"
+                        :loading="cancellingId === b.id"
                         @click="onCancel(b)"
                     >
                         {{
@@ -66,7 +66,7 @@
                                 ? effectiveI18n.myBundlesCancelInProgress
                                 : effectiveI18n.bundleCancelAction
                         }}
-                    </button>
+                    </TenantButton>
                 </header>
                 <div v-if="b.canceledAt !== null" class="msb-cancel-info">
                     {{ effectiveI18n.myBundlesCanceledAt }} {{ formatDate(b.canceledAt) }} ·
@@ -77,111 +77,96 @@
         </div>
 
         <!-- Add dialog: uses public catalog bundles when the wrapper provides them. -->
-        <div v-if="addOpen" class="msb-modal-bg" @click="closeAddDialog">
-            <div class="msb-modal" @click.stop>
-                <div class="msb-modal-head">
-                    <div class="msb-modal-title">{{ effectiveI18n.bundleBookAction }}</div>
-                    <button
-                        class="msb-modal-x"
-                        type="button"
-                        :aria-label="effectiveI18n.wizardClose"
-                        @click="closeAddDialog"
-                    >
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="msb-modal-body">
-                    <!-- Selection list via public catalog, otherwise fallback to direct UUID input. -->
-                    <template v-if="bookable.length > 0">
-                        <label class="msb-field">
-                            <span class="msb-field-label">{{
-                                effectiveI18n.myBundlesAddBundleLabel
-                            }}</span>
-                            <select v-model="addForm.bundleVersionId" class="msb-input">
-                                <option value="">
-                                    {{ effectiveI18n.myBundlesAddSelectPlaceholder }}
-                                </option>
-                                <option
-                                    v-for="b in bookable"
-                                    :key="b.bundleVersionId"
-                                    :value="b.bundleVersionId"
-                                >
-                                    {{ b.label }} ({{ b.bundleKey }})
-                                    <template v-if="b.monthlyNet !== null">
-                                        — {{ b.monthlyNet }}
-                                        {{ effectiveI18n.myBundlesPricePerMonthShort }}
-                                    </template>
-                                </option>
-                            </select>
-                            <span v-if="hiddenBecauseIncompatible > 0" class="msb-field-hint">
-                                {{ hiddenBecauseIncompatible }}
-                                {{ effectiveI18n.myBundlesHiddenIncompatible }}
-                                <code>{{ currentPlanKey }}</code
-                                >.
-                            </span>
-                        </label>
-                    </template>
-                    <template v-else>
-                        <label class="msb-field">
-                            <span class="msb-field-label">
-                                {{ effectiveI18n.myBundlesBundleVersionIdLabel }}
-                            </span>
-                            <input
-                                v-model="addForm.bundleVersionId"
-                                class="msb-input"
-                                :placeholder="effectiveI18n.myBundlesBundleVersionIdPlaceholder"
-                            />
-                            <!-- Integration hint for the embedding app, not for tenants. -->
-                            <span class="msb-field-hint">
-                                From the public marketing catalog. Pass
-                                <code>availableBundles</code>
-                                as a prop to get a dropdown here.
-                            </span>
-                        </label>
-                    </template>
+        <TenantDialog
+            v-model="addOpen"
+            :title="effectiveI18n.bundleBookAction"
+            :close-label="effectiveI18n.wizardClose"
+            size="md"
+        >
+            <div class="msb-dialog-form">
+                <!-- Selection list via public catalog, otherwise fallback to direct UUID input. -->
+                <template v-if="bookable.length > 0">
                     <label class="msb-field">
-                        <span class="msb-field-label">{{
-                            effectiveI18n.myBundlesMinimumTermLabel
-                        }}</span>
-                        <input
-                            v-model.number="addForm.minimumTermMonths"
-                            type="number"
-                            min="0"
-                            max="120"
-                            class="msb-input"
-                            :placeholder="effectiveI18n.myBundlesMinimumTermPlaceholder"
-                        />
+                        <span class="msb-field-label">
+                            {{ effectiveI18n.myBundlesAddBundleLabel }}
+                        </span>
+                        <select v-model="addForm.bundleVersionId" class="msb-input">
+                            <option value="">
+                                {{ effectiveI18n.myBundlesAddSelectPlaceholder }}
+                            </option>
+                            <option
+                                v-for="b in bookable"
+                                :key="b.bundleVersionId"
+                                :value="b.bundleVersionId"
+                            >
+                                {{ b.label }} ({{ b.bundleKey }})
+                                <template v-if="b.monthlyNet !== null">
+                                    — {{ b.monthlyNet }}
+                                    {{ effectiveI18n.myBundlesPricePerMonthShort }}
+                                </template>
+                            </option>
+                        </select>
+                        <span v-if="hiddenBecauseIncompatible > 0" class="msb-field-hint">
+                            {{ hiddenBecauseIncompatible }}
+                            {{ effectiveI18n.myBundlesHiddenIncompatible }}
+                            <code>{{ currentPlanKey }}</code
+                            >.
+                        </span>
                     </label>
-                    <div v-if="addError" class="msb-error">{{ addError }}</div>
-                </div>
-                <div class="msb-modal-foot">
-                    <button class="msb-btn" type="button" @click="closeAddDialog">
-                        {{ effectiveI18n.bundlePreviewClose }}
-                    </button>
-                    <button
-                        class="msb-btn msb-btn--primary"
-                        type="button"
-                        :disabled="!canSubmit || adding"
-                        @click="submitAdd"
-                    >
-                        {{
-                            adding
-                                ? effectiveI18n.myBundlesBookInProgress
-                                : effectiveI18n.bundleBookAction
-                        }}
-                    </button>
-                </div>
+                </template>
+                <template v-else>
+                    <label class="msb-field">
+                        <span class="msb-field-label">
+                            {{ effectiveI18n.myBundlesBundleVersionIdLabel }}
+                        </span>
+                        <input
+                            v-model="addForm.bundleVersionId"
+                            class="msb-input"
+                            :placeholder="effectiveI18n.myBundlesBundleVersionIdPlaceholder"
+                        />
+                        <!-- Integration hint for the embedding app, not for tenants. -->
+                        <span class="msb-field-hint">
+                            From the public marketing catalog. Pass
+                            <code>availableBundles</code>
+                            as a prop to get a dropdown here.
+                        </span>
+                    </label>
+                </template>
+                <label class="msb-field">
+                    <span class="msb-field-label">
+                        {{ effectiveI18n.myBundlesMinimumTermLabel }}
+                    </span>
+                    <input
+                        v-model.number="addForm.minimumTermMonths"
+                        type="number"
+                        min="0"
+                        max="120"
+                        class="msb-input"
+                        :placeholder="effectiveI18n.myBundlesMinimumTermPlaceholder"
+                    />
+                </label>
+                <div v-if="addError" class="msb-error">{{ addError }}</div>
             </div>
-        </div>
+
+            <template #footer>
+                <TenantButton @click="closeAddDialog">
+                    {{ effectiveI18n.bundlePreviewClose }}
+                </TenantButton>
+                <TenantButton
+                    variant="solid"
+                    tone="accent"
+                    :loading="adding"
+                    :disabled="!canSubmit"
+                    @click="submitAdd"
+                >
+                    {{
+                        adding
+                            ? effectiveI18n.myBundlesBookInProgress
+                            : effectiveI18n.bundleBookAction
+                    }}
+                </TenantButton>
+            </template>
+        </TenantDialog>
     </div>
 </template>
 
@@ -193,6 +178,8 @@ import type { HttpClient } from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import { useTenantSubscriptionBundles } from '@saasicat/ui-vue';
 import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
+import TenantButton from './ui/TenantButton.vue';
+import TenantDialog from './ui/TenantDialog.vue';
 
 // MySubscriptionBundlesPage — tenant self-service page "Meine Bundles".
 // The hosting app embeds the page
@@ -439,14 +426,6 @@ function formatDate(date: Date | string | null | undefined): string {
     border-radius: var(--sa-radius-card);
     color: var(--sa-color-fg-secondary);
 }
-.msb-empty-link {
-    background: transparent;
-    border: 0;
-    color: var(--sa-color-accent);
-    cursor: pointer;
-    font: inherit;
-    text-decoration: underline;
-}
 .msb-error {
     padding: var(--sa-space-3) var(--sa-space-4);
     background: var(--sa-color-negative-surface);
@@ -527,96 +506,12 @@ function formatDate(date: Date | string | null | undefined): string {
     font-size: var(--sa-text-md);
 }
 
-.msb-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sa-space-2);
-    padding: var(--sa-space-3) var(--sa-space-4);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: var(--sa-radius-control);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-heading);
-}
-.msb-btn:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-}
-.msb-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-}
-.msb-btn--primary {
-    background: var(--sa-color-accent);
-    border-color: var(--sa-color-accent);
-    color: var(--sa-color-fg-on-accent);
-}
-.msb-btn--primary:hover:not(:disabled) {
-    background: var(--sa-color-accent-strong);
-}
-.msb-btn--ghost {
-    background: transparent;
-    border-color: var(--sa-color-negative-border);
-    color: var(--sa-color-negative-fg);
-}
-.msb-btn--ghost:hover:not(:disabled) {
-    background: var(--sa-color-negative-surface);
-}
-
-.msb-modal-bg {
-    position: fixed;
-    inset: 0;
-    background: var(--sa-color-bg-overlay);
-    display: grid;
-    place-items: center;
-    z-index: 1000;
-}
-.msb-modal {
-    width: min(520px, 96vw);
-    background: var(--sa-color-bg-surface);
-    border-radius: var(--sa-radius-card);
-    box-shadow: 0 20px 60px var(--sa-shadow-tint-4);
-    display: flex;
-    flex-direction: column;
-}
-.msb-modal-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-3);
-    border-bottom: 1px solid var(--sa-color-border);
-}
-.msb-modal-title {
-    font-size: var(--sa-text-lg);
-    font-weight: 700;
-}
-.msb-modal-x {
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-    color: var(--sa-color-fg-muted);
-    padding: var(--sa-space-2);
-    border-radius: var(--sa-radius-badge);
-}
-.msb-modal-x:hover {
-    background: var(--sa-color-border-soft);
-    color: var(--sa-color-fg-heading);
-}
-.msb-modal-body {
-    padding: var(--sa-space-5) var(--sa-space-6);
+/* The dialog fields keep a column gap the shell's body cannot give them: the
+ * body pads a block, and this one is a stack of three labelled controls. */
+.msb-dialog-form {
     display: flex;
     flex-direction: column;
     gap: var(--sa-space-4);
-}
-.msb-modal-foot {
-    padding: var(--sa-space-4) var(--sa-space-6);
-    border-top: 1px solid var(--sa-color-border);
-    background: var(--sa-color-bg-sunken);
-    border-radius: 0 0 var(--sa-radius-card) var(--sa-radius-card);
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--sa-space-3);
 }
 .msb-field {
     display: flex;

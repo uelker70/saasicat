@@ -40,13 +40,30 @@ export const COLLECT = ({ properties }: { properties: readonly string[] }) => {
 
     const root = document.getElementById('visual-root') ?? document.body;
 
-    // The page, plus any dialog Quasar teleported out of it. QDialog renders
-    // into a portal appended to <body>, so a detail dialog opened by
-    // `revealBy` sits outside `#visual-root` entirely — collecting only the
-    // root would record the click and none of its result.
+    // The page, plus anything teleported out of it. A dialog renders into a
+    // node appended to <body>, so one opened by `revealBy` sits outside
+    // `#visual-root` entirely — collecting only the root would record the click
+    // and none of its result.
+    //
+    // Derived from where the node SITS, not from what it is called. This asked
+    // for `.q-dialog` until the tenant package stopped using Quasar, and then
+    // `tenant-plan-change` — a case whose entire subject is a dialog — recorded
+    // ONE line and `--update-snapshots` wrote that down as the new truth. A
+    // baseline cannot tell a design from a defect; a gathering rule tied to
+    // another library's class name cannot tell an empty page from a renamed one.
     const roots: Element[] = [
         root,
-        ...[...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d)),
+        ...[...document.body.children].filter(
+            (node) =>
+                !root.contains(node) &&
+                !node.contains(root) &&
+                // Empty scaffolding is not a teleported surface. Quasar's
+                // notification host is nine always-present containers with
+                // nothing in them, and recording those put twelve lines of
+                // somebody else's chrome into all nineteen baselines — churn
+                // that moves when Quasar moves and never when a page does.
+                node.textContent?.trim(),
+        ),
     ];
     const collected = roots.flatMap((r) => [r, ...r.querySelectorAll('*')]);
 
@@ -77,6 +94,24 @@ export const COLLECT = ({ properties }: { properties: readonly string[] }) => {
  * the first dot on is class names and style values. What is left is the shape of
  * the DOM: what exists and where, independent of how it is painted.
  */
+/**
+ * The fixture has finished mounting.
+ *
+ * `attached`, not the default `visible`. The attribute IS the readiness signal;
+ * whether `<body>` has a box is a question about layout, and for a case whose
+ * whole output is teleported and fixed the honest answer is that it does not.
+ * `tenant-plan-change` is exactly that case — the plan wizard is a dialog, so
+ * `#app` renders nothing and `<body>` measures 1280x0.
+ *
+ * It passed before this was written, and for a reason nobody chose: Quasar's
+ * scroll lock made `<body>` `position: fixed` with explicit offsets, which gave
+ * it a box. A gate that holds because of a side effect of somebody else's
+ * scroll lock is a gate that will fail the day that side effect leaves.
+ */
+export async function visualReady(page: Page): Promise<void> {
+    await page.waitForSelector('body[data-visual-ready="true"]', { state: 'attached' });
+}
+
 export function structuralPaths(collected: string): Set<string> {
     return new Set(collected.split('\n').map((line) => line.split('.')[0].trimEnd()));
 }

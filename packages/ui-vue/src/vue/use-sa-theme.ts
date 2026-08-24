@@ -25,6 +25,7 @@ import {
     type ComputedRef,
     type InjectionKey,
     type Ref,
+    type WatchStopHandle,
 } from 'vue';
 
 import { defaultKvStore, type KvStore } from '../client/types.js';
@@ -159,6 +160,36 @@ export function createSaTheme(options: SaThemeOptions = {}): SaTheme {
             stopPersisting?.();
         },
     };
+}
+
+/**
+ * Writes the resolved scheme onto `<html>` as `data-sa-theme`, and keeps it
+ * there. Returns the stop handle.
+ *
+ * This is the whole platform half of theming: the role tokens key off that one
+ * attribute. It lives here rather than beside the Quasar bridge because an
+ * application that embeds `@saasicat/ui-vue-tenant` needs exactly this and
+ * nothing else — and the only documented way to get it used to be
+ * `bindSaThemeToDocument` from the `quasar` entry, which is to say "install a
+ * UI framework to get dark mode", the requirement ADR 0010 removes.
+ *
+ * The bridge calls this for its own half, so the attribute is written in one
+ * place rather than being the same decision spelled twice.
+ */
+export function bindSaThemeAttribute(theme: SaTheme): WatchStopHandle {
+    return watch(
+        theme.resolved,
+        (resolved) => {
+            // Guarded because the composable is usable under SSR, where the
+            // attribute has nowhere to go and the app must not crash for it.
+            if (typeof document === 'undefined') return;
+            document.documentElement.setAttribute('data-sa-theme', resolved);
+        },
+        // Not optional: at bootstrap the stored pick is already resolved and
+        // nothing has painted, so a first-change-only watcher renders one frame
+        // in the wrong theme on every reload.
+        { immediate: true },
+    );
 }
 
 // `Symbol.for` — see super-admin-context.ts: dist- and src-imported module

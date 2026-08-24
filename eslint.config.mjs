@@ -155,12 +155,19 @@ export default tseslint.config(
         // configured.
         //
         // `@saasicat/ui-vue-tenant` is deliberately outside this block, and the
-        // reason is a decision rather than an omission: those components render
+        // reason is a decision rather than an omission. Those components render
         // inside the CUSTOMER's application, so `no-hand-built-controls` — which
-        // says "use the Quasar component" — would be arguing for a framework
-        // requirement that ADR 0010 is removing from that package. Its controls
-        // stay plain elements until the Quasar usages there are gone, and after
-        // that a rule pointing the other way is the one it needs.
+        // says "use the Quasar component" — would argue for a framework
+        // requirement that ADR 0010 removed from that package. Plain elements
+        // are the right answer there, and the block below says so in the other
+        // direction rather than leaving the package unruled.
+        //
+        // `max-props` and `no-function-props` skip it for a second reason: the
+        // tenant components take their formatting and their HTTP client from the
+        // host (`formatCurrency`, `formatDate`, `quotaLabel`, the `http` prop).
+        // That IS their contract — a guest borrows the host's session — and it is
+        // the opposite of the page contract in ADR 0008, where a callback prop
+        // means a page is doing the app's wiring for it.
         files: ['packages/ui-vue/src/**/*.vue'],
         plugins: { saasicat },
         rules: {
@@ -213,6 +220,32 @@ export default tseslint.config(
                         'q-banner': 'AdminBanner or AdminErrorBanner',
                     },
                     allow: ['packages/ui-vue/src/ui/'],
+                },
+            ],
+        },
+    },
+    {
+        // The same question, one package over, answered the other way.
+        //
+        // `@saasicat/ui-vue-tenant` renders inside somebody else's application,
+        // so no Quasar component is right there — not the five the block above
+        // names, and not the other two hundred either. A namespace rather than a
+        // list: enumerating them would go stale the day Quasar adds one, and
+        // this is a rule about a decision, not about a roster.
+        //
+        // `tests/the-tenant-package-needs-no-quasar.test.js` asks the wider
+        // question — the manifest, the imports, and the classes Quasar's own
+        // stylesheet defines. This half answers in the editor, before the
+        // commit, which is where a `<q-btn>` gets written.
+        files: ['packages/ui-vue-tenant/src/**/*.vue'],
+        plugins: { saasicat },
+        rules: {
+            'saasicat/no-restricted-components': [
+                'error',
+                {
+                    prefixes: {
+                        'q-': "a plain element, or one of this package's own primitives in `src/ui/` (ADR 0010)",
+                    },
                 },
             ],
         },

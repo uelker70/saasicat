@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { VISUAL_CASES } from './visual/pages.js';
-import { COLLECT, reveal } from './visual/collect.js';
+import { COLLECT, reveal, visualReady } from './visual/collect.js';
 
 declare global {
     interface Window {
@@ -209,7 +209,7 @@ test.describe('the collector reads a page at rest', () => {
     // back to that.
     test('a node on its way out never reaches the reading', async ({ page }) => {
         await page.goto('/?page=marketing-catalog');
-        await page.waitForSelector('body[data-visual-ready="true"]');
+        await visualReady(page);
 
         const leaving = () =>
             page.evaluate(() => document.querySelectorAll('[class*="-leave-active"]').length);
@@ -253,7 +253,7 @@ test.describe('design-token visual baselines', () => {
             page.on('pageerror', (err) => problems.push(`pageerror: ${err.message}`));
 
             await page.goto(`/?page=${visualCase.id}`);
-            await page.waitForSelector('body[data-visual-ready="true"]');
+            await visualReady(page);
 
             // The fixture renders this only when the page module failed to load
             // — a baseline of an error string proves nothing.
@@ -337,7 +337,7 @@ test.describe('no page overflows its viewport', () => {
             for (const { width, label } of BREAKPOINT_WIDTHS) {
                 await page.setViewportSize({ width, height: 900 });
                 await page.goto(`/?page=${visualCase.id}`);
-                await page.waitForSelector('body[data-visual-ready="true"]');
+                await visualReady(page);
 
                 // The widest ELEMENT that sticks out, not the root's scroll
                 // delta. The delta alone reported a constant 13px on six pages
@@ -446,7 +446,7 @@ test.describe('the brand mark keeps its shape', () => {
             for (const { width, label } of BREAKPOINT_WIDTHS) {
                 await page.setViewportSize({ width, height: 900 });
                 await page.goto(`/?page=${mark.page}`);
-                await page.waitForSelector('body[data-visual-ready="true"]');
+                await visualReady(page);
 
                 const box = await page
                     .locator(mark.selector)

@@ -1,12 +1,14 @@
 <template>
-    <q-card-section class="sp-plan-section__card-head">
+    <TenantCardSection class="sp-plan-section__card-head">
         <div>
             <div class="sp-plan-section__eyebrow">
                 {{ i18n.activePlan }}
             </div>
             <h2 class="sp-plan-section__plan-name">{{ currentPlanName }}</h2>
             <div class="sp-plan-section__meta">
-                <q-badge :color="statusColor" :label="statusLabel" />
+                <span class="sp-badge" :class="`sp-badge--${statusTone}`">
+                    {{ statusLabel }}
+                </span>
                 <span class="sp-plan-section__cycle">{{ cycleLabel }}</span>
                 <span v-if="currentPriceEur !== null" class="sp-plan-section__price">
                     {{ formatCurrency(currentPriceEur) }}
@@ -33,26 +35,27 @@
             </p>
         </div>
         <div class="sp-plan-section__actions">
-            <q-btn
-                color="primary"
-                unelevated
-                :label="i18n.changePlanButton"
-                @click="emit('changePlan')"
-            />
+            <TenantButton variant="solid" tone="accent" @click="emit('changePlan')">
+                {{ i18n.changePlanButton }}
+            </TenantButton>
         </div>
-    </q-card-section>
+    </TenantCardSection>
 </template>
 
 <script setup lang="ts">
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
 import { useTenantI18n } from '../tenant-i18n.js';
+import type { BadgeTone } from '../ui/badge-tone.js';
+import TenantButton from '../ui/TenantButton.vue';
+import TenantCardSection from '../ui/TenantCardSection.vue';
+import '../ui/tenant-ui.css';
 
 const i18n = useTenantI18n();
 
 defineProps<{
     usage: UsageSnapshotShape;
     currentPlanName: string;
-    statusColor: string;
+    statusTone: BadgeTone;
     statusLabel: string;
     cycleLabel: string;
     currentPriceEur: number | null;

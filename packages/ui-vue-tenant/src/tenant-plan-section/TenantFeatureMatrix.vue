@@ -1,5 +1,5 @@
 <template>
-    <q-card-section>
+    <TenantCardSection>
         <div class="sp-plan-section__usage-title">{{ i18n.featuresOverviewTitle }}</div>
         <ul class="sp-feature-matrix">
             <li
@@ -8,23 +8,38 @@
                 class="sp-feature-matrix__row"
                 :class="{ 'sp-feature-matrix__row--locked': !f.active }"
             >
-                <q-icon
-                    :name="f.active ? 'check_circle' : 'lock'"
-                    :color="f.active ? 'positive' : 'grey-5'"
-                    size="20px"
+                <svg
                     class="sp-feature-matrix__status"
-                />
+                    :class="`sp-feature-matrix__status--${f.active ? 'on' : 'off'}`"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                >
+                    <template v-if="f.active">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m8 12 3 3 5-6" />
+                    </template>
+                    <template v-else>
+                        <rect x="5" y="11" width="14" height="9" rx="2" />
+                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                    </template>
+                </svg>
                 <div class="sp-feature-matrix__text">
                     <div class="sp-feature-matrix__label">
-                        <q-icon v-if="f.icon" :name="f.icon" size="16px" class="q-mr-xs" />
+                        <!-- The registry's `icon` is a Quasar icon name — the
+                             host's iconography, not ours, and rendering it
+                             needs the host's icon font. A slot lets the host
+                             draw its own; an absent slot draws nothing rather
+                             than the word `directions_car`. -->
+                        <slot name="feature-icon" :feature="f"></slot>
                         {{ f.label }}
-                        <q-badge
-                            v-if="!f.active"
-                            color="grey-4"
-                            text-color="grey-9"
-                            :label="i18n.featuresLocked"
-                            class="q-ml-sm"
-                        />
+                        <span v-if="!f.active" class="sp-badge sp-badge--neutral">
+                            {{ i18n.featuresLocked }}
+                        </span>
                     </div>
                     <div v-if="f.description" class="sp-feature-matrix__desc">
                         {{ f.description }}
@@ -32,12 +47,15 @@
                 </div>
             </li>
         </ul>
-    </q-card-section>
+    </TenantCardSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
+import type { FeatureRow } from './feature-row.js';
+import TenantCardSection from '../ui/TenantCardSection.vue';
+import '../ui/tenant-ui.css';
 import type { FeatureUiRegistry } from '@saasicat/core';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 
@@ -57,14 +75,6 @@ const props = defineProps<{
 }>();
 
 const { intlLocale } = useSuperAdminI18n();
-
-interface FeatureRow {
-    key: string;
-    active: boolean;
-    label: string;
-    description: string | null;
-    icon: string | null;
-}
 
 const features = computed<FeatureRow[]>(() => {
     const registry = props.featureRegistry ?? {};
@@ -112,11 +122,18 @@ const features = computed<FeatureRow[]>(() => {
     margin-top: var(--sa-space-0);
     flex: 0 0 auto;
 }
+.sp-feature-matrix__status--on {
+    color: var(--sa-color-positive);
+}
+.sp-feature-matrix__status--off {
+    color: var(--sa-color-fg-muted);
+}
 .sp-feature-matrix__label {
     font-weight: 500;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
+    gap: var(--sa-space-2);
 }
 .sp-feature-matrix__desc {
     font-size: var(--sa-text-sm);

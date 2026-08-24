@@ -95,6 +95,41 @@ the resource registry — so the wiring an app wrote for them can be deleted; `r
 on `createSuperAdminApp()` is the seam for the one call you want diverted. The
 `@saasicat/ui-vue` CHANGELOG for the 1.0 candidates carries the full account.
 
+### The tenant components dropped their UI framework (phase 7)
+
+`@saasicat/ui-vue-tenant` no longer lists `quasar` as a peer dependency, and its components render
+plain elements on the theme's CSS custom properties instead of Quasar's. If you installed Quasar
+only to embed a plan section, you can remove it along with `@quasar/vite-plugin` and the Sass
+setup that came with it — nothing else in the tenant package needs them.
+
+What that costs you if you had styled around the old markup:
+
+- **The class names changed.** Rules written against `.q-card`, `.q-card-section`, `.q-btn` or
+  `.q-badge` inside the tenant surface no longer match. The package's own classes are prefixed
+  `sp-`, and the values they read are the `--sa-*` role tokens — overriding a token moves every
+  component at once, which is the seam meant for this.
+- **`TenantPlanCardHeader` takes `statusTone`, not `statusColor`**, and the values are badge tones
+  (`neutral` / `positive` / `negative` / `warning` / `info`) rather than Quasar colour names. Only
+  an app that renders that component directly is affected; `TenantPlanSection` passes it itself.
+- **The feature matrix no longer draws the registry's icon.** `FeatureUiMeta.icon` is a Quasar icon
+  name, so drawing it needed Quasar's icon font. It is handed to a slot instead, and an app that
+  wants those glyphs draws them:
+
+    ```vue
+    <TenantPlanSection show-feature-matrix>
+        <template #feature-icon="{ feature }">
+            <YourIcon :name="feature.icon" />
+        </template>
+    </TenantPlanSection>
+    ```
+
+- **Dark mode no longer goes through the `quasar` entry.** `bindSaThemeAttribute(createSaTheme())`
+  from `@saasicat/ui-vue` writes the one attribute the role tokens key off.
+  `bindSaThemeToDocument` from `@saasicat/ui-vue/quasar` still exists and still adds the second
+  half, keeping Quasar's own `Dark` in step — which an app without Quasar has no need of.
+
+The admin package is unchanged here: `@saasicat/ui-vue` still uses Quasar, and still asks for it.
+
 ### Defaults that moved
 
 - `DEFAULT_SA_LOCALE` is `'en'`. An app that wants German says so:
