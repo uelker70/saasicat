@@ -8,32 +8,6 @@
  * gets its own id.
  */
 
-.pl-dlg__head {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sa-space-5);
-    padding: var(--sa-space-5) var(--sa-space-6) var(--sa-space-4);
-    border-bottom: 1px solid var(--sa-color-border);
-}
-
-.pl-dlg__title {
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: var(--sa-text-xl);
-    color: var(--sa-color-fg-heading);
-    letter-spacing: var(--sa-tracking-tight);
-}
-
-.pl-dlg__close {
-    margin-left: auto;
-}
-
-.pl-dlg__foot {
-    border-top: 1px solid var(--sa-color-border);
-    background: var(--sa-color-bg-surface-raised);
-    padding: var(--sa-space-4) var(--sa-space-5);
-}
-
 .pl-section:last-of-type {
     margin-bottom: var(--sa-space-2);
 }
@@ -150,14 +124,4 @@
     flex-wrap: wrap;
     gap: var(--sa-space-2);
     margin-top: var(--sa-space-2);
-}
-
-.pl-error {
-    background: var(--sa-color-negative-surface);
-    border: 1px solid var(--sa-color-negative-border);
-    color: var(--sa-color-negative-fg);
-    font-size: var(--sa-text-md);
-    margin: var(--sa-space-4) 0 0;
-    padding: var(--sa-space-3) var(--sa-space-4);
-    border-radius: var(--sa-radius-field);
 }

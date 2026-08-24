@@ -673,7 +673,10 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ErrorResponse'
                 '409':
-                    description: A SUPER_ADMIN already exists — the window closed itself
+                    description: >-
+                        Either the window has closed itself because a SUPER_ADMIN already
+                        exists (`SETUP_ALREADY_DONE`), or the address is taken by a platform
+                        user (`EMAIL_EXISTS`). The `code` tells them apart.
                     content:
                         application/json:
                             schema:

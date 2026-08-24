@@ -231,7 +231,12 @@ function templateOf(source: string): string {
         }
         depth -= 1;
         if (depth === 0) return stripComments(source.slice(start, close));
-        index = source.indexOf('>', close) + 1;
+        const closed = source.indexOf('>', close);
+        // An unclosed `</template` would send `indexOf` to -1 and the scan back
+        // to the start of the file, forever. Prettier cannot produce that; a
+        // half-saved file can.
+        if (closed === -1) return '';
+        index = closed + 1;
     }
     return '';
 }

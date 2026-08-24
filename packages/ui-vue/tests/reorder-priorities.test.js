@@ -52,6 +52,32 @@ describe('reorderedPriorities', () => {
         deepStrictEqual(reorderedPriorities([2, 1], 5, 0), [null, null]);
     });
 
+    test('a value at the top of the range stays inside it', () => {
+        // Lifting the whole run to clear the ties used to push 9999 to 10001,
+        // which the API refuses with a 400 — so the drag could not be saved at
+        // all on a list whose top plan sits near the maximum.
+        const before = [9999, 0, 0, 0];
+        const after = applied(before, reorderedPriorities(before, 3, 0));
+
+        deepStrictEqual(
+            after.every((value) => value >= 0 && value <= 10_000),
+            true,
+        );
+        deepStrictEqual(orderOf(after), [3, 0, 1, 2]);
+    });
+
+    test('a list already at the ceiling still separates', () => {
+        const before = [10_000, 10_000, 10_000];
+        const after = applied(before, reorderedPriorities(before, 2, 0));
+
+        deepStrictEqual(
+            after.every((value) => value >= 0 && value <= 10_000),
+            true,
+        );
+        deepStrictEqual(new Set(after).size, 3);
+        deepStrictEqual(orderOf(after), [2, 0, 1]);
+    });
+
     test('pulling ties apart never goes below zero', () => {
         // `min` is a valid priority; a negative one is a value the number field
         // this replaced would have refused.

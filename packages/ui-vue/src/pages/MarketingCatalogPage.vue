@@ -834,18 +834,22 @@ async function removeFeature(row: MarketingRow, idx: number): Promise<void> {
 /**
  * Turns "this row belongs here" into the priorities that say so.
  *
+ * The positions are indices into the DRAGGABLE rows — those with a live
+ * version — and not into `adminRows`, because a plan without one cannot hold a
+ * marketing projection and `patch` returns early for it. The arithmetic assigns
+ * a value to every position it is given, so a row nobody can write would take
+ * one of those values with it and the stored order would not be the dragged
+ * one. `MarketingCatalogAdmin` builds the same subset for the handles.
+ *
  * Only the rows whose value actually changes are written, and they are written
  * one at a time because that is the shape of the endpoint: there is no bulk
  * reorder, and inventing one client-side would only hide that a failure in the
  * middle leaves the order half-applied. It does not, visibly — the list is
  * re-read from the projections either way, so what the operator sees after an
  * error is what was actually stored.
- *
- * A plan with no live version cannot hold a projection, so `patch` skips it and
- * it keeps the position its priority gives it.
  */
 async function reorderRows(from: number, to: number): Promise<void> {
-    const rows = adminRows.value;
+    const rows = adminRows.value.filter((row) => row.liveVersion);
     const updates = reorderedPriorities(
         rows.map((row) => row.m.priority),
         from,

@@ -18,15 +18,16 @@
                 <div>{{ msg.admin.colHighlight }}</div>
             </div>
 
-            <template v-for="(row, index) in adminRows" :key="row.plan.id">
+            <template v-for="row in adminRows" :key="row.plan.id">
                 <div
                     class="sa-marketing-admin-row"
                     :class="{
                         'sa-marketing-admin-row--disabled': !row.liveVersion,
                         'sa-marketing-admin-row--open': expandedKey === row.plan.planKey,
-                        'sa-marketing-admin-row--dragging': reorder.draggingIndex.value === index,
-                        'sa-marketing-admin-row--drop-above': dropEdge(index) === 'above',
-                        'sa-marketing-admin-row--drop-below': dropEdge(index) === 'below',
+                        'sa-marketing-admin-row--dragging':
+                            reorder.draggingIndex.value === dragIndexOf(row),
+                        'sa-marketing-admin-row--drop-above': dropEdge(row) === 'above',
+                        'sa-marketing-admin-row--drop-below': dropEdge(row) === 'below',
                     }"
                     @click="onRowClick(row, $event)"
                 >
@@ -37,26 +38,26 @@
                              to exist without a pointer. `q-btn` renders a label and a ripple
                              around its icon; what this needs is the icon and a grab cursor. -->
                         <button
-                            v-if="row.liveVersion"
-                            :ref="(el) => registerHandle(index, el)"
+                            v-if="dragIndexOf(row) !== null"
+                            :ref="(el) => registerHandle(dragIndexOf(row)!, el)"
                             type="button"
                             class="sa-marketing-grip"
                             :class="{
                                 'sa-marketing-grip--dragging':
-                                    reorder.draggingIndex.value === index,
+                                    reorder.draggingIndex.value === dragIndexOf(row),
                             }"
                             :disabled="busy"
                             :aria-label="
                                 formatMessage(msg.admin.reorderLabel, {
                                     plan: row.m.displayLabel || row.plan.label,
-                                    position: index + 1,
-                                    total: adminRows.length,
+                                    position: dragIndexOf(row)! + 1,
+                                    total: draggableRows.length,
                                 })
                             "
                             :title="msg.admin.reorderTitle"
-                            @pointerdown="reorder.start(index, $event)"
-                            @keydown.up.prevent="moveBy(index, -1)"
-                            @keydown.down.prevent="moveBy(index, 1)"
+                            @pointerdown="reorder.start(dragIndexOf(row)!, $event)"
+                            @keydown.up.prevent="moveBy(dragIndexOf(row)!, -1)"
+                            @keydown.down.prevent="moveBy(dragIndexOf(row)!, 1)"
                         >
                             <q-icon name="drag_indicator" size="18px" />
                         </button>
@@ -478,7 +479,7 @@
 </template>
 
 <script setup lang="ts">
-import { useId } from 'vue';
+import { computed, useId } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityChipStyle } from '../../client/identity-accents.js';
@@ -603,10 +604,33 @@ function onRowClick(row: MarketingRow, event: MouseEvent): void {
 // The handle says the same thing by pointing at where the row should be, and
 // the page turns that into the numbers (`reorderedPriorities`).
 
+/**
+ * The rows a drag may move, in the order they are rendered.
+ *
+ * A plan with no live version cannot hold a marketing projection, so its
+ * priority cannot be written — and the arithmetic that makes room for a moved
+ * row assigns a value to EVERY position it is given. Handing it a row nobody
+ * can write means one of the computed values is silently dropped and the
+ * resulting order is not the one that was dragged: with `[A=10, B=0, X=0]` and
+ * X unwritable, dragging A to the end wrote B=11 and A=0 while X kept its 0,
+ * and the list re-sorted to `B, A, X`.
+ *
+ * So the whole gesture — handle registration, the geometry it is measured
+ * from, the keyboard step and the emitted positions — counts only these rows.
+ * The page maps them back the same way.
+ */
+const draggableRows = computed(() => props.adminRows.filter((row) => row.liveVersion));
+
+/** A row's position among the draggable ones, or `null` if it is not one. */
+function dragIndexOf(row: MarketingRow): number | null {
+    const index = draggableRows.value.indexOf(row);
+    return index === -1 ? null : index;
+}
+
 const handles: (HTMLElement | null)[] = [];
 
 /**
- * Keeps the handle elements addressable by row index.
+ * Keeps the handle elements addressable by draggable index.
  *
  * The drop position is measured from them, because the rows themselves are
  * `display: contents` and report an empty rectangle.
@@ -616,23 +640,24 @@ function registerHandle(index: number, el: Element | ComponentPublicInstance | n
 }
 
 const reorder = useRowReorder(
-    () => props.adminRows.length,
+    () => draggableRows.value.length,
     (index) => handles[index] ?? null,
     (from, to) => emit('reorder', from, to),
 );
 
 /** Which edge of a row the drop line is drawn on, if any. */
-function dropEdge(index: number): 'above' | 'below' | null {
+function dropEdge(row: MarketingRow): 'above' | 'below' | null {
+    const index = dragIndexOf(row);
     const from = reorder.draggingIndex.value;
     const to = reorder.targetIndex.value;
-    if (from === null || to === null || from === to || index !== to) return null;
+    if (index === null || from === null || to === null || from === to || index !== to) return null;
     return to < from ? 'above' : 'below';
 }
 
 /** The keyboard half of the same gesture. */
 function moveBy(index: number, direction: -1 | 1): void {
     const to = index + direction;
-    if (to < 0 || to >= props.adminRows.length) return;
+    if (to < 0 || to >= draggableRows.value.length) return;
     emit('reorder', index, to);
 }
 

@@ -741,10 +741,6 @@ const classifyDiff = computed(() => classifyBundleVersionDiff);
 </script>
 
 <style>
-.sa-bundles {
-    display: flex;
-    flex-direction: column;
-}
 .sa-bundles__filter-row {
     display: flex;
     align-items: center;

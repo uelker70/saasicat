@@ -280,6 +280,7 @@ describe('a marketing row opens its editor from anywhere but its fields', () => 
     } as MarketingRow;
 
     const secondRow = { ...row, plan: { ...plan, id: 'plan-2', planKey: 'BASIC', label: 'Basic' } };
+    const thirdRow = { ...row, plan: { ...plan, id: 'plan-3', planKey: 'FREE', label: 'Free' } };
 
     const mountAdmin = ({
         rows = [row],
@@ -365,6 +366,8 @@ describe('a marketing row opens its editor from anywhere but its fields', () => 
      * rects, which proves nothing about the arithmetic that reads them.
      */
     function drag(wrapper: ReturnType<typeof mountAdmin>, fromIndex: number, toY: number): void {
+        // The handles, not the rows: a row without a live version has none, and
+        // the geometry the drop position is read from is exactly this list.
         const handles = wrapper.findAll('.sa-marketing-grip');
         handles.forEach((handle, index) => {
             const top = index * 60;
@@ -384,11 +387,51 @@ describe('a marketing row opens its editor from anywhere but its fields', () => 
     }
 
     test('a drag from the first row to the second reports that move', () => {
+        // Below the second handle's midpoint (80), which is what "past this
+        // row" means. This case asserted the same move from y = 75 while that
+        // bug was in: above the midpoint the pointer has not passed the row at
+        // all, and the reading that said otherwise was the off-by-one below.
         const wrapper = mountAdmin({ rows: [row, secondRow] });
 
-        drag(wrapper, 0, 75);
+        drag(wrapper, 0, 85);
 
         expect(wrapper.emitted('reorder')).toEqual([[0, 1]]);
+    });
+
+    test('a drag downwards lands where the pointer is, not one row further', () => {
+        // Three rows, because two cannot tell the two readings apart: the
+        // handle scan answers "before which row would this go?" in the list as
+        // it stands, and the move is applied to the list with the dragged row
+        // already taken out. Going down those differ by one, and with two rows
+        // both readings give the same answer.
+        //
+        // Handles at 0/60/120, height 40, so midpoints are 20/80/140. Releasing
+        // at 85 is over the lower half of the middle row: the row belongs
+        // between the middle and the last, which is index 1 once it is out.
+        const wrapper = mountAdmin({ rows: [row, secondRow, thirdRow] });
+
+        drag(wrapper, 0, 85);
+
+        expect(wrapper.emitted('reorder')).toEqual([[0, 1]]);
+    });
+
+    test('a twitch inside the dragged row is not a move', () => {
+        // 21px from the top of its own handle, which is past that handle's
+        // midpoint — the reading that answers "insert before row 1" while the
+        // pointer has not left row 0.
+        const wrapper = mountAdmin({ rows: [row, secondRow, thirdRow] });
+
+        drag(wrapper, 0, 21);
+
+        expect(wrapper.emitted('reorder')).toBeUndefined();
+    });
+
+    test('a drag upwards lands where the pointer is', () => {
+        const wrapper = mountAdmin({ rows: [row, secondRow, thirdRow] });
+
+        drag(wrapper, 2, 75);
+
+        expect(wrapper.emitted('reorder')).toEqual([[2, 1]]);
     });
 
     test('a drag released where it started reports nothing', () => {
@@ -397,6 +440,24 @@ describe('a marketing row opens its editor from anywhere but its fields', () => 
         drag(wrapper, 0, 12);
 
         expect(wrapper.emitted('reorder')).toBeUndefined();
+    });
+
+    test('a row that cannot be written is not part of the order', () => {
+        // The arithmetic assigns a value to every position it is given, and a
+        // plan with no live version cannot hold a projection to store one in.
+        // Counted among them, one of the computed values goes nowhere and the
+        // stored order is not the dragged one — so the positions reported here
+        // count only the rows a drag can actually move.
+        const unpublished = { ...thirdRow, liveVersion: null };
+        const wrapper = mountAdmin({ rows: [row, unpublished, secondRow] });
+
+        const handles = wrapper.findAll('.sa-marketing-grip');
+        expect(handles).toHaveLength(2);
+
+        drag(wrapper, 0, 85);
+
+        // 0 → 1 among the two writable rows, not 0 → 2 among all three.
+        expect(wrapper.emitted('reorder')).toEqual([[0, 1]]);
     });
 
     test('a row without a live version has no handle', () => {

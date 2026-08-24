@@ -41,21 +41,36 @@ export function useRowReorder(
     const draggingIndex = ref<number | null>(null);
     const targetIndex = ref<number | null>(null);
 
-    function positionAt(clientY: number): number {
-        // The row whose handle the pointer is over, by midpoint: above it the
-        // release goes before that row, below it after. Handles are in DOM
-        // order, so the first midpoint below the pointer is the answer.
+    /**
+     * Where the dragged row would land, as an index in the list AFTER it is
+     * taken out.
+     *
+     * The scan itself answers a different question — "before which row would
+     * this be inserted?", an index in the list as it stands. The two agree
+     * going up and differ by one going down, because everything between the
+     * dragged row and the insertion point shifts up by one when it leaves.
+     * Reading the first as the second moved a downward drag one row too far,
+     * and made an 11px twitch inside the dragged row's own handle count as a
+     * move to the row below.
+     */
+    function positionAt(clientY: number, from: number): number {
+        // Handles are in DOM order, so the first midpoint below the pointer is
+        // the insertion point.
         const count = rowCount();
+        let insertAt = count;
         for (let index = 0; index < count; index++) {
             const rect = handleOf(index)?.getBoundingClientRect();
-            if (rect && clientY < rect.top + rect.height / 2) return index;
+            if (rect && clientY < rect.top + rect.height / 2) {
+                insertAt = index;
+                break;
+            }
         }
-        return count - 1;
+        return insertAt > from ? insertAt - 1 : insertAt;
     }
 
     function onMove(event: PointerEvent): void {
         if (draggingIndex.value === null) return;
-        targetIndex.value = positionAt(event.clientY);
+        targetIndex.value = positionAt(event.clientY, draggingIndex.value);
     }
 
     function onUp(): void {

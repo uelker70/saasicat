@@ -590,15 +590,6 @@ onMounted(async () => {
 </script>
 
 <style>
-/* The frame belongs to `.sa-page`: padding, background and height are the
- * same on every page, and a page that sets its own puts its hero 12px further
- * left than its neighbour's for no reason a reader can see. What stays here is
- * this page's own layout — it stacks its blocks itself rather than leaving
- * them to the section rhythm. */
-.sa-discovery {
-    display: flex;
-    flex-direction: column;
-}
 .sa-discovery__panel {
     display: flex;
     flex-direction: column;

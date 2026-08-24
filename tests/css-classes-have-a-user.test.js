@@ -16,9 +16,9 @@
 //
 // One consequence is deliberate: a class meant for a CONSUMER to write — the
 // theme has a few — is invisible to this check unless the repository writes it
-// too. `docs/` counts as writing it, which is the right price: a class nobody
-// here uses and nothing documents cannot be told apart from one that was left
-// behind, and the reader who finds it cannot either.
+// too. `docs/` is searched for exactly that reason, and it is the right price:
+// a class nobody here uses and nothing documents cannot be told apart from one
+// that was left behind, and the reader who finds it cannot either.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,7 +27,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const SEARCHED = ['packages', 'examples'];
+const SEARCHED = ['packages', 'examples', 'docs'];
 const SKIPPED_DIRS = new Set(['node_modules', 'dist', 'coverage', '.turbo', 'test-results']);
 
 /** Quasar writes its own classes at runtime; the theme only styles them. */
@@ -58,8 +58,17 @@ function styleOf(file, text) {
     return css;
 }
 
-/** Everything except an SFC's own `<style>` blocks. */
+/**
+ * Everything except stylesheet text.
+ *
+ * A `.css` file contributes nothing: its whole content is selectors, so
+ * counting it as writing would let every stylesheet vouch for itself. That is
+ * not theoretical — it made the check vacuous for the 14 standalone
+ * stylesheets, which are the theme, and it hid two orphans in
+ * `pilot-dialog.css` while reporting 25 in SFCs.
+ */
 function markupOf(file, text) {
+    if (file.endsWith('.css')) return '';
     if (!file.endsWith('.vue')) return text;
     let kept = '';
     let from = 0;

@@ -1,3 +1,5 @@
+import { MARKETING_PRIORITY_MAX, MARKETING_PRIORITY_MIN } from '@saasicat/core';
+
 /**
  * The priority values that turn a drag into a new order.
  *
@@ -37,20 +39,38 @@ export function reorderedPriorities(
 }
 
 /**
- * The same values, sorted high to low and pulled apart where they were equal.
+ * The same values, sorted high to low, pulled apart where they were equal, and
+ * kept inside the range the API accepts.
  *
- * Walking downwards and pushing each value below its predecessor keeps every
- * gap the operator chose and only spends what a tie costs. That can push the
- * tail below zero — `[0, 0, 0]` becomes `[0, -1, -2]` — so the run is lifted
- * back afterwards rather than clamped, which would re-create the tie it just
- * removed.
+ * Three passes, and each exists because one of the other two can break its
+ * bound:
+ *
+ * 1. **Room above.** The entry at position `i` has `i` entries above it, each
+ *    of which must be strictly larger, so it cannot exceed `MAX - i`.
+ * 2. **Strictly decreasing.** Pushing each entry below its predecessor keeps
+ *    every gap the operator chose and spends only what a tie costs.
+ * 3. **Room below.** That push can go under zero — `[0, 0, 0]` becomes
+ *    `[0, -1, -2]` — so an entry with `n - 1 - i` entries below it is raised to
+ *    at least that. Raising from the bottom rather than lifting the whole run
+ *    is what keeps a value at the top of the range where it was: lifting turned
+ *    `[9999, 0, 0, 0]` into `[10001, 2, 1, 0]`, and the API refuses `10001`.
+ *
+ * Pass 3 cannot undo pass 1 or 2: `n - 1 - i` is itself strictly decreasing, so
+ * the maximum of two strictly decreasing sequences is one, and it stays under
+ * `MAX - i` for any list shorter than half the range.
  */
 function descendingDistinct(priorities: readonly number[]): number[] {
     const values = [...priorities].sort((a, b) => b - a);
-    for (let i = 1; i < values.length; i++) {
+    const count = values.length;
+
+    for (let i = 0; i < count; i++) {
+        values[i] = Math.min(values[i]!, MARKETING_PRIORITY_MAX - i);
+    }
+    for (let i = 1; i < count; i++) {
         values[i] = Math.min(values[i]!, values[i - 1]! - 1);
     }
-    const lowest = values[values.length - 1] ?? 0;
-    if (lowest >= 0) return values;
-    return values.map((value) => value - lowest);
+    for (let i = count - 1; i >= 0; i--) {
+        values[i] = Math.max(values[i]!, MARKETING_PRIORITY_MIN + (count - 1 - i));
+    }
+    return values;
 }
