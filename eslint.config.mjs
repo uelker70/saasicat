@@ -153,6 +153,14 @@ export default tseslint.config(
         // The limits differ by directory because the roles do: a page arranges
         // and binds, a feature component carries a domain, a primitive is
         // configured.
+        //
+        // `@saasicat/ui-vue-tenant` is deliberately outside this block, and the
+        // reason is a decision rather than an omission: those components render
+        // inside the CUSTOMER's application, so `no-hand-built-controls` — which
+        // says "use the Quasar component" — would be arguing for a framework
+        // requirement that ADR 0010 is removing from that package. Its controls
+        // stay plain elements until the Quasar usages there are gone, and after
+        // that a rule pointing the other way is the one it needs.
         files: ['packages/ui-vue/src/**/*.vue'],
         plugins: { saasicat },
         rules: {

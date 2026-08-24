@@ -52,6 +52,12 @@ pnpm add @saasicat/ui-vue-tenant
 consumes the platform's primitives and design tokens rather than shipping its
 own.
 
+**The `quasar` requirement is being removed.** These components render inside
+your application, so asking it to adopt a UI framework is the wrong price for a
+plan section. [ADR 0010](../../docs/explanation/adr/0010-tenant-ui-without-quasar.md)
+records the decision and what is left to replace; until it lands, the peer
+dependency is still required.
+
 ## Usage
 
 ```vue
