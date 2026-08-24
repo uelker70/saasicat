@@ -1,0 +1,59 @@
+/* The shapes this package writes as a class rather than as a component.
+ *
+ * A badge, a chip, a rule and a spinner carry no behaviour: they are one
+ * element with one set of declarations. Wrapping each in an SFC would add a
+ * component whose whole body is a `<span>` — and scoped styles are why the
+ * class cannot simply live in the file that writes it, because every one of
+ * these is written from several components at once.
+ *
+ * Everything here reads the theme's role tokens, so a consumer who moves
+ * `--sa-color-positive-surface` moves these with it. That is the whole
+ * dependency this package has on `@saasicat/ui-vue`: custom properties, no
+ * framework.
+ *
+ * A shape arrives here WITH its first call site, never before it:
+ * `css-classes-have-a-user` refuses a class nothing writes, and it is right to
+ * — a primitive nobody has reached for yet is indistinguishable from one that
+ * was left behind.
+ */
+
+/* ── Spinner ─────────────────────────────────────────────────────────────
+ * A ring, not a component. Every call site puts a sentence beside it, so the
+ * ring is decoration and carries `aria-hidden` at each of them.
+ *
+ * Under `prefers-reduced-motion` the rotation is replaced rather than removed:
+ * a ring frozen mid-turn reads as a broken image, and a slow fade still says
+ * "working" without moving anything across the viewport.
+ */
+.sp-spinner {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: var(--sp-spinner-size, 32px);
+    height: var(--sp-spinner-size, 32px);
+    border: 2px solid var(--sa-color-border);
+    border-top-color: var(--sa-color-accent);
+    border-radius: var(--sa-radius-pill);
+    animation: sp-spinner-turn 0.8s linear infinite;
+}
+.sp-spinner--inline {
+    --sp-spinner-size: 14px;
+    border-width: 2px;
+}
+
+@keyframes sp-spinner-turn {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes sp-spinner-fade {
+    50% {
+        opacity: 0.3;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sp-spinner {
+        animation: sp-spinner-fade 1.6s ease-in-out infinite;
+    }
+}
