@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/spec",
-    "version": "1.0.0-rc.4",
+    "version": "1.0.0-rc.5",
     "description": "Language-neutral spec of the SaaS platform: JSON Schemas, OpenAPI contract, Prisma fragments, acceptance scenarios.",
     "type": "module",
     "main": "./index.cjs",

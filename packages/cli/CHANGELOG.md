@@ -1,5 +1,13 @@
 # @saasicat/cli
 
+## 1.0.0-rc.5
+
+### Patch Changes
+
+- @saasicat/spec@1.0.0-rc.5
+- @saasicat/core@1.0.0-rc.5
+- @saasicat/nest@1.0.0-rc.5
+
 ## 1.0.0-rc.4
 
 ### Patch Changes
