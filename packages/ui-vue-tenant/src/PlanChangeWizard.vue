@@ -1,218 +1,211 @@
 <template>
-    <q-dialog v-model="model" persistent>
-        <q-card class="sp-wizard">
-            <q-card-section class="sp-wizard__head">
-                <div>
-                    <div class="sp-wizard__title">{{ i18n.title }}</div>
-                    <div class="sp-wizard__sub">
-                        {{ i18n.currentLabel }}: {{ currentPlanName }} ({{ currentCycleLabel }})
+    <TenantDialog
+        v-model="model"
+        :title="i18n.title"
+        :subtitle="`${i18n.currentLabel}: ${currentPlanName} (${currentCycleLabel})`"
+        size="lg"
+        :close-label="i18n.close"
+        persistent
+    >
+        <q-stepper
+            v-model="step"
+            animated
+            flat
+            keep-alive
+            active-color="primary"
+            class="sp-wizard__stepper"
+        >
+            <!-- Step 1: Plan + Cycle -->
+            <q-step :name="1" :title="i18n.stepChoose" icon="grade" :done="step > 1">
+                <p class="sp-wizard__intro">{{ i18n.stepChooseIntro }}</p>
+
+                <PlanCycleToggle
+                    :model-value="targetCycle"
+                    :i18n="cycleI18n"
+                    class="q-mb-md"
+                    @update:model-value="targetCycle = $event"
+                />
+
+                <PlanGrid
+                    :model-value="targetPlan"
+                    :plans="plans"
+                    :cycle="targetCycle"
+                    :catalog-quota-keys="catalogQuotaKeys"
+                    :current-plan-id="currentPlanId"
+                    :format-currency="formatCurrency"
+                    :format-quota-value="formatQuotaValueResolved"
+                    :quota-label="quotaLabel"
+                    :i18n="planGridI18n"
+                    @update:model-value="targetPlan = $event"
+                />
+
+                <q-stepper-navigation>
+                    <q-btn
+                        color="primary"
+                        :label="i18n.next"
+                        :disable="!targetPlan || !canAdvanceFromStep1"
+                        unelevated
+                        @click="goToPreview"
+                    />
+                </q-stepper-navigation>
+            </q-step>
+
+            <!-- Step 2: Preview -->
+            <q-step :name="2" :title="i18n.stepPreview" icon="preview" :done="step > 2">
+                <div v-if="previewLoading" class="sp-wizard__loading">
+                    <q-spinner size="32px" />
+                    <span>{{ i18n.previewLoading }}</span>
+                </div>
+
+                <div v-else-if="previewError" class="sp-wizard__error">
+                    {{ previewError }}
+                </div>
+
+                <template v-else-if="preview">
+                    <div class="sp-wizard__type">
+                        <q-badge
+                            :color="changeTypeColor"
+                            :label="changeTypeLabel"
+                            class="q-mr-sm"
+                        />
+                        <span v-if="preview.effectiveAt && !preview.isImmediate">
+                            {{ i18n.effectiveAtLabel }}: {{ formatDate(preview.effectiveAt) }}
+                        </span>
+                        <span v-else-if="preview.isImmediate">
+                            {{ i18n.effectiveImmediate }}
+                        </span>
+                    </div>
+
+                    <div v-if="preview.proration" class="sp-wizard__proration">
+                        <h4>{{ i18n.prorationTitle }}</h4>
+                        <p>
+                            {{ i18n.prorationLine }}
+                            <strong>{{ formatCurrency(preview.proration.prorataDeltaNet) }}</strong>
+                            ({{ preview.proration.daysRemainingInPeriod }} /
+                            {{ preview.proration.daysInPeriod }} {{ i18n.prorationDays }})
+                        </p>
+                    </div>
+
+                    <h4 class="q-mt-lg">{{ i18n.limitsTitle }}</h4>
+                    <table class="sp-wizard__limits">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>{{ i18n.limitsUsed }}</th>
+                                <th>{{ i18n.limitsCurrent }}</th>
+                                <th>{{ i18n.limitsTarget }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <LimitsRow
+                                v-for="(row, key) in preview.limitsCheck"
+                                :key="key"
+                                :label="quotaLabel(String(key))"
+                                :row="row"
+                                :fractional="isFractionalQuotaSafe(String(key))"
+                            />
+                        </tbody>
+                    </table>
+
+                    <div v-if="preview.featuresGained.length > 0" class="sp-wizard__feat">
+                        <h4>{{ i18n.featuresGained }}</h4>
+                        <ul>
+                            <li v-for="f in preview.featuresGained" :key="f">
+                                {{ featureLabel(f) }}
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div
+                        v-if="preview.featuresLost.length > 0"
+                        class="sp-wizard__feat sp-wizard__feat--warn"
+                    >
+                        <h4>{{ i18n.featuresLost }}</h4>
+                        <ul>
+                            <li v-for="f in preview.featuresLost" :key="f">
+                                {{ featureLabel(f) }}
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div v-if="preview.blockers.length > 0" class="sp-wizard__blockers">
+                        <h4>{{ i18n.blockersTitle }}</h4>
+                        <ul>
+                            <li v-for="b in preview.blockers" :key="b.code">{{ b.message }}</li>
+                        </ul>
+                    </div>
+
+                    <div v-if="preview.warnings.length > 0" class="sp-wizard__warnings">
+                        <ul>
+                            <li v-for="w in preview.warnings" :key="w.code">{{ w.message }}</li>
+                        </ul>
+                    </div>
+                </template>
+
+                <q-stepper-navigation>
+                    <q-btn flat :label="i18n.back" @click="step = 1" />
+                    <q-btn
+                        color="primary"
+                        :label="i18n.next"
+                        unelevated
+                        class="q-ml-sm"
+                        :disable="!canAdvanceFromPreview"
+                        @click="step = 3"
+                    />
+                </q-stepper-navigation>
+            </q-step>
+
+            <!-- Step 3: Confirm -->
+            <q-step :name="3" :title="i18n.stepConfirm" icon="check_circle">
+                <p>
+                    <strong>{{ targetPlanName }}</strong>
+                    ({{ targetCycle === 'YEARLY' ? i18n.cycleYearly : i18n.cycleMonthly }})
+                </p>
+                <p v-if="preview?.isImmediate" class="sp-wizard__confirm-line">
+                    {{ i18n.confirmImmediate }}
+                </p>
+                <p v-else-if="preview?.effectiveAt" class="sp-wizard__confirm-line">
+                    {{ i18n.confirmScheduled }} {{ formatDate(preview.effectiveAt) }}.
+                </p>
+
+                <!-- #17: Price summary — prorated now + regular from the next period.
+                         During a trial nothing is charged → only a note + next price. -->
+                <div v-if="preview" class="sp-wizard__price-summary">
+                    <h4>{{ i18n.confirmPriceTitle }}</h4>
+                    <div v-if="isTrial" class="sp-wizard__price-note">
+                        {{ i18n.confirmTrialNote }}
+                    </div>
+                    <div v-else-if="preview.proration" class="sp-wizard__price-row">
+                        <span>{{ i18n.confirmProratedNow }}</span>
+                        <strong>{{ formatCurrency(preview.proration.prorataDeltaNet) }}</strong>
+                    </div>
+                    <div class="sp-wizard__price-row">
+                        <span>{{ recurringFromLabel }}</span>
+                        <strong>
+                            {{ formatCurrency(recurringPriceNet) }} {{ recurringCycleLabel }}
+                        </strong>
                     </div>
                 </div>
-                <q-btn flat round dense icon="close" :aria-label="i18n.close" @click="close" />
-            </q-card-section>
 
-            <q-stepper
-                v-model="step"
-                animated
-                flat
-                keep-alive
-                active-color="primary"
-                class="sp-wizard__stepper"
-            >
-                <!-- Step 1: Plan + Cycle -->
-                <q-step :name="1" :title="i18n.stepChoose" icon="grade" :done="step > 1">
-                    <p class="sp-wizard__intro">{{ i18n.stepChooseIntro }}</p>
+                <div v-if="submitError" class="sp-wizard__error q-mt-md">
+                    {{ submitError }}
+                </div>
 
-                    <PlanCycleToggle
-                        :model-value="targetCycle"
-                        :i18n="cycleI18n"
-                        class="q-mb-md"
-                        @update:model-value="targetCycle = $event"
+                <q-stepper-navigation>
+                    <q-btn flat :label="i18n.back" @click="step = 2" />
+                    <q-btn
+                        color="primary"
+                        :label="submitting ? i18n.confirmInProgress : i18n.confirmAction"
+                        unelevated
+                        class="q-ml-sm"
+                        :loading="submitting"
+                        :disable="submitting"
+                        @click="submit"
                     />
-
-                    <PlanGrid
-                        :model-value="targetPlan"
-                        :plans="plans"
-                        :cycle="targetCycle"
-                        :catalog-quota-keys="catalogQuotaKeys"
-                        :current-plan-id="currentPlanId"
-                        :format-currency="formatCurrency"
-                        :format-quota-value="formatQuotaValueResolved"
-                        :quota-label="quotaLabel"
-                        :i18n="planGridI18n"
-                        @update:model-value="targetPlan = $event"
-                    />
-
-                    <q-stepper-navigation>
-                        <q-btn
-                            color="primary"
-                            :label="i18n.next"
-                            :disable="!targetPlan || !canAdvanceFromStep1"
-                            unelevated
-                            @click="goToPreview"
-                        />
-                    </q-stepper-navigation>
-                </q-step>
-
-                <!-- Step 2: Preview -->
-                <q-step :name="2" :title="i18n.stepPreview" icon="preview" :done="step > 2">
-                    <div v-if="previewLoading" class="sp-wizard__loading">
-                        <q-spinner size="32px" />
-                        <span>{{ i18n.previewLoading }}</span>
-                    </div>
-
-                    <div v-else-if="previewError" class="sp-wizard__error">
-                        {{ previewError }}
-                    </div>
-
-                    <template v-else-if="preview">
-                        <div class="sp-wizard__type">
-                            <q-badge
-                                :color="changeTypeColor"
-                                :label="changeTypeLabel"
-                                class="q-mr-sm"
-                            />
-                            <span v-if="preview.effectiveAt && !preview.isImmediate">
-                                {{ i18n.effectiveAtLabel }}: {{ formatDate(preview.effectiveAt) }}
-                            </span>
-                            <span v-else-if="preview.isImmediate">
-                                {{ i18n.effectiveImmediate }}
-                            </span>
-                        </div>
-
-                        <div v-if="preview.proration" class="sp-wizard__proration">
-                            <h4>{{ i18n.prorationTitle }}</h4>
-                            <p>
-                                {{ i18n.prorationLine }}
-                                <strong>{{
-                                    formatCurrency(preview.proration.prorataDeltaNet)
-                                }}</strong>
-                                ({{ preview.proration.daysRemainingInPeriod }} /
-                                {{ preview.proration.daysInPeriod }} {{ i18n.prorationDays }})
-                            </p>
-                        </div>
-
-                        <h4 class="q-mt-lg">{{ i18n.limitsTitle }}</h4>
-                        <table class="sp-wizard__limits">
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>{{ i18n.limitsUsed }}</th>
-                                    <th>{{ i18n.limitsCurrent }}</th>
-                                    <th>{{ i18n.limitsTarget }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <LimitsRow
-                                    v-for="(row, key) in preview.limitsCheck"
-                                    :key="key"
-                                    :label="quotaLabel(String(key))"
-                                    :row="row"
-                                    :fractional="isFractionalQuotaSafe(String(key))"
-                                />
-                            </tbody>
-                        </table>
-
-                        <div v-if="preview.featuresGained.length > 0" class="sp-wizard__feat">
-                            <h4>{{ i18n.featuresGained }}</h4>
-                            <ul>
-                                <li v-for="f in preview.featuresGained" :key="f">
-                                    {{ featureLabel(f) }}
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div
-                            v-if="preview.featuresLost.length > 0"
-                            class="sp-wizard__feat sp-wizard__feat--warn"
-                        >
-                            <h4>{{ i18n.featuresLost }}</h4>
-                            <ul>
-                                <li v-for="f in preview.featuresLost" :key="f">
-                                    {{ featureLabel(f) }}
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div v-if="preview.blockers.length > 0" class="sp-wizard__blockers">
-                            <h4>{{ i18n.blockersTitle }}</h4>
-                            <ul>
-                                <li v-for="b in preview.blockers" :key="b.code">{{ b.message }}</li>
-                            </ul>
-                        </div>
-
-                        <div v-if="preview.warnings.length > 0" class="sp-wizard__warnings">
-                            <ul>
-                                <li v-for="w in preview.warnings" :key="w.code">{{ w.message }}</li>
-                            </ul>
-                        </div>
-                    </template>
-
-                    <q-stepper-navigation>
-                        <q-btn flat :label="i18n.back" @click="step = 1" />
-                        <q-btn
-                            color="primary"
-                            :label="i18n.next"
-                            unelevated
-                            class="q-ml-sm"
-                            :disable="!canAdvanceFromPreview"
-                            @click="step = 3"
-                        />
-                    </q-stepper-navigation>
-                </q-step>
-
-                <!-- Step 3: Confirm -->
-                <q-step :name="3" :title="i18n.stepConfirm" icon="check_circle">
-                    <p>
-                        <strong>{{ targetPlanName }}</strong>
-                        ({{ targetCycle === 'YEARLY' ? i18n.cycleYearly : i18n.cycleMonthly }})
-                    </p>
-                    <p v-if="preview?.isImmediate" class="sp-wizard__confirm-line">
-                        {{ i18n.confirmImmediate }}
-                    </p>
-                    <p v-else-if="preview?.effectiveAt" class="sp-wizard__confirm-line">
-                        {{ i18n.confirmScheduled }} {{ formatDate(preview.effectiveAt) }}.
-                    </p>
-
-                    <!-- #17: Price summary — prorated now + regular from the next period.
-                         During a trial nothing is charged → only a note + next price. -->
-                    <div v-if="preview" class="sp-wizard__price-summary">
-                        <h4>{{ i18n.confirmPriceTitle }}</h4>
-                        <div v-if="isTrial" class="sp-wizard__price-note">
-                            {{ i18n.confirmTrialNote }}
-                        </div>
-                        <div v-else-if="preview.proration" class="sp-wizard__price-row">
-                            <span>{{ i18n.confirmProratedNow }}</span>
-                            <strong>{{ formatCurrency(preview.proration.prorataDeltaNet) }}</strong>
-                        </div>
-                        <div class="sp-wizard__price-row">
-                            <span>{{ recurringFromLabel }}</span>
-                            <strong>
-                                {{ formatCurrency(recurringPriceNet) }} {{ recurringCycleLabel }}
-                            </strong>
-                        </div>
-                    </div>
-
-                    <div v-if="submitError" class="sp-wizard__error q-mt-md">
-                        {{ submitError }}
-                    </div>
-
-                    <q-stepper-navigation>
-                        <q-btn flat :label="i18n.back" @click="step = 2" />
-                        <q-btn
-                            color="primary"
-                            :label="submitting ? i18n.confirmInProgress : i18n.confirmAction"
-                            unelevated
-                            class="q-ml-sm"
-                            :loading="submitting"
-                            :disable="submitting"
-                            @click="submit"
-                        />
-                    </q-stepper-navigation>
-                </q-step>
-            </q-stepper>
-        </q-card>
-    </q-dialog>
+                </q-stepper-navigation>
+            </q-step>
+        </q-stepper>
+    </TenantDialog>
 </template>
 
 <script setup lang="ts">
@@ -220,6 +213,7 @@ import { computed, ref, watch } from 'vue';
 import LimitsRow from './LimitsRow.vue';
 import PlanCycleToggle from './plan/PlanCycleToggle.vue';
 import PlanGrid from './plan/PlanGrid.vue';
+import TenantDialog from './ui/TenantDialog.vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { BillingCycleStr, PlanChangePreviewShape } from '@saasicat/ui-vue';
 import type { CatalogPlan } from '@saasicat/ui-vue';
@@ -458,32 +452,13 @@ watch(
 </script>
 
 <style scoped>
-.sp-wizard {
-    width: min(900px, 95vw);
-    max-height: 90vh;
-}
 /* CSS vars for light + dark mode */
-.sp-wizard {
+.sp-wizard__stepper {
     --sp-wiz-border: var(--sa-color-border);
     --sp-wiz-text-strong: var(--sa-color-fg-heading);
     --sp-wiz-text-muted: var(--sa-color-fg-secondary);
     --sp-wiz-text-faint: var(--sa-color-fg-muted);
     --sp-wiz-border-soft: var(--sa-color-border-soft);
-}
-.sp-wizard__head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 1px solid var(--sp-wiz-border);
-}
-.sp-wizard__title {
-    font-size: var(--sa-text-xl);
-    font-weight: 600;
-    color: var(--sp-wiz-text-strong);
-}
-.sp-wizard__sub {
-    color: var(--sp-wiz-text-muted);
-    font-size: var(--sa-text-md);
 }
 .sp-wizard__intro {
     color: var(--sp-wiz-text-muted);

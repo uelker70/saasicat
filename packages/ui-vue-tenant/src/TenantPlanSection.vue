@@ -115,39 +115,35 @@
             />
 
             <!-- Reactivate confirmation (analogous to cancellation): deliberate action -->
-            <q-dialog
+            <TenantDialog
                 :model-value="reactivateConfirmId !== null"
+                :title="effectiveI18n.bundleReactivateConfirmTitle"
+                size="sm"
                 @update:model-value="
-                    (v: boolean) => {
-                        if (!v) closeReactivateConfirm();
+                    (open: boolean) => {
+                        if (!open) closeReactivateConfirm();
                     }
                 "
             >
-                <q-card style="min-width: 360px; max-width: 480px">
-                    <q-card-section>
-                        <div class="text-h6">{{ effectiveI18n.bundleReactivateConfirmTitle }}</div>
-                    </q-card-section>
-                    <q-card-section class="q-pt-none">
-                        {{ effectiveI18n.bundleReactivateConfirmBody }}
-                    </q-card-section>
-                    <q-card-actions align="right">
-                        <q-btn
-                            flat
-                            :label="effectiveI18n.bundlePreviewClose"
-                            :disable="reactivatingBundleId !== null"
-                            @click="closeReactivateConfirm"
-                        />
-                        <q-btn
-                            color="primary"
-                            unelevated
-                            :label="effectiveI18n.bundleReactivateAction"
-                            :loading="reactivatingBundleId !== null"
-                            :disable="reactivatingBundleId !== null"
-                            @click="confirmReactivateBundle"
-                        />
-                    </q-card-actions>
-                </q-card>
-            </q-dialog>
+                {{ effectiveI18n.bundleReactivateConfirmBody }}
+
+                <template #footer>
+                    <TenantButton
+                        :disabled="reactivatingBundleId !== null"
+                        @click="closeReactivateConfirm"
+                    >
+                        {{ effectiveI18n.bundlePreviewClose }}
+                    </TenantButton>
+                    <TenantButton
+                        variant="solid"
+                        tone="accent"
+                        :loading="reactivatingBundleId !== null"
+                        @click="confirmReactivateBundle"
+                    >
+                        {{ effectiveI18n.bundleReactivateAction }}
+                    </TenantButton>
+                </template>
+            </TenantDialog>
 
             <!-- P11.4: Frozen CheckoutOffer snapshot (read-only) — only
                  when the subscription originates from a website offer (#20).
@@ -203,6 +199,8 @@ import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
 import TenantPlanCardHeader from './tenant-plan-section/TenantPlanCardHeader.vue';
 import TenantUsageGrid from './tenant-plan-section/TenantUsageGrid.vue';
+import TenantButton from './ui/TenantButton.vue';
+import TenantDialog from './ui/TenantDialog.vue';
 import {
     useTenantBilling,
     type BundlePreviewShape,

@@ -1,171 +1,163 @@
 <template>
-    <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)">
-        <q-card class="sp-bundle-preview">
-            <q-card-section class="sp-bundle-preview__head">
-                <div class="sp-bundle-preview__title">
-                    {{ isCancel ? i18n.bundlePreviewCancelTitle : i18n.bundlePreviewAddTitle }}
-                </div>
-                <div v-if="preview" class="sp-bundle-preview__bundle">
-                    {{ preview.bundle.label }}
-                </div>
-            </q-card-section>
+    <TenantDialog
+        :model-value="modelValue"
+        :title="isCancel ? i18n.bundlePreviewCancelTitle : i18n.bundlePreviewAddTitle"
+        :subtitle="preview?.bundle.label"
+        size="md"
+        @update:model-value="emit('update:modelValue', $event)"
+    >
+        <div v-if="loading" class="sp-bundle-preview__loading">
+            <span class="sp-spinner" aria-hidden="true"></span>
+            <span>{{ i18n.bundlePreviewLoading }}</span>
+        </div>
 
-            <q-separator />
+        <div v-else-if="error" class="sp-bundle-preview__error">
+            {{ error }}
+        </div>
 
-            <q-card-section v-if="loading" class="sp-bundle-preview__loading">
-                <q-spinner size="24px" />
-                <span>{{ i18n.bundlePreviewLoading }}</span>
-            </q-card-section>
-
-            <q-card-section v-else-if="error" class="sp-bundle-preview__error">
-                {{ error }}
-            </q-card-section>
-
-            <template v-else-if="preview">
-                <!-- Blocker: booking/cancellation not possible -->
-                <q-card-section
-                    v-if="preview.blockers.length > 0"
-                    class="sp-bundle-preview__blockers"
+        <template v-else-if="preview">
+            <!-- Blocker: booking/cancellation not possible -->
+            <section v-if="preview.blockers.length > 0" class="sp-bundle-preview__blockers">
+                <h3 class="sp-bundle-preview__block-title">
+                    {{ i18n.bundlePreviewBlockersTitle }}
+                </h3>
+                <ul>
+                    <li v-for="blocker in preview.blockers" :key="blocker.code">
+                        {{ blocker.message }}
+                    </li>
+                </ul>
+                <!-- requires blocker with resolved feature labels (#35) -->
+                <div
+                    v-if="addPreview && addPreview.missingRequires.length > 0"
+                    class="sp-bundle-preview__requires"
                 >
-                    <div class="sp-bundle-preview__block-title">
-                        {{ i18n.bundlePreviewBlockersTitle }}
-                    </div>
-                    <ul>
-                        <li v-for="blocker in preview.blockers" :key="blocker.code">
-                            {{ blocker.message }}
-                        </li>
-                    </ul>
-                    <!-- requires blocker with resolved feature labels (#35) -->
-                    <div
-                        v-if="addPreview && addPreview.missingRequires.length > 0"
-                        class="sp-bundle-preview__requires"
-                    >
-                        <span class="sp-bundle-preview__block-subtitle">
-                            {{ i18n.bundlePreviewMissingRequiresTitle }}:
-                        </span>
-                        {{ addPreview.missingRequires.map(featureLabel).join(', ') }}
-                    </div>
-                </q-card-section>
+                    <span class="sp-bundle-preview__block-subtitle">
+                        {{ i18n.bundlePreviewMissingRequiresTitle }}:
+                    </span>
+                    {{ addPreview.missingRequires.map(featureLabel).join(', ') }}
+                </div>
+            </section>
 
-                <!-- Add preview: price + proration -->
-                <q-card-section v-if="addPreview" class="sp-bundle-preview__price">
-                    <div class="sp-bundle-preview__block-title">
-                        {{ i18n.bundlePreviewProrationTitle }}
-                    </div>
-                    <div v-if="addPreview.proration" class="sp-bundle-preview__price-row">
-                        <span>
-                            {{ i18n.bundlePreviewProratedNow }}
-                            ({{ addPreview.proration.daysRemainingInPeriod }}/{{
-                                addPreview.proration.daysInPeriod
-                            }}
-                            {{ i18n.bundlePreviewProrationDays }})
-                        </span>
-                        <strong>{{ formatCurrency(addPreview.proration.prorataDeltaNet) }}</strong>
-                    </div>
-                    <div v-else-if="isTrial" class="sp-bundle-preview__note">
-                        {{ i18n.bundlePreviewTrialNote }}
-                    </div>
-                    <div v-else class="sp-bundle-preview__note">
-                        {{ i18n.bundlePreviewNoPrice }}
-                    </div>
-                    <div
-                        v-if="addPreview.nextPeriodPriceNet !== null"
-                        class="sp-bundle-preview__price-row"
-                    >
-                        <span>{{ i18n.bundlePreviewNextPeriod }}</span>
-                        <strong>
-                            {{ formatCurrency(addPreview.nextPeriodPriceNet) }}
-                            <small>{{ cycleUnit }}</small>
-                        </strong>
-                    </div>
-                    <div class="sp-bundle-preview__price-row">
-                        <span>{{ i18n.bundlePreviewMinimumTermLabel }}</span>
-                        <span
-                            v-if="addPreview.minimumTermMonths > 0 && addPreview.minimumTermEndsAt"
-                        >
-                            {{ addPreview.minimumTermMonths }}
-                            {{ i18n.bundlePreviewMinimumTermMonths }}
-                            {{ formatDate(addPreview.minimumTermEndsAt) }}
-                        </span>
-                        <span v-else>{{ i18n.bundlePreviewMinimumTermNone }}</span>
-                    </div>
-                </q-card-section>
-
-                <!-- Add preview: redundancy hint (AK-13) -->
-                <q-card-section
-                    v-if="addPreview && addPreview.redundantFeatures.length > 0"
-                    class="sp-bundle-preview__warnings"
+            <!-- Add preview: price + proration -->
+            <section v-if="addPreview" class="sp-bundle-preview__price">
+                <h3 class="sp-bundle-preview__block-title">
+                    {{ i18n.bundlePreviewProrationTitle }}
+                </h3>
+                <div v-if="addPreview.proration" class="sp-bundle-preview__price-row">
+                    <span>
+                        {{ i18n.bundlePreviewProratedNow }}
+                        ({{ addPreview.proration.daysRemainingInPeriod }}/{{
+                            addPreview.proration.daysInPeriod
+                        }}
+                        {{ i18n.bundlePreviewProrationDays }})
+                    </span>
+                    <strong>{{ formatCurrency(addPreview.proration.prorataDeltaNet) }}</strong>
+                </div>
+                <div v-else-if="isTrial" class="sp-bundle-preview__note">
+                    {{ i18n.bundlePreviewTrialNote }}
+                </div>
+                <div v-else class="sp-bundle-preview__note">
+                    {{ i18n.bundlePreviewNoPrice }}
+                </div>
+                <div
+                    v-if="addPreview.nextPeriodPriceNet !== null"
+                    class="sp-bundle-preview__price-row"
                 >
-                    <div class="sp-bundle-preview__block-title">
-                        {{ i18n.bundlePreviewRedundantTitle }}
-                    </div>
-                    <ul>
-                        <li v-for="hint in addPreview.redundantFeatures" :key="hint.featureKey">
-                            {{ featureLabel(hint.featureKey) }} —
-                            {{
-                                hint.coveredBy === 'PLAN'
-                                    ? i18n.bundlePreviewRedundantCoveredByPlan
-                                    : i18n.bundlePreviewRedundantCoveredByBundle
-                            }}
-                            „{{ hint.coveredByKey }}"
-                        </li>
-                    </ul>
-                </q-card-section>
+                    <span>{{ i18n.bundlePreviewNextPeriod }}</span>
+                    <strong>
+                        {{ formatCurrency(addPreview.nextPeriodPriceNet) }}
+                        <small>{{ cycleUnit }}</small>
+                    </strong>
+                </div>
+                <div class="sp-bundle-preview__price-row">
+                    <span>{{ i18n.bundlePreviewMinimumTermLabel }}</span>
+                    <span v-if="addPreview.minimumTermMonths > 0 && addPreview.minimumTermEndsAt">
+                        {{ addPreview.minimumTermMonths }}
+                        {{ i18n.bundlePreviewMinimumTermMonths }}
+                        {{ formatDate(addPreview.minimumTermEndsAt) }}
+                    </span>
+                    <span v-else>{{ i18n.bundlePreviewMinimumTermNone }}</span>
+                </div>
+            </section>
 
-                <!-- Cancel preview: effective date + savings -->
-                <q-card-section v-if="cancelPreview" class="sp-bundle-preview__price">
-                    <div class="sp-bundle-preview__price-row">
-                        <span>{{ i18n.bundlePreviewEffectiveAt }}</span>
-                        <strong>{{ formatDate(cancelPreview.effectiveAt) }}</strong>
-                    </div>
-                    <div
-                        v-if="cancelPreview.nextPeriodSavingsNet !== null"
-                        class="sp-bundle-preview__price-row"
-                    >
-                        <span>{{ i18n.bundlePreviewSavings }}</span>
-                        <strong>{{ formatCurrency(cancelPreview.nextPeriodSavingsNet) }}</strong>
-                    </div>
-                </q-card-section>
+            <!-- Add preview: redundancy hint (AK-13) -->
+            <section
+                v-if="addPreview && addPreview.redundantFeatures.length > 0"
+                class="sp-bundle-preview__warnings"
+            >
+                <h3 class="sp-bundle-preview__block-title">
+                    {{ i18n.bundlePreviewRedundantTitle }}
+                </h3>
+                <ul>
+                    <li v-for="hint in addPreview.redundantFeatures" :key="hint.featureKey">
+                        {{ featureLabel(hint.featureKey) }} —
+                        {{
+                            hint.coveredBy === 'PLAN'
+                                ? i18n.bundlePreviewRedundantCoveredByPlan
+                                : i18n.bundlePreviewRedundantCoveredByBundle
+                        }}
+                        „{{ hint.coveredByKey }}"
+                    </li>
+                </ul>
+            </section>
 
-                <!-- Warnings (e.g. MINIMUM_TERM_BINDS) -->
-                <q-card-section v-if="otherWarnings.length > 0" class="sp-bundle-preview__warnings">
-                    <div class="sp-bundle-preview__block-title">
-                        {{ i18n.bundlePreviewWarningsTitle }}
-                    </div>
-                    <ul>
-                        <li v-for="warning in otherWarnings" :key="warning.code">
-                            {{ warning.message }}
-                        </li>
-                    </ul>
-                </q-card-section>
-            </template>
+            <!-- Cancel preview: effective date + savings -->
+            <section v-if="cancelPreview" class="sp-bundle-preview__price">
+                <div class="sp-bundle-preview__price-row">
+                    <span>{{ i18n.bundlePreviewEffectiveAt }}</span>
+                    <strong>{{ formatDate(cancelPreview.effectiveAt) }}</strong>
+                </div>
+                <div
+                    v-if="cancelPreview.nextPeriodSavingsNet !== null"
+                    class="sp-bundle-preview__price-row"
+                >
+                    <span>{{ i18n.bundlePreviewSavings }}</span>
+                    <strong>{{ formatCurrency(cancelPreview.nextPeriodSavingsNet) }}</strong>
+                </div>
+            </section>
 
-            <q-separator />
+            <!-- Warnings (e.g. MINIMUM_TERM_BINDS) -->
+            <section v-if="otherWarnings.length > 0" class="sp-bundle-preview__warnings">
+                <h3 class="sp-bundle-preview__block-title">
+                    {{ i18n.bundlePreviewWarningsTitle }}
+                </h3>
+                <ul>
+                    <li v-for="warning in otherWarnings" :key="warning.code">
+                        {{ warning.message }}
+                    </li>
+                </ul>
+            </section>
+        </template>
 
-            <q-card-actions align="right">
-                <q-btn flat :label="i18n.bundlePreviewClose" :disable="submitting" @click="close" />
-                <q-btn
-                    :color="isCancel ? 'negative' : 'primary'"
-                    unelevated
-                    :label="
-                        submitting
-                            ? i18n.bundlePreviewInProgress
-                            : isCancel
-                              ? i18n.bundlePreviewConfirmCancel
-                              : i18n.bundlePreviewConfirmAdd
-                    "
-                    :loading="submitting"
-                    :disable="!canConfirm"
-                    @click="emit('confirm')"
-                />
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+        <template #footer>
+            <TenantButton :disabled="submitting" @click="close">
+                {{ i18n.bundlePreviewClose }}
+            </TenantButton>
+            <TenantButton
+                variant="solid"
+                :tone="isCancel ? 'danger' : 'accent'"
+                :loading="submitting"
+                :disabled="!canConfirm"
+                @click="emit('confirm')"
+            >
+                {{
+                    submitting
+                        ? i18n.bundlePreviewInProgress
+                        : isCancel
+                          ? i18n.bundlePreviewConfirmCancel
+                          : i18n.bundlePreviewConfirmAdd
+                }}
+            </TenantButton>
+        </template>
+    </TenantDialog>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
+import TenantButton from '../ui/TenantButton.vue';
+import TenantDialog from '../ui/TenantDialog.vue';
+import '../ui/tenant-ui.css';
 import type {
     BundleAddPreviewShape,
     BundleCancelPreviewShape,
@@ -239,41 +231,42 @@ function close() {
 </script>
 
 <style scoped>
-.sp-bundle-preview {
-    min-width: 420px;
-    max-width: 560px;
-}
-.sp-bundle-preview__head {
-    padding-bottom: var(--sa-space-3);
-}
-.sp-bundle-preview__title {
-    font-size: var(--sa-text-lg);
-    font-weight: 600;
-}
-.sp-bundle-preview__bundle {
-    margin-top: var(--sa-space-1);
-    color: var(--sp-text-secondary, var(--sa-color-fg-secondary));
-}
+/* The head, the width and the footer belong to `TenantDialog` now; what is left
+ * here is the body's own blocks. Each section that carries a tone paints and
+ * pads itself, because the body around them has one padding for everything. */
 .sp-bundle-preview__loading {
     display: flex;
     align-items: center;
     gap: var(--sa-space-4);
-    color: var(--sp-text-secondary, var(--sa-color-fg-secondary));
+    --sp-spinner-size: 24px;
+    color: var(--sa-color-fg-secondary);
 }
 .sp-bundle-preview__error {
     color: var(--sa-color-negative);
 }
+.sp-bundle-preview__blockers,
+.sp-bundle-preview__warnings,
+.sp-bundle-preview__price {
+    padding: var(--sa-space-4);
+    border-radius: var(--sa-radius-badge);
+}
+.sp-bundle-preview__blockers + section,
+.sp-bundle-preview__warnings + section,
+.sp-bundle-preview__price + section {
+    margin-top: var(--sa-space-4);
+}
 .sp-bundle-preview__blockers {
     background: var(--sa-color-negative-surface);
-    color: var(--sa-color-negative);
+    color: var(--sa-color-negative-fg);
 }
 .sp-bundle-preview__warnings {
-    background: var(--sa-color-warning-surface-strong);
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
 }
 .sp-bundle-preview__block-title {
+    margin: 0 0 var(--sa-space-2);
     font-weight: 600;
     font-size: var(--sa-text-md);
-    margin-bottom: var(--sa-space-2);
 }
 .sp-bundle-preview__block-subtitle {
     font-weight: 500;
@@ -297,11 +290,11 @@ function close() {
 }
 .sp-bundle-preview__price-row small {
     font-weight: 400;
-    color: var(--sp-text-muted, var(--sa-color-fg-muted));
+    color: var(--sa-color-fg-muted);
 }
 .sp-bundle-preview__note {
     font-size: var(--sa-text-md);
-    color: var(--sp-text-muted, var(--sa-color-fg-muted));
+    color: var(--sa-color-fg-muted);
     padding: var(--sa-space-2) 0;
 }
 </style>
