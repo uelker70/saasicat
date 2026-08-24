@@ -22,21 +22,22 @@
                     <slot name="mark" />
                 </span>
                 <span class="sa-accordion__label"><slot name="header" /></span>
-                <q-icon name="chevron_right" size="18px" class="sa-accordion__chev" />
             </button>
             <div v-if="$slots['header-actions']" class="sa-accordion__actions">
                 <slot name="header-actions" />
             </div>
         </div>
-        <div
-            v-if="open"
-            :id="bodyId"
-            role="region"
-            :aria-labelledby="triggerId"
-            class="sa-accordion__body"
-        >
-            <slot />
-        </div>
+        <q-slide-transition>
+            <div
+                v-if="open"
+                :id="bodyId"
+                role="region"
+                :aria-labelledby="triggerId"
+                class="sa-accordion__body"
+            >
+                <slot />
+            </div>
+        </q-slide-transition>
     </div>
 </template>
 
@@ -54,6 +55,18 @@ import { useId } from 'vue';
 // nothing, so every page wrote it again. `admin-page-shell.test.ts` rule 14
 // records the same story for tables — "nine pages used QTable directly and
 // agreed on nothing".
+//
+// **No chevron.** The row is the affordance: the whole header is the trigger, it
+// takes a hover surface, and the badge reports the state by turning. A glyph
+// that says "there is more this way" was a fourth thing in a header that
+// already carries a mark, a title and a status — and it was the only part of
+// the row a reader could be sure to hit on the one surface that did not make
+// its header clickable. That surface was fixed instead.
+//
+// **The body slides.** `v-if` alone snaps, which reads as a page jump on a
+// list where several rows open. `q-slide-transition` animates the height
+// Quasar's own way, so an accordion here and a `q-expansion-item` a consumer
+// puts beside it move alike.
 //
 // **The trigger is a `<button>`, and that is the point of the component.**
 // Four of the eight were a `<div>` with a click handler: no `tabindex`, no

@@ -176,9 +176,10 @@ watch(
     },
 );
 
-function onPlanKeyInput(e: Event): void {
-    const raw = (e.target as HTMLInputElement).value;
-    form.planKey = raw.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+function onPlanKeyInput(value: string | number | null): void {
+    form.planKey = String(value ?? '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9_]/g, '');
 }
 
 const keyError = computed<string | null>(() => {

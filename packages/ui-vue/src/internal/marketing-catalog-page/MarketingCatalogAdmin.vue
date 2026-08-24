@@ -9,21 +9,78 @@
 
         <div class="sa-marketing-admin-grid">
             <div class="sa-marketing-admin-thead">
+                <div>
+                    <span class="sa-sr-only">{{ msg.admin.colOrder }}</span>
+                </div>
                 <div>{{ msg.admin.colPlan }}</div>
                 <div>{{ msg.admin.colVisible }}</div>
                 <div>{{ msg.admin.colBadge }}</div>
-                <div>{{ msg.admin.colPriority }}</div>
                 <div>{{ msg.admin.colHighlight }}</div>
-                <div></div>
             </div>
 
-            <template v-for="row in adminRows" :key="row.plan.id">
+            <template v-for="(row, index) in adminRows" :key="row.plan.id">
                 <div
                     class="sa-marketing-admin-row"
-                    :class="{ 'sa-marketing-admin-row--disabled': !row.liveVersion }"
+                    :class="{
+                        'sa-marketing-admin-row--disabled': !row.liveVersion,
+                        'sa-marketing-admin-row--open': expandedKey === row.plan.planKey,
+                        'sa-marketing-admin-row--dragging': reorder.draggingIndex.value === index,
+                        'sa-marketing-admin-row--drop-above': dropEdge(index) === 'above',
+                        'sa-marketing-admin-row--drop-below': dropEdge(index) === 'below',
+                    }"
+                    @click="onRowClick(row, $event)"
                 >
+                    <div class="sa-marketing-grip-cell">
+                        <!-- @optionSurface
+                             The drag handle, and the row's keyboard path to its own position:
+                             arrow keys move the row one step, which WCAG 2.2 SC 2.5.7 requires
+                             to exist without a pointer. `q-btn` renders a label and a ripple
+                             around its icon; what this needs is the icon and a grab cursor. -->
+                        <button
+                            v-if="row.liveVersion"
+                            :ref="(el) => registerHandle(index, el)"
+                            type="button"
+                            class="sa-marketing-grip"
+                            :class="{
+                                'sa-marketing-grip--dragging':
+                                    reorder.draggingIndex.value === index,
+                            }"
+                            :disabled="busy"
+                            :aria-label="
+                                formatMessage(msg.admin.reorderLabel, {
+                                    plan: row.m.displayLabel || row.plan.label,
+                                    position: index + 1,
+                                    total: adminRows.length,
+                                })
+                            "
+                            :title="msg.admin.reorderTitle"
+                            @pointerdown="reorder.start(index, $event)"
+                            @keydown.up.prevent="moveBy(index, -1)"
+                            @keydown.down.prevent="moveBy(index, 1)"
+                        >
+                            <q-icon name="drag_indicator" size="18px" />
+                        </button>
+                    </div>
                     <div>
-                        <div class="sa-marketing-plan-cell">
+                        <!-- @optionSurface
+                             The row's KEYBOARD path to the disclosure, and the element that
+                             owns `aria-expanded` and `aria-controls`. A pointer may click the
+                             whole row (see `onRowClick`); a keyboard needs one thing to tab to,
+                             and it cannot be the row — five grid cells carrying two checkboxes
+                             and two text fields are not a control. `q-btn` renders a label, and
+                             what this wraps is a two-line block with a colour mark. -->
+                        <button
+                            type="button"
+                            class="sa-marketing-plan-cell"
+                            :class="{ 'sa-marketing-plan-cell--static': !row.liveVersion }"
+                            :disabled="!row.liveVersion"
+                            :title="row.liveVersion ? msg.admin.expandTitle : undefined"
+                            :aria-expanded="
+                                row.liveVersion ? expandedKey === row.plan.planKey : undefined
+                            "
+                            :aria-controls="row.liveVersion ? panelId(row) : undefined"
+                            @click="row.liveVersion && $emit('toggle-expand', row)"
+                        >
                             <div
                                 class="sa-marketing-plan-mark"
                                 :style="identityChipStyle(row.accent)"
@@ -31,12 +88,37 @@
                                 {{ row.plan.planKey.slice(0, 3) }}
                             </div>
                             <div>
-                                <div class="sa-marketing-plan-label">
-                                    {{ row.m.displayLabel || row.plan.label }}
+                                <div class="sa-marketing-plan-titlerow">
+                                    <span class="sa-marketing-plan-label">
+                                        {{ row.m.displayLabel || row.plan.label }}
+                                    </span>
+                                    <span
+                                        v-if="!row.liveVersion"
+                                        class="sa-marketing-chip sa-marketing-chip--muted"
+                                    >
+                                        {{ msg.admin.noLiveVersion }}
+                                    </span>
+                                    <span
+                                        v-else-if="!row.m.visible"
+                                        class="sa-marketing-chip sa-marketing-chip--muted"
+                                    >
+                                        {{ msg.admin.hidden }}
+                                    </span>
+                                    <span
+                                        v-else-if="row.m.highlight"
+                                        class="sa-marketing-chip sa-marketing-chip--featured"
+                                    >
+                                        {{ msg.admin.featured }}
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="sa-marketing-chip sa-marketing-chip--live"
+                                        >{{ msg.admin.live }}</span
+                                    >
                                 </div>
                                 <div class="sa-marketing-plan-key">{{ row.plan.planKey }}</div>
                             </div>
-                        </div>
+                        </button>
                         <div
                             v-if="row.publishedVersions.length > 1"
                             class="sa-marketing-version-tabs"
@@ -85,78 +167,12 @@
                         />
                     </div>
                     <div>
-                        <q-input
-                            :model-value="row.m.priority"
-                            outlined
-                            dense
-                            type="number"
-                            min="0"
-                            max="9999"
-                            class="sa-marketing-field--priority"
-                            :disable="!row.liveVersion || busy"
-                            @update:model-value="
-                                $emit('patch', row, { priority: Number($event) || 0 })
-                            "
-                        />
-                    </div>
-                    <div>
                         <q-toggle
                             :model-value="row.m.highlight"
                             dense
                             :disable="!row.liveVersion || busy"
                             @update:model-value="$emit('patch', row, { highlight: $event })"
                         />
-                    </div>
-                    <div class="sa-marketing-admin-row-end">
-                        <span
-                            v-if="!row.liveVersion"
-                            class="sa-marketing-chip sa-marketing-chip--muted"
-                        >
-                            {{ msg.admin.noLiveVersion }}
-                        </span>
-                        <span
-                            v-else-if="!row.m.visible"
-                            class="sa-marketing-chip sa-marketing-chip--muted"
-                        >
-                            {{ msg.admin.hidden }}
-                        </span>
-                        <span
-                            v-else-if="row.m.highlight"
-                            class="sa-marketing-chip sa-marketing-chip--featured"
-                        >
-                            {{ msg.admin.featured }}
-                        </span>
-                        <span v-else class="sa-marketing-chip sa-marketing-chip--live">{{
-                            msg.admin.live
-                        }}</span>
-                        <!-- @optionSurface
-                             A disclosure trigger: it owns `aria-expanded` and `aria-controls`, which
-                             is what makes the row a control rather than a click handler. -->
-                        <button
-                            v-if="row.liveVersion"
-                            type="button"
-                            class="sa-marketing-expand-btn"
-                            :title="msg.admin.expandTitle"
-                            :aria-expanded="expandedKey === row.plan.planKey"
-                            :aria-controls="panelId(row)"
-                            @click="$emit('toggle-expand', row)"
-                        >
-                            <span
-                                class="sa-marketing-chev"
-                                :class="{ open: expandedKey === row.plan.planKey }"
-                            >
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                >
-                                    <path d="m9 18 6-6-6-6" />
-                                </svg>
-                            </span>
-                        </button>
                     </div>
                 </div>
 
@@ -267,7 +283,7 @@
                                             type="number"
                                             min="1"
                                             max="365"
-                                            class="sa-marketing-field--priority"
+                                            class="sa-marketing-field--number"
                                             :disable="!row.m.trialEnabled || busy"
                                             @update:model-value="
                                                 $emit('patch', row, {
@@ -463,13 +479,15 @@
 
 <script setup lang="ts">
 import { useId } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
+import { useRowReorder } from '../../vue/use-row-reorder.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { FeatureSuggestion, MarketingRow, ResolvedMarketing } from './types.js';
 
-defineProps<{
+const props = defineProps<{
     adminRows: MarketingRow[];
     busy: boolean;
     expandedKey: string | null;
@@ -484,11 +502,13 @@ defineProps<{
     suggestionsFor: (row: MarketingRow) => FeatureSuggestion[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
     (e: 'select-version', plan: PlanRow, versionId: string): void;
     (e: 'patch', row: MarketingRow, partial: Partial<ResolvedMarketing>): void;
     (e: 'patch-display-label', row: MarketingRow, value: string): void;
     (e: 'toggle-expand', row: MarketingRow): void;
+    /** A row moved from one position to another. Positions, not priorities. */
+    (e: 'reorder', from: number, to: number): void;
     (e: 'update-feature-label', index: number, value: string): void;
     (e: 'update-feature-strong', index: number, value: string): void;
     (e: 'persist-features', row: MarketingRow): void;
@@ -502,18 +522,18 @@ const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
 
 // sa-disclosure-exempt(writes `aria-expanded`):
-// this row is six grid cells, not a header that opens a body
+// this row is five grid cells, not a header that opens a body
 //
 // Every other disclosure in the package is an `AdminAccordion`. This one cannot
 // be, and the obstacle is structural rather than a matter of taste.
 //
-// The rows here are `display: contents` inside a six-column grid, and the open
+// The rows here are `display: contents` inside a five-column grid, and the open
 // editor is a sibling at `grid-column: 1 / -1` (both declared in
 // `MarketingCatalogPage.vue`). A self-contained wrapper around either would put
 // a box between the grid and its cells, and the columns would stop lining up.
 // A wrapper-less `AdminAccordion` variant would not rescue it either: the
-// component's recipe is a trigger that FILLS the header, and this header is six
-// cells carrying two checkboxes and two text inputs — interactive content
+// component's recipe is a trigger that FILLS the header, and this header is
+// five cells carrying two checkboxes and two text inputs — interactive content
 // nested in a `<button>` is not valid HTML. What would be left of the component
 // after removing its wrapper, its full-width trigger, its badge and its body
 // padding is a second component wearing the first one's name.
@@ -522,18 +542,98 @@ const common = useSaMessages('common');
 // part that has nothing to do with layout: the WAI-ARIA disclosure pattern —
 // a `<button>` (it already was one) that says whether it is expanded and which
 // element it controls. Not the `role="region"` half of `AdminAccordion`'s body:
-// its trigger is named by the row it opens, whereas this one is a bare chevron,
-// and a screenful of regions all named "Edit teaser, trial & top features"
-// would be worse than none.
+// its trigger is named by the row it opens, whereas this one is named by the
+// plan, and a screenful of regions all named "Edit teaser, trial & top
+// features" would be worse than none.
 //
 // The title no longer flips to "Close" when open. `aria-expanded` says that
 // now, and a control whose NAME changes with its state is announced as a
 // different control each time.
+
+/**
+ * What a click has to land on to mean "not the row".
+ *
+ * The row is five cells, four of which hold a control, and a pointer that means
+ * to flip a toggle must not also open the editor. Rather than list the cells —
+ * a list drifts the moment a column is added — this asks each element the
+ * question that actually decides it: can it take focus on its own, or does it
+ * label something that can? That covers a native control, anything Quasar gives
+ * a tab stop (its toggle is a `<div role="checkbox" tabindex="0">`), and the
+ * `<label>` its fields wrap around their input.
+ *
+ * A role by itself is deliberately not in here. `role="alert"` and
+ * `role="tablist"` sit on elements nobody clicks, and counting them as controls
+ * would silence parts of the row for nothing. The walk that uses this stops at
+ * the row — see `onRowClick`.
+ */
+const CONTROL_SELECTOR = 'a[href], button, input, select, textarea, label, [tabindex]';
 const uid = useId();
 
-/** The panel a row's chevron controls — unique per row, and per instance of this list. */
+/** The panel a row opens — unique per row, and per instance of this list. */
 function panelId(row: MarketingRow): string {
     return `${uid}-marketing-panel-${row.plan.id}`;
+}
+
+/**
+ * Opens the row unless the click was meant for something inside it.
+ *
+ * The identity block is a real `<button>`, so a click there is handled by the
+ * button and stops here — the walk finds it, and the row does nothing. That is
+ * what keeps one click from counting twice.
+ */
+function onRowClick(row: MarketingRow, event: MouseEvent): void {
+    if (!row.liveVersion) return;
+    const rowElement = event.currentTarget as HTMLElement;
+    // Walked by hand rather than with `closest`, because `closest` does not
+    // stop: it climbs out of the row and keeps going, so one focusable ancestor
+    // above it — a dialog, a focus container, a consumer's layout — would answer
+    // for the row and make every click in it look like a click on a control.
+    for (let node = event.target as HTMLElement | null; node && node !== rowElement;) {
+        if (node.matches(CONTROL_SELECTOR)) return;
+        node = node.parentElement;
+    }
+    emit('toggle-expand', row);
+}
+
+// ── Reordering ──
+//
+// The list is sorted by priority, and the number that produced it used to be a
+// field in every row: to move a plan up you had to work out what number would
+// put it there, in a list that re-sorted under the cursor while you typed it.
+// The handle says the same thing by pointing at where the row should be, and
+// the page turns that into the numbers (`reorderedPriorities`).
+
+const handles: (HTMLElement | null)[] = [];
+
+/**
+ * Keeps the handle elements addressable by row index.
+ *
+ * The drop position is measured from them, because the rows themselves are
+ * `display: contents` and report an empty rectangle.
+ */
+function registerHandle(index: number, el: Element | ComponentPublicInstance | null): void {
+    handles[index] = el instanceof HTMLElement ? el : null;
+}
+
+const reorder = useRowReorder(
+    () => props.adminRows.length,
+    (index) => handles[index] ?? null,
+    (from, to) => emit('reorder', from, to),
+);
+
+/** Which edge of a row the drop line is drawn on, if any. */
+function dropEdge(index: number): 'above' | 'below' | null {
+    const from = reorder.draggingIndex.value;
+    const to = reorder.targetIndex.value;
+    if (from === null || to === null || from === to || index !== to) return null;
+    return to < from ? 'above' : 'below';
+}
+
+/** The keyboard half of the same gesture. */
+function moveBy(index: number, direction: -1 | 1): void {
+    const to = index + direction;
+    if (to < 0 || to >= props.adminRows.length) return;
+    emit('reorder', index, to);
 }
 
 /** Hint below the trial toggle — shows the auto CTA text for the set trial days. */

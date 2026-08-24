@@ -46,12 +46,12 @@
                             <span class="bcp-field-hint">{{ msg.create.bundleKeyHint }}</span>
                         </span>
                         <q-input
-                            v-model="form.bundleKey"
+                            :model-value="form.bundleKey"
                             outlined
                             dense
                             class="bcp-mono"
                             placeholder="COMMUNICATION_PRO"
-                            @input="onBundleKeyInput"
+                            @update:model-value="onBundleKeyInput"
                         />
                         <span v-if="bundleKeyError" class="bcp-error-inline">
                             {{ bundleKeyError }}
@@ -359,9 +359,9 @@ function bundleKeyify(s: string): string {
     return trimChar(collapsed, '_').slice(0, 32);
 }
 
-function onBundleKeyInput(event: Event): void {
+function onBundleKeyInput(value: string | number | null): void {
     keyTouched.value = true;
-    form.bundleKey = bundleKeyify((event.target as HTMLInputElement).value);
+    form.bundleKey = bundleKeyify(String(value ?? ''));
 }
 
 // ── Validation ────────────────────────────────────────────

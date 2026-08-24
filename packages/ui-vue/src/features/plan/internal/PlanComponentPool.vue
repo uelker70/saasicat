@@ -280,7 +280,7 @@ function featureCount(count: number): string {
     return formatMessage(msg.value.componentPool.featureCount, { count });
 }
 
-function updateSearchTerm(event: Event): void {
-    emit('update:searchTerm', (event.target as HTMLInputElement | null)?.value ?? '');
+function updateSearchTerm(value: string | number | null): void {
+    emit('update:searchTerm', String(value ?? ''));
 }
 </script>

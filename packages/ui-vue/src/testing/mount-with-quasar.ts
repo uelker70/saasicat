@@ -23,8 +23,10 @@ import {
     QList,
     QMenu,
     QSelect,
+    QSlideTransition,
     QSpinner,
     QTable,
+    QToggle,
     Quasar,
     ClosePopup,
 } from 'quasar';
@@ -48,8 +50,10 @@ const QUASAR_COMPONENTS = {
     QList,
     QMenu,
     QSelect,
+    QSlideTransition,
     QSpinner,
     QTable,
+    QToggle,
 };
 
 export function mountWithQuasar(

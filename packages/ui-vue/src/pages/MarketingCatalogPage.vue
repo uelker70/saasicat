@@ -122,6 +122,7 @@
                     @update-feature-label="updateFeatureLabel"
                     @update-feature-strong="updateFeatureStrong"
                     @persist-features="persistFeatures"
+                    @reorder="reorderRows"
                     @move-feature="moveFeature"
                     @remove-feature="removeFeature"
                     @add-feature="addFeature"
@@ -157,6 +158,7 @@ import {
     type PromotionResult,
     type PromotionRow,
 } from '@saasicat/core';
+import { reorderedPriorities } from '../client/reorder-priorities.js';
 import { usePlans } from '../vue/use-plans.js';
 import { useMarketingProjections } from '../vue/use-marketing-projections.js';
 import { usePromotions } from '../vue/use-promotions.js';
@@ -829,6 +831,33 @@ async function removeFeature(row: MarketingRow, idx: number): Promise<void> {
     await persistFeatures(row);
 }
 
+/**
+ * Turns "this row belongs here" into the priorities that say so.
+ *
+ * Only the rows whose value actually changes are written, and they are written
+ * one at a time because that is the shape of the endpoint: there is no bulk
+ * reorder, and inventing one client-side would only hide that a failure in the
+ * middle leaves the order half-applied. It does not, visibly — the list is
+ * re-read from the projections either way, so what the operator sees after an
+ * error is what was actually stored.
+ *
+ * A plan with no live version cannot hold a projection, so `patch` skips it and
+ * it keeps the position its priority gives it.
+ */
+async function reorderRows(from: number, to: number): Promise<void> {
+    const rows = adminRows.value;
+    const updates = reorderedPriorities(
+        rows.map((row) => row.m.priority),
+        from,
+        to,
+    );
+    for (const [index, priority] of updates.entries()) {
+        if (priority === null) continue;
+        await patch(rows[index]!, { priority });
+        if (pageError.value) return;
+    }
+}
+
 async function moveFeature(row: MarketingRow, idx: number, dir: -1 | 1): Promise<void> {
     const j = idx + dir;
     if (j < 0 || j >= editFeatures.value.length) return;
@@ -873,28 +902,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     gap: var(--sa-space-3);
 }
 
-.sa-marketing-locale-switch {
-    display: inline-flex;
-    gap: var(--sa-space-1);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: var(--sa-radius-field);
-    padding: var(--sa-space-1);
-}
-.sa-marketing-locale-btn {
-    padding: var(--sa-space-2) var(--sa-space-3);
-    border: 0;
-    background: transparent;
-    border-radius: var(--sa-radius-badge);
-    font: 500 var(--sa-text-sm) var(--sa-font-mono);
-    color: var(--sa-color-fg-secondary);
-    cursor: pointer;
-}
-.sa-marketing-locale-btn.active {
-    background: var(--sa-color-accent-surface-strong);
-    color: var(--sa-color-accent-strong);
-    font-weight: 600;
-}
 .sa-marketing-locale-mgr {
     display: inline-flex;
     align-items: center;
@@ -1364,7 +1371,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-admin-grid {
     display: grid;
-    grid-template-columns: 1.6fr 1fr 1.4fr 1fr 1fr 150px;
+    grid-template-columns: 40px 1.6fr 1fr 1.4fr 1fr;
     align-items: stretch;
 }
 .sa-marketing-admin-thead {
@@ -1383,6 +1390,62 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-admin-row {
     display: contents;
 }
+/* The row opens the editor, so it feeds back like something that does — but it
+ * is `display: contents` and has no box to paint, so the feedback goes on its
+ * cells. `:hover` still matches here: the element stays in the tree for hit
+ * testing even without a box of its own. */
+.sa-marketing-admin-row:not(.sa-marketing-admin-row--disabled) > div {
+    cursor: pointer;
+}
+.sa-marketing-admin-row:not(.sa-marketing-admin-row--disabled):hover > div,
+.sa-marketing-admin-row--open > div {
+    background: var(--sa-color-bg-sunken);
+}
+
+/* The drag: the row being moved recedes, and the line marks where releasing
+ * would put it. Both are drawn on the cells for the same reason the hover is —
+ * a `display: contents` row has no box to draw on. `box-shadow` rather than a
+ * border, so the line does not add a pixel to the row's height and shift the
+ * rest of the list under the pointer. */
+.sa-marketing-admin-row--dragging > div {
+    opacity: 0.5;
+}
+.sa-marketing-admin-row--drop-above > div {
+    box-shadow: inset 0 2px 0 0 var(--sa-color-accent);
+}
+.sa-marketing-admin-row--drop-below > div {
+    box-shadow: inset 0 -2px 0 0 var(--sa-color-accent);
+}
+
+.sa-marketing-grip-cell {
+    padding-right: 0 !important;
+    justify-content: center;
+}
+.sa-marketing-grip {
+    display: grid;
+    place-items: center;
+    border: 0;
+    background: none;
+    padding: var(--sa-space-1);
+    border-radius: var(--sa-radius-field);
+    color: var(--sa-color-fg-subtle);
+    cursor: grab;
+    /* Without this the browser scrolls the page instead of letting the handle
+     * have the gesture — on a touch device the drag would never start. */
+    touch-action: none;
+}
+.sa-marketing-grip:hover:not(:disabled) {
+    color: var(--sa-color-fg-body);
+    background: var(--sa-color-border-soft);
+}
+.sa-marketing-grip:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+.sa-marketing-grip--dragging {
+    cursor: grabbing;
+    color: var(--sa-color-accent);
+}
 .sa-marketing-admin-row > div {
     padding: var(--sa-space-4) var(--sa-space-4);
     border-bottom: 1px solid var(--sa-color-border-soft);
@@ -1394,15 +1457,31 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-admin-row--disabled > div {
     background: var(--sa-color-bg-surface-raised);
 }
-.sa-marketing-admin-row-end {
-    justify-content: flex-end;
-    gap: var(--sa-space-3);
-}
+/* The identity block is the row's keyboard path into the editor. It is a
+ * `<button>`, and it must not look like one: the row already reports that it is
+ * clickable, and a framed control in the first cell would read as an action
+ * rather than as the row's name. What it keeps is the focus ring — the one
+ * piece of button chrome a keyboard user cannot do without. */
 .sa-marketing-plan-cell {
     display: flex;
     align-items: center;
     gap: var(--sa-space-4);
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: var(--sa-space-2);
+    margin: calc(-1 * var(--sa-space-2));
+    border-radius: var(--sa-radius-field);
 }
+
+.sa-marketing-plan-cell--static {
+    cursor: default;
+}
+
 .sa-marketing-plan-mark {
     width: 32px;
     height: 32px;
@@ -1412,6 +1491,15 @@ async function onLocaleChange(loc: string): Promise<void> {
     font: 700 var(--sa-text-2xs) var(--sa-font-mono);
     border: 1px solid;
 }
+/* Key, name and status on one line, as in the bundle list: the status belongs
+ * to the plan, and a column of its own put it five cells away from the name it
+ * describes. */
+.sa-marketing-plan-titlerow {
+    display: flex;
+    align-items: center;
+    gap: var(--sa-space-3);
+    flex-wrap: wrap;
+}
 .sa-marketing-plan-label {
     font-size: var(--sa-text-md);
     font-weight: 700;
@@ -1420,26 +1508,6 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-plan-key {
     font: 500 var(--sa-text-xs) var(--sa-font-mono);
     color: var(--sa-color-fg-subtle);
-}
-
-.sa-marketing-toggle span::before {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background: var(--sa-color-bg-surface);
-    border-radius: 50%;
-    left: var(--sa-space-1);
-    top: var(--sa-space-1);
-    transition: transform 0.15s;
-    box-shadow: 0 1px 2px var(--sa-shadow-tint-4);
-}
-.sa-marketing-toggle input:checked + span::before {
-    transform: translateX(16px);
-}
-.sa-marketing-toggle.disabled span {
-    opacity: 0.45;
-    cursor: not-allowed;
 }
 
 .sa-marketing-chip {
@@ -1473,34 +1541,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     height: 6px;
     border-radius: 50%;
     background: currentColor;
-}
-
-.sa-marketing-expand-btn {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--sa-radius-badge);
-    cursor: pointer;
-    color: var(--sa-color-fg-subtle);
-    transition:
-        background 0.12s,
-        color 0.12s,
-        border-color 0.12s;
-}
-.sa-marketing-expand-btn:hover {
-    background: var(--sa-color-border-soft);
-    color: var(--sa-color-accent);
-    border-color: var(--sa-color-border);
-}
-.sa-marketing-chev {
-    display: inline-flex;
-    transition: transform 0.15s;
-}
-.sa-marketing-chev.open {
-    transform: rotate(90deg);
 }
 
 /* The open editor is a WELL under its row, not another row.
@@ -1552,7 +1592,8 @@ async function onLocaleChange(loc: string): Promise<void> {
     max-width: 120px;
 }
 
-.sa-marketing-field--priority {
+/* The trial-days field: a number that is two digits wide, in a row of prose. */
+.sa-marketing-field--number {
     max-width: 96px;
 }
 
@@ -1661,13 +1702,6 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-iconbtn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
-}
-.sa-marketing-iconbtn--danger {
-    color: var(--sa-color-negative-fg);
-}
-.sa-marketing-iconbtn--danger:hover:not(:disabled) {
-    background: var(--sa-color-negative-surface);
-    border-color: var(--sa-color-negative-border);
 }
 .sa-marketing-tf-empty {
     padding: var(--sa-space-4);

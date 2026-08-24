@@ -76,6 +76,7 @@ export * from './vue/use-actions.js';
 export * from './vue/use-tenant-action-flow.js';
 export * from './vue/use-platform-tenant-actions.js';
 export * from './vue/use-batch-columns.js';
+export * from './vue/use-row-reorder.js';
 // Loader factory that builds BootLoader + ManifestLoader from the same
 // endpoint configuration as createSuperAdminApp() — so that endpoints live
 // in a single place per app.

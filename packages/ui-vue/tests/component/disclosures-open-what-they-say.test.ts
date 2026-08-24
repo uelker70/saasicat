@@ -13,8 +13,10 @@
 
 import { afterEach, describe, expect, test } from 'vitest';
 import { reactive, ref } from 'vue';
-import type { PromotionRow } from '@saasicat/core';
+import type { PlanVersionRow, PromotionRow } from '@saasicat/core';
 
+import MarketingCatalogAdmin from '../../src/internal/marketing-catalog-page/MarketingCatalogAdmin.vue';
+import type { MarketingRow } from '../../src/internal/marketing-catalog-page/types.js';
 import MarketingPromotionsTab from '../../src/features/marketing/MarketingPromotionsTab.vue';
 import PromoCodeDialogFields, {
     type PromoCodeSharedForm,
@@ -228,5 +230,207 @@ describe('the promotions tab is a reactive form, not a snapshot', () => {
         await label.trigger('input');
 
         expect(calls).toEqual([['p-1', { internalLabel: 'Autumn sale' }]]);
+    });
+});
+
+describe('a marketing row opens its editor from anywhere but its fields', () => {
+    // The row is not an `AdminAccordion` and cannot be one — the reason is
+    // written above `CONTROL_SELECTOR` in the component. What it borrows is the
+    // gesture: the whole row opens the editor, as the accordion header does.
+    //
+    // Nothing else can assert this. The visual baseline records computed
+    // styles, so it sees the row's cursor but never a click, and the row's
+    // cells are the one place in the package where "clickable" and "leave this
+    // alone" sit inside the same element.
+    const plan = {
+        id: 'plan-1',
+        projectKey: 'fixture',
+        planKey: 'PRO',
+        label: 'Pro',
+        description: null,
+        icon: null,
+        sortOrder: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        deletedAt: null,
+    };
+
+    // Only its presence is read here: it is what makes the row openable.
+    const liveVersion = { id: 'ver-1', planId: 'plan-1', version: 1 } as PlanVersionRow;
+
+    const row = {
+        plan,
+        accent: '#3f6bff',
+        liveVersion,
+        publishedVersions: [liveVersion],
+        projection: null,
+        m: {
+            displayLabel: 'Pro',
+            visible: true,
+            highlight: false,
+            badge: '',
+            priority: 10,
+            description: '',
+            trialEnabled: false,
+            trialDays: 14,
+            ctaLabel: null,
+            topFeatures: [],
+            priceTag: null,
+        },
+    } as MarketingRow;
+
+    const secondRow = { ...row, plan: { ...plan, id: 'plan-2', planKey: 'BASIC', label: 'Basic' } };
+
+    const mountAdmin = ({
+        rows = [row],
+        ...options
+    }: { attachTo?: HTMLElement; rows?: MarketingRow[] } = {}) => {
+        const wrapper = mountWithQuasar(MarketingCatalogAdmin, {
+            ...options,
+            props: {
+                adminRows: rows,
+                busy: false,
+                expandedKey: null,
+                activeLocale: 'en',
+                defaultLocale: 'en',
+                editFeatures: [],
+                formatVersionTitle: () => 'v1',
+                formatVersionTab: () => 'v1',
+                autoCtaText: () => 'Start now',
+                ctaValue: (raw: string) => raw || null,
+                resolveComponentLabel: (key: string) => key,
+                suggestionsFor: () => [],
+            },
+            ...provide,
+        });
+        mounted.push(wrapper);
+        return wrapper;
+    };
+
+    test('the plan cell is the keyboard path, and says what it controls', () => {
+        const trigger = mountAdmin().find('.sa-marketing-plan-cell');
+
+        expect(trigger.element.tagName).toBe('BUTTON');
+        expect(trigger.attributes('aria-expanded')).toBe('false');
+        expect(trigger.attributes('aria-controls')).toBeTruthy();
+    });
+
+    test('a click on a cell that holds no control opens the row', async () => {
+        const wrapper = mountAdmin();
+        const cells = wrapper.findAll('.sa-marketing-admin-row > div');
+
+        await cells[cells.length - 1]!.trigger('click');
+
+        expect(wrapper.emitted('toggle-expand')).toHaveLength(1);
+    });
+
+    test('a click on a field in the row does not', async () => {
+        const wrapper = mountAdmin();
+
+        await wrapper.find('.sa-marketing-field--badge input').trigger('click');
+        await wrapper.find('.q-toggle').trigger('click');
+
+        expect(wrapper.emitted('toggle-expand')).toBeUndefined();
+    });
+
+    test('the handle moves the row with the arrow keys', async () => {
+        // WCAG 2.2 SC 2.5.7: the drag needs a path that is not a drag. Two
+        // rows, because "moved" is only observable against a neighbour.
+        const wrapper = mountAdmin({ rows: [row, secondRow] });
+        const handles = wrapper.findAll('.sa-marketing-grip');
+
+        expect(handles).toHaveLength(2);
+        await handles[1]!.trigger('keydown', { key: 'ArrowUp' });
+
+        expect(wrapper.emitted('reorder')).toEqual([[1, 0]]);
+    });
+
+    test('the arrow keys stop at the ends of the list', async () => {
+        const wrapper = mountAdmin({ rows: [row, secondRow] });
+        const handles = wrapper.findAll('.sa-marketing-grip');
+
+        await handles[0]!.trigger('keydown', { key: 'ArrowUp' });
+        await handles[1]!.trigger('keydown', { key: 'ArrowDown' });
+
+        expect(wrapper.emitted('reorder')).toBeUndefined();
+    });
+
+    /**
+     * A drag, as the DOM delivers one.
+     *
+     * `trigger` cannot carry `clientY`: it assigns onto a `MouseEvent`, whose
+     * coordinates are getters. And jsdom lays nothing out — every rectangle is
+     * zero — so the handles are given the geometry a browser would have
+     * measured. Without it the drop position is decided by a tie between empty
+     * rects, which proves nothing about the arithmetic that reads them.
+     */
+    function drag(wrapper: ReturnType<typeof mountAdmin>, fromIndex: number, toY: number): void {
+        const handles = wrapper.findAll('.sa-marketing-grip');
+        handles.forEach((handle, index) => {
+            const top = index * 60;
+            handle.element.getBoundingClientRect = () =>
+                ({ top, height: 40, bottom: top + 40 }) as DOMRect;
+        });
+
+        handles[fromIndex]!.element.dispatchEvent(
+            Object.assign(new Event('pointerdown', { bubbles: true }), {
+                button: 0,
+                pointerId: 1,
+                clientY: fromIndex * 60 + 10,
+            }),
+        );
+        document.dispatchEvent(Object.assign(new Event('pointermove'), { clientY: toY }));
+        document.dispatchEvent(new Event('pointerup'));
+    }
+
+    test('a drag from the first row to the second reports that move', () => {
+        const wrapper = mountAdmin({ rows: [row, secondRow] });
+
+        drag(wrapper, 0, 75);
+
+        expect(wrapper.emitted('reorder')).toEqual([[0, 1]]);
+    });
+
+    test('a drag released where it started reports nothing', () => {
+        const wrapper = mountAdmin({ rows: [row, secondRow] });
+
+        drag(wrapper, 0, 12);
+
+        expect(wrapper.emitted('reorder')).toBeUndefined();
+    });
+
+    test('a row without a live version has no handle', () => {
+        // It cannot hold a projection, so there is no priority to write — a
+        // handle that looked draggable would promise a move nothing performs.
+        const wrapper = mountAdmin({ rows: [{ ...row, liveVersion: null }] });
+
+        expect(wrapper.find('.sa-marketing-grip').exists()).toBe(false);
+    });
+
+    test('a focusable ancestor does not silence the row', async () => {
+        // The counter-proof for walking by hand instead of with `closest`:
+        // `closest` climbs out of the row, so one `tabindex` anywhere above it —
+        // a dialog, a focus container, a consumer's layout — used to make every
+        // click in the row look like a click on a control. Mounted inside one.
+        const host = document.createElement('div');
+        host.setAttribute('tabindex', '-1');
+        document.body.appendChild(host);
+        const wrapper = mountAdmin({ attachTo: host });
+
+        const cells = wrapper.findAll('.sa-marketing-admin-row > div');
+        await cells[cells.length - 1]!.trigger('click');
+
+        expect(wrapper.emitted('toggle-expand')).toHaveLength(1);
+    });
+
+    test('the plan cell opens the row exactly once', async () => {
+        // It is a control inside the clickable row: the row's handler has to
+        // let the button's own handler have it, or the row opens and closes in
+        // the same click.
+        const wrapper = mountAdmin();
+
+        await wrapper.find('.sa-marketing-plan-cell').trigger('click');
+
+        expect(wrapper.emitted('toggle-expand')).toHaveLength(1);
     });
 });
