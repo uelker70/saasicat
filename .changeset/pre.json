@@ -27,6 +27,7 @@
     "documentation-has-four-levels",
     "every-readme-answers-the-same-questions",
     "guard-of-your-own",
+    "icons-come-from-quasar",
     "one-mount-helper-for-both-packages",
     "one-name-per-thing",
     "one-rule-for-a-validity-window",
@@ -38,6 +39,7 @@
     "suite-finds-the-distributions",
     "the-example-speaks-english",
     "the-primitive-roster-and-its-consumers",
-    "the-row-carries-the-order"
+    "the-row-carries-the-order",
+    "the-tenant-surface-drops-quasar"
   ]
 }

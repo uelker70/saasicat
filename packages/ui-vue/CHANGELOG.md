@@ -1,5 +1,76 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.5
+
+### Minor Changes
+
+- f9f19d0: Every icon in the admin UI is now a `q-icon` with a Material Icons name. The 51
+  hand-drawn `<svg>` glyphs are gone.
+
+    **Why it matters to you.** The package drew its own icons in 17 files while
+    asking Quasar for the same pictures in 112 other places, and it had never chosen
+    between the two — both arrived together when the package was extracted, and
+    nobody looked again. The result was drift a reader cannot see from one file: one
+    checkmark existed in three different geometries, and at 11px in three different
+    stroke widths, so the same tick did not look the same on two pages. Twenty-six of
+    the 51 declared nothing about themselves to a screen reader — not on the glyph
+    and not on a wrapper — where `q-icon` marks every one decorative. And none of the
+    51 set `stroke-linecap`, which the geometry they were copied from is drawn for, so
+    every one rendered with cut ends and sharp corners.
+
+    **What changed for you.** The glyphs are Material's now, so they read a little
+    heavier than the thin strokes they replace, most visibly at 10 and 11px. If you
+    styled one by element — `.pd-timeline-hint svg` and its kin — target `.q-icon`
+    instead. The lock on a blocked delete no longer carries its own `opacity: 0.4`
+    on top of the disabled button's, which had it rendering at roughly 0.24 against
+    the surface, below the 3:1 a graphical element needs.
+
+    `@saasicat/ui-vue-tenant` is untouched. It renders inside your application and
+    brings no UI framework (ADR 0010), so its four glyphs stay hand-drawn — and the
+    guard that keeps Quasar out of it now also refuses the `@quasar/*` scope, which
+    is how the shared icon geometry would have crept back in.
+
+    `saasicat/no-restricted-components` refuses a raw `<svg>` in this package,
+    including under `src/ui/` where the path escape had been covering one.
+
+    **The plans page reports its successes through the notify port.** Its seven
+    confirmations — plan created, draft saved, version published, plan deleted and
+    their kin — went through a page-local toast component that reimplemented what
+    `useSuperAdminNotify()` already does for every other page, down to its own
+    `setTimeout` that nothing cleared on unmount. They now go through the port, so a
+    `notify` you provide to `createSuperAdminApp()` receives them like the rest, and
+    the `.sa-plans__toast` classes are gone. This surfaced because taking 510 lines
+    of hand-drawn markup out of the package pushed that file to the top of the
+    `<style>`-share ratchet without adding a single line of CSS — the file was the
+    second-worst already, and the ratchet was pointing at something real.
+
+- 5eec494: The tenant components no longer need a UI framework
+
+    `@saasicat/ui-vue-tenant` renders inside your application, so it stopped deciding
+    what your application is built from. `quasar` is gone from its peer
+    dependencies; the plan section, the plan-change wizard, the bundle store and the
+    package snapshot are plain elements on the theme's CSS custom properties. If you
+    installed Quasar only to embed a plan section, it can go — with
+    `@quasar/vite-plugin` and the Sass setup beside it.
+
+    Breaking for anyone who styled around the old markup or rendered the inner
+    components directly: the `q-*` class names are gone, `TenantPlanCardHeader` takes
+    `statusTone` instead of `statusColor`, and the feature matrix hands the
+    registry's icon to a `#feature-icon` slot rather than drawing a Quasar icon name
+    that needed Quasar's icon font. `docs/guides/upgrade-to-1.0.md` has the details.
+
+    Two composables are new in `@saasicat/ui-vue`, both framework-free and both
+    usable outside the tenant package: `useDialog` (focus trap, focus return,
+    escape, `aria-modal`, `aria-labelledby`, scroll lock, settable teleport target)
+    and `useSteps` (a linear wizard's position, its guard, and moving focus to the
+    new step's heading). `bindSaThemeAttribute` joins them: it writes the one
+    attribute the role tokens key off, so an app can follow the OS theme without
+    installing Quasar for it.
+
+### Patch Changes
+
+- @saasicat/core@1.0.0-rc.5
+
 ## 1.0.0-rc.4
 
 ### Minor Changes
