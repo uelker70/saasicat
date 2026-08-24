@@ -878,44 +878,6 @@ const classifyDiff = computed(() => classifyBundleVersionDiff);
     margin-top: var(--sa-space-3);
     align-self: flex-start;
 }
-.sa-bd-version {
-    display: flex;
-    gap: var(--sa-space-3);
-    align-items: flex-start;
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: var(--sa-radius-field);
-    padding: var(--sa-space-3);
-}
-.sa-bd-version__main {
-    flex: 1;
-    min-width: 0;
-}
-.sa-bd-version__titlerow {
-    display: flex;
-    gap: var(--sa-space-3);
-    align-items: center;
-}
-.sa-bd-version__sub {
-    font-size: var(--sa-text-xs);
-    color: var(--sa-color-fg-muted);
-    margin: var(--sa-space-1) 0;
-}
-.sa-bd-version__feats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sa-space-2);
-}
-.sa-bd-feat-chip {
-    font-size: var(--sa-text-2xs);
-    background: var(--sa-color-border-soft);
-    padding: var(--sa-space-1) var(--sa-space-2);
-    border-radius: var(--sa-radius-badge);
-}
-.sa-bd-version__act {
-    display: flex;
-    gap: var(--sa-space-1);
-}
 .sa-bd-empty-row {
     padding: var(--sa-space-6);
     text-align: center;

@@ -667,6 +667,20 @@ component's API. A brand or status name there (`color="primary"`,
 `color="negative"`) resolves through `--q-*`, which the theme does read; an
 absolute hue does not, and is the half to give a role first.
 
+**A rule outlives its class, and nothing says so.** When markup moves on, its
+CSS stays behind, and the next reader takes it for a decision that still
+matters. `tests/css-classes-have-a-user.test.js` fails the build on a class
+that no template, script or document writes — 25 of them were found the day it
+was written, one page carrying seven for a dialog that had been replaced. It
+reads the classes each stylesheet defines and subtracts the names that appear
+anywhere a class can be written, so it sees `:class="{ dep: … }"` as readily as
+`class="dep"`. Three things it deliberately does not flag: Quasar's own `q-*`,
+which Quasar writes at runtime; a name a template composes
+(`` `sa-accordion__mark--${tone}` ``); and the six classes a
+`<transition name="…">` implies. A class you intend a **consumer** to write
+belongs in `docs/`, which is one of the places the check looks — otherwise it
+cannot be told from one that was left behind, and neither can the reader.
+
 **Both halves of a pair in the same rule.** A `color` whose `background` is
 declared somewhere else is a pair no check can read — and **all five** contrast
 defects found in this package were that shape, in three variations: the

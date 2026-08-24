@@ -1553,63 +1553,6 @@ function emitSave(): void {
         border-bottom: 1px solid var(--sa-color-border);
     }
 }
-
-/* ── Diff dialog ────────────────────────────────────────────────── */
-.pve-diff-modal {
-    background: var(--sa-color-bg-surface);
-    width: 560px;
-    max-width: 92vw;
-    border-radius: var(--sa-radius-section);
-    box-shadow: 0 24px 60px var(--sa-shadow-tint-4);
-    overflow: hidden;
-    font-family: var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-}
-.pve-diff-modal * {
-    box-sizing: border-box;
-}
-.pve-diff-head {
-    padding: var(--sa-space-5) var(--sa-space-6);
-    border-bottom: 1px solid var(--sa-color-border);
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sa-space-4);
-}
-.pve-diff-title {
-    font-size: var(--sa-text-lg);
-    font-weight: 700;
-    letter-spacing: var(--sa-tracking-normal);
-}
-.pve-diff-sub {
-    font-size: var(--sa-text-sm);
-    color: var(--sa-color-fg-muted);
-    margin-top: var(--sa-space-1);
-}
-.pve-diff-close {
-    margin-left: auto;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--sa-radius-badge);
-    background: transparent;
-    border: 0;
-    color: var(--sa-color-fg-subtle);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-}
-.pve-diff-close:hover {
-    background: var(--sa-color-bg-sunken);
-    color: var(--sa-color-fg-heading);
-}
-.pve-diff-body {
-    padding: var(--sa-space-4) var(--sa-space-6) var(--sa-space-5);
-    display: flex;
-    flex-direction: column;
-    gap: var(--sa-space-2);
-    max-height: 60vh;
-    overflow-y: auto;
-}
 .pve-diff-row {
     display: flex;
     align-items: center;
@@ -1671,12 +1614,5 @@ function emitSave(): void {
 .pve-diff-tag {
     font-size: var(--sa-text-2xs);
     background: var(--sa-color-bg-surface);
-}
-.pve-diff-empty {
-    padding: var(--sa-space-7) var(--sa-space-3);
-    text-align: center;
-    color: var(--sa-color-fg-subtle);
-    font-style: italic;
-    font-size: var(--sa-text-md);
 }
 </style>

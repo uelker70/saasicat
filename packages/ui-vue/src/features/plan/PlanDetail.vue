@@ -491,25 +491,6 @@ async function executeTerminate(): Promise<void> {
 .pd-panel {
     overflow: hidden;
 }
-.pd-panel-head {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sa-space-4);
-    padding: var(--sa-space-4) var(--sa-space-5) var(--sa-space-4);
-    border-bottom: 1px solid var(--sa-color-border-soft);
-}
-.pd-panel-title {
-    font-size: var(--sa-text-lg);
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: var(--sa-tracking-normal);
-    color: var(--sa-color-fg-heading);
-}
-.pd-panel-sub {
-    font-size: var(--sa-text-sm);
-    color: var(--sa-color-fg-muted);
-    margin-top: var(--sa-space-1);
-}
 .pd-panel-head-right {
     margin-left: auto;
     display: flex;

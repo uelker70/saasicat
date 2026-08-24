@@ -125,16 +125,45 @@ const TRACKED_PROPERTIES = [
  *
  * So the condition is the honest one — two identical readings in a row — and it
  * needs no knowledge of what is animating or how.
+ *
+ * Two readings alone were not enough, and the gap is worth writing down: a
+ * transition that is REMOVING a node changes nothing between two samples 50 ms
+ * apart, and the node is still there for both. `AdminRefreshBtn`'s spinner
+ * fades out over 300 ms after the page's first load resolves, so on a slow
+ * runner three extra nodes — the fade wrapper, its `svg`, its `circle` — got
+ * into the reading. Locally they never did, and the pages it hit differed per
+ * run. Hence the wait below, which asks the browser what is still moving
+ * instead of naming anything.
  */
 async function settledStyles(page: Page): Promise<string> {
     let previous = '';
     for (let attempt = 0; attempt < 40; attempt += 1) {
+        await animationsFinished(page);
         const current = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
         if (current === previous) return current;
         previous = current;
         await page.waitForTimeout(50);
     }
     throw new Error('the page never stopped changing — nothing settled within two seconds');
+}
+
+/**
+ * Waits out every animation that has an end.
+ *
+ * A spinner repeats forever, so waiting for all of them would wait for the test
+ * timeout. The distinction is in the animation itself — its computed iteration
+ * count — rather than in a list of selectors that would have to be maintained.
+ */
+async function animationsFinished(page: Page): Promise<void> {
+    await page.evaluate(async () => {
+        const ending = document
+            .getAnimations()
+            .filter((animation) =>
+                Number.isFinite(animation.effect?.getComputedTiming().iterations ?? 1),
+            );
+        // A cancelled animation rejects; that is still "no longer moving".
+        await Promise.all(ending.map((animation) => animation.finished.catch(() => undefined)));
+    });
 }
 
 test.describe('design-token visual baselines', () => {

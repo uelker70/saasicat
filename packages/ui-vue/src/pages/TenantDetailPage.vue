@@ -373,29 +373,6 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
 </script>
 
 <style scoped>
-.sa-tenant-detail__card-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--sa-color-border-soft);
-    padding-bottom: var(--sa-space-4);
-    margin-bottom: var(--sa-space-5);
-}
-.sa-tenant-detail__card-sub {
-    color: var(--sa-color-fg-muted);
-    font-size: var(--sa-text-md);
-    margin: var(--sa-space-2) 0 0;
-}
-.sa-tenant-detail__card-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sa-space-3);
-    align-items: center;
-}
-.sa-tenant-detail__empty {
-    color: var(--sa-color-fg-muted);
-    font-size: var(--sa-text-md);
-}
 code {
     background: var(--sa-color-bg-sunken);
     padding: var(--sa-space-0) var(--sa-space-2);

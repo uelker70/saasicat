@@ -490,12 +490,6 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     gap: var(--sa-space-4);
 }
 
-.pc-field {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sa-space-2);
-}
-
 /* The generator sits in the field's `after` slot; without this it reads as a
  * second field rather than as part of the one it belongs to. */
 .pc-code :deep(.q-field__after) {

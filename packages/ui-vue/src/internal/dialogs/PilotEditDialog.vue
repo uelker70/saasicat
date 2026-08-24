@@ -336,9 +336,4 @@ async function doSubmit(code: string): Promise<void> {
 .pl-section {
     margin-bottom: var(--sa-space-5);
 }
-
-.pl-textarea {
-    resize: vertical;
-    min-height: 64px;
-}
 </style>

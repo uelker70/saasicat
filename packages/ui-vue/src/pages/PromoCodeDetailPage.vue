@@ -305,17 +305,6 @@ const redemptionRows = computed(() => data.value?.redemptions ?? []);
 .sa-promo-detail__back {
     margin-bottom: var(--sa-space-2);
 }
-.sa-promo-detail__head-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--sa-space-3);
-    margin-left: auto;
-}
-.sa-promo-detail__body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sa-space-4);
-}
 .sa-promo-detail__kv {
     background: var(--sa-color-bg-surface-raised);
     border: 1px solid var(--sa-color-border);
