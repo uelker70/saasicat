@@ -8,8 +8,24 @@ standard pages (Dashboard, Tenants, Plans, Discovery, …) and the tenant
 self-service building blocks (`FeatureGate`, `useTenantManifest`,
 `PlanChangeWizard`).
 
-Peer dependencies: `vue` (required); `vue-router`, `pinia`, `quasar`
-(optional — see the layers below for what actually needs them).
+Peer dependencies: `vue` (required); `vue-router` and `pinia` (optional — see
+the layers below for what actually needs them). **Not `quasar`**: the components
+are built and carry it as a dependency of this package, so you install
+`@saasicat/ui-vue` and nothing else — no `@quasar/vite-plugin`, no Sass
+([ADR 0011](../../docs/explanation/adr/0011-admin-ui-bundles-quasar.md)).
+
+Three stylesheet imports, once, in your entry:
+
+```ts
+import '@saasicat/ui-vue/quasar.css'; // the framework's own reset
+import '@saasicat/ui-vue/icons.css'; // the icon font the components render
+import '@saasicat/ui-vue/theme.css'; // the design tokens
+import '@saasicat/ui-vue/style.css'; // the components' own styles
+```
+
+Quasar's stylesheet restyles `html`, `body` and typography — 76 computed
+properties across every element of a page that styles itself. That is why it is
+an import you write rather than one the package hides inside its bundle.
 
 ## What this is not
 
@@ -21,9 +37,9 @@ rarely what you want.
 Not a design system for your product, either. The `Admin*` roster exists for
 admin surfaces; everything else is Quasar, styled through the theme.
 
-Not compiled for the subpaths that ship `.vue` and `.ts` from `src/` — your
-build compiles those, which is what makes Quasar and Sass theming work and why
-that source stays within ES2021.
+Compiled, since 1.0: your bundler loads `dist/`. Your **type**checker still
+reads the `.vue` sources through the `types` condition, which is why that source
+stays within ES2021 and why the floor below still applies.
 
 ## Entry points
 
@@ -41,15 +57,22 @@ layers never import upward, and ESLint enforces it — the reasoning is in
 | `./layouts/*.vue`     | `src/layouts/`  | everything                    | `AdminLayout` — the shell around the pages.                                                                                                                                          |
 | `./auth/*.vue`        | `src/auth/`     | everything                    | The login screen and the first-run setup wizard.                                                                                                                                     |
 | `./ui/*.vue`          | `src/ui/`       | everything                    | The `Admin*` primitives, when you build a page of your own.                                                                                                                          |
-| `./theme.css`         | `src/ui/theme/` | —                             | The stylesheet. Import it once; without it the pages render unstyled.                                                                                                                |
+| `./theme.css`         | `src/ui/theme/` | —                             | The design tokens. Import it once; without it the pages render unstyled.                                                                                                             |
+| `./style.css`         | built           | —                             | The components' own styles, extracted into one file. Import it once, beside the theme.                                                                                               |
+| `./quasar.css`        | built           | —                             | Quasar's stylesheet, shipped so you do not install Quasar to get it. It restyles `html`, `body` and typography — which is why it stays an import you write rather than one we hide.  |
+| `./icons.css`         | built           | —                             | The Material icon font the components render through `q-icon`. Without it every icon renders as its ligature name.                                                                   |
 | `./theme/*`           | `src/ui/theme/` | —                             | The individual token layers, for a consumer that overrides roles.                                                                                                                    |
 | `./theme/breakpoints` | `src/ui/theme/` | —                             | The five breakpoint values, for a build that needs them in JavaScript.                                                                                                               |
 | `./vue`               | `src/vue/`      | Vue, `vue-router`, Pinia      | The Vue layer alone, without the client re-exports.                                                                                                                                  |
 | `./testing/*`         | `src/testing/`  | everything                    | Fixtures for component and end-to-end tests against the pages.                                                                                                                       |
 
-The four subpaths that hand out `.vue` and `.ts` from `src/` are compiled by
-**your** build, which is what makes Quasar and Sass theming work —
-[ADR 0005](../../docs/explanation/adr/0005-ship-sfc-source-not-dist.md).
+The four component subpaths keep their `.vue` specifier and resolve two ways:
+your **type**checker reads the source, your **bundler** loads the build. That
+split is what removed Quasar from your `package.json` without changing a single
+import of yours —
+[ADR 0011](../../docs/explanation/adr/0011-admin-ui-bundles-quasar.md). The
+source is still yours to compile for types, so the floor below still holds
+([ADR 0005](../../docs/explanation/adr/0005-ship-sfc-source-not-dist.md)).
 
 ### The shipped source has a language floor
 
@@ -183,8 +206,12 @@ See [UI language](https://github.com/uelker70/saasicat/blob/main/docs/guides/bui
 pnpm --filter @saasicat/ui-vue build
 ```
 
-Produces `dist/{index,client/index,quasar/index}.{js,cjs,d.ts}` via tsup
-(`tsup.config.ts`); `vue`, `vue-router`, `pinia` and `quasar` stay external.
+Two builders. tsup (`tsup.config.ts`) produces
+`dist/{index,client/index,vue/index,quasar/index}.{js,cjs,d.ts}`; Vite
+(`vite.build.config.ts`) compiles the components, one entry each, and copies
+Quasar's stylesheet and the icon font beside them. `vue`, `vue-router` and
+`pinia` stay external in both; `quasar` is external too and travels as a
+dependency of this package.
 
 ## Next
 

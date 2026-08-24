@@ -95,6 +95,58 @@ the resource registry — so the wiring an app wrote for them can be deleted; `r
 on `createSuperAdminApp()` is the seam for the one call you want diverted. The
 `@saasicat/ui-vue` CHANGELOG for the 1.0 candidates carries the full account.
 
+### The admin package brought its framework with it (phase 8)
+
+`@saasicat/ui-vue` ships its components built, and carries `quasar` as its own dependency. Remove
+`quasar`, `@quasar/vite-plugin` and `sass` from your admin app — you were installing them to compile
+an application you only mount.
+
+**Your imports do not change.** `@saasicat/ui-vue/pages/UsersPage.vue` still resolves: your
+typechecker reads the source, your bundler loads the build.
+
+What you do change:
+
+1. **The Quasar plugin leaves your Vite config**, and with it `sassVariables`:
+
+    ```ts
+    // before
+    plugins: [vue(), quasar({ sassVariables: './src/styles/theme.scss' })],
+    // after
+    plugins: [vue()],
+    ```
+
+2. **Four stylesheet imports** in your entry, replacing the two you had:
+
+    ```ts
+    import '@saasicat/ui-vue/quasar.css'; // was: 'quasar/src/css/index.sass'
+    import '@saasicat/ui-vue/icons.css'; // was: '@quasar/extras/material-icons/…'
+    import '@saasicat/ui-vue/theme.css'; // unchanged
+    import '@saasicat/ui-vue/style.css'; // new — the components' own styles
+    ```
+
+    Without the last one the pages render unstyled. It exists because the components are compiled
+    now: their `<style>` blocks used to be compiled by your build along with everything else.
+
+3. **Your brand colour moves out of Sass.** `$primary` was resolved by your build, and the
+   stylesheet is no longer compiled there:
+
+    ```ts
+    createSuperAdminApp({
+        brand: { logoText: 'na', name: 'NotesApp', color: '#1e40af' },
+    });
+    ```
+
+    One value moves both namespaces — it writes `--q-primary`, and `--sa-color-accent` reads it.
+
+4. **`resolve.dedupe` loses `quasar`** unless your own application uses Quasar too. If it does, keep
+   it: two Quasar instances mean `Dark.set()` in one leaves the other light. It is your singleton
+   now rather than this package's peer.
+
+Quasar's stylesheet stays an import you write rather than one the bundle hides, and that is
+deliberate: measured against a page that styles itself, it changes 76 computed properties on every
+element — the body font, `h1` from 40px to 96px, `box-sizing` globally. You accept that today by
+importing it; bundling it would mean you could no longer decline.
+
 ### The tenant components dropped their UI framework (phase 7)
 
 `@saasicat/ui-vue-tenant` no longer lists `quasar` as a peer dependency, and its components render

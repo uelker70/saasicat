@@ -47,12 +47,30 @@
                 "default": "./dist/quasar/index.cjs"
             }
         },
-        "./pages": "./src/pages/index.ts",
-        "./pages/*.vue": "./src/pages/*.vue",
-        "./layouts/*.vue": "./src/layouts/*.vue",
-        "./auth/*.vue": "./src/auth/*.vue",
-        "./ui/*.vue": "./src/ui/*.vue",
+        "./pages": {
+            "types": "./src/pages/index.ts",
+            "default": "./dist/pages/index.js"
+        },
+        "./pages/*.vue": {
+            "types": "./src/pages/*.vue",
+            "default": "./dist/pages/*.js"
+        },
+        "./layouts/*.vue": {
+            "types": "./src/layouts/*.vue",
+            "default": "./dist/layouts/*.js"
+        },
+        "./auth/*.vue": {
+            "types": "./src/auth/*.vue",
+            "default": "./dist/auth/*.js"
+        },
+        "./ui/*.vue": {
+            "types": "./src/ui/*.vue",
+            "default": "./dist/ui/*.js"
+        },
         "./theme.css": "./src/ui/theme/index.css",
+        "./style.css": "./dist/assets/ui-vue.css",
+        "./quasar.css": "./dist/assets/quasar.css",
+        "./icons.css": "./dist/assets/material-icons/material-icons.css",
         "./theme/breakpoints": "./src/ui/theme/_breakpoints.scss",
         "./theme/*": "./src/ui/theme/*",
         "./testing/*": {
@@ -72,7 +90,7 @@
         "src"
     ],
     "scripts": {
-        "build": "node ../../scripts/build-and-prune.mjs tsup",
+        "build": "node ../../scripts/build-and-prune.mjs \"tsup && vite build --config vite.build.config.ts && node scripts/copy-vendor-styles.mjs\"",
         "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.tests.json",
         "pretest": "pnpm run build",
         "test": "node --test 'tests/*.test.js'",
@@ -83,19 +101,17 @@
         "test:shipped-source": "node scripts/check-shipped-source.mjs"
     },
     "dependencies": {
-        "@saasicat/core": "workspace:^"
+        "@quasar/extras": "^1.16.0",
+        "@saasicat/core": "workspace:^",
+        "quasar": "^2.24.0"
     },
     "peerDependencies": {
         "pinia": "^2.0.0 || ^3.0.0",
-        "quasar": "^2.22.0",
         "vue": "^3.5.0",
         "vue-router": "^4.5.0 || ^5.0.0"
     },
     "peerDependenciesMeta": {
         "pinia": {
-            "optional": true
-        },
-        "quasar": {
             "optional": true
         },
         "vue-router": {

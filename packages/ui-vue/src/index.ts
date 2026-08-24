@@ -79,6 +79,9 @@ export * from './vue/use-batch-columns.js';
 export * from './vue/use-row-reorder.js';
 export * from './vue/use-dialog.js';
 export * from './vue/use-steps.js';
+export * from './vue/plan-wizard.js';
+export * from './vue/use-mfa-prompt.js';
+export * from './vue/use-sign-out.js';
 // Loader factory that builds BootLoader + ManifestLoader from the same
 // endpoint configuration as createSuperAdminApp() — so that endpoints live
 // in a single place per app.

@@ -1,10 +1,11 @@
 // Bootstrap. createSuperAdminApp wires up Quasar + Pinia + Router + guards.
 
-import 'quasar/src/css/index.sass';
-import '@quasar/extras/material-icons/material-icons.css';
+import '@saasicat/ui-vue/quasar.css';
+import '@saasicat/ui-vue/icons.css';
 // Platform page styles (sa-* classes + CSS variables). Without it the
 // standard pages render unstyled.
 import '@saasicat/ui-vue/theme.css';
+import '@saasicat/ui-vue/style.css';
 
 import { createSuperAdminApp } from '@saasicat/ui-vue/quasar';
 import type { ActionsMap } from '@saasicat/ui-vue';

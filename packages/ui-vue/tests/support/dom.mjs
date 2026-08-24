@@ -46,6 +46,12 @@ export function installDom() {
         CustomEvent: dom.window.CustomEvent,
         SVGElement: dom.window.SVGElement,
         getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+        // vue-router reaches for these even under `createMemoryHistory`: its
+        // `finalizeNavigation` touches `history` unconditionally, and without
+        // it a routed component throws `ReferenceError` from inside the router
+        // rather than from anything the test wrote.
+        history: dom.window.history,
+        location: dom.window.location,
         requestAnimationFrame: (callback) => setTimeout(() => callback(Date.now()), 0),
         cancelAnimationFrame: (handle) => clearTimeout(handle),
     };

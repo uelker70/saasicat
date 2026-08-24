@@ -1,7 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import { quasar } from '@quasar/vite-plugin';
 
 // Ports come from `examples/notesapp/.env` — the same file docker compose reads,
 // so the dev server and the container stack cannot disagree about them.
@@ -28,14 +27,7 @@ export default defineConfig({
     // whole frontend of this example, and its `/login` route sits outside the
     // /admin path, so a subpath base would leave the login page unreachable.
     base: '/',
-    plugins: [
-        vue(),
-        quasar({
-            // Absolute path — sass resolves plain relative paths against the
-            // importing file inside node_modules/quasar, not the project root.
-            sassVariables: fileURLToPath(new URL('./src/styles/theme.scss', import.meta.url)),
-        }),
-    ],
+    plugins: [vue()],
     // Exactly one copy of each of these, always.
     //
     // `createSuperAdminApp()` CREATES the router, the Pinia instance and the
@@ -55,7 +47,7 @@ export default defineConfig({
     // The list is `@saasicat/ui-vue`'s peerDependencies: a peer is precisely a
     // dependency the host is expected to own exactly one of.
     resolve: {
-        dedupe: ['vue', 'vue-router', 'pinia', 'quasar'],
+        dedupe: ['vue', 'vue-router', 'pinia'],
     },
     // The admin renders `@saasicat/ui-vue`'s pages from source through the
     // package's `./pages/*` subpath. Excluding it from pre-bundling is what
