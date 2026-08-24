@@ -6,14 +6,26 @@ The work is [issue #206](https://github.com/uelker70/saasicat/issues/206). Until
 it lands, `quasar` is still a peer dependency of that package and new code there
 writes plain elements rather than adding to the 69 usages this removes.
 
-**The decision below is the goal; the route to it is not settled.** A second one
-reaches the same end without removing anything: ship the tenant surface as a
-built bundle that carries its own Vue instance and Quasar, mounted into an
-element the consumer places. The consumer's `package.json` is untouched either
-way — what differs is whether Quasar is removed or enclosed, and that turns on a
-single measurement nobody has taken: what Quasar's global stylesheet does inside
-a document it does not own. The option space and the reasoning are recorded on
-the issue.
+A second route was weighed and rejected: ship the tenant surface as a built
+bundle carrying its own Vue instance and Quasar, mounted into an element the
+consumer places. It reaches the same end — the consumer's `package.json` is
+untouched either way — and it costs no rebuild of the stepper or the dialog.
+Three things sink it, and the first is structural rather than a matter of
+effort: Quasar teleports every dialog to `document.body`, so any container
+leaves exactly those nodes outside it unstyled (this repository already carries
+that scar in `SA_PORTAL_CLASS`); a second Vue runtime plus Quasar is a payload
+the customer's account page pays for on every visit; and a surface meant to look
+like THEIR product is better served by our own markup on the token layer than by
+overriding somebody else's. That route is right for the admin UI, where all
+three read the other way round. The option space is recorded on the issue.
+
+What replaces the Quasar components is **headless**: a composable owning
+behaviour and ARIA state, rendering nothing, with thin markup beside it. The
+package already works that way — `useRowReorder` renders nothing, `ui-notify`
+and `ui-confirm` are ports, and the 49 composables in `src/vue` import no
+Quasar. A behaviour tested once is then correct everywhere it is used, which
+matters most for the two hard items here, both of which are hard because of
+behaviour rather than appearance.
 
 ## Context
 
