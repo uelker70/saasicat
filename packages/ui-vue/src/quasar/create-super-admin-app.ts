@@ -14,7 +14,7 @@
 //     app's own `main.ts`, because tsup does not bundle CSS.
 
 import { createApp, type App, type Component } from 'vue';
-import { Quasar, Notify, Dialog, Loading, type QuasarPluginOptions } from 'quasar';
+import { Quasar, Notify, Dialog, Loading, setCssVar, type QuasarPluginOptions } from 'quasar';
 import { createPinia, type Pinia } from 'pinia';
 import {
     createRouter,
@@ -67,6 +67,26 @@ import { bindSaThemeToDocument } from './dark-bridge.js';
 import { resolveSuperAdminEndpoints } from '../vue/platform-loaders.js';
 import { quasarNotify } from './notify.js';
 import { quasarConfirm } from './confirm.js';
+
+/**
+ * Writes the brand colour where both namespaces read it.
+ *
+ * `setCssVar` rather than a hand-written property name, so the `--q-` prefix
+ * lives in Quasar's own utility and moves if they ever move it. What is NOT
+ * left to Quasar is the element: its default is `document.body`, and this
+ * repository has already paid for that once — a role computed on `:root` never
+ * sees a value written to the body, which is how a brand colour arrived on the
+ * page and the accent role stayed blue anyway. `document.documentElement` is
+ * where Quasar publishes its own `:root` defaults and where
+ * `--sa-color-accent: var(--q-primary, …)` is resolved.
+ */
+function applyBrandColour(colour: string | undefined): void {
+    if (!colour) return;
+    // The composable half of this app is usable under SSR; the brand colour is
+    // a paint instruction and has nowhere to go on a server.
+    if (typeof document === 'undefined') return;
+    setCssVar('primary', colour, document.documentElement);
+}
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
     /** App root component (`App.vue`). */
@@ -300,6 +320,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
             (typeof configuredDark === 'boolean' ? (configuredDark ? 'dark' : 'light') : undefined),
     });
     const stopThemeBridge = bindSaThemeToDocument(theme);
+    applyBrandColour(options.brand.color);
 
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);

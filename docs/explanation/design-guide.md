@@ -289,9 +289,20 @@ values — it is `-disabled`.
 ### The accent
 
 `--sa-color-accent` is your application's brand. It reads Quasar's
-`--q-primary`, which comes from your `$primary`, so there is nothing to
-configure: set it once and the hero, the buttons, the focus ring, the tinted
-surfaces, Quasar's own components and the tenant-facing pages all follow.
+`--q-primary`, so there is nothing to configure: name the colour once and the
+hero, the buttons, the focus ring, the tinted surfaces, Quasar's own components
+and the tenant-facing pages all follow.
+
+Name it in the option:
+
+```ts
+createSuperAdminApp({
+    brand: { logoText: 'na', name: 'NotesApp', color: '#1e40af' },
+});
+```
+
+That writes `--q-primary` on the document element, which is where Quasar
+publishes its own default and where the accent role above is resolved.
 
 To change it **at runtime**, write to the root:
 
@@ -528,12 +539,18 @@ The last row is the one that bites. Quasar's trigger declares the roles on
 matter what the specificity or the order says — so everything inside the body
 inherits the platform's value and never sees yours.
 
-For the brand you do not need any of this: set `$primary` and the accent
+For the brand you do not need any of this: pass `brand.color` and the accent
 follows.
+
+`$primary` in a Quasar Sass configuration used to be the way, and it still works
+for an application compiling Quasar itself — but it cannot reach the stylesheet
+this package ships, because that one was compiled here. A Sass variable resolves
+at a build; the option resolves in the browser, which is the only place both
+stylesheets meet.
 
 **One exception, and it is the one to know about.** `--sa-color-fg-on-accent` is
 white, and that is an assumption rather than a derivation: CSS cannot branch on
-a colour's luminance, so nothing notices when `$primary` is a light amber and
+a colour's luminance, so nothing notices when your brand is a light amber and
 white on it reads 2.15:1. If your brand is light, override this role — the
 buttons, active tabs and filled controls all read it.
 
