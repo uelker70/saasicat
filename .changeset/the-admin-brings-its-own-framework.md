@@ -37,6 +37,9 @@ itself — so it stays an import you write rather than one hidden inside the
 bundle. You accept that today by importing it; bundling it would mean you could
 no longer decline.
 
-Measured on the example admin: 1.8 MB of build output before, 1.6 MB after, with
-the same 11 page chunks. The component styles arrive as one file rather than
-split per page.
+Measured on the example admin, freshly built: 1.80 MB of output, 11 page chunks,
+and the component styles in a single stylesheet rather than one per page. The
+total does not shrink, and that is the honest result — the Material Icons font
+is 0.37 MB of it either way. It used to come from the `@quasar/extras` you
+installed; now it comes from inside this package. The saving is three fewer
+packages in your lockfile and a build that no longer compiles Sass, not bytes.

@@ -85,12 +85,19 @@ Details: [`packages/ui-vue/README.md`](packages/ui-vue/README.md).
 
 ### The shipped source has a language floor: ES2021
 
-Why source rather than a build, and the two-module-instance consequence it
-carries, is [ADR 0005](docs/explanation/adr/0005-ship-sfc-source-not-dist.md).
+Why source is shipped at all, and the two-module-instance consequence it used to
+carry, is [ADR 0005](docs/explanation/adr/0005-ship-sfc-source-not-dist.md) —
+superseded in part by
+[ADR 0011](docs/explanation/adr/0011-admin-ui-bundles-quasar.md), which is the
+half that matters when you add a subpath.
 
 Several of that package's export subpaths — `pages/*`, `layouts/*`, `auth/*`, `ui/*`
-— hand out `.vue` and `.ts` straight from `src/` instead of from a build, because
-consumers need the source for Quasar and Sass theming. The list is not written here,
+— still hand out `.vue` and `.ts` straight from `src/`, but under the `types`
+condition only: a bundler follows `default` and loads `dist/`. The reason is no
+longer that consumers compile Quasar and Sass — since ADR 0011 they do not — it
+is that their **typechecker** reads the source. That is what decides whether a
+new subpath serves source: not how it is bundled, but whether a consumer's
+`tsc` has to see it. The list is not written here,
 because it moves: `pages-standard/*` and `components/*` were two of them until phase 4
 removed both, and `pages-tenant/*` left for `@saasicat/ui-vue-tenant` — which ships its
 source under the same floor for the same reason. `check-shipped-source.mjs` derives the

@@ -68,12 +68,11 @@ describe('the visual fixture brands itself like a scaffolded app', () => {
         );
     });
 
-    test('the fixture takes the status colours from the bridge, not from a copy', () => {
-        // The four status tones are the platform's own roles. Restating them is
-        // exactly how the last two fixtures drifted, so the fixture must call
-        // the shipped bridge and declare nothing of its own.
+    test('the fixture declares no palette of its own', () => {
+        // The four status tones are the platform's own roles, handed to Quasar
+        // by the theme stylesheet the fixture loads. Restating them is exactly
+        // how the last two fixtures drifted.
         const source = readFileSync(FIXTURE, 'utf8');
-        assert.match(source, /linkQuasarStatusColours\(\)/);
         // Not "does it write --q-warning" but "can it write anything at all":
         // a fixture without `setCssVar` cannot restate a role however it is
         // formatted, and the check does not depend on Prettier's spacing.

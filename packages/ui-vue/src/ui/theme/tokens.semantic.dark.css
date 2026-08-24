@@ -109,22 +109,18 @@ body.body--dark {
     --sa-color-info-surface-strong: color-mix(in srgb, var(--sa-blue-500) 24%, transparent);
     --sa-color-info-border: color-mix(in srgb, var(--sa-blue-500) 36%, transparent);
 
-    /* Filled status surfaces — the one status role that does NOT flip.
-     *
-     * The roles above are foregrounds: text and icons, tuned against the page,
-     * so they go lighter in the dark theme. A FILLED badge or button is the
-     * other way round — it carries white text of its own, and its contrast is
-     * against that, not against the page. Measured: white on the dark rungs
-     * reads 1.67:1 (warning) to 3.76:1 (negative), so a role that flipped would
-     * take Quasar's `color="warning"` below the floor the moment the theme did.
-     *
-     * Same value in both files for the same reason `--sa-color-fg-on-accent` is
-     * white in both. `tests/filled-status-carries-white-text.test.js` pins the
-     * pair; the browser sweep catches what it renders on. */
+    /* The filled status surfaces do not flip — see the light file, which
+     * carries the reasoning. Repeated here so an override written on this
+     * selector is heard: a custom property resolves on the element it is
+     * declared on, and Quasar's components live under the body. */
     --sa-color-positive-solid: var(--sa-green-700);
     --sa-color-warning-solid: var(--sa-amber-700);
     --sa-color-negative-solid: var(--sa-red-600);
     --sa-color-info-solid: var(--sa-blue-600);
+    --q-positive: var(--sa-color-positive-solid);
+    --q-negative: var(--sa-color-negative-solid);
+    --q-warning: var(--sa-color-warning-solid);
+    --q-info: var(--sa-color-info-solid);
 
     --sa-color-scheduled: var(--sa-indigo-400);
     --sa-color-scheduled-strong: var(--sa-indigo-400);

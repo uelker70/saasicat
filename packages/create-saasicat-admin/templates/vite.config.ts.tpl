@@ -16,12 +16,13 @@ export default defineConfig({
     // so two copies of the library do not share one, and the lookup silently
     // returns `undefined`.
     //
-    // The platform ships its pages as `.vue` SOURCE (decision E3), so their
-    // `import … from 'vue-router'` resolves relative to the platform package,
-    // while this app's own files resolve relative to here. Without dedupe the
-    // bundle ends up with both, and every consumer page that reads a route
-    // param throws `Cannot read properties of undefined (reading 'params')` —
-    // the shell renders, the content area is blank.
+    // The platform's pages are built (ADR 0011), and its chunks resolve
+    // `import … from 'vue-router'` relative to the platform package while this
+    // app's own files resolve relative to here. Without dedupe the bundle ends
+    // up with both, and every consumer page that reads a route param throws
+    // `Cannot read properties of undefined (reading 'params')` — the shell
+    // renders, the content area is blank. The reason survived the move from
+    // source to a build; only the first clause of it changed.
     //
     // The list is `@saasicat/ui-vue`'s peerDependencies: a peer is precisely a
     // dependency the host is expected to own exactly one of.

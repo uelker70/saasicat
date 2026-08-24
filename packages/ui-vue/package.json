@@ -101,7 +101,6 @@
         "test:shipped-source": "node scripts/check-shipped-source.mjs"
     },
     "dependencies": {
-        "@quasar/extras": "^1.16.0",
         "@saasicat/core": "workspace:^",
         "quasar": "^2.24.0"
     },
@@ -119,16 +118,16 @@
         }
     },
     "devDependencies": {
-        "@saasicat/ui-vue-tenant": "workspace:*",
         "@playwright/test": "^1.59.1",
+        "@quasar/extras": "^1.16.0",
         "@quasar/vite-plugin": "^1.12.0",
+        "@saasicat/ui-vue-tenant": "workspace:*",
         "@types/node": "^25.6.0",
         "@vitejs/plugin-vue": "^6.0.8",
         "@vue/test-utils": "^2.4.11",
         "axios": "^1.15.0",
         "jsdom": "^30.0.1",
         "pinia": "^3.0.0",
-        "quasar": "^2.24.0",
         "sass": "^1.101.3",
         "tsup": "^8.0.0",
         "typescript": "^6.0.0",

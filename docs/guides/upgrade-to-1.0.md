@@ -159,6 +159,12 @@ What you do change:
     }
     ```
 
+    **Write it on `:root`, not on `body`.** The package sets
+    `--q-warning: var(--sa-color-warning-solid, …)` inline on `<html>`, and a `var()` inside a
+    custom-property declaration is substituted on the element that declaration sits on — so only
+    `:root` is in reach. This is the one role you override on a single selector rather than on both
+    of the theme's, and it works because the value is the same in either scheme.
+
     The suffix is the whole point, and it is the one thing to read twice. `--sa-color-warning` is a
     foreground: text and icons, measured against the page, so it goes lighter in the dark theme.
     Quasar uses its variable the other way round — as a background, with white text of its own on

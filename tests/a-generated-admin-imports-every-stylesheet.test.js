@@ -82,6 +82,24 @@ describe('every entry point imports the stylesheets the package publishes', () =
             );
         });
 
+        test(`${label} loads the theme after Quasar's stylesheet`, () => {
+            // Not a preference. The theme hands Quasar its four status colours
+            // (`--q-warning: var(--sa-color-warning-solid)`), and Quasar
+            // declares the same four on `:root` in its own file. Equal
+            // specificity, so the later declaration wins — and the earlier one
+            // wins nothing. Reversed, every `color="warning"` in the admin
+            // silently paints Quasar's stock amber next to a role that does not
+            // match it, which is the exact drift this arrangement removed.
+            const order = [...sideEffectImports(file)];
+            const quasar = order.indexOf('@saasicat/ui-vue/quasar.css');
+            const theme = order.indexOf('@saasicat/ui-vue/theme.css');
+            assert.ok(quasar !== -1 && theme !== -1, `${label} is missing one of the two`);
+            assert.ok(
+                quasar < theme,
+                `${label} imports theme.css before quasar.css, so Quasar's own defaults win`,
+            );
+        });
+
         test(`${label} takes them from this package, not from Quasar`, () => {
             // The old template imported `quasar/src/css/index.sass` and
             // `@quasar/extras/…`, which a consumer can no longer resolve: they

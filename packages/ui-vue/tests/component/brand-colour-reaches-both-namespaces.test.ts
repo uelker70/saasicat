@@ -152,57 +152,37 @@ describe('the status tones follow the roles instead of being restated', () => {
     // consumer to restate them in Sass. One of the four had drifted:
     // `$warning: #f59e0b` against a `--sa-color-warning` that resolves to
     // `#b45309`, so `color="warning"` painted 2.15:1 on white beside a role
-    // painting 4.8:1. Restating a value is how it drifts, so the shell points
-    // Quasar at the role itself.
+    // painting 4.8:1.
+    //
+    // The mapping is four lines of CSS, not a runtime write, so what a booted
+    // shell can show is that it does NOT write them. The stylesheet's own
+    // claims are `tests/filled-status-carries-white-text.test.js`.
 
-    test('each one is linked through var(), not copied', () => {
+    test('the shell writes no status colour of its own', () => {
         boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
         for (const tone of STATUS_TONES) {
-            expect(document.documentElement.style.getPropertyValue(`--q-${tone}`)).toBe(
-                `var(--sa-color-${tone}-solid)`,
-            );
+            expect(
+                document.documentElement.style.getPropertyValue(`--q-${tone}`),
+                `--q-${tone} is written at runtime again; the theme owns this mapping`,
+            ).toBe('');
         }
     });
 
-    test('the tone it points at is the filled one, not the foreground', () => {
+    test('the theme hands Quasar the filled role, in both schemes', () => {
         // Quasar paints `--q-warning` as a BACKGROUND with white text. The
         // plain role is a foreground and goes lighter in the dark theme, where
         // white on it reads 1.67:1 — which is what the browser sweep failed on
-        // when this pointed at the plain role. `tests/filled-status-carries-
-        // white-text.test.js` pins the pair; this pins which one is used.
-        const dark = readFileSync(
-            join(process.cwd(), 'src/ui/theme/tokens.semantic.dark.css'),
-            'utf8',
-        );
-        for (const tone of STATUS_TONES) {
-            expect(dark, `--sa-color-${tone}-solid is missing from the dark theme`).toContain(
-                `--sa-color-${tone}-solid:`,
+        // when this pointed at the plain role.
+        for (const scheme of ['light', 'dark']) {
+            const css = readFileSync(
+                join(process.cwd(), `src/ui/theme/tokens.semantic.${scheme}.css`),
+                'utf8',
             );
+            for (const tone of STATUS_TONES) {
+                expect(css, `${scheme} does not hand Quasar --q-${tone}`).toContain(
+                    `--q-${tone}: var(--sa-color-${tone}-solid);`,
+                );
+            }
         }
-    });
-
-    test('an app that names no brand colour still gets them', () => {
-        // They are the platform's, not the consumer's — so they do not hang off
-        // an option the consumer may omit.
-        boot({ name: 'Fixture', logoText: 'FX' });
-        expect(document.documentElement.style.getPropertyValue('--q-warning')).toBe(
-            'var(--sa-color-warning-solid)',
-        );
-    });
-
-    test('disposing unlinks them again', () => {
-        const { dispose } = boot({ name: 'Fixture', logoText: 'FX', color: '#3f6bff' });
-        dispose();
-        for (const tone of STATUS_TONES) {
-            expect(document.documentElement.style.getPropertyValue(`--q-${tone}`)).toBe('');
-        }
-    });
-
-    test('a host that set one itself gets it back', () => {
-        document.documentElement.style.setProperty('--q-negative', 'rebeccapurple');
-        boot({ name: 'Fixture', logoText: 'FX' }).dispose();
-        expect(document.documentElement.style.getPropertyValue('--q-negative')).toBe(
-            'rebeccapurple',
-        );
     });
 });

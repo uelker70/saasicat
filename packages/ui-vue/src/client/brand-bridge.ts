@@ -8,10 +8,12 @@
  * wired instead of imitating it. An imitation is what the theme test started
  * out as, and it reported nineteen pages of unreadable text.
  *
- * Until phase 8 the scaffolder emitted these as Sass variables and the consumer
- * compiled Quasar themselves. Now Quasar ships compiled, so the palette is
- * written at runtime — one place, and it works for a consumer who never touches
- * Sass at all.
+ * Only the brand colour lives here. The four status tones are a mapping from
+ * one set of variables to another, with no runtime value in it, so they are
+ * four lines of CSS in `tokens.semantic.*.css` instead — where they degrade to
+ * Quasar's own defaults if the stylesheet is missing, carry no literal for the
+ * token audit to count, and can be overridden on either of the theme's
+ * selectors. They were here first, and none of those three was true.
  *
  * Framework-free, for the reason `bindSaThemeAttribute` gives one layer up: an
  * app that embeds only the tenant components has a brand too, and
@@ -24,34 +26,6 @@
 
 /** Quasar's own prefix for the variables its components read. */
 const QUASAR_VAR_PREFIX = '--q-';
-
-/**
- * The status colours Quasar's own components paint, taken from the theme.
- *
- * Each SaaSiCat status tone is a family of contrast-tuned values, and a single
- * Quasar variable cannot say which one it is. Quasar means the FILLED one: it
- * paints `--q-positive` as a background and puts white text on it. So these
- * point at `-solid`, not at the plain role — the plain role is a foreground and
- * goes lighter in the dark theme, where white on it reads 1.67:1 for warning.
- * That is not a hypothetical: linking the plain role is what this did first,
- * and the browser contrast sweep failed three pages in the dark theme.
- *
- * Through `var()` rather than a copy, so a consumer who retunes the role moves
- * Quasar's components with it.
- *
- * This is not branding, which is why it is not a consumer option: it is the
- * platform making Quasar agree with its own roles. The Sass file it replaces
- * asked the consumer to restate them, and one of the four had drifted —
- * `$warning: #f59e0b` against `--sa-color-warning: #b45309`, so every
- * `color="warning"` in the admin painted 2.15:1 on white next to a role that
- * paints 4.8:1. Restating a value is how it drifts.
- */
-const QUASAR_ROLE_LINKS: Record<string, string> = {
-    positive: 'var(--sa-color-positive-solid)',
-    negative: 'var(--sa-color-negative-solid)',
-    warning: 'var(--sa-color-warning-solid)',
-    info: 'var(--sa-color-info-solid)',
-};
 
 /**
  * Writes to `documentElement`, never to `<body>`.
@@ -102,27 +76,6 @@ function restoreInline(root: HTMLElement, previous: Map<string, Declaration>): (
             else root.style.removeProperty(`${QUASAR_VAR_PREFIX}${name}`);
         }
     };
-}
-
-/**
- * Points Quasar's status variables at the theme's roles, in both schemes.
- *
- * Returns the undo, so a shell that is disposed leaves the document as it found
- * it — a second shell, a hot reload or a host that had set these itself.
- */
-export function linkQuasarStatusColours(): () => void {
-    // The composable half of this app is usable under SSR; a paint instruction
-    // has nowhere to go on a server.
-    if (typeof document === 'undefined') return () => {};
-
-    const root = document.documentElement;
-    const previous = new Map(
-        Object.keys(QUASAR_ROLE_LINKS).map((name) => [name, readVar(root, name)]),
-    );
-    for (const [name, value] of Object.entries(QUASAR_ROLE_LINKS)) {
-        writeVar(root, name, plain(value));
-    }
-    return restoreInline(root, previous);
 }
 
 /**

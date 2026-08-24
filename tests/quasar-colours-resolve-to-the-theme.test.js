@@ -28,7 +28,7 @@ import { templatePaletteProps } from '../scripts/token-audit.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SOURCES = ['packages/ui-vue/src', 'packages/ui-vue-tenant/src'];
-const BRIDGE = join(ROOT, 'packages/ui-vue/src/client/brand-bridge.ts');
+
 const SEMANTIC = ['light', 'dark'].map((scheme) =>
     join(ROOT, `packages/ui-vue/src/ui/theme/tokens.semantic.${scheme}.css`),
 );
@@ -53,12 +53,22 @@ const ABSOLUTE = new Set(['white', 'black', 'transparent']);
  */
 const NEUTRAL_CEILING = 3;
 
-/** `--q-<name>` slots the bridge points at a `--sa-color-*` role. */
+/**
+ * `--q-<name>` slots the theme points at a `--sa-color-*` role.
+ *
+ * Read from the stylesheet, because that is where the mapping lives. It used to
+ * be a table in the brand bridge, written inline on <html> at boot; four lines
+ * of CSS do it without a literal to audit, without a `var()` that paints
+ * nothing when the stylesheet is absent, and on both of the theme's selectors
+ * rather than only the one <html> can see.
+ */
 function linkedTones() {
     const found = new Map();
-    for (const line of readFileSync(BRIDGE, 'utf8').split('\n')) {
-        const match = /^\s*([a-z]+):\s*'var\(--sa-color-([a-z0-9-]+)\)',/.exec(line);
-        if (match) found.set(match[1], match[2]);
+    for (const file of SEMANTIC) {
+        for (const line of readFileSync(file, 'utf8').split('\n')) {
+            const match = /^\s*--q-([a-z]+):\s*var\(--sa-color-([a-z0-9-]+)\);/.exec(line);
+            if (match) found.set(match[1], match[2]);
+        }
     }
     return found;
 }
@@ -135,19 +145,24 @@ describe('quasar colours resolve to the theme', () => {
         );
     });
 
-    test('every linked tone is a role both schemes declare', () => {
-        // A link to a role that does not exist resolves to nothing and Quasar
-        // paints transparent. Both files, because a role declared only in light
-        // is a dark theme with a hole in it.
-        for (const file of SEMANTIC) {
-            const roles = declaredRoles(file);
-            assert.ok(roles.size > 0, `no roles parsed from ${file}`);
-            for (const [tone, role] of linked) {
-                assert.ok(
-                    roles.has(role),
-                    `--q-${tone} points at --sa-color-${role}, which ${file} does not declare`,
-                );
-            }
+    test('every linked tone is a role the theme declares', () => {
+        // A link to a role that does not exist resolves to its fallback, which
+        // is a copy — so the drift this file exists to prevent would be back,
+        // silently, with the copy winning.
+        //
+        // WHERE it is declared is deliberately not asked here.
+        // `tests/filled-status-carries-white-text.test.js` owns that question
+        // and answers it precisely: on `:root` in the base layer and nowhere
+        // else, because the bridge's inline var() on <html> reaches no further.
+        // Two guards answering one question differently is how a rule stops
+        // meaning anything.
+        const declared = new Set(SEMANTIC.flatMap((file) => [...declaredRoles(file)]));
+        assert.ok(declared.size > 0, 'no roles parsed from the semantic layer');
+        for (const [tone, role] of linked) {
+            assert.ok(
+                declared.has(role),
+                `--q-${tone} points at --sa-color-${role}, which no theme file declares`,
+            );
         }
     });
 });

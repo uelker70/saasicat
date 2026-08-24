@@ -42,7 +42,7 @@ import { SA_THEME_KEY, createSaTheme, type SaColorScheme } from '../../../src/vu
 import { bindSaThemeToDocument } from '../../../src/quasar/dark-bridge.js';
 import { FIXTURE_MANIFEST, respondTo, unmatchedRequests } from './fixture-data.js';
 import { VISUAL_CASES } from './pages.js';
-import { applyBrandColour, linkQuasarStatusColours } from '../../../src/client/brand-bridge.js';
+import { applyBrandColour } from '../../../src/client/brand-bridge.js';
 
 // Fixture bootstrap for the visual baselines.
 //
@@ -251,7 +251,6 @@ app.provide(SA_THEME_KEY, theme);
 // the fixture this replaces carried its own Sass file, and it had drifted from
 // the scaffolder on `$warning`.
 applyBrandColour(SCAFFOLDED_BRAND);
-linkQuasarStatusColours();
 
 app.mount('#app');
 // Endpoints the fixture was asked for and does not have. The spec reads this

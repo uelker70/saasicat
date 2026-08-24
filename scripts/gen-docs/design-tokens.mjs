@@ -43,9 +43,14 @@ const LAYERS = [
  *
  * Prose mentions token names — this file's own comments do — and a scanner that
  * reads comments reads those as declarations. Blanking rather than deleting so
- * the offsets below still describe the file the caller passed in.
+ * offsets still describe the file the caller passed in.
+ *
+ * Exported because this repository has now made the same mistake four times in
+ * one afternoon: token names read out of prose here, a `describe(` read out of
+ * a doc comment in the suite guard, and a `{` inside a commented-out example
+ * selector taken for the start of a block. One implementation, one answer.
  */
-function withoutComments(css) {
+export function withoutComments(css) {
     let out = '';
     let index = 0;
     while (index < css.length) {

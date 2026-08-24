@@ -22,7 +22,10 @@ const handle = createSuperAdminApp({
     // `--sa-color-accent` reads Quasar's `--q-primary`, which this writes, so
     // the hero, the buttons, the focus ring, the tinted surfaces, Quasar's own
     // components and the tenant-facing pages all follow. There is no second
-    // switch. The default is SaaSiCat's own, so a fresh admin looks like the
+    // switch — with one trap beside it: Quasar's own `config.brand` writes to
+    // `<body>`, where the accent role cannot see it. Leave that one alone.
+    //
+    // The default is SaaSiCat's own, so a fresh admin looks like the
     // documentation until you decide otherwise.
     //
     // One caveat if you pick a LIGHT brand: text on accent-filled controls is

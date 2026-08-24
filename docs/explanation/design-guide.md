@@ -554,6 +554,14 @@ package points Quasar's `--q-positive`, `--q-negative`, `--q-warning` and
 a different tone; a Sass `$warning` would move only one of the two, which is
 exactly how the pair drifted while the scaffolder still emitted one.
 
+**And `-solid` is overridden on `:root` alone.** Every other role takes both of
+the theme's selectors, as above. This one takes `:root` only, and must: the
+package writes `--q-warning: var(--sa-color-warning-solid, …)` inline on
+`<html>`, and a `var()` inside a custom-property declaration resolves on the
+element the declaration sits on. A copy under `body.body--dark` is invisible to
+Quasar however carefully it is tuned. There was one, with the same value, which
+made the whole arrangement right by accident until a review asked why.
+
 **The suffix is not decoration.** Each tone has two roles because it has two
 jobs. `--sa-color-warning` is a foreground — text, an icon, a border — measured
 against the page it sits on, so it goes lighter in the dark theme.
