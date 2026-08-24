@@ -39,7 +39,10 @@ against the theme's 28px, so the heading and the content below it sat at three
 different distances from the sidebar depending on where you were. The dashboard
 had no `AdminBody` at all, so its cards ran 20px wider than every other page's.
 Both are the shared frame now, and a rule reads the theme's own `.sa-page`
-declarations to keep it that way.
+declarations to keep it that way. The bundles and discovery pages also added a
+16px gap on top of the hero's own margin, so those two put 36px between the
+heading and the content where every other page puts 20px — and the same 16px
+again between their sections. Gone; the rule covers that too.
 
 **The plan matrix reads like the plan list.** Its four KPIs sit in a card above
 the table, in the same rhythm as the list's, rather than bare on the page

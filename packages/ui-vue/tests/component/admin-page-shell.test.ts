@@ -208,6 +208,13 @@ function templateOf(source: string): string {
     // documents its usage in a fenced example — `FeatureGate` is both — has a
     // `</template>` inside a comment AFTER the real one, and the naive search
     // returned the whole script as if it were markup.
+    //
+    // The close is matched WITHOUT its `>`, because Prettier may put it on the
+    // next line: `BundlesPage` has a `</template\n    >`, so a search for the
+    // literal `</template>` found one closer than there were openers, ran out,
+    // and returned an empty template. Every rule below then passed on that page
+    // by having nothing to read — the shape a guard takes when it stops
+    // watching without failing.
     const start = source.indexOf('<template>');
     if (start === -1) return '';
 
@@ -215,7 +222,7 @@ function templateOf(source: string): string {
     let index = start;
     while (index < source.length) {
         const open = source.indexOf('<template', index);
-        const close = source.indexOf('</template>', index);
+        const close = source.indexOf('</template', index);
         if (close === -1) return '';
         if (open !== -1 && open < close) {
             depth += 1;
@@ -224,7 +231,7 @@ function templateOf(source: string): string {
         }
         depth -= 1;
         if (depth === 0) return stripComments(source.slice(start, close));
-        index = close + '</template>'.length;
+        index = source.indexOf('>', close) + 1;
     }
     return '';
 }
@@ -1420,6 +1427,18 @@ describe('the boundaries a page keeps', () => {
             .filter(Boolean);
         expect(frameProperties.length).toBeGreaterThan(3);
 
+        // The rhythm between the hero and the body is the hero's
+        // `margin-bottom`. A page root that also declares a gap adds to it —
+        // `.sa-bundles` and `.sa-discovery` did, so those two pages put 36px
+        // there while every other page put 20px, and the same 16px appeared
+        // again between their sections.
+        //
+        // This half is a list, and it is a list because the derivable version
+        // is not expressible: nothing in the theme says which properties can
+        // move the hero, only which ones draw the frame. Three names, each
+        // measured against a page that had one.
+        const rhythmProperties = ['gap', 'row-gap', 'column-gap'];
+
         const offences: string[] = [];
         for (const file of pages) {
             const source = readFileSync(file, 'utf8');
@@ -1433,7 +1452,7 @@ describe('the boundaries a page keeps', () => {
                 const declared = new Set(
                     block.split(';').map((declaration) => declaration.split(':')[0]?.trim() ?? ''),
                 );
-                for (const property of frameProperties) {
+                for (const property of [...frameProperties, ...rhythmProperties]) {
                     if (declared.has(property)) {
                         offences.push(`${relative(SRC_DIR, file)}: .${name} sets ${property}`);
                     }

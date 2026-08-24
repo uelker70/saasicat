@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import AdminFormDialog from '../../ui/overlay/AdminFormDialog.vue';
 import PromoCodeDialogFields from './PromoCodeDialogFields.vue';
@@ -81,14 +81,17 @@ function emptyForm() {
     };
 }
 
-const form = reactive(emptyForm());
+const form = ref(emptyForm());
 const advancedOpen = ref(false);
 
 const isValid = computed(() => {
-    if (!/^[A-Z0-9_-]{3,32}$/.test(form.code)) return false;
-    if (!form.value || form.value <= 0) return false;
-    if (form.valueType === 'PERCENT' && form.value > 100) return false;
-    if (form.durationType !== 'ONCE' && (!form.durationValue || form.durationValue < 1))
+    if (!/^[A-Z0-9_-]{3,32}$/.test(form.value.code)) return false;
+    if (!form.value.value || form.value.value <= 0) return false;
+    if (form.value.valueType === 'PERCENT' && form.value.value > 100) return false;
+    if (
+        form.value.durationType !== 'ONCE' &&
+        (!form.value.durationValue || form.value.durationValue < 1)
+    )
         return false;
     return true;
 });
@@ -97,7 +100,7 @@ watch(
     () => props.modelValue,
     (open) => {
         if (open) {
-            Object.assign(form, emptyForm());
+            form.value = emptyForm();
             advancedOpen.value = false;
         }
     },
@@ -108,22 +111,23 @@ watch(
 // failure reaches the operator, so nothing is caught.
 async function submitForm(): Promise<void> {
     await props.submit({
-        code: form.code,
-        valueType: form.valueType,
-        value: form.value,
-        durationType: form.durationType,
-        durationValue: form.durationType === 'ONCE' ? null : form.durationValue,
-        maxRedemptions: form.maxRedemptions ?? null,
-        validFrom: form.validFrom || null,
-        validUntil: form.validUntil || null,
-        appliesToPlans: form.appliesToPlans.length > 0 ? [...form.appliesToPlans] : undefined,
-        appliesToBilling: form.appliesToBilling,
-        firstTimeCustomersOnly: form.firstTimeCustomersOnly || undefined,
-        minimumPlanAmountGross: form.minimumPlanAmountGross ?? undefined,
-        allowZeroInvoice: form.allowZeroInvoice || undefined,
-        revenueDeductionAccount: form.revenueDeductionAccount || undefined,
-        campaignTag: form.campaignTag || undefined,
-        description: form.description || undefined,
+        code: form.value.code,
+        valueType: form.value.valueType,
+        value: form.value.value,
+        durationType: form.value.durationType,
+        durationValue: form.value.durationType === 'ONCE' ? null : form.value.durationValue,
+        maxRedemptions: form.value.maxRedemptions ?? null,
+        validFrom: form.value.validFrom || null,
+        validUntil: form.value.validUntil || null,
+        appliesToPlans:
+            form.value.appliesToPlans.length > 0 ? [...form.value.appliesToPlans] : undefined,
+        appliesToBilling: form.value.appliesToBilling,
+        firstTimeCustomersOnly: form.value.firstTimeCustomersOnly || undefined,
+        minimumPlanAmountGross: form.value.minimumPlanAmountGross ?? undefined,
+        allowZeroInvoice: form.value.allowZeroInvoice || undefined,
+        revenueDeductionAccount: form.value.revenueDeductionAccount || undefined,
+        campaignTag: form.value.campaignTag || undefined,
+        description: form.value.description || undefined,
     });
 }
 </script>

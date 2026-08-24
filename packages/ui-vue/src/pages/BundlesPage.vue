@@ -744,7 +744,6 @@ const classifyDiff = computed(() => classifyBundleVersionDiff);
 .sa-bundles {
     display: flex;
     flex-direction: column;
-    gap: var(--sa-space-4);
 }
 .sa-bundles__filter-row {
     display: flex;

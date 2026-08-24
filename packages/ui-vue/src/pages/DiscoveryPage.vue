@@ -598,7 +598,6 @@ onMounted(async () => {
 .sa-discovery {
     display: flex;
     flex-direction: column;
-    gap: var(--sa-space-4);
 }
 .sa-discovery__panel {
     display: flex;

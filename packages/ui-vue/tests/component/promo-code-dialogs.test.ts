@@ -79,6 +79,30 @@ describe('PromoCodeCreateDialog', () => {
         });
     });
 
+    test('reopening starts from an empty form', async () => {
+        // The dialog holds its form in a `ref` so the two-way binding to
+        // `PromoCodeDialogFields` has something to assign to, and reopening
+        // REPLACES the object rather than assigning over the old one. Whether
+        // the child follows that swap is not visible from the parent — the
+        // fields component keeps its own `defineModel` handle on it — so this
+        // asks the child's rendered input rather than the parent's state.
+        const submit = vi.fn().mockResolvedValue(undefined);
+        const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
+        await wrapper.vm.$nextTick();
+
+        const vm = wrapper.vm as unknown as { form: Record<string, unknown> };
+        vm.form.code = 'SOMMER25';
+        await flushPromises();
+
+        await wrapper.setProps({ modelValue: false });
+        await wrapper.setProps({ modelValue: true });
+        await flushPromises();
+
+        expect(vm.form.code).toBe('');
+        const code = document.querySelector('.pc-code input') as HTMLInputElement | null;
+        expect(code?.value ?? '').toBe('');
+    });
+
     test('does not submit while the code is malformed', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
         const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
