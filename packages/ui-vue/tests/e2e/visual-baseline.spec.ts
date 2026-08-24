@@ -140,8 +140,12 @@ async function settledStyles(page: Page): Promise<string> {
     for (let attempt = 0; attempt < 40; attempt += 1) {
         await animationsFinished(page);
         const current = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
-        if (current === previous) return current;
-        previous = current;
+        const stillMoving = await page.evaluate(PENDING_ANIMATIONS);
+        // A reading taken while something is mid-flight cannot be half of a
+        // matching pair: two readings 50 ms apart both land inside a 300 ms
+        // fade and agree with each other about a node that is on its way out.
+        if (!stillMoving && current === previous) return current;
+        previous = stillMoving ? '' : current;
         await page.waitForTimeout(50);
     }
     throw new Error('the page never stopped changing — nothing settled within two seconds');
@@ -156,6 +160,10 @@ async function settledStyles(page: Page): Promise<string> {
  */
 async function animationsFinished(page: Page): Promise<void> {
     await page.evaluate(async () => {
+        // A frame first: a transition begins on the frame after its class is
+        // applied, so asking before that returns nothing and the wait would
+        // pass through the very thing it exists to wait for.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         const ending = document
             .getAnimations()
             .filter((animation) =>
@@ -165,6 +173,14 @@ async function animationsFinished(page: Page): Promise<void> {
         await Promise.all(ending.map((animation) => animation.finished.catch(() => undefined)));
     });
 }
+
+/** How many animations with an end are still running. */
+const PENDING_ANIMATIONS = () =>
+    document
+        .getAnimations()
+        .filter((animation) =>
+            Number.isFinite(animation.effect?.getComputedTiming().iterations ?? 1),
+        ).length;
 
 test.describe('design-token visual baselines', () => {
     test('the roster still covers every page it claims to', () => {
