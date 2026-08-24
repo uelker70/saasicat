@@ -122,6 +122,53 @@ describe('the wizard refuses a step it may not leave', () => {
     });
 });
 
+describe('the next button says whether it will do anything', () => {
+    // The behaviour tests above prove the guard refuses the move. They pass
+    // just as well when the button is enabled and inert, which is what the
+    // rewrite left behind: the old `q-btn` carried `:disable`, the replacement
+    // carried nothing, and a control that looks pressable and does nothing is
+    // a worse answer than one that is plainly unavailable.
+
+    test('no plan chosen: the button is disabled', async () => {
+        openWizard();
+        await nextTick();
+        expect(nextButton().disabled).toBe(true);
+    });
+
+    test('the plan the tenant is already on: still disabled', async () => {
+        const wrapper = openWizard();
+        await nextTick();
+        await pickPlan(wrapper, 'pl-1');
+        expect(nextButton().disabled).toBe(true);
+    });
+
+    test('a different plan: enabled', async () => {
+        const wrapper = openWizard();
+        await nextTick();
+        await pickPlan(wrapper, 'pl-2');
+        expect(nextButton().disabled).toBe(false);
+    });
+
+    test('on the preview step it follows the blockers', async () => {
+        // Same binding, second step: the guard there is "no blockers", and the
+        // wizard reads it through the step machine rather than beside it.
+        const wrapper = openWizard({
+            previewPlanChange: () =>
+                Promise.resolve({
+                    ...PREVIEW,
+                    blockers: [{ code: 'LIMIT', message: 'over quota' }],
+                } as unknown as PlanChangePreviewShape),
+        });
+        await nextTick();
+        await pickPlan(wrapper, 'pl-2');
+        nextButton().click();
+        await flush();
+
+        expect(stepHeading().textContent?.trim()).toBe(i18n.stepPreview);
+        expect(nextButton().disabled).toBe(true);
+    });
+});
+
 describe('focus follows the step the tenant is now on', () => {
     test('advancing moves focus to the new heading', async () => {
         const wrapper = openWizard();
@@ -156,6 +203,13 @@ describe('the progress list says where the tenant is without relying on colour',
         expect(current[0]!.textContent).toContain(i18n.stepChoose);
     });
 });
+
+/** Lets the preview promise settle and the wizard re-render. */
+async function flush() {
+    await Promise.resolve();
+    await nextTick();
+    await nextTick();
+}
 
 /** Clicks the plan tile in the grid, the way a tenant does. */
 async function pickPlan(wrapper: VueWrapper, planId: string) {

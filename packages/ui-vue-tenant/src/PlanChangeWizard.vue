@@ -49,7 +49,12 @@
                 />
 
                 <div class="sp-wizard__nav">
-                    <TenantButton variant="solid" tone="accent" @click="goToPreview">
+                    <TenantButton
+                        variant="solid"
+                        tone="accent"
+                        :disabled="!canLeaveStep"
+                        @click="goToPreview"
+                    >
                         {{ i18n.next }}
                     </TenantButton>
                 </div>
@@ -153,7 +158,7 @@
                     <TenantButton
                         variant="solid"
                         tone="accent"
-                        :disabled="!canAdvanceFromPreview"
+                        :disabled="!canLeaveStep"
                         @click="goToNextStep()"
                     >
                         {{ i18n.next }}
@@ -363,6 +368,7 @@ const canAdvanceFromPreview = computed(
 // first render that reaches the later branch.
 const {
     current: currentStep,
+    canAdvance: canLeaveStep,
     statusOf: stepStatus,
     headingRef: stepHeadingRef,
     headingProps: stepHeadingProps,

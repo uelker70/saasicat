@@ -153,6 +153,15 @@ export function useDialog(options: UseDialogOptions): Dialog {
 
     async function engage(): Promise<void> {
         if (engaged) return;
+        // On a server there is nothing to trap focus in, lock, or listen on,
+        // and every line below touches `document` — an initially-open dialog
+        // rendered by Nuxt would throw before its first `await`. Hydration runs
+        // this again on the client with a real document, so nothing is lost by
+        // declining here.
+        //
+        // `engaged` stays false on purpose: setting it would make that
+        // hydration pass a no-op and leave the dialog untrapped.
+        if (typeof document === 'undefined') return;
         engaged = true;
         restoreFocusTo =
             document.activeElement instanceof HTMLElement ? document.activeElement : null;
