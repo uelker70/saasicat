@@ -32,3 +32,17 @@ the promo-code form, the setup wizard.
 New in the package: `useRowReorder` (from `@saasicat/ui-vue/vue`) for the pointer
 half of a drag, `reorderedPriorities` (from `@saasicat/ui-vue/client`) for the
 arithmetic, and a `.sa-sr-only` utility in the theme.
+
+**Every page now sits in the same frame.** Two pages drew their own: the
+discovery page set a 16px page padding and the marketing catalog a 24px one
+against the theme's 28px, so the heading and the content below it sat at three
+different distances from the sidebar depending on where you were. The dashboard
+had no `AdminBody` at all, so its cards ran 20px wider than every other page's.
+Both are the shared frame now, and a rule reads the theme's own `.sa-page`
+declarations to keep it that way.
+
+**The plan matrix reads like the plan list.** Its four KPIs sit in a card above
+the table, in the same rhythm as the list's, rather than bare on the page
+background. Two contrast defects that surfaced with it are fixed: the "not
+included" dash in the matrix rendered at 1.48:1, and the _Create plan_ card's
+title and subtitle at 2.0:1 and 2.5:1 on their own tint.

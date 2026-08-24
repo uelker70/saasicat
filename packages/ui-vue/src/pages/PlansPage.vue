@@ -131,21 +131,20 @@
             </template>
 
             <!-- V1 matrix: component comparison -->
-            <AdminSection v-else-if="mode === 'matrix'">
-                <PlanMatrix
-                    :plans="plans"
-                    :versions-by-plan-id="versionsByPlanId"
-                    :available-quotas="availableQuotas"
-                    :available-bundles="availableBundles"
-                    :feature-registry="featureRegistry"
-                    :tenant-counts-by-plan-key="tenantCountsByPlanKey"
-                    :plan-accents="props.planAccents"
-                    :loading="bulkVersionsLoading"
-                    @open-plan="onOpenPlan"
-                    @create-plan="openCreate"
-                    @clone-plan="onClonePlan"
-                />
-            </AdminSection>
+            <PlanMatrix
+                v-else-if="mode === 'matrix'"
+                :plans="plans"
+                :versions-by-plan-id="versionsByPlanId"
+                :available-quotas="availableQuotas"
+                :available-bundles="availableBundles"
+                :feature-registry="featureRegistry"
+                :tenant-counts-by-plan-key="tenantCountsByPlanKey"
+                :plan-accents="props.planAccents"
+                :loading="bulkVersionsLoading"
+                @open-plan="onOpenPlan"
+                @create-plan="openCreate"
+                @clone-plan="onClonePlan"
+            />
 
             <!-- Plan detail: drill-in for a single Plan (plan simulation) -->
             <PlanDetail

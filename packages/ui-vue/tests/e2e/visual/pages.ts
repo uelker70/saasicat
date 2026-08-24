@@ -190,6 +190,15 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/PlansPage.vue'),
     }),
     visualCase({
+        // The same page in its other mode. Nothing rendered the matrix until
+        // its KPIs were moved into a section like the list's — the change was
+        // to a surface no baseline covered, which is the state that makes a
+        // green suite say nothing.
+        id: 'plans-matrix',
+        load: () => import('../../../src/pages/PlansPage.vue'),
+        revealBy: ['header .q-btn[tabindex]:first-of-type'],
+    }),
+    visualCase({
         id: 'login',
         load: () => import('../../../src/auth/SuperAdminLoginPage.vue'),
     }),

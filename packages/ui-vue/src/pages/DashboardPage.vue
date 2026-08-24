@@ -6,90 +6,92 @@
             </template>
         </AdminHero>
 
-        <AdminErrorBanner :error="error" />
-
-        <div v-if="loading && !cards.length" class="sa-dashboard__loading">
-            <q-spinner size="32px" /> {{ common.loadingData }}
-        </div>
-
-        <div v-else-if="!cards.length" class="sa-dashboard__empty">
-            {{ msg.emptyKpiCards }}
-        </div>
-
-        <AdminSection v-else>
-            <AdminStatistics :label="msg.title">
-                <AdminKpi
-                    v-for="card in cards"
-                    :key="card.id"
-                    :data-card-id="card.id"
-                    :label="card.label"
-                    :sub="card.sub"
-                    :icon="card.displayHint?.icon"
-                    layout="inline"
-                >
-                    <template #value>
-                        <q-spinner v-if="card.loading" size="18px" />
-                        <template v-else-if="card.error">—</template>
-                        <template v-else>{{ formatValue(card) }}</template>
-                    </template>
-                </AdminKpi>
-            </AdminStatistics>
-        </AdminSection>
-
-        <div v-if="opts.distributions && opts.distributions.length > 0" class="sa-dashboard__rows">
-            <AdminSection v-for="dist in opts.distributions" :key="dist.id" :title="dist.label">
-                <template v-if="dist.total" #actions>
-                    <span class="sa-dashboard__count">{{ dist.total }}</span>
-                </template>
-                <ul class="sa-dashboard__bar-list">
-                    <li
-                        v-for="entry in dist.entries"
-                        :key="entry.label"
-                        class="sa-dashboard__bar-row"
-                    >
-                        <span class="sa-dashboard__bar-name">{{ entry.label }}</span>
-                        <span class="sa-dashboard__bar-track">
-                            <span
-                                class="sa-dashboard__bar-fill"
-                                :style="{
-                                    width: `${barWidth(entry.value, dist.maxValue)}%`,
-                                    background: entry.color ?? dist.barColor ?? defaultBarColor,
-                                }"
-                            />
-                        </span>
-                        <span class="sa-dashboard__bar-count">{{ entry.value }}</span>
-                    </li>
-                </ul>
-            </AdminSection>
-        </div>
-
-        <AdminSection
-            v-if="resolvedShortcuts.length > 0"
-            :title="msg.shortcutsTitle"
-            class="sa-dashboard__shortcuts"
+        <AdminBody
+            :loading="loading && !cards.length"
+            :empty="isEmpty"
+            :empty-text="msg.emptyKpiCards"
         >
-            <div class="sa-dashboard__shortcut-grid">
-                <a
-                    v-for="s in resolvedShortcuts"
-                    :key="s.id"
-                    :href="s.to"
-                    class="sa-dashboard__shortcut"
-                >
-                    <q-icon :name="s.icon ?? 'circle'" size="22px" />
-                    <div>
-                        <div class="sa-dashboard__shortcut-title">{{ s.label }}</div>
-                        <div v-if="s.sub" class="sa-dashboard__shortcut-sub">{{ s.sub }}</div>
-                    </div>
-                </a>
-            </div>
-        </AdminSection>
+            <AdminErrorBanner :error="error" />
 
-        <slot name="after-kpis" />
+            <AdminSection v-if="cards.length">
+                <AdminStatistics :label="msg.title">
+                    <AdminKpi
+                        v-for="card in cards"
+                        :key="card.id"
+                        :data-card-id="card.id"
+                        :label="card.label"
+                        :sub="card.sub"
+                        :icon="card.displayHint?.icon"
+                        layout="inline"
+                    >
+                        <template #value>
+                            <q-spinner v-if="card.loading" size="18px" />
+                            <template v-else-if="card.error">—</template>
+                            <template v-else>{{ formatValue(card) }}</template>
+                        </template>
+                    </AdminKpi>
+                </AdminStatistics>
+            </AdminSection>
+
+            <div
+                v-if="opts.distributions && opts.distributions.length > 0"
+                class="sa-dashboard__rows"
+            >
+                <AdminSection v-for="dist in opts.distributions" :key="dist.id" :title="dist.label">
+                    <template v-if="dist.total" #actions>
+                        <span class="sa-dashboard__count">{{ dist.total }}</span>
+                    </template>
+                    <ul class="sa-dashboard__bar-list">
+                        <li
+                            v-for="entry in dist.entries"
+                            :key="entry.label"
+                            class="sa-dashboard__bar-row"
+                        >
+                            <span class="sa-dashboard__bar-name">{{ entry.label }}</span>
+                            <span class="sa-dashboard__bar-track">
+                                <span
+                                    class="sa-dashboard__bar-fill"
+                                    :style="{
+                                        width: `${barWidth(entry.value, dist.maxValue)}%`,
+                                        background: entry.color ?? dist.barColor ?? defaultBarColor,
+                                    }"
+                                />
+                            </span>
+                            <span class="sa-dashboard__bar-count">{{ entry.value }}</span>
+                        </li>
+                    </ul>
+                </AdminSection>
+            </div>
+
+            <AdminSection
+                v-if="resolvedShortcuts.length > 0"
+                :title="msg.shortcutsTitle"
+                class="sa-dashboard__shortcuts"
+            >
+                <div class="sa-dashboard__shortcut-grid">
+                    <a
+                        v-for="s in resolvedShortcuts"
+                        :key="s.id"
+                        :href="s.to"
+                        class="sa-dashboard__shortcut"
+                    >
+                        <q-icon :name="s.icon ?? 'circle'" size="22px" />
+                        <div>
+                            <div class="sa-dashboard__shortcut-title">{{ s.label }}</div>
+                            <div v-if="s.sub" class="sa-dashboard__shortcut-sub">{{ s.sub }}</div>
+                        </div>
+                    </a>
+                </div>
+            </AdminSection>
+
+            <slot name="after-kpis" />
+        </AdminBody>
     </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive, ref, watch } from 'vue';
+import AdminBody from '../ui/page/AdminBody.vue';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import type { AdminManifest, KpiCardDef } from '@saasicat/core';
 import { useResource } from '../vue/resource-registry.js';
@@ -199,7 +201,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('dashboard');
-const common = useSaMessages('common');
+
 const { locale, intlLocale } = useSuperAdminI18n();
 
 // Provided by createSuperAdminApp({ manifestGuard: { getManifest } }) — lets
@@ -260,6 +262,22 @@ const resolvedShortcuts = computed<ShortcutDef[]>(() => {
     // to the dashboard is confusing.
     return list.filter((s) => s.to !== currentPath && s.id !== 'dashboard');
 });
+
+/**
+ * Nothing at all to show — not merely no KPI cards.
+ *
+ * An app may contribute distributions or shortcuts and no cards, and the empty
+ * state would then hide the two things the page does have. An error is not
+ * emptiness either: the banner has to be reachable, and a page that answers
+ * "no KPI cards" when the request failed sends the reader to the manifest.
+ */
+const isEmpty = computed(
+    () =>
+        cards.length === 0 &&
+        (opts.value.distributions?.length ?? 0) === 0 &&
+        resolvedShortcuts.value.length === 0 &&
+        !error.value,
+);
 
 async function reload(): Promise<void> {
     error.value = null;
@@ -461,14 +479,5 @@ function barWidth(value: number, max?: number): number {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     margin-top: var(--sa-space-1);
-}
-
-.sa-dashboard__loading,
-.sa-dashboard__empty {
-    padding: var(--sa-space-8) var(--sa-space-7);
-    color: var(--sa-color-fg-muted);
-    display: flex;
-    align-items: center;
-    gap: var(--sa-space-4);
 }
 </style>

@@ -1,14 +1,15 @@
 <template>
-    <div class="pm">
+    <AdminSection>
         <AdminStatistics :columns="4">
             <AdminKpi :label="msg.matrix.statPlans" :value="plans.length" />
             <AdminKpi :label="msg.matrix.statFeatures" :value="orderedFeatureKeys.length" />
             <AdminKpi :label="msg.matrix.statQuotas" :value="orderedQuotaKeys.length" />
             <AdminKpi :label="msg.matrix.statBundles" :value="orderedBundleKeys.length" />
         </AdminStatistics>
+    </AdminSection>
 
-        <!-- Matrix -->
-        <div class="pm-card pm-wrap">
+    <AdminSection>
+        <div class="pm-wrap">
             <table class="pm-table">
                 <thead>
                     <tr class="pm-head">
@@ -334,7 +335,6 @@
             </table>
         </div>
 
-        <!-- Legend -->
         <div class="pm-legend">
             <span class="pm-legend-item">
                 <span class="pm-legend-check"
@@ -356,11 +356,12 @@
             </span>
             <span v-if="loading" class="pm-legend-loading">{{ msg.matrix.legendLoading }}</span>
         </div>
-    </div>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import AdminKpi from '../../ui/data/AdminKpi.vue';
+import AdminSection from '../../ui/page/AdminSection.vue';
 import AdminStatistics from '../../ui/data/AdminStatistics.vue';
 import { computed } from 'vue';
 
@@ -631,20 +632,6 @@ function formatQuota(v: number | undefined): string {
 </script>
 
 <style scoped>
-.pm {
-    padding: var(--sa-space-6) var(--sa-space-7);
-    background: var(--sa-color-bg-app);
-    color: var(--sa-color-fg-heading);
-    font-family: var(--sa-font-body);
-    min-height: 100%;
-    box-sizing: border-box;
-}
-
-.pm-card {
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: var(--sa-radius-tile);
-}
 .pm-wrap {
     overflow: auto;
 }
@@ -807,14 +794,18 @@ function formatQuota(v: number | undefined): string {
     color: var(--sa-color-accent-strong);
     margin: 0 auto var(--sa-space-2);
 }
+/* On the tinted card, not on the page: `accent` and `fg-subtle` are chosen
+ * against `bg-app`, and reading them on `accent-surface` gave 2.0:1 and 2.5:1.
+ * The `-strong` rung is the theme's answer for text on its own tint — the icon
+ * above already used it. */
 .pm-add-title {
     font-size: var(--sa-text-sm);
     font-weight: 600;
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
 }
 .pm-add-sub {
     font-size: var(--sa-text-xs);
-    color: var(--sa-color-fg-subtle);
+    color: var(--sa-color-fg-body);
     margin-top: var(--sa-space-1);
 }
 
@@ -960,8 +951,11 @@ function formatQuota(v: number | undefined): string {
     height: 22px;
     border-radius: var(--sa-radius-badge);
 }
+/* The dash is the cell's whole content — it says "not in this plan" — so it is
+ * text, not a disabled control. `fg-disabled` rendered it at 1.48:1, which is
+ * the contrast of something meant to be ignored. */
 .pm-dash {
-    color: var(--sa-color-fg-disabled);
+    color: var(--sa-color-fg-muted);
     font-weight: 500;
 }
 .pm-num {
@@ -1005,7 +999,7 @@ function formatQuota(v: number | undefined): string {
 .pm-legend-dash {
     width: 14px;
     height: 14px;
-    color: var(--sa-color-fg-disabled);
+    color: var(--sa-color-fg-muted);
     display: grid;
     place-items: center;
     font-size: var(--sa-text-lg);

@@ -887,15 +887,6 @@ async function onLocaleChange(loc: string): Promise<void> {
 </script>
 
 <style>
-.sa-marketing {
-    padding: var(--sa-space-6) var(--sa-space-7);
-    background: var(--sa-color-bg-app);
-    color: var(--sa-color-fg-heading);
-    font-family: var(--sa-font-body);
-    min-height: 100%;
-    box-sizing: border-box;
-}
-
 .sa-marketing-head-actions {
     display: flex;
     align-items: center;

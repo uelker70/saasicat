@@ -1399,6 +1399,50 @@ describe('the boundaries a page keeps', () => {
         expect(leaks).toEqual([]);
     });
 
+    test('no page redeclares the frame the theme draws', () => {
+        // Two did, and it showed: `.sa-discovery` set a 16px page padding and
+        // `.sa-marketing` a 24px one against the theme's 28px, so the hero sat
+        // at three different distances from the sidebar depending on which page
+        // you were on. `.sa-marketing` also repeated four declarations of the
+        // frame verbatim.
+        //
+        // The forbidden properties are read from the theme's own `.sa-page`
+        // rule rather than listed here: whatever that rule decides IS the
+        // frame, and a page that decides it again is deciding it twice.
+        const themeRule = readFileSync(resolve(SRC_DIR, 'ui/theme/base.css'), 'utf8');
+        const frameBlock = themeRule.slice(
+            themeRule.indexOf('{', themeRule.indexOf('\n.sa-page {')) + 1,
+            themeRule.indexOf('}', themeRule.indexOf('\n.sa-page {')),
+        );
+        const frameProperties = frameBlock
+            .split(';')
+            .map((declaration) => declaration.split(':')[0]?.trim() ?? '')
+            .filter(Boolean);
+        expect(frameProperties.length).toBeGreaterThan(3);
+
+        const offences: string[] = [];
+        for (const file of pages) {
+            const source = readFileSync(file, 'utf8');
+            const rootClass = /<AdminPage[^>]*\sclass="([^"]+)"/.exec(templateOf(source))?.[1];
+            if (!rootClass) continue;
+            for (const name of rootClass.split(/\s+/).filter(Boolean)) {
+                const marker = `\n.${name} {`;
+                const at = source.indexOf(marker);
+                if (at === -1) continue;
+                const block = source.slice(at + marker.length, source.indexOf('}', at));
+                const declared = new Set(
+                    block.split(';').map((declaration) => declaration.split(':')[0]?.trim() ?? ''),
+                );
+                for (const property of frameProperties) {
+                    if (declared.has(property)) {
+                        offences.push(`${relative(SRC_DIR, file)}: .${name} sets ${property}`);
+                    }
+                }
+            }
+        }
+        expect(offences).toEqual([]);
+    });
+
     test('a page imports only from the layers below it', () => {
         // The import surface of a page, as a rule rather than as a habit: the
         // primitives, the feature components, the internal parts, the two
