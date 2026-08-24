@@ -1,26 +1,22 @@
 <template>
-    <q-card flat bordered class="sp-package-snapshot">
-        <q-card-section class="sp-package-snapshot__head">
+    <TenantCard class="sp-package-snapshot">
+        <TenantCardSection class="sp-package-snapshot__head">
             <div>
                 <div class="sp-package-snapshot__eyebrow">{{ i18n.packageSnapshotTitle }}</div>
                 <p class="sp-package-snapshot__sub">{{ i18n.packageSnapshotSubtitle }}</p>
             </div>
-            <q-chip
-                v-if="snapshot && capturedAtIso"
-                dense
-                outline
-                color="grey-7"
-                :label="`${i18n.packageSnapshotCapturedAt}: ${formatDate(capturedAtIso)}`"
-            />
-        </q-card-section>
+            <span v-if="snapshot && capturedAtIso" class="sp-chip">
+                {{ i18n.packageSnapshotCapturedAt }}: {{ formatDate(capturedAtIso) }}
+            </span>
+        </TenantCardSection>
 
-        <q-separator />
+        <hr class="sp-divider" />
 
-        <q-card-section v-if="!snapshot" class="sp-package-snapshot__empty">
+        <TenantCardSection v-if="!snapshot" class="sp-package-snapshot__empty">
             {{ i18n.packageSnapshotNone }}
-        </q-card-section>
+        </TenantCardSection>
 
-        <q-card-section v-else>
+        <TenantCardSection v-else>
             <dl class="sp-package-snapshot__list">
                 <template v-if="snapshot.label">
                     <dt>{{ i18n.activePlan }}</dt>
@@ -87,29 +83,43 @@
             </dl>
 
             <div class="sp-package-snapshot__raw">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    size="sm"
-                    color="primary"
-                    :label="showRaw ? i18n.packageSnapshotHideRaw : i18n.packageSnapshotShowRaw"
-                    :icon="showRaw ? 'expand_less' : 'expand_more'"
+                <TenantButton
+                    variant="quiet"
+                    tone="accent"
                     :aria-expanded="showRaw"
                     :aria-controls="rawId"
                     @click="showRaw = !showRaw"
-                />
+                >
+                    {{ showRaw ? i18n.packageSnapshotHideRaw : i18n.packageSnapshotShowRaw }}
+                    <svg
+                        class="sp-package-snapshot__caret"
+                        :class="{ 'sp-package-snapshot__caret--open': showRaw }"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        aria-hidden="true"
+                    >
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </TenantButton>
                 <pre v-if="showRaw" :id="rawId" class="sp-package-snapshot__raw-body">{{
                     rawJson
                 }}</pre>
             </div>
-        </q-card-section>
-    </q-card>
+        </TenantCardSection>
+    </TenantCard>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue';
 import { useTenantI18n } from './tenant-i18n.js';
+import TenantButton from './ui/TenantButton.vue';
+import TenantCard from './ui/TenantCard.vue';
+import TenantCardSection from './ui/TenantCardSection.vue';
+import './ui/tenant-ui.css';
 import type { PackageSnapshotShape } from '@saasicat/ui-vue';
 
 // PackageSnapshotPanel — P11.4:
@@ -131,25 +141,25 @@ interface Props {
 const props = defineProps<Props>();
 
 // sa-disclosure-exempt(toggles `showRaw`, writes `aria-expanded`):
-// a tenant-facing raw payload toggle, in a directory that is leaving
+// a tenant-facing raw payload toggle, in the package that left
 //
-// The package has one disclosure, `AdminAccordion`, and every surface inside
-// the admin uses it. This one is outside the admin twice over.
+// The admin has one disclosure, `AdminAccordion`, and every surface there uses
+// it. This one is outside the admin twice over.
 //
-// It is outside by AUDIENCE: `pages-tenant/*` renders inside the customer's own
-// application, for the paying tenant rather than the operator, and is planned
-// to ship as its own package with its own translations. Reaching into the
-// admin's component layer from here adds a dependency that the split would
-// have to unpick, for a card that is already built from Quasar's own.
+// It is outside by AUDIENCE: this package renders inside the customer's own
+// application, for the paying tenant rather than the operator, with its own
+// translations. Reaching into the admin's component layer from here would put
+// that package's stack back into an application that did not choose it — which
+// is the whole point of ADR 0010.
 //
 // It is outside by SHAPE: `AdminAccordion` is a row in a list whose header
 // opens its body — the design guide calls the pattern "rows that open". This is
-// a `q-card` with a `<pre>` of raw JSON behind a link-styled button at its foot,
-// and wrapping that in an accordion card would seat a bordered card inside a
+// a card with a `<pre>` of raw JSON behind a quiet button at its foot, and
+// wrapping that in an accordion card would seat a bordered card inside a
 // bordered card to say "this opens".
 //
-// What it does take from the shared one is the half that is not layout. A
-// `q-btn` was already a real `<button>` with a label — the accessibility gap
+// What it does take from the shared one is the half that is not layout. The
+// trigger was always a real `<button>` with a label — the accessibility gap
 // here was never the keyboard, only that nothing said the button expands
 // something or what it expands. `role="region"` is deliberately not copied: the
 // accordion's body is named by a trigger that carries the row's title, and this
@@ -240,6 +250,17 @@ const rawJson = computed(() => {
     margin: 0;
     padding-left: var(--sa-space-5);
     list-style: disc;
+}
+.sp-package-snapshot__caret {
+    transition: transform 120ms ease;
+}
+.sp-package-snapshot__caret--open {
+    transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+    .sp-package-snapshot__caret {
+        transition: none;
+    }
 }
 .sp-package-snapshot__raw {
     margin-top: var(--sa-space-5);

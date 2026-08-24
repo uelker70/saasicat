@@ -1,5 +1,5 @@
 <template>
-    <q-card-section>
+    <TenantCardSection>
         <div class="sp-plan-section__usage-title">{{ i18n.usageTitle }}</div>
         <div class="sp-plan-section__usage-grid">
             <UsageBar
@@ -12,12 +12,13 @@
                 :format-value="usageBarFormatter(key)"
             />
         </div>
-    </q-card-section>
+    </TenantCardSection>
 </template>
 
 <script setup lang="ts">
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
 import { useTenantI18n } from '../tenant-i18n.js';
+import TenantCardSection from '../ui/TenantCardSection.vue';
 import UsageBar from '../UsageBar.vue';
 
 const i18n = useTenantI18n();

@@ -1,5 +1,5 @@
 <template>
-    <q-card-section>
+    <TenantCardSection>
         <div class="sp-plan-section__usage-title">{{ i18n.bundlesStoreTitle }}</div>
 
         <!-- Booked bundles -->
@@ -22,26 +22,24 @@
                         <span class="sp-plan-section__item-price">
                             {{ formatCurrency(row.monthlyNet) }} {{ i18n.bundlesPerMonth }}
                         </span>
-                        <q-btn
+                        <TenantButton
                             v-if="!row.canceledAt"
-                            flat
-                            dense
-                            color="negative"
-                            :label="i18n.bundleCancelAction"
+                            variant="quiet"
+                            tone="danger"
                             :loading="cancelingId === row.id"
-                            :disable="cancelingId === row.id"
                             @click="emit('cancel', row.id)"
-                        />
-                        <q-btn
-                            v-if="row.canceledAt"
-                            flat
-                            dense
-                            color="primary"
-                            :label="i18n.bundleReactivateAction"
+                        >
+                            {{ i18n.bundleCancelAction }}
+                        </TenantButton>
+                        <TenantButton
+                            v-else
+                            variant="quiet"
+                            tone="accent"
                             :loading="reactivatingId === row.id"
-                            :disable="reactivatingId === row.id"
                             @click="emit('reactivate', row.id)"
-                        />
+                        >
+                            {{ i18n.bundleReactivateAction }}
+                        </TenantButton>
                     </div>
                 </li>
             </ul>
@@ -54,11 +52,9 @@
                 {{ i18n.bundlesAvailableEmpty }}
             </div>
             <div v-else class="sp-bundle-store__grid">
-                <q-card
+                <TenantCard
                     v-for="row in availableRows"
                     :key="row.bundle.bundleVersionId"
-                    flat
-                    bordered
                     class="sp-bundle-store__card"
                     :class="{ 'sp-bundle-store__card--disabled': row.state !== 'bookable' }"
                 >
@@ -70,28 +66,25 @@
                         </span>
                     </div>
 
-                    <q-badge
+                    <span
                         v-if="row.state === 'booked'"
-                        color="positive"
-                        :label="i18n.bundleAlreadyBooked"
-                        class="sp-bundle-store__card-badge"
-                    />
-                    <q-badge
+                        class="sp-badge sp-badge--positive sp-bundle-store__card-badge"
+                    >
+                        {{ i18n.bundleAlreadyBooked }}
+                    </span>
+                    <span
                         v-else-if="row.state === 'incompatible'"
-                        color="grey-5"
-                        text-color="grey-9"
-                        :label="i18n.bundleIncompatible"
-                        class="sp-bundle-store__card-badge"
-                    />
-                    <q-badge
+                        class="sp-badge sp-badge--neutral sp-bundle-store__card-badge"
+                    >
+                        {{ i18n.bundleIncompatible }}
+                    </span>
+                    <span
                         v-else-if="row.state === 'missing-requires'"
-                        color="grey-5"
-                        text-color="grey-9"
-                        :label="`${i18n.bundleMissingRequires}: ${missingRequiresOf(row.bundle)
-                            .map(featureLabel)
-                            .join(', ')}`"
-                        class="sp-bundle-store__card-badge"
-                    />
+                        class="sp-badge sp-badge--neutral sp-bundle-store__card-badge"
+                    >
+                        {{ i18n.bundleMissingRequires }}:
+                        {{ missingRequiresOf(row.bundle).map(featureLabel).join(', ') }}
+                    </span>
 
                     <p v-if="row.bundle.description" class="sp-bundle-store__card-desc">
                         {{ row.bundle.description }}
@@ -104,31 +97,36 @@
                             <li v-for="f in row.bundle.features" :key="f">{{ featureLabel(f) }}</li>
                         </ul>
                     </div>
-                    <q-btn
+                    <TenantButton
                         v-if="row.state === 'bookable'"
-                        color="primary"
-                        unelevated
+                        variant="solid"
+                        tone="accent"
                         class="sp-bundle-store__card-action"
-                        :label="
+                        :loading="buyingId === row.bundle.bundleVersionId"
+                        :disabled="buyingId !== null"
+                        @click="emit('buy', row.bundle.bundleVersionId)"
+                    >
+                        {{
                             buyingId === row.bundle.bundleVersionId
                                 ? i18n.bundleBookInProgress
                                 : i18n.bundleBookAction
-                        "
-                        :loading="buyingId === row.bundle.bundleVersionId"
-                        :disable="buyingId !== null"
-                        @click="emit('buy', row.bundle.bundleVersionId)"
-                    />
-                </q-card>
+                        }}
+                    </TenantButton>
+                </TenantCard>
             </div>
         </div>
 
         <div v-if="error" class="sp-plan-section__error">{{ error }}</div>
-    </q-card-section>
+    </TenantCardSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
+import TenantButton from '../ui/TenantButton.vue';
+import TenantCard from '../ui/TenantCard.vue';
+import TenantCardSection from '../ui/TenantCardSection.vue';
+import '../ui/tenant-ui.css';
 import { missingRequiresFor } from '@saasicat/core';
 import type { CatalogBundle } from '@saasicat/ui-vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';

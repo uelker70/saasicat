@@ -5,7 +5,7 @@
              otherwise the wizard would be unmounted mid-submit and would not
              close. -->
         <div v-if="loading && !usage" class="sp-plan-section__loading">
-            <q-spinner size="32px" />
+            <span class="sp-spinner" aria-hidden="true"></span>
             <span>{{ effectiveI18n.loading }}</span>
         </div>
 
@@ -36,16 +36,16 @@
                     acceptInProgress: effectiveI18n.pendingVersionAcceptInProgress,
                     acceptedAt: effectiveI18n.pendingVersionAcceptedAt,
                 }"
-                class="q-mb-md"
+                class="sp-plan-section__banner"
                 @accept="onAcceptPending"
             />
 
             <!-- Current plan card + actions -->
-            <q-card flat bordered class="sp-plan-section__card">
+            <TenantCard class="sp-plan-section__card">
                 <TenantPlanCardHeader
                     :usage="usage"
                     :current-plan-name="currentPlanName"
-                    :status-color="statusColor"
+                    :status-tone="statusTone"
                     :status-label="statusLabel"
                     :cycle-label="cycleLabel"
                     :current-price-eur="currentPriceEur"
@@ -56,7 +56,7 @@
                     @change-plan="showWizard = true"
                 />
 
-                <q-separator />
+                <hr class="sp-divider" />
 
                 <!-- Usage -->
                 <TenantUsageGrid
@@ -68,17 +68,21 @@
                 />
 
                 <template v-if="showFeatureMatrix && hasFeatureOverview">
-                    <q-separator />
+                    <hr class="sp-divider" />
 
                     <!-- Feature scope (#18): all features included + locked -->
                     <TenantFeatureMatrix
                         :feature-registry="featureRegistry"
                         :active-features="activeFeatures"
                         :feature-label="featureLabelResolved"
-                    />
+                    >
+                        <template v-if="$slots['feature-icon']" #feature-icon="slotProps">
+                            <slot name="feature-icon" v-bind="slotProps" />
+                        </template>
+                    </TenantFeatureMatrix>
                 </template>
 
-                <q-separator v-if="showBundleStore && hasBundleStore" />
+                <hr v-if="showBundleStore && hasBundleStore" class="sp-divider" />
 
                 <!-- Bundle store (#15): booked + available bundles -->
                 <TenantBundleStore
@@ -97,7 +101,7 @@
                     @cancel="onCancelBundle"
                     @reactivate="onReactivateBundle"
                 />
-            </q-card>
+            </TenantCard>
 
             <!-- Bundle add/cancel preview (#37/#61): proration, redundancy,
                  requires blockers, minimum term — mutation only after confirm. -->
@@ -199,8 +203,11 @@ import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
 import TenantPlanCardHeader from './tenant-plan-section/TenantPlanCardHeader.vue';
 import TenantUsageGrid from './tenant-plan-section/TenantUsageGrid.vue';
+import type { BadgeTone } from './ui/badge-tone.js';
 import TenantButton from './ui/TenantButton.vue';
+import TenantCard from './ui/TenantCard.vue';
 import TenantDialog from './ui/TenantDialog.vue';
+import './ui/tenant-ui.css';
 import {
     useTenantBilling,
     type BundlePreviewShape,
@@ -408,8 +415,13 @@ const statusLabel = computed(() => {
     }
 });
 
-const statusColor = computed(() => {
-    if (!usage.value) return 'grey';
+// A badge tone, not a Quasar colour name. Two of the old five had no tone at
+// all — `grey` and `amber` — and the two ambers meant different things: an
+// overdue payment is the tenant's problem to solve, a contract sitting with
+// sales is not. They keep separate tones for that reason, and the label says
+// which is which regardless (rule 7: never colour alone).
+const statusTone = computed<BadgeTone>(() => {
+    if (!usage.value) return 'neutral';
     switch (usage.value.status) {
         case 'TRIAL':
             return 'info';
@@ -418,7 +430,7 @@ const statusColor = computed(() => {
         case 'CANCELED':
             return 'negative';
         case 'PENDING_SALES':
-            return 'amber';
+            return 'neutral';
         default:
             return 'positive';
     }
@@ -589,6 +601,9 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
     background: var(--sa-color-negative-surface);
     padding: var(--sa-space-4) var(--sa-space-5);
     border-radius: var(--sa-radius-badge);
+}
+.sp-plan-section__banner {
+    margin-bottom: var(--sa-space-5);
 }
 .sp-plan-section__card-head {
     display: flex;

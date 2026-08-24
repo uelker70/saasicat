@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { VISUAL_CASES } from './visual/pages.js';
-import { reveal } from './visual/collect.js';
+import { reveal, visualReady } from './visual/collect.js';
 
 declare global {
     interface Window {
@@ -152,16 +152,30 @@ const COLLECT = (): Reading => {
 
     const root = document.getElementById('visual-root') ?? document.body;
 
-    // Quasar teleports every dialog, menu and tooltip to a node at `<body>`,
-    // so a checker that walks `#visual-root` alone has never judged one — and
-    // the package has twenty-one dialog sites. The visual baselines already
-    // gather them this way; this one did not, which is why a case whose whole
-    // subject is a dialog reported zero elements to judge.
-    const dialogs = [...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d));
+    // A dialog, a menu or a tooltip is teleported to a node at `<body>`, so a
+    // checker that walks `#visual-root` alone has never judged one — and this
+    // package has twenty-one dialog sites.
+    //
+    // Derived from where the node SITS, not from what it is called. This asked
+    // for `.q-dialog` until the tenant package stopped using Quasar, and then a
+    // case whose whole subject is a dialog reported zero elements to judge —
+    // green on the day the thing it was written for disappeared. A teleported
+    // subtree is any child of `<body>` that is neither the root nor inside it,
+    // whoever teleported it; `<script>` and `<style>` paint nothing.
+    const teleported = [...document.body.children].filter(
+        (node) =>
+            !root.contains(node) &&
+            !node.contains(root) &&
+            // No text filter here, unlike the baseline collector: an element
+            // with nothing painted on it is never judged below, so empty
+            // scaffolding costs a loop iteration rather than a recorded line.
+            node.tagName !== 'SCRIPT' &&
+            node.tagName !== 'STYLE',
+    );
     const painted: Painted[] = [];
 
     for (const el of [root, ...root.querySelectorAll('*')].concat(
-        dialogs.flatMap((d) => [d, ...d.querySelectorAll('*')]),
+        teleported.flatMap((node) => [node, ...node.querySelectorAll('*')]),
     )) {
         const style = window.getComputedStyle(el);
         if (style.display === 'none' || style.visibility === 'hidden') continue;
@@ -295,7 +309,7 @@ test.describe('both themes are readable', () => {
     for (const entry of ACCEPTED) {
         test(`the accepted exception ${entry.selector} still exists`, async ({ page }) => {
             await page.goto(`/?page=${entry.page}`);
-            await page.waitForSelector('body[data-visual-ready="true"]');
+            await visualReady(page);
             await expect(
                 page.locator(entry.selector).first(),
                 `${entry.selector} is no longer rendered on "${entry.page}" — ` +
@@ -307,7 +321,7 @@ test.describe('both themes are readable', () => {
     for (const visualCase of VISUAL_CASES) {
         test(`${visualCase.id} — light and dark`, async ({ page }) => {
             await page.goto(`/?page=${visualCase.id}`);
-            await page.waitForSelector('body[data-visual-ready="true"]');
+            await visualReady(page);
             await expect(page.locator('#visual-error')).toHaveCount(0);
 
             // The readiness marker says the PAGE rendered, not that the theme
@@ -475,7 +489,7 @@ test.describe('an embedded consumer stays in step with its host', () => {
 
     test('the OS alone does not put the platform into dark mode', async ({ page }) => {
         await page.goto('/?page=audit');
-        await page.waitForSelector('body[data-visual-ready="true"]');
+        await visualReady(page);
 
         const reading = await page.evaluate(() => {
             // Undo what the fixture's bridge did, leaving the embedded case.
@@ -557,7 +571,7 @@ test.describe('a consumer can override a role', () => {
 
     test('written per theme, it takes effect everywhere', async ({ page }) => {
         await page.goto('/?page=audit');
-        await page.waitForSelector('body[data-visual-ready="true"]');
+        await visualReady(page);
 
         const result = await sweep(
             page,
@@ -579,7 +593,7 @@ test.describe('a consumer can override a role', () => {
         // property resolves where it is DECLARED. Written below, it is invisible
         // — Quasar's own components would recolour and the admin would not.
         await page.goto('/?page=audit');
-        await page.waitForSelector('body[data-visual-ready="true"]');
+        await visualReady(page);
 
         const readings = await page.evaluate(() => {
             const target = document.querySelector('.sa-section') as HTMLElement;
@@ -618,7 +632,7 @@ test.describe('a consumer can override a role', () => {
         // `var(--sa-heading)` kept light text while everything around it went
         // dark, which is the opposite of the promise.
         await page.goto('/?page=audit');
-        await page.waitForSelector('body[data-visual-ready="true"]');
+        await visualReady(page);
 
         const readings = await page.evaluate(() => {
             const target = document.querySelector('.sa-section') as HTMLElement;
@@ -662,7 +676,7 @@ test.describe('a consumer can override a role', () => {
         page,
     }) => {
         await page.goto('/?page=audit');
-        await page.waitForSelector('body[data-visual-ready="true"]');
+        await visualReady(page);
 
         const result = await sweep(page, `:root { ${OVERRIDE}: rgb(1, 2, 3); }`);
 
