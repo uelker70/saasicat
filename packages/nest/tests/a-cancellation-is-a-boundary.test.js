@@ -180,11 +180,12 @@ describe('a cancellation still to come', () => {
 });
 
 describe('a cycle change while a cancellation is outstanding', () => {
-    test('the preview says so before the reader has decided anything', async () => {
-        // A blocker is what the wizard reads. Without one the reader picks the
-        // cycle, reads the consequence, ticks the acknowledgement and meets the
-        // refusal on confirm — the whole flow spent on an answer that was known
-        // at the first step.
+    /**
+     * The preview over a monthly subscription that is cancelled but running.
+     * The setup is identical for both tests below; what differs is the cycle
+     * they ask for, which is the whole subject.
+     */
+    function previewFor(targetCycle) {
         const service = new PlanChangePreviewService(
             CATALOG,
             {
@@ -195,19 +196,19 @@ describe('a cycle change while a cancellation is outstanding', () => {
                 }),
                 invalidateTenant() {},
             },
-            {
-                findForTenant: async () => ({
-                    ...SUBSCRIPTION,
-                    billingCycle: 'MONTHLY',
-                    canceledAt: new Date(),
-                    canceledEffectiveAt: new Date(Date.now() + 20 * DAY),
-                }),
-            },
+            { findForTenant: async () => ending },
             { snapshot: async () => ({ users: 1 }) },
             null,
         );
+        return service.preview('t1', 'STANDARD', targetCycle, new Date());
+    }
 
-        const dto = await service.preview('t1', 'STANDARD', 'YEARLY', new Date());
+    test('the preview says so before the reader has decided anything', async () => {
+        // A blocker is what the wizard reads. Without one the reader picks the
+        // cycle, reads the consequence, ticks the acknowledgement and meets the
+        // refusal on confirm — the whole flow spent on an answer that was known
+        // at the first step.
+        const dto = await previewFor('YEARLY');
 
         assert.ok(
             dto.blockers.some((b) => b.code === 'CANCELLATION_LOCKS_THE_CYCLE'),
@@ -219,29 +220,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
         // The premise: the blocker is about the rhythm, not about being
         // cancelled. A plan change on the same cycle is allowed and must not be
         // reported as impossible.
-        const service = new PlanChangePreviewService(
-            CATALOG,
-            {
-                computeLimits: async () => ({
-                    plan: 'STARTER',
-                    quotas: { users: 3 },
-                    features: new Set(['CORE']),
-                }),
-                invalidateTenant() {},
-            },
-            {
-                findForTenant: async () => ({
-                    ...SUBSCRIPTION,
-                    billingCycle: 'MONTHLY',
-                    canceledAt: new Date(),
-                    canceledEffectiveAt: new Date(Date.now() + 20 * DAY),
-                }),
-            },
-            { snapshot: async () => ({ users: 1 }) },
-            null,
-        );
-
-        const dto = await service.preview('t1', 'STANDARD', 'MONTHLY', new Date());
+        const dto = await previewFor('MONTHLY');
 
         assert.deepEqual(
             dto.blockers.filter((b) => b.code === 'CANCELLATION_LOCKS_THE_CYCLE'),
