@@ -73,9 +73,22 @@ accepts an optional `expectedEffectiveAt` and refuses with
 before a notice deadline and confirmed after it cannot deliver a date the
 customer never saw.
 
+**A cancellation writes what it decided, not only when it lands.** Two things
+follow from the date and neither is asked for. A subscription with nothing left
+to run — a trial, or one still waiting for sales, with no period end and no
+committed term — is now recorded as ended rather than left `ACTIVE` for good:
+nothing downstream would ever have transitioned it. What entitlements a
+cancelled subscription grants is unchanged and still under review. And a
+declaration made after the notice window closed
+extends the stored commitment to the period it bought, because every other
+reader of the term end looks at `minimumTermUntil` — a downgrade scheduled
+meanwhile would otherwise have landed at the old term end, inside the period the
+customer had just paid for.
+
 **Breaking for anyone implementing the ports.**
 `TenantSubscriptionWritePort.cancelSubscription` now takes
-`{ canceledAt, effectiveAt, terminateNow }` and returns `canceledEffectiveAt`;
+`{ canceledAt, effectiveAt, terminateNow, minimumTermUntil? }` and returns
+`canceledEffectiveAt`;
 it used to compute the effective date itself from a boolean, which put a
 commercial decision in a persistence adapter where neither the term nor the
 notice period is visible. `SubscriptionUsageRecord` gains three optional fields,

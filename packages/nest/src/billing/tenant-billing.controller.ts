@@ -746,10 +746,34 @@ export class TenantBillingController {
             });
         }
 
+        // Two further writes the decision implies, and neither is the client's
+        // to ask for.
+        //
+        // `terminateNow` follows the DATE the rules returned, not a flag: it is
+        // true exactly when they found nothing left to run — no period, no term,
+        // as on a trial or a subscription still waiting for sales — and there
+        // `effectiveAt` is `now`. Without it the row keeps saying ACTIVE for
+        // good, because nothing downstream would ever transition it:
+        // `computeNextPeriod` returns early on a subscription whose period end
+        // is null, and there is no other materialisation path.
+        //
+        // What it does NOT do is stop the entitlements. Measured, not assumed:
+        // `EntitlementService.computeLimits` grants a CANCELED subscription
+        // whose cancellation landed eight months ago exactly what it granted
+        // while active. Nothing on that path reads the status or the effective
+        // date. That gap is general rather than particular to this route, and
+        // it is issue #219.
+        //
+        // A declaration made after the notice deadline is the mirror image. It
+        // buys the following period, and the commitment has to say so, because
+        // every reader of the term end looks at `minimumTermUntil` rather than
+        // at this cancellation — a downgrade scheduled meanwhile would otherwise
+        // land at the old term end, inside the period just paid for.
         const result = await this.subscriptionWrite.cancelSubscription(tenantId, {
             canceledAt: now,
             effectiveAt: decision.effectiveAt,
-            terminateNow: false,
+            terminateNow: decision.effectiveAt <= now,
+            minimumTermUntil: decision.afterNoticeDeadline ? decision.effectiveAt : undefined,
         });
         this.entitlements.invalidateTenant(tenantId);
         await this.auditLog(req, userId, 'Subscription', tenantId, 'CANCEL_SUBSCRIPTION', {

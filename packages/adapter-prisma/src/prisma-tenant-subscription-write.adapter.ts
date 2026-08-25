@@ -265,7 +265,12 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
 
     async cancelSubscription(
         tenantId: string,
-        input: { canceledAt: Date; effectiveAt: Date; terminateNow: boolean },
+        input: {
+            canceledAt: Date;
+            effectiveAt: Date;
+            terminateNow: boolean;
+            minimumTermUntil?: Date;
+        },
     ): Promise<{ canceledAt: Date | null; canceledEffectiveAt: Date | null; status: string }> {
         const subscription = this.subscription(this.prisma);
         const sub = await subscription.findUnique({ where: { tenantId } });
@@ -280,6 +285,11 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             data: {
                 canceledAt: input.canceledAt,
                 canceledEffectiveAt: input.effectiveAt,
+                // Absent means unchanged rather than null: an ordinary
+                // cancellation does not touch the commitment it was measured
+                // against, and writing the field on every call would erase a
+                // term that is still running.
+                ...(input.minimumTermUntil ? { minimumTermUntil: input.minimumTermUntil } : {}),
                 status: input.terminateNow ? 'CANCELED' : sub.status,
             },
         });

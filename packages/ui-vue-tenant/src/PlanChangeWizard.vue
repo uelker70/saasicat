@@ -175,6 +175,11 @@
                     <strong>{{ targetPlanName }}</strong>
                     ({{ targetCycle === 'YEARLY' ? i18n.cycleYearly : i18n.cycleMonthly }})
                 </p>
+                <div v-if="previewLoading" class="sp-wizard__loading">
+                    <span class="sp-spinner" aria-hidden="true"></span>
+                    <span>{{ i18n.previewLoading }}</span>
+                </div>
+
                 <p v-if="preview?.isImmediate" class="sp-wizard__confirm-line">
                     {{ i18n.confirmImmediate }}
                 </p>
@@ -263,7 +268,9 @@
                         tone="accent"
                         :loading="submitting"
                         :disabled="
-                            submitting || (acknowledgement !== null && !deferralAcknowledged)
+                            submitting ||
+                            previewLoading ||
+                            (acknowledgement !== null && !deferralAcknowledged)
                         "
                         @click="submit"
                     >
@@ -602,19 +609,36 @@ async function goToPreview() {
     await loadPreview();
 }
 
+// Which question is outstanding. Two previews can be in flight at once — the
+// cycle can change again while the first is on the wire — and the network does
+// not promise to answer them in the order they were asked. Without this, the
+// slower earlier answer wins by arriving last, and it describes a target the
+// reader has since abandoned.
+let latestPreviewRequest = 0;
+
 /** Fetches the preview for the current target. Never the stale one. */
 async function loadPreview(): Promise<void> {
     const plan = targetPlan.value;
     if (!plan) return;
+    const request = (latestPreviewRequest += 1);
+    // Cleared, not kept: what the confirm step shows has to be the answer to
+    // the question currently being asked, and the old one still carries the
+    // other choice's date, price and `isImmediate`. Holding it while a new
+    // answer is on the wire is what let a reader tick a deferral and submit an
+    // upgrade the server then applied on the spot.
+    preview.value = null;
     previewLoading.value = true;
     previewError.value = null;
     try {
-        preview.value = await props.previewPlanChange(plan, targetCycle.value);
+        const dto = await props.previewPlanChange(plan, targetCycle.value);
+        if (request !== latestPreviewRequest) return;
+        preview.value = dto;
     } catch (err) {
+        if (request !== latestPreviewRequest) return;
         preview.value = null;
         previewError.value = err instanceof Error ? err.message : String(err);
     } finally {
-        previewLoading.value = false;
+        if (request === latestPreviewRequest) previewLoading.value = false;
     }
 }
 
@@ -623,8 +647,14 @@ async function loadPreview(): Promise<void> {
 // block does, on the confirmation step — leaves a preview describing the other
 // choice: its date, its price, its `isImmediate`. The button promised the
 // upgrade today and the stale answer would have scheduled it at term end.
+//
+// The condition is "the preview step is live", in any of its three states.
+// Reading only the installed preview would miss the state this function itself
+// produces: a second change arriving while the first answer is still on the
+// wire would find no preview to react to, ask nothing, and let the outdated
+// request install itself.
 watch(targetCycle, () => {
-    if (preview.value || previewError.value) void loadPreview();
+    if (preview.value || previewError.value || previewLoading.value) void loadPreview();
 });
 
 async function submit() {

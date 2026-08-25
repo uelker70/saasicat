@@ -409,13 +409,26 @@ export interface TenantSubscriptionWritePort {
      * question in a persistence layer, and could not see the minimum term or
      * the notice period at all.
      *
-     * `terminateNow` flips the status immediately. It exists for an operator
-     * ending a contract, not for self-service: a tenant may always declare a
-     * cancellation and may never shorten the term they are in.
+     * `terminateNow` flips the status immediately, and is set when the
+     * cancellation is already effective: an operator ending a contract, or the
+     * rules finding nothing left to run — no period, no term, as on a trial.
+     * It is never a client's request. A tenant may always declare a
+     * cancellation and may never shorten the term they are in; what decides
+     * this flag is the date the rules returned, not the date they asked for.
+     *
+     * `minimumTermUntil` extends the stored commitment, and is set only when
+     * the cancellation itself extends it: a declaration made after the notice
+     * deadline buys the following period. Left unset the stored term end is
+     * unchanged, which is the ordinary case.
      */
     cancelSubscription(
         tenantId: string,
-        input: { canceledAt: Date; effectiveAt: Date; terminateNow: boolean },
+        input: {
+            canceledAt: Date;
+            effectiveAt: Date;
+            terminateNow: boolean;
+            minimumTermUntil?: Date;
+        },
     ): Promise<{ canceledAt: Date | null; canceledEffectiveAt: Date | null; status: string }>;
 
     /**
