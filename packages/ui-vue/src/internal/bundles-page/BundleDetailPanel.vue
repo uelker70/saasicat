@@ -1,7 +1,16 @@
 <template>
     <div class="sa-bd-grid">
         <div class="sa-bd-col">
-            <div class="sa-bd-section-label">{{ msg.fields.masterData }}</div>
+            <div class="sa-bd-section-label">
+                {{ msg.fields.masterData }}
+                <span
+                    v-if="masterDataDirty"
+                    class="sa-bd-dirty"
+                    role="img"
+                    :aria-label="msg.detail.unsavedChanges"
+                    :title="msg.detail.unsavedChanges"
+                />
+            </div>
             <div class="sa-bundles__form">
                 <q-input
                     :model-value="editForm.label"
@@ -85,6 +94,7 @@
                 color="primary"
                 :label="msg.detail.save"
                 :loading="editSubmitting"
+                :disable="!masterDataDirty || editSubmitting"
                 @click="emit('submitEdit')"
             />
         </div>
@@ -111,28 +121,9 @@
                 :save-error="inlineEditorError"
                 @save="(data) => emit('inlineSave', bundle.id, selectedVersion!.id, data)"
                 @discard="emit('discardVersion', bundle.id, selectedVersion!.id)"
+                @publish="emit('publishVersion', selectedVersion!)"
             />
             <div v-else class="sa-bd-empty-row">{{ msg.detail.noVersion }}</div>
-
-            <div class="sa-bd-version-actions">
-                <q-btn
-                    v-if="selectedVersion && selectedVersion.publishedAt === null"
-                    unelevated
-                    color="positive"
-                    icon="rocket_launch"
-                    :label="msg.detail.publishVersion"
-                    @click="emit('publishVersion', selectedVersion)"
-                />
-                <q-btn
-                    class="sa-bd-delete"
-                    flat
-                    dense
-                    color="negative"
-                    icon="delete"
-                    :label="msg.detail.softDelete"
-                    @click="emit('deleteBundle', bundle)"
-                />
-            </div>
         </div>
     </div>
 </template>
@@ -193,6 +184,31 @@ const common = useSaMessages('common');
 const languageCount = computed(() =>
     formatMessage(msg.value.detail.languageCount, { count: props.translatableLocales.length }),
 );
+/**
+ * Whether the master-data column has anything to save.
+ *
+ * Two forms in one panel is a guessing game without this: the left column saves
+ * the bundle, the right one the version, and a reader who changed the label and
+ * the price has to press both. The dot says which side is waiting, and the
+ * button that has nothing to do says so by being disabled.
+ *
+ * Compared against the bundle the form was seeded from, which is what the page
+ * writes into `editForm` when the accordion opens.
+ */
+const masterDataDirty = computed(() => {
+    const bundle = props.bundle;
+    const form = props.editForm;
+    if (
+        form.label !== bundle.label ||
+        form.description !== (bundle.description ?? '') ||
+        form.icon !== (bundle.icon ?? '') ||
+        form.sortOrder !== bundle.sortOrder
+    ) {
+        return true;
+    }
+    return JSON.stringify(props.i18nDraft ?? {}) !== JSON.stringify(bundle.i18n ?? {});
+});
+
 const labelPlaceholder = computed(() =>
     formatMessage(msg.value.detail.labelPlaceholder, { label: props.editForm.label }),
 );

@@ -161,6 +161,14 @@
             </section>
         </div>
 
+        <!--
+            Save and publish in one bar, in the order they happen: you save the
+            draft, then you release it. Publish used to sit in the card footer
+            below, beside an irreversible bundle-wide delete — one releases a
+            version, the other destroys every version there is, and they looked
+            like peers. Discard stays in the status banner above, where it
+            reads as part of the draft's own state.
+        -->
         <div v-if="!locked" class="bve-actions">
             <q-btn
                 flat
@@ -174,10 +182,19 @@
                 unelevated
                 no-caps
                 color="primary"
-                :label="saving ? common.saving : common.save"
+                :label="saving ? common.saving : msg.editor.saveVersion"
                 :disable="!canSave || saving"
                 :title="!canSave ? msg.editor.saveDisabledTooltip : msg.editor.saveTooltip"
                 @click="onSave"
+            />
+            <q-btn
+                v-if="publishable"
+                unelevated
+                no-caps
+                color="positive"
+                icon="rocket_launch"
+                :label="msg.detail.publishVersion"
+                @click="emit('publish')"
             />
         </div>
         <div v-if="saveError" class="bve-error">
@@ -260,6 +277,7 @@ const props = withDefaults(
 const emit = defineEmits<{
     (e: 'save', data: UpdateBundleVersionDraftData): void;
     (e: 'discard'): void;
+    (e: 'publish'): void;
 }>();
 
 const PRICE_RE = /^\d+(\.\d{1,2})?$/;
@@ -296,6 +314,8 @@ watch(
 
 const status = computed(() => bundleVersionStatus(props.version, props.now));
 const locked = computed(() => status.value === 'live' || status.value === 'superseded');
+/** Publishing is what ends a draft; a scheduled version already has its date. */
+const publishable = computed(() => props.version.publishedAt === null);
 
 // ── Pricing display ────────────────────────────────────────
 const savingsPercent = computed<number | null>(() => {
