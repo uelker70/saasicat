@@ -53,7 +53,7 @@ import { PromoCodesService } from '../promo/promo.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
-import { decideCancellation, type CancellationDecision } from './cancellation.js';
+import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
@@ -266,13 +266,7 @@ export class TenantBillingController {
             // period are not visible to a browser. With a window configured,
             // four days of delay cost a whole period — a sentence that has to
             // be read in the confirmation, not discovered in the receipt.
-            cancellation: decideCancellation({
-                now: new Date(),
-                currentPeriodEnd: sub.currentPeriodEnd ?? null,
-                minimumTermUntil: sub.minimumTermUntil ?? null,
-                billingCycle: sub.billingCycle as BillingCycle,
-                noticePeriodDays: this.cancellationNoticeDays,
-            }),
+            cancellation: this.projectCancellation(sub, new Date()),
             limits: toEffectiveLimitsSnapshot(limits),
             usage,
             packageSnapshot: sub.packageSnapshot ?? null,
@@ -727,13 +721,7 @@ export class TenantBillingController {
         // term they were still inside — the one thing this route may not do.
         // Ending a contract on the spot is an operator's act, and it goes
         // through the operator's own path.
-        const decision = decideCancellation({
-            now,
-            currentPeriodEnd: sub.currentPeriodEnd ?? null,
-            minimumTermUntil: sub.minimumTermUntil ?? null,
-            billingCycle: sub.billingCycle as BillingCycle,
-            noticePeriodDays: this.cancellationNoticeDays,
-        });
+        const decision = this.projectCancellation(sub, now);
 
         // What the page showed has to be what the customer agreed to. Refused
         // rather than silently applied, with the new date in the error so the
@@ -817,6 +805,26 @@ export class TenantBillingController {
     // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------
+
+    /**
+     * What a cancellation declared at `now` would do. One method, because the
+     * page states the date and this route applies it, and two constructions of
+     * the same input are two chances to disagree about a rule the customer
+     * meets once.
+     */
+    private projectCancellation(sub: SubscriptionUsageRecord, now: Date): CancellationDecision {
+        return decideCancellationFor(
+            {
+                status: sub.status,
+                billingCycle: sub.billingCycle as BillingCycle,
+                currentPeriodEnd: sub.currentPeriodEnd ?? null,
+                minimumTermUntil: sub.minimumTermUntil ?? null,
+                trialEndsAt: sub.trialEndsAt ?? null,
+            },
+            now,
+            this.cancellationNoticeDays,
+        );
+    }
 
     private requireTenantId(req: RequestLike): string {
         const resolver: TenantIdResolver =

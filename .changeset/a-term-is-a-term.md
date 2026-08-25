@@ -41,6 +41,15 @@ on the billing module. With no window there is no door to be shut out of; where
 one is configured the cut is hard, and a declaration made after it lands at the
 end of the _following_ period.
 
+**A trial has an end, not a term.** A trial carries a period end like any other
+subscription, and reading it as a commitment made the two rules a customer meets
+disagree: a plan change during a trial applies at once because there is nothing
+to protect, while a cancellation was measured against a term that does not
+exist. With a notice period configured that was not a difference of weeks — a
+trial ending inside the window is already past its deadline, so cancelling a
+yearly-cycle trial bought a year. A trial's cancellation now lands when the
+trial does, and no notice window applies to it.
+
 **A prorated upgrade never asks for less than nothing.** The formula is
 unchanged — `(target − current) × remaining ÷ period` — and its result is now
 floored at zero, with `rawDeltaNet` and `isFree` beside it so a page can say

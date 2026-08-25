@@ -90,3 +90,55 @@ export function decideCancellation(input: CancellationInput): CancellationDecisi
         noticeDeadline,
     };
 }
+
+/**
+ * The fields a cancellation is decided from. Narrow on purpose: this file
+ * decides dates and knows nothing about persistence.
+ */
+export interface CancellableSubscription {
+    status: string;
+    billingCycle: BillingCycle;
+    currentPeriodEnd: Date | null;
+    minimumTermUntil: Date | null;
+    trialEndsAt: Date | null;
+}
+
+/**
+ * Decides a cancellation from a subscription, which is the only correct way to
+ * build the input above: reading the four date fields at a call site loses the
+ * fifth fact, and there is no type that notices.
+ *
+ * That fifth fact is whether the subscription commits to anything. A trial does
+ * not. It has a period end like every other subscription — the repository's own
+ * fixture sets one — and treating that as a term makes the two rules a customer
+ * meets disagree: a plan change during a trial takes effect at once because
+ * there is nothing to protect, while a cancellation was measured against a term
+ * that does not exist.
+ *
+ * The consequence was not a date a few weeks out. With a notice period
+ * configured, a trial ending in five days is already past its deadline, so the
+ * cancellation landed one BILLING CYCLE after the trial — a customer ending a
+ * yearly-cycle trial bought a year by cancelling it. The window exists so that a
+ * term cannot be left at the last moment; a trial has no term to leave.
+ *
+ * What a trial does have is an end, and the cancellation lands there: nothing is
+ * billed for the remainder and the customer keeps what they were given. Ending
+ * it on the spot would take the trial away as the price of saying they do not
+ * want to convert.
+ */
+export function decideCancellationFor(
+    sub: CancellableSubscription,
+    now: Date,
+    noticePeriodDays: number,
+): CancellationDecision {
+    const isTrial = sub.status === 'TRIAL';
+    return decideCancellation({
+        now,
+        currentPeriodEnd: isTrial
+            ? (sub.trialEndsAt ?? sub.currentPeriodEnd)
+            : sub.currentPeriodEnd,
+        minimumTermUntil: isTrial ? null : sub.minimumTermUntil,
+        billingCycle: sub.billingCycle,
+        noticePeriodDays: isTrial ? 0 : noticePeriodDays,
+    });
+}

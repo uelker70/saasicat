@@ -1,7 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { advanceOneCycle, decideCancellation } from '../dist/billing/index.js';
+import {
+    advanceOneCycle,
+    decideCancellation,
+    decideCancellationFor,
+} from '../dist/billing/index.js';
 
 // Declaring a cancellation is never refused; the rules decide the date.
 //
@@ -153,5 +157,55 @@ describe('a period boundary on a month end stays on a month end', () => {
         // 12 is January of the next year, which is what makes the day count
         // right rather than accidentally right.
         assert.equal(advance('2026-12-31T00:00:00.000Z', 'MONTHLY'), '2027-01-31');
+    });
+});
+
+describe('a trial has an end, not a term', () => {
+    // A trial has a period end like every other subscription — the visual
+    // fixture in this repository sets one — and reading it as a term makes the
+    // two rules a customer meets disagree with each other: a plan change during
+    // a trial takes effect at once because there is nothing to protect, while a
+    // cancellation was measured against a commitment that does not exist.
+    const DAY = 86_400_000;
+    const trialEnds = new Date('2026-06-06T00:00:00.000Z');
+    const trial = (overrides = {}) => ({
+        status: 'TRIAL',
+        billingCycle: 'YEARLY',
+        currentPeriodEnd: trialEnds,
+        minimumTermUntil: null,
+        trialEndsAt: trialEnds,
+        ...overrides,
+    });
+    const now = new Date(trialEnds.getTime() - 5 * DAY);
+
+    test('the cancellation lands when the trial does', () => {
+        const decision = decideCancellationFor(trial(), now, 0);
+        assert.deepEqual(decision.effectiveAt, trialEnds);
+    });
+
+    test('a notice period does not buy a billing cycle', () => {
+        // Five days from the end with a fortnight's notice: for a term this is
+        // past the deadline and lands a period later. A customer ending a
+        // yearly-cycle trial would have bought a year by cancelling it.
+        const decision = decideCancellationFor(trial(), now, 14);
+        assert.deepEqual(decision.effectiveAt, trialEnds);
+        assert.equal(decision.afterNoticeDeadline, false);
+        assert.equal(decision.noticeDeadline, null);
+    });
+
+    test('and a paid term five days out still does', () => {
+        // The premise: the exemption is the trial, not the arithmetic.
+        const decision = decideCancellationFor(trial({ status: 'ACTIVE' }), now, 14);
+        assert.deepEqual(decision.effectiveAt, advanceOneCycle(trialEnds, 'YEARLY'));
+        assert.equal(decision.afterNoticeDeadline, true);
+    });
+
+    test('a trial with no dates at all still lands now', () => {
+        const decision = decideCancellationFor(
+            trial({ currentPeriodEnd: null, trialEndsAt: null }),
+            now,
+            14,
+        );
+        assert.deepEqual(decision.effectiveAt, now);
     });
 });
