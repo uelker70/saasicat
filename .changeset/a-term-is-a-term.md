@@ -124,6 +124,14 @@ them. **This removes access from tenants whose cancellation has already landed**
 carries the query that lists
 them.
 
+**Nothing rolls onto a subscription whose term is over.** A plan _version_
+published before the customer cancelled still comes due afterwards, and the
+renewal decision read only the version's own dates — so it rewrote the plan of a
+subscription that had ended. `decideRenewal` reads the cancellation now, the way
+`computeNextPeriod` beside it already did, and `RenewalSubInput` carries the two
+dates for it. The tenant route that accepts a pending version refuses the same
+case, and the page stops offering the banner that leads to it.
+
 **The page tells an ended subscription from a cancelled one.** Nothing
 transitions the status column when a cancellation lands, so a subscription that
 ended last month still reads `ACTIVE` there. The tenant plan card believed it: a

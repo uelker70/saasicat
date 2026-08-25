@@ -18,9 +18,13 @@
         </div>
 
         <template v-else>
-            <!-- Pending plan version banner -->
+            <!--
+                Pending plan version banner. Not on a subscription that has
+                ended: the route refuses the acceptance, so the banner would
+                offer a button that answers with an error.
+            -->
             <PendingVersionBanner
-                v-if="usage.pendingPlanVersion"
+                v-if="usage.pendingPlanVersion && !hasEnded"
                 :pending="usage.pendingPlanVersion"
                 :effective-at="usage.pendingPlanVersionEffectiveAt"
                 :accepted="usage.pendingPlanVersionAccepted"

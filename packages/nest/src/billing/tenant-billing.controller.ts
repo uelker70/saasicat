@@ -684,6 +684,16 @@ export class TenantBillingController {
                 params: { tenantId },
             });
         }
+        // Same reason the plan cannot be changed: there is no subscription left
+        // to accept anything for, and a page that still offers the act turns a
+        // state it could have shown into an error.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended. There is nothing left to accept.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+            });
+        }
         if (!sub.pendingPlanVersion) {
             throw new BadRequestException({
                 code: BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,

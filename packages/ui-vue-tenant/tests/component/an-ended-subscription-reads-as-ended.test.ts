@@ -3,6 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 
 import TenantPlanCardHeader from '../../src/tenant-plan-section/TenantPlanCardHeader.vue';
+import TenantPlanSection from '../../src/TenantPlanSection.vue';
 import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
@@ -181,5 +182,136 @@ describe('a card left open across the moment', () => {
             spy.mockRestore();
             vi.useRealTimers();
         }
+    });
+});
+
+// The page around the header, because three of the things that change when a
+// subscription ends are decided there rather than in the card: the status
+// badge, its tone, and whether a next billing date is shown at all. And one
+// more act the page offers — accepting a pending plan version — whose route
+// refuses on a subscription that has ended, so the banner has to go with it.
+
+const PENDING_VERSION = {
+    id: 'pv-2',
+    planId: 'PRO',
+    version: 2,
+    publishedAt: iso(-10),
+    supersededAt: null,
+    changeNote: 'More storage',
+};
+
+function sectionUsage(overrides: Record<string, unknown>) {
+    return {
+        plan: 'PRO',
+        effectivePlan: 'PRO',
+        billingCycle: 'MONTHLY',
+        status: 'ACTIVE',
+        isPilot: false,
+        pilotEndsAt: null,
+        trialEndsAt: null,
+        startedAt: iso(-200),
+        currentPeriodStart: iso(-10),
+        currentPeriodEnd: iso(20),
+        pendingPlan: null,
+        pendingBillingCycle: null,
+        pendingEffectiveAt: null,
+        planVersion: { ...PENDING_VERSION, version: 1, changeNote: null },
+        pendingPlanVersion: PENDING_VERSION,
+        pendingPlanVersionEffectiveAt: iso(5),
+        pendingPlanVersionAccepted: false,
+        pendingPlanVersionAcceptedAt: null,
+        canceledAt: null,
+        canceledEffectiveAt: null,
+        cancellation: {
+            effectiveAt: iso(20),
+            termEndsAt: iso(20),
+            noticeDeadline: null,
+            afterNoticeDeadline: false,
+        },
+        limits: { plan: 'PRO', quotas: { users: 50 }, features: ['EXPORT'] },
+        usage: { users: 3 },
+        packageSnapshot: null,
+        checkoutOfferId: null,
+        ...overrides,
+    };
+}
+
+/**
+ * Answers the reads the section makes, and nothing else. `HttpClient` is a
+ * function rather than an object — a fetch-shaped one — so this returns
+ * responses, not payloads.
+ */
+function stubHttp(usage: Record<string, unknown>) {
+    const respond = (payload: unknown) => ({
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: async () => payload,
+        text: async () => JSON.stringify(payload),
+        ok: true,
+    });
+    return async (url: string) => {
+        if (url.includes('/usage')) return respond(usage);
+        // The catalog reads answer with bare arrays, not envelopes.
+        if (url.includes('/subscription-bundles')) return respond([]);
+        if (url.includes('/plans')) return respond([]);
+        if (url.includes('/bundles')) return respond([]);
+        if (url.includes('/feature-registry')) return respond([]);
+        return respond({});
+    };
+}
+
+async function mountSection(usage: Record<string, unknown>) {
+    const wrapper = mount(TenantPlanSection, {
+        attachTo: document.body,
+        props: {
+            http: stubHttp(usage) as never,
+            formatCurrency: (value: number) => `€ ${value.toFixed(2)}`,
+            formatDate: (value: string | Date) => String(value).slice(0, 10),
+        },
+    });
+    mounted.push(wrapper as VueWrapper);
+    // Two composables load in parallel; let both settle.
+    for (let turn = 0; turn < 6; turn += 1) {
+        await Promise.resolve();
+        await nextTick();
+    }
+    return wrapper;
+}
+
+describe('the page around the card', () => {
+    const ended = sectionUsage({ canceledAt: iso(-90), canceledEffectiveAt: iso(-60) });
+    const running = sectionUsage({});
+
+    test('shows an ended subscription as cancelled, whatever its status column says', async () => {
+        const wrapper = await mountSection(ended);
+
+        // The row still reads ACTIVE — nothing transitions it — so a badge
+        // driven by the status alone would say "Active" here.
+        expect(ended.status).toBe('ACTIVE');
+        expect(wrapper.text()).toContain(i18n.statusCanceled);
+        expect(wrapper.text()).not.toContain(i18n.nextBillingDate);
+    });
+
+    test('and a running one keeps its badge and its billing date', async () => {
+        const wrapper = await mountSection(running);
+
+        expect(wrapper.text()).toContain(i18n.statusActive);
+        expect(wrapper.text()).toContain(i18n.nextBillingDate);
+    });
+
+    test('offers no pending version to accept once the contract is over', async () => {
+        // The route answers SUBSCRIPTION_ENDED; a banner offering the act would
+        // turn a state the page could show into an error dialog.
+        const wrapper = await mountSection(ended);
+
+        expect(wrapper.findComponent({ name: 'PendingVersionBanner' }).exists()).toBe(false);
+    });
+
+    test('while a running subscription is asked about it', async () => {
+        // The premise: the banner is hidden by the ending, not missing from the
+        // fixture.
+        const wrapper = await mountSection(running);
+
+        expect(wrapper.findComponent({ name: 'PendingVersionBanner' }).exists()).toBe(true);
     });
 });

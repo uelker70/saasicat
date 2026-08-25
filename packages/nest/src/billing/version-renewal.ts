@@ -32,6 +32,16 @@ export interface RenewalSubInput {
     pendingPlanVersionAccepted: boolean;
     /** `nonRegressive` from the referenced PlanVersion. */
     pendingPlanVersionNonRegressive: boolean;
+    /**
+     * The cancellation, read the same way `computeNextPeriod` reads it below.
+     *
+     * A version published before the customer cancelled still comes due
+     * afterwards, and rolling it forward rewrites the plan of a subscription
+     * whose term is over. Required, and required together, because a record
+     * that omits them answers "not cancelled" and goes ahead.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
 }
 
 /**
@@ -40,6 +50,11 @@ export interface RenewalSubInput {
 export function decideRenewal(sub: RenewalSubInput, now: Date): RenewalDecision {
     if (!sub.pendingPlanVersionId || !sub.pendingPlanVersionEffectiveAt) return 'SKIP';
     if (sub.pendingPlanVersionEffectiveAt > now) return 'SKIP';
+    // Nothing rolls onto a subscription whose term is over. The same rule the
+    // scheduled plan change follows, one level up: a version is due because a
+    // date arrived, not because anybody still wants it.
+    const landedAt = sub.canceledEffectiveAt ?? sub.canceledAt;
+    if (landedAt !== null && landedAt <= now) return 'SKIP';
     if (sub.pendingPlanVersionNonRegressive || sub.pendingPlanVersionAccepted) {
         return 'ROLL_FORWARD';
     }
