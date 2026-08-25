@@ -1,5 +1,7 @@
 # create-saasicat-admin
 
+## 1.0.0-rc.6
+
 ## 1.0.0-rc.5
 
 ## 1.0.0-rc.4
