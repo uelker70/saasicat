@@ -919,6 +919,18 @@ export class TenantBillingController {
             };
         }
         this.entitlements.invalidateTenant(tenantId);
+        // The frozen contract ends when the subscription does. Non-fatal, like
+        // every other use of this port: the cancellation is already recorded,
+        // and a consumer without contracts has nothing to end.
+        if (this.contractFreeze) {
+            try {
+                await this.contractFreeze.endOnCancellation(tenantId, decision.effectiveAt);
+            } catch (err) {
+                this.logger.error(
+                    `Ending the contract after a cancellation failed (tenant ${tenantId}): ${String(err)}`,
+                );
+            }
+        }
         await this.auditLog(req, userId, 'Subscription', tenantId, 'CANCEL_SUBSCRIPTION', {
             canceledAt: now.toISOString(),
             effectiveAt: decision.effectiveAt.toISOString(),

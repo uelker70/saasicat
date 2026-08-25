@@ -39,6 +39,20 @@ export interface ContractFreezePort {
         billingCycle: BillingCycle,
         effectiveFrom: Date,
     ): Promise<void>;
+
+    /**
+     * Ends the active contract at `effectiveAt`, with no successor.
+     *
+     * A frozen contract is the agreed service, and it cannot outlive the
+     * subscription that agreed to it. Without this the tenant's entitlements
+     * end on the date while the invoice side goes on reading an active
+     * agreement — two answers to "is this customer under contract", and the
+     * one that bills says yes.
+     *
+     * Same mechanic as the supersession above and deliberately not the same
+     * call: there is nothing to succeed it with.
+     */
+    endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void>;
 }
 
 /** Frozen bundle line items + their version ids (trace). */

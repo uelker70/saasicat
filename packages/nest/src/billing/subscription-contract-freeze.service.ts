@@ -42,6 +42,21 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         private readonly source: ContractFreezeSourcePort,
     ) {}
 
+    async endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void> {
+        // The contract ends when the subscription does, and nothing replaces
+        // it. `findActiveByTenantId` is asked as of the effective date rather
+        // than now, so a cancellation recorded ahead of time ends the contract
+        // that is running at that moment rather than whichever one is running
+        // when the write happens.
+        const active = await this.contracts.findActiveByTenantId(tenantId, effectiveAt);
+        if (!active) return;
+        await this.contracts.terminate(active.id, {
+            effectiveUntil: effectiveAt,
+            status: 'terminated',
+        });
+        this.entitlements.invalidateTenant(tenantId);
+    }
+
     async freezeOnPlanChange(
         tenantId: string,
         newPlan: string,

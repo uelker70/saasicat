@@ -152,6 +152,20 @@ passed; deriving them from the effective date reported a declaration that landed
 a period late as an on-time one. `CancellationResultShape.afterNoticeDeadline`
 is therefore `boolean | null`.
 
+**The till closes with the subscription, and the ledger stays open.** A bundle
+is bought, priced and given a minimum term of its own, and it grants its
+features through the parent — which grants nothing once its cancellation has
+landed. Booking, pricing a purchase and reactivating are refused there;
+listing, cancelling and pricing a cancellation stay open, because a tenant who
+has left still has bookings to recognise and invoices to explain.
+
+**A frozen contract ends when the subscription does.** Left active, it outlived
+the agreement it froze: entitlement resolution granted nothing while
+`getActiveInvoiceSnapshotForTenant()` went on reporting a live contract — two
+answers to "is this customer under contract", and the one that bills said yes.
+`ContractFreezePort` gains `endOnCancellation`, and the cancel route calls it
+with the same effective date, non-fatally as every other use of that port.
+
 **Onboarding is a first activation, and a contract that is over is not one.**
 The route refuses a subscription whose cancellation has landed, and its write —
 the atomic one, which is the path a real adapter takes — claims the row against

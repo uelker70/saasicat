@@ -37,6 +37,7 @@ import {
     HttpStatus,
     Inject,
     Logger,
+    ConflictException,
     NotFoundException,
     Optional,
     Param,
@@ -50,6 +51,7 @@ import {
 import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
 import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
 
+import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
@@ -112,7 +114,7 @@ export function buildTenantSubscriptionBundlesController(
         @Post()
         async add(@Req() req: RequestLike, @Body() dto: AddSubscriptionBundleDto) {
             const tenantId = this.requireTenantId(req);
-            const sub = await this.requireSubscription(tenantId);
+            const sub = await this.requireRunningSubscription(tenantId);
             const result = await this.service.addBundleToSubscription({
                 subscriptionId: this.requireSubscriptionPk(sub),
                 bundleVersionId: dto.bundleVersionId,
@@ -137,7 +139,12 @@ export function buildTenantSubscriptionBundlesController(
                         'subscriptionBundleId (cancel preview) must be given.',
                 });
             }
-            const sub = await this.requireSubscription(this.requireTenantId(req));
+            // One route, two questions. Pricing a purchase closes with the
+            // till; pricing a cancellation is part of tidying up, and a tenant
+            // whose subscription ended must still be able to ask it.
+            const sub = hasAdd
+                ? await this.requireRunningSubscription(this.requireTenantId(req))
+                : await this.requireSubscription(this.requireTenantId(req));
             const ctx: SubscriptionBundlePreviewContext = {
                 subscriptionId: this.requireSubscriptionPk(sub),
                 // Plan KEY (compatibility.planIds is key-based) — not the planVersion UUID.
@@ -183,7 +190,8 @@ export function buildTenantSubscriptionBundlesController(
             @Param('id', new ParseUUIDPipe()) subscriptionBundleId: string,
         ) {
             const tenantId = this.requireTenantId(req);
-            const sub = await this.requireSubscription(tenantId);
+            // Reactivating is buying again, so it closes with the till.
+            const sub = await this.requireRunningSubscription(tenantId);
             const result = await this.service.reactivateBundle(subscriptionBundleId);
             await this.refreezeContract(tenantId, sub);
             return result;
@@ -216,6 +224,32 @@ export function buildTenantSubscriptionBundlesController(
                     code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
                     message: `No subscription for tenant ${tenantId}`,
                     params: { tenantId },
+                });
+            }
+            return sub;
+        }
+
+        /**
+         * The same subscription, refused once its cancellation has landed.
+         *
+         * A bundle is bought, priced and given a minimum term, and it grants
+         * its features through the parent subscription — which grants nothing
+         * once it has ended. Sold there, it is a commitment that can never
+         * deliver: charged, listed, and inert.
+         *
+         * Reading and cancelling stay open on purpose. A tenant whose
+         * subscription ended must still be able to see what they booked and
+         * tidy it up; what closes is the till.
+         */
+        private async requireRunningSubscription(
+            tenantId: string,
+        ): Promise<SubscriptionUsageRecord> {
+            const sub = await this.requireSubscription(tenantId);
+            if (cancellationHasLanded(sub, new Date())) {
+                throw new ConflictException({
+                    code: 'SUBSCRIPTION_ENDED',
+                    message: 'This subscription has ended. Bundles can no longer be booked for it.',
+                    canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 });
             }
             return sub;

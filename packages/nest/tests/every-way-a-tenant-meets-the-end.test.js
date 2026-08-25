@@ -270,3 +270,79 @@ describe('accepting a version after the subscription ended', () => {
         assert.equal(port.accepted.length, 1);
     });
 });
+
+describe('what else ends when the subscription does', () => {
+    // The boundary is not a fact about one table. Everything a tenant was sold
+    // hangs off the subscription, and each of those had its own answer to
+    // "is this customer still under contract" until they were asked to agree.
+
+    test('the frozen contract is ended on the same date', async () => {
+        // A contract is the agreed service, frozen at a plan change. Left
+        // active it outlives the subscription that agreed to it, and the
+        // invoice side goes on reading a live agreement while entitlement
+        // resolution grants nothing — the answer that bills says yes.
+        const ended = [];
+        const port = recordingWritePort();
+        const api = new TenantBillingController(
+            FLAT_ENTITLEMENTS,
+            {
+                async preview() {
+                    return { isImmediate: false, effectiveAt: null, blockers: [] };
+                },
+            },
+            {
+                findForTenant: async () =>
+                    usageRecord({
+                        currentPeriodEnd: new Date(Date.now() + 20 * DAY),
+                        minimumTermUntil: new Date(Date.now() + 20 * DAY),
+                    }),
+            },
+            { snapshot: async () => ({}) },
+            port,
+            () => 't1',
+            () => 'u1',
+            null, // blockedPlans
+            null, // promoCodes
+            null, // auditService
+            null, // userEmailResolver
+            null, // auditContextResolver
+            null, // subscriptionBundles
+            {
+                async freezeOnPlanChange() {},
+                async endOnCancellation(tenantId, effectiveAt) {
+                    ended.push({ tenantId, effectiveAt });
+                },
+            },
+        );
+
+        const result = await api.cancelSubscription(REQUEST, {});
+
+        assert.equal(ended.length, 1, 'the contract outlived the subscription');
+        assert.deepEqual(ended[0].effectiveAt, result.canceledEffectiveAt);
+    });
+
+    test('and a consumer without contracts is unaffected', async () => {
+        // The premise: the port is optional, and its absence is not an error.
+        const port = recordingWritePort();
+        const api = new TenantBillingController(
+            FLAT_ENTITLEMENTS,
+            {
+                async preview() {
+                    return { isImmediate: false, effectiveAt: null, blockers: [] };
+                },
+            },
+            {
+                findForTenant: async () =>
+                    usageRecord({ currentPeriodEnd: new Date(Date.now() + 20 * DAY) }),
+            },
+            { snapshot: async () => ({}) },
+            port,
+            () => 't1',
+            () => 'u1',
+        );
+
+        const result = await api.cancelSubscription(REQUEST, {});
+
+        assert.equal(result.alreadyCanceled, false);
+    });
+});
