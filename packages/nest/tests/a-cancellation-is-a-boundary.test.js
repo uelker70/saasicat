@@ -322,6 +322,52 @@ describe('a cancellation arriving while a plan change is being decided', () => {
     });
 });
 
+describe('a boundary that passes while the request is being decided', () => {
+    // The landed check runs when the subscription is read; the preview runs
+    // after it, and can take a while. A cancellation recorded BEFORE the
+    // request and landing during it satisfies the claim — `canceledAt` does not
+    // change when time passes — so the plan of an ended subscription would be
+    // changed and audited.
+    test('is refused rather than written a moment late', async () => {
+        const port = writePort();
+        // Still ahead when the route reads the subscription, past by the time
+        // the preview answers. The preview is where the time goes, so the fake
+        // spends it — without that, the check at the top of the route catches
+        // this and the re-read below is never exercised.
+        const landingShortly = new Date(Date.now() + 40);
+        const slowPreview = {
+            async preview() {
+                await new Promise((resume) => setTimeout(resume, 80));
+                return IMMEDIATE_UPGRADE;
+            },
+        };
+        const controller = new TenantBillingController(
+            {
+                computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
+                invalidateTenant() {},
+            },
+            slowPreview,
+            {
+                findForTenant: async () => ({
+                    ...SUBSCRIPTION,
+                    canceledAt: new Date(Date.now() - 30 * DAY),
+                    canceledEffectiveAt: landingShortly,
+                }),
+            },
+            { snapshot: async () => ({}) },
+            port,
+            () => 't1',
+            () => 'u1',
+        );
+
+        await assert.rejects(
+            changeTo(controller),
+            (err) => err.getResponse?.().code === 'SUBSCRIPTION_ENDED',
+        );
+        assert.equal(port.immediate.length, 0);
+    });
+});
+
 describe('two declarations arriving at once', () => {
     // The route checks, then writes, and those are two moments. Straddling a
     // notice deadline the second declaration recomputes against a later `now`

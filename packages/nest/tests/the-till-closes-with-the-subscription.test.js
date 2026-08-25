@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    SubscriptionBundlePreviewService,
     SubscriptionBundlesService,
     buildTenantSubscriptionBundlesController,
 } from '../dist/billing/index.js';
@@ -226,11 +227,89 @@ describe('what a bundle may commit to', () => {
         assert.deepEqual(added[0].minimumTermEndsAt, new Date('2027-01-01'));
     });
 
+    test('and no term at all where the caller asked for none', async () => {
+        // `minimumTermMonths: 0` says there is no commitment. Capping that to
+        // the parent's end would invent one — the booking could then not be
+        // cancelled until the subscription ended, which is the opposite of what
+        // a zero-month term is for.
+        const { svc, added } = service();
+
+        await svc.addBundleToSubscription({
+            subscriptionId: 'sub-1',
+            bundleVersionId: 'bv-1',
+            currentPlanKey: 'STANDARD',
+            startedAt: new Date('2026-01-01'),
+            minimumTermMonths: 0,
+            parentEndsAt: new Date('2026-02-01'),
+        });
+
+        assert.equal(added[0].minimumTermEndsAt, null);
+    });
+
     test('and the full term where nothing ends the parent', async () => {
         const { svc, added } = service();
 
         await book(svc, null);
 
         assert.deepEqual(added[0].minimumTermEndsAt, new Date('2027-01-01'));
+    });
+});
+
+describe('what the dialog promises before the booking', () => {
+    // The confirmation states the term the booking commits to, and the write
+    // caps that at the parent's end. A preview that does not cap it describes a
+    // different contract from the one that gets persisted — the reader agrees
+    // to one thing and receives another.
+    const now = new Date('2026-01-01');
+
+    function preview() {
+        return new SubscriptionBundlePreviewService(
+            {
+                listActiveBySubscription: async () => [],
+                findById: async () => null,
+            },
+            {
+                findVersionById: async () => ({
+                    id: 'bv-1',
+                    bundleId: 'b-1',
+                    publishedAt: new Date('2025-01-01'),
+                    supersededAt: null,
+                    compatibility: {},
+                    features: ['F'],
+                    monthlyNet: 5,
+                    yearlyNet: 50,
+                }),
+            },
+            { defaultMinimumTermMonths: 12 },
+        );
+    }
+
+    const ask = (svc, parentEndsAt) =>
+        svc.previewAdd(
+            {
+                subscriptionId: 'sub-1',
+                currentPlanKey: 'STANDARD',
+                billingCycle: 'MONTHLY',
+                status: 'ACTIVE',
+                startedAt: now,
+                currentPeriodStart: now,
+                currentPeriodEnd: new Date('2026-02-01'),
+                parentEndsAt,
+            },
+            { bundleVersionId: 'bv-1' },
+            now,
+        );
+
+    test('states the capped term, not the uncapped one', async () => {
+        const dto = await ask(preview(), new Date('2026-02-01'));
+
+        assert.deepEqual(dto.minimumTermEndsAt, new Date('2026-02-01'));
+    });
+
+    test('and the full term where nothing ends the parent', async () => {
+        // The premise: the preview caps, it does not shorten by default.
+        const dto = await ask(preview(), null);
+
+        assert.deepEqual(dto.minimumTermEndsAt, new Date('2027-01-01'));
     });
 });

@@ -207,7 +207,10 @@ in that window made all three answers about a state that no longer existed, and
 the write went ahead: a plan term recorded past the date the subscription ends.
 `ImmediatePlanChangeInput` and `ScheduledPlanChangeInput` carry
 `expectedCanceledAt`, both writes claim the row only while that still holds, and
-a lost claim answers `SUBSCRIPTION_CHANGED` instead of overwriting.
+a lost claim answers `SUBSCRIPTION_CHANGED` instead of overwriting. The boundary
+itself is re-read immediately before the write: the claim compares `canceledAt`,
+which a passing minute does not change, so a cancellation recorded earlier and
+landing while the preview was computed would have satisfied it.
 
 **The preview says what the write will refuse.** A cancelled subscription
 cannot change its billing cycle, and until now only the write said so — a reader

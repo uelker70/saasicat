@@ -25,6 +25,8 @@ const CTX = {
     startedAt: new Date('2026-01-01T00:00:00Z'),
     currentPeriodStart: new Date('2026-05-01T00:00:00Z'),
     currentPeriodEnd: new Date('2026-06-01T00:00:00Z'),
+    // Nothing ends this plan, so nothing caps a bundle booked on it.
+    parentEndsAt: null,
 };
 
 let bundleRepo;

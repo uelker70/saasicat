@@ -156,6 +156,10 @@ export function buildTenantSubscriptionBundlesController(
                 startedAt: sub.startedAt,
                 currentPeriodStart: sub.currentPeriodStart,
                 currentPeriodEnd: sub.currentPeriodEnd,
+                // The dialog states the term it will be committed to, and the
+                // booking caps that at the parent's end. Both, or the two
+                // describe different contracts.
+                parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             };
             return hasAdd
                 ? this.previewService.previewAdd(ctx, {

@@ -298,11 +298,16 @@ export function addMonths(date: Date, months: number): Date {
 }
 
 /**
- * The earlier of a bundle's own minimum term and the end of the subscription
- * it hangs off. Null on either side means "no end from that direction".
+ * The earlier of a bundle's own minimum term and the end of the subscription it
+ * hangs off — a cap on a commitment, not a commitment of its own.
+ *
+ * A null own term is `minimumTermMonths: 0`, which the caller asked for and
+ * which means there is no commitment to cap. Returning the parent's end there
+ * would invent one: the booking could then not be cancelled until the parent
+ * ended, which is the opposite of what a zero-month term is for, and possibly
+ * a whole further period away.
  */
-function clampToParent(ownTermEndsAt: Date | null, parentEndsAt: Date | null): Date | null {
-    if (parentEndsAt === null) return ownTermEndsAt;
-    if (ownTermEndsAt === null) return parentEndsAt;
+export function clampToParent(ownTermEndsAt: Date | null, parentEndsAt: Date | null): Date | null {
+    if (ownTermEndsAt === null || parentEndsAt === null) return ownTermEndsAt;
     return ownTermEndsAt < parentEndsAt ? ownTermEndsAt : parentEndsAt;
 }

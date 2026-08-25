@@ -376,6 +376,19 @@ export class TenantBillingController {
         // when this route read it, and the write claims the row only while that
         // still holds. A cancellation declared in between loses nothing and
         // changes nothing: the caller is told to look again.
+        //
+        // The claim compares `canceledAt`, which a passing minute does not
+        // change — so a cancellation recorded BEFORE this request, landing
+        // while the preview was computed, would satisfy it. The boundary is
+        // therefore re-read here, against the clock as it is now rather than as
+        // it was when the subscription was fetched.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription ended while the request was being decided.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+            });
+        }
         const changedUnderneath = {
             code: 'SUBSCRIPTION_CHANGED',
             message: 'This subscription changed while the request was being decided. Reload it.',
