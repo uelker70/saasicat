@@ -149,6 +149,21 @@ passed; deriving them from the effective date reported a declaration that landed
 a period late as an on-time one. `CancellationResultShape.afterNoticeDeadline`
 is therefore `boolean | null`.
 
+**A plan change decided against one state is not written into another.** The
+route reads the subscription, computes a preview and decides three things from
+the cancellation — whether the change is refused, whether the cycle may move,
+whether a fresh period is opened — and only then writes. A cancellation arriving
+in that window made all three answers about a state that no longer existed, and
+the write went ahead: a plan term recorded past the date the subscription ends.
+`ImmediatePlanChangeInput` and `ScheduledPlanChangeInput` carry
+`expectedCanceledAt`, both writes claim the row only while that still holds, and
+a lost claim answers `SUBSCRIPTION_CHANGED` instead of overwriting.
+
+**A subscription that has ended is not an active tenant.** Both adapters counted
+by status alone, and a landed cancellation leaves the status at `ACTIVE` — so a
+plan's tenant count in the SuperAdmin UI carried every customer who had ever
+left, and grew for ever.
+
 **A cancellation is declared once, even when it is declared twice at once.**
 The route checks whether one exists and then writes, and those are two moments:
 two requests could pass the check before either wrote. Either side of a notice
@@ -200,9 +215,11 @@ reader of the term end looks at `minimumTermUntil` — a downgrade scheduled
 meanwhile would otherwise have landed at the old term end, inside the period the
 customer had just paid for.
 
-**Breaking for anyone implementing the ports.** `SubscriptionRecord`,
-`SubscriptionUsageRecord` and `DuePendingPlanChange` require `canceledAt` and
-`canceledEffectiveAt` — required rather than optional because
+**Breaking for anyone implementing the ports.** `changePlanImmediate` and
+`schedulePlanChange` take `expectedCanceledAt` and answer `claimed`; both must
+claim conditionally rather than update, or the race above stays open in that
+adapter. `SubscriptionRecord`, `SubscriptionUsageRecord`, `DuePendingPlanChange`
+and `RenewalSubInput` require `canceledAt` and `canceledEffectiveAt` — required rather than optional because
 an adapter that omits them cannot tell a subscription that ends next January
 from one that ended last January, and the silent answer is the wrong one.
 `TenantSubscriptionWritePort.cancelSubscription` now takes

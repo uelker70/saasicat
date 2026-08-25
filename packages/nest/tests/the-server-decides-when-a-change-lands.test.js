@@ -55,10 +55,11 @@ function buildWritePort() {
         scheduledCalls: [],
         async changePlanImmediate(tenantId, input) {
             this.immediateCalls.push({ tenantId, input });
-            return { plan: input.planId, billingCycle: input.cycle };
+            return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
         async schedulePlanChange(tenantId, input) {
             this.scheduledCalls.push({ tenantId, input });
+            return { claimed: true };
         },
         async acceptPendingPlanVersion() {},
         async cancelSubscription() {

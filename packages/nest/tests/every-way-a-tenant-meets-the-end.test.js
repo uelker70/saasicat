@@ -101,7 +101,7 @@ describe('a change and a cancellation on the same day', () => {
             {
                 async changePlanImmediate(tenantId, input) {
                     applied.push(input);
-                    return { plan: input.planId, billingCycle: input.cycle };
+                    return { plan: input.planId, billingCycle: input.cycle, claimed: true };
                 },
             },
             { computeLimits: async () => ({}), invalidateTenant() {} },

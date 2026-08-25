@@ -152,13 +152,19 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 planVersionId: oldVersion.planVersionId,
             });
 
-            await adapter.tenantSubscriptionWrite.changePlanImmediate('tenant-plan-change', {
-                planId: 'PRO',
-                cycle: 'YEARLY',
-                periodStart: null,
-                periodEnd: null,
-                nextStatus: null,
-            });
+            const change = await adapter.tenantSubscriptionWrite.changePlanImmediate(
+                'tenant-plan-change',
+                {
+                    planId: 'PRO',
+                    cycle: 'YEARLY',
+                    periodStart: null,
+                    periodEnd: null,
+                    nextStatus: null,
+                    // The row has no cancellation, so this claims it.
+                    expectedCanceledAt: null,
+                },
+            );
+            assert.equal(change.claimed, true, 'the plan write did not claim the row');
 
             const changed =
                 await adapter.subscriptionRepository.findByTenantId('tenant-plan-change');

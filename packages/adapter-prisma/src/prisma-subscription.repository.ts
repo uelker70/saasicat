@@ -107,7 +107,15 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
     async countActiveByPlanKey(projectKey: string): Promise<Record<string, number>> {
         const db = this.db();
         const subscriptions = await this.subscriptions(db).findMany({
-            where: { status: { in: ACTIVE_STATUSES } },
+            // Status alone answers the wrong question. A cancellation that has
+            // taken effect leaves the column at ACTIVE — nothing transitions it
+            // — so a plan's tenant count in the SuperAdmin UI would carry every
+            // customer who ever left. The same predicate the bundle bookings
+            // beside this file already use.
+            where: {
+                status: { in: ACTIVE_STATUSES },
+                OR: [{ canceledAt: null }, { canceledEffectiveAt: { gt: new Date() } }],
+            },
             select: { planVersionId: true },
         });
         const versionIds = [

@@ -342,6 +342,21 @@ export interface ImmediatePlanChangeInput {
      * change, or target package without trial). A `Date` is persisted.
      */
     trialEndsAt?: Date | null;
+    /**
+     * `canceledAt` as the caller read it, so the write can claim the row only
+     * while that is still true.
+     *
+     * Three of the plan route's decisions depend on the cancellation — whether
+     * the change is refused at all, whether the billing cycle may move, and
+     * whether a fresh period is opened — and a read and a write are two
+     * moments. A cancellation declared in between made every one of them answer
+     * about a state that no longer existed, and the write went ahead anyway: a
+     * plan term recorded past the date the subscription ends.
+     *
+     * `null` is a value here rather than an absence. It claims a row that has
+     * no cancellation, and loses against one that has acquired one.
+     */
+    expectedCanceledAt: Date | null;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */
@@ -349,6 +364,8 @@ export interface ScheduledPlanChangeInput {
     pendingPlan: string;
     pendingBillingCycle: string;
     pendingEffectiveAt: Date;
+    /** See `ImmediatePlanChangeInput.expectedCanceledAt`. */
+    expectedCanceledAt: Date | null;
 }
 
 /**
@@ -402,10 +419,18 @@ export interface TenantSubscriptionWritePort {
     changePlanImmediate(
         tenantId: string,
         input: ImmediatePlanChangeInput,
-    ): Promise<{ plan: string; billingCycle: string }>;
+    ): Promise<{
+        plan: string;
+        billingCycle: string;
+        /** False when the row's cancellation moved since the caller read it. */
+        claimed: boolean;
+    }>;
 
     /** Change at period end: set pending fields. */
-    schedulePlanChange(tenantId: string, input: ScheduledPlanChangeInput): Promise<void>;
+    schedulePlanChange(
+        tenantId: string,
+        input: ScheduledPlanChangeInput,
+    ): Promise<{ claimed: boolean }>;
 
     /**
      * Marks the pending PlanVersion as accepted. Idempotent — a duplicate

@@ -182,6 +182,41 @@ describe('normalized plan identity across Prisma adapters', () => {
         });
     });
 
+    test('a subscription that has ended is not an active tenant', async () => {
+        // Status alone answers the wrong question. A cancellation that has
+        // taken effect leaves the column at ACTIVE — nothing transitions it —
+        // so a plan's tenant count in the SuperAdmin UI would carry every
+        // customer who ever left, and grow forever.
+        const client = fakePrisma();
+        client.entitlementPlanVersion.rows.push(versionRow({ id: 'app-v1', planId: 'plan-basic' }));
+        client.subscription.rows.push(
+            subscriptionRow({
+                id: 'still-here',
+                tenantId: 'tenant-running',
+                planVersionId: 'app-v1',
+            }),
+            subscriptionRow({
+                id: 'leaving',
+                tenantId: 'tenant-leaving',
+                planVersionId: 'app-v1',
+                // Declared, not landed: still a customer, still billed.
+                canceledAt: new Date('2026-01-01'),
+                canceledEffectiveAt: new Date('2099-01-01'),
+            }),
+            subscriptionRow({
+                id: 'gone',
+                tenantId: 'tenant-gone',
+                planVersionId: 'app-v1',
+                canceledAt: new Date('2020-01-01'),
+                canceledEffectiveAt: new Date('2020-02-01'),
+            }),
+        );
+
+        const repository = new PrismaSubscriptionRepository(client, APP_SCHEMA);
+
+        assert.deepEqual(await repository.countActiveByPlanKey('app'), { BASIC: 2 });
+    });
+
     test('all subscription operations honor tenantSubscription.delegate, including tx reads', async () => {
         const client = fakePrisma();
         client.membership = subscriptionDelegate();
@@ -632,7 +667,10 @@ function matches(row, where = {}) {
     return Object.entries(where).every(([field, expected]) => {
         if (field === 'AND') return expected.every((clause) => matches(row, clause));
         if (field === 'OR') return expected.some((clause) => matches(row, clause));
-        const actual = row[field];
+        // A column a fixture does not set is NULL in the table, not absent —
+        // `where: { canceledAt: null }` matches such a row in Postgres and has
+        // to match it here.
+        const actual = row[field] ?? null;
         if (
             expected !== null &&
             typeof expected === 'object' &&

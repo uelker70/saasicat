@@ -372,6 +372,15 @@ export class TenantBillingController {
             });
         }
 
+        // The decisions above were taken against the cancellation as it stood
+        // when this route read it, and the write claims the row only while that
+        // still holds. A cancellation declared in between loses nothing and
+        // changes nothing: the caller is told to look again.
+        const changedUnderneath = {
+            code: 'SUBSCRIPTION_CHANGED',
+            message: 'This subscription changed while the request was being decided. Reload it.',
+        };
+
         if (decision.isImmediate) {
             const wasTrial = sub.status === 'TRIAL';
             // A fresh window is a fresh term, and a cancellation still to come
@@ -402,7 +411,11 @@ export class TenantBillingController {
                 periodEnd: period?.end ?? null,
                 nextStatus: wasTrial ? null : 'ACTIVE',
                 trialEndsAt,
+                expectedCanceledAt: sub.canceledAt ?? null,
             });
+            if (!result.claimed) {
+                throw new ConflictException(changedUnderneath);
+            }
             this.entitlements.invalidateTenant(tenantId);
             await this.tryFreezeOnPlanChange(
                 tenantId,
@@ -423,11 +436,15 @@ export class TenantBillingController {
         // The preview already resolved this against the trial, the period and
         // the term; recomputing it here is a second answer waiting to differ.
         const effectiveAt = decision.effectiveAt ?? sub.currentPeriodEnd ?? new Date();
-        await this.subscriptionWrite.schedulePlanChange(tenantId, {
+        const scheduled = await this.subscriptionWrite.schedulePlanChange(tenantId, {
             pendingPlan: dto.plan,
             pendingBillingCycle: dto.billingCycle,
             pendingEffectiveAt: effectiveAt,
+            expectedCanceledAt: sub.canceledAt ?? null,
         });
+        if (!scheduled.claimed) {
+            throw new ConflictException(changedUnderneath);
+        }
         this.entitlements.invalidateTenant(tenantId);
         await this.auditLog(req, userId, 'Subscription', tenantId, 'SCHEDULE_PLAN_CHANGE', {
             fromPlan: sub.plan,
@@ -518,7 +535,7 @@ export class TenantBillingController {
                   )
             : null;
 
-        let planResult: { plan: string; billingCycle: string };
+        let planResult: { plan: string; billingCycle: string; claimed?: boolean };
         let promoRedemption: OnboardingSelectionResponse['promoRedemption'] = null;
 
         // ─── Atomic path (preferred) ────────────────────────────────────────
@@ -569,7 +586,18 @@ export class TenantBillingController {
                 periodStart: period?.start ?? null,
                 periodEnd: period?.end ?? null,
                 nextStatus: wasTrial ? null : 'ACTIVE',
+                // Onboarding runs on a subscription nobody has cancelled — the
+                // route above refuses one that has been. Stated rather than
+                // assumed: the claim fails if that stops being true.
+                expectedCanceledAt: null,
             });
+            if (!planResult.claimed) {
+                throw new ConflictException({
+                    code: 'SUBSCRIPTION_CHANGED',
+                    message:
+                        'This subscription changed while onboarding was being applied. Reload it.',
+                });
+            }
             if (dto.promoCode) {
                 if (!this.promoCodes) {
                     warnings.push(

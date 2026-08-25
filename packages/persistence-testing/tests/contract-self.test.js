@@ -81,16 +81,24 @@ function createMemoryHarness() {
                 )
                 .sort((a, b) => b.version - a.version)[0];
             if (!target) throw new Error(`No active PlanVersion for plan ${input.planId}.`);
+            // The contract's own claim: the write takes the row only while the
+            // cancellation is what the caller read. This reference store keeps
+            // the field as `null` unless something set it, which is what the
+            // real column does.
+            if ((row.canceledAt ?? null) !== (input.expectedCanceledAt ?? null)) {
+                return { plan: row.plan, billingCycle: row.billingCycle, claimed: false };
+            }
             row.plan = input.planId;
             row.planVersionId = target.id;
             row.pendingPlanVersionId = null;
-            return { plan: row.plan, billingCycle: input.cycle };
+            return { plan: row.plan, billingCycle: input.cycle, claimed: true };
         },
         async applyOnboardingSelection(tenantId, input, redeemPromo) {
             return transactionRunner.run(async (tx) => {
                 const changed = await tenantSubscriptionWrite.changePlanImmediate(tenantId, {
                     ...input,
                     trialEndsAt: null,
+                    expectedCanceledAt: null,
                 });
                 const row = state.subscriptions.find(
                     (subscription) => subscription.tenantId === tenantId,

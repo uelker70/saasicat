@@ -62,14 +62,21 @@ export class PendingPlanMaterializationService {
             const cycle = (change.pendingBillingCycle ?? 'MONTHLY') as BillingCycle;
             const period = initialPeriodWindow(now, cycle);
             try {
-                await this.subscriptionWrite.changePlanImmediate(change.tenantId, {
+                const result = await this.subscriptionWrite.changePlanImmediate(change.tenantId, {
                     planId: change.pendingPlan,
                     cycle,
                     periodStart: period.start,
                     periodEnd: period.end,
                     // Status stays (ACTIVE/PAST_DUE etc.) — only the plan is materialized.
                     nextStatus: null,
+                    expectedCanceledAt: change.canceledAt,
                 });
+                if (!result.claimed) {
+                    // A cancellation arrived between the query and this write.
+                    // Same answer as the check above, reached the other way.
+                    declined += 1;
+                    continue;
+                }
                 this.entitlements.invalidateTenant(change.tenantId);
                 applied += 1;
             } catch (err) {

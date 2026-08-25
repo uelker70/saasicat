@@ -47,15 +47,35 @@ const SUBSCRIPTION = {
     pendingPlanVersionAcceptedAt: null,
 };
 
-function writePort() {
+/**
+ * A store that answers the conditional claim.
+ *
+ * `canceledAtInStore` is what the row holds NOW. Left out, the store agrees
+ * with whatever the caller read — the ordinary case, where nothing happened in
+ * between. Given a value, it disagrees, which is the race.
+ */
+function writePort({ canceledAtInStore } = {}) {
     return {
         immediate: [],
+        scheduled: [],
+        canceledAtInStore,
+        claims(input) {
+            if (canceledAtInStore === undefined) return true;
+            const stored = canceledAtInStore?.getTime() ?? null;
+            const expected = input.expectedCanceledAt?.getTime() ?? null;
+            return stored === expected;
+        },
         async changePlanImmediate(tenantId, input) {
+            if (!this.claims(input)) {
+                return { plan: 'STARTER', billingCycle: 'YEARLY', claimed: false };
+            }
             this.immediate.push(input);
-            return { plan: input.planId, billingCycle: input.cycle };
+            return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
         async schedulePlanChange(tenantId, input) {
-            return { plan: input.planId, billingCycle: input.cycle };
+            if (!this.claims(input)) return { claimed: false };
+            this.scheduled.push(input);
+            return { claimed: true };
         },
         cancelClaims: [],
         /** A store that lets exactly one declaration claim the row. */
@@ -207,6 +227,49 @@ describe('a cycle change while a cancellation is outstanding', () => {
 
         assert.equal(port.immediate.length, 1);
         assert.notEqual(port.immediate[0].periodEnd, null);
+    });
+});
+
+describe('a cancellation arriving while a plan change is being decided', () => {
+    // The route reads the subscription, computes a preview, decides three
+    // things from the cancellation — whether to refuse, whether the cycle may
+    // move, whether to open a fresh period — and only then writes. A
+    // cancellation declared in that window makes all three answers about a
+    // state that no longer exists, and an unconditional write would record a
+    // plan term running past the date the subscription ends.
+
+    test('the immediate change is refused rather than written over it', async () => {
+        // Read: no cancellation. Store: cancelled a moment ago.
+        const port = writePort({ canceledAtInStore: new Date() });
+
+        await assert.rejects(
+            changeTo(buildController(SUBSCRIPTION, port, IMMEDIATE_UPGRADE)),
+            (err) => err.getResponse?.().code === 'SUBSCRIPTION_CHANGED',
+        );
+        assert.equal(port.immediate.length, 0);
+    });
+
+    test('and so is the scheduled one', async () => {
+        const port = writePort({ canceledAtInStore: new Date() });
+        const deferred = { isImmediate: false, effectiveAt: new Date(), blockers: [] };
+
+        await assert.rejects(
+            changeTo(buildController(SUBSCRIPTION, port, deferred)),
+            (err) => err.getResponse?.().code === 'SUBSCRIPTION_CHANGED',
+        );
+        assert.equal(port.scheduled.length, 0);
+    });
+
+    test('while an unchanged subscription is written as decided', async () => {
+        // The premise: the claim compares a value, it does not refuse on
+        // principle. Read and store agree here, as they do in every ordinary
+        // request.
+        const port = writePort();
+
+        await changeTo(buildController(SUBSCRIPTION, port, IMMEDIATE_UPGRADE));
+
+        assert.equal(port.immediate.length, 1);
+        assert.equal(port.immediate[0].expectedCanceledAt, null);
     });
 });
 

@@ -96,7 +96,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
     async changePlanImmediate(
         tenantId: string,
         input: ImmediatePlanChangeInput,
-    ): Promise<{ plan: string; billingCycle: string }> {
+    ): Promise<{ plan: string; billingCycle: string; claimed: boolean }> {
         if (this.schema.tenantSubscription.synchronizePlanVersion) {
             return this.prisma.$transaction((tx) =>
                 this.changePlanImmediateInClient(tx, tenantId, input),
@@ -109,7 +109,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         client: unknown,
         tenantId: string,
         input: ImmediatePlanChangeInput,
-    ): Promise<{ plan: string; billingCycle: string }> {
+    ): Promise<{ plan: string; billingCycle: string; claimed: boolean }> {
         const subscription = this.subscription(client);
         const data: Record<string, unknown> = {
             plan: input.planId,
@@ -149,22 +149,41 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             }
         }
 
-        const updated = await subscription.update({
-            where: { tenantId },
+        // Claimed, not updated: the caller decided against a cancellation state,
+        // and this takes the row only while that state still holds. One
+        // statement, so a cancellation arriving in between loses the race
+        // instead of being written over.
+        const claim = await subscription.updateMany({
+            where: { tenantId, canceledAt: input.expectedCanceledAt },
             data,
         });
-        return { plan: updated.plan, billingCycle: updated.billingCycle };
+        const current = await subscription.findUnique({ where: { tenantId } });
+        if (!current) {
+            throw new Error(`No subscription for tenant ${tenantId}.`);
+        }
+        return {
+            plan: current.plan,
+            billingCycle: current.billingCycle,
+            claimed: claim.count > 0,
+        };
     }
 
-    async schedulePlanChange(tenantId: string, input: ScheduledPlanChangeInput): Promise<void> {
-        await this.subscription(this.prisma).update({
-            where: { tenantId },
+    async schedulePlanChange(
+        tenantId: string,
+        input: ScheduledPlanChangeInput,
+    ): Promise<{ claimed: boolean }> {
+        // Same claim as the immediate path: a change scheduled against a
+        // subscription that has since been cancelled would sit in the row until
+        // its date, and land inside — or past — a term that is already ending.
+        const claim = await this.subscription(this.prisma).updateMany({
+            where: { tenantId, canceledAt: input.expectedCanceledAt },
             data: {
                 pendingPlan: input.pendingPlan,
                 pendingBillingCycle: input.pendingBillingCycle,
                 pendingEffectiveAt: input.pendingEffectiveAt,
             },
         });
+        return { claimed: claim.count > 0 };
     }
 
     async acceptPendingPlanVersion(

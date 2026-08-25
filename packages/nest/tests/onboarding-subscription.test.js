@@ -63,7 +63,7 @@ function buildWritePort() {
         changePlanCalls: [],
         async changePlanImmediate(tenantId, input) {
             this.changePlanCalls.push({ tenantId, input });
-            return { plan: input.planId, billingCycle: input.cycle };
+            return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
         async schedulePlanChange() {},
         async acceptPendingPlanVersion() {},
