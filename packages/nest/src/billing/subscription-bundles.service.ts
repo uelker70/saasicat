@@ -85,6 +85,15 @@ export interface CancelBundleFromSubscriptionInput {
      * (= immediate effect, provided the minimum term has already expired).
      */
     currentPeriodEnd?: Date;
+    /**
+     * When the parent subscription ends, or null while it runs on.
+     *
+     * A bundle cannot be held past the plan that pays for it, and the term was
+     * written at booking — before any cancellation declared since. Reading the
+     * boundary here is what makes that harmless: no clamp at insert time can
+     * see a cancellation that had not happened yet.
+     */
+    parentEndsAt: Date | null;
 }
 
 @Injectable()
@@ -232,6 +241,7 @@ export class SubscriptionBundlesService {
             canceledAt,
             currentPeriodEnd: input.currentPeriodEnd ?? null,
             minimumTermEndsAt: existing.minimumTermEndsAt,
+            parentEndsAt: input.parentEndsAt,
         });
 
         return this.repo.cancel(input.subscriptionBundleId, {
@@ -280,10 +290,20 @@ export function resolveBundleCancelEffectiveAt(input: {
     canceledAt: Date;
     currentPeriodEnd: Date | null;
     minimumTermEndsAt: Date | null;
+    /** When the parent subscription ends, or null while it runs on. */
+    parentEndsAt: Date | null;
 }): Date {
     const periodEnd = input.currentPeriodEnd ?? input.canceledAt;
     const minTermEnd = input.minimumTermEndsAt ?? input.canceledAt;
-    return periodEnd.getTime() >= minTermEnd.getTime() ? periodEnd : minTermEnd;
+    const later = periodEnd.getTime() >= minTermEnd.getTime() ? periodEnd : minTermEnd;
+    // Read here rather than pinned at booking, and that is the point: a
+    // cancellation declared AFTER the bundle was booked cannot change a term
+    // already written, but it can be read now. Otherwise a booking made a
+    // moment before the plan was cancelled holds the customer to a term the
+    // plan will outlive — and no clamp at insert time can see a cancellation
+    // that had not happened yet.
+    if (input.parentEndsAt === null) return later;
+    return later.getTime() <= input.parentEndsAt.getTime() ? later : input.parentEndsAt;
 }
 
 /**

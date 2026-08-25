@@ -185,6 +185,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-04-10T00:00:00Z'),
             currentPeriodEnd: periodEnd,
+            parentEndsAt: null,
         });
         assert.equal(canceled.canceledEffectiveAt?.toISOString(), periodEnd.toISOString());
     });
@@ -204,6 +205,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-04-10T00:00:00Z'),
             currentPeriodEnd: periodEnd,
+            parentEndsAt: null,
         });
         assert.equal(canceled.canceledEffectiveAt?.toISOString(), '2027-01-01T00:00:00.000Z');
     });
@@ -220,12 +222,14 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             subscriptionBundleId: row.id,
             canceledAt: new Date(),
             currentPeriodEnd: new Date('2099-01-01'),
+            parentEndsAt: null,
         });
         await assert.rejects(
             () =>
                 service.cancelBundleFromSubscription({
                     subscriptionBundleId: row.id,
                     canceledAt: new Date(),
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -241,6 +245,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
                 service.cancelBundleFromSubscription({
                     subscriptionBundleId: 'does-not-exist',
                     canceledAt: new Date(),
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 404);

@@ -183,6 +183,9 @@ export function buildTenantSubscriptionBundlesController(
             const result = await this.service.cancelBundleFromSubscription({
                 subscriptionBundleId,
                 canceledAt: dto.canceledAt ? new Date(dto.canceledAt) : undefined,
+                // A bundle cannot be held past the plan that pays for it, and
+                // the plan may have been cancelled since this was booked.
+                parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 currentPeriodEnd: sub.currentPeriodEnd ?? undefined,
             });
             await this.refreezeContract(tenantId, sub);

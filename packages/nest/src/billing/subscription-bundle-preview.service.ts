@@ -302,6 +302,7 @@ export class SubscriptionBundlePreviewService {
         }
 
         const effectiveAt = resolveBundleCancelEffectiveAt({
+            parentEndsAt: ctx.parentEndsAt,
             canceledAt: now,
             currentPeriodEnd: ctx.currentPeriodEnd,
             minimumTermEndsAt: existing.minimumTermEndsAt,

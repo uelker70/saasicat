@@ -216,6 +216,41 @@ describe('a cycle change while a cancellation is outstanding', () => {
         );
     });
 
+    test('and an ended subscription is refused outright, not merely locked', async () => {
+        // Two different refusals, and the wider one has to be said too: an
+        // ended subscription refuses EVERY plan change. Reporting only the
+        // cycle lock let a same-cycle upgrade be previewed as an ordinary
+        // immediate change and rejected on submit.
+        const service = new PlanChangePreviewService(
+            CATALOG,
+            {
+                computeLimits: async () => ({
+                    plan: 'STARTER',
+                    quotas: { users: 3 },
+                    features: new Set(['CORE']),
+                }),
+                invalidateTenant() {},
+            },
+            {
+                findForTenant: async () => ({
+                    ...SUBSCRIPTION,
+                    billingCycle: 'MONTHLY',
+                    canceledAt: new Date(Date.now() - 90 * DAY),
+                    canceledEffectiveAt: new Date(Date.now() - 60 * DAY),
+                }),
+            },
+            { snapshot: async () => ({ users: 1 }) },
+            null,
+        );
+
+        const dto = await service.preview('t1', 'STANDARD', 'MONTHLY', new Date());
+
+        assert.ok(
+            dto.blockers.some((b) => b.code === 'SUBSCRIPTION_ENDED'),
+            `no blocker among ${JSON.stringify(dto.blockers.map((b) => b.code))}`,
+        );
+    });
+
     test('and says nothing when the cycle stays', async () => {
         // The premise: the blocker is about the rhythm, not about being
         // cancelled. A plan change on the same cycle is allowed and must not be

@@ -5,6 +5,7 @@ import {
     SubscriptionBundlePreviewService,
     SubscriptionBundlesService,
     buildTenantSubscriptionBundlesController,
+    resolveBundleCancelEffectiveAt,
 } from '../dist/billing/index.js';
 
 // A bundle hangs off the subscription that pays for it.
@@ -311,5 +312,51 @@ describe('what the dialog promises before the booking', () => {
         const dto = await ask(preview(), null);
 
         assert.deepEqual(dto.minimumTermEndsAt, new Date('2027-01-01'));
+    });
+});
+
+describe('a bundle booked just before the plan was cancelled', () => {
+    // The race the clamp cannot win. A booking reads an uncancelled
+    // subscription, works out a twelve-month term, and the plan is cancelled
+    // before the row lands — no check at insert time can see a cancellation
+    // that has not happened yet.
+    //
+    // So the term is not the last word. What decides when a bundle may go is
+    // read when the question is asked, and the parent's end caps it there.
+    const bookedTerm = new Date('2027-01-01');
+    const planEnds = new Date('2026-03-01');
+
+    test('may still be cancelled when the plan ends, not when its own term does', async () => {
+        const effectiveAt = resolveBundleCancelEffectiveAt({
+            canceledAt: new Date('2026-02-01'),
+            currentPeriodEnd: new Date('2026-02-15'),
+            minimumTermEndsAt: bookedTerm,
+            parentEndsAt: planEnds,
+        });
+
+        assert.deepEqual(effectiveAt, planEnds);
+    });
+
+    test('and keeps its own term where the plan outlives it', async () => {
+        // The premise: the parent's end is a cap, not a replacement.
+        const effectiveAt = resolveBundleCancelEffectiveAt({
+            canceledAt: new Date('2026-02-01'),
+            currentPeriodEnd: new Date('2026-02-15'),
+            minimumTermEndsAt: bookedTerm,
+            parentEndsAt: new Date('2030-01-01'),
+        });
+
+        assert.deepEqual(effectiveAt, bookedTerm);
+    });
+
+    test('and where nothing ends the plan at all', async () => {
+        const effectiveAt = resolveBundleCancelEffectiveAt({
+            canceledAt: new Date('2026-02-01'),
+            currentPeriodEnd: new Date('2026-02-15'),
+            minimumTermEndsAt: bookedTerm,
+            parentEndsAt: null,
+        });
+
+        assert.deepEqual(effectiveAt, bookedTerm);
     });
 });

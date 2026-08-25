@@ -285,7 +285,18 @@ export class PlanChangePreviewService {
         // Said here as well as at the write, because a blocker is what the
         // wizard reads: without it the reader picks a cycle, reads the
         // consequence, ticks the acknowledgement and meets a 409 on confirm.
-        if ((ctx.canceledEffectiveAt ?? ctx.canceledAt) !== null && cycleDirection !== 'SAME') {
+        //
+        // Two different refusals, and the wider one comes first. A subscription
+        // that has ENDED refuses every plan change, not only a cycle change —
+        // so a same-cycle upgrade was previewed as an ordinary immediate change
+        // and rejected on submit.
+        const landsAt = ctx.canceledEffectiveAt ?? ctx.canceledAt;
+        if (landsAt !== null && landsAt <= now) {
+            blockers.push({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended. Its plan can no longer be changed.',
+            });
+        } else if (landsAt !== null && cycleDirection !== 'SAME') {
             blockers.push({
                 code: 'CANCELLATION_LOCKS_THE_CYCLE',
                 message:
