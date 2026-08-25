@@ -42,11 +42,31 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         private readonly source: ContractFreezeSourcePort,
     ) {}
 
+    async endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void> {
+        // The contract ends when the subscription does, and nothing replaces
+        // it. `findActiveByTenantId` is asked as of the effective date rather
+        // than now, so a cancellation recorded ahead of time ends the contract
+        // that is running at that moment rather than whichever one is running
+        // when the write happens.
+        const active = await this.contracts.findActiveByTenantId(tenantId, effectiveAt);
+        if (!active) return;
+        await this.contracts.terminate(active.id, {
+            effectiveUntil: effectiveAt,
+            // Only when it is already over. An ordinary cancellation lands at
+            // the term end, months out, and the customer is under this contract
+            // until then — the invoice side has to keep finding it, and the
+            // window in `findActiveByTenantId` is what stops it afterwards.
+            status: effectiveAt <= new Date() ? 'terminated' : null,
+        });
+        this.entitlements.invalidateTenant(tenantId);
+    }
+
     async freezeOnPlanChange(
         tenantId: string,
         newPlan: string,
         billingCycle: BillingCycle,
         effectiveFrom: Date,
+        endsAt: Date | null = null,
     ): Promise<void> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         const vatRate = this.catalog.vatRate;
@@ -97,7 +117,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             tenantId,
             status: 'active',
             effectiveFrom,
-            effectiveUntil: null,
+            // The successor inherits the ending. A cancellation capped the
+            // contract that was running when it was declared; every contract
+            // after it ends on the same date, or the repair lasts exactly until
+            // the next plan change.
+            effectiveUntil: endsAt,
             originalPlanVersionId: livePlanVersionId,
             originalBundleVersionIds: bundles.bundleVersionIds,
             entitlementSnapshot: {

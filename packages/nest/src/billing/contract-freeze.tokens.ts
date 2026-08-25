@@ -38,7 +38,32 @@ export interface ContractFreezePort {
         newPlan: string,
         billingCycle: BillingCycle,
         effectiveFrom: Date,
+        /**
+         * When the subscription ends, or null while it runs on.
+         *
+         * A contract cannot outlive the subscription it froze, and a freeze
+         * happens AFTER a cancellation as well: a plan change on a cancelled
+         * subscription is allowed, and each one supersedes the capped contract
+         * with a fresh one. Without this the replacement is uncapped and the
+         * ending is lost — repaired once at the cancellation, undone by the
+         * next change.
+         */
+        endsAt: Date | null,
     ): Promise<void>;
+
+    /**
+     * Ends the active contract at `effectiveAt`, with no successor.
+     *
+     * A frozen contract is the agreed service, and it cannot outlive the
+     * subscription that agreed to it. Without this the tenant's entitlements
+     * end on the date while the invoice side goes on reading an active
+     * agreement — two answers to "is this customer under contract", and the
+     * one that bills says yes.
+     *
+     * Same mechanic as the supersession above and deliberately not the same
+     * call: there is nothing to succeed it with.
+     */
+    endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void>;
 }
 
 /** Frozen bundle line items + their version ids (trace). */

@@ -2,9 +2,9 @@
 //
 // Plan change (PlanChangePreviewService) and bundle add
 // (SubscriptionBundlePreviewService) use the same formula:
-// prorated surcharge/credit = (target price − current price) ×
+// prorated surcharge = (target price − current price) ×
 // remaining days / period days. Day granularity, commercially rounded
-// to 2 decimal places.
+// to 2 decimal places, and never negative — see `prorataDeltaNet`.
 
 const DAY_MS = 86_400_000;
 
@@ -15,8 +15,33 @@ export interface ProrationDto {
     periodEnd: Date;
     currentPriceNet: number;
     targetPriceNet: number;
-    /** Prorated surcharge/credit until end of period. Negative = credit. */
+    /**
+     * What the change costs for the rest of the period, never below zero.
+     *
+     * The raw arithmetic goes negative when the target is cheaper than what is
+     * running — after a price reduction, an upgrade can arrive at a negative
+     * number. That is not a credit: this platform does not pay money back, and
+     * a negative charge carried into an invoice is a refund nobody agreed to.
+     * It is a free upgrade, and `isFree` is how a page says so.
+     */
     prorataDeltaNet: number;
+    /**
+     * The unclamped result, kept because the page has something to say about it.
+     *
+     * Dropping it would make "free" indistinguishable from "costs exactly
+     * nothing", and those read differently to someone deciding.
+     */
+    rawDeltaNet: number;
+    /**
+     * True when the arithmetic asked for less than nothing.
+     *
+     * Strictly less: a change that costs exactly zero — equal prices, or a
+     * remaining fraction that rounds the difference away — is not a free
+     * upgrade, it is a change with no price difference. `rawDeltaNet` exists
+     * above precisely so a page can tell those apart, and a flag that merges
+     * them takes that back.
+     */
+    isFree: boolean;
 }
 
 export interface ProrationInput {
@@ -39,9 +64,8 @@ export function computeProration(input: ProrationInput): ProrationDto {
         0,
         Math.min(daysInPeriod, Math.round((periodEnd.getTime() - now.getTime()) / DAY_MS)),
     );
-    const prorataDeltaNet = round2(
-        ((targetPriceNet - currentPriceNet) * daysRemaining) / daysInPeriod,
-    );
+    const rawDeltaNet = round2(((targetPriceNet - currentPriceNet) * daysRemaining) / daysInPeriod);
+    const prorataDeltaNet = Math.max(0, rawDeltaNet);
 
     return {
         daysRemainingInPeriod: daysRemaining,
@@ -51,6 +75,8 @@ export function computeProration(input: ProrationInput): ProrationDto {
         currentPriceNet,
         targetPriceNet,
         prorataDeltaNet,
+        rawDeltaNet,
+        isFree: rawDeltaNet < 0,
     };
 }
 

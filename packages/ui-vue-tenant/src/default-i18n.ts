@@ -26,7 +26,28 @@ export interface TenantPlanSectionI18n {
     changeFromTo: string;
     changeEffectiveAt: string;
     changePlanButton: string;
+    wizardDeferredLead: string;
+    wizardDeferredBody: string;
+    wizardDeferredAlternative: string;
+    wizardDeferredKeepYearly: string;
+    wizardDeferredAcknowledge: string;
+    wizardDowngradeLead: string;
+    wizardDowngradeLeadQuotasOnly: string;
+    wizardDowngradeBody: string;
+    wizardDowngradeAcknowledge: string;
+    wizardCycleChangeLead: string;
+    wizardCycleChangeBody: string;
+    wizardCycleChangeAcknowledge: string;
     cancelSubscriptionButton: string;
+    canceledHeading: string;
+    canceledUntil: string;
+    canceledUnchanged: string;
+    endedHeading: string;
+    endedOn: string;
+    cancelConfirmTitle: string;
+    cancelConfirmBody: string;
+    cancelConfirmLate: string;
+    cancelConfirmAction: string;
     usageTitle: string;
     /** #18 — feature / scope-of-services matrix (included + locked). */
     featuresOverviewTitle: string;
@@ -189,7 +210,35 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     changeFromTo: 'Wechsel zu',
     changeEffectiveAt: 'wirksam ab',
     changePlanButton: 'Paket wechseln',
+    wizardDeferredLead: 'Sie profitieren erst ab {date} von {plan}.',
+    wizardDeferredBody:
+        'Ihr laufender Jahresvertrag bleibt bis zum {date} unverändert. Neue Funktionen und Kontingente stehen Ihnen bis dahin nicht zur Verfügung — der Wechsel wird erst nach Ablauf der Mindestlaufzeit wirksam.',
+    wizardDeferredAlternative:
+        'Wenn Sie sofort profitieren möchten, behalten Sie den Jahresvertrag: Der Wechsel wird dann heute wirksam und anteilig für das laufende Jahr abgerechnet.',
+    wizardDeferredKeepYearly: 'Jahresvertrag behalten und sofort wechseln',
+    wizardDeferredAcknowledge: 'Ich habe verstanden, dass der Wechsel erst am {date} wirksam wird.',
+    wizardDowngradeLead: 'Ab {date} stehen Ihnen {count} Funktion(en) nicht mehr zur Verfügung.',
+    wizardDowngradeLeadQuotasOnly: 'Ab {date} gelten die geringeren Kontingente von {plan}.',
+    wizardDowngradeBody:
+        'Ihr aktueller Vertrag läuft unverändert bis zum {date} — bis dahin ändert sich nichts. Ihre Daten bleiben erhalten und werden nicht gelöscht; ein späteres Upgrade schaltet sie wieder frei.',
+    wizardDowngradeAcknowledge: 'Ich habe verstanden, was ab {date} entfällt.',
+    wizardCycleChangeLead: 'Die Umstellung auf {cycle} wird erst zum {date} wirksam.',
+    wizardCycleChangeBody:
+        'Bis zum {date} bleibt alles unverändert — gleicher Plan, gleiche Kontingente, gleicher Preis. Ab dann gilt der neue Zahlungsrhythmus, und damit beginnt eine neue Mindestlaufzeit.',
+    wizardCycleChangeAcknowledge:
+        'Ich habe verstanden, dass die Umstellung erst am {date} wirksam wird.',
     cancelSubscriptionButton: 'Abonnement kündigen',
+    canceledHeading: 'Gekündigt.',
+    canceledUntil: 'Ihr Abonnement läuft unverändert bis zum',
+    canceledUnchanged: 'Bis dahin ändert sich nichts an Ihrem Zugang.',
+    endedHeading: 'Beendet.',
+    endedOn: 'Ihr Abonnement ist beendet seit dem',
+    cancelConfirmTitle: 'Abonnement kündigen?',
+    cancelConfirmBody:
+        'Ihr Abonnement läuft danach unverändert weiter bis zum {date} — Funktionen, Kontingente und Abrechnung bleiben bis dahin gleich.',
+    cancelConfirmLate:
+        'Die Kündigungsfrist für die laufende Periode ist am {deadline} abgelaufen. Die Kündigung wird deshalb erst zum {date} wirksam.',
+    cancelConfirmAction: 'Zum {date} kündigen',
     usageTitle: 'Verbrauch',
     featuresOverviewTitle: 'Leistungsumfang',
     featuresActive: 'Enthalten',
@@ -350,7 +399,34 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     changeFromTo: 'Change to',
     changeEffectiveAt: 'effective as of',
     changePlanButton: 'Change plan',
+    wizardDeferredLead: 'You benefit from {plan} on {date}, not before.',
+    wizardDeferredBody:
+        'Your running yearly contract stays unchanged until {date}. New features and quotas are not available to you before then — the change takes effect once the minimum term ends.',
+    wizardDeferredAlternative:
+        'To benefit immediately, keep the yearly cycle: the change then takes effect today and is billed pro rata for the running year.',
+    wizardDeferredKeepYearly: 'Keep yearly and switch today',
+    wizardDeferredAcknowledge: 'I understand that the change takes effect on {date}.',
+    wizardDowngradeLead: 'From {date} you no longer have {count} feature(s).',
+    wizardDowngradeLeadQuotasOnly: 'From {date} the smaller quotas of {plan} apply.',
+    wizardDowngradeBody:
+        'Your current contract runs unchanged until {date} — nothing changes before then. Your data is kept and never deleted; upgrading again unlocks it.',
+    wizardDowngradeAcknowledge: 'I understand what falls away on {date}.',
+    wizardCycleChangeLead: 'Switching to {cycle} takes effect on {date}, not before.',
+    wizardCycleChangeBody:
+        'Nothing changes until {date} — same plan, same quotas, same price. From then the new billing rhythm applies, and with it a fresh minimum term.',
+    wizardCycleChangeAcknowledge: 'I understand that the switch takes effect on {date}.',
     cancelSubscriptionButton: 'Cancel subscription',
+    canceledHeading: 'Cancelled.',
+    canceledUntil: 'Your subscription runs unchanged until',
+    canceledUnchanged: 'Nothing about your access changes before then.',
+    endedHeading: 'Ended.',
+    endedOn: 'Your subscription ended on',
+    cancelConfirmTitle: 'Cancel subscription?',
+    cancelConfirmBody:
+        'Your subscription then runs unchanged until {date} — features, quotas and billing stay the same until then.',
+    cancelConfirmLate:
+        'The notice period for the running term ended on {deadline}, so the cancellation takes effect on {date} instead.',
+    cancelConfirmAction: 'Cancel as of {date}',
     usageTitle: 'Usage',
     featuresOverviewTitle: 'Features',
     featuresActive: 'Included',
@@ -534,6 +610,18 @@ export interface PlanChangeWizardI18n {
     blockersTitle: string;
     confirmImmediate: string;
     confirmScheduled: string;
+    deferredLead: string;
+    deferredBody: string;
+    deferredAlternative: string;
+    deferredKeepYearly: string;
+    deferredAcknowledge: string;
+    downgradeLead: string;
+    downgradeLeadQuotasOnly: string;
+    downgradeBody: string;
+    downgradeAcknowledge: string;
+    cycleChangeLead: string;
+    cycleChangeBody: string;
+    cycleChangeAcknowledge: string;
     confirmAction: string;
     confirmInProgress: string;
     confirmPriceTitle: string;
@@ -591,6 +679,18 @@ export function planChangeWizardI18n(i18n: TenantPlanSectionI18n): PlanChangeWiz
         blockersTitle: i18n.wizardBlockersTitle,
         confirmImmediate: i18n.wizardConfirmImmediate,
         confirmScheduled: i18n.wizardConfirmScheduled,
+        deferredLead: i18n.wizardDeferredLead,
+        deferredBody: i18n.wizardDeferredBody,
+        deferredAlternative: i18n.wizardDeferredAlternative,
+        deferredKeepYearly: i18n.wizardDeferredKeepYearly,
+        deferredAcknowledge: i18n.wizardDeferredAcknowledge,
+        downgradeLead: i18n.wizardDowngradeLead,
+        downgradeLeadQuotasOnly: i18n.wizardDowngradeLeadQuotasOnly,
+        downgradeBody: i18n.wizardDowngradeBody,
+        downgradeAcknowledge: i18n.wizardDowngradeAcknowledge,
+        cycleChangeLead: i18n.wizardCycleChangeLead,
+        cycleChangeBody: i18n.wizardCycleChangeBody,
+        cycleChangeAcknowledge: i18n.wizardCycleChangeAcknowledge,
         confirmAction: i18n.wizardConfirmAction,
         confirmInProgress: i18n.wizardConfirmInProgress,
         confirmPriceTitle: i18n.wizardConfirmPriceTitle,

@@ -49,6 +49,14 @@ const usage: UsageSnapshotShape = {
     limits: { plan: 'PRO', quotas: { notes: 100 }, features: ['export'] },
     usage: { notes: 12 },
     packageSnapshot: null,
+    canceledAt: null,
+    canceledEffectiveAt: null,
+    cancellation: {
+        effectiveAt: '2026-12-31T00:00:00.000Z',
+        termEndsAt: '2026-12-31T00:00:00.000Z',
+        noticeDeadline: null,
+        afterNoticeDeadline: false,
+    },
     checkoutOfferId: null,
 };
 

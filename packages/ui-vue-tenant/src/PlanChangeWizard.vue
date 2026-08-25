@@ -175,12 +175,66 @@
                     <strong>{{ targetPlanName }}</strong>
                     ({{ targetCycle === 'YEARLY' ? i18n.cycleYearly : i18n.cycleMonthly }})
                 </p>
+                <div v-if="previewLoading" class="sp-wizard__loading">
+                    <span class="sp-spinner" aria-hidden="true"></span>
+                    <span>{{ i18n.previewLoading }}</span>
+                </div>
+
                 <p v-if="preview?.isImmediate" class="sp-wizard__confirm-line">
                     {{ i18n.confirmImmediate }}
                 </p>
                 <p v-else-if="preview?.effectiveAt" class="sp-wizard__confirm-line">
                     {{ i18n.confirmScheduled }} {{ formatDate(preview.effectiveAt) }}.
                 </p>
+
+                <!--
+                    Two changes arrive later than a reader expects, and both are
+                    acknowledged rather than merely announced.
+
+                    A shorter cycle defers an upgrade entirely — no features, no
+                    quotas, no new price today. A downgrade takes something away
+                    on a date the reader has not chosen. Neither belongs among
+                    the warnings, which is the part of a screen nobody reads: the
+                    consequence is the heading, the detail follows, and the
+                    confirmation stays locked until the sentence is ticked.
+
+                    Both headings say what happens to the CUSTOMER — what they do
+                    not get, what they lose — rather than what the system does.
+                    Those read very differently to someone about to press a
+                    button.
+                -->
+                <div v-if="acknowledgement && preview" class="sp-wizard__deferred">
+                    <p class="sp-wizard__deferred-lead">
+                        <template v-for="(part, at) in acknowledgementLead" :key="at">
+                            <strong v-if="part.strong">{{ part.text }}</strong>
+                            <template v-else>{{ part.text }}</template>
+                        </template>
+                    </p>
+                    <p>
+                        <template v-for="(part, at) in acknowledgementBody" :key="at">
+                            <strong v-if="part.strong">{{ part.text }}</strong>
+                            <template v-else>{{ part.text }}</template>
+                        </template>
+                    </p>
+
+                    <ul v-if="acknowledgement === 'downgrade'" class="sp-wizard__deferred-list">
+                        <li v-for="key in preview.featuresLost" :key="key">
+                            {{ featureLabel(key) }}
+                        </li>
+                    </ul>
+
+                    <template v-if="acknowledgement === 'cycle'">
+                        <p>{{ i18n.deferredAlternative }}</p>
+                        <TenantButton variant="outline" tone="accent" @click="keepYearlyCycle">
+                            {{ i18n.deferredKeepYearly }}
+                        </TenantButton>
+                    </template>
+
+                    <label class="sp-wizard__deferred-ack">
+                        <input v-model="deferralAcknowledged" type="checkbox" />
+                        <span>{{ acknowledgementLabel }}</span>
+                    </label>
+                </div>
 
                 <!-- #17: Price summary — prorated now + regular from the next period.
                          During a trial nothing is charged → only a note + next price. -->
@@ -213,6 +267,11 @@
                         variant="solid"
                         tone="accent"
                         :loading="submitting"
+                        :disabled="
+                            submitting ||
+                            previewLoading ||
+                            (acknowledgement !== null && !deferralAcknowledged)
+                        "
                         @click="submit"
                     >
                         {{ submitting ? i18n.confirmInProgress : i18n.confirmAction }}
@@ -226,6 +285,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import LimitsRow from './LimitsRow.vue';
+import { messageParts, type MessagePart } from './message-parts.js';
 import PlanCycleToggle from './plan/PlanCycleToggle.vue';
 import PlanGrid from './plan/PlanGrid.vue';
 import TenantButton from './ui/TenantButton.vue';
@@ -277,7 +337,7 @@ interface Props {
     isFractionalQuota?: (key: string) => boolean;
     /** Preview caller (passed through from the consumer composable). */
     previewPlanChange: (plan: string, cycle: BillingCycleStr) => Promise<PlanChangePreviewShape>;
-    changePlan: (plan: string, cycle: BillingCycleStr, immediate: boolean) => Promise<void>;
+    changePlan: (plan: string, cycle: BillingCycleStr) => Promise<void>;
     i18n: PlanChangeWizardI18n;
 }
 
@@ -305,6 +365,96 @@ const previewLoading = ref(false);
 const previewError = ref<string | null>(null);
 
 const submitting = ref(false);
+
+/**
+ * True when the chosen cycle is what defers an otherwise immediate upgrade.
+ *
+ * Read from the preview rather than compared here: the rule that decides it
+ * lives on the server, and a second opinion in the browser is how the two drift.
+ */
+/**
+ * Which sentence the reader has to tick, if any.
+ *
+ * A downgrade outranks a shortened cycle when both apply: losing features is
+ * the larger news, and a downgrade is deferred anyway, so the cycle adds
+ * nothing the reader does not already have to accept.
+ */
+const acknowledgement = computed<'downgrade' | 'cycle' | 'cycleOnly' | null>(() => {
+    const dto = preview.value;
+    if (!dto || !dto.effectiveAt) return null;
+    if (dto.planDirection === 'DOWN') return 'downgrade';
+    if (dto.planDirection === 'UP' && dto.cycleDirection === 'SHORTER') return 'cycle';
+    // Same plan, different rhythm. Nothing is lost and nothing is gained, but
+    // it still does not happen today, and it starts a fresh minimum term when
+    // it does — which is the part a reader would otherwise meet on an invoice.
+    if (dto.planDirection === 'SAME' && dto.cycleDirection !== 'SAME') return 'cycleOnly';
+    return null;
+});
+
+const effectiveDate = computed(() =>
+    preview.value?.effectiveAt ? props.formatDate(preview.value.effectiveAt) : '',
+);
+
+/** The values every acknowledgement sentence draws on. */
+const acknowledgementValues = computed(() => ({
+    date: effectiveDate.value,
+    plan: targetPlanName.value,
+    cycle: targetCycle.value === 'YEARLY' ? props.i18n.cycleYearly : props.i18n.cycleMonthly,
+    count: String(preview.value?.featuresLost.length ?? 0),
+}));
+
+const acknowledgementLead = computed(() => {
+    const kind = acknowledgement.value;
+    if (kind === 'cycle') {
+        return messageParts(props.i18n.deferredLead, acknowledgementValues.value);
+    }
+    if (kind === 'cycleOnly') {
+        return messageParts(props.i18n.cycleChangeLead, acknowledgementValues.value);
+    }
+    // A downgrade that costs no feature still costs quotas, and saying "0
+    // features" where nothing is lost reads as a bug rather than as good news.
+    const lost = preview.value?.featuresLost.length ?? 0;
+    const template = lost > 0 ? props.i18n.downgradeLead : props.i18n.downgradeLeadQuotasOnly;
+    return messageParts(template, acknowledgementValues.value);
+});
+
+/** Picks one of the three sentence sets. Written once for lead, body, label. */
+function acknowledgementText(cycle: string, cycleOnly: string, downgrade: string): MessagePart[] {
+    const kind = acknowledgement.value;
+    const template = kind === 'cycle' ? cycle : kind === 'cycleOnly' ? cycleOnly : downgrade;
+    return messageParts(template, acknowledgementValues.value);
+}
+
+const acknowledgementBody = computed(() =>
+    acknowledgementText(
+        props.i18n.deferredBody,
+        props.i18n.cycleChangeBody,
+        props.i18n.downgradeBody,
+    ),
+);
+
+const acknowledgementLabel = computed(() =>
+    acknowledgementText(
+        props.i18n.deferredAcknowledge,
+        props.i18n.cycleChangeAcknowledge,
+        props.i18n.downgradeAcknowledge,
+    )
+        .map((part) => part.text)
+        .join(''),
+);
+const deferralAcknowledged = ref(false);
+
+// Re-asking on every change of target: an acknowledgement of one date is not an
+// acknowledgement of another, and the confirm button must not stay unlocked
+// because the reader agreed to something they have since altered.
+watch([() => preview.value?.effectiveAt, targetCycle], () => {
+    deferralAcknowledged.value = false;
+});
+
+/** The alternative the block offers: same plan, today, billed pro rata. */
+function keepYearlyCycle(): void {
+    targetCycle.value = 'YEARLY';
+}
 const submitError = ref<string | null>(null);
 
 const currentCycleLabel = computed(() =>
@@ -456,24 +606,63 @@ async function goToPreview() {
     // it says the same thing to the compiler, which cannot see through the
     // guard.
     if (!plan || !goToNextStep()) return;
+    await loadPreview();
+}
+
+// Which question is outstanding. Two previews can be in flight at once — the
+// cycle can change again while the first is on the wire — and the network does
+// not promise to answer them in the order they were asked. Without this, the
+// slower earlier answer wins by arriving last, and it describes a target the
+// reader has since abandoned.
+let latestPreviewRequest = 0;
+
+/** Fetches the preview for the current target. Never the stale one. */
+async function loadPreview(): Promise<void> {
+    const plan = targetPlan.value;
+    if (!plan) return;
+    const request = (latestPreviewRequest += 1);
+    // Cleared, not kept: what the confirm step shows has to be the answer to
+    // the question currently being asked, and the old one still carries the
+    // other choice's date, price and `isImmediate`. Holding it while a new
+    // answer is on the wire is what let a reader tick a deferral and submit an
+    // upgrade the server then applied on the spot.
+    preview.value = null;
     previewLoading.value = true;
     previewError.value = null;
     try {
-        preview.value = await props.previewPlanChange(plan, targetCycle.value);
+        const dto = await props.previewPlanChange(plan, targetCycle.value);
+        if (request !== latestPreviewRequest) return;
+        preview.value = dto;
     } catch (err) {
+        if (request !== latestPreviewRequest) return;
         preview.value = null;
         previewError.value = err instanceof Error ? err.message : String(err);
     } finally {
-        previewLoading.value = false;
+        if (request === latestPreviewRequest) previewLoading.value = false;
     }
 }
+
+// The preview is the answer to a question the cycle is half of. Changing the
+// cycle after it was fetched — which the "keep yearly" button in the deferral
+// block does, on the confirmation step — leaves a preview describing the other
+// choice: its date, its price, its `isImmediate`. The button promised the
+// upgrade today and the stale answer would have scheduled it at term end.
+//
+// The condition is "the preview step is live", in any of its three states.
+// Reading only the installed preview would miss the state this function itself
+// produces: a second change arriving while the first answer is still on the
+// wire would find no preview to react to, ask nothing, and let the outdated
+// request install itself.
+watch(targetCycle, () => {
+    if (preview.value || previewError.value || previewLoading.value) void loadPreview();
+});
 
 async function submit() {
     if (!targetPlan.value || !preview.value) return;
     submitting.value = true;
     submitError.value = null;
     try {
-        await props.changePlan(targetPlan.value, targetCycle.value, preview.value.isImmediate);
+        await props.changePlan(targetPlan.value, targetCycle.value);
         emit('submitted');
         close();
     } catch (err) {
@@ -605,7 +794,13 @@ watch(
     padding: var(--sa-space-4);
     border-radius: var(--sa-radius-badge);
 }
+/* The chip and the sentence beside it are two facts, not one phrase — without
+   a gap they read as a single run-on label. */
 .sp-wizard__type {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sa-space-2);
     margin-bottom: var(--sa-space-4);
 }
 .sp-wizard__proration {
@@ -659,6 +854,36 @@ watch(
 }
 .sp-wizard__confirm-line {
     color: var(--sp-wiz-text-muted);
+}
+/* The deferral block. Loud enough that it is not skipped, calm enough that it
+   does not read as an error — nothing has gone wrong, the customer is simply
+   choosing something whose consequence arrives later than they may expect. */
+.sp-wizard__deferred {
+    margin: var(--sa-space-4) 0;
+    padding: var(--sa-space-4);
+    border: 1px solid var(--sa-color-warning-border);
+    border-radius: var(--sa-radius-md);
+    background: var(--sa-color-warning-surface);
+}
+.sp-wizard__deferred-lead {
+    margin: 0 0 var(--sa-space-3);
+    font-size: var(--sa-text-lg);
+    font-weight: 600;
+    color: var(--sa-color-warning-fg);
+}
+.sp-wizard__deferred p {
+    margin: 0 0 var(--sa-space-3);
+}
+.sp-wizard__deferred-list {
+    margin: 0 0 var(--sa-space-3);
+    padding-left: var(--sa-space-5);
+}
+.sp-wizard__deferred-ack {
+    display: flex;
+    gap: var(--sa-space-2);
+    align-items: flex-start;
+    margin-top: var(--sa-space-4);
+    cursor: pointer;
 }
 .sp-wizard__price-summary {
     margin-top: var(--sa-space-5);

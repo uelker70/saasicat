@@ -32,6 +32,7 @@ import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bu
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { codedError } from '../errors/coded-error.js';
+import { cancellationHasLanded, cancellationLandsAt } from './landed-cancellation.js';
 import {
     aggregateLimits,
     contractBundleVersionIds,
@@ -148,7 +149,12 @@ export class EntitlementService {
             });
         }
         const limits = await this.deriveLimits(sub, now);
-        this.writeCache(tenantId, limits, now.getTime());
+        // A cached answer may not outlive the cancellation it was computed
+        // before. Every other thing that changes these limits is a mutation,
+        // and every mutation invalidates the entry; a date arriving is not a
+        // mutation, so nothing would have cleared it and the old features would
+        // be granted for up to a further minute past the end of the contract.
+        this.writeCache(tenantId, limits, now.getTime(), cancellationLandsAt(sub));
         return limits;
     }
 
@@ -176,6 +182,41 @@ export class EntitlementService {
         now: Date,
         tx?: TransactionContext,
     ): Promise<EffectiveLimits> {
+        // A cancellation that has taken effect ends everything below it, and
+        // this is the only place that can say so: no repository filters a
+        // cancelled subscription out, and the renewal decision stops the
+        // billing period without touching what the tenant may do.
+        //
+        // Before the contract, not after. A contract is the frozen agreement of
+        // the subscription that signed it (see the freeze after a plan change),
+        // so it cannot outlive the subscription — a tenant whose cancellation
+        // has landed keeps nothing by having agreed to something earlier.
+        //
+        // Bundles and custom limits are not merged into the floor either. They
+        // were bought on top of a subscription that has ended.
+        if (cancellationHasLanded(sub, now)) {
+            const floor = this.resolutionConfig?.canceledEntitlementPlan;
+            if (floor === undefined) {
+                // The plan is what they had, and nothing comes with it. Naming
+                // the plan keeps `effectivePlan` readable on a page that has to
+                // say which contract ended; the empty sets are the answer.
+                return { plan: sub.plan, quotas: {}, features: new Set() };
+            }
+            const floorVersion = await this.findActivePlanVersionOrFallback(floor, now, tx);
+            return this.withReplacedFeatureAliases(
+                aggregateLimits(
+                    {
+                        plan: floor,
+                        planVersion: floorVersion,
+                        subscriptionBundles: [],
+                        customLimits: null,
+                    },
+                    this.catalog,
+                    now,
+                ),
+            );
+        }
+
         const contract = await this.findActiveContract(sub.tenantId, now, tx);
         if (contract) {
             // Bundles booked after the contract was signed take effect
@@ -360,7 +401,11 @@ export class EntitlementService {
     private readCache(tenantId: string, nowMs: number): EffectiveLimits | null {
         const entry = this.cache.get(tenantId);
         if (!entry) return null;
-        if (entry.expiresAt < nowMs) {
+        // `<=`, so that an entry capped at a cancellation's effective moment is
+        // already gone AT that moment — which is the moment the entitlements
+        // end. For an ordinary TTL entry this moves the expiry by one
+        // millisecond and means nothing.
+        if (entry.expiresAt <= nowMs) {
             this.cache.delete(tenantId);
             return null;
         }
@@ -370,9 +415,19 @@ export class EntitlementService {
         return entry.value;
     }
 
-    private writeCache(tenantId: string, value: EffectiveLimits, nowMs: number): void {
+    private writeCache(
+        tenantId: string,
+        value: EffectiveLimits,
+        nowMs: number,
+        expiresNotAfter: Date | null = null,
+    ): void {
         if (this.cache.has(tenantId)) this.cache.delete(tenantId);
-        this.cache.set(tenantId, { value, expiresAt: nowMs + CACHE_TTL_MS });
+        const ttlExpiry = nowMs + CACHE_TTL_MS;
+        const boundary = expiresNotAfter?.getTime() ?? Infinity;
+        this.cache.set(tenantId, {
+            value,
+            expiresAt: boundary > nowMs ? Math.min(ttlExpiry, boundary) : ttlExpiry,
+        });
         // Eviction: drop the oldest entry until the cache limit is met.
         while (this.cache.size > CACHE_MAX_ENTRIES) {
             const oldest = this.cache.keys().next().value;

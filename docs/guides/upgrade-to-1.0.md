@@ -227,6 +227,110 @@ The admin package is unchanged here: `@saasicat/ui-vue` still uses Quasar, and s
   `useResource("…"): no resource registry in scope` in its `setup()`; until 0.27 the same app
   worked, because the pages took their loaders as props.
 
+### The subscription table gained two columns
+
+`Subscription` needs `canceledEffectiveAt` and `minimumTermUntil`, both nullable. Add them before
+deploying 1.0 — they are what the cancellation rules are read from, and an app whose schema lacks
+them fails when someone cancels.
+
+```prisma
+model Subscription {
+    // …
+    canceledAt          DateTime?
+    canceledEffectiveAt DateTime?   // new: when the cancellation lands
+    minimumTermUntil    DateTime?   // new: the end of what was committed to
+}
+```
+
+```sql
+ALTER TABLE "subscriptions"
+    ADD COLUMN "canceledEffectiveAt" TIMESTAMP(3),
+    ADD COLUMN "minimumTermUntil"    TIMESTAMP(3);
+```
+
+`saasicat schema check --prisma-schema=path/to/schema.prisma` compares your schema against the
+shipped fragments and names what is missing; run it before the deploy rather than after.
+
+**No backfill is required.** On a row written before the split, `canceledAt` holds the effective
+date and `canceledEffectiveAt` is null, and every reader in the platform applies
+`canceledEffectiveAt ?? canceledAt` for exactly that reason — the renewal decision, the cancel
+route, the usage projection and entitlement resolution alike. Backfilling is still tidier if you
+want one column to mean one thing:
+
+```sql
+UPDATE "subscriptions"
+   SET "canceledEffectiveAt" = "canceledAt"
+ WHERE "canceledAt" IS NOT NULL
+   AND "canceledEffectiveAt" IS NULL;
+```
+
+`minimumTermUntil` stays null on existing rows and should: null means "no commitment beyond the
+period", which is what those subscriptions were sold under. Each renewal sets it from then on.
+
+**If you implement the ports yourself, your build breaks here, on purpose.** Three records require
+`canceledAt` and `canceledEffectiveAt` now — `SubscriptionRecord` (entitlement resolution ends a
+subscription by reading them), `SubscriptionUsageRecord` (the tenant billing route refuses a plan
+change on a subscription that has ended) and `DuePendingPlanChange` (materialisation declines a
+change that came due after the end). Each stops compiling until it returns them:
+
+```ts
+return {
+    // …
+    canceledAt: row.canceledAt ?? null,
+    canceledEffectiveAt: row.canceledEffectiveAt ?? null,
+};
+```
+
+They are required rather than optional because the alternative is silent: a record without them
+cannot distinguish a subscription that ends next January from one that ended last January, and the
+quiet answer is that it keeps everything.
+
+### A cancellation that has taken effect now ends the entitlements
+
+Until 1.0 nothing on the entitlement path read a cancellation. A subscription whose cancellation
+had landed — last month, last year — was granted exactly what it was granted while active: same
+plan, same features, same quotas. `FeatureGuard` let it through, and no repository filtered it out.
+
+From 1.0 a landed cancellation grants **nothing**: no features, no quotas. A cancellation that is
+merely _declared_ still changes nothing at all, which is the same rule as before — a subscription
+cancelled in month three of a year runs, is billed and keeps everything until the term ends.
+
+Two consequences to plan for.
+
+**Some tenants lose access on the day you deploy.** Every subscription whose cancellation has
+already landed is affected, and there may be more of them than anyone remembers, because until now
+the state had no effect. List them before deploying:
+
+```sql
+SELECT "tenantId", "plan", "status",
+       COALESCE("canceledEffectiveAt", "canceledAt") AS ended
+  FROM subscriptions
+ WHERE COALESCE("canceledEffectiveAt", "canceledAt") <= NOW()
+ ORDER BY ended;
+```
+
+If that list holds a tenant who should still have access, the cancellation is the thing to correct —
+not this rule.
+
+**You may keep a floor instead of nothing.** `canceledEntitlementPlan` names a plan a subscription
+falls back to once its cancellation lands: a read-only tier a former customer can export from, or a
+free plan. It is resolved through the catalog like any other plan and needs an active version;
+bundle bookings and custom limits are not added to it, because those belonged to the subscription
+that ended.
+
+```ts
+EntitlementModule.forRoot({
+    resolutionConfig: { canceledEntitlementPlan: 'FREE' },
+    // …
+});
+```
+
+**If you implement the ports yourself**, `SubscriptionRecord` now requires `canceledAt` and
+`canceledEffectiveAt`. They are required rather than optional on purpose: an adapter that omits
+them cannot tell a subscription that ends next January from one that ended last January, and the
+silent answer is the wrong one. `@saasicat/adapter-prisma` and `@saasicat/adapter-drizzle` both
+supply them.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

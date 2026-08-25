@@ -57,6 +57,7 @@ import {
 } from './self-service-policy.js';
 import {
     addMonths,
+    clampToParent,
     resolveBundleCancelEffectiveAt,
     type SubscriptionBundleConfig,
 } from './subscription-bundles.service.js';
@@ -82,6 +83,14 @@ export interface SubscriptionBundlePreviewContext {
     startedAt: Date | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
+    /**
+     * When the parent subscription ends, or null while it runs on.
+     *
+     * The dialog states the date the booking will be committed to, and the
+     * mutation caps that date at the parent's end. A preview that does not cap
+     * it describes a different contract from the one that is written.
+     */
+    parentEndsAt: Date | null;
 }
 
 export interface BundlePreviewSnapshot {
@@ -248,7 +257,12 @@ export class SubscriptionBundlePreviewService {
             proration,
             nextPeriodPriceNet: priceNet,
             minimumTermMonths,
-            minimumTermEndsAt: minimumTermMonths > 0 ? addMonths(now, minimumTermMonths) : null,
+            // The same cap the mutation applies, for the same reason and by the
+            // same rule: a zero-month term stays uncommitted.
+            minimumTermEndsAt: clampToParent(
+                minimumTermMonths > 0 ? addMonths(now, minimumTermMonths) : null,
+                ctx.parentEndsAt,
+            ),
             redundantFeatures,
             missingRequires,
             blockers,
@@ -288,6 +302,7 @@ export class SubscriptionBundlePreviewService {
         }
 
         const effectiveAt = resolveBundleCancelEffectiveAt({
+            parentEndsAt: ctx.parentEndsAt,
             canceledAt: now,
             currentPeriodEnd: ctx.currentPeriodEnd,
             minimumTermEndsAt: existing.minimumTermEndsAt,

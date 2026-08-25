@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
+import { IsISO8601, IsOptional, IsString, Matches } from 'class-validator';
 
 // DTOs for tenant self-service mutations. Plan and cycle IDs are validated as
 // strings (no hard enum), because the allowed values come from the consumer's
@@ -19,16 +19,44 @@ export class PreviewPlanChangeDto {
     billingCycle!: string;
 }
 
-export class ChangePlanDto extends PreviewPlanChangeDto {
-    /** Immediate change (true) vs. change at period end (false/undefined). */
-    @IsOptional()
-    @IsBoolean()
-    effectiveImmediately?: boolean;
-}
+/**
+ * A plan change carries what to change to, never when.
+ *
+ * It used to carry `effectiveImmediately`, and the route honoured it — so a
+ * direct call could take the immediate path and end a term the customer was
+ * inside. When a change lands follows from the plan direction, the cycle
+ * direction and the minimum term, all of which the server knows and the caller
+ * does not.
+ */
+export class ChangePlanDto extends PreviewPlanChangeDto {}
 
+/**
+ * A cancellation carries nothing.
+ *
+ * It used to carry `immediately`, and honouring it let a tenant end a term they
+ * were still inside — the one thing this route may not do. A cancellation is a
+ * declaration; when it lands is decided from the minimum term and the notice
+ * period, not asked for. Ending a contract on the spot is an operator's act and
+ * goes through the operator's own path.
+ *
+ * Kept as an empty class rather than deleted so `whitelist` still strips a body
+ * from a client that has not been updated, instead of the field reaching a
+ * handler that would ignore it silently.
+ */
 export class CancelSubscriptionDto {
-    /** true = cancel immediately (status CANCELED). false/undefined = at period end. */
+    /**
+     * The effective date the page showed before the customer confirmed.
+     *
+     * Optional, and checked rather than trusted: if the server's own decision
+     * differs, the request is refused with the new date so the page can ask
+     * again. The window is small and the consequence is not — a dialog opened
+     * before a notice deadline and confirmed after it promises January 2027 and
+     * would deliver January 2028.
+     *
+     * This is the caller telling the server what only the caller knows: what
+     * the human actually agreed to.
+     */
     @IsOptional()
-    @IsBoolean()
-    immediately?: boolean;
+    @IsISO8601()
+    expectedEffectiveAt?: string;
 }

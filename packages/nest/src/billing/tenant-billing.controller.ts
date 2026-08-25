@@ -8,6 +8,7 @@ import {
     HttpStatus,
     Inject,
     Logger,
+    ConflictException,
     NotFoundException,
     Optional,
     Post,
@@ -39,22 +40,22 @@ import {
     type TenantIdResolver,
     type TrialProjectionPort,
     type UserIdResolver,
+    CANCELLATION_NOTICE_DAYS_TOKEN,
 } from './tenant-billing.tokens.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import {
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
     type SelfServiceBlockedPlans,
 } from './self-service-policy.js';
-import {
-    CancelSubscriptionDto,
-    ChangePlanDto,
-    PreviewPlanChangeDto,
-} from './dto/tenant-billing.dto.js';
+import { ChangePlanDto, PreviewPlanChangeDto } from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
+import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
+import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
+import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
     USER_EMAIL_RESOLVER_TOKEN,
@@ -95,6 +96,18 @@ interface UsageResponse {
     pendingPlanVersionEffectiveAt: Date | null;
     pendingPlanVersionAccepted: boolean;
     pendingPlanVersionAcceptedAt: Date | null;
+    /** When a cancellation was declared. Null while none was. */
+    canceledAt: Date | null;
+    /** When it lands. A tenant keeps everything until then. */
+    canceledEffectiveAt: Date | null;
+    /**
+     * What cancelling right now would do — the date, and why it is that date.
+     *
+     * A projection, not a state: it is recomputed on every read, and it says
+     * nothing about whether a cancellation exists. `canceledEffectiveAt` above
+     * is the one that does.
+     */
+    cancellation: CancellationDecision;
     limits: ReturnType<typeof toEffectiveLimitsSnapshot>;
     usage: Record<string, number>;
     /**
@@ -171,6 +184,16 @@ export class TenantBillingController {
         @Optional()
         @Inject(TRIAL_PROJECTION_PORT_TOKEN)
         private readonly trialProjection: TrialProjectionPort | null = null,
+        // Zero unless an installation asked for a notice period. See the token.
+        //
+        // LAST, and that is not stylistic: this list is also a positional
+        // signature, and inserting a parameter in the middle of it shifts every
+        // argument after it. Doing that here moved `promoCodes` into this slot
+        // and broke eleven tests in ways that read as unrelated logic errors,
+        // because nothing type-checks a boolean landing where a service was.
+        @Optional()
+        @Inject(CANCELLATION_NOTICE_DAYS_TOKEN)
+        private readonly cancellationNoticeDays: number = 0,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -228,6 +251,23 @@ export class TenantBillingController {
             pendingPlanVersionEffectiveAt: sub.pendingPlanVersionEffectiveAt,
             pendingPlanVersionAccepted: sub.pendingPlanVersionAccepted,
             pendingPlanVersionAcceptedAt: sub.pendingPlanVersionAcceptedAt,
+            canceledAt: sub.canceledAt ?? null,
+            // The same fallback the renewal and the cancel route apply, for the
+            // same reason: on a row written before the two fields separated,
+            // `canceledAt` IS the effective date and the second column is
+            // genuinely null. Reading it strictly here told the page the
+            // subscription was never cancelled — so it hid the end date and
+            // went on offering to cancel something that already had been.
+            canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+            // What a cancellation declared right now would do.
+            //
+            // Here rather than behind a second route, because the page has to
+            // state the date BEFORE the customer confirms, and the rule that
+            // produces it lives on this side: the minimum term and the notice
+            // period are not visible to a browser. With a window configured,
+            // four days of delay cost a whole period — a sentence that has to
+            // be read in the confirmation, not discovered in the receipt.
+            cancellation: this.projectCancellation(sub, new Date()),
             limits: toEffectiveLimitsSnapshot(limits),
             usage,
             packageSnapshot: sub.packageSnapshot ?? null,
@@ -275,26 +315,95 @@ export class TenantBillingController {
             });
         }
 
-        // Defense-in-depth: server-side pre-check with the same rules
-        // as the wizard. Prevents bypass via a direct API call.
-        const blockers = await this.planPreview.assertChangeAllowed(
-            tenantId,
-            dto.plan,
-            dto.billingCycle,
-        );
-        if (blockers.length > 0) {
-            throw new BadRequestException({
-                code: BILLING_ERROR_CODES.PLAN_CHANGE_BLOCKED,
-                message: 'Plan change is blocked.',
-                blockers,
+        // A contract that is over cannot be changed, only started again — and
+        // there is no route for that yet, deliberately. Without this the
+        // immediate branch would prorate an upgrade and charge for it while
+        // entitlement resolution grants nothing, because the cancellation it
+        // reads has already landed.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended. Its plan can no longer be changed.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             });
         }
 
-        if (dto.effectiveImmediately) {
+        // A cancellation is measured against the term of the cycle it was
+        // declared under, so that cycle cannot change while it is outstanding.
+        //
+        // Allowing it produced a contract that contradicted itself. A monthly
+        // subscription ending on the 1st, upgraded to a yearly plan, is an
+        // immediate change — the plan goes up, the cycle gets longer — and the
+        // suppression below then keeps the monthly window while the write puts
+        // `YEARLY` beside it. The preview meanwhile prorates the yearly price
+        // across the days left in the monthly period: a year bought, billed,
+        // and over on the 1st.
+        //
+        // The plan may still move on the same cycle. What may not move is the
+        // rhythm the ending was calculated in.
+        const cancellationOutstanding = (sub.canceledEffectiveAt ?? sub.canceledAt) !== null;
+        if (cancellationOutstanding && dto.billingCycle !== sub.billingCycle) {
+            throw new ConflictException({
+                code: 'CANCELLATION_LOCKS_THE_CYCLE',
+                message:
+                    'This subscription is cancelled, so its billing cycle cannot change. ' +
+                    'The plan can.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                billingCycle: sub.billingCycle,
+            });
+        }
+
+        // The same preview the wizard renders, and for the same reason: this
+        // route decides what happens, not the caller.
+        //
+        // It used to ask `assertChangeAllowed` for the blockers only, under a
+        // comment promising it "prevents bypass via a direct API call" — and
+        // then took the timing from `dto.effectiveImmediately`. A direct POST
+        // with that flag entered the immediate branch, reset the period from
+        // today, and ended a yearly commitment the customer was still inside.
+        // The blockers were checked; the one decision that carries money was
+        // handed to whoever was calling.
+        const decision = await this.planPreview.preview(tenantId, dto.plan, dto.billingCycle);
+        if (decision.blockers.length > 0) {
+            throw new BadRequestException({
+                code: BILLING_ERROR_CODES.PLAN_CHANGE_BLOCKED,
+                message: 'Plan change is blocked.',
+                blockers: decision.blockers,
+            });
+        }
+
+        // The decisions above were taken against the cancellation as it stood
+        // when this route read it, and the write claims the row only while that
+        // still holds. A cancellation declared in between loses nothing and
+        // changes nothing: the caller is told to look again.
+        //
+        // The claim compares `canceledAt`, which a passing minute does not
+        // change — so a cancellation recorded BEFORE this request, landing
+        // while the preview was computed, would satisfy it. The boundary is
+        // therefore re-read here, against the clock as it is now rather than as
+        // it was when the subscription was fetched.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription ended while the request was being decided.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+            });
+        }
+        const changedUnderneath = {
+            code: 'SUBSCRIPTION_CHANGED',
+            message: 'This subscription changed while the request was being decided. Reload it.',
+        };
+
+        if (decision.isImmediate) {
             const wasTrial = sub.status === 'TRIAL';
-            const period = wasTrial
-                ? null
-                : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
+            // A fresh window is a fresh term, and a cancellation still to come
+            // ends the subscription on a date this change does not move. Opening
+            // one anyway sells a period the customer loses partway through. The
+            // plan changes today either way; what stays is when it runs out.
+            const period =
+                wasTrial || cancellationOutstanding
+                    ? null
+                    : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
             // #17: in trial, carry the remaining time over to the target package
             // (via the existing TrialProjectionPort — the same one that feeds the
             // wizard preview). `null` → target without trial: trial end stays unchanged.
@@ -315,13 +424,20 @@ export class TenantBillingController {
                 periodEnd: period?.end ?? null,
                 nextStatus: wasTrial ? null : 'ACTIVE',
                 trialEndsAt,
+                expectedCanceledAt: sub.canceledAt ?? null,
             });
+            if (!result.claimed) {
+                throw new ConflictException(changedUnderneath);
+            }
             this.entitlements.invalidateTenant(tenantId);
             await this.tryFreezeOnPlanChange(
                 tenantId,
                 dto.plan,
                 dto.billingCycle as BillingCycle,
                 wasTrial,
+                // A plan change on a cancelled subscription is allowed; the
+                // contract it freezes still ends when the subscription does.
+                sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             );
             await this.auditLog(req, userId, 'Subscription', tenantId, 'CHANGE_PLAN', {
                 fromPlan: sub.plan,
@@ -333,15 +449,18 @@ export class TenantBillingController {
             return { plan: result.plan, billingCycle: result.billingCycle, immediate: true };
         }
 
-        const effectiveAt =
-            sub.status === 'TRIAL' && sub.trialEndsAt
-                ? sub.trialEndsAt
-                : (sub.currentPeriodEnd ?? new Date());
-        await this.subscriptionWrite.schedulePlanChange(tenantId, {
+        // The preview already resolved this against the trial, the period and
+        // the term; recomputing it here is a second answer waiting to differ.
+        const effectiveAt = decision.effectiveAt ?? sub.currentPeriodEnd ?? new Date();
+        const scheduled = await this.subscriptionWrite.schedulePlanChange(tenantId, {
             pendingPlan: dto.plan,
             pendingBillingCycle: dto.billingCycle,
             pendingEffectiveAt: effectiveAt,
+            expectedCanceledAt: sub.canceledAt ?? null,
         });
+        if (!scheduled.claimed) {
+            throw new ConflictException(changedUnderneath);
+        }
         this.entitlements.invalidateTenant(tenantId);
         await this.auditLog(req, userId, 'Subscription', tenantId, 'SCHEDULE_PLAN_CHANGE', {
             fromPlan: sub.plan,
@@ -394,6 +513,17 @@ export class TenantBillingController {
             });
         }
 
+        // Onboarding is a first activation, and a subscription that has ended
+        // is not one. Its own guard rather than the plan route's: they are two
+        // routes, and only one of them was checked.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended and cannot be activated again.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+            });
+        }
+
         // Plan-change blockers (defense-in-depth, as in changePlan)
         const blockers = await this.planPreview.assertChangeAllowed(
             tenantId,
@@ -432,7 +562,11 @@ export class TenantBillingController {
                   )
             : null;
 
-        let planResult: { plan: string; billingCycle: string };
+        let planResult: { plan: string; billingCycle: string; claimed?: boolean };
+        // Assigned in the atomic branch and read after its catch. Declared
+        // without a value because the catch always throws, so there is no path
+        // that reads it unset — and an initialiser here would be dead.
+        let claimLost: boolean;
         let promoRedemption: OnboardingSelectionResponse['promoRedemption'] = null;
 
         // ─── Atomic path (preferred) ────────────────────────────────────────
@@ -446,9 +580,11 @@ export class TenantBillingController {
                         periodStart: period?.start ?? null,
                         periodEnd: period?.end ?? null,
                         nextStatus: wasTrial ? null : 'ACTIVE',
+                        expectedCanceledAt: sub.canceledAt ?? null,
                     },
                     redeemPromoCallback,
                 );
+                claimLost = !result.claimed;
                 planResult = { plan: result.plan, billingCycle: result.billingCycle };
                 if (result.promoRedemption) {
                     promoRedemption = this.toResponseRedemption(
@@ -472,6 +608,18 @@ export class TenantBillingController {
                     params: { reason },
                 });
             }
+            // Outside the catch on purpose. A lost claim is not a failure of
+            // the write — nothing was written, deliberately, because somebody
+            // cancelled while this was being applied. Reporting it as
+            // ONBOARDING_CREATE_FAILED would tell the caller their adapter
+            // broke, when what happened is that their subscription moved.
+            if (claimLost) {
+                throw new ConflictException({
+                    code: 'SUBSCRIPTION_CHANGED',
+                    message:
+                        'This subscription changed while onboarding was being applied. Reload it.',
+                });
+            }
         } else {
             // ─── Fallback: sequential best-effort path ──────────────────────
             // The adapter does not (yet) implement applyOnboardingSelection —
@@ -483,7 +631,18 @@ export class TenantBillingController {
                 periodStart: period?.start ?? null,
                 periodEnd: period?.end ?? null,
                 nextStatus: wasTrial ? null : 'ACTIVE',
+                // What this route read, so a cancellation declared since then
+                // takes the row instead of being written over. A landed one was
+                // refused above; a pending one is legitimate and claims fine.
+                expectedCanceledAt: sub.canceledAt ?? null,
             });
+            if (!planResult.claimed) {
+                throw new ConflictException({
+                    code: 'SUBSCRIPTION_CHANGED',
+                    message:
+                        'This subscription changed while onboarding was being applied. Reload it.',
+                });
+            }
             if (dto.promoCode) {
                 if (!this.promoCodes) {
                     warnings.push(
@@ -552,6 +711,9 @@ export class TenantBillingController {
                         subscriptionId: sub.id,
                         bundleVersionId,
                         currentPlanKey: planResult.plan,
+                        // Onboarding refuses an ended subscription above, and a
+                        // cancellation still outstanding still caps the term.
+                        parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                     });
                     bundlesAdded += 1;
                 } catch (err) {
@@ -596,6 +758,16 @@ export class TenantBillingController {
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
                 message: `No subscription for tenant ${tenantId}`,
                 params: { tenantId },
+            });
+        }
+        // Same reason the plan cannot be changed: there is no subscription left
+        // to accept anything for, and a page that still offers the act turns a
+        // state it could have shown into an error.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended. There is nothing left to accept.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             });
         }
         if (!sub.pendingPlanVersion) {
@@ -643,27 +815,199 @@ export class TenantBillingController {
     async cancelSubscription(@Req() req: RequestLike, @Body() dto: CancelSubscriptionDto) {
         const tenantId = this.requireTenantId(req);
         const userId = this.requireUserId(req);
-        const result = await this.subscriptionWrite.cancelSubscription(
-            tenantId,
-            !!dto.immediately,
-            new Date(),
-        );
+        const now = new Date();
+
+        const sub = await this.subscriptionUsage.findForTenant(tenantId);
+        if (!sub) {
+            throw new NotFoundException({
+                code: 'NO_SUBSCRIPTION',
+                message: 'This tenant has no subscription to cancel.',
+            });
+        }
+
+        // Already cancelled? Say so and change nothing.
+        //
+        // Not politeness — arithmetic. With a notice period configured, running
+        // the decision again against a later `now` can land the cancellation a
+        // whole period further out: an on-time declaration landing January 2027,
+        // retried after the deadline, becomes January 2028. The customer pressed
+        // the same button twice and bought another year. A cancellation is
+        // declared once; a repeat is a question about it, not a new one.
+        const existing = sub.canceledEffectiveAt ?? sub.canceledAt ?? null;
+        if (existing) {
+            // Repairing rather than merely reporting. A legacy row was written
+            // before this hook existed, and a retry means the subscription
+            // write succeeded while the non-fatal contract call did not — in
+            // both cases nothing else will ever cap that contract, because only
+            // the request that wins the cancellation write reaches the hook
+            // below. Ending it again is a no-op: the lookup asks as of the
+            // effective date, and a contract already capped there is gone.
+            if (this.contractFreeze) {
+                try {
+                    await this.contractFreeze.endOnCancellation(tenantId, existing);
+                } catch (err) {
+                    this.logger.error(
+                        `Ending the contract for an existing cancellation failed ` +
+                            `(tenant ${tenantId}): ${String(err)}`,
+                    );
+                }
+            }
+            return {
+                canceledAt: sub.canceledAt ?? null,
+                canceledEffectiveAt: existing,
+                status: sub.status,
+                // Null rather than recomputed, because the three below explain a
+                // decision that was taken once and is not stored. Deriving them
+                // from the effective date tells the wrong story exactly where it
+                // matters: a declaration that landed a period late has an
+                // earlier term end and `afterNoticeDeadline: true`, and a retry
+                // would report the effective date as the term end and the late
+                // declaration as on time. Null says "not recomputed", which is
+                // the truth; the date, which is stored, is above.
+                termEndsAt: null,
+                noticeDeadline: null,
+                afterNoticeDeadline: null,
+                alreadyCanceled: true,
+            };
+        }
+
+        // A tenant declares; the rules decide when it lands. The request body
+        // used to carry `immediately`, and honouring it let a customer end a
+        // term they were still inside — the one thing this route may not do.
+        // Ending a contract on the spot is an operator's act, and it goes
+        // through the operator's own path.
+        const decision = this.projectCancellation(sub, now);
+
+        // What the page showed has to be what the customer agreed to. Refused
+        // rather than silently applied, with the new date in the error so the
+        // page can re-ask instead of guessing why.
+        //
+        // Equality is the wrong test where the answer IS the moment of asking.
+        // A subscription with nothing left to run lands its cancellation now,
+        // and "now" is read once when the page is drawn and again when the
+        // button is pressed — never the same number, seconds apart. Comparing
+        // them for equality refuses every confirmation, the retry included,
+        // because the retry moves the date it is compared against. What the
+        // reader agreed to there is "immediately", and every reading of the
+        // clock up to this one says that. A date still in the FUTURE does not:
+        // no projection of this route produced it, so it is refused as before.
+        const expected = dto.expectedEffectiveAt ? new Date(dto.expectedEffectiveAt) : null;
+        const landsImmediately = decision.effectiveAt <= now;
+        const disagrees =
+            expected !== null &&
+            (landsImmediately
+                ? expected.getTime() > decision.effectiveAt.getTime()
+                : expected.getTime() !== decision.effectiveAt.getTime());
+        if (disagrees) {
+            throw new ConflictException({
+                code: 'CANCELLATION_TERMS_CHANGED',
+                message: 'The effective date changed since it was shown. Confirm the new one.',
+                effectiveAt: decision.effectiveAt,
+                termEndsAt: decision.termEndsAt,
+                noticeDeadline: decision.noticeDeadline,
+                afterNoticeDeadline: decision.afterNoticeDeadline,
+            });
+        }
+
+        // Two further writes the decision implies, and neither is the client's
+        // to ask for.
+        //
+        // `terminateNow` follows the DATE the rules returned, not a flag: it is
+        // true exactly when they found nothing left to run — no period, no term,
+        // as on a trial or a subscription still waiting for sales — and there
+        // `effectiveAt` is `now`. Without it the row keeps saying ACTIVE for
+        // good, because nothing downstream would ever transition it:
+        // `computeNextPeriod` returns early on a subscription whose period end
+        // is null, and there is no other materialisation path.
+        //
+        // What it does NOT do is stop the entitlements. Measured, not assumed:
+        // `EntitlementService.computeLimits` grants a CANCELED subscription
+        // whose cancellation landed eight months ago exactly what it granted
+        // while active. Nothing on that path reads the status or the effective
+        // date. That gap is general rather than particular to this route, and
+        // it is issue #219.
+        //
+        // A declaration made after the notice deadline is the mirror image. It
+        // buys the following period, and the commitment has to say so, because
+        // every reader of the term end looks at `minimumTermUntil` rather than
+        // at this cancellation — a downgrade scheduled meanwhile would otherwise
+        // land at the old term end, inside the period just paid for.
+        const result = await this.subscriptionWrite.cancelSubscription(tenantId, {
+            canceledAt: now,
+            effectiveAt: decision.effectiveAt,
+            terminateNow: decision.effectiveAt <= now,
+            minimumTermUntil: decision.afterNoticeDeadline ? decision.effectiveAt : undefined,
+        });
+        // The check above and this write are two moments, and a second request
+        // can arrive between them. The store settles it — the claim either took
+        // the row or found it taken — and a claim that lost neither audits a
+        // cancellation that did not happen nor explains its own decision, which
+        // was never applied.
+        if (result.alreadyCanceled) {
+            return {
+                canceledAt: result.canceledAt,
+                canceledEffectiveAt: result.canceledEffectiveAt,
+                status: result.status,
+                termEndsAt: null,
+                noticeDeadline: null,
+                afterNoticeDeadline: null,
+                alreadyCanceled: true,
+            };
+        }
         this.entitlements.invalidateTenant(tenantId);
+        // The frozen contract ends when the subscription does. Non-fatal, like
+        // every other use of this port: the cancellation is already recorded,
+        // and a consumer without contracts has nothing to end.
+        if (this.contractFreeze) {
+            try {
+                await this.contractFreeze.endOnCancellation(tenantId, decision.effectiveAt);
+            } catch (err) {
+                this.logger.error(
+                    `Ending the contract after a cancellation failed (tenant ${tenantId}): ${String(err)}`,
+                );
+            }
+        }
         await this.auditLog(req, userId, 'Subscription', tenantId, 'CANCEL_SUBSCRIPTION', {
-            immediate: !!dto.immediately,
-            canceledAt: result.canceledAt?.toISOString() ?? null,
+            canceledAt: now.toISOString(),
+            effectiveAt: decision.effectiveAt.toISOString(),
+            afterNoticeDeadline: decision.afterNoticeDeadline,
             status: result.status,
         });
         return {
             canceledAt: result.canceledAt,
+            canceledEffectiveAt: result.canceledEffectiveAt,
             status: result.status,
-            immediate: !!dto.immediately,
+            // What the page needs to say which period it landed in, and why.
+            termEndsAt: decision.termEndsAt,
+            noticeDeadline: decision.noticeDeadline,
+            afterNoticeDeadline: decision.afterNoticeDeadline,
+            alreadyCanceled: false,
         };
     }
 
     // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------
+
+    /**
+     * What a cancellation declared at `now` would do. One method, because the
+     * page states the date and this route applies it, and two constructions of
+     * the same input are two chances to disagree about a rule the customer
+     * meets once.
+     */
+    private projectCancellation(sub: SubscriptionUsageRecord, now: Date): CancellationDecision {
+        return decideCancellationFor(
+            {
+                status: sub.status,
+                billingCycle: sub.billingCycle as BillingCycle,
+                currentPeriodEnd: sub.currentPeriodEnd ?? null,
+                minimumTermUntil: sub.minimumTermUntil ?? null,
+                trialEndsAt: sub.trialEndsAt ?? null,
+            },
+            now,
+            this.cancellationNoticeDays,
+        );
+    }
 
     private requireTenantId(req: RequestLike): string {
         const resolver: TenantIdResolver =
@@ -763,10 +1107,11 @@ export class TenantBillingController {
         plan: string,
         cycle: BillingCycle,
         wasTrial: boolean,
+        endsAt: Date | null = null,
     ): Promise<void> {
         if (wasTrial || !this.contractFreeze) return;
         try {
-            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, new Date());
+            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, new Date(), endsAt);
         } catch (err) {
             this.logger.error(
                 `Contract freeze after plan change failed (tenant ${tenantId}): ${String(err)}`,

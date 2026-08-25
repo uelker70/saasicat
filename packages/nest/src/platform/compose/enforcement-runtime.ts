@@ -128,7 +128,15 @@ function planResolverProvider(ctx: CompositionContext, resolution: PlanResolutio
         return {
             provide: PLAN_RESOLVER_PORT_TOKEN,
             useFactory: (subscriptions: SubscriptionRepository) =>
-                new SubscriptionPlanResolver(subscriptions),
+                new SubscriptionPlanResolver(
+                    subscriptions,
+                    undefined,
+                    // The same floor `EntitlementService` applies, read from the
+                    // same option: two enforcement paths that disagree about
+                    // what a cancelled subscription keeps would be worse than
+                    // either answer on its own.
+                    ctx.options.entitlement?.resolutionConfig?.canceledEntitlementPlan ?? null,
+                ),
             inject: [PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN],
         };
     }

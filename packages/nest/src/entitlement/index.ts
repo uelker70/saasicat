@@ -24,6 +24,7 @@ export * from './entitlement.types.js';
 export * from './aggregation.js';
 export * from './feature-aliases.js';
 export * from './plan-resolution.js';
+export * from './landed-cancellation.js';
 export * from './limit-exceeded-error.js';
 export * from './entitlement.service.js';
 export * from './entitlement.module.js';

@@ -18,9 +18,13 @@
         </div>
 
         <template v-else>
-            <!-- Pending plan version banner -->
+            <!--
+                Pending plan version banner. Not on a subscription that has
+                ended: the route refuses the acceptance, so the banner would
+                offer a button that answers with an error.
+            -->
             <PendingVersionBanner
-                v-if="usage.pendingPlanVersion"
+                v-if="usage.pendingPlanVersion && !hasEnded"
                 :pending="usage.pendingPlanVersion"
                 :effective-at="usage.pendingPlanVersionEffectiveAt"
                 :accepted="usage.pendingPlanVersionAccepted"
@@ -54,6 +58,7 @@
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
                     @change-plan="showWizard = true"
+                    @cancel-subscription="openCancelConfirm"
                 />
 
                 <hr class="sp-divider" />
@@ -149,6 +154,65 @@
                 </template>
             </TenantDialog>
 
+            <!--
+                Cancellation confirmation. The date is stated BEFORE the click,
+                not reported after it: with a notice period configured, a
+                declaration four days late lands a whole period further out, and
+                that is the sentence a customer disputes if they meet it in the
+                receipt instead of in the question.
+            -->
+            <TenantDialog
+                :model-value="showCancelConfirm"
+                :title="effectiveI18n.cancelConfirmTitle"
+                size="sm"
+                @update:model-value="
+                    (open: boolean) => {
+                        if (!open) showCancelConfirm = false;
+                    }
+                "
+            >
+                <p v-if="cancelError" class="sp-plan-section__warn">{{ cancelError }}</p>
+                <p v-if="cancellationPlan?.afterNoticeDeadline" class="sp-plan-section__warn">
+                    {{
+                        effectiveI18n.cancelConfirmLate
+                            .replace(
+                                '{deadline}',
+                                formatDate(cancellationPlan.noticeDeadline ?? ''),
+                            )
+                            .replace('{date}', formatDate(cancellationPlan.effectiveAt))
+                    }}
+                </p>
+                <p v-if="cancellationPlan">
+                    {{
+                        effectiveI18n.cancelConfirmBody.replace(
+                            '{date}',
+                            formatDate(cancellationPlan.effectiveAt),
+                        )
+                    }}
+                </p>
+
+                <template #footer>
+                    <TenantButton :disabled="canceling" @click="showCancelConfirm = false">
+                        {{ effectiveI18n.bundlePreviewClose }}
+                    </TenantButton>
+                    <TenantButton
+                        variant="solid"
+                        tone="danger"
+                        :loading="canceling"
+                        @click="confirmCancelSubscription"
+                    >
+                        {{
+                            cancellationPlan
+                                ? effectiveI18n.cancelConfirmAction.replace(
+                                      '{date}',
+                                      formatDate(cancellationPlan.effectiveAt),
+                                  )
+                                : effectiveI18n.cancelSubscriptionButton
+                        }}
+                    </TenantButton>
+                </template>
+            </TenantDialog>
+
             <!-- P11.4: Frozen CheckoutOffer snapshot (read-only) — only
                  when the subscription originates from a website offer (#20).
                  Without a snapshot the "not via website offer" empty text
@@ -208,6 +272,7 @@ import TenantButton from './ui/TenantButton.vue';
 import TenantCard from './ui/TenantCard.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
+import { useSubscriptionHasEnded } from './use-subscription-ended.js';
 import {
     useTenantBilling,
     type BundlePreviewShape,
@@ -288,6 +353,41 @@ const buyingBundleId = ref<string | null>(null);
 const cancelingBundleId = ref<string | null>(null);
 const reactivatingBundleId = ref<string | null>(null);
 const reactivateConfirmId = ref<string | null>(null);
+
+const showCancelConfirm = ref(false);
+const canceling = ref(false);
+const cancelError = ref<string | null>(null);
+/** What cancelling right now would do — the server's projection, not ours. */
+const cancellationPlan = computed(() => usage.value?.cancellation ?? null);
+
+/**
+ * Opens the dialog on a fresh projection.
+ *
+ * The one on the page came with the last `/usage`, which may be minutes old. A
+ * notice deadline that passed in between moves the effective date by a whole
+ * period, and the dialog would state the date it was told rather than the one
+ * that would happen.
+ */
+async function openCancelConfirm(): Promise<void> {
+    showCancelConfirm.value = true;
+    await billing.reload();
+}
+
+async function confirmCancelSubscription(): Promise<void> {
+    canceling.value = true;
+    try {
+        // The date the dialog showed travels with the request. If the server's
+        // answer has since moved, it refuses rather than applying a date the
+        // customer never saw, and the reload below brings the new one in.
+        await billing.cancelSubscription(cancellationPlan.value?.effectiveAt);
+        showCancelConfirm.value = false;
+    } catch (err) {
+        cancelError.value = err instanceof Error ? err.message : String(err);
+        await billing.reload();
+    } finally {
+        canceling.value = false;
+    }
+}
 const bundleError = ref<string | null>(null);
 
 // Bundle preview dialog state (#37/#61)
@@ -385,10 +485,17 @@ const currentPriceUnit = computed(() =>
 // separately), CANCELED and PENDING_SALES there is no regular renewal →
 // hide it, instead of wrongly presenting the period end as the next
 // billing date.
+/** Shared by the badge, its tone and the billing date — one timer, one answer. */
+const hasEnded = useSubscriptionHasEnded(() => usage.value);
+
 const nextBillingDate = computed(() => {
     const u = usage.value;
     if (!u || !u.currentPeriodEnd) return null;
     if (u.status !== 'ACTIVE') return null;
+    // A subscription that has ended is not billed again, and its period end is
+    // in the past. The status column does not say so — nothing transitions it
+    // when a cancellation lands — so the date does.
+    if (hasEnded.value) return null;
     return u.currentPeriodEnd;
 });
 
@@ -401,6 +508,7 @@ const cycleLabel = computed(() => {
 
 const statusLabel = computed(() => {
     if (!usage.value) return '';
+    if (hasEnded.value) return effectiveI18n.value.statusCanceled;
     switch (usage.value.status) {
         case 'TRIAL':
             return effectiveI18n.value.statusTrial;
@@ -422,6 +530,7 @@ const statusLabel = computed(() => {
 // which is which regardless (rule 7: never colour alone).
 const statusTone = computed<BadgeTone>(() => {
     if (!usage.value) return 'neutral';
+    if (hasEnded.value) return 'negative';
     switch (usage.value.status) {
         case 'TRIAL':
             return 'info';
@@ -570,8 +679,8 @@ function onWizardSubmitted() {
 async function previewPlanChange(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
     return billing.previewPlanChange(plan, cycle);
 }
-async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: boolean) {
-    return billing.changePlan(plan, cycle, immediate);
+async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
+    return billing.changePlan(plan, cycle);
 }
 </script>
 
@@ -673,6 +782,23 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 .sp-plan-section__item-price {
     color: var(--sp-text-secondary);
     font-size: var(--sa-text-md);
+}
+/* The cancellation strip and the late-notice warning.
+   Muted rather than alarming: the subscription is running normally, and the
+   only news is a date. The warning above it is the exception — a whole period
+   further out is worth a second look. */
+.sp-plan-section__canceled {
+    margin: var(--sa-space-2) 0 0;
+    color: var(--sa-color-fg-secondary);
+    font-size: var(--sa-text-sm);
+}
+.sp-plan-section__warn {
+    margin: 0 0 var(--sa-space-3);
+    padding: var(--sa-space-3);
+    border-radius: var(--sa-radius-md);
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    font-size: var(--sa-text-sm);
 }
 .sp-plan-section__item-canceled {
     color: var(--sp-text-disabled);

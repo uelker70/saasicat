@@ -77,6 +77,13 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
             startedAt: subscription.startedAt,
             currentPeriodStart: subscription.currentPeriodStart ?? null,
             currentPeriodEnd: subscription.currentPeriodEnd ?? null,
+            // Without these three the cancellation rules read a term that is
+            // always null and the tenant page shows a cancelled subscription as
+            // running: the fields exist on the record, the shipped adapter did
+            // not map them, and every consumer using it got the defaults.
+            minimumTermUntil: subscription.minimumTermUntil ?? null,
+            canceledAt: subscription.canceledAt ?? null,
+            canceledEffectiveAt: subscription.canceledEffectiveAt ?? null,
             pendingPlan: subscription.pendingPlan,
             pendingBillingCycle: subscription.pendingBillingCycle ?? null,
             pendingEffectiveAt: subscription.pendingEffectiveAt,

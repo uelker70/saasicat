@@ -49,6 +49,23 @@ export interface UsageSnapshotShape {
     pendingPlanVersionEffectiveAt: string | null;
     pendingPlanVersionAccepted: boolean;
     pendingPlanVersionAcceptedAt: string | null;
+    /** When a cancellation was declared. Null while none was. */
+    canceledAt: string | null;
+    /**
+     * When it lands, and until then nothing changes.
+     *
+     * A subscription cancelled inside its term keeps running, keeps being
+     * billed and keeps its entitlements. Rendering it as "cancelled, gone" is
+     * how a tenant loses access they paid for.
+     */
+    canceledEffectiveAt: string | null;
+    /** What cancelling right now would do. A projection, not a state. */
+    cancellation: {
+        effectiveAt: string;
+        termEndsAt: string;
+        noticeDeadline: string | null;
+        afterNoticeDeadline: boolean;
+    };
     limits: {
         plan: string;
         quotas: Record<string, number>;
@@ -89,6 +106,14 @@ export interface PackageSnapshotShape {
 
 export interface PlanChangePreviewShape {
     changeType: 'UPGRADE' | 'DOWNGRADE' | 'CYCLE_CHANGE' | 'NOOP';
+    /**
+     * The two answers `changeType` collapses into one.
+     *
+     * A page needs them apart to explain a deferred upgrade: the plan went up,
+     * the period got shorter, and it is the second that decided the date.
+     */
+    planDirection: 'UP' | 'DOWN' | 'SAME';
+    cycleDirection: 'LONGER' | 'SHORTER' | 'SAME';
     current: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
     target: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
     effectiveAt: string | null;
@@ -148,6 +173,42 @@ export interface SubscriptionBundleShape {
     minimumTermEndsAt: string | null;
     canceledAt: string | null;
     canceledEffectiveAt: string | null;
+}
+
+/**
+ * What a cancellation answers with.
+ *
+ * `canceledAt` is when it was declared, `canceledEffectiveAt` when it lands —
+ * and a page has to show the second, because a subscription cancelled inside
+ * its term keeps running, keeps being billed and keeps its entitlements until
+ * then. Rendering it as "cancelled, gone" is how a tenant loses access they
+ * paid for.
+ *
+ * The three below it explain the date rather than merely stating it, which
+ * matters where an installation has configured a notice period: a declaration
+ * four days late lands a whole period further out, and that is the sentence a
+ * customer disputes if they read it afterwards instead of before.
+ */
+export interface CancellationResultShape {
+    /** True when the subscription was already cancelled and nothing changed. */
+    alreadyCanceled?: boolean;
+    canceledAt: string | null;
+    canceledEffectiveAt: string | null;
+    status: string;
+    /**
+     * The term end the effective date was measured against, and whether the
+     * notice window had closed.
+     *
+     * Both are null on a repeat: the decision was taken once and is not stored,
+     * so recomputing it from the effective date would report a late declaration
+     * as on time. The date it lands on is `canceledEffectiveAt` and is always
+     * there.
+     */
+    termEndsAt: string | null;
+    /** The moment after which a cancellation lands one period later, if any. */
+    noticeDeadline: string | null;
+    /** True when the declaration arrived after that moment. */
+    afterNoticeDeadline: boolean | null;
 }
 
 export interface BundlePreviewIssueShape {
@@ -235,13 +296,18 @@ export interface UseTenantBillingResult {
         plan: string,
         billingCycle: BillingCycleStr,
     ) => Promise<PlanChangePreviewShape>;
-    changePlan: (
-        plan: string,
-        billingCycle: BillingCycleStr,
-        effectiveImmediately: boolean,
-    ) => Promise<void>;
+    changePlan: (plan: string, billingCycle: BillingCycleStr) => Promise<void>;
     acceptPendingPlanVersion: () => Promise<void>;
-    cancelSubscription: (immediately: boolean) => Promise<void>;
+    /**
+     * Declares a cancellation. Takes no argument, and that is the point.
+     *
+     * It used to take `immediately`, which the platform honoured — and a tenant
+     * could end a term they were still inside. When a cancellation lands is now
+     * decided from the minimum term and the configured notice period, so there
+     * is nothing here to pass. Ending a contract on the spot is an operator's
+     * act and goes through the operator's own path.
+     */
+    cancelSubscription: (expectedEffectiveAt?: string) => Promise<CancellationResultShape>;
     /** True if `usage.value.features` contains the FeatureKey. */
     hasFeature: (key: string) => boolean;
 
@@ -396,15 +462,13 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         });
     }
 
-    async function changePlan(
-        plan: string,
-        billingCycle: BillingCycleStr,
-        effectiveImmediately: boolean,
-    ) {
-        await fetchOrThrow('/plan', {
-            method: 'POST',
-            body: { plan, billingCycle, effectiveImmediately },
-        });
+    async function changePlan(plan: string, billingCycle: BillingCycleStr) {
+        // No timing in the body. The server decides when a change lands from
+        // the plan direction, the cycle direction and the minimum term — none
+        // of which a browser can see, and all of which it used to be trusted to
+        // report back. A caller that sent `effectiveImmediately: true` could
+        // end a term it was inside.
+        await fetchOrThrow('/plan', { method: 'POST', body: { plan, billingCycle } });
         await reload();
     }
 
@@ -413,12 +477,19 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         await reload();
     }
 
-    async function cancelSubscription(immediately: boolean) {
-        await fetchOrThrow('/cancel', {
+    async function cancelSubscription(
+        expectedEffectiveAt?: string,
+    ): Promise<CancellationResultShape> {
+        // The date the page showed, sent back for the server to check. It
+        // refuses with `CANCELLATION_TERMS_CHANGED` if its own answer differs —
+        // a dialog opened before a notice deadline and confirmed after it would
+        // otherwise deliver a date a year past the one on the button.
+        const result = await fetchOrThrow<CancellationResultShape>('/cancel', {
             method: 'POST',
-            body: { immediately },
+            body: expectedEffectiveAt ? { expectedEffectiveAt } : undefined,
         });
         await reload();
+        return result;
     }
 
     function hasFeature(key: string): boolean {

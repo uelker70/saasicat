@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, inArray, or } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, or } from 'drizzle-orm';
 import type {
     SubscriptionRecord,
     SubscriptionRepository,
@@ -61,10 +61,30 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
     }
 
     async countActiveByPlanKey(_projectKey: string): Promise<Record<string, number>> {
+        // Status alone answers the wrong question: a cancellation that has
+        // taken effect leaves the column at ACTIVE, so the count would carry
+        // every customer who ever left.
+        const now = new Date();
         const rows = await this.db
             .select({ plan: subscriptions.plan })
             .from(subscriptions)
-            .where(inArray(subscriptions.status, ACTIVE_STATUSES));
+            .where(
+                and(
+                    inArray(subscriptions.status, ACTIVE_STATUSES),
+                    or(
+                        isNull(subscriptions.canceledAt),
+                        gt(subscriptions.canceledEffectiveAt, now),
+                        // The pre-split row keeps its effective date in the
+                        // first column; reading only the second drops that
+                        // customer on the day they declare rather than the day
+                        // they leave.
+                        and(
+                            isNull(subscriptions.canceledEffectiveAt),
+                            gt(subscriptions.canceledAt, now),
+                        ),
+                    ),
+                ),
+            );
         const counts: Record<string, number> = {};
         for (const row of rows) {
             counts[row.plan] = (counts[row.plan] ?? 0) + 1;
@@ -108,6 +128,8 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
             pendingPlan: row.pendingPlan,
             pendingEffectiveAt: row.pendingEffectiveAt,
             customLimits: (row.customLimits ?? null) as SubscriptionRecord['customLimits'],
+            canceledAt: row.canceledAt ?? null,
+            canceledEffectiveAt: row.canceledEffectiveAt ?? null,
             planVersionId: row.planVersionId,
             planVersion: {
                 planId: planVersion.planId,

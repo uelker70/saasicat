@@ -16,7 +16,7 @@ function makeDeps(due) {
     const subscriptionWrite = {
         async changePlanImmediate(tenantId, input) {
             calls.changePlan.push({ tenantId, input });
-            return { plan: input.planId, billingCycle: input.cycle };
+            return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
     };
     const entitlements = {
@@ -80,7 +80,7 @@ test('is non-fatal per tenant — one failure does not abort the run', async () 
         async changePlanImmediate(tenantId, input) {
             if (tenantId === 'boom') throw new Error('db down');
             calls.changePlan.push({ tenantId, input });
-            return { plan: input.planId, billingCycle: input.cycle };
+            return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
     };
     const entitlements = { invalidateTenant: (t) => calls.invalidated.push(t) };

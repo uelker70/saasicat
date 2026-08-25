@@ -63,7 +63,7 @@ function buildWritePort() {
         changePlanCalls: [],
         async changePlanImmediate(tenantId, input) {
             this.changePlanCalls.push({ tenantId, input });
-            return { plan: input.planId, billingCycle: input.cycle };
+            return { plan: input.planId, billingCycle: input.cycle, claimed: true };
         },
         async schedulePlanChange() {},
         async acceptPendingPlanVersion() {},
@@ -382,6 +382,7 @@ test('atomic path: applyOnboardingSelection is used, sequential calls are avoide
                 billingCycle: input.cycle,
                 subscriptionId: 'sub-1',
                 promoRedemption,
+                claimed: true,
             };
         },
         async changePlanImmediate() {
@@ -415,6 +416,7 @@ test('atomic path: successful non-trial plan change freezes the subscription con
                 billingCycle: input.cycle,
                 subscriptionId: 'sub-1',
                 promoRedemption: null,
+                claimed: true,
             };
         },
         async changePlanImmediate() {
@@ -491,6 +493,7 @@ test('atomic path: promo-redeem callback is called with subscriptionId', async (
                 billingCycle: input.cycle,
                 subscriptionId: 'sub-from-tx-42',
                 promoRedemption,
+                claimed: true,
             };
         },
         async changePlanImmediate() {

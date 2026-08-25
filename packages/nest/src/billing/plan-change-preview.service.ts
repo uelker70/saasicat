@@ -35,6 +35,21 @@ import { computeProration, type ProrationDto } from './proration.js';
 
 export type PlanChangeType = 'UPGRADE' | 'DOWNGRADE' | 'CYCLE_CHANGE' | 'NOOP';
 
+/** Where the target plan sits against the running one in the catalog order. */
+export type PlanDirection = 'UP' | 'DOWN' | 'SAME';
+
+/**
+ * Whether the target billing period is longer, shorter or the same.
+ *
+ * Its own answer, deliberately. `changeType` collapses "a better plan" and "a
+ * shorter commitment" into one word, and the two have opposite consequences: a
+ * higher plan may start today, a shorter period may not — it would end a term
+ * the customer is still inside. Asked as one question, moving from a yearly
+ * STARTER to a monthly PRO reads as `UPGRADE`, applies immediately, and ends
+ * the yearly commitment early. That is the case this split exists for.
+ */
+export type CycleDirection = 'LONGER' | 'SHORTER' | 'SAME';
+
 export interface PlanSnapshotDto {
     id: string;
     name: string;
@@ -58,6 +73,14 @@ export interface PlanChangePreviewIssue {
 
 export interface PlanChangePreviewDto {
     changeType: PlanChangeType;
+    /**
+     * The two answers `changeType` collapses into one.
+     *
+     * A page needs them apart to explain a deferred upgrade: the plan went up,
+     * the period got shorter, and it is the second that decided the date.
+     */
+    planDirection: PlanDirection;
+    cycleDirection: CycleDirection;
     current: { plan: PlanSnapshotDto; billingCycle: string };
     target: { plan: PlanSnapshotDto; billingCycle: string };
     /** For upgrade/NOOP: immediately (null). Otherwise period end. */
@@ -86,8 +109,28 @@ export interface PlanChangeContext {
     currentPeriodStart: Date | null;
     /** Current period end from the subscription, if present. */
     currentPeriodEnd: Date | null;
+    /**
+     * End of what was committed to, which can outlast the period.
+     *
+     * They coincide until a notice period pushes one past the other. A change
+     * scheduled to the period end alone would then materialise inside the
+     * commitment this rule exists to protect — the customer keeps the plan they
+     * are bound to for eleven months and loses it in the twelfth.
+     */
+    minimumTermUntil: Date | null;
     /** TRIAL end, if status === 'TRIAL'. */
     trialEndsAt: Date | null;
+    /**
+     * The cancellation, because it decides what a change may still do.
+     *
+     * A cancellation was measured against the term of the cycle it was declared
+     * under, so that cycle cannot move while it is outstanding. The route
+     * refuses such a change; without the same answer here, a reader is walked
+     * through the whole wizard — the acknowledgement included — and meets the
+     * refusal only when they press confirm.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
     /** Subscription status (TRIAL/ACTIVE/...). */
     status: string;
     /** Current cycle of the subscription (for cycle-change classification). */
@@ -145,7 +188,10 @@ export class PlanChangePreviewService {
         const ctx: PlanChangeContext = {
             currentPeriodStart: sub.currentPeriodStart,
             currentPeriodEnd: sub.currentPeriodEnd,
+            minimumTermUntil: sub.minimumTermUntil ?? null,
             trialEndsAt: sub.trialEndsAt,
+            canceledAt: sub.canceledAt ?? null,
+            canceledEffectiveAt: sub.canceledEffectiveAt ?? null,
             status: sub.status,
             currentBillingCycle: sub.billingCycle,
             currentPlan: sub.plan,
@@ -204,7 +250,21 @@ export class PlanChangePreviewService {
             .sort();
         const featuresGained = targetSnap.features.filter((f) => !currentFeatureSet.has(f));
 
-        const isImmediate = changeType === 'UPGRADE';
+        // An immediate change may improve the service; it may not shorten the
+        // commitment. Everything else waits for the term to end, which is where
+        // the shorter period may legitimately begin.
+        //
+        // A trial commits to nothing, so there is nothing for the second half
+        // to protect. Its cycle is what the subscription will be billed on
+        // AFTER the trial, not a period anyone is inside, and deferring an
+        // upgrade to the end of it withholds the very entitlements the customer
+        // asked to try. `status` is what separates the two cases — no
+        // arrangement of the dates does, because a trial has a period end like
+        // any other subscription.
+        const planDirection = this.planDirection(sub.plan, targetPlan);
+        const cycleDirection = this.cycleDirection(sub.billingCycle, targetCycle);
+        const commits = ctx.status !== 'TRIAL';
+        const isImmediate = planDirection === 'UP' && (!commits || cycleDirection !== 'SHORTER');
         const effectiveAt = isImmediate ? null : this.resolveEffectiveAt(ctx, now);
 
         const proration =
@@ -221,6 +281,29 @@ export class PlanChangePreviewService {
 
         const blockers: PlanChangePreviewIssue[] = [];
         const warnings: PlanChangePreviewIssue[] = [];
+
+        // Said here as well as at the write, because a blocker is what the
+        // wizard reads: without it the reader picks a cycle, reads the
+        // consequence, ticks the acknowledgement and meets a 409 on confirm.
+        //
+        // Two different refusals, and the wider one comes first. A subscription
+        // that has ENDED refuses every plan change, not only a cycle change —
+        // so a same-cycle upgrade was previewed as an ordinary immediate change
+        // and rejected on submit.
+        const landsAt = ctx.canceledEffectiveAt ?? ctx.canceledAt;
+        if (landsAt !== null && landsAt <= now) {
+            blockers.push({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended. Its plan can no longer be changed.',
+            });
+        } else if (landsAt !== null && cycleDirection !== 'SAME') {
+            blockers.push({
+                code: 'CANCELLATION_LOCKS_THE_CYCLE',
+                message:
+                    'This subscription is cancelled, so its billing cycle cannot change. ' +
+                    'The plan can.',
+            });
+        }
 
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         const blockedSources = this.blockedPlans?.asSource ?? [];
@@ -262,6 +345,18 @@ export class PlanChangePreviewService {
             });
         }
 
+        // Not a blocker: the change is allowed, it simply cannot start today.
+        // Refusing it would be wrong — the customer may have a monthly plan
+        // from the end of their term. What they may not have is the shorter
+        // commitment starting inside the one they are still paying for, and
+        // saying so before they confirm is the whole point of a preview.
+        if (planDirection === 'UP' && cycleDirection === 'SHORTER') {
+            warnings.push({
+                code: 'CYCLE_SHORTENS_AT_TERM_END',
+                message: `A ${targetCycle.toLowerCase()} ${targetSnap.name} cannot start inside the ${sub.billingCycle.toLowerCase()} term you are in. The upgrade takes effect when that term ends; to have it today, keep the ${sub.billingCycle.toLowerCase()} cycle.`,
+            });
+        }
+
         // Trial projection (app-specific) — only relevant during an active trial.
         const projectedTrialEndsAt =
             this.trialProjection && sub.status === 'TRIAL'
@@ -276,6 +371,8 @@ export class PlanChangePreviewService {
 
         return {
             changeType,
+            planDirection,
+            cycleDirection,
             current: { plan: currentSnap, billingCycle: sub.billingCycle },
             target: { plan: targetSnap, billingCycle: targetCycle },
             effectiveAt,
@@ -300,6 +397,26 @@ export class PlanChangePreviewService {
     ): Promise<PlanChangePreviewIssue[]> {
         const dto = await this.preview(tenantId, targetPlan, targetCycle, now);
         return dto.blockers;
+    }
+
+    /** Catalog order decides which plan is higher; equal keys are `SAME`. */
+    private planDirection(currentPlan: string, targetPlan: string): PlanDirection {
+        if (currentPlan === targetPlan) return 'SAME';
+        return this.planRank(targetPlan) > this.planRank(currentPlan) ? 'UP' : 'DOWN';
+    }
+
+    /**
+     * YEARLY is the longer commitment; anything else is compared against it.
+     *
+     * Written as a comparison rather than a pair of equality checks so a third
+     * cycle — quarterly is the one that keeps being asked for — orders itself
+     * instead of falling into `SAME` and quietly becoming immediate.
+     */
+    private cycleDirection(currentCycle: string, targetCycle: string): CycleDirection {
+        const rank = (cycle: string): number => (cycle === 'YEARLY' ? 1 : 0);
+        const [from, to] = [rank(currentCycle), rank(targetCycle)];
+        if (to === from) return 'SAME';
+        return to > from ? 'LONGER' : 'SHORTER';
     }
 
     private classify(
@@ -327,8 +444,14 @@ export class PlanChangePreviewService {
 
     private resolveEffectiveAt(ctx: PlanChangeContext, now: Date): Date {
         if (ctx.status === 'TRIAL' && ctx.trialEndsAt) return ctx.trialEndsAt;
-        if (ctx.currentPeriodEnd) return ctx.currentPeriodEnd;
-        return periodEndAfter(ctx.startedAt, ctx.currentBillingCycle as BillingCycle, now);
+        const periodEnd =
+            ctx.currentPeriodEnd ??
+            periodEndAfter(ctx.startedAt, ctx.currentBillingCycle as BillingCycle, now);
+        // The later of the two. A commitment that outlasts the period is what a
+        // notice period produces, and a change that landed at the period end
+        // would take effect inside it.
+        if (ctx.minimumTermUntil && ctx.minimumTermUntil > periodEnd) return ctx.minimumTermUntil;
+        return periodEnd;
     }
 
     private computeProration(

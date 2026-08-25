@@ -48,6 +48,7 @@ import {
     type TrialProjectionPort,
     type UserEmailResolver,
     type UserIdResolver,
+    CANCELLATION_NOTICE_DAYS_TOKEN,
 } from './tenant-billing.tokens.js';
 
 // TenantBillingModule — registers the `TenantBillingController` with all
@@ -122,6 +123,14 @@ export interface TenantBillingModuleOptions {
      */
     selfServiceBlockedPlans?: SelfServiceBlockedPlans;
 
+    /**
+     * Days of notice before a term ends. Default 0 — no notice period.
+     *
+     * A cancellation declared after the window has closed takes effect at the
+     * end of the FOLLOWING period. See `CANCELLATION_NOTICE_DAYS_TOKEN`.
+     */
+    cancellationNoticeDays?: number;
+
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
     /** Optional user ID resolver. Default: `req.user.sub ?? req.user.id`. */
@@ -170,6 +179,12 @@ export class TenantBillingModule {
             PlanChangePreviewService,
         ];
 
+        if (typeof options.cancellationNoticeDays === 'number') {
+            providers.push({
+                provide: CANCELLATION_NOTICE_DAYS_TOKEN,
+                useValue: options.cancellationNoticeDays,
+            });
+        }
         if (options.selfServiceBlockedPlans) {
             providers.push({
                 provide: SELF_SERVICE_BLOCKED_PLANS_TOKEN,

@@ -58,6 +58,20 @@ export interface AddBundleToSubscriptionInput {
      * (`minimumTermEndsAt = null`).
      */
     minimumTermMonths?: number;
+    /**
+     * When the parent subscription ends, or null while it runs on.
+     *
+     * A bundle cannot commit past the subscription that pays for it. With a
+     * cancellation outstanding, a twelve-month default term on a subscription
+     * ending in three weeks binds a customer to something that has three weeks
+     * left to give — and once the parent ends, entitlement resolution grants
+     * nothing through it.
+     *
+     * Required rather than optional: a caller that omits it commits the
+     * customer for longer than the contract can deliver, and the omission is
+     * invisible.
+     */
+    parentEndsAt: Date | null;
 }
 
 export interface CancelBundleFromSubscriptionInput {
@@ -71,6 +85,15 @@ export interface CancelBundleFromSubscriptionInput {
      * (= immediate effect, provided the minimum term has already expired).
      */
     currentPeriodEnd?: Date;
+    /**
+     * When the parent subscription ends, or null while it runs on.
+     *
+     * A bundle cannot be held past the plan that pays for it, and the term was
+     * written at booking — before any cancellation declared since. Reading the
+     * boundary here is what makes that harmless: no clamp at insert time can
+     * see a cancellation that had not happened yet.
+     */
+    parentEndsAt: Date | null;
 }
 
 @Injectable()
@@ -176,8 +199,15 @@ export class SubscriptionBundlesService {
 
         const startedAt = input.startedAt ?? new Date();
         const minimumTermMonths = input.minimumTermMonths ?? this.defaultMinTermMonths;
-        const minimumTermEndsAt =
-            minimumTermMonths > 0 ? addMonths(startedAt, minimumTermMonths) : null;
+        // Clamped to the parent's end rather than refused there. A customer who
+        // has cancelled for the end of the month may still want a bundle for
+        // this month, and the bundle price is per period rather than per term —
+        // so a shorter commitment cannot overcharge them, it only stops binding
+        // them beyond what they can use.
+        const minimumTermEndsAt = clampToParent(
+            minimumTermMonths > 0 ? addMonths(startedAt, minimumTermMonths) : null,
+            input.parentEndsAt,
+        );
 
         return this.repo.add({
             subscriptionId: input.subscriptionId,
@@ -211,6 +241,7 @@ export class SubscriptionBundlesService {
             canceledAt,
             currentPeriodEnd: input.currentPeriodEnd ?? null,
             minimumTermEndsAt: existing.minimumTermEndsAt,
+            parentEndsAt: input.parentEndsAt,
         });
 
         return this.repo.cancel(input.subscriptionBundleId, {
@@ -259,10 +290,20 @@ export function resolveBundleCancelEffectiveAt(input: {
     canceledAt: Date;
     currentPeriodEnd: Date | null;
     minimumTermEndsAt: Date | null;
+    /** When the parent subscription ends, or null while it runs on. */
+    parentEndsAt: Date | null;
 }): Date {
     const periodEnd = input.currentPeriodEnd ?? input.canceledAt;
     const minTermEnd = input.minimumTermEndsAt ?? input.canceledAt;
-    return periodEnd.getTime() >= minTermEnd.getTime() ? periodEnd : minTermEnd;
+    const later = periodEnd.getTime() >= minTermEnd.getTime() ? periodEnd : minTermEnd;
+    // Read here rather than pinned at booking, and that is the point: a
+    // cancellation declared AFTER the bundle was booked cannot change a term
+    // already written, but it can be read now. Otherwise a booking made a
+    // moment before the plan was cancelled holds the customer to a term the
+    // plan will outlive — and no clamp at insert time can see a cancellation
+    // that had not happened yet.
+    if (input.parentEndsAt === null) return later;
+    return later.getTime() <= input.parentEndsAt.getTime() ? later : input.parentEndsAt;
 }
 
 /**
@@ -274,4 +315,19 @@ export function addMonths(date: Date, months: number): Date {
     const out = new Date(date.getTime());
     out.setUTCMonth(out.getUTCMonth() + months);
     return out;
+}
+
+/**
+ * The earlier of a bundle's own minimum term and the end of the subscription it
+ * hangs off — a cap on a commitment, not a commitment of its own.
+ *
+ * A null own term is `minimumTermMonths: 0`, which the caller asked for and
+ * which means there is no commitment to cap. Returning the parent's end there
+ * would invent one: the booking could then not be cancelled until the parent
+ * ended, which is the opposite of what a zero-month term is for, and possibly
+ * a whole further period away.
+ */
+export function clampToParent(ownTermEndsAt: Date | null, parentEndsAt: Date | null): Date | null {
+    if (ownTermEndsAt === null || parentEndsAt === null) return ownTermEndsAt;
+    return ownTermEndsAt < parentEndsAt ? ownTermEndsAt : parentEndsAt;
 }

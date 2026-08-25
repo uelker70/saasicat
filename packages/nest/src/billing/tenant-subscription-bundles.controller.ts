@@ -37,6 +37,7 @@ import {
     HttpStatus,
     Inject,
     Logger,
+    ConflictException,
     NotFoundException,
     Optional,
     Param,
@@ -50,6 +51,7 @@ import {
 import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
 import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
 
+import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
@@ -112,13 +114,15 @@ export function buildTenantSubscriptionBundlesController(
         @Post()
         async add(@Req() req: RequestLike, @Body() dto: AddSubscriptionBundleDto) {
             const tenantId = this.requireTenantId(req);
-            const sub = await this.requireSubscription(tenantId);
+            const sub = await this.requireRunningSubscription(tenantId);
             const result = await this.service.addBundleToSubscription({
                 subscriptionId: this.requireSubscriptionPk(sub),
                 bundleVersionId: dto.bundleVersionId,
                 // Plan KEY (compatibility.planIds is key-based) — not the planVersion UUID.
                 currentPlanKey: sub.plan,
                 minimumTermMonths: dto.minimumTermMonths,
+                // A bundle cannot commit past the subscription paying for it.
+                parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             });
             await this.refreezeContract(tenantId, sub);
             return result;
@@ -137,7 +141,12 @@ export function buildTenantSubscriptionBundlesController(
                         'subscriptionBundleId (cancel preview) must be given.',
                 });
             }
-            const sub = await this.requireSubscription(this.requireTenantId(req));
+            // One route, two questions. Pricing a purchase closes with the
+            // till; pricing a cancellation is part of tidying up, and a tenant
+            // whose subscription ended must still be able to ask it.
+            const sub = hasAdd
+                ? await this.requireRunningSubscription(this.requireTenantId(req))
+                : await this.requireSubscription(this.requireTenantId(req));
             const ctx: SubscriptionBundlePreviewContext = {
                 subscriptionId: this.requireSubscriptionPk(sub),
                 // Plan KEY (compatibility.planIds is key-based) — not the planVersion UUID.
@@ -147,6 +156,10 @@ export function buildTenantSubscriptionBundlesController(
                 startedAt: sub.startedAt,
                 currentPeriodStart: sub.currentPeriodStart,
                 currentPeriodEnd: sub.currentPeriodEnd,
+                // The dialog states the term it will be committed to, and the
+                // booking caps that at the parent's end. Both, or the two
+                // describe different contracts.
+                parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             };
             return hasAdd
                 ? this.previewService.previewAdd(ctx, {
@@ -170,6 +183,9 @@ export function buildTenantSubscriptionBundlesController(
             const result = await this.service.cancelBundleFromSubscription({
                 subscriptionBundleId,
                 canceledAt: dto.canceledAt ? new Date(dto.canceledAt) : undefined,
+                // A bundle cannot be held past the plan that pays for it, and
+                // the plan may have been cancelled since this was booked.
+                parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 currentPeriodEnd: sub.currentPeriodEnd ?? undefined,
             });
             await this.refreezeContract(tenantId, sub);
@@ -183,7 +199,8 @@ export function buildTenantSubscriptionBundlesController(
             @Param('id', new ParseUUIDPipe()) subscriptionBundleId: string,
         ) {
             const tenantId = this.requireTenantId(req);
-            const sub = await this.requireSubscription(tenantId);
+            // Reactivating is buying again, so it closes with the till.
+            const sub = await this.requireRunningSubscription(tenantId);
             const result = await this.service.reactivateBundle(subscriptionBundleId);
             await this.refreezeContract(tenantId, sub);
             return result;
@@ -222,6 +239,32 @@ export function buildTenantSubscriptionBundlesController(
         }
 
         /**
+         * The same subscription, refused once its cancellation has landed.
+         *
+         * A bundle is bought, priced and given a minimum term, and it grants
+         * its features through the parent subscription — which grants nothing
+         * once it has ended. Sold there, it is a commitment that can never
+         * deliver: charged, listed, and inert.
+         *
+         * Reading and cancelling stay open on purpose. A tenant whose
+         * subscription ended must still be able to see what they booked and
+         * tidy it up; what closes is the till.
+         */
+        private async requireRunningSubscription(
+            tenantId: string,
+        ): Promise<SubscriptionUsageRecord> {
+            const sub = await this.requireSubscription(tenantId);
+            if (cancellationHasLanded(sub, new Date())) {
+                throw new ConflictException({
+                    code: 'SUBSCRIPTION_ENDED',
+                    message: 'This subscription has ended. Bundles can no longer be booked for it.',
+                    canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                });
+            }
+            return sub;
+        }
+
+        /**
          * Re-freeze with the unchanged plan after bundle add/cancel (#61) —
          * only if the consumer has wired the ContractFreezePort.
          */
@@ -246,12 +289,23 @@ export function buildTenantSubscriptionBundlesController(
                 }
                 return;
             }
+            // Nothing to freeze once the subscription is over. Cancelling a
+            // bundle stays available there — a tenant who has left still tidies
+            // up — but re-freezing would write a successor beginning today and
+            // ending on a date already past: a contract whose window runs
+            // backwards, added to the ledger during what is only cleanup. The
+            // contract that governed this tenant was closed when they left.
+            if (cancellationHasLanded(sub, new Date())) return;
             try {
                 await this.contractFreeze.freezeOnPlanChange(
                     tenantId,
                     sub.planVersion.planId,
                     sub.billingCycle as BillingCycle,
                     new Date(),
+                    // Cancelling a bundle stays open on a cancelled
+                    // subscription, and it re-freezes: the replacement contract
+                    // ends when the subscription does, like the one it succeeds.
+                    sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 );
             } catch (err) {
                 this.logger.error(

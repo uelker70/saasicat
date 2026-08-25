@@ -54,6 +54,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
             startedAt,
+            parentEndsAt: null,
         });
         assert.equal(row.subscriptionId, SUB_A);
         assert.equal(row.bundleVersionId, bv.id);
@@ -70,6 +71,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             currentPlanKey: STARTER,
             startedAt: new Date('2026-01-01T00:00:00Z'),
             minimumTermMonths: 0,
+            parentEndsAt: null,
         });
         assert.equal(row.minimumTermEndsAt, null);
     });
@@ -82,6 +84,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
                     subscriptionId: SUB_A,
                     bundleVersionId: bv.id,
                     currentPlanKey: STARTER,
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -97,6 +100,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             subscriptionId: SUB_A,
             bundleVersionId: bv.id,
             currentPlanKey: 'IRGENDWAS',
+            parentEndsAt: null,
         });
         assert.equal(row.bundleVersionId, bv.id);
     });
@@ -107,6 +111,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             subscriptionId: SUB_A,
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
+            parentEndsAt: null,
         });
         await assert.rejects(
             () =>
@@ -114,6 +119,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
                     subscriptionId: SUB_A,
                     bundleVersionId: bv.id,
                     currentPlanKey: STARTER,
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -136,6 +142,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
                     subscriptionId: SUB_A,
                     bundleVersionId: draft.id,
                     currentPlanKey: STARTER,
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -155,6 +162,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
             startedAt: new Date('2026-03-15T00:00:00Z'),
+            parentEndsAt: null,
         });
         assert.equal(row.minimumTermEndsAt?.toISOString(), '2028-03-15T00:00:00.000Z');
     });
@@ -169,6 +177,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             currentPlanKey: STARTER,
             startedAt: new Date('2025-01-01T00:00:00Z'),
             minimumTermMonths: 6,
+            parentEndsAt: null,
         });
         // Minimum term ended on 2025-07-01; now cancel with periodEnd 2026-04-30
         const periodEnd = new Date('2026-04-30T00:00:00Z');
@@ -176,6 +185,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-04-10T00:00:00Z'),
             currentPeriodEnd: periodEnd,
+            parentEndsAt: null,
         });
         assert.equal(canceled.canceledEffectiveAt?.toISOString(), periodEnd.toISOString());
     });
@@ -188,12 +198,14 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             currentPlanKey: STARTER,
             startedAt: new Date('2026-01-01T00:00:00Z'),
             minimumTermMonths: 12, // → 2027-01-01
+            parentEndsAt: null,
         });
         const periodEnd = new Date('2026-04-30T00:00:00Z');
         const canceled = await service.cancelBundleFromSubscription({
             subscriptionBundleId: row.id,
             canceledAt: new Date('2026-04-10T00:00:00Z'),
             currentPeriodEnd: periodEnd,
+            parentEndsAt: null,
         });
         assert.equal(canceled.canceledEffectiveAt?.toISOString(), '2027-01-01T00:00:00.000Z');
     });
@@ -204,17 +216,20 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             subscriptionId: SUB_A,
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
+            parentEndsAt: null,
         });
         await service.cancelBundleFromSubscription({
             subscriptionBundleId: row.id,
             canceledAt: new Date(),
             currentPeriodEnd: new Date('2099-01-01'),
+            parentEndsAt: null,
         });
         await assert.rejects(
             () =>
                 service.cancelBundleFromSubscription({
                     subscriptionBundleId: row.id,
                     canceledAt: new Date(),
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -230,6 +245,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
                 service.cancelBundleFromSubscription({
                     subscriptionBundleId: 'does-not-exist',
                     canceledAt: new Date(),
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 404);
@@ -254,6 +270,7 @@ describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
                     subscriptionId: SUB_A,
                     bundleVersionId: bv.id,
                     currentPlanKey: STARTER,
+                    parentEndsAt: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -269,6 +286,7 @@ describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
             subscriptionId: SUB_A,
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
+            parentEndsAt: null,
         });
         assert.equal(row.canceledAt, null);
     });

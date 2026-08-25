@@ -182,6 +182,62 @@ describe('normalized plan identity across Prisma adapters', () => {
         });
     });
 
+    test('a subscription that has ended is not an active tenant', async () => {
+        // Status alone answers the wrong question. A cancellation that has
+        // taken effect leaves the column at ACTIVE — nothing transitions it —
+        // so a plan's tenant count in the SuperAdmin UI would carry every
+        // customer who ever left, and grow forever.
+        const client = fakePrisma();
+        client.entitlementPlanVersion.rows.push(versionRow({ id: 'app-v1', planId: 'plan-basic' }));
+        client.subscription.rows.push(
+            subscriptionRow({
+                id: 'still-here',
+                tenantId: 'tenant-running',
+                planVersionId: 'app-v1',
+            }),
+            subscriptionRow({
+                id: 'leaving',
+                tenantId: 'tenant-leaving',
+                planVersionId: 'app-v1',
+                // Declared, not landed: still a customer, still billed.
+                canceledAt: new Date('2026-01-01'),
+                canceledEffectiveAt: new Date('2099-01-01'),
+            }),
+            subscriptionRow({
+                id: 'gone',
+                tenantId: 'tenant-gone',
+                planVersionId: 'app-v1',
+                canceledAt: new Date('2020-01-01'),
+                canceledEffectiveAt: new Date('2020-02-01'),
+            }),
+            subscriptionRow({
+                id: 'leaving-the-old-way',
+                tenantId: 'tenant-legacy',
+                planVersionId: 'app-v1',
+                // A row written before the two fields separated: the effective
+                // date is in the first column and the second is genuinely null.
+                // This customer is still here until 2099, and dropping them on
+                // the day they DECLARED would understate the count for years —
+                // the migration guide promises no backfill is needed.
+                canceledAt: new Date('2099-01-01'),
+                canceledEffectiveAt: null,
+            }),
+            subscriptionRow({
+                id: 'gone-the-old-way',
+                tenantId: 'tenant-legacy-gone',
+                planVersionId: 'app-v1',
+                canceledAt: new Date('2020-01-01'),
+                canceledEffectiveAt: null,
+            }),
+        );
+
+        const repository = new PrismaSubscriptionRepository(client, APP_SCHEMA);
+
+        // Running, leaving later, and leaving later the old way. Not the two
+        // that have left.
+        assert.deepEqual(await repository.countActiveByPlanKey('app'), { BASIC: 3 });
+    });
+
     test('all subscription operations honor tenantSubscription.delegate, including tx reads', async () => {
         const client = fakePrisma();
         client.membership = subscriptionDelegate();
@@ -632,7 +688,10 @@ function matches(row, where = {}) {
     return Object.entries(where).every(([field, expected]) => {
         if (field === 'AND') return expected.every((clause) => matches(row, clause));
         if (field === 'OR') return expected.some((clause) => matches(row, clause));
-        const actual = row[field];
+        // A column a fixture does not set is NULL in the table, not absent —
+        // `where: { canceledAt: null }` matches such a row in Postgres and has
+        // to match it here.
+        const actual = row[field] ?? null;
         if (
             expected !== null &&
             typeof expected === 'object' &&
@@ -641,10 +700,16 @@ function matches(row, where = {}) {
         ) {
             if ('in' in expected) return expected.in.includes(actual);
             if ('not' in expected) return actual !== expected.not;
+            // NULL compares to nothing: in SQL `NULL > x` is unknown, which is
+            // not true, so a row with no value is not returned. A query that
+            // wants those rows says so with its own `OR: [{ column: null }, …]`
+            // branch — and this fake answered `true` here instead, which made
+            // every such branch look right whether it was written or not.
+            if (actual === null) return false;
             if ('lt' in expected) return actual < expected.lt;
-            if ('lte' in expected) return actual === null || actual <= expected.lte;
-            if ('gte' in expected) return actual === null || actual >= expected.gte;
-            if ('gt' in expected) return actual === null || actual > expected.gt;
+            if ('lte' in expected) return actual <= expected.lte;
+            if ('gte' in expected) return actual >= expected.gte;
+            if ('gt' in expected) return actual > expected.gt;
         }
         return actual === expected;
     });

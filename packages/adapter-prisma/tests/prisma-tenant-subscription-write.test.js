@@ -19,6 +19,29 @@ function subscriptionRow(overrides = {}) {
     };
 }
 
+/**
+ * The data of the plan write. It is a conditional claim rather than a plain
+ * update — the row is taken only while its cancellation is what the caller
+ * read — so what it writes is asserted through `updateMany`.
+ */
+function planWrite(prisma) {
+    const call = prisma.calls.subscriptionUpdateMany.at(0);
+    assert.ok(call, 'the plan write never reached the store');
+    return call.data;
+}
+
+/** A row matches when every condition in `where` holds. Dates compare by value. */
+function matchesWhere(row, where) {
+    return Object.entries(where).every(([column, expected]) => {
+        const actual = row[column] ?? null;
+        const wanted = expected ?? null;
+        if (actual instanceof Date && wanted instanceof Date) {
+            return actual.getTime() === wanted.getTime();
+        }
+        return actual === wanted;
+    });
+}
+
 function fakePrisma({
     subscription = subscriptionRow(),
     plans = [
@@ -90,14 +113,11 @@ function fakePrisma({
                 where: structuredClone(where),
                 data: structuredClone(data),
             });
-            if (
-                where.id !== state.subscription.id ||
-                (where.pendingPlanVersionId !== undefined &&
-                    where.pendingPlanVersionId !== state.subscription.pendingPlanVersionId) ||
-                where.pendingPlanVersionAccepted !== state.subscription.pendingPlanVersionAccepted
-            ) {
-                return { count: 0 };
-            }
+            // Every conditional claim in the adapter comes through here — the
+            // accepted version, the cancellation, the plan change — so this
+            // matches the whole `where` rather than the three columns one of
+            // them happened to use first.
+            if (!matchesWhere(state.subscription, where)) return { count: 0 };
             Object.assign(state.subscription, data);
             return { count: 1 };
         },
@@ -137,8 +157,8 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
 
         assert.equal(prisma.calls.transactions, 0);
         assert.equal(prisma.calls.planVersionFindFirst.length, 0);
-        assert.equal(prisma.calls.subscriptionUpdates[0].plan, 'PRO');
-        assert.equal('planVersionId' in prisma.calls.subscriptionUpdates[0], false);
+        assert.equal(planWrite(prisma).plan, 'PRO');
+        assert.equal('planVersionId' in planWrite(prisma), false);
     });
 
     test('normalized mode binds semantic plan and active version atomically with named delegates', async () => {
@@ -172,17 +192,17 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             nextStatus: 'ACTIVE',
         });
 
-        assert.deepEqual(result, { plan: 'PRO', billingCycle: 'YEARLY' });
+        assert.deepEqual(result, { plan: 'PRO', billingCycle: 'YEARLY', claimed: true });
         assert.equal(prisma.calls.transactions, 1);
         assert.equal(prisma.calls.planVersionFindFirst[0].where.planId, 'plan-pro');
         assert.equal(prisma.calls.planVersionFindFirst[0].where.AND.length, 3);
         assert.deepEqual(prisma.calls.planVersionFindFirst[0].orderBy[0], {
             validFrom: { sort: 'desc', nulls: 'last' },
         });
-        assert.equal(prisma.calls.subscriptionUpdates[0].plan, 'PRO');
-        assert.equal(prisma.calls.subscriptionUpdates[0].planVersionId, 'version-pro');
-        assert.equal(prisma.calls.subscriptionUpdates[0].pendingPlanVersionId, null);
-        assert.equal(prisma.calls.subscriptionUpdates[0].pendingPlanVersionAccepted, false);
+        assert.equal(planWrite(prisma).plan, 'PRO');
+        assert.equal(planWrite(prisma).planVersionId, 'version-pro');
+        assert.equal(planWrite(prisma).pendingPlanVersionId, null);
+        assert.equal(planWrite(prisma).pendingPlanVersionAccepted, false);
     });
 
     test('a pending version of the same target plan is retained', async () => {
@@ -205,7 +225,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             nextStatus: null,
         });
 
-        assert.equal('pendingPlanVersionId' in prisma.calls.subscriptionUpdates[0], false);
+        assert.equal('pendingPlanVersionId' in planWrite(prisma), false);
     });
 
     test('a failing onboarding callback rolls plan and version back together', async () => {

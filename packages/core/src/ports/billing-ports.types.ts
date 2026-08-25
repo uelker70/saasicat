@@ -32,6 +32,24 @@ export interface SubscriptionRecord {
     customLimits?: { quotas?: Record<string, number>; features?: string[] } | null;
     planVersionId: string;
     planVersion: PlanVersionRecord;
+    /**
+     * When a cancellation was declared, and when it takes effect.
+     *
+     * Required, and required together, because entitlement resolution ends a
+     * subscription by reading them: without the second date it cannot tell a
+     * subscription that ends next January from one that ended last January, and
+     * it grants the latter everything. Nothing else in the platform would
+     * notice — no repository filters a cancelled subscription out, and stopping
+     * the billing period is a different decision from ending what a tenant may
+     * do.
+     *
+     * `null` on both means no cancellation. On a row written before the two
+     * fields separated, `canceledAt` carries the effective date and
+     * `canceledEffectiveAt` is genuinely null; every reader in the platform
+     * applies `canceledEffectiveAt ?? canceledAt` for that reason.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
 }
 
 /** Snapshot of a `PlanVersion` row. */
@@ -221,6 +239,27 @@ export interface SubscriptionUsageRecord {
     /** Current period window — for proration and change-effective date. */
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
+    /**
+     * End of what was committed to, which the period end need not equal.
+     *
+     * The cancellation rules measure against this: a subscription cancelled
+     * inside its term keeps running until the term ends, not until the period
+     * does. Null on a trial, and on any subscription written before the field
+     * existed — readers treat that as "the period end is the answer".
+     */
+    minimumTermUntil?: Date | null;
+    /**
+     * When a cancellation was declared, and when it lands.
+     *
+     * Required for the reason the same pair is required on
+     * `SubscriptionRecord`: the tenant billing route reads them to refuse a
+     * plan change on a subscription that has ended, and a record that omits
+     * them answers "not cancelled" — so the change is applied and prorated
+     * while entitlement resolution, which reads a record that does carry them,
+     * grants nothing.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
     pendingPlan: string | null;
     pendingBillingCycle: string | null;
     pendingEffectiveAt: Date | null;
@@ -303,6 +342,21 @@ export interface ImmediatePlanChangeInput {
      * change, or target package without trial). A `Date` is persisted.
      */
     trialEndsAt?: Date | null;
+    /**
+     * `canceledAt` as the caller read it, so the write can claim the row only
+     * while that is still true.
+     *
+     * Three of the plan route's decisions depend on the cancellation — whether
+     * the change is refused at all, whether the billing cycle may move, and
+     * whether a fresh period is opened — and a read and a write are two
+     * moments. A cancellation declared in between made every one of them answer
+     * about a state that no longer existed, and the write went ahead anyway: a
+     * plan term recorded past the date the subscription ends.
+     *
+     * `null` is a value here rather than an absence. It claims a row that has
+     * no cancellation, and loses against one that has acquired one.
+     */
+    expectedCanceledAt: Date | null;
 }
 
 /** Input for `schedulePlanChange` (change at period end). */
@@ -310,6 +364,8 @@ export interface ScheduledPlanChangeInput {
     pendingPlan: string;
     pendingBillingCycle: string;
     pendingEffectiveAt: Date;
+    /** See `ImmediatePlanChangeInput.expectedCanceledAt`. */
+    expectedCanceledAt: Date | null;
 }
 
 /**
@@ -319,6 +375,12 @@ export interface ScheduledPlanChangeInput {
 export interface ApplyOnboardingSelectionInput {
     planId: string;
     cycle: string;
+    /**
+     * See `ImmediatePlanChangeInput.expectedCanceledAt`. The atomic path needs
+     * it for the same reason the sequential one does: without it, the preferred
+     * implementation is the one where the race stays open.
+     */
+    expectedCanceledAt: Date | null;
     /** For TRIAL → null, otherwise period start from `initialPeriodWindow`. */
     periodStart: Date | null;
     periodEnd: Date | null;
@@ -336,6 +398,12 @@ export interface ApplyOnboardingSelectionResult {
     subscriptionId: string;
     /** null if no redeemPromo callback was provided or the callback returned null. */
     promoRedemption: PromoCodeRedemptionRecord | null;
+    /**
+     * False when the row's cancellation moved since the caller read it, in
+     * which case nothing was written — including the promo redemption, which
+     * shares the transaction.
+     */
+    claimed: boolean;
 }
 
 /**
@@ -363,10 +431,18 @@ export interface TenantSubscriptionWritePort {
     changePlanImmediate(
         tenantId: string,
         input: ImmediatePlanChangeInput,
-    ): Promise<{ plan: string; billingCycle: string }>;
+    ): Promise<{
+        plan: string;
+        billingCycle: string;
+        /** False when the row's cancellation moved since the caller read it. */
+        claimed: boolean;
+    }>;
 
     /** Change at period end: set pending fields. */
-    schedulePlanChange(tenantId: string, input: ScheduledPlanChangeInput): Promise<void>;
+    schedulePlanChange(
+        tenantId: string,
+        input: ScheduledPlanChangeInput,
+    ): Promise<{ claimed: boolean }>;
 
     /**
      * Marks the pending PlanVersion as accepted. Idempotent — a duplicate
@@ -385,14 +461,56 @@ export interface TenantSubscriptionWritePort {
     }>;
 
     /**
-     * Cancel the subscription. `immediate=true` → status CANCELED from now;
-     * `false` → canceledAt = currentPeriodEnd, status is preserved.
+     * Record a cancellation. The dates are decided above this port.
+     *
+     * `canceledAt` is when the customer said it; `effectiveAt` is when it
+     * lands. They differ for every ordinary cancellation, because a
+     * subscription cancelled inside its term keeps running, keeps being billed
+     * and keeps its entitlements until the term ends. An adapter that computed
+     * the second from the first — which this one did, as
+     * `immediate ? now : currentPeriodEnd` — was deciding a commercial
+     * question in a persistence layer, and could not see the minimum term or
+     * the notice period at all.
+     *
+     * `terminateNow` flips the status immediately, and is set when the
+     * cancellation is already effective: an operator ending a contract, or the
+     * rules finding nothing left to run — no period, no term, as on a trial.
+     * It is never a client's request. A tenant may always declare a
+     * cancellation and may never shorten the term they are in; what decides
+     * this flag is the date the rules returned, not the date they asked for.
+     *
+     * `minimumTermUntil` extends the stored commitment, and is set only when
+     * the cancellation itself extends it: a declaration made after the notice
+     * deadline buys the following period. Left unset the stored term end is
+     * unchanged, which is the ordinary case.
      */
     cancelSubscription(
         tenantId: string,
-        immediate: boolean,
-        now: Date,
-    ): Promise<{ canceledAt: Date | null; status: string }>;
+        input: {
+            canceledAt: Date;
+            effectiveAt: Date;
+            terminateNow: boolean;
+            minimumTermUntil?: Date;
+        },
+    ): Promise<{
+        canceledAt: Date | null;
+        canceledEffectiveAt: Date | null;
+        status: string;
+        /**
+         * True when a cancellation was already recorded and this call changed
+         * nothing — the stored dates are returned instead.
+         *
+         * The caller checks first, but a check and a write are two moments, and
+         * two requests can pass the check before either writes. Straddling a
+         * notice deadline that costs a billing cycle: the first declaration
+         * lands on time, the second recomputes against a later `now`, and an
+         * unconditional write replaces the first answer with one a period
+         * further out. An implementation therefore claims the row only while
+         * both cancellation fields are still empty, and answers `true` here
+         * when the claim finds nothing to claim.
+         */
+        alreadyCanceled: boolean;
+    }>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window

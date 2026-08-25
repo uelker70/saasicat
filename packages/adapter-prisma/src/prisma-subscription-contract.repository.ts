@@ -163,7 +163,13 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     ): Promise<SubscriptionContractRecord> {
         const row = await this.db().subscriptionContract.update({
             where: { id: contractId },
-            data: { effectiveUntil: data.effectiveUntil, status: data.status },
+            // A null status leaves the column alone: the contract keeps whatever
+            // it had — `active`, usually — and its new `effectiveUntil` is what
+            // takes it out of the active lookup once that moment arrives.
+            data: {
+                effectiveUntil: data.effectiveUntil,
+                ...(data.status === null ? {} : { status: data.status }),
+            },
             include: { lineItems: true },
         });
         return toRecord(row);
