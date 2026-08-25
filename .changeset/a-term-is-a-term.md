@@ -18,7 +18,10 @@ one word, so moving from a yearly STARTER to a monthly PRO classified as
 `UPGRADE`, applied immediately, and ended the yearly commitment early. Plan
 direction and cycle direction are two answers now (`planDirection`,
 `cycleDirection` on the preview), and only an upgrade that does not shorten the
-cycle takes effect today.
+cycle takes effect today. A trial is the exception, because it commits to
+nothing: its cycle says how it will be billed once it converts, not a period the
+customer is inside, so an upgrade during a trial takes effect at once whichever
+cycle it picks.
 
 **A cancellation is a declaration; when it lands is decided, not asked for.**
 `POST /billing/cancel` no longer accepts `immediately` — a tenant could use it to
@@ -71,7 +74,16 @@ declaration landing January 2027, retried after the deadline, became January 202
 accepts an optional `expectedEffectiveAt` and refuses with
 `CANCELLATION_TERMS_CHANGED` when its own answer differs, so a dialog opened
 before a notice deadline and confirmed after it cannot deliver a date the
-customer never saw.
+customer never saw. Where the answer _is_ the moment of asking — a subscription
+with nothing left to run — the check accepts any reading of the clock up to now
+and refuses only a date still in the future; comparing those two readings for
+equality would refuse every confirmation, including each retry.
+
+**A cancellation written before the fields split is still a cancellation.**
+`GET /billing/usage` applies the same fallback the renewal and the cancel route
+apply, so a row whose effective date sits in `canceledAt` reports it. Read
+strictly, it told the page nothing had been cancelled — which hid the end date
+and went on offering to cancel it again.
 
 **A cancellation writes what it decided, not only when it lands.** Two things
 follow from the date and neither is asked for. A subscription with nothing left

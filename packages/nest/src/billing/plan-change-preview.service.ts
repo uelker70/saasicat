@@ -240,9 +240,18 @@ export class PlanChangePreviewService {
         // An immediate change may improve the service; it may not shorten the
         // commitment. Everything else waits for the term to end, which is where
         // the shorter period may legitimately begin.
+        //
+        // A trial commits to nothing, so there is nothing for the second half
+        // to protect. Its cycle is what the subscription will be billed on
+        // AFTER the trial, not a period anyone is inside, and deferring an
+        // upgrade to the end of it withholds the very entitlements the customer
+        // asked to try. `status` is what separates the two cases — no
+        // arrangement of the dates does, because a trial has a period end like
+        // any other subscription.
         const planDirection = this.planDirection(sub.plan, targetPlan);
         const cycleDirection = this.cycleDirection(sub.billingCycle, targetCycle);
-        const isImmediate = planDirection === 'UP' && cycleDirection !== 'SHORTER';
+        const commits = ctx.status !== 'TRIAL';
+        const isImmediate = planDirection === 'UP' && (!commits || cycleDirection !== 'SHORTER');
         const effectiveAt = isImmediate ? null : this.resolveEffectiveAt(ctx, now);
 
         const proration =

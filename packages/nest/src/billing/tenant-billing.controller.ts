@@ -251,7 +251,13 @@ export class TenantBillingController {
             pendingPlanVersionAccepted: sub.pendingPlanVersionAccepted,
             pendingPlanVersionAcceptedAt: sub.pendingPlanVersionAcceptedAt,
             canceledAt: sub.canceledAt ?? null,
-            canceledEffectiveAt: sub.canceledEffectiveAt ?? null,
+            // The same fallback the renewal and the cancel route apply, for the
+            // same reason: on a row written before the two fields separated,
+            // `canceledAt` IS the effective date and the second column is
+            // genuinely null. Reading it strictly here told the page the
+            // subscription was never cancelled — so it hid the end date and
+            // went on offering to cancel something that already had been.
+            canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             // What a cancellation declared right now would do.
             //
             // Here rather than behind a second route, because the page has to
@@ -732,10 +738,24 @@ export class TenantBillingController {
         // What the page showed has to be what the customer agreed to. Refused
         // rather than silently applied, with the new date in the error so the
         // page can re-ask instead of guessing why.
-        if (
-            dto.expectedEffectiveAt &&
-            new Date(dto.expectedEffectiveAt).getTime() !== decision.effectiveAt.getTime()
-        ) {
+        //
+        // Equality is the wrong test where the answer IS the moment of asking.
+        // A subscription with nothing left to run lands its cancellation now,
+        // and "now" is read once when the page is drawn and again when the
+        // button is pressed — never the same number, seconds apart. Comparing
+        // them for equality refuses every confirmation, the retry included,
+        // because the retry moves the date it is compared against. What the
+        // reader agreed to there is "immediately", and every reading of the
+        // clock up to this one says that. A date still in the FUTURE does not:
+        // no projection of this route produced it, so it is refused as before.
+        const expected = dto.expectedEffectiveAt ? new Date(dto.expectedEffectiveAt) : null;
+        const landsImmediately = decision.effectiveAt <= now;
+        const disagrees =
+            expected !== null &&
+            (landsImmediately
+                ? expected.getTime() > decision.effectiveAt.getTime()
+                : expected.getTime() !== decision.effectiveAt.getTime());
+        if (disagrees) {
             throw new ConflictException({
                 code: 'CANCELLATION_TERMS_CHANGED',
                 message: 'The effective date changed since it was shown. Confirm the new one.',

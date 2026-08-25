@@ -54,11 +54,11 @@ const entitlement = (plan) => ({
     invalidateTenant: () => {},
 });
 
-const subscription = (plan, billingCycle, minimumTermUntil = null) => ({
+const subscription = (plan, billingCycle, minimumTermUntil = null, status = 'ACTIVE') => ({
     findForTenant: async () => ({
         plan,
         billingCycle,
-        status: 'ACTIVE',
+        status,
         isPilot: false,
         pilotEndsAt: null,
         trialEndsAt: null,
@@ -87,11 +87,11 @@ const subscription = (plan, billingCycle, minimumTermUntil = null) => ({
 
 const NOW = new Date('2026-01-15');
 
-function preview(fromPlan, fromCycle, toPlan, toCycle) {
+function preview(fromPlan, fromCycle, toPlan, toCycle, status = 'ACTIVE') {
     const service = new PlanChangePreviewService(
         CATALOG,
         entitlement(fromPlan),
-        subscription(fromPlan, fromCycle),
+        subscription(fromPlan, fromCycle, null, status),
         { snapshot: async () => ({ users: 1 }) },
         null,
     );
@@ -149,6 +149,47 @@ describe('an immediate change may not shorten the term', () => {
             // The two must agree: a deferred change has a date, an immediate
             // one has none. A `null` date on a deferred change is a page that
             // says "later" and cannot say when.
+            assert.equal(dto.effectiveAt === null, expected);
+        });
+    }
+});
+
+describe('a trial commits to nothing, so nothing is deferred to protect it', () => {
+    // The first half of the rule is about the service and applies everywhere.
+    // The second half is about a commitment, and a trial has none: its cycle
+    // says how it will be billed once it converts, not a period the customer is
+    // inside. Deferring an upgrade to the end of a trial withholds exactly what
+    // was asked to be tried.
+    //
+    // Enumerated rather than sampled, for the same reason as above: this is
+    // where the rule differs, so this is where a plausible implementation that
+    // is right for the wrong reason survives an example.
+    const shouldBeImmediateOnTrial = ({ fromPlan, toPlan }) =>
+        PLANS.indexOf(toPlan) > PLANS.indexOf(fromPlan);
+
+    test('the matrix asks more of a trial than of a term', () => {
+        const rows = everyCombination();
+        assert.equal(rows.filter(shouldBeImmediateOnTrial).length, 4);
+        assert.equal(rows.filter(shouldBeImmediate).length, 3);
+    });
+
+    for (const row of everyCombination()) {
+        const label = `${row.fromPlan}/${row.fromCycle} → ${row.toPlan}/${row.toCycle}`;
+        const expected = shouldBeImmediateOnTrial(row);
+
+        test(`on trial, ${label} takes effect ${expected ? 'now' : 'at term end'}`, async () => {
+            const dto = await preview(
+                row.fromPlan,
+                row.fromCycle,
+                row.toPlan,
+                row.toCycle,
+                'TRIAL',
+            );
+            assert.equal(
+                dto.isImmediate,
+                expected,
+                `${label}: isImmediate=${dto.isImmediate}, changeType=${dto.changeType}`,
+            );
             assert.equal(dto.effectiveAt === null, expected);
         });
     }

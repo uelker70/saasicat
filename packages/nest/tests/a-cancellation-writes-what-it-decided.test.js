@@ -91,17 +91,18 @@ function buildController(subscription, port, noticePeriodDays = 0) {
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 
-describe('a cancellation with nothing left to run', () => {
-    const noTerm = {
-        ...SUBSCRIPTION,
-        status: 'TRIAL',
-        currentPeriodEnd: null,
-        minimumTermUntil: null,
-    };
+/** A trial: no period end, no committed term, so the rules land it at once. */
+const NO_TERM = {
+    ...SUBSCRIPTION,
+    status: 'TRIAL',
+    currentPeriodEnd: null,
+    minimumTermUntil: null,
+};
 
+describe('a cancellation with nothing left to run', () => {
     test('ends the subscription instead of leaving it active', async () => {
         const port = recordingWritePort();
-        const result = await buildController(noTerm, port).cancelSubscription(request, {});
+        const result = await buildController(NO_TERM, port).cancelSubscription(request, {});
 
         assert.equal(port.calls[0].terminateNow, true, 'the store was told to keep the status');
         assert.equal(result.status, 'CANCELED');
@@ -109,10 +110,48 @@ describe('a cancellation with nothing left to run', () => {
 
     test('and the date it lands on is the declaration itself', async () => {
         const port = recordingWritePort();
-        await buildController(noTerm, port).cancelSubscription(request, {});
+        await buildController(NO_TERM, port).cancelSubscription(request, {});
 
         const { canceledAt, effectiveAt } = port.calls[0];
         assert.equal(effectiveAt.getTime(), canceledAt.getTime());
+    });
+});
+
+describe('confirming a cancellation that lands immediately', () => {
+    // The page states the date before the customer confirms, and sends it back
+    // so the route can refuse a date they never saw. Where the answer IS the
+    // moment of asking, those two readings of the clock are never the same
+    // number — and comparing them for equality refuses every confirmation,
+    // including the retry, and including the one after that.
+    test('is not refused for having read the clock a moment earlier', async () => {
+        const port = recordingWritePort();
+        const controller = buildController(NO_TERM, port);
+
+        const usage = await controller.getUsage(request);
+        // A customer reads the dialog before pressing the button. Without this
+        // the two calls land in the same millisecond and the comparison agrees
+        // by accident — which is how the defect survived being tested for.
+        await new Promise((resume) => setTimeout(resume, 5));
+        await controller.cancelSubscription(request, {
+            expectedEffectiveAt: usage.cancellation.effectiveAt.toISOString(),
+        });
+
+        assert.equal(port.calls.length, 1, 'the confirmation never reached the store');
+    });
+
+    test('but a date still in the future is refused', async () => {
+        // The premise: the rule above is "an immediate answer accepts any
+        // reading up to now", not "an immediate answer accepts anything".
+        const port = recordingWritePort();
+        const controller = buildController(NO_TERM, port);
+
+        await assert.rejects(
+            controller.cancelSubscription(request, {
+                expectedEffectiveAt: new Date(Date.now() + 30 * DAY).toISOString(),
+            }),
+            (err) => err.getResponse?.().code === 'CANCELLATION_TERMS_CHANGED',
+        );
+        assert.equal(port.calls.length, 0);
     });
 });
 
@@ -136,6 +175,30 @@ describe('a cancellation inside a running term', () => {
             undefined,
             'an ordinary cancellation rewrote the term it was measured against',
         );
+    });
+});
+
+describe('a cancellation older than the fields that describe it', () => {
+    // The old adapter had one column and wrote the effective date into it. The
+    // renewal and the cancel route both read that row correctly; the projection
+    // the page reads did not, so the page believed nothing had been cancelled.
+    const legacy = {
+        ...SUBSCRIPTION,
+        canceledAt: new Date('2027-01-01'),
+        canceledEffectiveAt: null,
+    };
+
+    test('still reports when it lands', async () => {
+        const usage = await buildController(legacy, recordingWritePort()).getUsage(request);
+
+        assert.deepEqual(usage.canceledEffectiveAt, new Date('2027-01-01'));
+    });
+
+    test('and an uncancelled subscription still reports nothing', async () => {
+        // The premise: the fallback reads a cancellation, not any date it finds.
+        const usage = await buildController(SUBSCRIPTION, recordingWritePort()).getUsage(request);
+
+        assert.equal(usage.canceledEffectiveAt, null);
     });
 });
 
