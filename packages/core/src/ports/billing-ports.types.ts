@@ -248,10 +248,18 @@ export interface SubscriptionUsageRecord {
      * existed — readers treat that as "the period end is the answer".
      */
     minimumTermUntil?: Date | null;
-    /** When a cancellation was declared. Null while none was. */
-    canceledAt?: Date | null;
-    /** When that cancellation lands. Null while none was declared. */
-    canceledEffectiveAt?: Date | null;
+    /**
+     * When a cancellation was declared, and when it lands.
+     *
+     * Required for the reason the same pair is required on
+     * `SubscriptionRecord`: the tenant billing route reads them to refuse a
+     * plan change on a subscription that has ended, and a record that omits
+     * them answers "not cancelled" — so the change is applied and prorated
+     * while entitlement resolution, which reads a record that does carry them,
+     * grants nothing.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
     pendingPlan: string | null;
     pendingBillingCycle: string | null;
     pendingEffectiveAt: Date | null;

@@ -227,6 +227,64 @@ The admin package is unchanged here: `@saasicat/ui-vue` still uses Quasar, and s
   `useResource("…"): no resource registry in scope` in its `setup()`; until 0.27 the same app
   worked, because the pages took their loaders as props.
 
+### The subscription table gained two columns
+
+`Subscription` needs `canceledEffectiveAt` and `minimumTermUntil`, both nullable. Add them before
+deploying 1.0 — they are what the cancellation rules are read from, and an app whose schema lacks
+them fails when someone cancels.
+
+```prisma
+model Subscription {
+    // …
+    canceledAt          DateTime?
+    canceledEffectiveAt DateTime?   // new: when the cancellation lands
+    minimumTermUntil    DateTime?   // new: the end of what was committed to
+}
+```
+
+```sql
+ALTER TABLE "subscriptions"
+    ADD COLUMN "canceledEffectiveAt" TIMESTAMP(3),
+    ADD COLUMN "minimumTermUntil"    TIMESTAMP(3);
+```
+
+`saasicat schema check --prisma-schema=path/to/schema.prisma` compares your schema against the
+shipped fragments and names what is missing; run it before the deploy rather than after.
+
+**No backfill is required.** On a row written before the split, `canceledAt` holds the effective
+date and `canceledEffectiveAt` is null, and every reader in the platform applies
+`canceledEffectiveAt ?? canceledAt` for exactly that reason — the renewal decision, the cancel
+route, the usage projection and entitlement resolution alike. Backfilling is still tidier if you
+want one column to mean one thing:
+
+```sql
+UPDATE "subscriptions"
+   SET "canceledEffectiveAt" = "canceledAt"
+ WHERE "canceledAt" IS NOT NULL
+   AND "canceledEffectiveAt" IS NULL;
+```
+
+`minimumTermUntil` stays null on existing rows and should: null means "no commitment beyond the
+period", which is what those subscriptions were sold under. Each renewal sets it from then on.
+
+**If you implement the ports yourself, your build breaks here, on purpose.** Three records require
+`canceledAt` and `canceledEffectiveAt` now — `SubscriptionRecord` (entitlement resolution ends a
+subscription by reading them), `SubscriptionUsageRecord` (the tenant billing route refuses a plan
+change on a subscription that has ended) and `DuePendingPlanChange` (materialisation declines a
+change that came due after the end). Each stops compiling until it returns them:
+
+```ts
+return {
+    // …
+    canceledAt: row.canceledAt ?? null,
+    canceledEffectiveAt: row.canceledEffectiveAt ?? null,
+};
+```
+
+They are required rather than optional because the alternative is silent: a record without them
+cannot distinguish a subscription that ends next January from one that ended last January, and the
+quiet answer is that it keeps everything.
+
 ### A cancellation that has taken effect now ends the entitlements
 
 Until 1.0 nothing on the entitlement path read a cancellation. A subscription whose cancellation

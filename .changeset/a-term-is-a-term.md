@@ -111,6 +111,20 @@ them. **This removes access from tenants whose cancellation has already landed**
 carries the query that lists
 them.
 
+**A cancellation is a boundary, and two writes used to cross it.** A plan change
+and a cancellation are two decisions about one subscription, and neither could
+see the other. A subscription that had already ended still accepted an
+upgrade — applied, prorated and charged — while entitlement resolution granted
+nothing, because it reads the cancellation and the route did not; that route now
+answers `SUBSCRIPTION_ENDED`. An immediate change on a subscription that is
+cancelled but still running no longer opens a fresh billing period, which would
+have sold a term the cancellation cuts short. And a change scheduled before the
+customer cancelled is declined once the cancellation has landed, instead of
+restarting the period and running the follow-up hooks on a term that is over —
+`DuePendingPlanChange` carries the two dates for that decision. A cancellation
+that has _not_ landed declines nothing: a customer who bought a further period
+by cancelling late may still choose the plan they spend it on.
+
 **A cancellation writes what it decided, not only when it lands.** Two things
 follow from the date and neither is asked for. A subscription with nothing left
 to run — a trial, or one still waiting for sales, with no period end and no
@@ -123,8 +137,9 @@ reader of the term end looks at `minimumTermUntil` — a downgrade scheduled
 meanwhile would otherwise have landed at the old term end, inside the period the
 customer had just paid for.
 
-**Breaking for anyone implementing the ports.** `SubscriptionRecord` requires
-`canceledAt` and `canceledEffectiveAt` — required rather than optional because
+**Breaking for anyone implementing the ports.** `SubscriptionRecord`,
+`SubscriptionUsageRecord` and `DuePendingPlanChange` require `canceledAt` and
+`canceledEffectiveAt` — required rather than optional because
 an adapter that omits them cannot tell a subscription that ends next January
 from one that ended last January, and the silent answer is the wrong one.
 `TenantSubscriptionWritePort.cancelSubscription` now takes

@@ -54,6 +54,7 @@ import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
+import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
@@ -314,6 +315,19 @@ export class TenantBillingController {
             });
         }
 
+        // A contract that is over cannot be changed, only started again — and
+        // there is no route for that yet, deliberately. Without this the
+        // immediate branch would prorate an upgrade and charge for it while
+        // entitlement resolution grants nothing, because the cancellation it
+        // reads has already landed.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended. Its plan can no longer be changed.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+            });
+        }
+
         // The same preview the wizard renders, and for the same reason: this
         // route decides what happens, not the caller.
         //
@@ -335,9 +349,15 @@ export class TenantBillingController {
 
         if (decision.isImmediate) {
             const wasTrial = sub.status === 'TRIAL';
-            const period = wasTrial
-                ? null
-                : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
+            // A fresh window is a fresh term, and a cancellation still to come
+            // ends the subscription on a date this change does not move. Opening
+            // one anyway sells a period the customer loses partway through. The
+            // plan changes today either way; what stays is when it runs out.
+            const endsBeforeAnyNewTerm = (sub.canceledEffectiveAt ?? sub.canceledAt) !== null;
+            const period =
+                wasTrial || endsBeforeAnyNewTerm
+                    ? null
+                    : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
             // #17: in trial, carry the remaining time over to the target package
             // (via the existing TrialProjectionPort — the same one that feeds the
             // wizard preview). `null` → target without trial: trial end stays unchanged.

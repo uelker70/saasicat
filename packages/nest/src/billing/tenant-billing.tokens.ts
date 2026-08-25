@@ -101,6 +101,22 @@ export interface DuePendingPlanChange {
     pendingPlan: string;
     /** Target cycle (`pendingBillingCycle`); `null` → default MONTHLY. */
     pendingBillingCycle: string | null;
+    /**
+     * The subscription's cancellation, so materialization can decline.
+     *
+     * A change scheduled before the customer cancelled comes due anyway, and
+     * applying it to a subscription that has already ended restarts the billing
+     * period and runs the plan-change follow-up hooks on a contract that is
+     * over. Required, and required together, for the reason the same pair is
+     * required on `SubscriptionRecord`: a record that omits them cannot answer
+     * the question, and the silent answer is to go ahead.
+     *
+     * A cancellation that has NOT landed does not decline anything — a customer
+     * who bought a further period by cancelling late may still choose the plan
+     * they spend it on.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
 }
 
 export interface PendingPlanQueryPort {
@@ -108,6 +124,10 @@ export interface PendingPlanQueryPort {
      * Returns all subscriptions with a due scheduled plan change:
      * `pendingPlan != null AND pendingEffectiveAt <= now AND status != 'TRIAL'`.
      * TRIAL is excluded — there the trial lifecycle drives the transition.
+     *
+     * Cancelled subscriptions are NOT excluded by the query: whether a landed
+     * cancellation declines the change is a decision, and it is taken above
+     * this port, from the two dates on the record.
      */
     findDuePendingPlanChanges(now: Date): Promise<DuePendingPlanChange[]>;
 }

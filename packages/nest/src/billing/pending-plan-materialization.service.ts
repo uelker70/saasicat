@@ -3,6 +3,7 @@ import type { BillingCycle, TenantSubscriptionWritePort } from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { initialPeriodWindow } from './billing-period.js';
+import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import {
     PENDING_PLAN_QUERY_PORT_TOKEN,
     SUBSCRIPTION_WRITE_PORT_TOKEN,
@@ -48,7 +49,16 @@ export class PendingPlanMaterializationService {
         const due = await this.query.findDuePendingPlanChanges(now);
 
         let applied = 0;
+        let declined = 0;
         for (const change of due) {
+            // A change scheduled before the customer cancelled still comes due.
+            // Applying it here would restart the billing period and run the
+            // follow-up hooks — a contract freeze among them — on a
+            // subscription whose term is over.
+            if (cancellationHasLanded(change, now)) {
+                declined += 1;
+                continue;
+            }
             const cycle = (change.pendingBillingCycle ?? 'MONTHLY') as BillingCycle;
             const period = initialPeriodWindow(now, cycle);
             try {
@@ -76,6 +86,14 @@ export class PendingPlanMaterializationService {
         if (applied > 0) {
             this.logger.log(
                 `Pending plan materialisation: applied ${applied} scheduled plan change(s).`,
+            );
+        }
+        if (declined > 0) {
+            // Said out loud rather than skipped quietly: a scheduled change that
+            // never happens is something an operator may be asked about.
+            this.logger.log(
+                `Pending plan materialisation: declined ${declined} change(s) on ` +
+                    `subscriptions whose cancellation has taken effect.`,
             );
         }
         return { applied };

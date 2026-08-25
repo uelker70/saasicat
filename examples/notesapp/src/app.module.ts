@@ -35,7 +35,16 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                 // The standard stack takes every repository from the persistence
                 // bundle. No forwarding Catalog/Billing modules are needed.
                 entitlement: {
-                    resolutionConfig: { defaultTrialEntitlementPlan: 'STARTER' },
+                    resolutionConfig: {
+                        defaultTrialEntitlementPlan: 'STARTER',
+                        // What a subscription keeps once its cancellation has
+                        // taken effect. Omitted — as here — it keeps nothing,
+                        // which is what ending a contract means. Name a plan to
+                        // leave a floor instead: a read-only tier a former
+                        // customer can export from, or a free plan.
+                        //
+                        //   canceledEntitlementPlan: 'STARTER',
+                    },
                 },
                 catalog: {
                     featureUiRegistry: NOTES_FEATURE_UI_REGISTRY,
@@ -44,6 +53,16 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                 },
                 tenantBilling: {
                     authGuards: [DemoAuthGuard],
+                    // How many days before the term ends a cancellation is
+                    // still in time. Zero — the default, spelled out here
+                    // because it is a commercial decision rather than a
+                    // technical one — means there is no door to be shut out of:
+                    // a cancellation on the last day still lands at the term
+                    // end. Raise it and the cut is hard, so a declaration made
+                    // after the window lands one full period later. With a
+                    // yearly cycle that is a year, which is why the wizard
+                    // states the date before the customer confirms.
+                    cancellationNoticeDays: 0,
                 },
                 subscriptionBundles: true,
                 adminResources: true,
