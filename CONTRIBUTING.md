@@ -230,14 +230,19 @@ the codemod it names is `saasicat codemod v1`.
 - A PR is mergeable when `build`, `test`, `lint`, and `typecheck` are green.
 - Reference related issues in the PR description.
 
-**Do not stack pull requests.** Branch each one off `main` and merge it before
-opening the next, or make it a single PR. This repository merges by squash, and a
-stacked branch pays for that twice: `main` ends up with one commit describing the
-same change your branch carries as many, so the next merge conflicts on files
-neither of you meant to touch — and deleting the parent's branch on merge
-_closes_ the child PR outright, because its base is gone. Rebuilding a stacked
+**Do not stack pull requests.** A stack is a pull request whose _base_ is another
+open pull request. Two branches cut from `main` are not a stack, however many are
+open at once — work on independent things in parallel, and merge them in whatever
+order they become ready.
+
+What a stack costs: this repository merges by squash, so `main` ends up with one
+commit describing the same change your branch carries as many, and the next merge
+conflicts on files neither of you meant to touch. Deleting the parent's branch on
+merge _closes_ the child outright, because its base is gone. Rebuilding a stacked
 branch on top of `main` afterwards is usually conflict-free, which is the tell
-that the conflicts came from the shape rather than from the work.
+that the conflicts came from the shape rather than from the work. If your second
+branch genuinely needs the first, that is the signal it should have been one pull
+request.
 
 ## What is tested, and what is not
 
