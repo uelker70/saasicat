@@ -34,6 +34,35 @@
                 </div>
             </template>
 
+            <!--
+                The bundle's own action sits on the bundle's own row.
+                Soft-delete used to be in the card footer next to "publish this
+                version" — one destroys every version, the other releases one,
+                and they looked like peers in the same corner as "save".
+
+                In `header-actions` and NOT in `header`. The header slot is
+                rendered inside the disclosure `<button>`, so a control placed
+                there is interactive content nested in a button: invalid markup,
+                and a keyboard or screen-reader user cannot tell whether they
+                are toggling the row or deleting it. `@click.stop` hides the
+                first half of that and none of the second. This component was
+                built with a sibling slot for exactly this case, and says so.
+            -->
+            <template #header-actions>
+                <q-btn
+                    class="sa-bd-card__delete"
+                    flat
+                    dense
+                    round
+                    color="negative"
+                    icon="delete"
+                    :aria-label="msg.detail.softDelete"
+                    @click="emit('deleteBundle', bundle)"
+                >
+                    <q-tooltip>{{ msg.detail.softDelete }}</q-tooltip>
+                </q-btn>
+            </template>
+
             <slot name="detail" :bundle="bundle" />
         </AdminAccordion>
 
@@ -67,6 +96,7 @@ defineSlots<{
 
 const emit = defineEmits<{
     toggle: [bundle: BundleRow];
+    deleteBundle: [bundle: BundleRow];
 }>();
 
 const msg = useSaMessages('bundles');
