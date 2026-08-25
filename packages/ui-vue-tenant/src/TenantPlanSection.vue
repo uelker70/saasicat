@@ -268,6 +268,7 @@ import TenantButton from './ui/TenantButton.vue';
 import TenantCard from './ui/TenantCard.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
+import { subscriptionHasEnded } from './subscription-ended.js';
 import {
     useTenantBilling,
     type BundlePreviewShape,
@@ -484,6 +485,10 @@ const nextBillingDate = computed(() => {
     const u = usage.value;
     if (!u || !u.currentPeriodEnd) return null;
     if (u.status !== 'ACTIVE') return null;
+    // A subscription that has ended is not billed again, and its period end is
+    // in the past. The status column does not say so — nothing transitions it
+    // when a cancellation lands — so the date does.
+    if (subscriptionHasEnded(u)) return null;
     return u.currentPeriodEnd;
 });
 
@@ -496,6 +501,7 @@ const cycleLabel = computed(() => {
 
 const statusLabel = computed(() => {
     if (!usage.value) return '';
+    if (subscriptionHasEnded(usage.value)) return effectiveI18n.value.statusCanceled;
     switch (usage.value.status) {
         case 'TRIAL':
             return effectiveI18n.value.statusTrial;
@@ -517,6 +523,7 @@ const statusLabel = computed(() => {
 // which is which regardless (rule 7: never colour alone).
 const statusTone = computed<BadgeTone>(() => {
     if (!usage.value) return 'neutral';
+    if (subscriptionHasEnded(usage.value)) return 'negative';
     switch (usage.value.status) {
         case 'TRIAL':
             return 'info';

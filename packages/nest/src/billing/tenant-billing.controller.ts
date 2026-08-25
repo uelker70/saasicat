@@ -729,9 +729,17 @@ export class TenantBillingController {
                 canceledAt: sub.canceledAt ?? null,
                 canceledEffectiveAt: existing,
                 status: sub.status,
-                termEndsAt: existing,
+                // Null rather than recomputed, because the three below explain a
+                // decision that was taken once and is not stored. Deriving them
+                // from the effective date tells the wrong story exactly where it
+                // matters: a declaration that landed a period late has an
+                // earlier term end and `afterNoticeDeadline: true`, and a retry
+                // would report the effective date as the term end and the late
+                // declaration as on time. Null says "not recomputed", which is
+                // the truth; the date, which is stored, is above.
+                termEndsAt: null,
                 noticeDeadline: null,
-                afterNoticeDeadline: false,
+                afterNoticeDeadline: null,
                 alreadyCanceled: true,
             };
         }

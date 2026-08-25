@@ -111,6 +111,23 @@ them. **This removes access from tenants whose cancellation has already landed**
 carries the query that lists
 them.
 
+**The page tells an ended subscription from a cancelled one.** Nothing
+transitions the status column when a cancellation lands, so a subscription that
+ended last month still reads `ACTIVE` there. The tenant plan card believed it: a
+positive badge, a next billing date, and a sentence promising nothing would
+change before a date already in the past — beside a "change plan" button whose
+route now refuses. It reads the date instead, shows the subscription as ended,
+and offers neither act. A cancellation still to come is unaffected and says so:
+that subscription runs, is billed and keeps everything until the date.
+
+**A repeated cancellation no longer explains itself with a date it cannot
+know.** The repeat reports what is stored — that it was already cancelled, and
+when it lands. `termEndsAt`, `noticeDeadline` and `afterNoticeDeadline` are null
+there, because the decision behind them was taken once against a `now` that has
+passed; deriving them from the effective date reported a declaration that landed
+a period late as an on-time one. `CancellationResultShape.afterNoticeDeadline`
+is therefore `boolean | null`.
+
 **A cancellation is a boundary, and two writes used to cross it.** A plan change
 and a cancellation are two decisions about one subscription, and neither could
 see the other. A subscription that had already ended still accepted an

@@ -195,12 +195,20 @@ export interface CancellationResultShape {
     canceledAt: string | null;
     canceledEffectiveAt: string | null;
     status: string;
-    /** The term end the effective date was measured against. */
+    /**
+     * The term end the effective date was measured against, and whether the
+     * notice window had closed.
+     *
+     * Both are null on a repeat: the decision was taken once and is not stored,
+     * so recomputing it from the effective date would report a late declaration
+     * as on time. The date it lands on is `canceledEffectiveAt` and is always
+     * there.
+     */
     termEndsAt: string | null;
     /** The moment after which a cancellation lands one period later, if any. */
     noticeDeadline: string | null;
     /** True when the declaration arrived after that moment. */
-    afterNoticeDeadline: boolean;
+    afterNoticeDeadline: boolean | null;
 }
 
 export interface BundlePreviewIssueShape {

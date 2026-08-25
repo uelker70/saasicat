@@ -103,6 +103,39 @@ describe('cancelling twice does not move the date', () => {
     });
 });
 
+describe('what a repeat may say about the first cancellation', () => {
+    // The date is stored, so the repeat reports it. The three fields that
+    // EXPLAIN that date are not: the decision was taken once, against a `now`
+    // that has passed. Deriving them from the effective date tells the wrong
+    // story exactly where it matters — a declaration that landed a period late
+    // has an earlier term end and `afterNoticeDeadline: true`, and the repeat
+    // would report it as on time with the later date as its term end.
+    test('the date, and nothing it cannot know', async () => {
+        const controller = buildController(CANCELLED, writePort());
+
+        const result = await controller.cancelSubscription(request, {});
+
+        assert.deepEqual(result.canceledEffectiveAt, new Date('2027-01-01'));
+        assert.equal(result.termEndsAt, null);
+        assert.equal(result.noticeDeadline, null);
+        assert.equal(result.afterNoticeDeadline, null);
+    });
+
+    test('while a first cancellation explains itself in full', async () => {
+        // The premise: null means "not recomputed", not "this route stopped
+        // saying it".
+        const controller = buildController(
+            { ...CANCELLED, canceledAt: null, canceledEffectiveAt: null },
+            writePort(),
+        );
+
+        const result = await controller.cancelSubscription(request, {});
+
+        assert.notEqual(result.termEndsAt, null);
+        assert.equal(result.afterNoticeDeadline, false);
+    });
+});
+
 describe('a cancellation older than the fields that describe it', () => {
     const legacy = {
         currentPeriodEnd: new Date('2026-04-01'),

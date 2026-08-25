@@ -40,17 +40,31 @@
             which is why this says the date rather than the word, and why the
             cancel button below disappears instead of offering the act twice.
         -->
-        <p v-if="canceledEffectiveAt" class="sp-plan-section__canceled">
+        <p v-if="hasEnded" class="sp-plan-section__canceled">
+            <strong>{{ i18n.endedHeading }}</strong>
+            {{ i18n.endedOn }} {{ formatDate(landsAt!) }}.
+        </p>
+        <p v-else-if="landsAt" class="sp-plan-section__canceled">
             <strong>{{ i18n.canceledHeading }}</strong>
-            {{ i18n.canceledUntil }} {{ formatDate(canceledEffectiveAt) }}.
+            {{ i18n.canceledUntil }} {{ formatDate(landsAt) }}.
             {{ i18n.canceledUnchanged }}
         </p>
         <div class="sp-plan-section__actions">
-            <TenantButton variant="solid" tone="accent" @click="emit('changePlan')">
+            <!--
+                A subscription that is over has no plan to change: the route
+                answers `SUBSCRIPTION_ENDED`, and offering the button anyway
+                turns a state the page could have shown into an error dialog.
+            -->
+            <TenantButton
+                v-if="!hasEnded"
+                variant="solid"
+                tone="accent"
+                @click="emit('changePlan')"
+            >
                 {{ i18n.changePlanButton }}
             </TenantButton>
             <TenantButton
-                v-if="!canceledEffectiveAt"
+                v-if="!landsAt"
                 variant="quiet"
                 tone="neutral"
                 @click="emit('cancelSubscription')"
@@ -69,6 +83,7 @@ import { useTenantI18n } from '../tenant-i18n.js';
 import type { BadgeTone } from '../ui/badge-tone.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
+import { cancellationLandsAt, subscriptionHasEnded } from '../subscription-ended.js';
 import '../ui/tenant-ui.css';
 
 const i18n = useTenantI18n();
@@ -92,5 +107,12 @@ const emit = defineEmits<{
 }>();
 
 /** When the cancellation lands, or null while none was declared. */
-const canceledEffectiveAt = computed(() => props.usage.canceledEffectiveAt ?? null);
+const landsAt = computed(() => cancellationLandsAt(props.usage));
+
+/**
+ * Whether that date has passed. Not `usage.status`: nothing transitions the
+ * column when a cancellation lands, so a subscription that is over still says
+ * ACTIVE there.
+ */
+const hasEnded = computed(() => subscriptionHasEnded(props.usage));
 </script>

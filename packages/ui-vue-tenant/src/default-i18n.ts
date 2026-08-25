@@ -42,6 +42,8 @@ export interface TenantPlanSectionI18n {
     canceledHeading: string;
     canceledUntil: string;
     canceledUnchanged: string;
+    endedHeading: string;
+    endedOn: string;
     cancelConfirmTitle: string;
     cancelConfirmBody: string;
     cancelConfirmLate: string;
@@ -229,6 +231,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     canceledHeading: 'Gekündigt.',
     canceledUntil: 'Ihr Abonnement läuft unverändert bis zum',
     canceledUnchanged: 'Bis dahin ändert sich nichts an Ihrem Zugang.',
+    endedHeading: 'Beendet.',
+    endedOn: 'Ihr Abonnement ist beendet seit dem',
     cancelConfirmTitle: 'Abonnement kündigen?',
     cancelConfirmBody:
         'Ihr Abonnement läuft danach unverändert weiter bis zum {date} — Funktionen, Kontingente und Abrechnung bleiben bis dahin gleich.',
@@ -415,6 +419,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     canceledHeading: 'Cancelled.',
     canceledUntil: 'Your subscription runs unchanged until',
     canceledUnchanged: 'Nothing about your access changes before then.',
+    endedHeading: 'Ended.',
+    endedOn: 'Your subscription ended on',
     cancelConfirmTitle: 'Cancel subscription?',
     cancelConfirmBody:
         'Your subscription then runs unchanged until {date} — features, quotas and billing stay the same until then.',
