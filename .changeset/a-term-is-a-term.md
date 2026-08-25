@@ -149,6 +149,15 @@ passed; deriving them from the effective date reported a declaration that landed
 a period late as an on-time one. `CancellationResultShape.afterNoticeDeadline`
 is therefore `boolean | null`.
 
+**Onboarding is a first activation, and a contract that is over is not one.**
+The route refuses a subscription whose cancellation has landed, and its write —
+the atomic one, which is the path a real adapter takes — claims the row against
+the cancellation the route read, exactly as the plan change does. Both halves
+were missing: the guard lived on the plan route only, and the claim had been
+added to the sequential fallback while the preferred path updated
+unconditionally. `ApplyOnboardingSelectionInput` carries `expectedCanceledAt`
+and the result answers `claimed`.
+
 **A plan change decided against one state is not written into another.** The
 route reads the subscription, computes a preview and decides three things from
 the cancellation — whether the change is refused, whether the cycle may move,

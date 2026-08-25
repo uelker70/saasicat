@@ -220,6 +220,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         periodStart: null,
                         periodEnd: null,
                         nextStatus: null,
+                        expectedCanceledAt: null,
                     },
                     async (tx, callbackSubscriptionId) => {
                         assert.equal(callbackSubscriptionId, subscriptionId);

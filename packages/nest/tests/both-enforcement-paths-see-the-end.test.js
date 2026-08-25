@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 
 import { EntitlementService } from '../dist/entitlement/index.js';
 import { SubscriptionPlanResolver } from '../dist/platform/index.js';
+import {
+    CATALOG,
+    entitlementServiceFor,
+    subscriptionRecord as subscription,
+} from './helpers/subscription-fixtures.js';
 
 // Entitlements are enforced along two paths, and a rule written in one of them
 // is enforced in half the applications.
@@ -19,54 +24,7 @@ import { SubscriptionPlanResolver } from '../dist/platform/index.js';
 // date arriving is not a mutation: limits computed a minute before the
 // cancellation lands were served for up to a minute after it.
 
-const PRO = {
-    id: 'PRO',
-    name: 'Pro',
-    tagline: '',
-    marketed: true,
-    monthlyNet: 49,
-    yearlyNet: 490,
-    quotas: { users: 50 },
-    features: ['EXPORT'],
-};
-const FREE = {
-    id: 'FREE',
-    name: 'Free',
-    tagline: '',
-    marketed: true,
-    monthlyNet: 0,
-    yearlyNet: 0,
-    quotas: { users: 1 },
-    features: ['READ_ONLY'],
-};
-const CATALOG = {
-    schemaVersion: 1,
-    projectKey: 'demo',
-    currency: 'EUR',
-    vatRate: 19,
-    plans: [PRO, FREE],
-};
-
 const LANDED = new Date('2026-01-01');
-
-function subscription(overrides = {}) {
-    return {
-        id: 's1',
-        tenantId: 't1',
-        plan: 'PRO',
-        status: 'ACTIVE',
-        isPilot: false,
-        trialEntitlementPlan: null,
-        pendingPlan: null,
-        pendingEffectiveAt: null,
-        customLimits: null,
-        planVersionId: 'pv1',
-        planVersion: { planId: 'PRO', quotas: PRO.quotas, features: PRO.features },
-        canceledAt: null,
-        canceledEffectiveAt: null,
-        ...overrides,
-    };
-}
 
 const repository = (sub) => ({ findByTenantId: async () => sub });
 
@@ -114,12 +72,7 @@ describe('a cached answer at the cancellation boundary', () => {
     });
 
     function service() {
-        return new EntitlementService(
-            CATALOG,
-            repository(ending),
-            { findActive: async () => null },
-            { run: async (fn) => fn(undefined) },
-        );
+        return entitlementServiceFor(EntitlementService, ending);
     }
 
     test('is not served past the moment it ends', async () => {

@@ -2,6 +2,10 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { EntitlementService } from '../dist/entitlement/index.js';
+import {
+    entitlementServiceFor,
+    subscriptionRecord as subscription,
+} from './helpers/subscription-fixtures.js';
 
 // A cancellation that has taken effect ends what the subscription granted.
 //
@@ -23,74 +27,12 @@ import { EntitlementService } from '../dist/entitlement/index.js';
 // half of this file is there so that a rule about the end cannot quietly become
 // a rule about the declaration.
 
-const PRO = {
-    id: 'PRO',
-    name: 'Pro',
-    tagline: '',
-    marketed: true,
-    monthlyNet: 49,
-    yearlyNet: 490,
-    quotas: { users: 50 },
-    features: ['EXPORT'],
-};
-const FREE = {
-    id: 'FREE',
-    name: 'Free',
-    tagline: '',
-    marketed: true,
-    monthlyNet: 0,
-    yearlyNet: 0,
-    quotas: { users: 1 },
-    features: ['READ_ONLY'],
-};
-const CATALOG = {
-    schemaVersion: 1,
-    projectKey: 'demo',
-    currency: 'EUR',
-    vatRate: 19,
-    plans: [PRO, FREE],
-};
-
 const NOW = new Date('2026-08-25');
 const LANDED = new Date('2026-01-01');
 const STILL_TO_COME = new Date('2027-01-01');
 
-function subscription(overrides = {}) {
-    return {
-        id: 's1',
-        tenantId: 't1',
-        plan: 'PRO',
-        status: 'ACTIVE',
-        isPilot: false,
-        trialEntitlementPlan: null,
-        pendingPlan: null,
-        pendingEffectiveAt: null,
-        customLimits: null,
-        planVersionId: 'pv1',
-        planVersion: { planId: 'PRO', quotas: PRO.quotas, features: PRO.features },
-        canceledAt: null,
-        canceledEffectiveAt: null,
-        ...overrides,
-    };
-}
-
-function limitsFor(sub, { config = null, contract = null, bundles = null } = {}) {
-    const service = new EntitlementService(
-        CATALOG,
-        { findByTenantId: async () => sub },
-        {
-            findActive: async (planId) => {
-                const plan = CATALOG.plans.find((p) => p.id === planId);
-                return plan ? { planId, quotas: plan.quotas, features: plan.features } : null;
-            },
-        },
-        { run: async (fn) => fn(undefined) },
-        config,
-        bundles ? { listActiveBySubscription: async () => bundles } : null,
-        bundles ? { findVersionById: async () => null } : null,
-        contract ? { findActiveByTenantId: async () => contract } : null,
-    );
-    return service.computeLimits('t1', NOW);
+function limitsFor(sub, options = {}) {
+    return entitlementServiceFor(EntitlementService, sub, options).computeLimits('t1', NOW);
 }
 
 const nothing = (limits, why) => {

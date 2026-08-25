@@ -51,24 +51,38 @@ export function useSubscriptionHasEnded(
     //
     // A `watch` on the date, not a `watchEffect`: this writes `observedAt`, and
     // an effect that reads what it writes re-runs itself for ever.
+    /**
+     * Arms the wait for `landsAt`, in hops where one is not enough.
+     *
+     * Recursive on purpose: the callback of a capped hop has not reached the
+     * boundary, and nothing else would arm the next one — the watcher below
+     * depends on the cancellation date, which has not changed. One hop and then
+     * silence meant a boundary further out than a hop was never observed at
+     * all.
+     */
+    function schedule(landsAt: string | null): void {
+        clear();
+        if (landsAt === null) return;
+        const waitMs = new Date(landsAt).getTime() - Date.now();
+        if (waitMs <= 0) return;
+        timer = setTimeout(
+            () => {
+                timer = null;
+                observedAt.value = Date.now();
+                schedule(landsAt);
+            },
+            Math.min(waitMs, MAX_TIMEOUT_MS),
+        );
+    }
+
     watch(
         () => {
             const current = usage();
             return current ? cancellationLandsAt(current) : null;
         },
         (landsAt) => {
-            clear();
             observedAt.value = Date.now();
-            if (landsAt === null) return;
-            const waitMs = new Date(landsAt).getTime() - observedAt.value;
-            if (waitMs <= 0) return;
-            timer = setTimeout(
-                () => {
-                    timer = null;
-                    observedAt.value = Date.now();
-                },
-                Math.min(waitMs, MAX_TIMEOUT_MS),
-            );
+            schedule(landsAt);
         },
         { immediate: true },
     );

@@ -375,6 +375,12 @@ export interface ScheduledPlanChangeInput {
 export interface ApplyOnboardingSelectionInput {
     planId: string;
     cycle: string;
+    /**
+     * See `ImmediatePlanChangeInput.expectedCanceledAt`. The atomic path needs
+     * it for the same reason the sequential one does: without it, the preferred
+     * implementation is the one where the race stays open.
+     */
+    expectedCanceledAt: Date | null;
     /** For TRIAL → null, otherwise period start from `initialPeriodWindow`. */
     periodStart: Date | null;
     periodEnd: Date | null;
@@ -392,6 +398,12 @@ export interface ApplyOnboardingSelectionResult {
     subscriptionId: string;
     /** null if no redeemPromo callback was provided or the callback returned null. */
     promoRedemption: PromoCodeRedemptionRecord | null;
+    /**
+     * False when the row's cancellation moved since the caller read it, in
+     * which case nothing was written — including the promo redemption, which
+     * shares the transaction.
+     */
+    claimed: boolean;
 }
 
 /**

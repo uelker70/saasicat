@@ -154,6 +154,33 @@ describe('a card left open across the moment', () => {
         }
     });
 
+    test('reaches a boundary further away than one hop', async () => {
+        // The clamp alone is half the rule. A cancellation a year out is
+        // scheduled in hops, and the callback of a hop has not reached the
+        // boundary — nothing else arms the next one, because the watcher
+        // depends on a date that has not changed. One hop and then silence
+        // meant the boundary was never observed at all.
+        vi.useFakeTimers();
+        try {
+            const wrapper = header({
+                canceledAt: iso(0),
+                canceledEffectiveAt: new Date(Date.now() + 60 * DAY).toISOString(),
+            });
+
+            // Two hops of the platform maximum are still short of sixty days.
+            await vi.advanceTimersByTimeAsync(2_147_483_647);
+            await nextTick();
+            expect(wrapper.text(), 'ended before its date').toContain(i18n.canceledUnchanged);
+
+            await vi.advanceTimersByTimeAsync(60 * DAY);
+            await nextTick();
+
+            expect(wrapper.text(), 'the boundary passed unobserved').toContain(i18n.endedHeading);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     test('and asks for no delay the platform would truncate', () => {
         // `setTimeout` counts its delay in a signed 32-bit integer: above
         // 2^31-1 it fires immediately instead of later, so a cancellation a

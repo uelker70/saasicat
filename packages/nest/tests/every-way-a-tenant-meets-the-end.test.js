@@ -7,6 +7,12 @@ import {
     decideCancellationFor,
     decideRenewal,
 } from '../dist/billing/index.js';
+import {
+    FLAT_ENTITLEMENTS,
+    REQUEST,
+    recordingWritePort,
+    usageRecord,
+} from './helpers/subscription-fixtures.js';
 
 // The cases a tenant can actually reach, rather than the ones a rule was
 // written for.
@@ -164,83 +170,102 @@ describe('a plan version published before the customer left', () => {
     });
 });
 
-describe('accepting a version after the subscription ended', () => {
-    const ENDED = {
-        plan: 'STARTER',
-        billingCycle: 'YEARLY',
-        status: 'ACTIVE',
-        isPilot: false,
-        pilotEndsAt: null,
-        trialEndsAt: null,
-        startedAt: new Date('2026-01-01'),
-        currentPeriodStart: new Date('2026-01-01'),
-        currentPeriodEnd: new Date(Date.now() - 60 * DAY),
-        minimumTermUntil: null,
-        canceledAt: new Date(Date.now() - 90 * DAY),
-        canceledEffectiveAt: new Date(Date.now() - 60 * DAY),
-        pendingPlan: null,
-        pendingBillingCycle: null,
-        pendingEffectiveAt: null,
-        planVersion: null,
-        pendingPlanVersion: { id: 'pv2', planId: 'STARTER', version: 2 },
-        pendingPlanVersionEffectiveAt: new Date(Date.now() - 30 * DAY),
-        pendingPlanVersionAccepted: false,
-        pendingPlanVersionAcceptedAt: null,
-    };
+/** A subscription whose cancellation landed two months ago. */
+const ENDED = usageRecord({
+    currentPeriodEnd: new Date(Date.now() - 60 * DAY),
+    canceledAt: new Date(Date.now() - 90 * DAY),
+    canceledEffectiveAt: new Date(Date.now() - 60 * DAY),
+});
 
-    function controller(subscription) {
-        const port = {
-            accepted: [],
-            async acceptPendingPlanVersion(tenantId, userId) {
-                this.accepted.push({ tenantId, userId });
-                return { acceptedAt: new Date(), effectiveAt: null, alreadyAccepted: false };
+const STILL_RUNNING = usageRecord({
+    currentPeriodEnd: new Date(Date.now() + 30 * DAY),
+});
+
+/** The tenant billing routes over one subscription and one recording port. */
+function routes(subscription) {
+    const port = recordingWritePort();
+    return {
+        port,
+        api: new TenantBillingController(
+            FLAT_ENTITLEMENTS,
+            {
+                async preview() {
+                    return { isImmediate: false, effectiveAt: null, blockers: [] };
+                },
+                async assertChangeAllowed() {
+                    return [];
+                },
             },
-        };
-        return {
+            { findForTenant: async () => subscription },
+            { snapshot: async () => ({}) },
             port,
-            api: new TenantBillingController(
-                {
-                    computeLimits: async () => ({
-                        plan: 'STARTER',
-                        quotas: {},
-                        features: new Set(),
-                    }),
-                    invalidateTenant() {},
-                },
-                {
-                    async preview() {
-                        return { isImmediate: false, effectiveAt: null, blockers: [] };
-                    },
-                },
-                { findForTenant: async () => subscription },
-                { snapshot: async () => ({}) },
-                port,
-                () => 't1',
-                () => 'u1',
-            ),
-        };
-    }
+            () => 't1',
+            () => 'u1',
+        ),
+    };
+}
 
-    const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
+describe('activating a subscription that has already ended', () => {
+    // Onboarding is a first activation, and a contract that is over is not one.
+    // Its own guard rather than the plan route's: they are two routes, and only
+    // one of them had been checked — so the preferred, atomic path was the one
+    // where a cancelled subscription could still have its plan and period
+    // rewritten while its entitlements stayed empty.
+    const activate = (api) =>
+        api.completeOnboardingSubscription(REQUEST, { plan: 'STARTER', billingCycle: 'YEARLY' });
 
-    test('is refused rather than recorded against a dead contract', async () => {
-        const { api, port } = controller(ENDED);
+    test('is refused on the atomic path, which is the preferred one', async () => {
+        const { api, port } = routes(ENDED);
 
         await assert.rejects(
-            api.acceptPendingPlanVersion(request),
+            activate(api),
+            (err) => err.getResponse?.().code === 'SUBSCRIPTION_ENDED',
+        );
+        assert.equal(port.atomic.length, 0, 'an ended subscription was activated');
+    });
+
+    test('while a running subscription is activated as before', async () => {
+        // The premise: the refusal is about the ending, not about onboarding.
+        const { api, port } = routes(STILL_RUNNING);
+
+        await activate(api);
+
+        assert.equal(port.atomic.length, 1);
+    });
+
+    test('and the write carries what the route read, so a late cancellation wins', async () => {
+        // The claim, not the check: a cancellation declared between the read
+        // above and this write takes the row, and the caller is told.
+        const { api, port } = routes(STILL_RUNNING);
+
+        await activate(api);
+
+        assert.equal(port.atomic[0].expectedCanceledAt, null);
+    });
+});
+
+describe('accepting a version after the subscription ended', () => {
+    const withPendingVersion = (base) =>
+        usageRecord({
+            ...base,
+            pendingPlanVersion: { id: 'pv2', planId: 'STARTER', version: 2 },
+            pendingPlanVersionEffectiveAt: new Date(Date.now() - 30 * DAY),
+        });
+
+    test('is refused rather than recorded against a dead contract', async () => {
+        const { api, port } = routes(withPendingVersion(ENDED));
+
+        await assert.rejects(
+            api.acceptPendingPlanVersion(REQUEST),
             (err) => err.getResponse?.().code === 'SUBSCRIPTION_ENDED',
         );
         assert.equal(port.accepted.length, 0);
     });
 
     test('while a running subscription accepts as before', async () => {
-        const { api, port } = controller({
-            ...ENDED,
-            canceledAt: null,
-            canceledEffectiveAt: null,
-        });
+        const { api, port } = routes(withPendingVersion(STILL_RUNNING));
 
-        await api.acceptPendingPlanVersion(request);
+        await api.acceptPendingPlanVersion(REQUEST);
 
         assert.equal(port.accepted.length, 1);
     });

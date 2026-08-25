@@ -497,6 +497,17 @@ export class TenantBillingController {
             });
         }
 
+        // Onboarding is a first activation, and a subscription that has ended
+        // is not one. Its own guard rather than the plan route's: they are two
+        // routes, and only one of them was checked.
+        if (cancellationHasLanded(sub, new Date())) {
+            throw new ConflictException({
+                code: 'SUBSCRIPTION_ENDED',
+                message: 'This subscription has ended and cannot be activated again.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+            });
+        }
+
         // Plan-change blockers (defense-in-depth, as in changePlan)
         const blockers = await this.planPreview.assertChangeAllowed(
             tenantId,
@@ -536,6 +547,10 @@ export class TenantBillingController {
             : null;
 
         let planResult: { plan: string; billingCycle: string; claimed?: boolean };
+        // Assigned in the atomic branch and read after its catch. Declared
+        // without a value because the catch always throws, so there is no path
+        // that reads it unset — and an initialiser here would be dead.
+        let claimLost: boolean;
         let promoRedemption: OnboardingSelectionResponse['promoRedemption'] = null;
 
         // ─── Atomic path (preferred) ────────────────────────────────────────
@@ -549,9 +564,11 @@ export class TenantBillingController {
                         periodStart: period?.start ?? null,
                         periodEnd: period?.end ?? null,
                         nextStatus: wasTrial ? null : 'ACTIVE',
+                        expectedCanceledAt: sub.canceledAt ?? null,
                     },
                     redeemPromoCallback,
                 );
+                claimLost = !result.claimed;
                 planResult = { plan: result.plan, billingCycle: result.billingCycle };
                 if (result.promoRedemption) {
                     promoRedemption = this.toResponseRedemption(
@@ -575,6 +592,18 @@ export class TenantBillingController {
                     params: { reason },
                 });
             }
+            // Outside the catch on purpose. A lost claim is not a failure of
+            // the write — nothing was written, deliberately, because somebody
+            // cancelled while this was being applied. Reporting it as
+            // ONBOARDING_CREATE_FAILED would tell the caller their adapter
+            // broke, when what happened is that their subscription moved.
+            if (claimLost) {
+                throw new ConflictException({
+                    code: 'SUBSCRIPTION_CHANGED',
+                    message:
+                        'This subscription changed while onboarding was being applied. Reload it.',
+                });
+            }
         } else {
             // ─── Fallback: sequential best-effort path ──────────────────────
             // The adapter does not (yet) implement applyOnboardingSelection —
@@ -586,10 +615,10 @@ export class TenantBillingController {
                 periodStart: period?.start ?? null,
                 periodEnd: period?.end ?? null,
                 nextStatus: wasTrial ? null : 'ACTIVE',
-                // Onboarding runs on a subscription nobody has cancelled — the
-                // route above refuses one that has been. Stated rather than
-                // assumed: the claim fails if that stops being true.
-                expectedCanceledAt: null,
+                // What this route read, so a cancellation declared since then
+                // takes the row instead of being written over. A landed one was
+                // refused above; a pending one is legitimate and claims fine.
+                expectedCanceledAt: sub.canceledAt ?? null,
             });
             if (!planResult.claimed) {
                 throw new ConflictException({

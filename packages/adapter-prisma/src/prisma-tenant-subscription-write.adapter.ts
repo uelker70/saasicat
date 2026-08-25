@@ -265,10 +265,27 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 );
             }
 
-            const updated = await this.subscription(tx).update({
-                where: { tenantId },
+            // The same conditional claim as the sequential path. Inside the
+            // transaction, so a cancellation arriving mid-onboarding either
+            // loses to it or takes the row before it and turns this into a
+            // no-op the caller is told about.
+            const claim = await this.subscription(tx).updateMany({
+                where: { tenantId, canceledAt: input.expectedCanceledAt },
                 data,
             });
+            const updated = await this.subscription(tx).findUnique({ where: { tenantId } });
+            if (!updated) {
+                throw new Error(`No subscription for tenant ${tenantId}.`);
+            }
+            if (claim.count === 0) {
+                return {
+                    plan: updated.plan,
+                    billingCycle: updated.billingCycle,
+                    subscriptionId: updated.id,
+                    promoRedemption: null,
+                    claimed: false,
+                };
+            }
             let promoRedemption: PromoCodeRedemptionRecord | null = null;
             if (redeemPromo) {
                 promoRedemption = await redeemPromo(tx as TransactionContext, updated.id);
@@ -278,6 +295,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 billingCycle: updated.billingCycle,
                 subscriptionId: updated.id,
                 promoRedemption,
+                claimed: true,
             };
         });
     }
