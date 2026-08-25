@@ -110,11 +110,20 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
             // Status alone answers the wrong question. A cancellation that has
             // taken effect leaves the column at ACTIVE — nothing transitions it
             // — so a plan's tenant count in the SuperAdmin UI would carry every
-            // customer who ever left. The same predicate the bundle bookings
-            // beside this file already use.
+            // customer who ever left.
+            //
+            // Three branches, because the effective date lives in two places.
+            // On a row written before the fields separated it is `canceledAt`
+            // and the second column is null; reading only the second excludes
+            // that customer on the day they DECLARE, months before they leave,
+            // and the migration guide promises no backfill is needed.
             where: {
                 status: { in: ACTIVE_STATUSES },
-                OR: [{ canceledAt: null }, { canceledEffectiveAt: { gt: new Date() } }],
+                OR: [
+                    { canceledAt: null },
+                    { canceledEffectiveAt: { gt: new Date() } },
+                    { canceledEffectiveAt: null, canceledAt: { gt: new Date() } },
+                ],
             },
             select: { planVersionId: true },
         });

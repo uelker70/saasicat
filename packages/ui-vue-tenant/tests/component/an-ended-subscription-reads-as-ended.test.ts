@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 
 import TenantPlanCardHeader from '../../src/tenant-plan-section/TenantPlanCardHeader.vue';
 import TenantPlanSection from '../../src/TenantPlanSection.vue';
@@ -313,5 +313,58 @@ describe('the page around the card', () => {
         const wrapper = await mountSection(running);
 
         expect(wrapper.findComponent({ name: 'PendingVersionBanner' }).exists()).toBe(true);
+    });
+});
+
+describe('a cancellation that arrives after the page did', () => {
+    // Every page mounts before its data arrives, so the moment a composable was
+    // created says nothing about the moment its subject was. Measuring the
+    // boundary from mount time waits too long and, in between, calls an ended
+    // subscription running.
+    test('is measured from now, not from when the card was created', async () => {
+        vi.useFakeTimers();
+        const delays: number[] = [];
+        const spy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+            fn: () => void,
+            ms?: number,
+        ) => {
+            delays.push(ms ?? 0);
+            return 0 as unknown as ReturnType<typeof setTimeout>;
+        }) as typeof setTimeout);
+        try {
+            const usage = ref({ canceledAt: null, canceledEffectiveAt: null });
+            const wrapper = mount(
+                {
+                    components: { TenantPlanCardHeader },
+                    setup: () => ({ usage }),
+                    template: `<TenantPlanCardHeader :usage="usage" current-plan-name="Pro"
+                        status-tone="positive" :status-label="'Active'" cycle-label="monthly"
+                        :current-price-eur="29" current-price-unit="/ mo" :next-billing-date="null"
+                        :format-currency="(v) => String(v)" :format-date="(v) => String(v)" />`,
+                },
+                { attachTo: document.body },
+            );
+            mounted.push(wrapper as VueWrapper);
+
+            // Nine days pass with the card open and no cancellation on it.
+            vi.advanceTimersByTime(9 * DAY);
+            delays.length = 0;
+
+            // Then one is loaded, five days out.
+            usage.value = {
+                canceledAt: new Date(Date.now() - DAY).toISOString(),
+                canceledEffectiveAt: new Date(Date.now() + 5 * DAY).toISOString(),
+            } as never;
+            await nextTick();
+
+            expect(delays.length, 'nothing was scheduled for the new subject').toBe(1);
+            expect(
+                delays[0],
+                'the wait was measured from when the card was created, not from now',
+            ).toBeLessThanOrEqual(5 * DAY);
+        } finally {
+            spy.mockRestore();
+            vi.useRealTimers();
+        }
     });
 });

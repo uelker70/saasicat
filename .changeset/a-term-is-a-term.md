@@ -159,6 +159,12 @@ the write went ahead: a plan term recorded past the date the subscription ends.
 `expectedCanceledAt`, both writes claim the row only while that still holds, and
 a lost claim answers `SUBSCRIPTION_CHANGED` instead of overwriting.
 
+**The preview says what the write will refuse.** A cancelled subscription
+cannot change its billing cycle, and until now only the write said so — a reader
+picked the cycle, read the consequence, ticked the acknowledgement and met a 409
+on confirm. The preview carries the restriction as a blocker, which is what the
+wizard reads before it lets anyone past the first step.
+
 **A subscription that has ended is not an active tenant.** Both adapters counted
 by status alone, and a landed cancellation leaves the status at `ACTIVE` — so a
 plan's tenant count in the SuperAdmin UI carried every customer who had ever

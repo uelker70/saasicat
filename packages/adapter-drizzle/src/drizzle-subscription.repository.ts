@@ -74,6 +74,14 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
                     or(
                         isNull(subscriptions.canceledAt),
                         gt(subscriptions.canceledEffectiveAt, now),
+                        // The pre-split row keeps its effective date in the
+                        // first column; reading only the second drops that
+                        // customer on the day they declare rather than the day
+                        // they leave.
+                        and(
+                            isNull(subscriptions.canceledEffectiveAt),
+                            gt(subscriptions.canceledAt, now),
+                        ),
                     ),
                 ),
             );

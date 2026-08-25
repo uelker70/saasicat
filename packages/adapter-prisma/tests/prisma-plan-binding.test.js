@@ -210,11 +210,32 @@ describe('normalized plan identity across Prisma adapters', () => {
                 canceledAt: new Date('2020-01-01'),
                 canceledEffectiveAt: new Date('2020-02-01'),
             }),
+            subscriptionRow({
+                id: 'leaving-the-old-way',
+                tenantId: 'tenant-legacy',
+                planVersionId: 'app-v1',
+                // A row written before the two fields separated: the effective
+                // date is in the first column and the second is genuinely null.
+                // This customer is still here until 2099, and dropping them on
+                // the day they DECLARED would understate the count for years —
+                // the migration guide promises no backfill is needed.
+                canceledAt: new Date('2099-01-01'),
+                canceledEffectiveAt: null,
+            }),
+            subscriptionRow({
+                id: 'gone-the-old-way',
+                tenantId: 'tenant-legacy-gone',
+                planVersionId: 'app-v1',
+                canceledAt: new Date('2020-01-01'),
+                canceledEffectiveAt: null,
+            }),
         );
 
         const repository = new PrismaSubscriptionRepository(client, APP_SCHEMA);
 
-        assert.deepEqual(await repository.countActiveByPlanKey('app'), { BASIC: 2 });
+        // Running, leaving later, and leaving later the old way. Not the two
+        // that have left.
+        assert.deepEqual(await repository.countActiveByPlanKey('app'), { BASIC: 3 });
     });
 
     test('all subscription operations honor tenantSubscription.delegate, including tx reads', async () => {
@@ -679,10 +700,16 @@ function matches(row, where = {}) {
         ) {
             if ('in' in expected) return expected.in.includes(actual);
             if ('not' in expected) return actual !== expected.not;
+            // NULL compares to nothing: in SQL `NULL > x` is unknown, which is
+            // not true, so a row with no value is not returned. A query that
+            // wants those rows says so with its own `OR: [{ column: null }, …]`
+            // branch — and this fake answered `true` here instead, which made
+            // every such branch look right whether it was written or not.
+            if (actual === null) return false;
             if ('lt' in expected) return actual < expected.lt;
-            if ('lte' in expected) return actual === null || actual <= expected.lte;
-            if ('gte' in expected) return actual === null || actual >= expected.gte;
-            if ('gt' in expected) return actual === null || actual > expected.gt;
+            if ('lte' in expected) return actual <= expected.lte;
+            if ('gte' in expected) return actual >= expected.gte;
+            if ('gt' in expected) return actual > expected.gt;
         }
         return actual === expected;
     });

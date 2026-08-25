@@ -120,6 +120,17 @@ export interface PlanChangeContext {
     minimumTermUntil: Date | null;
     /** TRIAL end, if status === 'TRIAL'. */
     trialEndsAt: Date | null;
+    /**
+     * The cancellation, because it decides what a change may still do.
+     *
+     * A cancellation was measured against the term of the cycle it was declared
+     * under, so that cycle cannot move while it is outstanding. The route
+     * refuses such a change; without the same answer here, a reader is walked
+     * through the whole wizard — the acknowledgement included — and meets the
+     * refusal only when they press confirm.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
     /** Subscription status (TRIAL/ACTIVE/...). */
     status: string;
     /** Current cycle of the subscription (for cycle-change classification). */
@@ -179,6 +190,8 @@ export class PlanChangePreviewService {
             currentPeriodEnd: sub.currentPeriodEnd,
             minimumTermUntil: sub.minimumTermUntil ?? null,
             trialEndsAt: sub.trialEndsAt,
+            canceledAt: sub.canceledAt ?? null,
+            canceledEffectiveAt: sub.canceledEffectiveAt ?? null,
             status: sub.status,
             currentBillingCycle: sub.billingCycle,
             currentPlan: sub.plan,
@@ -268,6 +281,18 @@ export class PlanChangePreviewService {
 
         const blockers: PlanChangePreviewIssue[] = [];
         const warnings: PlanChangePreviewIssue[] = [];
+
+        // Said here as well as at the write, because a blocker is what the
+        // wizard reads: without it the reader picks a cycle, reads the
+        // consequence, ticks the acknowledgement and meets a 409 on confirm.
+        if ((ctx.canceledEffectiveAt ?? ctx.canceledAt) !== null && cycleDirection !== 'SAME') {
+            blockers.push({
+                code: 'CANCELLATION_LOCKS_THE_CYCLE',
+                message:
+                    'This subscription is cancelled, so its billing cycle cannot change. ' +
+                    'The plan can.',
+            });
+        }
 
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         const blockedSources = this.blockedPlans?.asSource ?? [];

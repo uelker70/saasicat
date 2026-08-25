@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, watchEffect, type ComputedRef } from 'vue';
+import { computed, onScopeDispose, ref, watch, type ComputedRef } from 'vue';
 
 import { cancellationLandsAt, subscriptionHasEnded } from './subscription-ended.js';
 import type { CancellationTimestamps } from './subscription-ended.js';
@@ -41,22 +41,37 @@ export function useSubscriptionHasEnded(
         }
     }
 
-    watchEffect(() => {
-        clear();
-        const current = usage();
-        if (!current) return;
-        const landsAt = cancellationLandsAt(current);
-        if (landsAt === null) return;
-        const waitMs = new Date(landsAt).getTime() - observedAt.value;
-        if (waitMs <= 0) return;
-        timer = setTimeout(
-            () => {
-                timer = null;
-                observedAt.value = Date.now();
-            },
-            Math.min(waitMs, MAX_TIMEOUT_MS),
-        );
-    });
+    // Watching the boundary rather than the whole subscription, and reading the
+    // clock fresh inside: a page mounts before its data arrives, so the moment
+    // this composable was created says nothing about the moment its subject
+    // was. A component mounted on the 1st that loads a cancellation on the 10th
+    // would otherwise measure a boundary on the 15th from the 1st — waiting
+    // fourteen days for a five-day wait, and calling an ended subscription
+    // running in the meantime.
+    //
+    // A `watch` on the date, not a `watchEffect`: this writes `observedAt`, and
+    // an effect that reads what it writes re-runs itself for ever.
+    watch(
+        () => {
+            const current = usage();
+            return current ? cancellationLandsAt(current) : null;
+        },
+        (landsAt) => {
+            clear();
+            observedAt.value = Date.now();
+            if (landsAt === null) return;
+            const waitMs = new Date(landsAt).getTime() - observedAt.value;
+            if (waitMs <= 0) return;
+            timer = setTimeout(
+                () => {
+                    timer = null;
+                    observedAt.value = Date.now();
+                },
+                Math.min(waitMs, MAX_TIMEOUT_MS),
+            );
+        },
+        { immediate: true },
+    );
 
     onScopeDispose(clear);
 

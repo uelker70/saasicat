@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     PendingPlanMaterializationService,
+    PlanChangePreviewService,
     TenantBillingController,
 } from '../dist/billing/index.js';
 
@@ -179,6 +180,75 @@ describe('a cancellation still to come', () => {
 });
 
 describe('a cycle change while a cancellation is outstanding', () => {
+    test('the preview says so before the reader has decided anything', async () => {
+        // A blocker is what the wizard reads. Without one the reader picks the
+        // cycle, reads the consequence, ticks the acknowledgement and meets the
+        // refusal on confirm — the whole flow spent on an answer that was known
+        // at the first step.
+        const service = new PlanChangePreviewService(
+            CATALOG,
+            {
+                computeLimits: async () => ({
+                    plan: 'STARTER',
+                    quotas: { users: 3 },
+                    features: new Set(['CORE']),
+                }),
+                invalidateTenant() {},
+            },
+            {
+                findForTenant: async () => ({
+                    ...SUBSCRIPTION,
+                    billingCycle: 'MONTHLY',
+                    canceledAt: new Date(),
+                    canceledEffectiveAt: new Date(Date.now() + 20 * DAY),
+                }),
+            },
+            { snapshot: async () => ({ users: 1 }) },
+            null,
+        );
+
+        const dto = await service.preview('t1', 'STANDARD', 'YEARLY', new Date());
+
+        assert.ok(
+            dto.blockers.some((b) => b.code === 'CANCELLATION_LOCKS_THE_CYCLE'),
+            `no blocker among ${JSON.stringify(dto.blockers.map((b) => b.code))}`,
+        );
+    });
+
+    test('and says nothing when the cycle stays', async () => {
+        // The premise: the blocker is about the rhythm, not about being
+        // cancelled. A plan change on the same cycle is allowed and must not be
+        // reported as impossible.
+        const service = new PlanChangePreviewService(
+            CATALOG,
+            {
+                computeLimits: async () => ({
+                    plan: 'STARTER',
+                    quotas: { users: 3 },
+                    features: new Set(['CORE']),
+                }),
+                invalidateTenant() {},
+            },
+            {
+                findForTenant: async () => ({
+                    ...SUBSCRIPTION,
+                    billingCycle: 'MONTHLY',
+                    canceledAt: new Date(),
+                    canceledEffectiveAt: new Date(Date.now() + 20 * DAY),
+                }),
+            },
+            { snapshot: async () => ({ users: 1 }) },
+            null,
+        );
+
+        const dto = await service.preview('t1', 'STANDARD', 'MONTHLY', new Date());
+
+        assert.deepEqual(
+            dto.blockers.filter((b) => b.code === 'CANCELLATION_LOCKS_THE_CYCLE'),
+            [],
+        );
+    });
+
     const ending = {
         ...SUBSCRIPTION,
         billingCycle: 'MONTHLY',
@@ -345,3 +415,32 @@ describe('a change scheduled before the customer cancelled', () => {
         assert.equal((await materialize(dueChange())).applied, 1);
     });
 });
+
+const CATALOG = {
+    schemaVersion: 1,
+    projectKey: 'demo',
+    currency: 'EUR',
+    vatRate: 19,
+    plans: [
+        {
+            id: 'STARTER',
+            name: 'Starter',
+            tagline: '',
+            marketed: true,
+            monthlyNet: 19,
+            yearlyNet: 190,
+            quotas: { users: 3 },
+            features: ['CORE'],
+        },
+        {
+            id: 'STANDARD',
+            name: 'Standard',
+            tagline: '',
+            marketed: true,
+            monthlyNet: 49,
+            yearlyNet: 490,
+            quotas: { users: 8 },
+            features: ['CORE', 'EXTRA'],
+        },
+    ],
+};
