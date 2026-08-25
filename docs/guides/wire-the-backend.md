@@ -211,6 +211,23 @@ small quickstart. `AppModule` then contains only
 composition; the client file contains only auth, branding and adapter choices
 that are inherently application-specific.
 
+`resolutionConfig` answers which plan's entitlements apply when the
+subscription's own plan is not the whole story: during a trial, during a pilot,
+while an enterprise deal waits on sales — and after a cancellation has taken
+effect. That last one grants nothing by default, which is what ending a contract
+means. Name a plan to keep a floor instead:
+
+```ts
+entitlement: {
+    resolutionConfig: {
+        defaultTrialEntitlementPlan: 'STARTER',
+        // A read-only tier a former customer can still export from. Omit the
+        // key and a subscription grants nothing once its cancellation lands.
+        canceledEntitlementPlan: 'FREE',
+    },
+},
+```
+
 This configuration removes the usual app-owned plan resolver, catalog module,
 billing module, subscription display mapper and duplicate usage snapshot.
 SaaSiCat resolves active plans through the subscription repository and builds

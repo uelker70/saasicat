@@ -3,6 +3,7 @@
 '@saasicat/nest': minor
 '@saasicat/spec': minor
 '@saasicat/adapter-prisma': minor
+'@saasicat/adapter-drizzle': minor
 '@saasicat/ui-vue': minor
 '@saasicat/ui-vue-tenant': minor
 ---
@@ -94,6 +95,22 @@ apply, so a row whose effective date sits in `canceledAt` reports it. Read
 strictly, it told the page nothing had been cancelled — which hid the end date
 and went on offering to cancel it again.
 
+**A cancellation that has taken effect ends the entitlements.** It did not.
+Nothing on the entitlement path read a cancellation, so a subscription that
+ended last January was granted exactly what it was granted while active — same
+plan, same features, same quotas, and `FeatureGuard` let it through. The root
+was that `SubscriptionRecord`, the record that path reads, carried neither date;
+it now requires both, so an adapter cannot omit them silently. A landed
+cancellation grants nothing by default, and `canceledEntitlementPlan` on
+`EntitlementResolutionConfig` names a floor for installations that want one — a
+read-only tier to export from, a free plan to fall back to. A cancellation that
+is merely declared still changes nothing, which is the same rule as before.
+`@saasicat/adapter-drizzle` gained the two columns in its query map to supply
+them. **This removes access from tenants whose cancellation has already landed**;
+[the upgrade guide](https://github.com/uelker70/saasicat/blob/main/docs/guides/upgrade-to-1.0.md)
+carries the query that lists
+them.
+
 **A cancellation writes what it decided, not only when it lands.** Two things
 follow from the date and neither is asked for. A subscription with nothing left
 to run — a trial, or one still waiting for sales, with no period end and no
@@ -106,7 +123,10 @@ reader of the term end looks at `minimumTermUntil` — a downgrade scheduled
 meanwhile would otherwise have landed at the old term end, inside the period the
 customer had just paid for.
 
-**Breaking for anyone implementing the ports.**
+**Breaking for anyone implementing the ports.** `SubscriptionRecord` requires
+`canceledAt` and `canceledEffectiveAt` — required rather than optional because
+an adapter that omits them cannot tell a subscription that ends next January
+from one that ended last January, and the silent answer is the wrong one.
 `TenantSubscriptionWritePort.cancelSubscription` now takes
 `{ canceledAt, effectiveAt, terminateNow, minimumTermUntil? }` and returns
 `canceledEffectiveAt`;

@@ -29,6 +29,12 @@ export const subscriptions = pgTable('subscriptions', {
     pendingPlanVersionId: text('pendingPlanVersionId'),
     isPilot: boolean('isPilot').notNull().default(false),
     startedAt: ts('startedAt'),
+    // Entitlement resolution ends a subscription by reading these two, so the
+    // query map has to describe them: a column this file omits is a column the
+    // repository cannot return, and the platform then treats a subscription
+    // that ended last January as running.
+    canceledAt: ts('canceledAt'),
+    canceledEffectiveAt: ts('canceledEffectiveAt'),
     createdAt: ts('createdAt').notNull().defaultNow(),
     updatedAt: ts('updatedAt').notNull(),
 });

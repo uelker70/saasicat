@@ -32,6 +32,24 @@ export interface SubscriptionRecord {
     customLimits?: { quotas?: Record<string, number>; features?: string[] } | null;
     planVersionId: string;
     planVersion: PlanVersionRecord;
+    /**
+     * When a cancellation was declared, and when it takes effect.
+     *
+     * Required, and required together, because entitlement resolution ends a
+     * subscription by reading them: without the second date it cannot tell a
+     * subscription that ends next January from one that ended last January, and
+     * it grants the latter everything. Nothing else in the platform would
+     * notice — no repository filters a cancelled subscription out, and stopping
+     * the billing period is a different decision from ending what a tenant may
+     * do.
+     *
+     * `null` on both means no cancellation. On a row written before the two
+     * fields separated, `canceledAt` carries the effective date and
+     * `canceledEffectiveAt` is genuinely null; every reader in the platform
+     * applies `canceledEffectiveAt ?? canceledAt` for that reason.
+     */
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
 }
 
 /** Snapshot of a `PlanVersion` row. */

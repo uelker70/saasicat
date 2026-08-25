@@ -108,6 +108,8 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
             pendingPlan: row.pendingPlan,
             pendingEffectiveAt: row.pendingEffectiveAt,
             customLimits: (row.customLimits ?? null) as SubscriptionRecord['customLimits'],
+            canceledAt: row.canceledAt ?? null,
+            canceledEffectiveAt: row.canceledEffectiveAt ?? null,
             planVersionId: row.planVersionId,
             planVersion: {
                 planId: planVersion.planId,

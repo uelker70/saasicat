@@ -36,6 +36,20 @@ export interface EntitlementResolutionConfig {
      * If the subscription sets a `trialEntitlementPlan`, that one wins.
      */
     defaultTrialEntitlementPlan?: PlanId;
+    /**
+     * What a subscription keeps once its cancellation has taken effect.
+     *
+     * Undefined — the default — means nothing: no features, no quotas. That is
+     * what ending a contract means, and it is the answer an installation should
+     * leave in place unless it has decided otherwise.
+     *
+     * Set it to keep a floor after the end: a read-only tier that lets a former
+     * customer export their data, or a free plan they fall back to. The plan is
+     * resolved through the catalog like any other, so it needs an active
+     * version; bundle bookings and custom limits are NOT added to it, because
+     * those belonged to the subscription that ended.
+     */
+    canceledEntitlementPlan?: PlanId;
 }
 
 /**

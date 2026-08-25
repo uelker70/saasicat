@@ -187,6 +187,12 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
             pendingPlan: row.pendingPlan,
             pendingEffectiveAt: row.pendingEffectiveAt,
             customLimits: (row.customLimits ?? null) as SubscriptionRecord['customLimits'],
+            // Entitlement resolution ends a subscription by reading these. An
+            // adapter that leaves them out grants a subscription that ended
+            // last January everything it had — which is why the port requires
+            // them rather than defaulting them to null here.
+            canceledAt: row.canceledAt ?? null,
+            canceledEffectiveAt: row.canceledEffectiveAt ?? null,
             planVersionId: row.planVersionId,
             planVersion: {
                 planId: planKey,
