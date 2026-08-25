@@ -288,6 +288,10 @@ export function buildTenantSubscriptionBundlesController(
                     sub.planVersion.planId,
                     sub.billingCycle as BillingCycle,
                     new Date(),
+                    // Cancelling a bundle stays open on a cancelled
+                    // subscription, and it re-freezes: the replacement contract
+                    // ends when the subscription does, like the one it succeeds.
+                    sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 );
             } catch (err) {
                 this.logger.error(

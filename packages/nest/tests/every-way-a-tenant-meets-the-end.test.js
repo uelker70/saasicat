@@ -321,6 +321,55 @@ describe('what else ends when the subscription does', () => {
         assert.deepEqual(ended[0].effectiveAt, result.canceledEffectiveAt);
     });
 
+    test('and a cancellation already recorded repairs its contract too', async () => {
+        // Two ways to arrive with a stored cancellation and an open contract: a
+        // row written before this hook existed, and a retry after the
+        // subscription write succeeded while the non-fatal contract call did
+        // not. Only the request that WINS the write reaches the hook on the
+        // fresh path, so a second attempt has to repair it or nothing ever
+        // will — and the route would go on reporting the cancellation as
+        // handled.
+        const ended = [];
+        const alreadyCanceledAt = new Date(Date.now() + 20 * DAY);
+        const api = new TenantBillingController(
+            FLAT_ENTITLEMENTS,
+            {
+                async preview() {
+                    return { isImmediate: false, effectiveAt: null, blockers: [] };
+                },
+            },
+            {
+                findForTenant: async () =>
+                    usageRecord({
+                        currentPeriodEnd: alreadyCanceledAt,
+                        canceledAt: new Date(),
+                        canceledEffectiveAt: alreadyCanceledAt,
+                    }),
+            },
+            { snapshot: async () => ({}) },
+            recordingWritePort(),
+            () => 't1',
+            () => 'u1',
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+                async freezeOnPlanChange() {},
+                async endOnCancellation(tenantId, effectiveAt) {
+                    ended.push(effectiveAt);
+                },
+            },
+        );
+
+        const result = await api.cancelSubscription(REQUEST, {});
+
+        assert.equal(result.alreadyCanceled, true);
+        assert.deepEqual(ended, [alreadyCanceledAt], 'the repeat left the contract open');
+    });
+
     test('and a consumer without contracts is unaffected', async () => {
         // The premise: the port is optional, and its absence is not an error.
         const port = recordingWritePort();

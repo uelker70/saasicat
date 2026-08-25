@@ -33,8 +33,14 @@ function contractStore() {
         lineItems: [],
         entitlementSnapshot: null,
     };
+    const created = [];
     return {
         row,
+        created,
+        async create(data) {
+            created.push(data);
+            return { ...data, id: `c${created.length + 1}`, lineItems: [] };
+        },
         async findActiveByTenantId(tenantId, asOf) {
             if (row.tenantId !== tenantId) return null;
             if (!ACTIVE_STATUSES.has(row.status)) return null;
@@ -54,10 +60,16 @@ function contractStore() {
 function service(contracts) {
     return new SubscriptionContractFreezeService(
         { schemaVersion: 1, projectKey: 'demo', currency: 'EUR', vatRate: 19, plans: [] },
-        { computeLimits: async () => ({}), invalidateTenant() {} },
+        {
+            computeLimits: async () => ({ plan: 'PRO', quotas: {}, features: new Set() }),
+            invalidateTenant() {},
+        },
         contracts,
         'demo',
-        { loadBookedBundles: async () => [], findLivePlanVersionId: async () => null },
+        {
+            loadBookedBundles: async () => ({ lineItems: [], bundleVersionIds: [] }),
+            findLivePlanVersionId: async () => null,
+        },
     );
 }
 
@@ -111,5 +123,50 @@ describe('a tenant with no contract at all', () => {
         await service(contracts).endOnCancellation('t1', new Date());
 
         assert.equal(contracts.row.effectiveUntil, null);
+    });
+});
+
+describe('a contract frozen after the cancellation', () => {
+    // A plan change on a cancelled subscription is allowed, and every plan
+    // change supersedes the contract with a fresh one. Left uncapped, that
+    // successor loses the ending — the repair holds exactly until the next
+    // change, which is the kind of fix that looks done and is not.
+    const landsIn20Days = new Date(Date.now() + 20 * DAY);
+
+    test('inherits the ending rather than starting open', async () => {
+        const contracts = contractStore();
+        const svc = service(contracts);
+
+        await svc.endOnCancellation('t1', landsIn20Days);
+        await svc.freezeOnPlanChange('t1', 'PRO', 'MONTHLY', new Date(), landsIn20Days);
+
+        assert.deepEqual(contracts.created.at(-1)?.effectiveUntil, landsIn20Days);
+    });
+
+    test('while a subscription with no ending freezes open, as before', async () => {
+        // The premise: the successor inherits an ending, it does not invent one.
+        const contracts = contractStore();
+
+        await service(contracts).freezeOnPlanChange('t1', 'PRO', 'MONTHLY', new Date(), null);
+
+        assert.equal(contracts.created.at(-1)?.effectiveUntil, null);
+    });
+});
+
+describe('a cancellation that was already recorded', () => {
+    // Two ways to arrive here, and neither reaches the hook on the write path:
+    // a row written before that hook existed, and a retry after the
+    // subscription write succeeded while the non-fatal contract call did not.
+    // Only the request that WINS the cancellation write runs the repair, so a
+    // second attempt has to do it too or nothing ever will.
+    test('is repaired on the next attempt rather than reported and left', async () => {
+        const contracts = contractStore();
+
+        // Nobody capped it: the contract is open, the cancellation is stored.
+        assert.equal(contracts.row.effectiveUntil, null);
+
+        await service(contracts).endOnCancellation('t1', new Date(Date.now() + 20 * DAY));
+
+        assert.notEqual(contracts.row.effectiveUntil, null);
     });
 });

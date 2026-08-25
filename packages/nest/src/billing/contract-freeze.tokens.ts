@@ -38,6 +38,17 @@ export interface ContractFreezePort {
         newPlan: string,
         billingCycle: BillingCycle,
         effectiveFrom: Date,
+        /**
+         * When the subscription ends, or null while it runs on.
+         *
+         * A contract cannot outlive the subscription it froze, and a freeze
+         * happens AFTER a cancellation as well: a plan change on a cancelled
+         * subscription is allowed, and each one supersedes the capped contract
+         * with a fresh one. Without this the replacement is uncapped and the
+         * ending is lost — repaired once at the cancellation, undone by the
+         * next change.
+         */
+        endsAt: Date | null,
     ): Promise<void>;
 
     /**

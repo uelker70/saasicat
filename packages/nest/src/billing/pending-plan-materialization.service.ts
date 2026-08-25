@@ -87,7 +87,13 @@ export class PendingPlanMaterializationService {
                 continue;
             }
             // #18: freeze contract (non-fatal — the plan change is persisted).
-            await this.tryFreeze(change.tenantId, change.pendingPlan, cycle, now);
+            await this.tryFreeze(
+                change.tenantId,
+                change.pendingPlan,
+                cycle,
+                now,
+                change.canceledEffectiveAt ?? change.canceledAt,
+            );
         }
 
         if (applied > 0) {
@@ -111,10 +117,14 @@ export class PendingPlanMaterializationService {
         plan: string,
         cycle: BillingCycle,
         now: Date,
+        endsAt: Date | null,
     ): Promise<void> {
         if (!this.contractFreeze) return;
         try {
-            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, now);
+            // The due change was declined above when the cancellation had
+            // landed, so anything reaching here is a subscription still
+            // running — with an ending the frozen contract has to carry.
+            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, now, endsAt);
         } catch (err) {
             this.logger.error(
                 `Contract freeze after materialisation failed (tenant ${tenantId}): ${String(err)}`,

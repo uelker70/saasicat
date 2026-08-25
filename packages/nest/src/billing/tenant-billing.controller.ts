@@ -422,6 +422,9 @@ export class TenantBillingController {
                 dto.plan,
                 dto.billingCycle as BillingCycle,
                 wasTrial,
+                // A plan change on a cancelled subscription is allowed; the
+                // contract it freezes still ends when the subscription does.
+                sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             );
             await this.auditLog(req, userId, 'Subscription', tenantId, 'CHANGE_PLAN', {
                 fromPlan: sub.plan,
@@ -819,6 +822,23 @@ export class TenantBillingController {
         // declared once; a repeat is a question about it, not a new one.
         const existing = sub.canceledEffectiveAt ?? sub.canceledAt ?? null;
         if (existing) {
+            // Repairing rather than merely reporting. A legacy row was written
+            // before this hook existed, and a retry means the subscription
+            // write succeeded while the non-fatal contract call did not — in
+            // both cases nothing else will ever cap that contract, because only
+            // the request that wins the cancellation write reaches the hook
+            // below. Ending it again is a no-op: the lookup asks as of the
+            // effective date, and a contract already capped there is gone.
+            if (this.contractFreeze) {
+                try {
+                    await this.contractFreeze.endOnCancellation(tenantId, existing);
+                } catch (err) {
+                    this.logger.error(
+                        `Ending the contract for an existing cancellation failed ` +
+                            `(tenant ${tenantId}): ${String(err)}`,
+                    );
+                }
+            }
             return {
                 canceledAt: sub.canceledAt ?? null,
                 canceledEffectiveAt: existing,
@@ -1074,10 +1094,11 @@ export class TenantBillingController {
         plan: string,
         cycle: BillingCycle,
         wasTrial: boolean,
+        endsAt: Date | null = null,
     ): Promise<void> {
         if (wasTrial || !this.contractFreeze) return;
         try {
-            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, new Date());
+            await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, new Date(), endsAt);
         } catch (err) {
             this.logger.error(
                 `Contract freeze after plan change failed (tenant ${tenantId}): ${String(err)}`,

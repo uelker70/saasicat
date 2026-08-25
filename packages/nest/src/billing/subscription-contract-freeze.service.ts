@@ -66,6 +66,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         newPlan: string,
         billingCycle: BillingCycle,
         effectiveFrom: Date,
+        endsAt: Date | null = null,
     ): Promise<void> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         const vatRate = this.catalog.vatRate;
@@ -116,7 +117,11 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             tenantId,
             status: 'active',
             effectiveFrom,
-            effectiveUntil: null,
+            // The successor inherits the ending. A cancellation capped the
+            // contract that was running when it was declared; every contract
+            // after it ends on the same date, or the repair lasts exactly until
+            // the next plan change.
+            effectiveUntil: endsAt,
             originalPlanVersionId: livePlanVersionId,
             originalBundleVersionIds: bundles.bundleVersionIds,
             entitlementSnapshot: {

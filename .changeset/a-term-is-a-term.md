@@ -172,6 +172,15 @@ shorter commitment cannot overcharge them. `addBundleToSubscription` takes
 the agreement it froze: entitlement resolution granted nothing while
 `getActiveInvoiceSnapshotForTenant()` went on reporting a live contract — two
 answers to "is this customer under contract", and the one that bills said yes.
+Every later freeze carries the ending too: a plan change on a cancelled
+subscription is allowed, and each one supersedes the contract with a fresh one —
+uncapped, that successor lost the ending and the repair held exactly until the
+next change. `freezeOnPlanChange` takes `endsAt`. And a cancellation that was
+already recorded repairs its contract on the next attempt, because only the
+request that wins the cancellation write reaches the hook: a row written before
+this existed, or a retry after the non-fatal contract call failed, would
+otherwise never be capped at all.
+
 `ContractFreezePort` gains `endOnCancellation`, and the cancel route calls it
 with the same effective date, non-fatally as every other use of that port. It
 ends the contract _by date_: `TerminateSubscriptionContractData.status` accepts
