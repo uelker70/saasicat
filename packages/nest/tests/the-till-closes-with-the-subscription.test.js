@@ -44,7 +44,7 @@ const ENDED = subscription({
 
 function controllerFor(sub) {
     const Ctrl = buildTenantSubscriptionBundlesController();
-    const calls = { added: 0, previewed: 0, reactivated: 0, listed: 0, cancelled: 0 };
+    const calls = { added: 0, previewed: 0, reactivated: 0, listed: 0, cancelled: 0, frozen: [] };
     const service = {
         addBundleToSubscription: async (input) => {
             calls.added += 1;
@@ -75,7 +75,12 @@ function controllerFor(sub) {
         previewService,
         { findForTenant: async () => sub },
         (req) => req.user?.tenantId ?? null,
-        null,
+        {
+            async freezeOnPlanChange(tenantId, plan, cycle, effectiveFrom, endsAt) {
+                calls.frozen.push({ effectiveFrom, endsAt });
+            },
+            async endOnCancellation() {},
+        },
     );
     return { ctrl, calls };
 }
@@ -134,6 +139,17 @@ describe('once the subscription has ended', () => {
 
         assert.equal(calls.cancelled, 1);
     });
+
+    test('without writing a contract that begins after it ended', async () => {
+        // Cancelling a bundle re-freezes the contract, and a successor here
+        // would start today and end on a date already past — a window running
+        // backwards, added to the ledger during what is only cleanup.
+        const { ctrl, calls } = controllerFor(ENDED);
+
+        await ctrl.cancel(REQ, 'sb-1', {});
+
+        assert.deepEqual(calls.frozen, [], 'a successor was written for an ended contract');
+    });
 });
 
 describe('while the subscription is running', () => {
@@ -161,6 +177,18 @@ describe('while the subscription is running', () => {
         await ctrl.add(REQ, { bundleVersionId: 'bv-1' });
 
         assert.equal(calls.added, 1);
+    });
+
+    test('and cancelling a bundle still re-freezes, carrying the ending', async () => {
+        // The premise for the test above: the refreeze is skipped by the
+        // ending, not by the route. A subscription that is still running gets
+        // its successor, and that successor ends when the subscription does.
+        const { ctrl, calls } = controllerFor(ENDING);
+
+        await ctrl.cancel(REQ, 'sb-1', {});
+
+        assert.equal(calls.frozen.length, 1);
+        assert.deepEqual(calls.frozen[0].endsAt, ENDING.canceledEffectiveAt);
     });
 });
 

@@ -289,6 +289,13 @@ export function buildTenantSubscriptionBundlesController(
                 }
                 return;
             }
+            // Nothing to freeze once the subscription is over. Cancelling a
+            // bundle stays available there — a tenant who has left still tidies
+            // up — but re-freezing would write a successor beginning today and
+            // ending on a date already past: a contract whose window runs
+            // backwards, added to the ledger during what is only cleanup. The
+            // contract that governed this tenant was closed when they left.
+            if (cancellationHasLanded(sub, new Date())) return;
             try {
                 await this.contractFreeze.freezeOnPlanChange(
                     tenantId,
