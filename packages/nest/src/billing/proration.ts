@@ -32,7 +32,15 @@ export interface ProrationDto {
      * nothing", and those read differently to someone deciding.
      */
     rawDeltaNet: number;
-    /** True when the arithmetic asked for less than nothing. */
+    /**
+     * True when the arithmetic asked for less than nothing.
+     *
+     * Strictly less: a change that costs exactly zero — equal prices, or a
+     * remaining fraction that rounds the difference away — is not a free
+     * upgrade, it is a change with no price difference. `rawDeltaNet` exists
+     * above precisely so a page can tell those apart, and a flag that merges
+     * them takes that back.
+     */
     isFree: boolean;
 }
 
@@ -68,7 +76,7 @@ export function computeProration(input: ProrationInput): ProrationDto {
         targetPriceNet,
         prorataDeltaNet,
         rawDeltaNet,
-        isFree: rawDeltaNet <= 0,
+        isFree: rawDeltaNet < 0,
     };
 }
 

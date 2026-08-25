@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PlanChangePreviewService } from '../dist/billing/index.js';
+import { PlanChangePreviewService, computeProration } from '../dist/billing/index.js';
 
 // When a plan change takes effect, and why.
 //
@@ -250,6 +250,25 @@ describe('a prorated upgrade never asks for less than nothing', () => {
         assert.ok(dto.proration.prorataDeltaNet > 0);
         assert.equal(dto.proration.isFree, false);
         assert.equal(dto.proration.prorataDeltaNet, dto.proration.rawDeltaNet);
+    });
+
+    test('a change that costs exactly nothing is not a free upgrade', async () => {
+        // Two different sentences for a reader deciding: "this is free" says
+        // the platform absorbed a credit it will not pay out, "this costs
+        // nothing" says the two plans are priced the same. `rawDeltaNet` is
+        // carried alongside so a page can tell them apart, and a flag that
+        // merges them takes that back.
+        const proration = computeProration({
+            periodStart: new Date('2026-01-01'),
+            periodEnd: new Date('2026-02-01'),
+            now: new Date('2026-01-15'),
+            currentPriceNet: 49,
+            targetPriceNet: 49,
+        });
+
+        assert.equal(proration.rawDeltaNet, 0);
+        assert.equal(proration.prorataDeltaNet, 0);
+        assert.equal(proration.isFree, false);
     });
 });
 

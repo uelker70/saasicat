@@ -54,7 +54,10 @@ trial does, and no notice window applies to it.
 **A prorated upgrade never asks for less than nothing.** The formula is
 unchanged — `(target − current) × remaining ÷ period` — and its result is now
 floored at zero, with `rawDeltaNet` and `isFree` beside it so a page can say
-"free upgrade" rather than showing a credit this platform does not pay.
+"free upgrade" rather than showing a credit this platform does not pay. `isFree`
+is strictly negative: a change that costs exactly zero, because the two plans
+are priced the same, is not a free upgrade but a change with no price
+difference, and those are two different sentences to somebody deciding.
 
 **The tenant sees what happens and when.** Three changes arrive later than a
 reader expects — an upgrade with a shortened cycle, a downgrade, a cycle change
