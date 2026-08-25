@@ -83,7 +83,8 @@ import { useTenantI18n } from '../tenant-i18n.js';
 import type { BadgeTone } from '../ui/badge-tone.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
-import { cancellationLandsAt, subscriptionHasEnded } from '../subscription-ended.js';
+import { cancellationLandsAt } from '../subscription-ended.js';
+import { useSubscriptionHasEnded } from '../use-subscription-ended.js';
 import '../ui/tenant-ui.css';
 
 const i18n = useTenantI18n();
@@ -112,7 +113,9 @@ const landsAt = computed(() => cancellationLandsAt(props.usage));
 /**
  * Whether that date has passed. Not `usage.status`: nothing transitions the
  * column when a cancellation lands, so a subscription that is over still says
- * ACTIVE there.
+ * ACTIVE there. And not a plain computed either — the clock is not a
+ * dependency, so a card left open across the moment would keep saying
+ * "running" and keep offering a plan change the route refuses.
  */
-const hasEnded = computed(() => subscriptionHasEnded(props.usage));
+const hasEnded = useSubscriptionHasEnded(() => props.usage);
 </script>

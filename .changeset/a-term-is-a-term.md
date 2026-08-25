@@ -141,6 +141,31 @@ passed; deriving them from the effective date reported a declaration that landed
 a period late as an on-time one. `CancellationResultShape.afterNoticeDeadline`
 is therefore `boolean | null`.
 
+**A cancellation is declared once, even when it is declared twice at once.**
+The route checks whether one exists and then writes, and those are two moments:
+two requests could pass the check before either wrote. Either side of a notice
+deadline that costs a billing cycle, the second write replaced an on-time date
+with one a period later. The write is a conditional claim now — one statement,
+`canceledAt` and `canceledEffectiveAt` both still empty — and a declaration that
+loses it reads back what the winner wrote. `TenantSubscriptionWritePort` answers
+`alreadyCanceled` for that.
+
+**A cancelled subscription cannot change its billing cycle.** The cancellation
+was measured against the term of the cycle it was declared under. A monthly
+subscription ending on the 1st, upgraded to a yearly plan, is an immediate
+change — the plan goes up, the cycle gets longer — and it produced a contract
+that contradicted itself: `YEARLY` beside the monthly period the cancellation
+closes, with a year's price prorated across the days left in it. The route
+answers `CANCELLATION_LOCKS_THE_CYCLE`; the plan may still move on the cycle it
+was sold in.
+
+**The tenant page follows the boundary instead of the last render.** Whether a
+subscription has ended is a question about the clock, and a clock read inside a
+computed is not a dependency of it — a card left open across the effective
+moment kept saying "runs unchanged" and kept offering a plan change the route
+refuses. The moment is scheduled now, in hops below the platform's timer limit,
+and the timer is cleared with the component.
+
 **A cancellation is a boundary, and two writes used to cross it.** A plan change
 and a cancellation are two decisions about one subscription, and neither could
 see the other. A subscription that had already ended still accepted an

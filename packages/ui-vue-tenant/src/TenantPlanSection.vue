@@ -268,7 +268,7 @@ import TenantButton from './ui/TenantButton.vue';
 import TenantCard from './ui/TenantCard.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
-import { subscriptionHasEnded } from './subscription-ended.js';
+import { useSubscriptionHasEnded } from './use-subscription-ended.js';
 import {
     useTenantBilling,
     type BundlePreviewShape,
@@ -481,6 +481,9 @@ const currentPriceUnit = computed(() =>
 // separately), CANCELED and PENDING_SALES there is no regular renewal →
 // hide it, instead of wrongly presenting the period end as the next
 // billing date.
+/** Shared by the badge, its tone and the billing date — one timer, one answer. */
+const hasEnded = useSubscriptionHasEnded(() => usage.value);
+
 const nextBillingDate = computed(() => {
     const u = usage.value;
     if (!u || !u.currentPeriodEnd) return null;
@@ -488,7 +491,7 @@ const nextBillingDate = computed(() => {
     // A subscription that has ended is not billed again, and its period end is
     // in the past. The status column does not say so — nothing transitions it
     // when a cancellation lands — so the date does.
-    if (subscriptionHasEnded(u)) return null;
+    if (hasEnded.value) return null;
     return u.currentPeriodEnd;
 });
 
@@ -501,7 +504,7 @@ const cycleLabel = computed(() => {
 
 const statusLabel = computed(() => {
     if (!usage.value) return '';
-    if (subscriptionHasEnded(usage.value)) return effectiveI18n.value.statusCanceled;
+    if (hasEnded.value) return effectiveI18n.value.statusCanceled;
     switch (usage.value.status) {
         case 'TRIAL':
             return effectiveI18n.value.statusTrial;
@@ -523,7 +526,7 @@ const statusLabel = computed(() => {
 // which is which regardless (rule 7: never colour alone).
 const statusTone = computed<BadgeTone>(() => {
     if (!usage.value) return 'neutral';
-    if (subscriptionHasEnded(usage.value)) return 'negative';
+    if (hasEnded.value) return 'negative';
     switch (usage.value.status) {
         case 'TRIAL':
             return 'info';

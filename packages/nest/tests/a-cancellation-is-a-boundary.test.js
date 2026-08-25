@@ -57,8 +57,18 @@ function writePort() {
         async schedulePlanChange(tenantId, input) {
             return { plan: input.planId, billingCycle: input.cycle };
         },
-        async cancelSubscription() {
-            return { canceledAt: null, canceledEffectiveAt: null, status: 'ACTIVE' };
+        cancelClaims: [],
+        /** A store that lets exactly one declaration claim the row. */
+        async cancelSubscription(tenantId, input) {
+            const lost = this.cancelClaims.length > 0;
+            const first = lost ? this.cancelClaims[0] : input;
+            this.cancelClaims.push(input);
+            return {
+                canceledAt: first.canceledAt,
+                canceledEffectiveAt: first.effectiveAt,
+                status: 'ACTIVE',
+                alreadyCanceled: lost,
+            };
         },
     };
 }
@@ -145,6 +155,79 @@ describe('a cancellation still to come', () => {
 
         assert.notEqual(port.immediate[0].periodStart, null);
         assert.notEqual(port.immediate[0].periodEnd, null);
+    });
+});
+
+describe('a cycle change while a cancellation is outstanding', () => {
+    const ending = {
+        ...SUBSCRIPTION,
+        billingCycle: 'MONTHLY',
+        canceledAt: new Date(),
+        canceledEffectiveAt: new Date(Date.now() + 20 * DAY),
+    };
+
+    test('is refused, because the ending was calculated in the old rhythm', async () => {
+        // Monthly, ending on the 20th, upgraded to a yearly plan: the plan goes
+        // up and the cycle gets longer, so it is an immediate change. The write
+        // would put YEARLY beside a monthly period that the cancellation closes
+        // in twenty days, and the preview prorates a year across them.
+        const port = writePort();
+
+        await assert.rejects(
+            buildController(ending, port, IMMEDIATE_UPGRADE).changePlan(request, {
+                plan: 'STANDARD',
+                billingCycle: 'YEARLY',
+            }),
+            (err) => err.getResponse?.().code === 'CANCELLATION_LOCKS_THE_CYCLE',
+        );
+        assert.equal(port.immediate.length, 0);
+    });
+
+    test('while the plan still moves on the cycle it was sold in', async () => {
+        // The premise: what is locked is the rhythm, not the plan.
+        const port = writePort();
+
+        await buildController(ending, port, IMMEDIATE_UPGRADE).changePlan(request, {
+            plan: 'STANDARD',
+            billingCycle: 'MONTHLY',
+        });
+
+        assert.equal(port.immediate.length, 1);
+        assert.equal(port.immediate[0].periodEnd, null, 'a fresh term was opened anyway');
+    });
+
+    test('and an uncancelled subscription may change cycle freely', async () => {
+        const port = writePort();
+
+        await buildController(
+            { ...SUBSCRIPTION, billingCycle: 'MONTHLY' },
+            port,
+            IMMEDIATE_UPGRADE,
+        ).changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
+
+        assert.equal(port.immediate.length, 1);
+        assert.notEqual(port.immediate[0].periodEnd, null);
+    });
+});
+
+describe('two declarations arriving at once', () => {
+    // The route checks, then writes, and those are two moments. Straddling a
+    // notice deadline the second declaration recomputes against a later `now`
+    // and lands a whole billing cycle further out — so the store settles it,
+    // and the loser reads back what the winner wrote.
+    test('the second one reports the first one rather than replacing it', async () => {
+        const port = writePort();
+        const controller = buildController(SUBSCRIPTION, port, IMMEDIATE_UPGRADE);
+
+        const first = await controller.cancelSubscription(request, {});
+        const second = await controller.cancelSubscription(request, {});
+
+        assert.equal(first.alreadyCanceled, false);
+        assert.equal(second.alreadyCanceled, true);
+        assert.deepEqual(second.canceledEffectiveAt, first.canceledEffectiveAt);
+        // Nothing it cannot know, exactly as on a retry.
+        assert.equal(second.termEndsAt, null);
+        assert.equal(second.afterNoticeDeadline, null);
     });
 });
 

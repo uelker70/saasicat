@@ -271,17 +271,29 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             terminateNow: boolean;
             minimumTermUntil?: Date;
         },
-    ): Promise<{ canceledAt: Date | null; canceledEffectiveAt: Date | null; status: string }> {
+    ): Promise<{
+        canceledAt: Date | null;
+        canceledEffectiveAt: Date | null;
+        status: string;
+        alreadyCanceled: boolean;
+    }> {
         const subscription = this.subscription(this.prisma);
         const sub = await subscription.findUnique({ where: { tenantId } });
         if (!sub) {
             throw new Error(`No subscription for tenant ${tenantId}.`);
         }
+        // A conditional claim, not an update: `updateMany` with the emptiness of
+        // both cancellation columns in its `where` is one statement, so two
+        // concurrent declarations cannot both win it. The loser reads back what
+        // the winner wrote instead of overwriting it — which matters most
+        // exactly where it is hardest to notice, either side of a notice
+        // deadline that moves the date by a whole billing cycle.
+        //
         // Writes what it is handed. The dates are a commercial decision — the
         // minimum term, the notice period, whether the window had closed — and
         // none of that is visible from here.
-        const updated = await subscription.update({
-            where: { tenantId },
+        const claimed = await subscription.updateMany({
+            where: { tenantId, canceledAt: null, canceledEffectiveAt: null },
             data: {
                 canceledAt: input.canceledAt,
                 canceledEffectiveAt: input.effectiveAt,
@@ -293,10 +305,15 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 status: input.terminateNow ? 'CANCELED' : sub.status,
             },
         });
+        const current = await subscription.findUnique({ where: { tenantId } });
+        if (!current) {
+            throw new Error(`No subscription for tenant ${tenantId}.`);
+        }
         return {
-            canceledAt: updated.canceledAt,
-            canceledEffectiveAt: updated.canceledEffectiveAt,
-            status: updated.status,
+            canceledAt: current.canceledAt ?? null,
+            canceledEffectiveAt: current.canceledEffectiveAt ?? null,
+            status: current.status,
+            alreadyCanceled: claimed.count === 0,
         };
     }
 

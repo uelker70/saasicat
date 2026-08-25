@@ -455,7 +455,25 @@ export interface TenantSubscriptionWritePort {
             terminateNow: boolean;
             minimumTermUntil?: Date;
         },
-    ): Promise<{ canceledAt: Date | null; canceledEffectiveAt: Date | null; status: string }>;
+    ): Promise<{
+        canceledAt: Date | null;
+        canceledEffectiveAt: Date | null;
+        status: string;
+        /**
+         * True when a cancellation was already recorded and this call changed
+         * nothing — the stored dates are returned instead.
+         *
+         * The caller checks first, but a check and a write are two moments, and
+         * two requests can pass the check before either writes. Straddling a
+         * notice deadline that costs a billing cycle: the first declaration
+         * lands on time, the second recomputes against a later `now`, and an
+         * unconditional write replaces the first answer with one a period
+         * further out. An implementation therefore claims the row only while
+         * both cancellation fields are still empty, and answers `true` here
+         * when the claim finds nothing to claim.
+         */
+        alreadyCanceled: boolean;
+    }>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window

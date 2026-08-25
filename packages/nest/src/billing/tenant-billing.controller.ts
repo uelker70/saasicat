@@ -328,6 +328,31 @@ export class TenantBillingController {
             });
         }
 
+        // A cancellation is measured against the term of the cycle it was
+        // declared under, so that cycle cannot change while it is outstanding.
+        //
+        // Allowing it produced a contract that contradicted itself. A monthly
+        // subscription ending on the 1st, upgraded to a yearly plan, is an
+        // immediate change — the plan goes up, the cycle gets longer — and the
+        // suppression below then keeps the monthly window while the write puts
+        // `YEARLY` beside it. The preview meanwhile prorates the yearly price
+        // across the days left in the monthly period: a year bought, billed,
+        // and over on the 1st.
+        //
+        // The plan may still move on the same cycle. What may not move is the
+        // rhythm the ending was calculated in.
+        const cancellationOutstanding = (sub.canceledEffectiveAt ?? sub.canceledAt) !== null;
+        if (cancellationOutstanding && dto.billingCycle !== sub.billingCycle) {
+            throw new ConflictException({
+                code: 'CANCELLATION_LOCKS_THE_CYCLE',
+                message:
+                    'This subscription is cancelled, so its billing cycle cannot change. ' +
+                    'The plan can.',
+                canceledEffectiveAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                billingCycle: sub.billingCycle,
+            });
+        }
+
         // The same preview the wizard renders, and for the same reason: this
         // route decides what happens, not the caller.
         //
@@ -353,9 +378,8 @@ export class TenantBillingController {
             // ends the subscription on a date this change does not move. Opening
             // one anyway sells a period the customer loses partway through. The
             // plan changes today either way; what stays is when it runs out.
-            const endsBeforeAnyNewTerm = (sub.canceledEffectiveAt ?? sub.canceledAt) !== null;
             const period =
-                wasTrial || endsBeforeAnyNewTerm
+                wasTrial || cancellationOutstanding
                     ? null
                     : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
             // #17: in trial, carry the remaining time over to the target package
@@ -811,6 +835,22 @@ export class TenantBillingController {
             terminateNow: decision.effectiveAt <= now,
             minimumTermUntil: decision.afterNoticeDeadline ? decision.effectiveAt : undefined,
         });
+        // The check above and this write are two moments, and a second request
+        // can arrive between them. The store settles it — the claim either took
+        // the row or found it taken — and a claim that lost neither audits a
+        // cancellation that did not happen nor explains its own decision, which
+        // was never applied.
+        if (result.alreadyCanceled) {
+            return {
+                canceledAt: result.canceledAt,
+                canceledEffectiveAt: result.canceledEffectiveAt,
+                status: result.status,
+                termEndsAt: null,
+                noticeDeadline: null,
+                afterNoticeDeadline: null,
+                alreadyCanceled: true,
+            };
+        }
         this.entitlements.invalidateTenant(tenantId);
         await this.auditLog(req, userId, 'Subscription', tenantId, 'CANCEL_SUBSCRIPTION', {
             canceledAt: now.toISOString(),
