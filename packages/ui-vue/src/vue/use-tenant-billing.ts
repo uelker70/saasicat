@@ -190,6 +190,8 @@ export interface SubscriptionBundleShape {
  * customer disputes if they read it afterwards instead of before.
  */
 export interface CancellationResultShape {
+    /** True when the subscription was already cancelled and nothing changed. */
+    alreadyCanceled?: boolean;
     canceledAt: string | null;
     canceledEffectiveAt: string | null;
     status: string;
@@ -297,7 +299,7 @@ export interface UseTenantBillingResult {
      * is nothing here to pass. Ending a contract on the spot is an operator's
      * act and goes through the operator's own path.
      */
-    cancelSubscription: () => Promise<CancellationResultShape>;
+    cancelSubscription: (expectedEffectiveAt?: string) => Promise<CancellationResultShape>;
     /** True if `usage.value.features` contains the FeatureKey. */
     hasFeature: (key: string) => boolean;
 
@@ -467,8 +469,17 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         await reload();
     }
 
-    async function cancelSubscription(): Promise<CancellationResultShape> {
-        const result = await fetchOrThrow<CancellationResultShape>('/cancel', { method: 'POST' });
+    async function cancelSubscription(
+        expectedEffectiveAt?: string,
+    ): Promise<CancellationResultShape> {
+        // The date the page showed, sent back for the server to check. It
+        // refuses with `CANCELLATION_TERMS_CHANGED` if its own answer differs —
+        // a dialog opened before a notice deadline and confirmed after it would
+        // otherwise deliver a date a year past the one on the button.
+        const result = await fetchOrThrow<CancellationResultShape>('/cancel', {
+            method: 'POST',
+            body: expectedEffectiveAt ? { expectedEffectiveAt } : undefined,
+        });
         await reload();
         return result;
     }

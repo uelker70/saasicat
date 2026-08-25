@@ -54,7 +54,7 @@
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
                     @change-plan="showWizard = true"
-                    @cancel-subscription="showCancelConfirm = true"
+                    @cancel-subscription="openCancelConfirm"
                 />
 
                 <hr class="sp-divider" />
@@ -167,6 +167,7 @@
                     }
                 "
             >
+                <p v-if="cancelError" class="sp-plan-section__warn">{{ cancelError }}</p>
                 <p v-if="cancellationPlan?.afterNoticeDeadline" class="sp-plan-section__warn">
                     {{
                         effectiveI18n.cancelConfirmLate
@@ -350,14 +351,34 @@ const reactivateConfirmId = ref<string | null>(null);
 
 const showCancelConfirm = ref(false);
 const canceling = ref(false);
+const cancelError = ref<string | null>(null);
 /** What cancelling right now would do — the server's projection, not ours. */
 const cancellationPlan = computed(() => usage.value?.cancellation ?? null);
+
+/**
+ * Opens the dialog on a fresh projection.
+ *
+ * The one on the page came with the last `/usage`, which may be minutes old. A
+ * notice deadline that passed in between moves the effective date by a whole
+ * period, and the dialog would state the date it was told rather than the one
+ * that would happen.
+ */
+async function openCancelConfirm(): Promise<void> {
+    showCancelConfirm.value = true;
+    await billing.reload();
+}
 
 async function confirmCancelSubscription(): Promise<void> {
     canceling.value = true;
     try {
-        await billing.cancelSubscription();
+        // The date the dialog showed travels with the request. If the server's
+        // answer has since moved, it refuses rather than applying a date the
+        // customer never saw, and the reload below brings the new one in.
+        await billing.cancelSubscription(cancellationPlan.value?.effectiveAt);
         showCancelConfirm.value = false;
+    } catch (err) {
+        cancelError.value = err instanceof Error ? err.message : String(err);
+        await billing.reload();
     } finally {
         canceling.value = false;
     }

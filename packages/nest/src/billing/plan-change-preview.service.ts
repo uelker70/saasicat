@@ -109,6 +109,15 @@ export interface PlanChangeContext {
     currentPeriodStart: Date | null;
     /** Current period end from the subscription, if present. */
     currentPeriodEnd: Date | null;
+    /**
+     * End of what was committed to, which can outlast the period.
+     *
+     * They coincide until a notice period pushes one past the other. A change
+     * scheduled to the period end alone would then materialise inside the
+     * commitment this rule exists to protect — the customer keeps the plan they
+     * are bound to for eleven months and loses it in the twelfth.
+     */
+    minimumTermUntil: Date | null;
     /** TRIAL end, if status === 'TRIAL'. */
     trialEndsAt: Date | null;
     /** Subscription status (TRIAL/ACTIVE/...). */
@@ -168,6 +177,7 @@ export class PlanChangePreviewService {
         const ctx: PlanChangeContext = {
             currentPeriodStart: sub.currentPeriodStart,
             currentPeriodEnd: sub.currentPeriodEnd,
+            minimumTermUntil: sub.minimumTermUntil ?? null,
             trialEndsAt: sub.trialEndsAt,
             status: sub.status,
             currentBillingCycle: sub.billingCycle,
@@ -389,8 +399,14 @@ export class PlanChangePreviewService {
 
     private resolveEffectiveAt(ctx: PlanChangeContext, now: Date): Date {
         if (ctx.status === 'TRIAL' && ctx.trialEndsAt) return ctx.trialEndsAt;
-        if (ctx.currentPeriodEnd) return ctx.currentPeriodEnd;
-        return periodEndAfter(ctx.startedAt, ctx.currentBillingCycle as BillingCycle, now);
+        const periodEnd =
+            ctx.currentPeriodEnd ??
+            periodEndAfter(ctx.startedAt, ctx.currentBillingCycle as BillingCycle, now);
+        // The later of the two. A commitment that outlasts the period is what a
+        // notice period produces, and a change that landed at the period end
+        // would take effect inside it.
+        if (ctx.minimumTermUntil && ctx.minimumTermUntil > periodEnd) return ctx.minimumTermUntil;
+        return periodEnd;
     }
 
     private computeProration(

@@ -8,6 +8,7 @@ import {
     HttpStatus,
     Inject,
     Logger,
+    ConflictException,
     NotFoundException,
     Optional,
     Post,
@@ -53,6 +54,7 @@ import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellation, type CancellationDecision } from './cancellation.js';
+import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
     USER_EMAIL_RESOLVER_TOKEN,
@@ -680,7 +682,7 @@ export class TenantBillingController {
 
     @Post('cancel')
     @UseGuards(TenantAdminGuard)
-    async cancelSubscription(@Req() req: RequestLike) {
+    async cancelSubscription(@Req() req: RequestLike, @Body() dto: CancelSubscriptionDto) {
         const tenantId = this.requireTenantId(req);
         const userId = this.requireUserId(req);
         const now = new Date();
@@ -691,6 +693,27 @@ export class TenantBillingController {
                 code: 'NO_SUBSCRIPTION',
                 message: 'This tenant has no subscription to cancel.',
             });
+        }
+
+        // Already cancelled? Say so and change nothing.
+        //
+        // Not politeness — arithmetic. With a notice period configured, running
+        // the decision again against a later `now` can land the cancellation a
+        // whole period further out: an on-time declaration landing January 2027,
+        // retried after the deadline, becomes January 2028. The customer pressed
+        // the same button twice and bought another year. A cancellation is
+        // declared once; a repeat is a question about it, not a new one.
+        const existing = sub.canceledEffectiveAt ?? sub.canceledAt ?? null;
+        if (existing) {
+            return {
+                canceledAt: sub.canceledAt ?? null,
+                canceledEffectiveAt: existing,
+                status: sub.status,
+                termEndsAt: existing,
+                noticeDeadline: null,
+                afterNoticeDeadline: false,
+                alreadyCanceled: true,
+            };
         }
 
         // A tenant declares; the rules decide when it lands. The request body
@@ -705,6 +728,23 @@ export class TenantBillingController {
             billingCycle: sub.billingCycle as BillingCycle,
             noticePeriodDays: this.cancellationNoticeDays,
         });
+
+        // What the page showed has to be what the customer agreed to. Refused
+        // rather than silently applied, with the new date in the error so the
+        // page can re-ask instead of guessing why.
+        if (
+            dto.expectedEffectiveAt &&
+            new Date(dto.expectedEffectiveAt).getTime() !== decision.effectiveAt.getTime()
+        ) {
+            throw new ConflictException({
+                code: 'CANCELLATION_TERMS_CHANGED',
+                message: 'The effective date changed since it was shown. Confirm the new one.',
+                effectiveAt: decision.effectiveAt,
+                termEndsAt: decision.termEndsAt,
+                noticeDeadline: decision.noticeDeadline,
+                afterNoticeDeadline: decision.afterNoticeDeadline,
+            });
+        }
 
         const result = await this.subscriptionWrite.cancelSubscription(tenantId, {
             canceledAt: now,
@@ -726,6 +766,7 @@ export class TenantBillingController {
             termEndsAt: decision.termEndsAt,
             noticeDeadline: decision.noticeDeadline,
             afterNoticeDeadline: decision.afterNoticeDeadline,
+            alreadyCanceled: false,
         };
     }
 

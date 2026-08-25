@@ -54,7 +54,7 @@ const entitlement = (plan) => ({
     invalidateTenant: () => {},
 });
 
-const subscription = (plan, billingCycle) => ({
+const subscription = (plan, billingCycle, minimumTermUntil = null) => ({
     findForTenant: async () => ({
         plan,
         billingCycle,
@@ -66,6 +66,7 @@ const subscription = (plan, billingCycle) => ({
         currentPeriodStart: new Date('2026-01-01'),
         currentPeriodEnd:
             billingCycle === 'YEARLY' ? new Date('2027-01-01') : new Date('2026-02-01'),
+        minimumTermUntil,
         pendingPlan: null,
         pendingBillingCycle: null,
         pendingEffectiveAt: null,
@@ -208,5 +209,44 @@ describe('a prorated upgrade never asks for less than nothing', () => {
         assert.ok(dto.proration.prorataDeltaNet > 0);
         assert.equal(dto.proration.isFree, false);
         assert.equal(dto.proration.prorataDeltaNet, dto.proration.rawDeltaNet);
+    });
+});
+
+describe('a deferred change waits for the commitment, not just the period', () => {
+    test('the later of period end and minimum term is the effective date', async () => {
+        // They coincide until a notice period pushes the term past the period.
+        // A change scheduled to the period end then materialises INSIDE the
+        // commitment these rules exist to protect — eleven months of the plan
+        // you are bound to, and the twelfth of something cheaper.
+        //
+        // Through the preview, because that is where `resolveEffectiveAt`
+        // lives. An earlier draft asserted the same arithmetic through
+        // `decideCancellation`, which has its own copy of it — so the test
+        // passed with the preview's half deleted.
+        const service = new PlanChangePreviewService(
+            CATALOG,
+            entitlement('STANDARD'),
+            subscription('STANDARD', 'MONTHLY', new Date('2027-01-01')),
+            { snapshot: async () => ({ users: 1 }) },
+            null,
+        );
+        const dto = await service.preview('t1', 'STARTER', 'MONTHLY', NOW);
+
+        assert.equal(dto.isImmediate, false);
+        assert.deepEqual(dto.effectiveAt, new Date('2027-01-01'));
+    });
+
+    test('without a commitment the period end still decides', async () => {
+        // The counter-half: the new branch must not move a date that had no
+        // term to wait for.
+        const service = new PlanChangePreviewService(
+            CATALOG,
+            entitlement('STANDARD'),
+            subscription('STANDARD', 'MONTHLY', null),
+            { snapshot: async () => ({ users: 1 }) },
+            null,
+        );
+        const dto = await service.preview('t1', 'STARTER', 'MONTHLY', NOW);
+        assert.deepEqual(dto.effectiveAt, new Date('2026-02-01'));
     });
 });

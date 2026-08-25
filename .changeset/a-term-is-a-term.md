@@ -62,6 +62,17 @@ overflowed: 31 January plus a month was 3 March, and 29 February plus a year was
 1 March. Pre-existing, invisible while the result was only a period boundary,
 and reported to a customer as a contract end date now.
 
+**Cancelling twice does not move the date.** A repeat returns the existing
+cancellation and writes nothing. With a notice period configured, recomputing it
+against a later `now` could land it a whole period further out — an on-time
+declaration landing January 2027, retried after the deadline, became January 2028.
+
+**The date the page showed is the date that applies.** `POST /billing/cancel`
+accepts an optional `expectedEffectiveAt` and refuses with
+`CANCELLATION_TERMS_CHANGED` when its own answer differs, so a dialog opened
+before a notice deadline and confirmed after it cannot deliver a date the
+customer never saw.
+
 **Breaking for anyone implementing the ports.**
 `TenantSubscriptionWritePort.cancelSubscription` now takes
 `{ canceledAt, effectiveAt, terminateNow }` and returns `canceledEffectiveAt`;

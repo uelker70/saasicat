@@ -1,4 +1,4 @@
-import { IsString, Matches } from 'class-validator';
+import { IsISO8601, IsOptional, IsString, Matches } from 'class-validator';
 
 // DTOs for tenant self-service mutations. Plan and cycle IDs are validated as
 // strings (no hard enum), because the allowed values come from the consumer's
@@ -43,4 +43,20 @@ export class ChangePlanDto extends PreviewPlanChangeDto {}
  * from a client that has not been updated, instead of the field reaching a
  * handler that would ignore it silently.
  */
-export class CancelSubscriptionDto {}
+export class CancelSubscriptionDto {
+    /**
+     * The effective date the page showed before the customer confirmed.
+     *
+     * Optional, and checked rather than trusted: if the server's own decision
+     * differs, the request is refused with the new date so the page can ask
+     * again. The window is small and the consequence is not — a dialog opened
+     * before a notice deadline and confirmed after it promises January 2027 and
+     * would deliver January 2028.
+     *
+     * This is the caller telling the server what only the caller knows: what
+     * the human actually agreed to.
+     */
+    @IsOptional()
+    @IsISO8601()
+    expectedEffectiveAt?: string;
+}

@@ -77,12 +77,18 @@ export interface PeriodRollInput {
     currentPeriodEnd: Date | null;
     billingCycle: BillingCycle;
     /**
-     * When a cancellation was declared. Read for nothing here, deliberately.
+     * When a cancellation was declared — and, on a row written before the two
+     * fields parted company, also when it lands.
      *
-     * It used to stop the renewal, and that was right while it doubled as the
-     * effective date. Since the two parted company it is only "the customer
-     * said so" — a subscription cancelled in month three of a year still runs,
+     * It used to stop the renewal on its own, which was right while it carried
+     * both meanings. Since they separated it is normally only "the customer
+     * said so": a subscription cancelled in month three of a year still runs,
      * and stopping its renewal would end it nine months early.
+     *
+     * The exception is the row that predates the split. There `canceledAt`
+     * holds the period end the old code computed and `canceledEffectiveAt` is
+     * null, so reading only the second would roll a cancelled subscription into
+     * another paid term, and the next one, forever.
      */
     canceledAt: Date | null;
     /**
@@ -115,7 +121,8 @@ export interface NextPeriodWindow {
  * (either the period hasn't been reached yet, canceled, or NULL period).
  *
  * Logic (spec: SUPERADMIN_PLANS_DASHBOARD_TODO §2.2):
- *   - If `canceledAt` is set → SKIP.
+ *   - If a cancellation has LANDED → SKIP. A declared one has not, unless the
+ *     row predates the split and carries its effective date in `canceledAt`.
  *   - If `currentPeriodEnd === null` → SKIP (trial / PENDING_SALES).
  *   - If `currentPeriodEnd > now` → SKIP (period still active).
  *   - If a cancellation has LANDED → SKIP. A declared one has not.
@@ -126,7 +133,14 @@ export function computeNextPeriod(sub: PeriodRollInput, now: Date): NextPeriodWi
     if (sub.currentPeriodEnd === null) return null;
     if (sub.currentPeriodEnd > now) return null;
     // A declared cancellation does not stop anything; a landed one does.
-    if (sub.canceledEffectiveAt !== null && sub.canceledEffectiveAt <= now) return null;
+    //
+    // `landedAt` falls back to `canceledAt` for rows written before the two
+    // fields separated: there it IS the effective date. A backfill is the other
+    // half of this and belongs in the migration guide, but the reading must not
+    // depend on every consumer having run it — an unbilled subscription that
+    // keeps renewing is not a defect anybody notices from the inside.
+    const landedAt = sub.canceledEffectiveAt ?? sub.canceledAt;
+    if (landedAt !== null && landedAt <= now) return null;
     const newStart = sub.currentPeriodEnd;
     const newEnd = periodEndAfter(newStart, sub.billingCycle, now);
     return {
