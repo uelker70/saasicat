@@ -230,10 +230,16 @@ the codemod it names is `saasicat codemod v1`.
 - A PR is mergeable when `build`, `test`, `lint`, and `typecheck` are green.
 - Reference related issues in the PR description.
 
-**Do not stack pull requests.** A stack is a pull request whose _base_ is another
-open pull request. Two branches cut from `main` are not a stack, however many are
-open at once — work on independent things in parallel, and merge them in whatever
-order they become ready.
+**Do not stack pull requests.** A stack is a branch cut from another branch that
+has not been merged — whatever the pull requests are based on. Retargeting a PR
+at `main` changes what GitHub compares; it does not remove the parent's commits
+from the branch, and those commits are what the costs below are about. Two
+branches cut from `main` are not a stack, however many are open at once — work
+on independent things in parallel, and merge them in whatever order they become
+ready.
+
+`git log --oneline main..HEAD` answers it: if that list contains work that
+belongs to another open pull request, you have a stack.
 
 What a stack costs: this repository merges by squash, so `main` ends up with one
 commit describing the same change your branch carries as many, and the next merge
