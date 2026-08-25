@@ -95,6 +95,19 @@ apply, so a row whose effective date sits in `canceledAt` reports it. Read
 strictly, it told the page nothing had been cancelled — which hid the end date
 and went on offering to cancel it again.
 
+**Both enforcement paths see the end, and a cached answer does not outlive
+it.** Entitlements are enforced along two paths, and a rule written in one is
+enforced in half the applications: `StaticFeatureGuard` and
+`EnforceQuotaInterceptor` — what an app gets without registering tenant billing
+— reach their plan through `SubscriptionPlanResolver`, which asked only whether
+the status was `ACTIVE` or `TRIAL`. It reads the cancellation too now, and takes
+the same `canceledEntitlementPlan` floor, because two paths that disagree about
+what a cancelled subscription keeps would be worse than either answer alone. And
+a cached limits entry is capped at the cancellation's effective moment: every
+other thing that changes those limits is a mutation and invalidates the cache,
+while a date arriving is not, so the old features were served for up to a minute
+past the end of the contract.
+
 **A cancellation that has taken effect ends the entitlements.** It did not.
 Nothing on the entitlement path read a cancellation, so a subscription that
 ended last January was granted exactly what it was granted while active — same

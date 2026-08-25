@@ -25,6 +25,18 @@ export interface CancellationDates {
  * the future — that subscription is paid up and keeps everything.
  */
 export function cancellationHasLanded(sub: CancellationDates, now: Date): boolean {
-    const landedAt = sub.canceledEffectiveAt ?? sub.canceledAt;
-    return landedAt !== null && landedAt <= now;
+    const landsAt = cancellationLandsAt(sub);
+    return landsAt !== null && landsAt <= now;
+}
+
+/**
+ * When the cancellation lands, or null while none was declared.
+ *
+ * Separate from the predicate because a caller sometimes needs the moment
+ * rather than the answer — a cached result must not outlive it, since nothing
+ * mutates the subscription when that moment arrives and so nothing invalidates
+ * the cache either.
+ */
+export function cancellationLandsAt(sub: CancellationDates): Date | null {
+    return sub.canceledEffectiveAt ?? sub.canceledAt;
 }
