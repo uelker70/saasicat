@@ -36,7 +36,7 @@ does.
 **A notice period is configurable and zero by default.** `cancellationNoticeDays`
 on the billing module. With no window there is no door to be shut out of; where
 one is configured the cut is hard, and a declaration made after it lands at the
-end of the *following* period.
+end of the _following_ period.
 
 **A prorated upgrade never asks for less than nothing.** The formula is
 unchanged — `(target − current) × remaining ÷ period` — and its result is now
@@ -49,6 +49,18 @@ reader expects — an upgrade with a shortened cycle, a downgrade, a cycle chang
 heading, the date is in bold, and the confirmation stays locked until it is
 ticked. A downgrade lists the features it costs. A cancelled subscription shows
 its end date instead of the word "cancelled".
+
+**The timing never travels from the client.** `POST /billing/plan` no longer
+accepts `effectiveImmediately`, and `useTenantBilling().changePlan()` no longer
+takes it: the route derives the timing from the same preview the wizard renders.
+It used to branch on the flag under a comment promising the server-side check
+"prevents bypass via a direct API call" — it checked the blockers and left the
+one decision that carries money to the caller.
+
+**A period boundary on a month end stays on a month end.** `advanceOneCycle`
+overflowed: 31 January plus a month was 3 March, and 29 February plus a year was
+1 March. Pre-existing, invisible while the result was only a period boundary,
+and reported to a customer as a contract end date now.
 
 **Breaking for anyone implementing the ports.**
 `TenantSubscriptionWritePort.cancelSubscription` now takes

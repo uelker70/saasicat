@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
+import { IsString, Matches } from 'class-validator';
 
 // DTOs for tenant self-service mutations. Plan and cycle IDs are validated as
 // strings (no hard enum), because the allowed values come from the consumer's
@@ -19,12 +19,16 @@ export class PreviewPlanChangeDto {
     billingCycle!: string;
 }
 
-export class ChangePlanDto extends PreviewPlanChangeDto {
-    /** Immediate change (true) vs. change at period end (false/undefined). */
-    @IsOptional()
-    @IsBoolean()
-    effectiveImmediately?: boolean;
-}
+/**
+ * A plan change carries what to change to, never when.
+ *
+ * It used to carry `effectiveImmediately`, and the route honoured it — so a
+ * direct call could take the immediate path and end a term the customer was
+ * inside. When a change lands follows from the plan direction, the cycle
+ * direction and the minimum term, all of which the server knows and the caller
+ * does not.
+ */
+export class ChangePlanDto extends PreviewPlanChangeDto {}
 
 /**
  * A cancellation carries nothing.

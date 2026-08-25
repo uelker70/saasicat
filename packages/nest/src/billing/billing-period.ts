@@ -8,13 +8,23 @@ import type { BillingCycle } from '@saasicat/core';
 
 /** One period onwards. Exported for the cancellation rules next door. */
 export function advanceOneCycle(d: Date, cycle: BillingCycle): Date {
+    // Clamped to the target month's last day, because `setUTCMonth` does not
+    // clamp — it overflows. 31 January plus one month is 3 March, and 29
+    // February plus one year is 1 March, so a subscription that started on a
+    // month end drifts a few days further into the next month at every
+    // renewal. Nobody noticed while the result was only a period boundary; a
+    // cancellation now reports it to a customer as the day their contract ends.
+    const year = d.getUTCFullYear() + (cycle === 'YEARLY' ? 1 : 0);
+    const month = d.getUTCMonth() + (cycle === 'YEARLY' ? 0 : 1);
+    const day = Math.min(d.getUTCDate(), daysInMonth(year, month));
     const out = new Date(d);
-    if (cycle === 'YEARLY') {
-        out.setUTCFullYear(out.getUTCFullYear() + 1);
-    } else {
-        out.setUTCMonth(out.getUTCMonth() + 1);
-    }
+    out.setUTCFullYear(year, month, day);
     return out;
+}
+
+/** Day 0 of the next month is the last day of this one. Handles month 12. */
+function daysInMonth(year: number, month: number): number {
+    return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 }
 
 /**

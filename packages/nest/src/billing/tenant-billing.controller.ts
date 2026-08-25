@@ -312,22 +312,26 @@ export class TenantBillingController {
             });
         }
 
-        // Defense-in-depth: server-side pre-check with the same rules
-        // as the wizard. Prevents bypass via a direct API call.
-        const blockers = await this.planPreview.assertChangeAllowed(
-            tenantId,
-            dto.plan,
-            dto.billingCycle,
-        );
-        if (blockers.length > 0) {
+        // The same preview the wizard renders, and for the same reason: this
+        // route decides what happens, not the caller.
+        //
+        // It used to ask `assertChangeAllowed` for the blockers only, under a
+        // comment promising it "prevents bypass via a direct API call" — and
+        // then took the timing from `dto.effectiveImmediately`. A direct POST
+        // with that flag entered the immediate branch, reset the period from
+        // today, and ended a yearly commitment the customer was still inside.
+        // The blockers were checked; the one decision that carries money was
+        // handed to whoever was calling.
+        const decision = await this.planPreview.preview(tenantId, dto.plan, dto.billingCycle);
+        if (decision.blockers.length > 0) {
             throw new BadRequestException({
                 code: BILLING_ERROR_CODES.PLAN_CHANGE_BLOCKED,
                 message: 'Plan change is blocked.',
-                blockers,
+                blockers: decision.blockers,
             });
         }
 
-        if (dto.effectiveImmediately) {
+        if (decision.isImmediate) {
             const wasTrial = sub.status === 'TRIAL';
             const period = wasTrial
                 ? null
@@ -370,10 +374,9 @@ export class TenantBillingController {
             return { plan: result.plan, billingCycle: result.billingCycle, immediate: true };
         }
 
-        const effectiveAt =
-            sub.status === 'TRIAL' && sub.trialEndsAt
-                ? sub.trialEndsAt
-                : (sub.currentPeriodEnd ?? new Date());
+        // The preview already resolved this against the trial, the period and
+        // the term; recomputing it here is a second answer waiting to differ.
+        const effectiveAt = decision.effectiveAt ?? sub.currentPeriodEnd ?? new Date();
         await this.subscriptionWrite.schedulePlanChange(tenantId, {
             pendingPlan: dto.plan,
             pendingBillingCycle: dto.billingCycle,

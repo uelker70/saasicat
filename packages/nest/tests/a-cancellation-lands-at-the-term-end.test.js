@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { decideCancellation } from '../dist/billing/index.js';
+import { advanceOneCycle, decideCancellation } from '../dist/billing/index.js';
 
 // Declaring a cancellation is never refused; the rules decide the date.
 //
@@ -115,5 +115,43 @@ describe('when nothing is left to run', () => {
             base({ now, currentPeriodEnd: null, minimumTermUntil: null }),
         );
         assert.deepEqual(decision.effectiveAt, now);
+    });
+});
+
+describe('a period boundary on a month end stays on a month end', () => {
+    // `setUTCMonth` does not clamp, it overflows: 31 January plus one month is
+    // 3 March. Pre-existing, and invisible while the result was only a period
+    // boundary — a cancellation now reports it to a customer as the day their
+    // contract ends, and "3 March" for a contract that started on 31 January
+    // is the kind of date somebody disputes.
+    const advance = (iso, cycle) =>
+        advanceOneCycle(new Date(iso), cycle).toISOString().slice(0, 10);
+
+    test('31 January plus a month is the end of February', () => {
+        assert.equal(advance('2026-01-31T00:00:00.000Z', 'MONTHLY'), '2026-02-28');
+    });
+
+    test('and in a leap year, the 29th', () => {
+        assert.equal(advance('2028-01-31T00:00:00.000Z', 'MONTHLY'), '2028-02-29');
+    });
+
+    test('31 March plus a month is 30 April', () => {
+        assert.equal(advance('2026-03-31T00:00:00.000Z', 'MONTHLY'), '2026-04-30');
+    });
+
+    test('29 February plus a year is 28 February', () => {
+        assert.equal(advance('2028-02-29T00:00:00.000Z', 'YEARLY'), '2029-02-28');
+    });
+
+    test('a day that exists in both months is untouched', () => {
+        // The clamp must not move a date that needed no moving.
+        assert.equal(advance('2026-01-15T00:00:00.000Z', 'MONTHLY'), '2026-02-15');
+    });
+
+    test('December rolls into the next year', () => {
+        // The month arithmetic crosses the year boundary; `Date.UTC` with month
+        // 12 is January of the next year, which is what makes the day count
+        // right rather than accidentally right.
+        assert.equal(advance('2026-12-31T00:00:00.000Z', 'MONTHLY'), '2027-01-31');
     });
 });

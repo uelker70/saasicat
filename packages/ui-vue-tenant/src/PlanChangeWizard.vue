@@ -330,7 +330,7 @@ interface Props {
     isFractionalQuota?: (key: string) => boolean;
     /** Preview caller (passed through from the consumer composable). */
     previewPlanChange: (plan: string, cycle: BillingCycleStr) => Promise<PlanChangePreviewShape>;
-    changePlan: (plan: string, cycle: BillingCycleStr, immediate: boolean) => Promise<void>;
+    changePlan: (plan: string, cycle: BillingCycleStr) => Promise<void>;
     i18n: PlanChangeWizardI18n;
 }
 
@@ -599,6 +599,13 @@ async function goToPreview() {
     // it says the same thing to the compiler, which cannot see through the
     // guard.
     if (!plan || !goToNextStep()) return;
+    await loadPreview();
+}
+
+/** Fetches the preview for the current target. Never the stale one. */
+async function loadPreview(): Promise<void> {
+    const plan = targetPlan.value;
+    if (!plan) return;
     previewLoading.value = true;
     previewError.value = null;
     try {
@@ -611,12 +618,21 @@ async function goToPreview() {
     }
 }
 
+// The preview is the answer to a question the cycle is half of. Changing the
+// cycle after it was fetched — which the "keep yearly" button in the deferral
+// block does, on the confirmation step — leaves a preview describing the other
+// choice: its date, its price, its `isImmediate`. The button promised the
+// upgrade today and the stale answer would have scheduled it at term end.
+watch(targetCycle, () => {
+    if (preview.value || previewError.value) void loadPreview();
+});
+
 async function submit() {
     if (!targetPlan.value || !preview.value) return;
     submitting.value = true;
     submitError.value = null;
     try {
-        await props.changePlan(targetPlan.value, targetCycle.value, preview.value.isImmediate);
+        await props.changePlan(targetPlan.value, targetCycle.value);
         emit('submitted');
         close();
     } catch (err) {

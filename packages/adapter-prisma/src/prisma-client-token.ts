@@ -42,6 +42,11 @@ export interface SubscriptionRowLike {
     pilotEndsAt?: Date | null;
     currentPeriodStart?: Date | null;
     currentPeriodEnd?: Date | null;
+    /** End of what was committed to. Null on a trial or a pre-existing row. */
+    minimumTermUntil?: Date | null;
+    /** When a cancellation was declared, and when it lands. */
+    canceledAt?: Date | null;
+    canceledEffectiveAt?: Date | null;
     pendingBillingCycle?: string | null;
     pendingPlanVersionEffectiveAt?: Date | null;
     pendingPlanVersionAccepted?: boolean;

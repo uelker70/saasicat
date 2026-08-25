@@ -644,8 +644,8 @@ function onWizardSubmitted() {
 async function previewPlanChange(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
     return billing.previewPlanChange(plan, cycle);
 }
-async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: boolean) {
-    return billing.changePlan(plan, cycle, immediate);
+async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
+    return billing.changePlan(plan, cycle);
 }
 </script>
 

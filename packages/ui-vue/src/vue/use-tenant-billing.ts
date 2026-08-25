@@ -286,11 +286,7 @@ export interface UseTenantBillingResult {
         plan: string,
         billingCycle: BillingCycleStr,
     ) => Promise<PlanChangePreviewShape>;
-    changePlan: (
-        plan: string,
-        billingCycle: BillingCycleStr,
-        effectiveImmediately: boolean,
-    ) => Promise<void>;
+    changePlan: (plan: string, billingCycle: BillingCycleStr) => Promise<void>;
     acceptPendingPlanVersion: () => Promise<void>;
     /**
      * Declares a cancellation. Takes no argument, and that is the point.
@@ -456,15 +452,13 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         });
     }
 
-    async function changePlan(
-        plan: string,
-        billingCycle: BillingCycleStr,
-        effectiveImmediately: boolean,
-    ) {
-        await fetchOrThrow('/plan', {
-            method: 'POST',
-            body: { plan, billingCycle, effectiveImmediately },
-        });
+    async function changePlan(plan: string, billingCycle: BillingCycleStr) {
+        // No timing in the body. The server decides when a change lands from
+        // the plan direction, the cycle direction and the minimum term — none
+        // of which a browser can see, and all of which it used to be trusted to
+        // report back. A caller that sent `effectiveImmediately: true` could
+        // end a term it was inside.
+        await fetchOrThrow('/plan', { method: 'POST', body: { plan, billingCycle } });
         await reload();
     }
 

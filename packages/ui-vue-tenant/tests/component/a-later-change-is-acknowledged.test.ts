@@ -99,7 +99,10 @@ afterEach(() => {
     document.body.style.overflow = '';
 });
 
-function openWizard(preview: PlanChangePreviewShape) {
+function openWizard(
+    preview: PlanChangePreviewShape,
+    previewFor?: (plan: string, cycle: BillingCycleStr) => Promise<PlanChangePreviewShape>,
+) {
     const wrapper = mount(PlanChangeWizard, {
         attachTo: document.body,
         props: {
@@ -113,7 +116,7 @@ function openWizard(preview: PlanChangePreviewShape) {
             formatDate: (iso: string) => String(iso).slice(0, 10),
             quotaLabel: (key: string) => key,
             featureLabel: (key: string) => key,
-            previewPlanChange: () => Promise.resolve(preview),
+            previewPlanChange: previewFor ?? (() => Promise.resolve(preview)),
             changePlan: () => Promise.resolve(),
             i18n,
         },
@@ -292,5 +295,38 @@ describe('the dates stand out from the sentence around them', () => {
         const strong = [...block()!.querySelectorAll('strong')].map((el) => el.textContent);
         expect(strong).toContain('2027-01-01');
         expect(block()!.querySelector('.sp-wizard__deferred-lead strong')).not.toBeNull();
+    });
+});
+
+describe('keeping the yearly cycle re-asks rather than reusing the answer', () => {
+    test('the block disappears once the preview describes the new choice', async () => {
+        // The button changed only `targetCycle`. The preview still described
+        // the monthly deferral — its date, its price, its `isImmediate` — so
+        // submitting would have scheduled at term end the very change the
+        // button promised for today.
+        // The stub answers per cycle, as the server does: monthly defers,
+        // yearly does not.
+        const wrapper = openWizard(DEFERRED, (_plan, cycle) =>
+            Promise.resolve(cycle === 'YEARLY' ? IMMEDIATE : DEFERRED),
+        );
+        await reachConfirmation(wrapper);
+        // The wizard opens on the current cycle, which is yearly here; the
+        // reader picks monthly, which is the case this block exists for.
+        (wrapper.vm as unknown as { targetCycle: BillingCycleStr }).targetCycle = 'MONTHLY';
+        await nextTick();
+        await Promise.resolve();
+        await nextTick();
+        expect(block(), 'no deferral after choosing the monthly cycle').not.toBeNull();
+
+        const keep = [...block()!.querySelectorAll('button')].find(
+            (b) => b.textContent?.trim() === i18n.deferredKeepYearly,
+        )!;
+        keep.click();
+        await nextTick();
+        await Promise.resolve();
+        await nextTick();
+
+        expect(block(), 'the deferral block survived a cycle that no longer defers').toBeNull();
+        expect(confirmButton()!.hasAttribute('disabled')).toBe(false);
     });
 });
