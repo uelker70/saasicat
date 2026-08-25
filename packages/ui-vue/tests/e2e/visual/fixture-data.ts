@@ -848,6 +848,20 @@ const USER_ROWS = [
         isActive: true,
         lastLoginAt: '2026-07-30T08:15:00.000Z',
     },
+    {
+        // An invited user who has not accepted yet. The row exists so the
+        // PENDING badge renders: it did not, and that is why nobody noticed
+        // that it painted Quasar's `amber-7` at 1.9:1 for as long as it has
+        // existed. A branch no fixture reaches is a branch no guard measures.
+        id: 'u-2',
+        email: 'grace@fixture.test',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        role: 'TENANT_ADMIN',
+        isActive: true,
+        invitationStatus: 'PENDING',
+        lastLoginAt: null,
+    },
 ];
 
 const PROMO_ROWS = [

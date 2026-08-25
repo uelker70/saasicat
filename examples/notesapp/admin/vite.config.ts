@@ -1,7 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import { quasar } from '@quasar/vite-plugin';
 
 // Ports come from `examples/notesapp/.env` — the same file docker compose reads,
 // so the dev server and the container stack cannot disagree about them.
@@ -28,14 +27,7 @@ export default defineConfig({
     // whole frontend of this example, and its `/login` route sits outside the
     // /admin path, so a subpath base would leave the login page unreachable.
     base: '/',
-    plugins: [
-        vue(),
-        quasar({
-            // Absolute path — sass resolves plain relative paths against the
-            // importing file inside node_modules/quasar, not the project root.
-            sassVariables: fileURLToPath(new URL('./src/styles/theme.scss', import.meta.url)),
-        }),
-    ],
+    plugins: [vue()],
     // Exactly one copy of each of these, always.
     //
     // `createSuperAdminApp()` CREATES the router, the Pinia instance and the
@@ -45,22 +37,28 @@ export default defineConfig({
     // so two copies of the library do not share one, and the lookup silently
     // returns `undefined`.
     //
-    // The platform ships its pages as `.vue` SOURCE (decision E3), so their
-    // `import … from 'vue-router'` resolves relative to the platform package,
-    // while this app's own files resolve relative to here. Without dedupe the
-    // bundle ends up with both, and every consumer page that reads a route
-    // param throws `Cannot read properties of undefined (reading 'params')` —
-    // the shell renders, the content area is blank.
+    // The platform's pages are built (ADR 0011), and its chunks resolve
+    // `import … from 'vue-router'` relative to the platform package while this
+    // app's own files resolve relative to here. Without dedupe the bundle ends
+    // up with both, and every consumer page that reads a route param throws
+    // `Cannot read properties of undefined (reading 'params')` — the shell
+    // renders, the content area is blank. The reason survived the move from
+    // source to a build; only the first clause of it changed.
     //
     // The list is `@saasicat/ui-vue`'s peerDependencies: a peer is precisely a
     // dependency the host is expected to own exactly one of.
     resolve: {
-        dedupe: ['vue', 'vue-router', 'pinia', 'quasar'],
+        dedupe: ['vue', 'vue-router', 'pinia'],
     },
-    // The admin renders `@saasicat/ui-vue`'s pages from source through the
-    // package's `./pages/*` subpath. Excluding it from pre-bundling is what
-    // makes editing a platform page hot-reload here instead of requiring a
-    // rebuild — a pre-bundled dependency is a frozen snapshot.
+    // Left out of pre-bundling so Vite resolves the package's subpaths itself
+    // rather than through a prebundled snapshot, which is what keeps the
+    // `types`/`default` conditions honest here.
+    //
+    // It does NOT give you hot reload on a platform page any more, and it used
+    // to say so. Since ADR 0011 the bundler follows `default` into `dist/`, so
+    // editing `packages/ui-vue/src/pages/UsersPage.vue` shows up here only
+    // after `pnpm --filter @saasicat/ui-vue build`. That is a real cost of
+    // shipping the components built; it is written down rather than discovered.
     optimizeDeps: {
         exclude: ['@saasicat/ui-vue', '@saasicat/core'],
     },

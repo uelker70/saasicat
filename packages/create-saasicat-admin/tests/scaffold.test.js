@@ -39,7 +39,11 @@ describe('walkTemplates', () => {
         assert.ok(rels.includes('package.json'), 'package.json missing');
         assert.ok(rels.includes('src/main.ts'), 'src/main.ts missing');
         assert.ok(rels.includes('src/router/routes.ts'), 'router/routes.ts missing');
-        assert.ok(rels.includes('src/styles/theme.scss'), 'styles/theme.scss missing');
+        // No `src/styles/theme.scss`: it existed to hand Quasar's Sass
+        // variables to `@quasar/vite-plugin`, and since ADR 0011 a generated
+        // admin compiles no Sass at all — the brand colour is
+        // `createSuperAdminApp({ brand: { color } })`.
+        assert.ok(rels.includes('vite.config.ts'), 'vite.config.ts missing');
     });
 });
 

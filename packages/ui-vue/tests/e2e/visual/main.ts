@@ -42,6 +42,7 @@ import { SA_THEME_KEY, createSaTheme, type SaColorScheme } from '../../../src/vu
 import { bindSaThemeToDocument } from '../../../src/quasar/dark-bridge.js';
 import { FIXTURE_MANIFEST, respondTo, unmatchedRequests } from './fixture-data.js';
 import { VISUAL_CASES } from './pages.js';
+import { applyBrandColour } from '../../../src/client/brand-bridge.js';
 
 // Fixture bootstrap for the visual baselines.
 //
@@ -228,6 +229,9 @@ app.provide(
     }),
 );
 
+/** The brand colour `create-saasicat-admin` gives a freshly scaffolded app. */
+const SCAFFOLDED_BRAND = '#3f6bff';
+
 // The theme, wired exactly as `createSuperAdminApp()` wires it — through the
 // shipped bridge rather than through an imitation of it. The first version of
 // the theme test set `data-sa-theme` by hand and reported nineteen pages of
@@ -238,6 +242,15 @@ app.provide(
 const theme = createSaTheme({ persist: false });
 bindSaThemeToDocument(theme);
 app.provide(SA_THEME_KEY, theme);
+
+// The palette, through the shipped bridge for the same reason. `SCAFFOLDED_BRAND`
+// is the colour `create-saasicat-admin` writes into a new app's `main.ts`, and
+// `tests/scaffolder-brand-defaults.test.js` fails if the two drift: the accent
+// is an INPUT to every colour the baselines record, so a fixture branded
+// differently measures a screen no user ever sees. That is not hypothetical —
+// the fixture this replaces carried its own Sass file, and it had drifted from
+// the scaffolder on `$warning`.
+applyBrandColour(SCAFFOLDED_BRAND);
 
 app.mount('#app');
 // Endpoints the fixture was asked for and does not have. The spec reads this

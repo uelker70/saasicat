@@ -109,6 +109,19 @@ body.body--dark {
     --sa-color-info-surface-strong: color-mix(in srgb, var(--sa-blue-500) 24%, transparent);
     --sa-color-info-border: color-mix(in srgb, var(--sa-blue-500) 36%, transparent);
 
+    /* The filled status surfaces do not flip — see the light file, which
+     * carries the reasoning. Repeated here so an override written on this
+     * selector is heard: a custom property resolves on the element it is
+     * declared on, and Quasar's components live under the body. */
+    --sa-color-positive-solid: var(--sa-green-700);
+    --sa-color-warning-solid: var(--sa-amber-700);
+    --sa-color-negative-solid: var(--sa-red-600);
+    --sa-color-info-solid: var(--sa-blue-600);
+    --q-positive: var(--sa-color-positive-solid);
+    --q-negative: var(--sa-color-negative-solid);
+    --q-warning: var(--sa-color-warning-solid);
+    --q-info: var(--sa-color-info-solid);
+
     --sa-color-scheduled: var(--sa-indigo-400);
     --sa-color-scheduled-strong: var(--sa-indigo-400);
     --sa-color-scheduled-fg: var(--sa-indigo-200);

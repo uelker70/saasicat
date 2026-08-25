@@ -18,6 +18,7 @@ import { createSSRApp, defineComponent, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 
 import { useDialog, useSteps } from '../dist/index.js';
+import { applyBrandColour } from '../dist/client/index.js';
 
 test('the premise holds: there is no document here', () => {
     // Without this the assertions below pass for the wrong reason on any day
@@ -73,5 +74,15 @@ describe('a wizard renders on the server', () => {
         const html = await renderToString(createSSRApp(Host));
         assert.match(html, /step: choose/);
         assert.match(html, /\(upcoming\)/);
+    });
+});
+
+describe('the brand bridge on a server', () => {
+    // It writes to `document.documentElement`, which is the one thing a server
+    // does not have. The undo comes back either way, so a caller can dispose
+    // without asking where it is running — the shape that broke here before was
+    // a function that returned nothing on one of its paths.
+    test('applying a brand colour is a no-op, and so is undoing it', () => {
+        assert.doesNotThrow(() => applyBrandColour('#3f6bff')());
     });
 });

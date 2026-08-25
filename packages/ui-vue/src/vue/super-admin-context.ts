@@ -24,6 +24,20 @@ export interface SuperAdminBrand {
     name: string;
     /** Optional: tag to the right of the name, default `'SuperAdmin'`. */
     tag?: string;
+    /**
+     * The brand colour, as any CSS colour value.
+     *
+     * One value moves both namespaces, because the theme was built that way:
+     * `--sa-color-accent` is declared as `var(--q-primary, …)`, so writing
+     * Quasar's variable carries the platform's accent role with it.
+     *
+     * This replaces setting `$primary` in a Quasar Sass configuration. That
+     * route resolved at the CONSUMER's build, which stopped being a place
+     * Quasar is compiled once the package began shipping it built — a Sass
+     * variable cannot reach a stylesheet that was compiled somewhere else.
+     * A custom property can, because it resolves in the browser.
+     */
+    color?: string;
 }
 
 /**

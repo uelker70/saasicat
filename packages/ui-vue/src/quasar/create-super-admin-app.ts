@@ -67,11 +67,21 @@ import { bindSaThemeToDocument } from './dark-bridge.js';
 import { resolveSuperAdminEndpoints } from '../vue/platform-loaders.js';
 import { quasarNotify } from './notify.js';
 import { quasarConfirm } from './confirm.js';
+import { applyBrandColour } from '../client/brand-bridge.js';
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
     /** App root component (`App.vue`). */
     rootComponent: Component;
-    /** App branding (logo, name). */
+    /**
+     * App branding — logo, name, and the one colour.
+     *
+     * `brand.color` is where the accent is decided. Quasar has a second way in,
+     * `quasarOptions.config.brand`, and it is NOT the one to use: Quasar writes
+     * those to `<body>`, while `--sa-color-accent` is computed on `:root` and
+     * never sees them. Set both and the light theme takes one value (the roles
+     * are declared on `:root`) and the dark theme the other (declared on
+     * `body.body--dark`) — an accent that changes when the scheme does.
+     */
     brand: SuperAdminBrand;
     /** Endpoint configuration. */
     endpoints: SuperAdminEndpoints;
@@ -300,6 +310,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
             (typeof configuredDark === 'boolean' ? (configuredDark ? 'dark' : 'light') : undefined),
     });
     const stopThemeBridge = bindSaThemeToDocument(theme);
+    const restoreBrandColour = applyBrandColour(options.brand.color);
 
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);
@@ -358,6 +369,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
         mount: (selector) => app.mount(selector),
         dispose: () => {
             stopThemeBridge();
+            restoreBrandColour();
             theme.dispose();
         },
     };

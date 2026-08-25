@@ -38,8 +38,7 @@ Generates this directory structure:
 │   ├── main.ts                       (calls createSuperAdminApp)
 │   ├── App.vue                       (<router-view />)
 │   ├── services/http.ts              (HTTP client + adminLogin stub)
-│   ├── router/routes.ts              (all standard pages)
-│   └── styles/theme.scss
+│   └── router/routes.ts              (all standard pages)
 └── README.md
 ```
 

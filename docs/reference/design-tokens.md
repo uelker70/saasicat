@@ -129,6 +129,7 @@ Sizes, identical in every theme. Spacing, type, radii, shadows, z-index and moti
 | `--sa-tracking-normal` | `0`                 |
 | `--sa-tracking-wide`   | `0.04em`            |
 | `--sa-tracking-wider`  | `0.06em`            |
+| `--sa-radius-hero`     | `16px`              |
 | `--sa-radius-section`  | `14px`              |
 | `--sa-radius-card`     | `12px`              |
 | `--sa-radius-head`     | `10px`              |
@@ -199,6 +200,10 @@ the moment somebody flips the switch.
 | `--sa-color-info-surface`                  | `var(--sa-blue-50)`                                                            | `color-mix(in srgb, var(--sa-blue-500) 14%, transparent)`                      |
 | `--sa-color-info-surface-strong`           | `var(--sa-blue-100)`                                                           | `color-mix(in srgb, var(--sa-blue-500) 24%, transparent)`                      |
 | `--sa-color-info-border`                   | `var(--sa-blue-200)`                                                           | `color-mix(in srgb, var(--sa-blue-500) 36%, transparent)`                      |
+| `--sa-color-positive-solid`                | `var(--sa-green-700)`                                                          | `var(--sa-green-700)`                                                          |
+| `--sa-color-warning-solid`                 | `var(--sa-amber-700)`                                                          | `var(--sa-amber-700)`                                                          |
+| `--sa-color-negative-solid`                | `var(--sa-red-600)`                                                            | `var(--sa-red-600)`                                                            |
+| `--sa-color-info-solid`                    | `var(--sa-blue-600)`                                                           | `var(--sa-blue-600)`                                                           |
 | `--sa-color-scheduled`                     | `var(--sa-indigo-700)`                                                         | `var(--sa-indigo-400)`                                                         |
 | `--sa-color-scheduled-strong`              | `var(--sa-indigo-400)`                                                         | `var(--sa-indigo-400)`                                                         |
 | `--sa-color-scheduled-fg`                  | `var(--sa-indigo-700)`                                                         | `var(--sa-indigo-200)`                                                         |

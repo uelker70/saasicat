@@ -1,7 +1,9 @@
 // Typecheck the source this package SHIPS, the way a consumer compiles it.
 //
-// Several export subpaths hand out `.vue` and `.ts` from `src/` rather than a
-// build (decision E3 — consumers need the source for Quasar and Sass theming).
+// Several export subpaths hand out `.vue` and `.ts` from `src/` under their
+// `types` condition; `default` points at the build (ADR 0011). The consumer's
+// bundler therefore loads `dist/`, and their TYPECHECKER reads these files —
+// which is why the floor below is theirs and not ours.
 // The list is NOT written here, because it moves: `./pages-standard/*` and
 // `./components/*` were two of them until phase 4 removed both. It is derived
 // from the export map below, and the count is printed on every run.

@@ -54,7 +54,7 @@
                             />
                             <q-badge
                                 v-if="row.invitationStatus === 'PENDING'"
-                                color="amber-7"
+                                color="warning"
                                 :label="msg.badgePending"
                                 class="q-ml-xs"
                             />

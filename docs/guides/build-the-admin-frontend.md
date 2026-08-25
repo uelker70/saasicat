@@ -530,7 +530,7 @@ import '@saasicat/ui-vue/theme.css';
 ```
 
 The tenant pages read the same colour roles as the admin — which is what lets
-one `$primary` brand both — and without the stylesheet those roles resolve to
+one `brand.color` brand both — and without the stylesheet those roles resolve to
 nothing. The file is safe to load next to your own design: every selector in it is either
 a `.sa-`-prefixed class of ours or sits under `.sa-page`, so nothing reaches an
 element of yours unless you use our class names. There is no bare element rule.

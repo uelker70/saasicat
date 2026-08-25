@@ -1,6 +1,18 @@
 # ADR 0005 — Ship the SFC source, not a build
 
-**Status:** accepted · **Date:** 2026-07-10
+**Status:** superseded in part by [ADR 0011](0011-admin-ui-bundles-quasar.md) ·
+**Date:** 2026-07-10
+
+`@saasicat/ui-vue` builds its components now: the runtime half of this record no
+longer describes it. What still holds, and why it is not simply replaced — the
+premise that expired was Quasar's Sass variables, and ADR 0011 says which
+measurement retired it.
+
+Two parts of this record are still live. `@saasicat/ui-vue-tenant` ships nothing
+but source, for the reason below. And the **language floor** governs both
+packages: `@saasicat/ui-vue` still hands out its `.vue` sources for TypeScript
+through the `types` condition, so a consumer's compiler still reads them and
+ES2021 is still the ceiling.
 
 ## Context
 

@@ -38,7 +38,34 @@ const LAYERS = [
  * parentheses, commas and nested `var()` calls, and the only thing that ends a
  * declaration is the first `;` at depth zero.
  */
-export function declarations(css) {
+/**
+ * Blanks `/* … *\/` runs, keeping every other byte where it was.
+ *
+ * Prose mentions token names — this file's own comments do — and a scanner that
+ * reads comments reads those as declarations. Blanking rather than deleting so
+ * offsets still describe the file the caller passed in.
+ *
+ * Exported because this repository has now made the same mistake four times in
+ * one afternoon: token names read out of prose here, a `describe(` read out of
+ * a doc comment in the suite guard, and a `{` inside a commented-out example
+ * selector taken for the start of a block. One implementation, one answer.
+ */
+export function withoutComments(css) {
+    let out = '';
+    let index = 0;
+    while (index < css.length) {
+        const open = css.indexOf('/*', index);
+        if (open === -1) return out + css.slice(index);
+        const close = css.indexOf('*/', open + 2);
+        const end = close === -1 ? css.length : close + 2;
+        out += css.slice(index, open) + ' '.repeat(end - open);
+        index = end;
+    }
+    return out;
+}
+
+export function declarations(source) {
+    const css = withoutComments(source);
     const found = [];
     let index = 0;
     while (index < css.length) {
@@ -53,8 +80,14 @@ export function declarations(css) {
         // newline of whitespace.
         const before = css.slice(0, start).trimEnd();
         const previous = before.charAt(before.length - 1);
-        if (!['{', ';', '', '*', '/'].includes(previous) || name.includes(' ')) {
-            index = colon + 1;
+        if (!['{', ';', ''].includes(previous) || name.includes(' ')) {
+            // Past the NAME, not past the colon. A rejected candidate's next
+            // colon can belong to the declaration AFTER it — a `--sa-` in a
+            // selector or an attribute value begins nothing and has no colon of
+            // its own — so advancing there drops that declaration silently.
+            // Not what emptied the roles table (blanking comments is), but the
+            // same shape of mistake one line down.
+            index = start + '--sa-'.length;
             continue;
         }
 

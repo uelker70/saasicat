@@ -17,11 +17,15 @@
 //   - i18n:                 SaLocale, typed DE/EN catalogs, formatMessage
 //   - version:              ADMIN_UI_VERSION
 
+export * from './brand-bridge.js';
 export * from './version.js';
 export * from './types.js';
 export * from './http/index.js';
 export * from './resources/index.js';
 export * from './admin-error.js';
+// Named in CONTRIBUTING as the ES2021 stand-in for `new Error(msg, { cause })`,
+// so it was already API in every sense except this line.
+export * from './attach-cause.js';
 export * from './http-json.js';
 export * from './boot-loader.js';
 export * from './manifest-loader.js';

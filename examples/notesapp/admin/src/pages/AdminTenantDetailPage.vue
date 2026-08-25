@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { QTableColumn } from 'quasar';
+import type { QTableColumn } from '@saasicat/ui-vue/quasar';
 import PlatformTenantDetailPage from '@saasicat/ui-vue/pages/TenantDetailPage.vue';
 import type { TenantDetailPageOptions } from '@saasicat/ui-vue/pages/TenantDetailPage.vue';
 import { useManifestStore } from '../stores/manifest';

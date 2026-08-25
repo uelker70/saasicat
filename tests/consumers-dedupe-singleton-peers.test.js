@@ -73,8 +73,16 @@ describe('a consumer resolves one copy of every singleton peer', () => {
         // Without this the loop below passes for every config the moment the
         // manifest is renamed or the field disappears — the vacuum-green shape
         // this repo has been caught by before.
-        assert.ok(peers.length >= 4, `only ${peers.length} peers found`);
-        assert.deepEqual(peers, ['pinia', 'quasar', 'vue', 'vue-router']);
+        assert.ok(peers.length >= 3, `only ${peers.length} peers found`);
+        // `quasar` left this set when the package began bundling the framework
+        // (ADR 0011): it is a `dependencies` entry now, so a consumer no longer
+        // declares it and cannot be asked to dedupe a peer they do not have.
+        //
+        // A consumer who uses Quasar for their OWN application still should —
+        // two plugin instances mean `Dark.set()` in one leaves the other light.
+        // That is their singleton, not this package's, which is why the upgrade
+        // guide says it and this list does not.
+        assert.deepEqual(peers, ['pinia', 'vue', 'vue-router']);
     });
 
     for (const relative of CONSUMER_CONFIGS) {

@@ -1,10 +1,13 @@
 // Bootstrap. createSuperAdminApp wires up Quasar + Pinia + Router + guards.
 
-import 'quasar/src/css/index.sass';
-import '@quasar/extras/material-icons/material-icons.css';
-// Platform page styles (sa-* classes + CSS variables). Without it the
-// standard pages render unstyled.
+// Every stylesheet the admin needs, all from the one package you installed.
+// The components are built (ADR 0011), so their styles arrive as `style.css`
+// rather than being compiled by your build — without it the standard pages
+// render unstyled.
+import '@saasicat/ui-vue/quasar.css';
+import '@saasicat/ui-vue/icons.css';
 import '@saasicat/ui-vue/theme.css';
+import '@saasicat/ui-vue/style.css';
 
 import { createSuperAdminApp } from '@saasicat/ui-vue/quasar';
 import App from './App.vue';
@@ -15,7 +18,20 @@ import { useManifestStore } from './stores/manifest';
 
 const handle = createSuperAdminApp({
     rootComponent: App,
-    brand: { logoText: '__LOGO_TEXT__', name: '__BRAND_NAME__' },
+    // `color` is the ONE place your admin's brand colour is decided:
+    // `--sa-color-accent` reads Quasar's `--q-primary`, which this writes, so
+    // the hero, the buttons, the focus ring, the tinted surfaces, Quasar's own
+    // components and the tenant-facing pages all follow. There is no second
+    // switch — with one trap beside it: Quasar's own `config.brand` writes to
+    // `<body>`, where the accent role cannot see it. Leave that one alone.
+    //
+    // The default is SaaSiCat's own, so a fresh admin looks like the
+    // documentation until you decide otherwise.
+    //
+    // One caveat if you pick a LIGHT brand: text on accent-filled controls is
+    // white, and CSS cannot work out that white on a light amber is 2.15:1.
+    // Override `--sa-color-fg-on-accent` in your own CSS if so — in both themes.
+    brand: { logoText: '__LOGO_TEXT__', name: '__BRAND_NAME__', color: '#3f6bff' },
     endpoints: ADMIN_ENDPOINTS,
     appRoutes,
     loginAdapter: { login: adminLogin },

@@ -359,10 +359,28 @@ test.describe('both themes are readable', () => {
             await reveal(page, visualCase.revealBy ?? [], visualCase.id);
 
             const light = await read(page);
+
+            // An overlay renders a card's worth of strings, a page renders a
+            // screen's worth, and "nothing to judge" is a different number for
+            // the two — `mfa-prompt` has five and the page floor called it
+            // empty. The case declares which it is; this checks the
+            // declaration rather than trusting it, because a page mislabelled
+            // `overlay` would quietly lower its own floor. An overlay is an
+            // overlay by rendering into a portal instead of into the app root.
+            const isOverlay = visualCase.kind === 'overlay';
+            if (isOverlay) {
+                const inRoot = await page.evaluate(
+                    () => document.querySelector('#app')?.textContent?.trim() ?? '',
+                );
+                expect(
+                    inRoot,
+                    `${visualCase.id} is declared an overlay but fills the app root`,
+                ).toBe('');
+            }
             expect(
                 light.painted.length,
                 `${visualCase.id} rendered no text to judge`,
-            ).toBeGreaterThan(5);
+            ).toBeGreaterThan(isOverlay ? 1 : 5);
 
             // Preconditon for the pages that put text on a gradient: those
             // elements have to have been READ, not skipped. Without this, the
