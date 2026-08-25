@@ -189,11 +189,22 @@ describe('the bundle keeps its own', () => {
         expect(button?.getAttribute('aria-label')).toBeTruthy();
     });
 
+    test('it is not a button inside a button', async () => {
+        // `AdminAccordion` renders its `header` slot INSIDE the disclosure
+        // `<button>`. A control placed there is interactive content nested in a
+        // button: invalid markup, and neither a keyboard nor a screen reader
+        // can tell toggling from deleting. `@click.stop` — which is what this
+        // first shipped with — suppresses the toggle and none of the rest.
+        const wrapper = mountPage(async () => ({ ok: false }));
+        await settle();
+
+        const remove = wrapper.element.querySelector('.sa-bd-card__delete')!;
+        expect(remove.closest('button')).toBe(remove);
+    });
+
     test('deleting does not also expand the row it removes', async () => {
-        // The header is the accordion's toggle. Without `@click.stop` the same
-        // click opens the bundle and asks to delete it.
-        // With a port, because clicking really does ask: without one the page
-        // falls through to Quasar's Dialog, which this harness does not install.
+        // Which follows from the slot rather than from a modifier: the actions
+        // slot is a sibling of the trigger, so the click never reaches it.
         const wrapper = mountPage(async () => ({ ok: false }));
         await settle();
         const page = wrapper.vm as unknown as { openKey: string | null };
