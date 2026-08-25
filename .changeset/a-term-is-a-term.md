@@ -159,12 +159,27 @@ landed. Booking, pricing a purchase and reactivating are refused there;
 listing, cancelling and pricing a cancellation stay open, because a tenant who
 has left still has bookings to recognise and invoices to explain.
 
+**A bundle cannot commit past the subscription that pays for it.** A twelve-month
+default term on a subscription ending in three weeks binds a customer to
+something with three weeks left to give, and once the parent ends the booking
+grants nothing. The term is clamped to the parent's end rather than the purchase
+refused: somebody who cancelled for the end of the month may still want a bundle
+for this month, and a bundle is priced per period rather than per term, so a
+shorter commitment cannot overcharge them. `addBundleToSubscription` takes
+`parentEndsAt`.
+
 **A frozen contract ends when the subscription does.** Left active, it outlived
 the agreement it froze: entitlement resolution granted nothing while
 `getActiveInvoiceSnapshotForTenant()` went on reporting a live contract — two
 answers to "is this customer under contract", and the one that bills said yes.
 `ContractFreezePort` gains `endOnCancellation`, and the cancel route calls it
-with the same effective date, non-fatally as every other use of that port.
+with the same effective date, non-fatally as every other use of that port. It
+ends the contract _by date_: `TerminateSubscriptionContractData.status` accepts
+null, and the active lookup is already a window, so a cancellation declared
+months ahead leaves the agreement findable until it lands. Writing a terminal
+status there would be the opposite mistake and the worse one — the customer is
+still under contract, still paying, and it would have vanished from every lookup
+the moment they declared.
 
 **Onboarding is a first activation, and a contract that is over is not one.**
 The route refuses a subscription whose cancellation has landed, and its write —

@@ -695,6 +695,9 @@ export class TenantBillingController {
                         subscriptionId: sub.id,
                         bundleVersionId,
                         currentPlanKey: planResult.plan,
+                        // Onboarding refuses an ended subscription above, and a
+                        // cancellation still outstanding still caps the term.
+                        parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                     });
                     bundlesAdded += 1;
                 } catch (err) {

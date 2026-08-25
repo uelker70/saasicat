@@ -77,7 +77,20 @@ export interface CreateSubscriptionContractData {
 
 export interface TerminateSubscriptionContractData {
     effectiveUntil: Date;
-    status: Extract<SubscriptionContractStatus, 'terminated' | 'superseded'>;
+    /**
+     * The terminal status, or `null` to end the contract by date alone.
+     *
+     * `findActiveByTenantId` already asks its question as a window —
+     * `effectiveFrom <= asOf` and `effectiveUntil` null or after it — so a
+     * contract given an end in the FUTURE is found until that moment and not
+     * afterwards, with no scheduled job to flip anything.
+     *
+     * Writing a terminal status instead makes the contract disappear from that
+     * lookup at once, which for a cancellation declared months ahead removes an
+     * agreement the customer is still under. Null is how a caller says "it ends
+     * then", and a status is how it says "it is over now".
+     */
+    status: Extract<SubscriptionContractStatus, 'terminated' | 'superseded'> | null;
 }
 
 export interface SubscriptionContractFilter {

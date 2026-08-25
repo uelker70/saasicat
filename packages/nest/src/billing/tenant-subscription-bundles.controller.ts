@@ -121,6 +121,8 @@ export function buildTenantSubscriptionBundlesController(
                 // Plan KEY (compatibility.planIds is key-based) — not the planVersion UUID.
                 currentPlanKey: sub.plan,
                 minimumTermMonths: dto.minimumTermMonths,
+                // A bundle cannot commit past the subscription paying for it.
+                parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             });
             await this.refreezeContract(tenantId, sub);
             return result;

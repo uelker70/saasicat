@@ -1,7 +1,10 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildTenantSubscriptionBundlesController } from '../dist/billing/index.js';
+import {
+    SubscriptionBundlesService,
+    buildTenantSubscriptionBundlesController,
+} from '../dist/billing/index.js';
 
 // A bundle hangs off the subscription that pays for it.
 //
@@ -156,5 +159,78 @@ describe('while the subscription is running', () => {
         await ctrl.add(REQ, { bundleVersionId: 'bv-1' });
 
         assert.equal(calls.added, 1);
+    });
+});
+
+describe('what a bundle may commit to', () => {
+    // The other half of the boundary, and the one that costs money rather than
+    // access: a bundle cannot bind a customer past the subscription that pays
+    // for it. A twelve-month default term on a subscription ending in three
+    // weeks is a commitment with three weeks left to give.
+    //
+    // Clamped rather than refused. Somebody who cancelled for the end of the
+    // month may still want a bundle for this month, and the bundle price is per
+    // period rather than per term — so a shorter commitment cannot overcharge
+    // them, only stop binding them beyond what they can use.
+    function service() {
+        const added = [];
+        const svc = new SubscriptionBundlesService(
+            {
+                add: async (data) => {
+                    added.push(data);
+                    return { id: 'sb-1', ...data };
+                },
+                listBySubscription: async () => [],
+                listActiveBySubscription: async () => [],
+                findById: async () => null,
+            },
+            {
+                findVersionById: async () => ({
+                    id: 'bv-1',
+                    bundleId: 'b-1',
+                    publishedAt: new Date('2025-01-01'),
+                    supersededAt: null,
+                    compatibility: {},
+                    features: ['F'],
+                }),
+            },
+            { defaultMinimumTermMonths: 12 },
+        );
+        return { svc, added };
+    }
+
+    const book = (svc, parentEndsAt) =>
+        svc.addBundleToSubscription({
+            subscriptionId: 'sub-1',
+            bundleVersionId: 'bv-1',
+            currentPlanKey: 'STANDARD',
+            startedAt: new Date('2026-01-01'),
+            parentEndsAt,
+        });
+
+    test('never past the parent, when the parent ends first', async () => {
+        const { svc, added } = service();
+
+        await book(svc, new Date('2026-02-01'));
+
+        assert.deepEqual(added[0].minimumTermEndsAt, new Date('2026-02-01'));
+    });
+
+    test('and its own term when that ends first', async () => {
+        // The premise: the clamp takes the earlier date, it does not replace
+        // one rule with the other.
+        const { svc, added } = service();
+
+        await book(svc, new Date('2030-01-01'));
+
+        assert.deepEqual(added[0].minimumTermEndsAt, new Date('2027-01-01'));
+    });
+
+    test('and the full term where nothing ends the parent', async () => {
+        const { svc, added } = service();
+
+        await book(svc, null);
+
+        assert.deepEqual(added[0].minimumTermEndsAt, new Date('2027-01-01'));
     });
 });

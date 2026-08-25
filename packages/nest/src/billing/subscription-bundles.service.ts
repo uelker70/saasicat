@@ -58,6 +58,20 @@ export interface AddBundleToSubscriptionInput {
      * (`minimumTermEndsAt = null`).
      */
     minimumTermMonths?: number;
+    /**
+     * When the parent subscription ends, or null while it runs on.
+     *
+     * A bundle cannot commit past the subscription that pays for it. With a
+     * cancellation outstanding, a twelve-month default term on a subscription
+     * ending in three weeks binds a customer to something that has three weeks
+     * left to give — and once the parent ends, entitlement resolution grants
+     * nothing through it.
+     *
+     * Required rather than optional: a caller that omits it commits the
+     * customer for longer than the contract can deliver, and the omission is
+     * invisible.
+     */
+    parentEndsAt: Date | null;
 }
 
 export interface CancelBundleFromSubscriptionInput {
@@ -176,8 +190,15 @@ export class SubscriptionBundlesService {
 
         const startedAt = input.startedAt ?? new Date();
         const minimumTermMonths = input.minimumTermMonths ?? this.defaultMinTermMonths;
-        const minimumTermEndsAt =
-            minimumTermMonths > 0 ? addMonths(startedAt, minimumTermMonths) : null;
+        // Clamped to the parent's end rather than refused there. A customer who
+        // has cancelled for the end of the month may still want a bundle for
+        // this month, and the bundle price is per period rather than per term —
+        // so a shorter commitment cannot overcharge them, it only stops binding
+        // them beyond what they can use.
+        const minimumTermEndsAt = clampToParent(
+            minimumTermMonths > 0 ? addMonths(startedAt, minimumTermMonths) : null,
+            input.parentEndsAt,
+        );
 
         return this.repo.add({
             subscriptionId: input.subscriptionId,
@@ -274,4 +295,14 @@ export function addMonths(date: Date, months: number): Date {
     const out = new Date(date.getTime());
     out.setUTCMonth(out.getUTCMonth() + months);
     return out;
+}
+
+/**
+ * The earlier of a bundle's own minimum term and the end of the subscription
+ * it hangs off. Null on either side means "no end from that direction".
+ */
+function clampToParent(ownTermEndsAt: Date | null, parentEndsAt: Date | null): Date | null {
+    if (parentEndsAt === null) return ownTermEndsAt;
+    if (ownTermEndsAt === null) return parentEndsAt;
+    return ownTermEndsAt < parentEndsAt ? ownTermEndsAt : parentEndsAt;
 }

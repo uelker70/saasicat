@@ -321,7 +321,9 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         if (!existing) throw new Error(`SubscriptionContract '${contractId}' not found`);
         const updated: SubscriptionContractRecord = {
             ...existing,
-            status: data.status,
+            // Null means "end it by date": the row keeps the status it has and
+            // leaves the active window when `effectiveUntil` passes.
+            status: data.status ?? existing.status,
             effectiveUntil: new Date(data.effectiveUntil),
             updatedAt: new Date(),
         };
