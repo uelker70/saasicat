@@ -99,13 +99,33 @@ describe('clearPendingPlanVersionFields', () => {
 });
 
 describe('computeNextPeriod', () => {
-    test('null when canceledAt set', () => {
+    // A declared cancellation used to stop the renewal, and that was right while
+    // `canceledAt` doubled as the effective date. It no longer does: a
+    // subscription cancelled in month three of a year still runs, is still
+    // billed and still entitled until the term ends. Stopping its renewal would
+    // end it nine months early — for the customer who said so politely in time.
+    test('a declared cancellation does not stop the period from rolling', () => {
+        const next = computeNextPeriod(
+            {
+                currentPeriodEnd: new Date('2026-04-01'),
+                billingCycle: 'MONTHLY',
+                canceledAt: new Date('2026-03-15'),
+                canceledEffectiveAt: new Date('2026-06-01'),
+            },
+            NOW,
+        );
+        assert.notEqual(next, null);
+        assert.deepEqual(next.currentPeriodStart, new Date('2026-04-01'));
+    });
+
+    test('a landed cancellation does', () => {
         assert.equal(
             computeNextPeriod(
                 {
                     currentPeriodEnd: new Date('2026-04-01'),
                     billingCycle: 'MONTHLY',
-                    canceledAt: new Date('2026-04-15'),
+                    canceledAt: new Date('2026-03-15'),
+                    canceledEffectiveAt: new Date('2026-04-01'),
                 },
                 NOW,
             ),
@@ -113,10 +133,31 @@ describe('computeNextPeriod', () => {
         );
     });
 
+    test('the renewed period is also the renewed commitment', () => {
+        // The minimum term IS the billing period, and it renews with it. Read
+        // back from the roll rather than reconstructed later from a start date
+        // and a cycle, which is where the two would drift.
+        const next = computeNextPeriod(
+            {
+                currentPeriodEnd: new Date('2026-04-01'),
+                billingCycle: 'MONTHLY',
+                canceledAt: null,
+                canceledEffectiveAt: null,
+            },
+            NOW,
+        );
+        assert.deepEqual(next.minimumTermUntil, next.currentPeriodEnd);
+    });
+
     test('null when currentPeriodEnd null (Trial)', () => {
         assert.equal(
             computeNextPeriod(
-                { currentPeriodEnd: null, billingCycle: 'YEARLY', canceledAt: null },
+                {
+                    currentPeriodEnd: null,
+                    billingCycle: 'YEARLY',
+                    canceledAt: null,
+                    canceledEffectiveAt: null,
+                },
                 NOW,
             ),
             null,
@@ -130,6 +171,7 @@ describe('computeNextPeriod', () => {
                     currentPeriodEnd: new Date('2026-06-01'),
                     billingCycle: 'MONTHLY',
                     canceledAt: null,
+                    canceledEffectiveAt: null,
                 },
                 NOW,
             ),

@@ -670,6 +670,14 @@ const TENANT_USAGE: UsageSnapshotShape = {
     },
     usage: { users: 18, storage: 31.5, projects: 4 },
     packageSnapshot: null,
+    canceledAt: null,
+    canceledEffectiveAt: null,
+    cancellation: {
+        effectiveAt: '2026-12-31T00:00:00.000Z',
+        termEndsAt: '2026-12-31T00:00:00.000Z',
+        noticeDeadline: null,
+        afterNoticeDeadline: false,
+    },
     checkoutOfferId: null,
 };
 
@@ -759,6 +767,8 @@ const TENANT_CATALOG_BUNDLES = [
  */
 export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = {
     changeType: 'UPGRADE',
+    planDirection: 'UP',
+    cycleDirection: 'SAME',
     current: {
         plan: {
             id: 'pl-1',

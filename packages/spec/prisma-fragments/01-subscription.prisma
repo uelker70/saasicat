@@ -61,11 +61,28 @@ model Subscription {
 
     trialEndsAt DateTime?
     startedAt   DateTime?
-    canceledAt  DateTime?
+    // WHEN the customer said they want out. Never refused: a cancellation is a
+    // declaration, and `canceledEffectiveAt` is when it lands. The two are
+    // separate because a subscription cancelled in month three of a year is
+    // still running, still billed and still entitled until the term ends —
+    // rendering it as "cancelled, gone" is how a tenant loses access they paid
+    // for. `SubscriptionBundle` already models it this way.
+    canceledAt          DateTime?
+    canceledEffectiveAt DateTime?
 
     // Renewal period (maintained by PlanVersionRenewalService).
     currentPeriodStart DateTime?
     currentPeriodEnd   DateTime?
+
+    // The end of what was committed to, which is not always the end of the
+    // period. They coincide while nothing changes, and part company the moment
+    // a notice period is configured: a cancellation declared after the window
+    // closed lands at the end of the FOLLOWING period, and this is where that
+    // date is kept rather than recomputed by whoever asks.
+    //
+    // Null means no commitment — a trial, or a subscription that predates this
+    // field. Readers treat null as "the period end is the answer".
+    minimumTermUntil DateTime?
 
     // Plan versioning — binds to a published PlanVersion.
     // `pendingPlanVersion*` concern a version change within the

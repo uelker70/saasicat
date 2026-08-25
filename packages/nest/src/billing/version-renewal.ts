@@ -76,13 +76,38 @@ export interface PeriodRollInput {
     /** Subscription.currentPeriodEnd. NULL → no period active → SKIP. */
     currentPeriodEnd: Date | null;
     billingCycle: BillingCycle;
+    /**
+     * When a cancellation was declared. Read for nothing here, deliberately.
+     *
+     * It used to stop the renewal, and that was right while it doubled as the
+     * effective date. Since the two parted company it is only "the customer
+     * said so" — a subscription cancelled in month three of a year still runs,
+     * and stopping its renewal would end it nine months early.
+     */
     canceledAt: Date | null;
+    /**
+     * When that cancellation lands. This is what stops the renewal.
+     *
+     * Null while none was declared. A period may still roll onto it: with a
+     * notice period configured, a late cancellation lands at the end of the
+     * FOLLOWING period, and that period has to exist to end.
+     */
+    canceledEffectiveAt: Date | null;
 }
 
 /** Result: the next period window or `null` (skip). */
 export interface NextPeriodWindow {
     currentPeriodStart: Date;
     currentPeriodEnd: Date;
+    /**
+     * The renewed commitment, which is the period itself.
+     *
+     * The minimum term IS the chosen billing period (rule a), it starts at
+     * activation (rule c) and it renews with the period unless a cancellation
+     * was declared first (rule d). Written on every roll so nothing has to
+     * reconstruct it later from a start date and a cycle.
+     */
+    minimumTermUntil: Date;
 }
 
 /**
@@ -93,13 +118,20 @@ export interface NextPeriodWindow {
  *   - If `canceledAt` is set → SKIP.
  *   - If `currentPeriodEnd === null` → SKIP (trial / PENDING_SALES).
  *   - If `currentPeriodEnd > now` → SKIP (period still active).
- *   - Otherwise → start := old `currentPeriodEnd`, end := periodEndAfter(start).
+ *   - If a cancellation has LANDED → SKIP. A declared one has not.
+ *   - Otherwise → start := old `currentPeriodEnd`, end := periodEndAfter(start),
+ *     and the minimum term renews with it.
  */
 export function computeNextPeriod(sub: PeriodRollInput, now: Date): NextPeriodWindow | null {
-    if (sub.canceledAt !== null) return null;
     if (sub.currentPeriodEnd === null) return null;
     if (sub.currentPeriodEnd > now) return null;
+    // A declared cancellation does not stop anything; a landed one does.
+    if (sub.canceledEffectiveAt !== null && sub.canceledEffectiveAt <= now) return null;
     const newStart = sub.currentPeriodEnd;
     const newEnd = periodEndAfter(newStart, sub.billingCycle, now);
-    return { currentPeriodStart: newStart, currentPeriodEnd: newEnd };
+    return {
+        currentPeriodStart: newStart,
+        currentPeriodEnd: newEnd,
+        minimumTermUntil: newEnd,
+    };
 }

@@ -54,6 +54,7 @@
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
                     @change-plan="showWizard = true"
+                    @cancel-subscription="showCancelConfirm = true"
                 />
 
                 <hr class="sp-divider" />
@@ -145,6 +146,64 @@
                         @click="confirmReactivateBundle"
                     >
                         {{ effectiveI18n.bundleReactivateAction }}
+                    </TenantButton>
+                </template>
+            </TenantDialog>
+
+            <!--
+                Cancellation confirmation. The date is stated BEFORE the click,
+                not reported after it: with a notice period configured, a
+                declaration four days late lands a whole period further out, and
+                that is the sentence a customer disputes if they meet it in the
+                receipt instead of in the question.
+            -->
+            <TenantDialog
+                :model-value="showCancelConfirm"
+                :title="effectiveI18n.cancelConfirmTitle"
+                size="sm"
+                @update:model-value="
+                    (open: boolean) => {
+                        if (!open) showCancelConfirm = false;
+                    }
+                "
+            >
+                <p v-if="cancellationPlan?.afterNoticeDeadline" class="sp-plan-section__warn">
+                    {{
+                        effectiveI18n.cancelConfirmLate
+                            .replace(
+                                '{deadline}',
+                                formatDate(cancellationPlan.noticeDeadline ?? ''),
+                            )
+                            .replace('{date}', formatDate(cancellationPlan.effectiveAt))
+                    }}
+                </p>
+                <p v-if="cancellationPlan">
+                    {{
+                        effectiveI18n.cancelConfirmBody.replace(
+                            '{date}',
+                            formatDate(cancellationPlan.effectiveAt),
+                        )
+                    }}
+                </p>
+
+                <template #footer>
+                    <TenantButton :disabled="canceling" @click="showCancelConfirm = false">
+                        {{ effectiveI18n.bundlePreviewClose }}
+                    </TenantButton>
+                    <TenantButton
+                        variant="solid"
+                        tone="danger"
+                        :loading="canceling"
+                        @click="confirmCancelSubscription"
+                    >
+                        {{
+                            cancellationPlan
+                                ? effectiveI18n.cancelConfirmAction.replace(
+                                      '{date}',
+                                      formatDate(cancellationPlan.effectiveAt),
+                                  )
+                                : effectiveI18n.cancelSubscriptionButton
+                        }}
                     </TenantButton>
                 </template>
             </TenantDialog>
@@ -288,6 +347,21 @@ const buyingBundleId = ref<string | null>(null);
 const cancelingBundleId = ref<string | null>(null);
 const reactivatingBundleId = ref<string | null>(null);
 const reactivateConfirmId = ref<string | null>(null);
+
+const showCancelConfirm = ref(false);
+const canceling = ref(false);
+/** What cancelling right now would do — the server's projection, not ours. */
+const cancellationPlan = computed(() => usage.value?.cancellation ?? null);
+
+async function confirmCancelSubscription(): Promise<void> {
+    canceling.value = true;
+    try {
+        await billing.cancelSubscription();
+        showCancelConfirm.value = false;
+    } finally {
+        canceling.value = false;
+    }
+}
 const bundleError = ref<string | null>(null);
 
 // Bundle preview dialog state (#37/#61)
@@ -673,6 +747,23 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 .sp-plan-section__item-price {
     color: var(--sp-text-secondary);
     font-size: var(--sa-text-md);
+}
+/* The cancellation strip and the late-notice warning.
+   Muted rather than alarming: the subscription is running normally, and the
+   only news is a date. The warning above it is the exception — a whole period
+   further out is worth a second look. */
+.sp-plan-section__canceled {
+    margin: var(--sa-space-2) 0 0;
+    color: var(--sa-color-fg-secondary);
+    font-size: var(--sa-text-sm);
+}
+.sp-plan-section__warn {
+    margin: 0 0 var(--sa-space-3);
+    padding: var(--sa-space-3);
+    border-radius: var(--sa-radius-md);
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    font-size: var(--sa-text-sm);
 }
 .sp-plan-section__item-canceled {
     color: var(--sp-text-disabled);

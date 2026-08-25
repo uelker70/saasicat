@@ -28,6 +28,7 @@ interface SubscriptionDbRow {
     billingCycle: string;
     status: string;
     canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
     currentPeriodEnd: Date | null;
     pendingPlanVersionAccepted: boolean;
     pendingPlanVersionAcceptedAt: Date | null;
@@ -264,23 +265,29 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
 
     async cancelSubscription(
         tenantId: string,
-        immediate: boolean,
-        now: Date,
-    ): Promise<{ canceledAt: Date | null; status: string }> {
+        input: { canceledAt: Date; effectiveAt: Date; terminateNow: boolean },
+    ): Promise<{ canceledAt: Date | null; canceledEffectiveAt: Date | null; status: string }> {
         const subscription = this.subscription(this.prisma);
         const sub = await subscription.findUnique({ where: { tenantId } });
         if (!sub) {
             throw new Error(`No subscription for tenant ${tenantId}.`);
         }
-        const canceledAt = immediate ? now : (sub.currentPeriodEnd ?? now);
+        // Writes what it is handed. The dates are a commercial decision — the
+        // minimum term, the notice period, whether the window had closed — and
+        // none of that is visible from here.
         const updated = await subscription.update({
             where: { tenantId },
             data: {
-                canceledAt,
-                status: immediate ? 'CANCELED' : sub.status,
+                canceledAt: input.canceledAt,
+                canceledEffectiveAt: input.effectiveAt,
+                status: input.terminateNow ? 'CANCELED' : sub.status,
             },
         });
-        return { canceledAt: updated.canceledAt, status: updated.status };
+        return {
+            canceledAt: updated.canceledAt,
+            canceledEffectiveAt: updated.canceledEffectiveAt,
+            status: updated.status,
+        };
     }
 
     private subscription(client: unknown): PrismaModelDelegateLike<SubscriptionDbRow> {

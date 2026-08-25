@@ -111,3 +111,15 @@ export interface PendingPlanQueryPort {
      */
     findDuePendingPlanChanges(now: Date): Promise<DuePendingPlanChange[]>;
 }
+
+/**
+ * Days before a term ends after which a cancellation lands one period later.
+ *
+ * Zero by default, and that is the value to leave it at unless someone asked
+ * for otherwise: with no window there is no door to be shut out of, and a
+ * customer who cancels on the last day of their year is out at the end of it.
+ * Where a window is configured the cut is hard — four days late costs a year on
+ * a yearly term — which is why `/plan` states the date before the confirmation
+ * rather than after it.
+ */
+export const CANCELLATION_NOTICE_DAYS_TOKEN = Symbol.for('saasicat/nest/CancellationNoticeDays');

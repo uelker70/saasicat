@@ -34,9 +34,28 @@
                 </template>
             </p>
         </div>
+        <!--
+            A cancelled subscription is not a gone subscription. It runs, it is
+            billed and it keeps every entitlement until `canceledEffectiveAt` —
+            which is why this says the date rather than the word, and why the
+            cancel button below disappears instead of offering the act twice.
+        -->
+        <p v-if="canceledEffectiveAt" class="sp-plan-section__canceled">
+            <strong>{{ i18n.canceledHeading }}</strong>
+            {{ i18n.canceledUntil }} {{ formatDate(canceledEffectiveAt) }}.
+            {{ i18n.canceledUnchanged }}
+        </p>
         <div class="sp-plan-section__actions">
             <TenantButton variant="solid" tone="accent" @click="emit('changePlan')">
                 {{ i18n.changePlanButton }}
+            </TenantButton>
+            <TenantButton
+                v-if="!canceledEffectiveAt"
+                variant="quiet"
+                tone="neutral"
+                @click="emit('cancelSubscription')"
+            >
+                {{ i18n.cancelSubscriptionButton }}
             </TenantButton>
         </div>
     </TenantCardSection>
@@ -44,6 +63,8 @@
 
 <script setup lang="ts">
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
+import { computed } from 'vue';
+
 import { useTenantI18n } from '../tenant-i18n.js';
 import type { BadgeTone } from '../ui/badge-tone.js';
 import TenantButton from '../ui/TenantButton.vue';
@@ -52,7 +73,7 @@ import '../ui/tenant-ui.css';
 
 const i18n = useTenantI18n();
 
-defineProps<{
+const props = defineProps<{
     usage: UsageSnapshotShape;
     currentPlanName: string;
     statusTone: BadgeTone;
@@ -67,5 +88,9 @@ defineProps<{
 
 const emit = defineEmits<{
     (e: 'changePlan'): void;
+    (e: 'cancelSubscription'): void;
 }>();
+
+/** When the cancellation lands, or null while none was declared. */
+const canceledEffectiveAt = computed(() => props.usage.canceledEffectiveAt ?? null);
 </script>

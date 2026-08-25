@@ -221,6 +221,19 @@ export interface SubscriptionUsageRecord {
     /** Current period window — for proration and change-effective date. */
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
+    /**
+     * End of what was committed to, which the period end need not equal.
+     *
+     * The cancellation rules measure against this: a subscription cancelled
+     * inside its term keeps running until the term ends, not until the period
+     * does. Null on a trial, and on any subscription written before the field
+     * existed — readers treat that as "the period end is the answer".
+     */
+    minimumTermUntil?: Date | null;
+    /** When a cancellation was declared. Null while none was. */
+    canceledAt?: Date | null;
+    /** When that cancellation lands. Null while none was declared. */
+    canceledEffectiveAt?: Date | null;
     pendingPlan: string | null;
     pendingBillingCycle: string | null;
     pendingEffectiveAt: Date | null;
@@ -385,14 +398,25 @@ export interface TenantSubscriptionWritePort {
     }>;
 
     /**
-     * Cancel the subscription. `immediate=true` → status CANCELED from now;
-     * `false` → canceledAt = currentPeriodEnd, status is preserved.
+     * Record a cancellation. The dates are decided above this port.
+     *
+     * `canceledAt` is when the customer said it; `effectiveAt` is when it
+     * lands. They differ for every ordinary cancellation, because a
+     * subscription cancelled inside its term keeps running, keeps being billed
+     * and keeps its entitlements until the term ends. An adapter that computed
+     * the second from the first — which this one did, as
+     * `immediate ? now : currentPeriodEnd` — was deciding a commercial
+     * question in a persistence layer, and could not see the minimum term or
+     * the notice period at all.
+     *
+     * `terminateNow` flips the status immediately. It exists for an operator
+     * ending a contract, not for self-service: a tenant may always declare a
+     * cancellation and may never shorten the term they are in.
      */
     cancelSubscription(
         tenantId: string,
-        immediate: boolean,
-        now: Date,
-    ): Promise<{ canceledAt: Date | null; status: string }>;
+        input: { canceledAt: Date; effectiveAt: Date; terminateNow: boolean },
+    ): Promise<{ canceledAt: Date | null; canceledEffectiveAt: Date | null; status: string }>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window

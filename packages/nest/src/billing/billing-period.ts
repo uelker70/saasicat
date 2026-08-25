@@ -6,7 +6,8 @@ import type { BillingCycle } from '@saasicat/core';
 // DST transitions cause an off-by-one-day in the UTC output. Period boundaries
 // are UTC-stable — we want "1 month later, same UTC day".
 
-function advanceOneCycle(d: Date, cycle: BillingCycle): Date {
+/** One period onwards. Exported for the cancellation rules next door. */
+export function advanceOneCycle(d: Date, cycle: BillingCycle): Date {
     const out = new Date(d);
     if (cycle === 'YEARLY') {
         out.setUTCFullYear(out.getUTCFullYear() + 1);

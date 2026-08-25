@@ -35,6 +35,21 @@ import { computeProration, type ProrationDto } from './proration.js';
 
 export type PlanChangeType = 'UPGRADE' | 'DOWNGRADE' | 'CYCLE_CHANGE' | 'NOOP';
 
+/** Where the target plan sits against the running one in the catalog order. */
+export type PlanDirection = 'UP' | 'DOWN' | 'SAME';
+
+/**
+ * Whether the target billing period is longer, shorter or the same.
+ *
+ * Its own answer, deliberately. `changeType` collapses "a better plan" and "a
+ * shorter commitment" into one word, and the two have opposite consequences: a
+ * higher plan may start today, a shorter period may not — it would end a term
+ * the customer is still inside. Asked as one question, moving from a yearly
+ * STARTER to a monthly PRO reads as `UPGRADE`, applies immediately, and ends
+ * the yearly commitment early. That is the case this split exists for.
+ */
+export type CycleDirection = 'LONGER' | 'SHORTER' | 'SAME';
+
 export interface PlanSnapshotDto {
     id: string;
     name: string;
@@ -58,6 +73,14 @@ export interface PlanChangePreviewIssue {
 
 export interface PlanChangePreviewDto {
     changeType: PlanChangeType;
+    /**
+     * The two answers `changeType` collapses into one.
+     *
+     * A page needs them apart to explain a deferred upgrade: the plan went up,
+     * the period got shorter, and it is the second that decided the date.
+     */
+    planDirection: PlanDirection;
+    cycleDirection: CycleDirection;
     current: { plan: PlanSnapshotDto; billingCycle: string };
     target: { plan: PlanSnapshotDto; billingCycle: string };
     /** For upgrade/NOOP: immediately (null). Otherwise period end. */
@@ -204,7 +227,12 @@ export class PlanChangePreviewService {
             .sort();
         const featuresGained = targetSnap.features.filter((f) => !currentFeatureSet.has(f));
 
-        const isImmediate = changeType === 'UPGRADE';
+        // An immediate change may improve the service; it may not shorten the
+        // commitment. Everything else waits for the term to end, which is where
+        // the shorter period may legitimately begin.
+        const planDirection = this.planDirection(sub.plan, targetPlan);
+        const cycleDirection = this.cycleDirection(sub.billingCycle, targetCycle);
+        const isImmediate = planDirection === 'UP' && cycleDirection !== 'SHORTER';
         const effectiveAt = isImmediate ? null : this.resolveEffectiveAt(ctx, now);
 
         const proration =
@@ -262,6 +290,18 @@ export class PlanChangePreviewService {
             });
         }
 
+        // Not a blocker: the change is allowed, it simply cannot start today.
+        // Refusing it would be wrong — the customer may have a monthly plan
+        // from the end of their term. What they may not have is the shorter
+        // commitment starting inside the one they are still paying for, and
+        // saying so before they confirm is the whole point of a preview.
+        if (planDirection === 'UP' && cycleDirection === 'SHORTER') {
+            warnings.push({
+                code: 'CYCLE_SHORTENS_AT_TERM_END',
+                message: `A ${targetCycle.toLowerCase()} ${targetSnap.name} cannot start inside the ${sub.billingCycle.toLowerCase()} term you are in. The upgrade takes effect when that term ends; to have it today, keep the ${sub.billingCycle.toLowerCase()} cycle.`,
+            });
+        }
+
         // Trial projection (app-specific) — only relevant during an active trial.
         const projectedTrialEndsAt =
             this.trialProjection && sub.status === 'TRIAL'
@@ -276,6 +316,8 @@ export class PlanChangePreviewService {
 
         return {
             changeType,
+            planDirection,
+            cycleDirection,
             current: { plan: currentSnap, billingCycle: sub.billingCycle },
             target: { plan: targetSnap, billingCycle: targetCycle },
             effectiveAt,
@@ -300,6 +342,26 @@ export class PlanChangePreviewService {
     ): Promise<PlanChangePreviewIssue[]> {
         const dto = await this.preview(tenantId, targetPlan, targetCycle, now);
         return dto.blockers;
+    }
+
+    /** Catalog order decides which plan is higher; equal keys are `SAME`. */
+    private planDirection(currentPlan: string, targetPlan: string): PlanDirection {
+        if (currentPlan === targetPlan) return 'SAME';
+        return this.planRank(targetPlan) > this.planRank(currentPlan) ? 'UP' : 'DOWN';
+    }
+
+    /**
+     * YEARLY is the longer commitment; anything else is compared against it.
+     *
+     * Written as a comparison rather than a pair of equality checks so a third
+     * cycle — quarterly is the one that keeps being asked for — orders itself
+     * instead of falling into `SAME` and quietly becoming immediate.
+     */
+    private cycleDirection(currentCycle: string, targetCycle: string): CycleDirection {
+        const rank = (cycle: string): number => (cycle === 'YEARLY' ? 1 : 0);
+        const [from, to] = [rank(currentCycle), rank(targetCycle)];
+        if (to === from) return 'SAME';
+        return to > from ? 'LONGER' : 'SHORTER';
     }
 
     private classify(

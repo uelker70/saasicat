@@ -39,22 +39,20 @@ import {
     type TenantIdResolver,
     type TrialProjectionPort,
     type UserIdResolver,
+    CANCELLATION_NOTICE_DAYS_TOKEN,
 } from './tenant-billing.tokens.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import {
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
     type SelfServiceBlockedPlans,
 } from './self-service-policy.js';
-import {
-    CancelSubscriptionDto,
-    ChangePlanDto,
-    PreviewPlanChangeDto,
-} from './dto/tenant-billing.dto.js';
+import { ChangePlanDto, PreviewPlanChangeDto } from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
+import { decideCancellation, type CancellationDecision } from './cancellation.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
     USER_EMAIL_RESOLVER_TOKEN,
@@ -95,6 +93,18 @@ interface UsageResponse {
     pendingPlanVersionEffectiveAt: Date | null;
     pendingPlanVersionAccepted: boolean;
     pendingPlanVersionAcceptedAt: Date | null;
+    /** When a cancellation was declared. Null while none was. */
+    canceledAt: Date | null;
+    /** When it lands. A tenant keeps everything until then. */
+    canceledEffectiveAt: Date | null;
+    /**
+     * What cancelling right now would do — the date, and why it is that date.
+     *
+     * A projection, not a state: it is recomputed on every read, and it says
+     * nothing about whether a cancellation exists. `canceledEffectiveAt` above
+     * is the one that does.
+     */
+    cancellation: CancellationDecision;
     limits: ReturnType<typeof toEffectiveLimitsSnapshot>;
     usage: Record<string, number>;
     /**
@@ -171,6 +181,16 @@ export class TenantBillingController {
         @Optional()
         @Inject(TRIAL_PROJECTION_PORT_TOKEN)
         private readonly trialProjection: TrialProjectionPort | null = null,
+        // Zero unless an installation asked for a notice period. See the token.
+        //
+        // LAST, and that is not stylistic: this list is also a positional
+        // signature, and inserting a parameter in the middle of it shifts every
+        // argument after it. Doing that here moved `promoCodes` into this slot
+        // and broke eleven tests in ways that read as unrelated logic errors,
+        // because nothing type-checks a boolean landing where a service was.
+        @Optional()
+        @Inject(CANCELLATION_NOTICE_DAYS_TOKEN)
+        private readonly cancellationNoticeDays: number = 0,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -228,6 +248,23 @@ export class TenantBillingController {
             pendingPlanVersionEffectiveAt: sub.pendingPlanVersionEffectiveAt,
             pendingPlanVersionAccepted: sub.pendingPlanVersionAccepted,
             pendingPlanVersionAcceptedAt: sub.pendingPlanVersionAcceptedAt,
+            canceledAt: sub.canceledAt ?? null,
+            canceledEffectiveAt: sub.canceledEffectiveAt ?? null,
+            // What a cancellation declared right now would do.
+            //
+            // Here rather than behind a second route, because the page has to
+            // state the date BEFORE the customer confirms, and the rule that
+            // produces it lives on this side: the minimum term and the notice
+            // period are not visible to a browser. With a window configured,
+            // four days of delay cost a whole period — a sentence that has to
+            // be read in the confirmation, not discovered in the receipt.
+            cancellation: decideCancellation({
+                now: new Date(),
+                currentPeriodEnd: sub.currentPeriodEnd ?? null,
+                minimumTermUntil: sub.minimumTermUntil ?? null,
+                billingCycle: sub.billingCycle as BillingCycle,
+                noticePeriodDays: this.cancellationNoticeDays,
+            }),
             limits: toEffectiveLimitsSnapshot(limits),
             usage,
             packageSnapshot: sub.packageSnapshot ?? null,
@@ -640,24 +677,52 @@ export class TenantBillingController {
 
     @Post('cancel')
     @UseGuards(TenantAdminGuard)
-    async cancelSubscription(@Req() req: RequestLike, @Body() dto: CancelSubscriptionDto) {
+    async cancelSubscription(@Req() req: RequestLike) {
         const tenantId = this.requireTenantId(req);
         const userId = this.requireUserId(req);
-        const result = await this.subscriptionWrite.cancelSubscription(
-            tenantId,
-            !!dto.immediately,
-            new Date(),
-        );
+        const now = new Date();
+
+        const sub = await this.subscriptionUsage.findForTenant(tenantId);
+        if (!sub) {
+            throw new NotFoundException({
+                code: 'NO_SUBSCRIPTION',
+                message: 'This tenant has no subscription to cancel.',
+            });
+        }
+
+        // A tenant declares; the rules decide when it lands. The request body
+        // used to carry `immediately`, and honouring it let a customer end a
+        // term they were still inside — the one thing this route may not do.
+        // Ending a contract on the spot is an operator's act, and it goes
+        // through the operator's own path.
+        const decision = decideCancellation({
+            now,
+            currentPeriodEnd: sub.currentPeriodEnd ?? null,
+            minimumTermUntil: sub.minimumTermUntil ?? null,
+            billingCycle: sub.billingCycle as BillingCycle,
+            noticePeriodDays: this.cancellationNoticeDays,
+        });
+
+        const result = await this.subscriptionWrite.cancelSubscription(tenantId, {
+            canceledAt: now,
+            effectiveAt: decision.effectiveAt,
+            terminateNow: false,
+        });
         this.entitlements.invalidateTenant(tenantId);
         await this.auditLog(req, userId, 'Subscription', tenantId, 'CANCEL_SUBSCRIPTION', {
-            immediate: !!dto.immediately,
-            canceledAt: result.canceledAt?.toISOString() ?? null,
+            canceledAt: now.toISOString(),
+            effectiveAt: decision.effectiveAt.toISOString(),
+            afterNoticeDeadline: decision.afterNoticeDeadline,
             status: result.status,
         });
         return {
             canceledAt: result.canceledAt,
+            canceledEffectiveAt: result.canceledEffectiveAt,
             status: result.status,
-            immediate: !!dto.immediately,
+            // What the page needs to say which period it landed in, and why.
+            termEndsAt: decision.termEndsAt,
+            noticeDeadline: decision.noticeDeadline,
+            afterNoticeDeadline: decision.afterNoticeDeadline,
         };
     }
 

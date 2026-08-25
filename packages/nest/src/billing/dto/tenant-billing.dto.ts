@@ -26,9 +26,17 @@ export class ChangePlanDto extends PreviewPlanChangeDto {
     effectiveImmediately?: boolean;
 }
 
-export class CancelSubscriptionDto {
-    /** true = cancel immediately (status CANCELED). false/undefined = at period end. */
-    @IsOptional()
-    @IsBoolean()
-    immediately?: boolean;
-}
+/**
+ * A cancellation carries nothing.
+ *
+ * It used to carry `immediately`, and honouring it let a tenant end a term they
+ * were still inside — the one thing this route may not do. A cancellation is a
+ * declaration; when it lands is decided from the minimum term and the notice
+ * period, not asked for. Ending a contract on the spot is an operator's act and
+ * goes through the operator's own path.
+ *
+ * Kept as an empty class rather than deleted so `whitelist` still strips a body
+ * from a client that has not been updated, instead of the field reaching a
+ * handler that would ignore it silently.
+ */
+export class CancelSubscriptionDto {}

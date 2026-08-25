@@ -530,11 +530,14 @@ model Subscription {
 
     trialEndsAt DateTime?
     startedAt   DateTime?
-    canceledAt  DateTime?
+    canceledAt          DateTime?
+    canceledEffectiveAt DateTime?
 
     // Renewal period (maintained by PlanVersionRenewalService).
     currentPeriodStart DateTime?
     currentPeriodEnd   DateTime?
+
+    minimumTermUntil DateTime?
 
     // Plan versioning — binds to a published PlanVersion.
     // `pendingPlanVersion*` concern a version change within the
