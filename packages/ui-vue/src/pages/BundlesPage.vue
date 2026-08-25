@@ -67,6 +67,7 @@
                     :aggregate-status-of="aggregateStatusOf"
                     :i18n-locale-count="i18nLocaleCount"
                     @toggle="toggle"
+                    @delete-bundle="confirmDelete"
                 >
                     <template #detail="{ bundle }">
                         <BundleDetailPanel
@@ -93,7 +94,6 @@
                             @inline-save="onInlineSave"
                             @discard-version="onDiscardVersion"
                             @publish-version="openPublish"
-                            @delete-bundle="confirmDelete"
                         />
                     </template>
                 </BundleAccordionList>
@@ -180,6 +180,7 @@ import {
 } from '../features/bundle/internal/bundle-version-status';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import { useSuperAdminConfirm } from '../quasar/confirm.js';
 import BundleAccordionList from '../internal/bundles-page/BundleAccordionList.vue';
 import BundleDetailPanel from '../internal/bundles-page/BundleDetailPanel.vue';
 import BundlesFilterBar from '../internal/bundles-page/BundlesFilterBar.vue';
@@ -339,6 +340,7 @@ onMounted(() => void reload());
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
+const askConfirm = useSuperAdminConfirm();
 
 // The pool this project declares, unless the app narrows it. Read here rather
 // than taken as a required prop: the shell already holds the manifest, and a
@@ -546,9 +548,21 @@ async function submitEdit(): Promise<void> {
 }
 
 async function confirmDelete(bundle: BundleRow): Promise<void> {
-    const ok = window.confirm(
-        formatMessage(msg.value.page.confirmSoftDelete, { bundleKey: bundle.bundleKey }),
-    );
+    // Through the platform's confirm port, like every other destructive action
+    // in this admin. `window.confirm` cannot be themed, cannot be reached by
+    // the same keyboard path, and looks like the browser rather than like the
+    // application asking — which is the wrong impression for the one dialog
+    // where a reader should slow down.
+    const { ok } = await askConfirm({
+        title: msg.value.page.confirmSoftDeleteTitle,
+        message: formatMessage(msg.value.page.confirmSoftDelete, {
+            label: bundle.label,
+            versions: versionsByBundle.value[bundle.id]?.length ?? 0,
+        }),
+        confirmLabel: msg.value.detail.softDelete,
+        cancelLabel: common.value.cancel,
+        tone: 'negative',
+    });
     if (!ok) return;
     await bundlesOps.softDelete(bundle.id);
     if (openKey.value === bundle.id) openKey.value = null;
@@ -675,7 +689,13 @@ async function onDiscardVersion(bundleId: string, versionId: string): Promise<vo
             'Discard is not wired up in the wrapper — add the `discardDraft` prop.';
         return;
     }
-    const ok = window.confirm(msg.value.page.confirmDiscardVersion);
+    const { ok } = await askConfirm({
+        title: msg.value.page.confirmDiscardVersionTitle,
+        message: msg.value.page.confirmDiscardVersion,
+        confirmLabel: common.value.discard,
+        cancelLabel: common.value.cancel,
+        tone: 'negative',
+    });
     if (!ok) return;
     inlineEditorSaving.value = true;
     inlineEditorError.value = null;
@@ -809,12 +829,6 @@ const classifyDiff = computed(() => classifyBundleVersionDiff);
 .sa-bd-col--versions {
     gap: var(--sa-space-4);
 }
-.sa-bd-version-actions {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--sa-space-4);
-    margin-top: var(--sa-space-2);
-}
 .sa-bd-section-label {
     font-size: var(--sa-text-xs);
     font-weight: 700;
@@ -865,11 +879,17 @@ const classifyDiff = computed(() => classifyBundleVersionDiff);
     font-size: var(--sa-text-2xs);
     color: var(--sa-color-warning-fg);
 }
-.sa-bd-save {
-    margin-top: var(--sa-space-3);
-    align-self: flex-start;
+/* Reinforces the disabled state of the save button beside it. The button is
+   what a screen reader hears; this is what a sighted reader sees without
+   hunting for a greyed-out control. */
+.sa-bd-dirty {
+    width: var(--sa-space-2);
+    height: var(--sa-space-2);
+    border-radius: 50%;
+    background: var(--sa-color-warning);
+    align-self: center;
 }
-.sa-bd-delete {
+.sa-bd-save {
     margin-top: var(--sa-space-3);
     align-self: flex-start;
 }

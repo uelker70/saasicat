@@ -31,6 +31,29 @@
                         <div class="sa-bd-card__name">{{ bundle.label }}</div>
                         <div class="sa-bd-card__desc">{{ bundle.description || '—' }}</div>
                     </div>
+                    <!--
+                        The bundle's own action sits on the bundle's own row.
+                        Soft-delete used to be in the card footer next to
+                        "publish this version" — one destroys every version, the
+                        other releases one, and they looked like peers in the
+                        same corner as "save".
+
+                        `@click.stop` because the header is the accordion's
+                        toggle: without it, deleting also expands the row it is
+                        about to remove.
+                    -->
+                    <q-btn
+                        class="sa-bd-card__delete"
+                        flat
+                        dense
+                        round
+                        color="negative"
+                        icon="delete"
+                        :aria-label="msg.detail.softDelete"
+                        @click.stop="emit('deleteBundle', bundle)"
+                    >
+                        <q-tooltip>{{ msg.detail.softDelete }}</q-tooltip>
+                    </q-btn>
                 </div>
             </template>
 
@@ -67,6 +90,7 @@ defineSlots<{
 
 const emit = defineEmits<{
     toggle: [bundle: BundleRow];
+    deleteBundle: [bundle: BundleRow];
 }>();
 
 const msg = useSaMessages('bundles');

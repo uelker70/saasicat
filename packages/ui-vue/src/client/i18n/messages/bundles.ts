@@ -30,9 +30,12 @@ export const bundlesMessages = defineMessages(
             emptyAfter:
                 'einen Bundle-Stamm anlegen, dann Features & Quotas in einer Draft-Version kuratieren.',
             strictWarnings: '{count} Strict-Mode-Warnung(en) bei letzter Operation',
+            confirmSoftDeleteTitle: 'Bundle soft-löschen?',
             confirmSoftDelete:
-                "Bundle '{bundleKey}' wirklich soft-deleten? Bestand bleibt durch published BundleVersions geschützt.",
-            confirmDiscardVersion: 'Diese Draft-Version verwerfen? Der Inhalt geht verloren.',
+                'Bundle „{label}“ soft-löschen? Alle {versions} Version(en) verschwinden aus der Verwaltung. Bereits verkaufte Bestände bleiben durch die published BundleVersions geschützt.',
+            confirmDiscardVersionTitle: 'Draft-Version verwerfen?',
+            confirmDiscardVersion:
+                'Diese Draft-Version verwerfen? Der bearbeitete Inhalt geht verloren und lässt sich nicht wiederherstellen.',
         },
         header: {
             title: 'Bundles',
@@ -99,6 +102,7 @@ export const bundlesMessages = defineMessages(
             noVersion:
                 'Noch keine Version. Lege eine neue Version an, um Features, Quotas & Pricing zu kuratieren.',
             publishVersion: 'Diese Version publishen',
+            unsavedChanges: 'Ungespeicherte Änderungen',
             softDelete: 'Bundle soft-deleten',
         },
         // BundleCreatePanel — inline wizard for a new bundle (root + v1 draft).
@@ -182,6 +186,7 @@ export const bundlesMessages = defineMessages(
             changeNotePlaceholder: 'z. B. Add WhatsApp + Preisanpassung +4 €',
             selectedCount: '{count} ausgewählt',
             saveTooltip: 'Änderungen speichern',
+            saveVersion: 'Version speichern',
             saveDisabledTooltip: 'Form ist invalide oder unverändert',
         },
         // BundlePlanCompatPicker — plans this bundle may be booked with.
@@ -260,9 +265,12 @@ export const bundlesMessages = defineMessages(
             emptyAfter:
                 'to create a bundle master record, then curate features & quotas in a draft version.',
             strictWarnings: '{count} strict mode warning(s) in the last operation',
+            confirmSoftDeleteTitle: 'Soft-delete bundle?',
             confirmSoftDelete:
-                "Really soft-delete bundle '{bundleKey}'? Existing contracts stay protected by published bundle versions.",
-            confirmDiscardVersion: 'Discard this draft version? Its content will be lost.',
+                'Soft-delete bundle "{label}"? All {versions} version(s) leave the administration. Contracts already sold stay protected by the published bundle versions.',
+            confirmDiscardVersionTitle: 'Discard draft version?',
+            confirmDiscardVersion:
+                'Discard this draft version? The edited content is lost and cannot be restored.',
         },
         header: {
             title: 'Bundles',
@@ -326,6 +334,7 @@ export const bundlesMessages = defineMessages(
             save: 'Save master data & translations',
             noVersion: 'No version yet. Create a new version to curate features, quotas & pricing.',
             publishVersion: 'Publish this version',
+            unsavedChanges: 'Unsaved changes',
             softDelete: 'Soft-delete bundle',
         },
         create: {
@@ -403,6 +412,7 @@ export const bundlesMessages = defineMessages(
             changeNotePlaceholder: 'e.g. Add WhatsApp + price adjustment +4 €',
             selectedCount: '{count} selected',
             saveTooltip: 'Save changes',
+            saveVersion: 'Save version',
             saveDisabledTooltip: 'Form is invalid or unchanged',
         },
         featuresEditor: {
