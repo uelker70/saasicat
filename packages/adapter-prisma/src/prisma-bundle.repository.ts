@@ -394,15 +394,31 @@ export class PrismaBundleRepository implements BundleRepository {
         versionId: string,
         publishMeta: PublishBundleVersionMeta,
     ): Promise<BundleVersionRow> {
-        const draft = await db.bundleVersion.findUnique({ where: { id: versionId } });
-        if (!draft) {
-            throw new Error(`BundleVersion '${versionId}' not found.`);
-        }
-
         const now = new Date();
+        // Claim the draft first, and only while it IS one — see the same
+        // comment in `adapter-drizzle`. Superseding the predecessor before
+        // claiming lets two concurrent publications of one draft both do work,
+        // and the stored windows end up a gap or an overlap.
+        const claimed = await db.bundleVersion.updateMany({
+            where: { id: versionId, publishedAt: null },
+            data: {
+                publishedAt: now,
+                publishedByUserId: publishMeta.publishedByUserId,
+                publishedChanges: publishMeta.publishedChanges,
+                nonRegressive: publishMeta.nonRegressive,
+                validFrom: publishMeta.validFrom,
+                validUntil: publishMeta.validUntil,
+            },
+        });
+        if (claimed.count === 0) {
+            throw new Error(`BundleVersion '${versionId}' not found or already published.`);
+        }
+        const published = await db.bundleVersion.findUnique({ where: { id: versionId } });
+        if (!published) throw new Error(`BundleVersion '${versionId}' disappeared`);
+
         await db.bundleVersion.updateMany({
             where: {
-                bundleId: draft.bundleId,
+                bundleId: published.bundleId,
                 publishedAt: { not: null },
                 supersededAt: null,
                 NOT: { id: versionId },
@@ -413,17 +429,6 @@ export class PrismaBundleRepository implements BundleRepository {
             },
         });
 
-        const published = await db.bundleVersion.update({
-            where: { id: versionId },
-            data: {
-                publishedAt: now,
-                publishedByUserId: publishMeta.publishedByUserId,
-                publishedChanges: publishMeta.publishedChanges,
-                nonRegressive: publishMeta.nonRegressive,
-                validFrom: publishMeta.validFrom,
-                validUntil: publishMeta.validUntil,
-            },
-        });
         const bundle = await db.bundle.findUnique({ where: { id: published.bundleId } });
         return toBundleVersionRow(published, bundle, true);
     }

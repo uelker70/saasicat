@@ -106,7 +106,18 @@ export class DrizzleBundleRepository implements BundleRepository {
         const rows = await this.db
             .select()
             .from(bundles)
-            .where(and(eq(bundles.projectKey, projectKey), eq(bundles.bundleKey, bundleKey)))
+            .where(
+                and(
+                    eq(bundles.projectKey, projectKey),
+                    eq(bundles.bundleKey, bundleKey),
+                    // A retired bundle is not the one this key names any more.
+                    // `list` excludes them by default and so do the other two
+                    // implementations; the service uses this as its existence
+                    // check, so an adapter that answers differently lets a key
+                    // be reused on one store and refuses it on another.
+                    isNull(bundles.deletedAt),
+                ),
+            )
             .limit(1);
         return rows[0] ? toBundleStemRow(rows[0]) : null;
     }
@@ -314,15 +325,40 @@ export class DrizzleBundleRepository implements BundleRepository {
         versionId: string,
         publishMeta: PublishBundleVersionMeta,
     ): Promise<BundleVersionRow> {
-        const draftRows = await db
-            .select()
-            .from(bundleVersions)
-            .where(eq(bundleVersions.id, versionId))
-            .limit(1);
-        const draft = draftRows[0];
-        if (!draft) throw new Error(`BundleVersion '${versionId}' not found.`);
-
         const now = new Date();
+        // Claim the draft first, and only while it IS one.
+        //
+        // Superseding the predecessor before claiming leaves two concurrent
+        // publications of the same draft both doing work: the first closes the
+        // predecessor's window with its own date, the second finds no
+        // unsuperseded predecessor left and then overwrites the successor's
+        // `validFrom` with a different one. The stored windows are a gap or an
+        // overlap afterwards, and nothing says which request produced them.
+        //
+        // Claiming first makes the loser lose before it changes anything: its
+        // update blocks on the winner's row lock and, once that commits, no
+        // longer matches `publishedAt IS NULL`.
+        const publishedRows = await db
+            .update(bundleVersions)
+            .set({
+                publishedAt: now,
+                publishedByUserId: publishMeta.publishedByUserId,
+                publishedChanges: publishMeta.publishedChanges,
+                nonRegressive: publishMeta.nonRegressive,
+                updatedAt: now,
+                ...(this.validityWindows
+                    ? { validFrom: publishMeta.validFrom, validUntil: publishMeta.validUntil }
+                    : {}),
+            })
+            .where(and(eq(bundleVersions.id, versionId), isNull(bundleVersions.publishedAt)))
+            .returning();
+        if (!publishedRows[0]) {
+            // Gone, or published by somebody else a moment ago. Either way this
+            // request wrote nothing and the caller has to look again.
+            throw new Error(`BundleVersion '${versionId}' not found or already published.`);
+        }
+        const draft = publishedRows[0];
+
         await db
             .update(bundleVersions)
             .set(
@@ -338,21 +374,6 @@ export class DrizzleBundleRepository implements BundleRepository {
                     ne(bundleVersions.id, versionId),
                 ),
             );
-
-        const publishedRows = await db
-            .update(bundleVersions)
-            .set({
-                publishedAt: now,
-                publishedByUserId: publishMeta.publishedByUserId,
-                publishedChanges: publishMeta.publishedChanges,
-                nonRegressive: publishMeta.nonRegressive,
-                updatedAt: now,
-                ...(this.validityWindows
-                    ? { validFrom: publishMeta.validFrom, validUntil: publishMeta.validUntil }
-                    : {}),
-            })
-            .where(eq(bundleVersions.id, versionId))
-            .returning();
 
         const stemRows = await db
             .select()

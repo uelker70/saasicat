@@ -698,6 +698,112 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('publishing one draft twice claims it once, and the windows stay adjacent', async (t) => {
+            // Two publications of the same draft with different validity dates.
+            // Superseding the predecessor before claiming the draft lets both
+            // do work: the first closes the predecessor with its own date, the
+            // second finds no unsuperseded predecessor left and overwrites the
+            // successor's `validFrom` with a different one — and the stored
+            // windows are then a gap or an overlap that nothing can attribute.
+            const catalog = harness.adapter.bundleRepository;
+            const publish = catalog?.publishDraft?.bind(catalog);
+            if (!catalog || !publish) {
+                t.skip('adapter provides no BundleRepository');
+                return;
+            }
+            const bundle = await catalog.create({
+                projectKey: options.projectKey,
+                bundleKey: 'CLAIM',
+                label: 'Claim',
+            });
+            const first = await catalog.createDraft({
+                bundleId: bundle.id,
+                features: ['A'],
+                quotas: {},
+            });
+            await publish(first.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+            const second = await catalog.createDraft({
+                bundleId: bundle.id,
+                baseVersionId: first.id,
+                features: ['A', 'B'],
+                quotas: {},
+            });
+
+            const publishedAt = new Date('2026-03-01T00:00:00.000Z');
+            await publish(second.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: publishedAt,
+                validUntil: null,
+            });
+            // The losing request, arriving with a different date.
+            await assert.rejects(
+                () =>
+                    publish(second.id, {
+                        publishedByUserId: null,
+                        publishedChanges: [],
+                        nonRegressive: true,
+                        validFrom: new Date('2026-06-01T00:00:00.000Z'),
+                        validUntil: null,
+                    }),
+                'a version that is already published must not be published again',
+            );
+
+            const successor = await catalog.findVersionById(second.id);
+            const predecessor = await catalog.findVersionById(first.id);
+            assert.equal(
+                successor?.validFrom && new Date(successor.validFrom).toISOString(),
+                publishedAt.toISOString(),
+                'the winning date must still stand',
+            );
+            assert.ok(predecessor?.supersededAt, 'the predecessor must be superseded');
+            if (predecessor?.validUntil) {
+                // Adjacent, not overlapping: the predecessor's last day is the
+                // day before the successor opens.
+                const closesAt = new Date(predecessor.validUntil);
+                assert.equal(
+                    closesAt.toISOString().slice(0, 10),
+                    '2026-02-28',
+                    'the predecessor must close the day before its successor opens',
+                );
+            }
+        });
+
+        test('a retired bundle is not what its key names any more', async (t) => {
+            const catalog = harness.adapter.bundleRepository;
+            const retire = catalog?.softDelete?.bind(catalog);
+            if (!catalog || !retire || !catalog.findByKey) {
+                t.skip('adapter provides no BundleRepository');
+                return;
+            }
+            const bundle = await catalog.create({
+                projectKey: options.projectKey,
+                bundleKey: 'RETIRED_KEY',
+                label: 'Retired',
+            });
+            assert.equal(
+                (await catalog.findByKey(options.projectKey, 'RETIRED_KEY'))?.id,
+                bundle.id,
+            );
+
+            await retire(bundle.id);
+            assert.equal(
+                await catalog.findByKey(options.projectKey, 'RETIRED_KEY'),
+                null,
+                'the service uses this as its existence check — a retired key is free again',
+            );
+            // …and the row is still readable by id, because a booking pinned to
+            // one of its versions has to resolve.
+            assert.ok((await catalog.findById(bundle.id))?.deletedAt);
+        });
+
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.subscriptionRepository.countByPlanVersionId) {

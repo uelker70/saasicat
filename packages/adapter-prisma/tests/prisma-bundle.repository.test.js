@@ -21,6 +21,35 @@ function bundleRow(overrides = {}) {
     };
 }
 
+/**
+ * The subset of Prisma's `where` this repository actually sends: equality, an
+ * explicit `{ not: null }`, and a single `NOT: { id }`. Anything beyond that
+ * throws rather than being quietly ignored — a matcher that shrugs at a clause
+ * it does not know answers questions it was never asked.
+ */
+function matchesVersionWhere(row, where = {}) {
+    for (const [field, expected] of Object.entries(where)) {
+        if (field === 'NOT') {
+            if (matchesVersionWhere(row, expected)) return false;
+            continue;
+        }
+        const actual = row[field] ?? null;
+        if (expected === null) {
+            if (actual !== null) return false;
+        } else if (expected !== null && typeof expected === 'object' && 'not' in expected) {
+            if (expected.not !== null) {
+                throw new Error(`fake updateMany: unsupported not-clause on '${field}'`);
+            }
+            if (actual === null) return false;
+        } else if (typeof expected === 'object' && !(expected instanceof Date)) {
+            throw new Error(`fake updateMany: unsupported clause on '${field}'`);
+        } else if (actual !== expected) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function bundleVersionRow(overrides = {}) {
     return {
         id: 'version-1',
@@ -147,7 +176,21 @@ function fakePrisma(seedVersions = []) {
             },
             async updateMany(args) {
                 calls.updateMany.push(args);
-                return { count: 1 };
+                // Matches and writes, rather than answering `1` to everything.
+                //
+                // It used to do the latter, and nothing noticed until a caller
+                // depended on the count: a conditional claim always "succeeded"
+                // and the data it carried was never applied, so a test could
+                // assert a refusal that the fake made impossible. A fake that
+                // answers the same whatever it is asked is not a fake of
+                // anything.
+                let count = 0;
+                for (const row of [...versions.values()]) {
+                    if (!matchesVersionWhere(row, args.where)) continue;
+                    versions.set(row.id, { ...row, ...args.data });
+                    count += 1;
+                }
+                return { count };
             },
             async delete({ where }) {
                 const existing = versions.get(where.id);
@@ -288,21 +331,52 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
         const published = await repo.publishDraft(draft.id, publishMeta);
 
         assert.equal(prisma.calls.transactions, 1);
-        assert.equal(prisma.calls.updateMany.length, 1);
-        const supersede = prisma.calls.updateMany[0];
+        // Two conditional writes, in this order: the draft is claimed first and
+        // only while it IS one, and the predecessor is touched afterwards.
+        // Superseding first lets a second publication of the same draft do work
+        // before it loses, and the two windows end up a gap or an overlap.
+        assert.equal(prisma.calls.updateMany.length, 2);
+        const [claim, supersede] = prisma.calls.updateMany;
+        assert.equal(
+            claim.where.publishedAt,
+            null,
+            'the claim must not match a version somebody else already published',
+        );
+        assert.equal(claim.where.id, draft.id);
         assert.deepEqual(supersede.data.validUntil, new Date('2026-08-09T00:00:00.000Z'));
         assert.ok(supersede.data.supersededAt instanceof Date);
 
-        const publish = prisma.calls.updates.at(-1).data;
         assert.strictEqual(
-            publish.publishedAt,
+            claim.data.publishedAt,
             supersede.data.supersededAt,
             'both writes use one publish timestamp',
         );
-        assert.strictEqual(publish.validFrom, publishMeta.validFrom);
-        assert.strictEqual(publish.validUntil, publishMeta.validUntil);
+        assert.strictEqual(claim.data.validFrom, publishMeta.validFrom);
+        assert.strictEqual(claim.data.validUntil, publishMeta.validUntil);
         assert.equal(published.validFrom, '2026-08-10T00:00:00.000Z');
         assert.equal(published.validUntil, '2026-12-31T00:00:00.000Z');
+    });
+
+    test('enabled publish refuses a version somebody else published first', async () => {
+        // The claim matched nothing, so this request wrote nothing — and saying
+        // so is what stops it from going on to move the predecessor's window.
+        const published = bundleVersionRow({
+            id: 'draft-2',
+            version: 2,
+            publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+        });
+        const prisma = fakePrisma([published]);
+        const repo = new PrismaBundleRepository(prisma, { validityWindows: true });
+
+        await assert.rejects(
+            () => repo.publishDraft(published.id, publishMeta),
+            /already published/,
+        );
+        assert.equal(
+            prisma.calls.updateMany.length,
+            1,
+            'the predecessor must not be touched once the claim has failed',
+        );
     });
 
     test('enabled publish reuses a caller transaction instead of nesting one', async () => {
@@ -315,7 +389,7 @@ describe('PrismaBundleRepository validity-window schema mode', () => {
 
         assert.equal(root.calls.transactions, 0);
         assert.equal(root.calls.updateMany.length, 0);
-        assert.equal(transaction.calls.updateMany.length, 1);
-        assert.equal(transaction.calls.updates.length, 1);
+        // Claim and supersede, both on the caller's connection.
+        assert.equal(transaction.calls.updateMany.length, 2);
     });
 });

@@ -348,15 +348,27 @@ function createMemoryHarness() {
             return row ? { ...row } : null;
         },
         async publishDraft(versionId, meta) {
-            const row = state.bundleVersions.find((candidate) => candidate.id === versionId);
-            if (!row) throw new Error(`BundleVersion '${versionId}' not found.`);
+            // Claimed before the predecessor is touched, as both real adapters
+            // do: a second publication of one draft must lose before it changes
+            // anything, or the two windows end up a gap or an overlap.
+            const row = state.bundleVersions.find(
+                (candidate) => candidate.id === versionId && candidate.publishedAt === null,
+            );
+            if (!row) {
+                throw new Error(`BundleVersion '${versionId}' not found or already published.`);
+            }
             for (const other of state.bundleVersions) {
                 if (other.bundleId !== row.bundleId || other.id === versionId) continue;
-                if (other.publishedAt && !other.supersededAt) other.supersededAt = FIXED_NOW;
+                if (!other.publishedAt || other.supersededAt) continue;
+                other.supersededAt = FIXED_NOW;
+                const closesAt = new Date(meta.validFrom);
+                closesAt.setUTCDate(closesAt.getUTCDate() - 1);
+                other.validUntil = closesAt;
             }
             row.publishedAt = FIXED_NOW;
             row.validFrom = meta.validFrom;
             row.validUntil = meta.validUntil;
+            row.supersededAt = null;
             return { ...row };
         },
         async deleteDraft(versionId) {
