@@ -42,7 +42,7 @@ function sqlStatements(file) {
  * Requires `SAASICAT_TEST_DATABASE_URL` pointing at a **disposable** database:
  * this drops the `public` schema.
  */
-export async function openDisposableDatabase({ max = 10 } = {}) {
+export async function openDisposableDatabase({ max = 10, rebuild = true } = {}) {
     const databaseUrl = process.env.SAASICAT_TEST_DATABASE_URL;
     if (!databaseUrl) {
         throw new Error(
@@ -54,10 +54,18 @@ export async function openDisposableDatabase({ max = 10 } = {}) {
     const specRoot = dirname(require.resolve('@saasicat/spec/package.json'));
 
     const pool = new pg.Pool({ connectionString: databaseUrl, max });
-    await pool.query('DROP SCHEMA IF EXISTS public CASCADE');
-    await pool.query('CREATE SCHEMA public');
-    for (const statement of sqlStatements(join(specRoot, 'sql', 'reference-schema.postgres.sql'))) {
-        await pool.query(statement);
+    // `rebuild: false` opens a second connection onto a schema the caller has
+    // already built — for a test that needs a narrower pool, not a fresh
+    // database. Rebuilding there would drop the tables the surrounding file is
+    // in the middle of using.
+    if (rebuild) {
+        await pool.query('DROP SCHEMA IF EXISTS public CASCADE');
+        await pool.query('CREATE SCHEMA public');
+        for (const statement of sqlStatements(
+            join(specRoot, 'sql', 'reference-schema.postgres.sql'),
+        )) {
+            await pool.query(statement);
+        }
     }
     return { pool, db: drizzle(pool) };
 }

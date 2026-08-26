@@ -261,3 +261,60 @@ describe('which version is live', () => {
         assert.equal(await repository.findLatestLive(bundle.id), null);
     });
 });
+
+describe('reading inside a transaction stays on its connection', () => {
+    // A version query that honours the caller's transaction and a stem query
+    // beside it that quietly takes a second connection is a deadlock waiting
+    // for load: the second connection can only be released when the transaction
+    // ends, and the transaction cannot end until the query returns.
+    //
+    // A pool of ONE makes that certain rather than likely. `enforceLimit()` is
+    // the real caller — it holds a subscription row lock while resolving what a
+    // tenant is entitled to — and it would stop dead here.
+
+    test('every transaction-aware read answers with a pool of one', async () => {
+        const { pool: single, db: singleDb } = await openDisposableDatabase({ max: 1 });
+        try {
+            const repo = new DrizzleBundleRepository(singleDb, { validityWindows: true });
+            const bundle = await repo.create({
+                projectKey: PROJECT,
+                bundleKey: 'SOLO',
+                label: 'Solo',
+            });
+            const draft = await repo.createDraft({ bundleId: bundle.id, features: ['A'] });
+            await repo.publishDraft(draft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+
+            // Inside the transaction there is no second connection to take.
+            // Anything reaching for one waits for this block to finish, which
+            // it cannot do while waiting.
+            const seen = await singleDb.transaction(async (tx) => {
+                // The transaction object itself is the `TransactionContext`
+                // here — `DrizzleTransactionRunner` hands the same thing on.
+                return {
+                    byId: await repo.findVersionById(draft.id, tx),
+                    latest: await repo.findLatestLive(bundle.id, tx),
+                    active: await repo.findActiveBundleVersion(
+                        bundle.id,
+                        new Date('2026-06-01T00:00:00.000Z'),
+                        tx,
+                    ),
+                };
+            });
+
+            assert.equal(seen.byId.id, draft.id);
+            assert.equal(seen.latest.id, draft.id);
+            assert.equal(seen.active.id, draft.id);
+            // The stem came along, which is what needed the second connection.
+            assert.equal(seen.byId.bundleKey, 'SOLO');
+            assert.equal(seen.latest.label, 'Solo');
+        } finally {
+            await single.end();
+        }
+    });
+});

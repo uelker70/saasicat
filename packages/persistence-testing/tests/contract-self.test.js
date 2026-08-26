@@ -251,6 +251,7 @@ function createMemoryHarness() {
         async listBySubscription(subscriptionId) {
             return state.subscriptionBundles
                 .filter((row) => row.subscriptionId === subscriptionId)
+                .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
                 .map((row) => ({ ...row }));
         },
         async findById(id) {
@@ -267,10 +268,22 @@ function createMemoryHarness() {
                 .map((row) => ({ ...row }));
         },
         async cancel(id, { canceledAt, canceledEffectiveAt }) {
-            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
-            if (!row) return null;
+            // Refuses an already-cancelled booking, as the port says and both
+            // real adapters now do. A reference implementation that is lenient
+            // where they are strict is not a reference.
+            const row = state.subscriptionBundles.find(
+                (candidate) => candidate.id === id && candidate.canceledAt === null,
+            );
+            if (!row) throw new Error(`SubscriptionBundle '${id}' not found or already cancelled`);
             row.canceledAt = canceledAt;
             row.canceledEffectiveAt = canceledEffectiveAt;
+            return { ...row };
+        },
+        async reactivate(id) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (!row) throw new Error(`SubscriptionBundle '${id}' not found`);
+            row.canceledAt = null;
+            row.canceledEffectiveAt = null;
             return { ...row };
         },
         async countActiveByBundleVersionId(bundleVersionId, now = new Date()) {

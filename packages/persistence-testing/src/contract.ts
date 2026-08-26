@@ -473,6 +473,124 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(legacyReadBack.currentPeriodEnd, null);
         });
 
+        test('a second cancellation of one booking is refused, not applied', async (t) => {
+            // The port has always said this method throws on an already-
+            // cancelled booking. Neither adapter did: both updated by id alone,
+            // so two requests that pass the service's check together both
+            // wrote, and the loser moved an effective date the tenant had
+            // already been told — the one field in the row that decides when
+            // they stop being billed.
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-double-cancel',
+                plan: 'PRO',
+                planVersionId,
+            });
+            const { bundleVersionId } = await seed.createBundleVersion({
+                bundleKey: 'ANALYTICS',
+                features: ['REPORTS'],
+            });
+            const booking = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+            });
+
+            const first = await repository.cancel(booking.id, {
+                canceledAt: new Date('2026-03-01T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-04-01T00:00:00.000Z'),
+            });
+            assert.equal(first.canceledEffectiveAt?.toISOString(), '2026-04-01T00:00:00.000Z');
+
+            await assert.rejects(
+                () =>
+                    repository.cancel(booking.id, {
+                        canceledAt: new Date('2026-03-02T00:00:00.000Z'),
+                        canceledEffectiveAt: new Date('2026-09-01T00:00:00.000Z'),
+                    }),
+                'a second cancellation must be refused',
+            );
+
+            const readBack = await repository.findById(booking.id);
+            assert.equal(
+                readBack?.canceledEffectiveAt?.toISOString(),
+                '2026-04-01T00:00:00.000Z',
+                'the first cancellation must still stand',
+            );
+
+            // And undoing it makes the booking cancellable again, which is what
+            // separates "refused because already cancelled" from "refused".
+            await repository.reactivate(booking.id);
+            const again = await repository.cancel(booking.id, {
+                canceledAt: new Date('2026-03-02T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-09-01T00:00:00.000Z'),
+            });
+            assert.equal(again.canceledEffectiveAt?.toISOString(), '2026-09-01T00:00:00.000Z');
+        });
+
+        test("a subscription's bookings come back newest first", async (t) => {
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-booking-order',
+                plan: 'PRO',
+                planVersionId,
+            });
+            // Inserted oldest-first on purpose: without an ORDER BY a store is
+            // free to hand them back in insertion order, and the assertion
+            // below would then pass by accident.
+            for (const [key, startedAt] of [
+                ['OLDEST', '2026-01-01T00:00:00.000Z'],
+                ['MIDDLE', '2026-02-01T00:00:00.000Z'],
+                ['NEWEST', '2026-03-01T00:00:00.000Z'],
+            ] as const) {
+                const { bundleVersionId } = await seed.createBundleVersion({
+                    bundleKey: key,
+                    features: ['REPORTS'],
+                });
+                await repository.add({
+                    subscriptionId,
+                    bundleVersionId,
+                    startedAt: new Date(startedAt),
+                    minimumTermEndsAt: null,
+                });
+            }
+
+            const listed = await repository.listBySubscription(subscriptionId);
+            assert.deepEqual(
+                listed.map((row) => row.startedAt.toISOString()),
+                [
+                    '2026-03-01T00:00:00.000Z',
+                    '2026-02-01T00:00:00.000Z',
+                    '2026-01-01T00:00:00.000Z',
+                ],
+            );
+        });
+
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.subscriptionRepository.countByPlanVersionId) {

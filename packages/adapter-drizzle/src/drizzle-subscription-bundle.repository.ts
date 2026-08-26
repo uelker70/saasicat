@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gt, isNull, or } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
 import type {
     CancelSubscriptionBundleData,
     CreateSubscriptionBundleData,
@@ -32,7 +32,13 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
         const rows = await this.db
             .select()
             .from(subscriptionBundles)
-            .where(eq(subscriptionBundles.subscriptionId, subscriptionId));
+            .where(eq(subscriptionBundles.subscriptionId, subscriptionId))
+            // Newest first, as the port says and `adapter-prisma` does. Without
+            // an ORDER BY, PostgreSQL is free to return any order it likes, and
+            // the tenant's "My bundles" list keeps whatever the repository
+            // handed over — so the page would reorder itself between reloads
+            // for no reason a reader could see.
+            .orderBy(desc(subscriptionBundles.startedAt));
         return rows.map(toRecord);
     }
 
@@ -82,6 +88,14 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
         subscriptionBundleId: string,
         data: CancelSubscriptionBundleData,
     ): Promise<SubscriptionBundleRecord> {
+        // Conditional on the booking still being uncancelled, so a second
+        // request cannot overwrite the first one's dates.
+        //
+        // The service checks first and answers `SUBSCRIPTION_BUNDLE_ALREADY_
+        // CANCELLED`, which handles the ordinary case; what it cannot handle is
+        // two requests passing that check together. The loser would then move
+        // an effective date the tenant has already been told — the one field in
+        // this row that decides when they stop being billed.
         const rows = await this.db
             .update(subscriptionBundles)
             .set({
@@ -89,9 +103,21 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
                 canceledEffectiveAt: data.canceledEffectiveAt,
                 updatedAt: new Date(),
             })
-            .where(eq(subscriptionBundles.id, subscriptionBundleId))
+            .where(
+                and(
+                    eq(subscriptionBundles.id, subscriptionBundleId),
+                    isNull(subscriptionBundles.canceledAt),
+                ),
+            )
             .returning();
-        if (!rows[0]) throw new Error(`SubscriptionBundle '${subscriptionBundleId}' not found`);
+        if (!rows[0]) {
+            // Two reasons, one answer: the row is gone, or it was cancelled
+            // between the caller's read and this write. Both mean this request
+            // changed nothing, and the caller has to look again either way.
+            throw new Error(
+                `SubscriptionBundle '${subscriptionBundleId}' not found or already cancelled`,
+            );
+        }
         return toRecord(rows[0]);
     }
 

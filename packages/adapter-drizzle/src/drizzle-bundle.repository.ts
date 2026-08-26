@@ -175,7 +175,10 @@ export class DrizzleBundleRepository implements BundleRepository {
             .where(eq(bundleVersions.id, versionId))
             .limit(1);
         if (!rows[0]) return null;
-        return this.toVersionRow(rows[0], await this.findById(rows[0].bundleId));
+        return this.toVersionRow(
+            rows[0],
+            await this.stemOn(resolveDb(this.db, tx), rows[0].bundleId),
+        );
     }
 
     async findCurrentDraft(bundleId: string): Promise<BundleVersionRow | null> {
@@ -205,7 +208,7 @@ export class DrizzleBundleRepository implements BundleRepository {
             .orderBy(desc(bundleVersions.version))
             .limit(1);
         if (!rows[0]) return null;
-        return this.toVersionRow(rows[0], await this.findById(bundleId));
+        return this.toVersionRow(rows[0], await this.stemOn(resolveDb(this.db, tx), bundleId));
     }
 
     /**
@@ -239,7 +242,7 @@ export class DrizzleBundleRepository implements BundleRepository {
             .orderBy(sql`"validFrom" DESC NULLS LAST`, desc(bundleVersions.version))
             .limit(1);
         if (!rows[0]) return null;
-        return this.toVersionRow(rows[0], await this.findById(bundleId));
+        return this.toVersionRow(rows[0], await this.stemOn(resolveDb(this.db, tx), bundleId));
     }
 
     async createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow> {
@@ -401,6 +404,22 @@ export class DrizzleBundleRepository implements BundleRepository {
             );
         }
         await this.db.delete(bundleVersions).where(eq(bundleVersions.id, versionId));
+    }
+
+    /**
+     * The stem, read on the connection the caller is already holding.
+     *
+     * `this.db` would take a second one from the pool. Inside a transaction —
+     * which is where `enforceLimit()` calls this, holding a row lock — that
+     * second connection can only be released when the transaction ends, and the
+     * transaction cannot end until this query returns. With a small pool, or
+     * enough concurrent checks to occupy it, entitlement resolution stops
+     * dead. A version query that honours `tx` and a stem query beside it that
+     * does not is the shape that hides it: the deadlock needs load to appear.
+     */
+    private async stemOn(db: DrizzleClient, bundleId: string): Promise<BundleRow | null> {
+        const rows = await db.select().from(bundles).where(eq(bundles.id, bundleId)).limit(1);
+        return rows[0] ? toBundleRow(rows[0]) : null;
     }
 
     private toVersionRow(row: BundleVersionTableRow, stem: BundleRow | null): BundleVersionRow {
