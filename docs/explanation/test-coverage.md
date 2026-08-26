@@ -54,11 +54,12 @@ line counts.
 
 ## What is not covered, by name
 
-### `@saasicat/adapter-drizzle` — five of fourteen adapters
+### `@saasicat/adapter-drizzle` — five of sixteen adapters
 
-The contract exercises nine: audit write and query, MFA, plan versions, promo
-codes, promo-code redemptions, the promo subscription lookup, subscriptions, and
-the transaction runner. These five are not:
+The contract exercises eleven: audit write and query, MFA, plan versions, promo
+codes, promo-code redemptions, the promo subscription lookup, subscriptions, the
+transaction runner, and — since the adapter learned about bundles — the bundle
+catalogue and the bookings made from it. These five are not:
 
 | Adapter                                   | What it does                                 | Risk if it is broken                                                                                                                  |
 | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -74,8 +75,13 @@ rather than a sentence saying "some adapters are not in the contract".
 
 The equivalent Prisma adapters are covered for all but the same gaps — the
 contract touches 12 of 25 exported classes there. `adapter-drizzle` trailing
-`adapter-prisma` is a known and deliberate state, recorded in the project's
-planning notes; this page names what the gap actually is.
+`adapter-prisma` is a known state, recorded in the project's planning notes;
+this page names what the gap actually is. Bundles used to be the widest part of
+it — the adapter had no bundle tables at all, so a consumer on Drizzle could not
+sell an add-on — and both halves are now implemented and in the contract. What
+remains of the gap is the plan catalogue: `adapter-drizzle` has no
+`PlanRepository`, so it exposes no `catalog` slice, and the plan-lifecycle and
+atomic plan-binding scenarios still gate off.
 
 ### `@saasicat/persistence-testing` at 74.30%
 

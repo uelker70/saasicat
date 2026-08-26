@@ -473,6 +473,346 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(legacyReadBack.currentPeriodEnd, null);
         });
 
+        test('a second cancellation of one booking is refused, not applied', async (t) => {
+            // The port has always said this method throws on an already-
+            // cancelled booking. Neither adapter did: both updated by id alone,
+            // so two requests that pass the service's check together both
+            // wrote, and the loser moved an effective date the tenant had
+            // already been told — the one field in the row that decides when
+            // they stop being billed.
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-double-cancel',
+                plan: 'PRO',
+                planVersionId,
+            });
+            const { bundleVersionId } = await seed.createBundleVersion({
+                bundleKey: 'ANALYTICS',
+                features: ['REPORTS'],
+            });
+            const booking = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+            });
+
+            const first = await repository.cancel(booking.id, {
+                canceledAt: new Date('2026-03-01T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-04-01T00:00:00.000Z'),
+            });
+            assert.equal(first.canceledEffectiveAt?.toISOString(), '2026-04-01T00:00:00.000Z');
+
+            await assert.rejects(
+                () =>
+                    repository.cancel(booking.id, {
+                        canceledAt: new Date('2026-03-02T00:00:00.000Z'),
+                        canceledEffectiveAt: new Date('2026-09-01T00:00:00.000Z'),
+                    }),
+                'a second cancellation must be refused',
+            );
+
+            const readBack = await repository.findById(booking.id);
+            assert.equal(
+                readBack?.canceledEffectiveAt?.toISOString(),
+                '2026-04-01T00:00:00.000Z',
+                'the first cancellation must still stand',
+            );
+
+            // And undoing it makes the booking cancellable again, which is what
+            // separates "refused because already cancelled" from "refused".
+            await repository.reactivate(booking.id);
+            const again = await repository.cancel(booking.id, {
+                canceledAt: new Date('2026-03-02T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-09-01T00:00:00.000Z'),
+            });
+            assert.equal(again.canceledEffectiveAt?.toISOString(), '2026-09-01T00:00:00.000Z');
+        });
+
+        test("a subscription's bookings come back newest first", async (t) => {
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-booking-order',
+                plan: 'PRO',
+                planVersionId,
+            });
+            // Inserted oldest-first on purpose: without an ORDER BY a store is
+            // free to hand them back in insertion order, and the assertion
+            // below would then pass by accident.
+            for (const [key, startedAt] of [
+                ['OLDEST', '2026-01-01T00:00:00.000Z'],
+                ['MIDDLE', '2026-02-01T00:00:00.000Z'],
+                ['NEWEST', '2026-03-01T00:00:00.000Z'],
+            ] as const) {
+                const { bundleVersionId } = await seed.createBundleVersion({
+                    bundleKey: key,
+                    features: ['REPORTS'],
+                });
+                await repository.add({
+                    subscriptionId,
+                    bundleVersionId,
+                    startedAt: new Date(startedAt),
+                    minimumTermEndsAt: null,
+                });
+            }
+
+            const listed = await repository.listBySubscription(subscriptionId);
+            assert.deepEqual(
+                listed.map((row) => row.startedAt.toISOString()),
+                [
+                    '2026-03-01T00:00:00.000Z',
+                    '2026-02-01T00:00:00.000Z',
+                    '2026-01-01T00:00:00.000Z',
+                ],
+            );
+        });
+
+        test('a booking with no request date is active, whatever its effective date says', async (t) => {
+            // The port defines activity as `canceledAt IS NULL OR
+            // canceledEffectiveAt > NOW()`. A row with no request date and a
+            // past effective date satisfies the first half, and an adapter that
+            // requires BOTH columns to be null instead reads it as inactive —
+            // so the same tenant is granted less on one store than on another.
+            // The shape is incoherent data; the point is that both answer it
+            // the same way.
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-half-cancelled',
+                plan: 'PRO',
+                planVersionId,
+            });
+            const { bundleVersionId } = await seed.createBundleVersion({
+                bundleKey: 'ANALYTICS',
+                features: ['REPORTS'],
+            });
+            const booking = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+            });
+            // Cancel, then clear only the request date — the half-written state
+            // the nullable columns permit.
+            await repository.cancel(booking.id, {
+                canceledAt: new Date('2026-02-01T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-03-01T00:00:00.000Z'),
+            });
+            const clearRequestDate = harness.seed.clearBookingRequestDate;
+            if (!clearRequestDate) {
+                t.skip('adapter harness cannot write the half-cancelled shape');
+                return;
+            }
+            await clearRequestDate(booking.id);
+
+            const active = await repository.listActiveBySubscription(
+                subscriptionId,
+                new Date('2026-06-01T00:00:00.000Z'),
+            );
+            assert.equal(active.length, 1, 'no request date means nobody asked to cancel it');
+            assert.equal(
+                await repository.countActiveByBundleVersionId(
+                    bundleVersionId,
+                    new Date('2026-06-01T00:00:00.000Z'),
+                ),
+                1,
+            );
+        });
+
+        test('discarding a draft cannot remove a version published meanwhile', async (t) => {
+            // Read-then-delete-by-id leaves a window: a publish commits in
+            // between and the delete removes a published version. It has no
+            // bookings yet, so no foreign key stands in the way — the catalogue
+            // entry is simply gone. Simulated here by publishing between the
+            // caller's decision and the call, which is the same order the race
+            // produces.
+            const catalog = harness.adapter.bundleRepository;
+            // Bound once so the narrowing survives into the arrow below: the
+            // port makes `deleteDraft` optional, and TypeScript does not carry
+            // a property check across a closure boundary.
+            const discardDraft = catalog?.deleteDraft?.bind(catalog);
+            if (!catalog || !discardDraft) {
+                t.skip('adapter provides no BundleRepository');
+                return;
+            }
+            const bundle = await catalog.create({
+                projectKey: options.projectKey,
+                bundleKey: 'RACE',
+                label: 'Race',
+            });
+            const draft = await catalog.createDraft({
+                bundleId: bundle.id,
+                features: ['REPORTS'],
+                quotas: {},
+            });
+            await catalog.publishDraft(draft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+
+            await assert.rejects(
+                () => discardDraft(draft.id),
+                'a published version must not be discardable',
+            );
+            assert.ok(
+                await catalog.findVersionById(draft.id),
+                'and it must still be there afterwards',
+            );
+        });
+
+        test('publishing one draft twice claims it once, and the windows stay adjacent', async (t) => {
+            // Two publications of the same draft with different validity dates.
+            // Superseding the predecessor before claiming the draft lets both
+            // do work: the first closes the predecessor with its own date, the
+            // second finds no unsuperseded predecessor left and overwrites the
+            // successor's `validFrom` with a different one — and the stored
+            // windows are then a gap or an overlap that nothing can attribute.
+            const catalog = harness.adapter.bundleRepository;
+            const publish = catalog?.publishDraft?.bind(catalog);
+            if (!catalog || !publish) {
+                t.skip('adapter provides no BundleRepository');
+                return;
+            }
+            const bundle = await catalog.create({
+                projectKey: options.projectKey,
+                bundleKey: 'CLAIM',
+                label: 'Claim',
+            });
+            const first = await catalog.createDraft({
+                bundleId: bundle.id,
+                features: ['A'],
+                quotas: {},
+            });
+            await publish(first.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+            const second = await catalog.createDraft({
+                bundleId: bundle.id,
+                baseVersionId: first.id,
+                features: ['A', 'B'],
+                quotas: {},
+            });
+
+            const publishedAt = new Date('2026-03-01T00:00:00.000Z');
+            await publish(second.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: publishedAt,
+                validUntil: null,
+            });
+            // The losing request, arriving with a different date.
+            await assert.rejects(
+                () =>
+                    publish(second.id, {
+                        publishedByUserId: null,
+                        publishedChanges: [],
+                        nonRegressive: true,
+                        validFrom: new Date('2026-06-01T00:00:00.000Z'),
+                        validUntil: null,
+                    }),
+                'a version that is already published must not be published again',
+            );
+
+            const successor = await catalog.findVersionById(second.id);
+            const predecessor = await catalog.findVersionById(first.id);
+            assert.equal(
+                successor?.validFrom && new Date(successor.validFrom).toISOString(),
+                publishedAt.toISOString(),
+                'the winning date must still stand',
+            );
+            assert.ok(predecessor?.supersededAt, 'the predecessor must be superseded');
+            if (predecessor?.validUntil) {
+                // Adjacent, not overlapping: the predecessor's last day is the
+                // day before the successor opens.
+                const closesAt = new Date(predecessor.validUntil);
+                assert.equal(
+                    closesAt.toISOString().slice(0, 10),
+                    '2026-02-28',
+                    'the predecessor must close the day before its successor opens',
+                );
+            }
+        });
+
+        test('a retired bundle still occupies its key', async (t) => {
+            // `findByKey` answers the database's question, and
+            // `bundles_projectKey_bundleKey_key` is an unconditional unique
+            // index: retiring a bundle does not free its key. Its one caller is
+            // the duplicate check in `createBundle`, so an adapter that hides
+            // retired rows lets that check pass and the insert then fail on the
+            // constraint — a 500 where the service had `BUNDLE_ALREADY_EXISTS`
+            // ready. `list` is the active-catalogue lookup, and it excludes
+            // them.
+            const catalog = harness.adapter.bundleRepository;
+            const retire = catalog?.softDelete?.bind(catalog);
+            const byKey = catalog?.findByKey?.bind(catalog);
+            if (!catalog || !retire || !byKey) {
+                t.skip('adapter provides no BundleRepository');
+                return;
+            }
+            const bundle = await catalog.create({
+                projectKey: options.projectKey,
+                bundleKey: 'RETIRED_KEY',
+                label: 'Retired',
+            });
+            assert.equal((await byKey(options.projectKey, 'RETIRED_KEY'))?.id, bundle.id);
+
+            await retire(bundle.id);
+            const stillThere = await byKey(options.projectKey, 'RETIRED_KEY');
+            assert.equal(stillThere?.id, bundle.id, 'the key is not free again');
+            assert.ok(stillThere?.deletedAt, 'and the row says it is retired');
+
+            // The active catalogue is the other question, and `list` answers it.
+            const listed = await catalog.list({ projectKey: options.projectKey });
+            assert.equal(
+                listed.some((row) => row.id === bundle.id),
+                false,
+                'a retired bundle is not in the catalogue an operator browses',
+            );
+        });
+
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.subscriptionRepository.countByPlanVersionId) {

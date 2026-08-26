@@ -15,6 +15,8 @@ import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.ada
 import { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.js';
 import { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';
 import { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
+import { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
+import { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';
 import { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-validation-log.repository.js';
 import { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';
 import { DrizzleSubscriptionRepository } from './drizzle-subscription.repository.js';
@@ -23,6 +25,16 @@ import { DrizzleTransactionRunner } from './drizzle-transaction-runner.adapter.j
 import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.adapter.js';
 
 export interface DrizzlePersistenceOptions {
+    /**
+     * Bundle-repository behaviour, mirroring `adapter-prisma`'s `bundle`
+     * option. `validityWindows: true` opts into booking windows: a draft's
+     * `validFrom`/`validUntil` are written and read, publishing closes the
+     * predecessor's window, and `findActiveBundleVersion` is offered. Without
+     * it the adapter says so by not exposing that method, rather than
+     * answering with dates it does not maintain.
+     */
+    bundle?: { validityWindows?: boolean };
+
     /**
      * The app's Drizzle database: either a ready instance
      * (`drizzle(pool)` — typical, since Drizzle setups rarely wrap the db in
@@ -89,6 +101,18 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
         entitlement: {
             subscriptionRepository: provide((client) => new DrizzleSubscriptionRepository(client)),
             planVersionRepository: provide((client) => new DrizzlePlanVersionRepository(client)),
+            // Entitlement reads the bookings as well as the plan: a tenant's
+            // effective features are the union of the plan and the bundles
+            // booked on top of it, so an adapter that omits this grants less
+            // than the tenant paid for.
+            subscriptionBundleRepository: provide(
+                (client) => new DrizzleSubscriptionBundleRepository(client),
+            ),
+            // The catalogue behind those bookings: entitlement resolves a
+            // booking's features by reading the pinned version.
+            bundleRepository: provide(
+                (client) => new DrizzleBundleRepository(client, options.bundle),
+            ),
         },
         promo: {
             promoCodeRepository: provide((client) => new DrizzlePromoCodeRepository(client)),

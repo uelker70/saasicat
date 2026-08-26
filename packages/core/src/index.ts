@@ -2,6 +2,7 @@
 // Required companion to @saasicat/spec.
 
 export * from './active-plan-version-query.js';
+export * from './bundle-draft-defaults.js';
 export * from './admin-manifest.types.js';
 export * from './audit-event.types.js';
 export * from './bundle.types.js';

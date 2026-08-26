@@ -22,6 +22,8 @@ export { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js'
 export { DrizzleSubscriptionRepository } from './drizzle-subscription.repository.js';
 export { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.js';
 export { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
+export { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
+export { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';
 export { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';
 export { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-validation-log.repository.js';
 export { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';

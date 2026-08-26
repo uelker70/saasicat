@@ -5,9 +5,9 @@
         "funcs": 100
     },
     "core": {
-        "line": 80.41,
-        "branch": 88.79,
-        "funcs": 57.45
+        "line": 81.79,
+        "branch": 90.37,
+        "funcs": 60
     },
     "nest": {
         "line": 87.72,
@@ -25,13 +25,13 @@
         }
     },
     "adapter-drizzle": {
-        "line": 60.33,
-        "branch": 63.76,
-        "funcs": 69.95,
+        "line": 56.92,
+        "branch": 63.04,
+        "funcs": 61.89,
         "withDatabase": {
-            "line": 76.61,
-            "branch": 65.74,
-            "funcs": 83.94
+            "line": 81.68,
+            "branch": 67.91,
+            "funcs": 87.4
         }
     },
     "persistence-testing": {

@@ -101,13 +101,37 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
         subscriptionBundleId: string,
         data: CancelSubscriptionBundleData,
     ): Promise<SubscriptionBundleRecord> {
-        const row = await this.db().subscriptionBundle.update({
-            where: { id: subscriptionBundleId },
+        // Conditional on the booking still being uncancelled, so a second
+        // request cannot overwrite the first one's dates.
+        //
+        // The service checks first and answers `SUBSCRIPTION_BUNDLE_ALREADY_
+        // CANCELLED`, which handles the ordinary case; what it cannot handle is
+        // two requests passing that check together. The loser would then move an
+        // effective date the tenant has already been told — the one field in
+        // this row that decides when they stop being billed. The port has always
+        // said this method throws on an already-cancelled booking; until now
+        // neither adapter did.
+        const { count } = await this.db().subscriptionBundle.updateMany({
+            where: { id: subscriptionBundleId, canceledAt: null },
             data: {
                 canceledAt: data.canceledAt,
                 canceledEffectiveAt: data.canceledEffectiveAt,
             },
         });
+        if (count === 0) {
+            // Two reasons, one answer: the row is gone, or it was cancelled
+            // between the caller's read and this write. Both mean this request
+            // changed nothing, and the caller has to look again either way.
+            throw new Error(
+                `SubscriptionBundle '${subscriptionBundleId}' not found or already cancelled`,
+            );
+        }
+        const row = await this.db().subscriptionBundle.findUnique({
+            where: { id: subscriptionBundleId },
+        });
+        // The update matched a row a moment ago, so this can only be null if
+        // something deleted it in between — which nothing in the platform does.
+        if (!row) throw new Error(`SubscriptionBundle '${subscriptionBundleId}' disappeared`);
         return toRecord(row);
     }
 
