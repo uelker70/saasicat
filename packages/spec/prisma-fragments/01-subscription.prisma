@@ -84,6 +84,19 @@ model Subscription {
     // field. Readers treat null as "the period end is the answer".
     minimumTermUntil DateTime?
 
+    // The day of the month this subscription is billed on, 1–31.
+    //
+    // Written when a period window is opened — at activation, and again at a
+    // plan change that resets the window — and never rewritten by a renewal.
+    // That is the whole point: a renewal reads it, and reading its own previous
+    // result is how the day used to drift. A subscription starting on the 31st
+    // was billed on the 28th from its first February onwards.
+    //
+    // Null on a row that predates this column, and on one with no period at
+    // all. Readers fall back to the day of whichever date opened the window,
+    // which is the old behaviour for one step and correct for that step.
+    billingAnchorDay Int?
+
     // Plan versioning — binds to a published PlanVersion.
     // `pendingPlanVersion*` concern a version change within the
     // same plan; `pendingPlan` the change to a different plan. Both

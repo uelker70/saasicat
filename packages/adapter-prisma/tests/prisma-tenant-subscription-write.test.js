@@ -161,6 +161,48 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         assert.equal('planVersionId' in planWrite(prisma), false);
     });
 
+    test('opening a window records the day the subscription is billed on', () => {
+        // Derived from the window rather than passed: the billing day IS the
+        // day the window opens, and a field carrying it separately would be one
+        // more place for the two to disagree.
+        const prisma = fakePrisma();
+        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
+
+        return adapter
+            .changePlanImmediate('tenant-1', {
+                planId: 'PRO',
+                cycle: 'MONTHLY',
+                periodStart: new Date('2026-01-31T00:00:00.000Z'),
+                periodEnd: new Date('2026-02-28T00:00:00.000Z'),
+                nextStatus: null,
+                expectedCanceledAt: null,
+            })
+            .then(() => {
+                assert.equal(planWrite(prisma).billingAnchorDay, 31);
+            });
+    });
+
+    test('and a change that opens none leaves it alone', () => {
+        // The premise, and the half that matters: a renewal must not rewrite
+        // the anchor. Reading its own previous result is the drift the anchor
+        // exists to stop.
+        const prisma = fakePrisma();
+        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
+
+        return adapter
+            .changePlanImmediate('tenant-1', {
+                planId: 'PRO',
+                cycle: 'MONTHLY',
+                periodStart: null,
+                periodEnd: null,
+                nextStatus: null,
+                expectedCanceledAt: null,
+            })
+            .then(() => {
+                assert.equal('billingAnchorDay' in planWrite(prisma), false);
+            });
+    });
+
     test('normalized mode binds semantic plan and active version atomically with named delegates', async () => {
         const prisma = fakePrisma({
             subscription: subscriptionRow({

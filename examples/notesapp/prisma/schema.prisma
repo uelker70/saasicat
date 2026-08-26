@@ -539,6 +539,10 @@ model Subscription {
 
     minimumTermUntil DateTime?
 
+    // Day of the month this subscription is billed on, 1–31. Written when a
+    // period window opens; never by a renewal.
+    billingAnchorDay Int?
+
     // Plan versioning — binds to a published PlanVersion.
     // `pendingPlanVersion*` concern a version change within the
     // same plan; `pendingPlan` the change to a different plan. Both

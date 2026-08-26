@@ -88,6 +88,13 @@ export function clearPendingPlanVersionFields(): {
 
 /** Input shape for `computeNextPeriod`. */
 export interface PeriodRollInput {
+    /**
+     * The day of the month this subscription is billed on, or null on a row
+     * that predates the column. Null falls back to the day of the period end,
+     * which is the reading that drifts — so a consumer that stores the anchor
+     * gets the correct date and one that does not keeps today's behaviour.
+     */
+    billingAnchorDay?: number | null;
     /** Subscription.currentPeriodEnd. NULL → no period active → SKIP. */
     currentPeriodEnd: Date | null;
     billingCycle: BillingCycle;
@@ -157,7 +164,16 @@ export function computeNextPeriod(sub: PeriodRollInput, now: Date): NextPeriodWi
     const landedAt = sub.canceledEffectiveAt ?? sub.canceledAt;
     if (landedAt !== null && landedAt <= now) return null;
     const newStart = sub.currentPeriodEnd;
-    const newEnd = periodEndAfter(newStart, sub.billingCycle, now);
+    // The anchor, not the day of `newStart` — `newStart` is the previous period
+    // end, and that has already been through a clamp. Reading the day from it
+    // is how a subscription billed on the 31st ended up billed on the 28th for
+    // the rest of its life after one February.
+    const newEnd = periodEndAfter(
+        newStart,
+        sub.billingCycle,
+        now,
+        sub.billingAnchorDay ?? undefined,
+    );
     return {
         currentPeriodStart: newStart,
         currentPeriodEnd: newEnd,

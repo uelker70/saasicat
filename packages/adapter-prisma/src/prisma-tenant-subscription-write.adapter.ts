@@ -118,8 +118,20 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             pendingBillingCycle: null,
             pendingEffectiveAt: null,
             ...(input.nextStatus ? { status: input.nextStatus } : {}),
+            // Opening a window sets the day the subscription is billed on, and
+            // that day IS the window's start — derived rather than passed,
+            // because a field carrying it could only ever hold this value and
+            // would be one more place for the two to disagree.
+            //
+            // Written only when a window is opened. A renewal must not touch
+            // it: reading its own previous result is exactly the drift the
+            // anchor exists to stop.
             ...(input.periodStart && input.periodEnd
-                ? { currentPeriodStart: input.periodStart, currentPeriodEnd: input.periodEnd }
+                ? {
+                      currentPeriodStart: input.periodStart,
+                      currentPeriodEnd: input.periodEnd,
+                      billingAnchorDay: input.periodStart.getUTCDate(),
+                  }
                 : {}),
             // #17: the platform changePlan path computes the carried-over
             // trial end and passes it through; null/undefined leaves the
@@ -252,8 +264,14 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 pendingEffectiveAt: null,
                 ...clearedPendingVersionData(),
                 ...(input.nextStatus ? { status: input.nextStatus } : {}),
+                // Same derivation as the immediate path: the billing day is
+                // the day the window opens.
                 ...(input.periodStart && input.periodEnd
-                    ? { currentPeriodStart: input.periodStart, currentPeriodEnd: input.periodEnd }
+                    ? {
+                          currentPeriodStart: input.periodStart,
+                          currentPeriodEnd: input.periodEnd,
+                          billingAnchorDay: input.periodStart.getUTCDate(),
+                      }
                     : {}),
             };
             if (this.schema.tenantSubscription.synchronizePlanVersion) {
