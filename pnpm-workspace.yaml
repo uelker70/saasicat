@@ -24,6 +24,13 @@ overrides:
     fast-uri: '^3.1.5'
     # GHSA-2v37-7h3g-55p8: predictable Nano ID generation with non-integer size.
     nanoid: '^3.3.17'
+    # GHSA-p2gr-x3f9-5xw5: stack exhaustion merging recursive object graphs.
+    # Reached only through the Prisma CLI's config loader, which pins 7.1.5
+    # exactly, so this lifts it across a major. What that loader merges is the
+    # developer's own prisma.config.ts rather than anything a tenant supplies —
+    # the override is here because a known-vulnerable version in the tree is
+    # worth removing, not because the path is reachable from a request.
+    deepmerge-ts: '^8.0.2'
 allowBuilds:
     '@nestjs/core': true
     # Native file watcher pulled in by the admin dev tooling; the JS fallback is

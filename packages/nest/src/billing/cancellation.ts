@@ -31,6 +31,18 @@ export interface CancellationInput {
     billingCycle: BillingCycle;
     /** Days before the term end after which a cancellation is too late. */
     noticePeriodDays: number;
+    /**
+     * The day of the month the subscription is billed on.
+     *
+     * Only the hard cut reads it, and only then does it matter — but there it
+     * matters in money. A declaration made after the notice window lands one
+     * period past the term end, and computing that step from the term end alone
+     * takes its day from a date that may already have been clamped: an
+     * anchor-31 subscription whose term ends 28 February was cut to 28 March
+     * rather than 31 March, three days short of the period the customer had
+     * just been charged for.
+     */
+    billingAnchorDay?: number | null;
 }
 
 export interface CancellationDecision {
@@ -53,6 +65,7 @@ export interface CancellationDecision {
  */
 export function decideCancellation(input: CancellationInput): CancellationDecision {
     const { now, currentPeriodEnd, minimumTermUntil, billingCycle, noticePeriodDays } = input;
+    const anchorDay = input.billingAnchorDay ?? undefined;
 
     // The commitment outranks the period: they coincide unless a notice period
     // has already pushed one term past the other.
@@ -84,7 +97,7 @@ export function decideCancellation(input: CancellationInput): CancellationDecisi
     }
 
     return {
-        effectiveAt: advanceOneCycle(termEndsAt, billingCycle),
+        effectiveAt: advanceOneCycle(termEndsAt, billingCycle, anchorDay),
         termEndsAt,
         afterNoticeDeadline: true,
         noticeDeadline,
@@ -101,6 +114,8 @@ export interface CancellableSubscription {
     currentPeriodEnd: Date | null;
     minimumTermUntil: Date | null;
     trialEndsAt: Date | null;
+    /** See `CancellationInput.billingAnchorDay`. */
+    billingAnchorDay?: number | null;
 }
 
 /**
@@ -140,5 +155,6 @@ export function decideCancellationFor(
         minimumTermUntil: isTrial ? null : sub.minimumTermUntil,
         billingCycle: sub.billingCycle,
         noticePeriodDays: isTrial ? 0 : noticePeriodDays,
+        billingAnchorDay: sub.billingAnchorDay,
     });
 }

@@ -84,6 +84,7 @@ export class PrismaSubscriptionUsageAdapter implements SubscriptionUsagePort {
             minimumTermUntil: subscription.minimumTermUntil ?? null,
             canceledAt: subscription.canceledAt ?? null,
             canceledEffectiveAt: subscription.canceledEffectiveAt ?? null,
+            billingAnchorDay: subscription.billingAnchorDay ?? null,
             pendingPlan: subscription.pendingPlan,
             pendingBillingCycle: subscription.pendingBillingCycle ?? null,
             pendingEffectiveAt: subscription.pendingEffectiveAt,

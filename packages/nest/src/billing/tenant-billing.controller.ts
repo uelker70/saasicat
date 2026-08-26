@@ -1003,6 +1003,7 @@ export class TenantBillingController {
                 currentPeriodEnd: sub.currentPeriodEnd ?? null,
                 minimumTermUntil: sub.minimumTermUntil ?? null,
                 trialEndsAt: sub.trialEndsAt ?? null,
+                billingAnchorDay: sub.billingAnchorDay ?? null,
             },
             now,
             this.cancellationNoticeDays,

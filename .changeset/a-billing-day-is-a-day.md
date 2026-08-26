@@ -23,6 +23,14 @@ not consumed by that clamp. An anchor of 31 gives 28 February and then 31 March.
 An anchor of 30 gives 30 October, not the 31st: it is "the 30th", not "the end
 of the month".
 
+The cancellation rules read it too. A declaration made after a configured notice
+window lands one period past the term end, and that step used to take its day
+from the term end alone — which, in the month after a short one, has already
+been clamped. An anchor-31 subscription whose term ended 28 February was cut to
+28 March rather than 31 March: three days short of the period the customer had
+just been charged for. `CancellationInput` and `SubscriptionUsageRecord` carry
+`billingAnchorDay` for that.
+
 `advanceOneCycle`, `periodEndAfter` and `periodEndWithMinLead` take the anchor as
 an optional last argument, and `PeriodRollInput` carries it. Omitted, every one
 of them behaves exactly as before — so the column is additive, and an app that

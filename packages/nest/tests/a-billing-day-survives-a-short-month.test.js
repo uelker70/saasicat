@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     advanceOneCycle,
     computeNextPeriod,
+    decideCancellationFor,
     initialPeriodWindow,
     periodEndAfter,
 } from '../dist/billing/index.js';
@@ -210,5 +211,86 @@ describe('an anchor that cannot be a day of a month', () => {
         const [next] = walk(from, 'MONTHLY', 1, 3);
 
         assert.equal(next, '2026-04-03');
+    });
+});
+
+describe('a cancellation that arrives after the notice window', () => {
+    // The hard cut lands one period past the term end, and that step used to
+    // take its day from the term end alone. After a February the term end has
+    // already been clamped, so an anchor-31 subscription was cut to 28 March
+    // rather than 31 March — three days short of the period the customer had
+    // just been charged for. The one place the anchor costs money if it is
+    // missing.
+    const termEnd = new Date('2026-02-28T00:00:00.000Z');
+    const afterTheDeadline = new Date('2026-02-25T00:00:00.000Z');
+
+    const lateCancel = (billingAnchorDay) =>
+        decideCancellationFor(
+            {
+                status: 'ACTIVE',
+                billingCycle: 'MONTHLY',
+                currentPeriodEnd: termEnd,
+                minimumTermUntil: termEnd,
+                trialEndsAt: null,
+                billingAnchorDay,
+            },
+            afterTheDeadline,
+            14,
+        );
+
+    test('buys the period the customer is billed for, to its day', () => {
+        const decision = lateCancel(31);
+
+        assert.equal(decision.afterNoticeDeadline, true, 'the case under test did not arise');
+        assert.equal(iso(decision.effectiveAt), '2026-03-31');
+    });
+
+    test('and without a stored anchor keeps the old, shorter answer', () => {
+        // Stated rather than hidden: an adapter that does not carry the column
+        // behaves exactly as it did, which is what makes the column additive.
+        assert.equal(iso(lateCancel(null).effectiveAt), '2026-03-28');
+    });
+
+    test('while an on-time cancellation does not reach the step at all', () => {
+        // The premise: the anchor matters to the hard cut and to nothing else
+        // in this decision.
+        const decision = decideCancellationFor(
+            {
+                status: 'ACTIVE',
+                billingCycle: 'MONTHLY',
+                currentPeriodEnd: termEnd,
+                minimumTermUntil: termEnd,
+                trialEndsAt: null,
+                billingAnchorDay: 31,
+            },
+            new Date('2026-02-01T00:00:00.000Z'),
+            14,
+        );
+
+        assert.equal(decision.afterNoticeDeadline, false);
+        assert.equal(iso(decision.effectiveAt), '2026-02-28');
+    });
+});
+
+describe('an impossible anchor handed to the iteration', () => {
+    // Normalising inside each step is not enough: `??` keeps a zero, and a zero
+    // passed down is rejected by every step individually — each then falling
+    // back to ITS OWN candidate's day, which is exactly the drift the anchor
+    // removes. It has to be normalised once, where it enters.
+    test('is treated as absent for the whole walk, not for each step', () => {
+        const withZero = periodEndAfter(
+            new Date('2026-01-31T00:00:00.000Z'),
+            'MONTHLY',
+            new Date('2026-03-05T00:00:00.000Z'),
+            0,
+        );
+        const withNone = periodEndAfter(
+            new Date('2026-01-31T00:00:00.000Z'),
+            'MONTHLY',
+            new Date('2026-03-05T00:00:00.000Z'),
+        );
+
+        assert.equal(iso(withZero), iso(withNone));
+        assert.equal(iso(withZero), '2026-03-31');
     });
 });

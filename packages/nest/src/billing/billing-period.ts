@@ -89,7 +89,12 @@ export function periodEndAfter(
     // Iterating without one loses the anchor at the first short month and then
     // carries the loss forward — which is the whole of the drift this function
     // used to produce.
-    const anchor = anchorDay ?? billingAnchorDay(start);
+    // Normalised once, here, rather than inside every step. `??` keeps a zero,
+    // and a zero handed down would be rejected by each step individually — each
+    // then falling back to ITS OWN candidate's day, which is the drift this
+    // whole change removes. An anchor that cannot be a day is absent, and
+    // absent means "the day the window opened".
+    const anchor = usableAnchor(anchorDay) ?? billingAnchorDay(start);
     let candidate = start;
     // If `startedAt > after` (subscription starts in the future), the first
     // period boundary is startedAt itself — after that we iterate upward.
@@ -132,7 +137,7 @@ export function periodEndWithMinLead(
     anchorDay?: number,
 ): Date {
     const minLeadMs = minLeadDays * 86_400_000;
-    const anchor = anchorDay ?? billingAnchorDay(new Date(startedAt ?? now));
+    const anchor = usableAnchor(anchorDay) ?? billingAnchorDay(new Date(startedAt ?? now));
     let candidate = periodEndAfter(startedAt, cycle, now, anchor);
     while (candidate.getTime() - now.getTime() < minLeadMs) {
         candidate = advanceOneCycle(candidate, cycle, anchor);
