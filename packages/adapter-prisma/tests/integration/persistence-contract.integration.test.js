@@ -24,6 +24,7 @@ import {
     PrismaAuditAdapter,
     PrismaAuditQueryAdapter,
     PrismaBundleRepository,
+    PrismaSubscriptionBundleRepository,
     PrismaMfaAdapter,
     PrismaPlanRepository,
     PrismaPlanVersionRepository,
@@ -148,6 +149,7 @@ function createHarness() {
             bundleRepository: new PrismaBundleRepository(prisma, {
                 validityWindows: true,
             }),
+            subscriptionBundleRepository: new PrismaSubscriptionBundleRepository(prisma),
             planRepository: new PrismaPlanRepository(prisma, {
                 planVersionFields: {
                     catalog: { validityWindows: true, endsAt: true },
@@ -186,6 +188,28 @@ function createHarness() {
                 });
                 return { subscriptionId: row.id };
             },
+            async createBundleVersion(input) {
+                const bundle = await prisma.bundle.create({
+                    data: {
+                        projectKey: PROJECT_KEY,
+                        bundleKey: input.bundleKey,
+                        label: input.bundleKey,
+                    },
+                });
+                const row = await prisma.bundleVersion.create({
+                    data: {
+                        bundleId: bundle.id,
+                        version: 1,
+                        features: input.features,
+                        quotas: {},
+                        monthlyNet: '9.90',
+                        yearlyNet: '99.00',
+                        changeNote: 'seed',
+                        publishedAt: new Date(),
+                    },
+                });
+                return { bundleVersionId: row.id };
+            },
             async createPromoCode(input) {
                 const row = await prisma.promoCode.create({
                     data: {
@@ -209,9 +233,11 @@ function createHarness() {
     };
 }
 
+const PROJECT_KEY = 'adapter-prisma-contract';
+
 persistenceAdapterContract({
     name: 'adapter-prisma @ postgres (canonical fragments schema)',
-    projectKey: 'adapter-prisma-contract',
+    projectKey: PROJECT_KEY,
     create: async () => createHarness(),
 });
 

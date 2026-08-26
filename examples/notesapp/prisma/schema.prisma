@@ -1210,6 +1210,12 @@ model SubscriptionBundle {
     // only at `minimumTermEndsAt`.
     minimumTermEndsAt DateTime?
 
+    // The rhythm this booking is billed in, and the window it is billed
+    // for. A bundle ends on the day its plan does.
+    billingCycle       String?
+    currentPeriodStart DateTime?
+    currentPeriodEnd   DateTime?
+
     // Cancellation: requested at `canceledAt`, effective at
     // `canceledEffectiveAt` (period/term end). Both null = active booking.
     canceledAt          DateTime?

@@ -84,6 +84,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This bundle version is regressive (feature removed / quota lowered / price raised). Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).',
     BUNDLE_VERSION_ZERO_PRICE:
         'A bundle version cannot be published with an explicit price of 0.00 (guard against seed placeholders). For free bundles leave it null, or set allowZeroPrice.',
+    BUNDLE_VERSION_NO_PRICE:
+        'This bundle version cannot be published without a price: neither a base price nor any plan override resolves one.',
+    BUNDLE_VERSION_NOT_PRICED_FOR_PLAN:
+        "This bundle is offered to plan '{planKey}', which is sold {billingCycle}, and no {billingCycle} price resolves for it — neither a base price nor a plan override.",
     BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED:
         'Discard is not implemented in the current repository. Implement BundleRepository.deleteDraft.',
     BUNDLE_VERSION_VALID_FROM_REQUIRED:
@@ -131,6 +135,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].",
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.",
+    BUNDLE_CYCLE_EXCEEDS_PLAN:
+        'A {billingCycle} bundle cannot run beside a {planCycle} plan: it would still be committed on every day the plan could end.',
+    BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
+        'This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' is already cancelled.",
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:

@@ -70,6 +70,7 @@ import {
     TENANT_ID_RESOLVER_TOKEN,
     type TenantIdResolver,
 } from './tenant-billing.tokens.js';
+import { resolvePlanAnchorDay } from './bundle-period.js';
 
 interface RequestLike {
     user?: { tenantId?: string | null } | null;
@@ -123,6 +124,15 @@ export function buildTenantSubscriptionBundlesController(
                 minimumTermMonths: dto.minimumTermMonths,
                 // A bundle cannot commit past the subscription paying for it.
                 parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                // And it runs in the plan's rhythm, on the plan's day.
+                planCycle: sub.billingCycle as BillingCycle,
+                planPeriodEnd: sub.currentPeriodEnd ?? null,
+                // Resolved rather than passed through: a null here would let
+                // the arithmetic read the period END, which a short month has
+                // already clamped — and the preview, which resolves, would then
+                // quote a different day from the one booked.
+                planAnchorDay: resolvePlanAnchorDay(sub),
+                billingCycle: dto.billingCycle as BillingCycle | undefined,
             });
             await this.refreezeContract(tenantId, sub);
             return result;
@@ -160,11 +170,13 @@ export function buildTenantSubscriptionBundlesController(
                 // booking caps that at the parent's end. Both, or the two
                 // describe different contracts.
                 parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                planAnchorDay: resolvePlanAnchorDay(sub),
             };
             return hasAdd
                 ? this.previewService.previewAdd(ctx, {
                       bundleVersionId: dto.bundleVersionId!,
                       minimumTermMonths: dto.minimumTermMonths,
+                      billingCycle: dto.billingCycle as BillingCycle | undefined,
                   })
                 : this.previewService.previewCancel(ctx, {
                       subscriptionBundleId: dto.subscriptionBundleId!,

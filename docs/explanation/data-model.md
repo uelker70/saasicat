@@ -47,13 +47,13 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 
 ### Billing core
 
-| Entity                                        | Identity / uniqueness              | Notes                                                                                                                               |
-| --------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `Subscription` (`subscriptions`)              | one per tenant (`tenantId` unique) | Binds a live `PlanVersion`. Carries pending plan/version change fields, trial/pilot state, custom limits, frozen `packageSnapshot`. |
-| `SubscriptionPaymentMethod`                   | 1:1 subscription                   | Masked payment data only.                                                                                                           |
-| `CheckoutOffer` (`checkout_offers`)           | global, no RLS                     | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`.                |
-| `SubscriptionContract` + `ContractLineItem`   | append-only                        | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten.                |
-| `SubscriptionBundle` (`subscription_bundles`) | booking identity                   | Pins a standalone add-on booking to one concrete `BundleVersion`; cancellation becomes effective at its stored cutoff.              |
+| Entity                                        | Identity / uniqueness              | Notes                                                                                                                                                                                                    |
+| --------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Subscription` (`subscriptions`)              | one per tenant (`tenantId` unique) | Binds a live `PlanVersion`. Carries pending plan/version change fields, trial/pilot state, custom limits, frozen `packageSnapshot`.                                                                      |
+| `SubscriptionPaymentMethod`                   | 1:1 subscription                   | Masked payment data only.                                                                                                                                                                                |
+| `CheckoutOffer` (`checkout_offers`)           | global, no RLS                     | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`.                                                                                     |
+| `SubscriptionContract` + `ContractLineItem`   | append-only                        | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten.                                                                                     |
+| `SubscriptionBundle` (`subscription_bundles`) | booking identity                   | Pins a standalone add-on booking to one concrete `BundleVersion`; runs its own billing window, aligned so its periods end on the day the plan's do; cancellation becomes effective at its stored cutoff. |
 
 ### Catalog & versioning
 

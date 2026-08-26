@@ -33,6 +33,11 @@ async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
     const draft = await bundleRepo.createDraft({
         bundleId: bundle.id,
         features,
+        // A bundle nobody can be charged for cannot be published or booked, so
+        // a fixture without a price would be testing a state the platform
+        // refuses to reach.
+        monthlyNet: '9.90',
+        yearlyNet: '99.00',
         compatibility: planIds ? { planIds } : {},
     });
     const published = await bundleRepo.publishDraft(draft.id, {
@@ -55,6 +60,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             currentPlanKey: STARTER,
             startedAt,
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         assert.equal(row.subscriptionId, SUB_A);
         assert.equal(row.bundleVersionId, bv.id);
@@ -72,6 +80,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             startedAt: new Date('2026-01-01T00:00:00Z'),
             minimumTermMonths: 0,
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         assert.equal(row.minimumTermEndsAt, null);
     });
@@ -85,6 +96,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
                     bundleVersionId: bv.id,
                     currentPlanKey: STARTER,
                     parentEndsAt: null,
+                    planCycle: 'YEARLY',
+                    planPeriodEnd: null,
+                    planAnchorDay: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -101,6 +115,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             bundleVersionId: bv.id,
             currentPlanKey: 'IRGENDWAS',
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         assert.equal(row.bundleVersionId, bv.id);
     });
@@ -112,6 +129,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         await assert.rejects(
             () =>
@@ -120,6 +140,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
                     bundleVersionId: bv.id,
                     currentPlanKey: STARTER,
                     parentEndsAt: null,
+                    planCycle: 'YEARLY',
+                    planPeriodEnd: null,
+                    planAnchorDay: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -135,7 +158,12 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             bundleKey: 'B1',
             label: 'X',
         });
-        const draft = await bundleRepo.createDraft({ bundleId: bundle.id, features: ['F'] });
+        const draft = await bundleRepo.createDraft({
+            bundleId: bundle.id,
+            features: ['F'],
+            monthlyNet: '9.90',
+            yearlyNet: '99.00',
+        });
         await assert.rejects(
             () =>
                 service.addBundleToSubscription({
@@ -143,6 +171,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
                     bundleVersionId: draft.id,
                     currentPlanKey: STARTER,
                     parentEndsAt: null,
+                    planCycle: 'YEARLY',
+                    planPeriodEnd: null,
+                    planAnchorDay: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -163,6 +194,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
             currentPlanKey: STARTER,
             startedAt: new Date('2026-03-15T00:00:00Z'),
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         assert.equal(row.minimumTermEndsAt?.toISOString(), '2028-03-15T00:00:00.000Z');
     });
@@ -178,6 +212,9 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             startedAt: new Date('2025-01-01T00:00:00Z'),
             minimumTermMonths: 6,
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         // Minimum term ended on 2025-07-01; now cancel with periodEnd 2026-04-30
         const periodEnd = new Date('2026-04-30T00:00:00Z');
@@ -199,6 +236,9 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             startedAt: new Date('2026-01-01T00:00:00Z'),
             minimumTermMonths: 12, // → 2027-01-01
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         const periodEnd = new Date('2026-04-30T00:00:00Z');
         const canceled = await service.cancelBundleFromSubscription({
@@ -217,6 +257,9 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         await service.cancelBundleFromSubscription({
             subscriptionBundleId: row.id,
@@ -271,6 +314,9 @@ describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
                     bundleVersionId: bv.id,
                     currentPlanKey: STARTER,
                     parentEndsAt: null,
+                    planCycle: 'YEARLY',
+                    planPeriodEnd: null,
+                    planAnchorDay: null,
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -287,6 +333,9 @@ describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
             parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
         assert.equal(row.canceledAt, null);
     });

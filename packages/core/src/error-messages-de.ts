@@ -81,6 +81,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Diese Bundle-Version ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Das Veröffentlichen erfordert ein ausdrückliches `forceRegressive: true` (Bestätigungsdialog in der UI mit MFA).',
     BUNDLE_VERSION_ZERO_PRICE:
         'Eine Bundle-Version lässt sich nicht mit einem ausdrücklichen Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Kostenlose Bundles lässt du auf null, oder du setzt allowZeroPrice.',
+    BUNDLE_VERSION_NO_PRICE:
+        'Diese Bundle-Version kann ohne Preis nicht veröffentlicht werden: weder ein Grundpreis noch eine Plan-Überschreibung ergibt einen.',
+    BUNDLE_VERSION_NOT_PRICED_FOR_PLAN:
+        "Dieses Bundle wird dem Plan '{planKey}' angeboten, der {billingCycle} verkauft wird, und dafür ergibt sich kein {billingCycle} Preis — weder als Grundpreis noch als Plan-Überschreibung.",
     BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED:
         'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementiere BundleRepository.deleteDraft.',
     BUNDLE_VERSION_VALID_FROM_REQUIRED:
@@ -129,6 +133,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         "BundleVersion '{bundleVersionId}' passt nicht zum Plan '{planKey}'. Erlaubt: [{allowedPlanKeys}].",
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wende dich an die Vertragsverwaltung.",
+    BUNDLE_CYCLE_EXCEEDS_PLAN:
+        'Ein {billingCycle} abgerechnetes Bundle passt nicht zu einem {planCycle} abgerechneten Plan: es wäre an jedem Tag gebunden, an dem der Plan enden kann.',
+    BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
+        'Für dieses Bundle ist im Plan {planKey} kein {billingCycle} Preis hinterlegt, es kann hier deshalb nicht gebucht werden.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' ist bereits gekündigt.",
     SUBSCRIPTION_BUNDLE_NOT_CANCELLED:

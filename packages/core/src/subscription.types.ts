@@ -147,6 +147,18 @@ export interface SubscriptionBundleRecord {
     minimumTermEndsAt: Date | null;
     canceledAt: Date | null;
     canceledEffectiveAt: Date | null;
+    /**
+     * The rhythm this booking is billed in, and the window it is billed for.
+     *
+     * A bundle's periods end on the day its plan's do — the first one short,
+     * from the booking to the next occurrence of that day, and every one after
+     * it anchor to anchor. Null on a booking made before these fields existed,
+     * or on one whose plan has no period; readers fall back to the plan's
+     * cycle, which is what every booking used before.
+     */
+    billingCycle: string | null;
+    currentPeriodStart: Date | null;
+    currentPeriodEnd: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -170,6 +182,10 @@ export interface CreateSubscriptionBundleData {
     startedAt: Date;
     /** Default = startedAt + 12 months, unless set. */
     minimumTermEndsAt?: Date | null;
+    /** The rhythm and window worked out above this port. */
+    billingCycle?: string | null;
+    currentPeriodStart?: Date | null;
+    currentPeriodEnd?: Date | null;
 }
 
 export interface CancelSubscriptionBundleData {

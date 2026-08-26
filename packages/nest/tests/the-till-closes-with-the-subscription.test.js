@@ -222,6 +222,9 @@ describe('what a bundle may commit to', () => {
                     supersededAt: null,
                     compatibility: {},
                     features: ['F'],
+                    // A bundle nobody can be charged for cannot be booked.
+                    monthlyNet: '9.90',
+                    yearlyNet: '99.00',
                 }),
             },
             { defaultMinimumTermMonths: 12 },
@@ -236,6 +239,12 @@ describe('what a bundle may commit to', () => {
             currentPlanKey: 'STANDARD',
             startedAt: new Date('2026-01-01'),
             parentEndsAt,
+            // These tests are about the commitment cap, not the alignment: a
+            // yearly plan with no period of its own leaves the bundle without a
+            // window and lets the term rule speak for itself.
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
 
     test('never past the parent, when the parent ends first', async () => {
@@ -270,6 +279,9 @@ describe('what a bundle may commit to', () => {
             startedAt: new Date('2026-01-01'),
             minimumTermMonths: 0,
             parentEndsAt: new Date('2026-02-01'),
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
         });
 
         assert.equal(added[0].minimumTermEndsAt, null);

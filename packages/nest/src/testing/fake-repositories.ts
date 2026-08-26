@@ -168,6 +168,9 @@ export class FakeSubscriptionBundleRepository implements SubscriptionBundleRepos
             minimumTermEndsAt: data.minimumTermEndsAt ?? null,
             canceledAt: null,
             canceledEffectiveAt: null,
+            billingCycle: data.billingCycle ?? null,
+            currentPeriodStart: data.currentPeriodStart ?? null,
+            currentPeriodEnd: data.currentPeriodEnd ?? null,
             createdAt,
             updatedAt: createdAt,
         };

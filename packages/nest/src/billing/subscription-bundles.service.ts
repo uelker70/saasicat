@@ -23,12 +23,15 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 import type {
+    BillingCycle,
     BundleRepository,
     SubscriptionBundleRecord,
     SubscriptionBundleRepository,
     SubscriptionBundleView,
 } from '@saasicat/core';
 
+import { bundleCycleFitsPlan, bundleFirstPeriodEnd } from './bundle-period.js';
+import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/core';
 import {
@@ -72,6 +75,22 @@ export interface AddBundleToSubscriptionInput {
      * invisible.
      */
     parentEndsAt: Date | null;
+    /**
+     * The plan's rhythm, its current period end, and the day it is billed on.
+     *
+     * A bundle runs in step with the plan that pays for it: its periods end on
+     * the plan's day, and its first one is short. Aligned here, at booking,
+     * rather than trimmed when the plan ends — a trim means somebody was
+     * committed to more than they received, and then owed the difference.
+     *
+     * The plan's cycle is also the ceiling for the bundle's: a bundle may run
+     * in a shorter rhythm, never a longer one.
+     */
+    planCycle: BillingCycle;
+    planPeriodEnd: Date | null;
+    planAnchorDay: number | null;
+    /** The bundle's own rhythm. Defaults to the plan's. */
+    billingCycle?: BillingCycle;
 }
 
 export interface CancelBundleFromSubscriptionInput {
@@ -198,6 +217,37 @@ export class SubscriptionBundlesService {
         }
 
         const startedAt = input.startedAt ?? new Date();
+        const billingCycle = input.billingCycle ?? input.planCycle;
+        // Refused here as well as in the preview, and for the same reason the
+        // publish gate refuses a priceless version: a booking with no price
+        // hands the features over for nothing. The preview alone would be
+        // enforcement in the client — a caller that posts straight to this
+        // route never sees the blocker.
+        if (resolveBundlePriceNet(bundleVersion, input.currentPlanKey, billingCycle) === null) {
+            throw new UnprocessableEntityException({
+                code: BILLING_ERROR_CODES.BUNDLE_NOT_PRICED_FOR_THIS_PLAN,
+                message:
+                    `This bundle has no ${billingCycle.toLowerCase()} price for the ` +
+                    `${input.currentPlanKey} plan, so it cannot be booked.`,
+                params: { billingCycle, planKey: input.currentPlanKey },
+            });
+        }
+        if (!bundleCycleFitsPlan(billingCycle, input.planCycle)) {
+            throw new UnprocessableEntityException({
+                code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
+                message:
+                    `A ${billingCycle.toLowerCase()} bundle cannot be booked on a ` +
+                    `${input.planCycle.toLowerCase()} plan: its term would outlast the plan that ` +
+                    'pays for it.',
+                params: { billingCycle, planCycle: input.planCycle },
+            });
+        }
+        const currentPeriodEnd = bundleFirstPeriodEnd({
+            startedAt,
+            cycle: billingCycle,
+            planPeriodEnd: input.planPeriodEnd,
+            planAnchorDay: input.planAnchorDay,
+        });
         const minimumTermMonths = input.minimumTermMonths ?? this.defaultMinTermMonths;
         // Clamped to the parent's end rather than refused there. A customer who
         // has cancelled for the end of the month may still want a bundle for
@@ -214,6 +264,14 @@ export class SubscriptionBundlesService {
             bundleVersionId: input.bundleVersionId,
             startedAt,
             minimumTermEndsAt,
+            billingCycle,
+            // Both ends together or neither. A start without an end is a window
+            // that cannot be reasoned about: it is not running (nothing says
+            // when it stops) and it is not absent (something is written), and
+            // every reader would have to pick one. A booking made while its plan
+            // had no period has no period of its own either, and says so.
+            currentPeriodStart: currentPeriodEnd === null ? null : startedAt,
+            currentPeriodEnd,
         });
     }
 
@@ -239,7 +297,13 @@ export class SubscriptionBundlesService {
         const canceledAt = input.canceledAt ?? new Date();
         const canceledEffectiveAt = resolveBundleCancelEffectiveAt({
             canceledAt,
-            currentPeriodEnd: input.currentPeriodEnd ?? null,
+            // The booking's own period, not the plan's. A monthly bundle beside
+            // a yearly plan ends its month long before the plan ends its year,
+            // and reading the plan's boundary kept such a booking committed —
+            // and billed — until the annual renewal. The plan's boundary is the
+            // fallback for a booking made before bundles had periods, which is
+            // what those were billed against.
+            currentPeriodEnd: existing.currentPeriodEnd ?? input.currentPeriodEnd ?? null,
             minimumTermEndsAt: existing.minimumTermEndsAt,
             parentEndsAt: input.parentEndsAt,
         });

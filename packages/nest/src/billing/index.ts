@@ -14,6 +14,8 @@
 // notification cron, TrialExpirationService.
 
 export * from './billing-period.js';
+export * from './bundle-period.js';
+export * from './bundle-price.js';
 export * from './cancellation.js';
 export * from './version-diff.js';
 export * from './version-publish.js';
@@ -65,6 +67,11 @@ export * from './subscription-contract-freeze.service.js';
 export * from './trial-carryover.js';
 export * from './dto/tenant-billing.dto.js';
 export * from './dto/onboarding-subscription.dto.js';
+// The bundle-store request bodies, beside the plan ones they sit next to on
+// the same surface. A consumer writing its own controller needs the same
+// decorators the platform's route validates with, rather than a copy that
+// drifts.
+export * from './dto/subscription-bundles.dto.js';
 export * from './tenant-billing.controller.js';
 export * from './tenant-billing.module.js';
 export * from './configurator-catalog-builder.js';

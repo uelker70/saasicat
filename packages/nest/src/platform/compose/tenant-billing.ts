@@ -46,6 +46,14 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         TenantBillingModule.forRoot({
             ...tenantOptions,
             authGuards: ctx.shared.authGuards,
+            // The same adapter `SubscriptionBundleModule` gets. That module
+            // exports the token, but it is a sibling import here rather than an
+            // ancestor, so its exports never reach this module's providers —
+            // and the plan-change rule that reads bookings would resolve to
+            // "none" and allow the move it exists to refuse.
+            subscriptionBundleRepository: ctx.persistence?.entitlement
+                ?.subscriptionBundleRepository as
+                ProviderSpec<SubscriptionBundleRepository> | undefined,
             subscriptionUsagePort: ctx.shared
                 .subscriptionUsagePort as ProviderSpec<SubscriptionUsagePort>,
             usageSnapshotPort:

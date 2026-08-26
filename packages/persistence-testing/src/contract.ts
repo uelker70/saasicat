@@ -405,6 +405,74 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('a booking keeps the rhythm and the window it was made in', async (t) => {
+            // The three columns a bundle's own period lives in. Before they
+            // existed a booking was billed alongside the plan by convention,
+            // which is exactly what a null still means — so the scenario proves
+            // both readings survive a round trip through a real store, not just
+            // the populated one.
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-bundle-period',
+                plan: 'PRO',
+                planVersionId,
+                billingCycle: 'YEARLY',
+            });
+            const { bundleVersionId } = await seed.createBundleVersion({
+                bundleKey: 'ANALYTICS',
+                features: ['REPORTS'],
+            });
+
+            // A monthly bundle beside a yearly plan: the case the columns
+            // exist for, and the one a convention cannot express.
+            const booked = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-02-21T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+                billingCycle: 'MONTHLY',
+                currentPeriodStart: new Date('2026-02-21T00:00:00.000Z'),
+                currentPeriodEnd: new Date('2026-02-28T00:00:00.000Z'),
+            });
+            assert.equal(booked.billingCycle, 'MONTHLY');
+
+            const [readBack] = await repository.listBySubscription(subscriptionId);
+            assert.ok(readBack, 'the booking must be readable back');
+            assert.equal(readBack.billingCycle, 'MONTHLY');
+            assert.equal(
+                readBack.currentPeriodEnd?.toISOString(),
+                '2026-02-28T00:00:00.000Z',
+                'the period end must survive the round trip',
+            );
+            assert.equal(readBack.currentPeriodStart?.toISOString(), '2026-02-21T00:00:00.000Z');
+
+            // A booking made before the columns existed: every one of them null,
+            // read as "billed with the plan" rather than as a broken row.
+            const legacy = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+            });
+            const legacyReadBack = await repository.findById(legacy.id);
+            assert.ok(legacyReadBack, 'the legacy booking must be readable back');
+            assert.equal(legacyReadBack.billingCycle, null);
+            assert.equal(legacyReadBack.currentPeriodStart, null);
+            assert.equal(legacyReadBack.currentPeriodEnd, null);
+        });
+
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.subscriptionRepository.countByPlanVersionId) {

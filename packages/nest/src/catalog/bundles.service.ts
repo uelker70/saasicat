@@ -29,6 +29,7 @@ import {
     type BundleRow,
     type BundleVersionMutationResult,
     type BundleVersionRow,
+    type PlanVersionRow,
     type CatalogEntryRepository,
     type CreateBundleData,
     type CreateBundleVersionDraftData,
@@ -42,6 +43,7 @@ import {
 } from '@saasicat/core';
 
 import { classifyBundleVersionDiff } from '../billing/version-diff.js';
+import { cyclesSoldFor, resolveBundlePriceNet } from '../billing/bundle-price.js';
 import { BUNDLE_VERSION_WINDOW_CODES, resolveValidityWindow } from './validity-window.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { DiscoveryScanner } from '../discovery/discovery.scanner.js';
@@ -405,6 +407,37 @@ export class BundlesService {
         // ─── Price gate (guards against accidentally publishing seed placeholders) ───
         // Bundle prices may be null (override resolution) — only an EXPLICIT
         // 0.00 value is suspicious (seed draft). Special case: allowZeroPrice: true.
+        // A bundle nobody can be charged for cannot be published.
+        //
+        // Not the same as "null": a null price is deliberate, because a price
+        // may resolve through `pricingOverrides` per plan. What may not exist is
+        // a version from which NO price resolves at all — neither base nor
+        // override — because a tenant can then book it, receive its features,
+        // and be billed nothing for them, with nobody the wiser until an
+        // invoice is reconciled.
+        //
+        // Whether a price resolves for a particular plan AND cycle is asked
+        // below, where the catalog can answer it — a plan version says which
+        // cycles it is sold in, so "some plan this bundle is offered to cannot
+        // buy it" is decidable here, at the moment the person who caused it can
+        // still fix it. The booking preview asks the same question again for the
+        // one plan and cycle in front of it, because a version published before
+        // that rule existed must not be sellable silently.
+        const hasAnyPrice =
+            draft.monthlyNet != null ||
+            draft.yearlyNet != null ||
+            (draft.pricingOverrides ?? []).some((o) => o.monthlyNet != null || o.yearlyNet != null);
+        if (!hasAnyPrice) {
+            throw new UnprocessableEntityException({
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NO_PRICE,
+                message:
+                    'A bundle version cannot be published without a price: neither a base price ' +
+                    'nor any plan override resolves one, so a tenant booking it would be charged ' +
+                    'nothing for what they receive.',
+                params: { versionId },
+            });
+        }
+
         if (!publishMeta.allowZeroPrice) {
             const explicitZero = (v: string | null | undefined): boolean =>
                 v !== null && v !== undefined && Number.parseFloat(String(v)) <= 0;
@@ -419,6 +452,8 @@ export class BundlesService {
                 });
             }
         }
+
+        await this.refuseUnsellableToACompatiblePlan(draft, versionId);
 
         const previous = await this.repo.findLatestLive(draft.bundleId);
 
@@ -493,6 +528,68 @@ export class BundlesService {
         // Approved gate (#20 Slice 5): projectKey == snapshot.app.key (convention).
         const approved = await loadApprovedCatalogKeys(this.catalogEntries, snapshot.app.key);
         return validateBundleDraft(draft, snapshot, knownPlanKeys, this.marketedOnly, approved);
+    }
+
+    /**
+     * Refuses a version that a plan it is offered to could not actually buy.
+     *
+     * "Some price resolves" is not the same as "this plan, in the rhythm it is
+     * sold in, resolves one". A bundle priced monthly only, offered to a plan
+     * that is sold yearly, passes the first test and fails the second — and the
+     * failure surfaces at a tenant's checkout rather than at the operator's
+     * desk, which is the wrong end of the mistake.
+     *
+     * The expectation comes from the catalog, not from a list: the plans are
+     * whichever the compatibility declares (empty = every plan in the project),
+     * and the cycles are whichever each plan version carries a price for. Add a
+     * third cycle to the catalog one day and this asks about it without being
+     * told.
+     *
+     * Skipped where no plan repository is bound — a consumer without one has no
+     * catalog to derive from, and guessing would refuse valid bundles.
+     */
+    private async refuseUnsellableToACompatiblePlan(
+        draft: BundleVersionRow,
+        versionId: string,
+    ): Promise<void> {
+        if (!this.planRepo?.listVersions) return;
+        const projectKey = await this.resolveProjectKeyOf(draft.bundleId);
+        if (!projectKey) return;
+
+        const declared = draft.compatibility?.planIds ?? [];
+        const plans = await this.planRepo.list({ projectKey, onlyPublished: true });
+        const offeredTo = plans.filter(
+            (plan) => declared.length === 0 || declared.includes(plan.planKey),
+        );
+
+        for (const plan of offeredTo) {
+            const live = await this.liveVersionOf(plan.planKey);
+            if (!live) continue;
+            for (const cycle of cyclesSoldFor(live)) {
+                if (resolveBundlePriceNet(draft, plan.planKey, cycle) !== null) continue;
+                throw new UnprocessableEntityException({
+                    code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_PRICED_FOR_PLAN,
+                    message:
+                        `This bundle is offered to plan '${plan.planKey}', which is sold ` +
+                        `${cycle.toLowerCase()}, and no ${cycle.toLowerCase()} price resolves ` +
+                        'for it — neither a base price nor a plan override. Price it, or take ' +
+                        'that plan out of its compatibility.',
+                    params: { versionId, planKey: plan.planKey, billingCycle: cycle },
+                });
+            }
+        }
+    }
+
+    /** The live version of a plan, or null where the port cannot answer. */
+    private async liveVersionOf(planKey: string): Promise<PlanVersionRow | null> {
+        const versions = (await this.planRepo?.listVersions?.(planKey)) ?? [];
+        return versions.find((version) => version.publishedAt && !version.supersededAt) ?? null;
+    }
+
+    /** `projectKey` lives on the bundle stem, not on the version. */
+    private async resolveProjectKeyOf(bundleId: string): Promise<string | null> {
+        const stem = await this.repo.findById(bundleId);
+        return stem?.projectKey ?? null;
     }
 
     private gateOrPass(warnings: StrictModeWarning[]): void {
