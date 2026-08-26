@@ -84,6 +84,15 @@ interface BundleSeed {
     features: string[];
     quotas: Record<string, number>;
     monthlyNet: number;
+    /**
+     * Both plans here are sold monthly *and* yearly, and a bundle offered to a
+     * plan has to resolve a price in the rhythm that plan is bought in — the
+     * publish gate refuses a version that cannot, and the booking preview
+     * blocks one that slipped through. Seeded with only a monthly price, these
+     * two were permanently unbookable for every tenant on a yearly plan, which
+     * is what an integrator would have copied.
+     */
+    yearlyNet: number;
     changeNote: string;
 }
 
@@ -97,6 +106,7 @@ const BUNDLES: BundleSeed[] = [
         features: ['NOTES_EXPORT'],
         quotas: {},
         monthlyNet: 5,
+        yearlyNet: 50,
         changeNote: 'Initial release (seed).',
     },
     {
@@ -108,6 +118,7 @@ const BUNDLES: BundleSeed[] = [
         features: [],
         quotas: { notesMax: 5000 },
         monthlyNet: 8,
+        yearlyNet: 80,
         changeNote: 'Initial release (seed).',
     },
 ];
@@ -372,6 +383,7 @@ async function seedBundles(prisma: PrismaClient): Promise<void> {
                 features: spec.features,
                 quotas: spec.quotas,
                 monthlyNet: spec.monthlyNet,
+                yearlyNet: spec.yearlyNet,
                 marketed: true,
                 publishedAt: now,
                 changeNote: spec.changeNote,
@@ -381,6 +393,7 @@ async function seedBundles(prisma: PrismaClient): Promise<void> {
                 features: spec.features,
                 quotas: spec.quotas,
                 monthlyNet: spec.monthlyNet,
+                yearlyNet: spec.yearlyNet,
                 publishedAt: now,
             },
         });
