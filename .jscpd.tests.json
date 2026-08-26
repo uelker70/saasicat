@@ -6,19 +6,15 @@
         "**/coverage/**",
         "**/.integration-tmp/**",
         "**/CHANGELOG.md",
-        "**/*.snap",
-        "**/tests/**",
-        "**/tests-component/**",
-        "**/test/**",
-        "**/*.test.*",
-        "**/*.spec.*"
+        "**/*.snap"
     ],
     "format": ["typescript", "javascript", "vue", "scss", "css", "markup"],
     "minTokens": 50,
     "maxLines": 50000,
-    "threshold": 1.8,
+    "threshold": 3.88,
     "reporters": ["console", "json"],
-    "output": "./.jscpd-report/sources",
+    "output": "./.jscpd-report/tests",
     "absolute": false,
-    "gitignore": true
+    "gitignore": true,
+    "pattern": "**/{tests,tests-component,test}/**"
 }
