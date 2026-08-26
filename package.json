@@ -12,6 +12,7 @@
         "test": "pnpm -r test",
         "test:repo": "node --test tests/*.test.js",
         "typecheck": "pnpm -r typecheck",
+        "duplication": "pnpm dlx jscpd@4 || fail=1; pnpm dlx jscpd@4 -c .jscpd.tests.json || fail=1; exit ${fail:-0}",
         "lint": "eslint .",
         "lint:css": "stylelint \"packages/ui-vue/src/{pages,features,internal}/**/*.{vue,css}\" \"packages/ui-vue-tenant/src/**/*.{vue,css}\" --max-warnings 0",
         "format": "prettier --write .",

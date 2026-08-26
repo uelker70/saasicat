@@ -10,10 +10,18 @@ permissions:
 
 jobs:
     # Pure source analysis — needs neither install nor build, so it runs
-    # separately and in parallel. The configuration lives in .jscpd.json so a
-    # local run (`pnpm dlx jscpd`) measures exactly what CI does. maxLines is
+    # separately and in parallel. The configuration lives in .jscpd.json and
+    # .jscpd.tests.json so a local run measures exactly what CI does. maxLines is
     # the value that matters there: at the default of 1000 jscpd silently skips
     # larger files and measures past the very places duplication collects in.
+    #
+    # Two runs, because one number over both populations answers neither
+    # question. Measured on 2026-08-26: production sources 1.80 %, test sources
+    # 3.88 %, and the combined 2.58 % against a 2.6 % ceiling — so the next test
+    # file added could break the build for a reason that says nothing about the
+    # code being shipped, while production duplication had a third of its
+    # headroom unused. Separating them lets each ratchet tighten on its own, and
+    # neither can mask the other.
     duplication:
         runs-on: ubuntu-latest
         steps:
@@ -27,8 +35,13 @@ jobs:
             - uses: actions/setup-node@v6
               with:
                   node-version: 24
-            - name: Duplication check
+            - name: Duplication check — production sources
               run: pnpm dlx jscpd@4
+            # Separate step rather than `&&`: when the first fails, the second
+            # still runs and the report says which population moved.
+            - name: Duplication check — test sources
+              if: always()
+              run: pnpm dlx jscpd@4 -c .jscpd.tests.json
             - name: Upload duplication report
               if: always()
               uses: actions/upload-artifact@v7
