@@ -392,7 +392,8 @@ const bundleError = ref<string | null>(null);
 
 // Bundle preview dialog state (#37/#61)
 type PendingBundleAction =
-    { kind: 'add'; bundleVersionId: string } | { kind: 'cancel'; subscriptionBundleId: string };
+    | { kind: 'add'; bundleVersionId: string; billingCycle?: 'MONTHLY' | 'YEARLY' }
+    | { kind: 'cancel'; subscriptionBundleId: string };
 const bundlePreviewOpen = ref(false);
 const bundlePreview = ref<BundlePreviewShape | null>(null);
 const bundlePreviewLoading = ref(false);
@@ -573,9 +574,13 @@ function usageBarFormatter(key: string): ((value: number) => string) | undefined
 }
 
 // Bundle store actions (#15/#37): preview dialog first, mutation after confirm.
-async function onBuyBundle(bundleVersionId: string) {
-    pendingBundleAction.value = { kind: 'add', bundleVersionId };
-    await openBundlePreview(() => billing.previewAddBundle(bundleVersionId));
+async function onBuyBundle(bundleVersionId: string, billingCycle?: 'MONTHLY' | 'YEARLY') {
+    // The same rhythm reaches the preview and the confirmation, which is the
+    // whole point of holding it on the pending action rather than passing it
+    // twice: a preview that quotes one contract while the booking writes
+    // another is the one thing a preview may never do.
+    pendingBundleAction.value = { kind: 'add', bundleVersionId, billingCycle };
+    await openBundlePreview(() => billing.previewAddBundle(bundleVersionId, { billingCycle }));
 }
 
 async function onCancelBundle(subscriptionBundleId: string) {
@@ -637,7 +642,9 @@ async function onConfirmBundlePreview() {
     else cancelingBundleId.value = action.subscriptionBundleId;
     try {
         if (action.kind === 'add') {
-            await billing.addBundle(action.bundleVersionId);
+            await billing.addBundle(action.bundleVersionId, {
+                billingCycle: action.billingCycle,
+            });
         } else {
             await billing.cancelBundle(action.subscriptionBundleId);
         }

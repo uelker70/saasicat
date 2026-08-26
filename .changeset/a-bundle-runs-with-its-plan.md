@@ -62,6 +62,12 @@ rather than the plan's. For a monthly bundle beside a yearly plan those are up
 to eleven months apart, and reading the plan's boundary kept a cancelled booking
 committed and billed until the annual renewal.
 
+`addBundle` and `previewAddBundle` now take `{ minimumTermMonths?, billingCycle? }`
+where they took a bare `minimumTermMonths`, and `useTenantSubscriptionBundles().add()`
+accepts the same rhythm. Until they did, no shipped client sent one, so a bundle
+priced monthly only read as unpriced to every tenant on a yearly plan and the
+case this alignment exists for could not be completed at all.
+
 Existing bookings need a backfill; `docs/guides/upgrade-to-1.0.md` carries the
 statement, the one call to add to the renewal job, and says which rows to leave
 alone.

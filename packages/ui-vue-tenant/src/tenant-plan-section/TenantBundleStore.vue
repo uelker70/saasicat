@@ -159,7 +159,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    buy: [bundleVersionId: string];
+    /**
+     * The second argument is the rhythm to bill the bundle in. Omitted means
+     * the plan's, which is what this grid asks for — a rhythm the tenant chose
+     * would come from a control that does not exist yet, and inventing a
+     * default here would change what somebody pays without asking them.
+     */
+    buy: [bundleVersionId: string, billingCycle?: 'MONTHLY' | 'YEARLY'];
     cancel: [subscriptionBundleId: string];
     reactivate: [subscriptionBundleId: string];
 }>();

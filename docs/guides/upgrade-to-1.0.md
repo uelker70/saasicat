@@ -487,6 +487,27 @@ the booking's own declared cancellation, whichever comes first — and it advanc
 boundary **after** `now` rather than by one cycle, so a job that has not run for three months
 catches up in a single write.
 
+**`addBundle` and `previewAddBundle` take an options object.** The second parameter was
+`minimumTermMonths?: number`; it is now `{ minimumTermMonths?, billingCycle? }`, because a third
+positional optional is how a signature stops being readable. `billingCycle` is the rhythm to bill
+the bundle in — omitted means the plan's, and it may never be longer than the plan's:
+
+```ts
+// before
+await billing.addBundle(bundleVersionId, 12);
+// after
+await billing.addBundle(bundleVersionId, { minimumTermMonths: 12 });
+// and the case that was unreachable until now
+await billing.addBundle(bundleVersionId, { billingCycle: 'MONTHLY' });
+```
+
+`useTenantSubscriptionBundles().add()` takes the same field. Until it did, no shipped client could
+ask for a rhythm, so a bundle priced monthly only read as unpriced to every tenant on a yearly
+plan — the headline case the alignment exists for could not be completed with the composables this
+package ships. `TenantBundleStore`'s `buy` event carries an optional cycle for the same reason, and
+`TenantPlanSection` sends the same one to the preview and to the confirmation, so the two cannot
+describe different contracts.
+
 **A plan change can no longer strand an add-on.** A bundle may run in a shorter rhythm than its
 plan, never a longer one, and that rule used to be checked only where a bundle is booked. A yearly
 add-on bought beside a yearly plan survived a move to a monthly one. Moving to a shorter cycle is

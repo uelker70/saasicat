@@ -299,6 +299,40 @@ export interface UseTenantBillingOptions {
     autoLoad?: boolean;
 }
 
+/**
+ * What a caller may decide about a booking, beyond which bundle it is.
+ *
+ * An object rather than two more positional parameters, and both halves matter
+ * to a tenant: `billingCycle` is the rhythm the bundle is billed in, and
+ * leaving it out means the plan's. A monthly bundle beside a yearly plan is the
+ * case it exists for — the platform has accepted it since bundles gained a
+ * rhythm of their own, and until this was plumbed through, no shipped client
+ * could ask for it, so a monthly-only bundle simply read as unpriced to every
+ * tenant on a yearly plan.
+ */
+export interface BundleBookingOptions {
+    /** Months of commitment. `0` = none. Omitted = the platform default. */
+    minimumTermMonths?: number;
+    /** The bundle's own rhythm. Omitted = the plan's. Never longer than it. */
+    billingCycle?: BillingCycleStr;
+}
+
+/** The request body both the preview and the booking send. */
+function bundleBookingBody(
+    bundleVersionId: string,
+    options: BundleBookingOptions,
+): Record<string, unknown> {
+    const body: Record<string, unknown> = { bundleVersionId };
+    // Omitted rather than sent as undefined: the route reads an absent field as
+    // "the platform decides", and `JSON.stringify` would drop it anyway — but
+    // only by accident, and an accident is not a contract.
+    if (options.minimumTermMonths !== undefined) {
+        body.minimumTermMonths = options.minimumTermMonths;
+    }
+    if (options.billingCycle !== undefined) body.billingCycle = options.billingCycle;
+    return body;
+}
+
 export interface UseTenantBillingResult {
     usage: Ref<UsageSnapshotShape | null>;
     loading: Ref<boolean>;
@@ -333,7 +367,7 @@ export interface UseTenantBillingResult {
     /** Reloads only the booked bundles (non-fatal). */
     loadBundles: () => Promise<void>;
     /** Books a bundle via `bundleVersionId` + reloads the list. */
-    addBundle: (bundleVersionId: string, minimumTermMonths?: number) => Promise<void>;
+    addBundle: (bundleVersionId: string, options?: BundleBookingOptions) => Promise<void>;
     /** Cancels a booked bundle via SubscriptionBundle PK + reloads. */
     cancelBundle: (subscriptionBundleId: string) => Promise<void>;
     /** Reverses a cancellation that has not yet taken effect + reloads. */
@@ -344,7 +378,7 @@ export interface UseTenantBillingResult {
      */
     previewAddBundle: (
         bundleVersionId: string,
-        minimumTermMonths?: number,
+        options?: BundleBookingOptions,
     ) => Promise<BundleAddPreviewShape>;
     /** Cancel preview (#37): effective date + savings from the next period on. */
     previewCancelBundle: (subscriptionBundleId: string) => Promise<BundleCancelPreviewShape>;
@@ -418,13 +452,10 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         }
     }
 
-    async function addBundle(bundleVersionId: string, minimumTermMonths?: number) {
+    async function addBundle(bundleVersionId: string, options: BundleBookingOptions = {}) {
         await fetchOrThrow('/subscription-bundles', {
             method: 'POST',
-            body:
-                minimumTermMonths !== undefined
-                    ? { bundleVersionId, minimumTermMonths }
-                    : { bundleVersionId },
+            body: bundleBookingBody(bundleVersionId, options),
         });
         await loadBundles();
     }
@@ -447,14 +478,11 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
 
     async function previewAddBundle(
         bundleVersionId: string,
-        minimumTermMonths?: number,
+        options: BundleBookingOptions = {},
     ): Promise<BundleAddPreviewShape> {
         return fetchOrThrow<BundleAddPreviewShape>('/subscription-bundles/preview', {
             method: 'POST',
-            body:
-                minimumTermMonths !== undefined
-                    ? { bundleVersionId, minimumTermMonths }
-                    : { bundleVersionId },
+            body: bundleBookingBody(bundleVersionId, options),
         });
     }
 

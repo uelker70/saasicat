@@ -22,7 +22,14 @@ function makeRecordingHttp() {
     return {
         calls,
         client: async (url, init) => {
-            calls.push({ url, method: init?.method ?? 'GET' });
+            calls.push({
+                url,
+                method: init?.method ?? 'GET',
+                // The body too: what a client SENDS is as much a part of the
+                // contract as where it sends it, and a field silently dropped
+                // between a composable and the wire is invisible without this.
+                body: init?.body ? JSON.parse(init.body) : undefined,
+            });
             return fakeResponse;
         },
     };
@@ -92,5 +99,51 @@ describe('useTenantBillingCatalog URL construction', () => {
         await catalog.load();
         const urls = calls.map((c) => c.url).sort();
         assert.deepEqual(urls, ['/billing/bundles', '/billing/feature-registry', '/billing/plans']);
+    });
+});
+
+describe('the rhythm a bundle is booked in reaches the wire', () => {
+    // The platform has accepted a bundle cycle since bundles gained one, and no
+    // shipped client sent it — so a monthly-only bundle read as unpriced to
+    // every tenant on a yearly plan, and the headline monthly-on-yearly flow
+    // could not be completed with the composables this package ships.
+
+    test('an explicit cycle is sent by both the preview and the booking', async () => {
+        const { client, calls } = makeRecordingHttp();
+        const billing = useTenantBilling({ http: client, autoLoad: false });
+        await billing.previewAddBundle('bv-1', { billingCycle: 'MONTHLY' });
+        await billing.addBundle('bv-1', { billingCycle: 'MONTHLY' });
+
+        const bodies = calls.filter((c) => c.method === 'POST').map((c) => c.body);
+        assert.equal(bodies.length, 2, 'preview and booking are both POSTs');
+        for (const body of bodies) {
+            assert.equal(body.billingCycle, 'MONTHLY');
+            assert.equal(body.bundleVersionId, 'bv-1');
+        }
+    });
+
+    test('omitting it sends no field at all, so the plan’s rhythm decides', async () => {
+        // Not `billingCycle: null` and not `undefined` — an absent field is how
+        // the route reads "the platform decides", and a null would be a value.
+        const { client, calls } = makeRecordingHttp();
+        const billing = useTenantBilling({ http: client, autoLoad: false });
+        await billing.addBundle('bv-1');
+
+        const body = calls.find((c) => c.method === 'POST').body;
+        assert.deepEqual(Object.keys(body), ['bundleVersionId']);
+    });
+
+    test('a minimum term still travels, alone or beside a cycle', async () => {
+        const { client, calls } = makeRecordingHttp();
+        const billing = useTenantBilling({ http: client, autoLoad: false });
+        await billing.addBundle('bv-1', { minimumTermMonths: 0 });
+        await billing.addBundle('bv-2', { minimumTermMonths: 6, billingCycle: 'YEARLY' });
+
+        const bodies = calls.filter((c) => c.method === 'POST').map((c) => c.body);
+        // Zero is a value, not an absence — it says "no commitment".
+        assert.equal(bodies[0].minimumTermMonths, 0);
+        assert.equal(bodies[0].billingCycle, undefined);
+        assert.equal(bodies[1].minimumTermMonths, 6);
+        assert.equal(bodies[1].billingCycle, 'YEARLY');
     });
 });
