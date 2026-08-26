@@ -10,6 +10,7 @@ import { TenantBillingModule } from '../../billing/tenant-billing.module.js';
 import type { ProviderSpec } from '../../core/di.js';
 import { normalizeTenantAuthGuards, quotaUsageSnapshotProvider } from './tenant-bindings.js';
 
+import { resolveBundleRepository } from './bundle-repository-source.js';
 import { optionsOf, type CompositionContext } from './context.js';
 
 /**
@@ -87,7 +88,7 @@ export function composeSubscriptionBundles(ctx: CompositionContext): DynamicModu
             ...bundleOptions,
             subscriptionBundleRepository: ctx.persistence?.entitlement
                 ?.subscriptionBundleRepository as ProviderSpec<SubscriptionBundleRepository>,
-            bundleRepository: ctx.persistence?.catalog?.bundleRepository,
+            bundleRepository: resolveBundleRepository(ctx.persistence),
             controller:
                 controller === false
                     ? undefined
