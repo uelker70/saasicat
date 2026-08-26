@@ -19,7 +19,9 @@
     "eslint-plugin-saasicat": "0.0.0"
   },
   "changesets": [
+    "a-term-is-a-term",
     "apply-carries-the-enums",
+    "bundle-actions-by-object",
     "catalog-import-answers-400",
     "cli-readme-shows-the-real-catalog-module",
     "controls-come-from-quasar",
@@ -37,6 +39,7 @@
     "review-step-has-a-route",
     "spacing-comes-from-the-scale",
     "suite-finds-the-distributions",
+    "the-admin-brings-its-own-framework",
     "the-example-speaks-english",
     "the-primitive-roster-and-its-consumers",
     "the-row-carries-the-order",
