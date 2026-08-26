@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
     DrizzleAuditAdapter,
@@ -132,6 +132,12 @@ function createHarness() {
                     updatedAt: new Date(),
                 });
                 return { subscriptionId: id };
+            },
+            async clearBookingRequestDate(subscriptionBundleId) {
+                await db
+                    .update(saasicatSchema.subscriptionBundles)
+                    .set({ canceledAt: null })
+                    .where(eq(saasicatSchema.subscriptionBundles.id, subscriptionBundleId));
             },
             async createPromoCode(input) {
                 const id = randomUUID();

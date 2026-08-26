@@ -146,19 +146,20 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
 }
 
 /**
- * Active: never cancelled, or cancelled for a date still ahead.
+ * Active: nobody asked to cancel it, or the cancellation lands later.
  *
- * `isNull` on both columns rather than on `canceledAt` alone, because a row
- * may carry an effective date without the request date on the legacy reading —
- * and a comparison against NULL is neither true nor false in SQL, so a booking
- * with no effective date would silently drop out of every "active" list.
+ * The port writes the rule out — `canceledAt IS NULL OR canceledEffectiveAt >
+ * NOW()` — and `adapter-prisma` implements exactly that, so this is not a place
+ * to have an opinion. Requiring BOTH columns to be null for the first branch
+ * looks equivalent and is not: a row with no request date but a past effective
+ * date then reads as inactive here and active there, and a tenant on Drizzle
+ * would be granted less than the same tenant on Prisma. The shape is incoherent
+ * data either way; what matters is that both adapters answer it the same, which
+ * is the whole reason the contract exists.
  */
 function stillActive(asOf: Date) {
     return or(
-        and(
-            isNull(subscriptionBundles.canceledAt),
-            isNull(subscriptionBundles.canceledEffectiveAt),
-        ),
+        isNull(subscriptionBundles.canceledAt),
         gt(subscriptionBundles.canceledEffectiveAt, asOf),
     );
 }

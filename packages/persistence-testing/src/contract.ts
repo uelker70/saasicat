@@ -591,6 +591,113 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('a booking with no request date is active, whatever its effective date says', async (t) => {
+            // The port defines activity as `canceledAt IS NULL OR
+            // canceledEffectiveAt > NOW()`. A row with no request date and a
+            // past effective date satisfies the first half, and an adapter that
+            // requires BOTH columns to be null instead reads it as inactive —
+            // so the same tenant is granted less on one store than on another.
+            // The shape is incoherent data; the point is that both answer it
+            // the same way.
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-half-cancelled',
+                plan: 'PRO',
+                planVersionId,
+            });
+            const { bundleVersionId } = await seed.createBundleVersion({
+                bundleKey: 'ANALYTICS',
+                features: ['REPORTS'],
+            });
+            const booking = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+            });
+            // Cancel, then clear only the request date — the half-written state
+            // the nullable columns permit.
+            await repository.cancel(booking.id, {
+                canceledAt: new Date('2026-02-01T00:00:00.000Z'),
+                canceledEffectiveAt: new Date('2026-03-01T00:00:00.000Z'),
+            });
+            const clearRequestDate = harness.seed.clearBookingRequestDate;
+            if (!clearRequestDate) {
+                t.skip('adapter harness cannot write the half-cancelled shape');
+                return;
+            }
+            await clearRequestDate(booking.id);
+
+            const active = await repository.listActiveBySubscription(
+                subscriptionId,
+                new Date('2026-06-01T00:00:00.000Z'),
+            );
+            assert.equal(active.length, 1, 'no request date means nobody asked to cancel it');
+            assert.equal(
+                await repository.countActiveByBundleVersionId(
+                    bundleVersionId,
+                    new Date('2026-06-01T00:00:00.000Z'),
+                ),
+                1,
+            );
+        });
+
+        test('discarding a draft cannot remove a version published meanwhile', async (t) => {
+            // Read-then-delete-by-id leaves a window: a publish commits in
+            // between and the delete removes a published version. It has no
+            // bookings yet, so no foreign key stands in the way — the catalogue
+            // entry is simply gone. Simulated here by publishing between the
+            // caller's decision and the call, which is the same order the race
+            // produces.
+            const catalog = harness.adapter.bundleRepository;
+            // Bound once so the narrowing survives into the arrow below: the
+            // port makes `deleteDraft` optional, and TypeScript does not carry
+            // a property check across a closure boundary.
+            const discardDraft = catalog?.deleteDraft?.bind(catalog);
+            if (!catalog || !discardDraft) {
+                t.skip('adapter provides no BundleRepository');
+                return;
+            }
+            const bundle = await catalog.create({
+                projectKey: options.projectKey,
+                bundleKey: 'RACE',
+                label: 'Race',
+            });
+            const draft = await catalog.createDraft({
+                bundleId: bundle.id,
+                features: ['REPORTS'],
+                quotas: {},
+            });
+            await catalog.publishDraft(draft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+
+            await assert.rejects(
+                () => discardDraft(draft.id),
+                'a published version must not be discardable',
+            );
+            assert.ok(
+                await catalog.findVersionById(draft.id),
+                'and it must still be there afterwards',
+            );
+        });
+
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.subscriptionRepository.countByPlanVersionId) {

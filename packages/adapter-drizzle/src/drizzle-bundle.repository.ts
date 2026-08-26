@@ -8,9 +8,9 @@ import type {
     BundleRepository,
     BundleRow,
     BundleVersionRow,
-    CatalogEntryI18n,
     CreateBundleData,
     CreateBundleVersionDraftData,
+    PublishBundleVersionMeta,
     FeatureKey,
     QuotaKey,
     TransactionContext,
@@ -18,6 +18,7 @@ import type {
     UpdateBundleVersionDraftData,
     VersionChange,
 } from '@saasicat/core';
+import { bundleDraftDefaults, bundleStemDefaults, toBundleStemRow } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { bundles, bundleVersions } from './schema.js';
 
@@ -93,12 +94,12 @@ export class DrizzleBundleRepository implements BundleRepository {
                     : eq(bundles.projectKey, filter.projectKey),
             )
             .orderBy(asc(bundles.sortOrder), asc(bundles.bundleKey));
-        return rows.map(toBundleRow);
+        return rows.map(toBundleStemRow);
     }
 
     async findById(bundleId: string): Promise<BundleRow | null> {
         const rows = await this.db.select().from(bundles).where(eq(bundles.id, bundleId)).limit(1);
-        return rows[0] ? toBundleRow(rows[0]) : null;
+        return rows[0] ? toBundleStemRow(rows[0]) : null;
     }
 
     async findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null> {
@@ -107,7 +108,7 @@ export class DrizzleBundleRepository implements BundleRepository {
             .from(bundles)
             .where(and(eq(bundles.projectKey, projectKey), eq(bundles.bundleKey, bundleKey)))
             .limit(1);
-        return rows[0] ? toBundleRow(rows[0]) : null;
+        return rows[0] ? toBundleStemRow(rows[0]) : null;
     }
 
     async create(data: CreateBundleData): Promise<BundleRow> {
@@ -116,17 +117,11 @@ export class DrizzleBundleRepository implements BundleRepository {
             .insert(bundles)
             .values({
                 id: randomUUID(),
-                projectKey: data.projectKey,
-                bundleKey: data.bundleKey,
-                label: data.label,
-                description: data.description ?? null,
-                icon: data.icon ?? null,
-                sortOrder: data.sortOrder ?? 0,
-                i18n: data.i18n ?? {},
+                ...bundleStemDefaults(data),
                 updatedAt: now,
             })
             .returning();
-        return toBundleRow(rows[0]);
+        return toBundleStemRow(rows[0]);
     }
 
     async update(bundleId: string, data: UpdateBundleData): Promise<BundleRow> {
@@ -143,7 +138,7 @@ export class DrizzleBundleRepository implements BundleRepository {
             .where(eq(bundles.id, bundleId))
             .returning();
         if (!rows[0]) throw new Error(`Bundle '${bundleId}' not found.`);
-        return toBundleRow(rows[0]);
+        return toBundleStemRow(rows[0]);
     }
 
     async softDelete(bundleId: string): Promise<void> {
@@ -207,8 +202,7 @@ export class DrizzleBundleRepository implements BundleRepository {
             )
             .orderBy(desc(bundleVersions.version))
             .limit(1);
-        if (!rows[0]) return null;
-        return this.toVersionRow(rows[0], await this.stemOn(resolveDb(this.db, tx), bundleId));
+        return this.withStem(rows[0], bundleId, tx);
     }
 
     /**
@@ -241,8 +235,7 @@ export class DrizzleBundleRepository implements BundleRepository {
             // window it is inside — the same order adapter-prisma uses.
             .orderBy(sql`"validFrom" DESC NULLS LAST`, desc(bundleVersions.version))
             .limit(1);
-        if (!rows[0]) return null;
-        return this.toVersionRow(rows[0], await this.stemOn(resolveDb(this.db, tx), bundleId));
+        return this.withStem(rows[0], bundleId, tx);
     }
 
     async createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow> {
@@ -266,16 +259,7 @@ export class DrizzleBundleRepository implements BundleRepository {
                 id: randomUUID(),
                 bundleId: data.bundleId,
                 version: latest[0] ? latest[0].version + 1 : 1,
-                baseVersionId: data.baseVersionId ?? null,
-                features: data.features,
-                quotas: data.quotas ?? {},
-                compatibility: data.compatibility ?? {},
-                pricingOverrides: data.pricingOverrides ?? [],
-                monthlyNet: data.monthlyNet ?? null,
-                yearlyNet: data.yearlyNet ?? null,
-                marketed: data.marketed ?? true,
-                changeNote: data.changeNote ?? '',
-                createdByUserId: data.createdByUserId ?? null,
+                ...bundleDraftDefaults(data),
                 validFrom: this.validityWindows ? toNullableDate(data.validFrom) : null,
                 validUntil: this.validityWindows ? toNullableDate(data.validUntil) : null,
                 updatedAt: now,
@@ -313,13 +297,7 @@ export class DrizzleBundleRepository implements BundleRepository {
 
     async publishDraft(
         versionId: string,
-        publishMeta: {
-            publishedByUserId: string | null;
-            publishedChanges: VersionChange[];
-            nonRegressive: boolean;
-            validFrom: Date;
-            validUntil: Date | null;
-        },
+        publishMeta: PublishBundleVersionMeta,
         tx?: TransactionContext,
     ): Promise<BundleVersionRow> {
         if (tx !== undefined)
@@ -334,13 +312,7 @@ export class DrizzleBundleRepository implements BundleRepository {
     private async publishWithin(
         db: DrizzleClient,
         versionId: string,
-        publishMeta: {
-            publishedByUserId: string | null;
-            publishedChanges: VersionChange[];
-            nonRegressive: boolean;
-            validFrom: Date;
-            validUntil: Date | null;
-        },
+        publishMeta: PublishBundleVersionMeta,
     ): Promise<BundleVersionRow> {
         const draftRows = await db
             .select()
@@ -387,23 +359,55 @@ export class DrizzleBundleRepository implements BundleRepository {
             .from(bundles)
             .where(eq(bundles.id, draft.bundleId))
             .limit(1);
-        return this.toVersionRow(publishedRows[0], stemRows[0] ? toBundleRow(stemRows[0]) : null);
+        return this.toVersionRow(
+            publishedRows[0],
+            stemRows[0] ? toBundleStemRow(stemRows[0]) : null,
+        );
     }
 
     async deleteDraft(versionId: string): Promise<void> {
-        const rows = await this.db
+        // Conditional on the row still being a draft, and the answer read from
+        // what the DELETE matched rather than from a SELECT before it.
+        //
+        // Reading first and deleting by id alone leaves a window: a publish can
+        // commit in between, and the delete then removes a *published* version.
+        // A version published a moment ago has no bookings yet, so the foreign
+        // key does not stand in the way either — the catalogue entry is simply
+        // gone, and nothing in the platform can put it back.
+        const deleted = await this.db
+            .delete(bundleVersions)
+            .where(and(eq(bundleVersions.id, versionId), isNull(bundleVersions.publishedAt)))
+            .returning({ id: bundleVersions.id });
+        if (deleted.length > 0) return;
+
+        // Nothing was deleted, and the two reasons need different answers: a
+        // row that is gone is the state the caller wanted, a published one is a
+        // refusal they have to see.
+        const remaining = await this.db
             .select({ publishedAt: bundleVersions.publishedAt })
             .from(bundleVersions)
             .where(eq(bundleVersions.id, versionId))
             .limit(1);
-        if (!rows[0]) return;
-        if (rows[0].publishedAt !== null) {
-            throw new Error(
-                `BundleVersion '${versionId}' is already published and cannot be discarded ` +
-                    '(published versions are immutable — contract protection P1).',
-            );
-        }
-        await this.db.delete(bundleVersions).where(eq(bundleVersions.id, versionId));
+        if (!remaining[0]) return;
+        throw new Error(
+            `BundleVersion '${versionId}' is already published and cannot be discarded ` +
+                '(published versions are immutable — contract protection P1).',
+        );
+    }
+
+    /**
+     * One version row plus its stem, or null — the tail every version lookup
+     * ends with, and the reason it is here rather than written out each time:
+     * the stem has to be read on the caller's connection, and a copy that
+     * forgets that is the deadlock this class already had once.
+     */
+    private async withStem(
+        row: BundleVersionTableRow | undefined,
+        bundleId: string,
+        tx?: TransactionContext,
+    ): Promise<BundleVersionRow | null> {
+        if (!row) return null;
+        return this.toVersionRow(row, await this.stemOn(resolveDb(this.db, tx), bundleId));
     }
 
     /**
@@ -419,7 +423,7 @@ export class DrizzleBundleRepository implements BundleRepository {
      */
     private async stemOn(db: DrizzleClient, bundleId: string): Promise<BundleRow | null> {
         const rows = await db.select().from(bundles).where(eq(bundles.id, bundleId)).limit(1);
-        return rows[0] ? toBundleRow(rows[0]) : null;
+        return rows[0] ? toBundleStemRow(rows[0]) : null;
     }
 
     private toVersionRow(row: BundleVersionTableRow, stem: BundleRow | null): BundleVersionRow {
@@ -455,22 +459,6 @@ export class DrizzleBundleRepository implements BundleRepository {
             updatedAt: row.updatedAt.toISOString(),
         };
     }
-}
-
-function toBundleRow(row: BundleTableRow): BundleRow {
-    return {
-        id: row.id,
-        projectKey: row.projectKey,
-        bundleKey: row.bundleKey,
-        label: row.label,
-        description: row.description,
-        icon: row.icon,
-        sortOrder: row.sortOrder,
-        i18n: (row.i18n ?? {}) as CatalogEntryI18n,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        deletedAt: toIso(row.deletedAt),
-    };
 }
 
 function toIso(value: Date | null): string | null {

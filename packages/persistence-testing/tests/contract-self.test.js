@@ -5,6 +5,10 @@ import { persistenceAdapterContract } from '../dist/index.js';
 // `pessimisticLocking: false` (in-memory cannot emulate row locks — the
 // same reason the nest fakes must not be used to "verify" adapters).
 
+// A fixed instant: this harness has no clock of its own, and a timestamp that
+// moves between two reads is a difference no scenario asked for.
+const FIXED_NOW = new Date('2026-01-01T00:00:00.000Z');
+
 function createMemoryHarness() {
     let idCounter = 0;
     const nextId = (prefix) => `${prefix}-${++idCounter}`;
@@ -12,6 +16,7 @@ function createMemoryHarness() {
     const freshState = () => ({
         planVersions: [],
         subscriptions: [],
+        bundles: [],
         bundleVersions: [],
         subscriptionBundles: [],
         promoCodes: [],
@@ -263,7 +268,7 @@ function createMemoryHarness() {
                 .filter(
                     (row) =>
                         row.subscriptionId === subscriptionId &&
-                        (row.canceledEffectiveAt === null || row.canceledEffectiveAt > now),
+                        (row.canceledAt === null || row.canceledEffectiveAt > now),
                 )
                 .map((row) => ({ ...row }));
         },
@@ -290,12 +295,94 @@ function createMemoryHarness() {
             return state.subscriptionBundles.filter(
                 (row) =>
                     row.bundleVersionId === bundleVersionId &&
-                    (row.canceledEffectiveAt === null || row.canceledEffectiveAt > now),
+                    (row.canceledAt === null || row.canceledEffectiveAt > now),
             ).length;
         },
     };
 
+    // The catalogue behind the bookings. Enough of it for the scenarios that
+    // exercise discarding and publishing; `findActiveBundleVersion` is
+    // deliberately absent, so the validity-window scenario still gates off by
+    // capability rather than being answered by an implementation that does not
+    // maintain windows.
+    const bundleRepository = {
+        async create(data) {
+            const row = {
+                id: nextId('bundle'),
+                projectKey: data.projectKey,
+                bundleKey: data.bundleKey,
+                label: data.label,
+                description: data.description ?? null,
+                icon: data.icon ?? null,
+                sortOrder: data.sortOrder ?? 0,
+                i18n: data.i18n ?? {},
+                createdAt: FIXED_NOW,
+                updatedAt: FIXED_NOW,
+                deletedAt: null,
+            };
+            state.bundles.push(row);
+            return { ...row };
+        },
+        async findById(bundleId) {
+            const row = state.bundles.find((candidate) => candidate.id === bundleId);
+            return row ? { ...row } : null;
+        },
+        async createDraft(data) {
+            const versions = state.bundleVersions.filter((v) => v.bundleId === data.bundleId);
+            const row = {
+                id: nextId('bv'),
+                bundleId: data.bundleId,
+                version: versions.length + 1,
+                features: [...data.features],
+                quotas: data.quotas ?? {},
+                publishedAt: null,
+                supersededAt: null,
+                validFrom: null,
+                validUntil: null,
+            };
+            state.bundleVersions.push(row);
+            return { ...row };
+        },
+        async findVersionById(versionId) {
+            const row = state.bundleVersions.find((candidate) => candidate.id === versionId);
+            return row ? { ...row } : null;
+        },
+        async publishDraft(versionId, meta) {
+            const row = state.bundleVersions.find((candidate) => candidate.id === versionId);
+            if (!row) throw new Error(`BundleVersion '${versionId}' not found.`);
+            for (const other of state.bundleVersions) {
+                if (other.bundleId !== row.bundleId || other.id === versionId) continue;
+                if (other.publishedAt && !other.supersededAt) other.supersededAt = FIXED_NOW;
+            }
+            row.publishedAt = FIXED_NOW;
+            row.validFrom = meta.validFrom;
+            row.validUntil = meta.validUntil;
+            return { ...row };
+        },
+        async deleteDraft(versionId) {
+            const index = state.bundleVersions.findIndex(
+                (candidate) => candidate.id === versionId && candidate.publishedAt === null,
+            );
+            if (index >= 0) {
+                state.bundleVersions.splice(index, 1);
+                return;
+            }
+            // Gone is the state the caller wanted; published is a refusal they
+            // have to see. Same distinction both real adapters make.
+            if (!state.bundleVersions.some((candidate) => candidate.id === versionId)) return;
+            throw new Error(
+                `BundleVersion '${versionId}' is already published and cannot be discarded.`,
+            );
+        },
+    };
+
     const seed = {
+        async clearBookingRequestDate(subscriptionBundleId) {
+            const row = state.subscriptionBundles.find(
+                (candidate) => candidate.id === subscriptionBundleId,
+            );
+            if (row) row.canceledAt = null;
+        },
         async createBundleVersion(input) {
             const row = {
                 id: nextId('bv'),
@@ -388,6 +475,7 @@ function createMemoryHarness() {
             tenantSubscriptionWrite,
             promoSubscriptionLookup,
             subscriptionBundleRepository,
+            bundleRepository,
         },
         seed,
         async reset() {
