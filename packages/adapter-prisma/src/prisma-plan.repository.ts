@@ -107,7 +107,44 @@ export class PrismaPlanRepository implements PlanRepository {
         this.binding = createPrismaPlanBindingResolver(options?.planBinding);
         this.delegateName = schema.delegates.catalogPlanVersion;
         this.fields = schema.planVersionFields.catalog;
+        if (this.fields.validityWindows) {
+            this.findActivePlanVersion = (planKey, asOf, tx) =>
+                this.findActivePlanVersionWithValidity(planKey, asOf ?? new Date(), tx);
+        }
+        if (this.fields.endsAt) {
+            this.terminate = (versionId, endsAt) => this.terminateWithEndsAt(versionId, endsAt);
+        }
     }
+
+    /**
+     * Present only when the schema carries `endsAt`.
+     *
+     * `PlanVersionsService` already asks `typeof this.repo.terminate !==
+     * 'function'` and answers `PLAN_TERMINATE_NOT_IMPLEMENTED` when it is
+     * missing — a guard this adapter defeated by defining the method and
+     * throwing inside it. The operator got a raw 500 where the service had a
+     * sentence ready for them.
+     */
+    readonly terminate?: (versionId: string, endsAt: Date) => Promise<PlanVersionRow>;
+
+    /**
+     * Present only when validity-window mode is enabled, mirroring
+     * `PrismaBundleRepository.findActiveBundleVersion` and the optional port
+     * capability itself.
+     *
+     * It used to be declared unconditionally and throw when the schema could
+     * not answer. That is worse than absent, because every caller guards the
+     * same way the port invites — `findActivePlanVersion?.(…) ?? findLatestLive…`
+     * — and `?.` tests for presence, not for willingness. The guard therefore
+     * passed, the throw escaped, and the tenant bundle preview answered 500 on
+     * a 0.6-schema consumer rather than falling back to the newest-live lookup
+     * the error message itself recommended.
+     */
+    readonly findActivePlanVersion?: (
+        planKey: string,
+        asOf?: Date,
+        tx?: TransactionContext,
+    ) => Promise<PlanVersionRow | null>;
 
     private db(tx?: TransactionContext): PlanPrisma {
         return (tx ?? this.prisma) as unknown as PlanPrisma;
@@ -294,19 +331,11 @@ export class PrismaPlanRepository implements PlanRepository {
         return row ? this.toPlanVersionRow(row, planKey) : null;
     }
 
-    async findActivePlanVersion(
+    private async findActivePlanVersionWithValidity(
         planKey: string,
-        asOf: Date = new Date(),
+        asOf: Date,
         tx?: TransactionContext,
     ): Promise<PlanVersionRow | null> {
-        if (!this.fields.validityWindows) {
-            throw new Error(
-                'findActivePlanVersion requires ' +
-                    'schema.planVersionFields.catalog.validityWindows=true and the current ' +
-                    '@saasicat/spec PlanVersion validity columns. Apply the additive schema first, ' +
-                    'or use findLatestLivePlanVersion for a 0.6-compatible newest-live lookup.',
-            );
-        }
         const db = this.db(tx);
         const storedPlanId = await this.binding.toStoragePlanId(db, planKey);
         const activeWhere = this.fields.endsAt
@@ -465,14 +494,7 @@ export class PrismaPlanRepository implements PlanRepository {
         await planVersion.deleteMany({ where: { id: versionId, publishedAt: null } });
     }
 
-    async terminate(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
-        if (!this.fields.endsAt) {
-            throw new Error(
-                'terminate requires schema.planVersionFields.catalog.endsAt=true and the current ' +
-                    '@saasicat/spec PlanVersion.endsAt column. Apply the additive schema before ' +
-                    'enabling SuperAdmin-initiated plan-version termination.',
-            );
-        }
+    private async terminateWithEndsAt(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
         const db = this.db();
         const updated = await this.versions(db).update({
             where: { id: versionId },
