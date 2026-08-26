@@ -41,6 +41,43 @@ function onDayOfMonth(reference: Date, day: number): Date {
     return out;
 }
 
+/** What a caller knows about the plan's billing rhythm, before resolving it. */
+export interface PlanAnchorSource {
+    /** The stored anchor, where the subscription has one. */
+    billingAnchorDay?: number | null;
+    /** The date that opened the current run of periods. */
+    currentPeriodStart?: Date | null;
+    /** What opened it before the first window was written. */
+    startedAt?: Date | null;
+}
+
+/**
+ * The day of the month the plan is billed on, resolved once for everybody.
+ *
+ * Every caller that quotes a bundle and every caller that books one has to
+ * reach the same answer, or the preview describes a different contract from the
+ * one written — and this is the field that decides the difference. It happened:
+ * the preview derived the day from the window start while the booking left the
+ * value null and let the arithmetic read the window END, so for a 31 January to
+ * 28 February window the preview quoted a period ending on the 31st and the
+ * booking stored the 28th, after which the two renewed on different days
+ * forever.
+ *
+ * The order is authority, not convenience. The stored anchor is the answer
+ * where it exists. Failing that, the day that OPENED the current window —
+ * never the day that closed it, because a closing day has already been through
+ * a clamp and reading it is how a subscription billed on the 31st ends up
+ * billed on the 28th for the rest of its life.
+ */
+export function resolvePlanAnchorDay(source: PlanAnchorSource): number | null {
+    const stored = source.billingAnchorDay;
+    if (stored != null && Number.isInteger(stored) && stored >= 1 && stored <= 31) {
+        return stored;
+    }
+    const windowStart = source.currentPeriodStart ?? source.startedAt;
+    return windowStart ? windowStart.getUTCDate() : null;
+}
+
 export interface BundleFirstPeriodInput {
     /** When the bundle was booked. */
     startedAt: Date;

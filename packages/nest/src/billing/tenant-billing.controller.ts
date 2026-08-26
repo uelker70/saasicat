@@ -62,6 +62,7 @@ import {
     type AuditContextResolver,
     type UserEmailResolver,
 } from './tenant-billing.tokens.js';
+import { resolvePlanAnchorDay } from './bundle-period.js';
 
 // TenantBillingController — tenant self-service endpoints for plan
 // management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
@@ -718,7 +719,12 @@ export class TenantBillingController {
                         // beside — the plan whose window onboarding just opened.
                         planCycle: dto.billingCycle as BillingCycle,
                         planPeriodEnd: period?.end ?? null,
-                        planAnchorDay: period?.start.getUTCDate() ?? null,
+                        // The window onboarding just opened decides, not any
+                        // anchor stored from the subscription's previous life —
+                        // the plan change reset the rhythm.
+                        planAnchorDay: resolvePlanAnchorDay({
+                            currentPeriodStart: period?.start ?? null,
+                        }),
                     });
                     bundlesAdded += 1;
                 } catch (err) {

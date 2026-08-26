@@ -292,7 +292,13 @@ export class SubscriptionBundlesService {
         const canceledAt = input.canceledAt ?? new Date();
         const canceledEffectiveAt = resolveBundleCancelEffectiveAt({
             canceledAt,
-            currentPeriodEnd: input.currentPeriodEnd ?? null,
+            // The booking's own period, not the plan's. A monthly bundle beside
+            // a yearly plan ends its month long before the plan ends its year,
+            // and reading the plan's boundary kept such a booking committed —
+            // and billed — until the annual renewal. The plan's boundary is the
+            // fallback for a booking made before bundles had periods, which is
+            // what those were billed against.
+            currentPeriodEnd: existing.currentPeriodEnd ?? input.currentPeriodEnd ?? null,
             minimumTermEndsAt: existing.minimumTermEndsAt,
             parentEndsAt: input.parentEndsAt,
         });

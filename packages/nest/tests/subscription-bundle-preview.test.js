@@ -528,3 +528,82 @@ describe('where the plan’s billing day is read from', () => {
         assert.equal(dto.firstPeriodEnd.toISOString().slice(0, 10), '2026-06-09');
     });
 });
+
+describe('what a cancellation preview quotes', () => {
+    // It has to name the date the mutation will write. For a monthly bundle
+    // beside a yearly plan the plan's boundary is up to eleven months past the
+    // bundle's own, and quoting it told the tenant their booking would run — and
+    // be billed — for most of a year they had just cancelled.
+
+    const YEARLY_CTX = {
+        ...CTX,
+        billingCycle: 'YEARLY',
+        currentPeriodStart: new Date('2026-01-01T00:00:00Z'),
+        currentPeriodEnd: new Date('2027-01-01T00:00:00Z'),
+        planAnchorDay: 1,
+    };
+
+    test('a monthly booking is quoted its own month end', async () => {
+        const bv = await createPublishedBundle({ key: 'B-CANCEL-M', monthlyNet: '31.00' });
+        const booking = await subBundleRepo.add({
+            subscriptionId: SUB_A,
+            bundleVersionId: bv.id,
+            startedAt: new Date('2026-04-01T00:00:00Z'),
+            minimumTermEndsAt: null,
+            billingCycle: 'MONTHLY',
+            currentPeriodStart: new Date('2026-05-01T00:00:00Z'),
+            currentPeriodEnd: new Date('2026-06-01T00:00:00Z'),
+        });
+
+        const dto = await buildService().previewCancel(
+            YEARLY_CTX,
+            { subscriptionBundleId: booking.id },
+            NOW,
+        );
+        assert.equal(dto.effectiveAt.toISOString(), '2026-06-01T00:00:00.000Z');
+        // …and the saving is a month of it, not a year.
+        assert.equal(dto.nextPeriodSavingsNet, 31);
+    });
+
+    test('a booking from before the columns existed is quoted the plan’s', async () => {
+        const bv = await createPublishedBundle({ key: 'B-CANCEL-LEGACY', yearlyNet: '310.00' });
+        const booking = await subBundleRepo.add({
+            subscriptionId: SUB_A,
+            bundleVersionId: bv.id,
+            startedAt: new Date('2026-01-01T00:00:00Z'),
+            minimumTermEndsAt: null,
+        });
+
+        const dto = await buildService().previewCancel(
+            YEARLY_CTX,
+            { subscriptionBundleId: booking.id },
+            NOW,
+        );
+        assert.equal(dto.effectiveAt.toISOString(), '2027-01-01T00:00:00.000Z');
+        assert.equal(dto.nextPeriodSavingsNet, 310);
+    });
+
+    test('a minimum term running past the booking’s period still binds it', async () => {
+        const bv = await createPublishedBundle({ key: 'B-CANCEL-TERM', monthlyNet: '31.00' });
+        const booking = await subBundleRepo.add({
+            subscriptionId: SUB_A,
+            bundleVersionId: bv.id,
+            startedAt: new Date('2026-04-01T00:00:00Z'),
+            minimumTermEndsAt: new Date('2026-09-01T00:00:00Z'),
+            billingCycle: 'MONTHLY',
+            currentPeriodStart: new Date('2026-05-01T00:00:00Z'),
+            currentPeriodEnd: new Date('2026-06-01T00:00:00Z'),
+        });
+
+        const dto = await buildService().previewCancel(
+            YEARLY_CTX,
+            { subscriptionBundleId: booking.id },
+            NOW,
+        );
+        assert.equal(dto.effectiveAt.toISOString(), '2026-09-01T00:00:00.000Z');
+        assert.ok(
+            dto.warnings.some((w) => w.code === 'MINIMUM_TERM_BINDS'),
+            `expected the term warning, got ${JSON.stringify(dto.warnings)}`,
+        );
+    });
+});

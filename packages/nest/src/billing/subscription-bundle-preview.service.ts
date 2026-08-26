@@ -49,12 +49,13 @@ import {
     BUNDLE_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
-import { billingAnchorDay, periodEndAfter } from './billing-period.js';
+import { periodEndAfter } from './billing-period.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import {
     bundleCycleFitsPlan,
     bundleFirstPeriodEnd,
     bundleFirstPeriodStart,
+    resolvePlanAnchorDay,
 } from './bundle-period.js';
 import { computeProration, type ProrationDto } from './proration.js';
 import {
@@ -302,15 +303,13 @@ export class SubscriptionBundlePreviewService {
                     `${ctx.currentPlanKey} plan, so it cannot be booked from here.`,
             });
         }
-        // The plan's day, taken from the start of its window rather than from
-        // its end — the end has already been through a clamp and would hand on
-        // the wrong day for every month after a short one.
-        // …and from `startedAt` where no window has been opened yet, which is the
-        // date that opened this run of periods. Falling through to the period
-        // END would read a day a short month has already shortened.
-        const planWindowStart = ctx.currentPeriodStart ?? ctx.startedAt;
-        const planAnchorDay =
-            ctx.planAnchorDay ?? (planWindowStart ? billingAnchorDay(planWindowStart) : null);
+        // Resolved by the one function the booking route uses, so the two cannot
+        // reach different days and quote a period the booking would not store.
+        const planAnchorDay = resolvePlanAnchorDay({
+            billingAnchorDay: ctx.planAnchorDay,
+            currentPeriodStart: ctx.currentPeriodStart,
+            startedAt: ctx.startedAt,
+        });
         const planPeriodEnd =
             ctx.currentPeriodEnd ??
             (ctx.startedAt ? periodEndAfter(ctx.startedAt, planCycle, now) : null);
@@ -395,13 +394,18 @@ export class SubscriptionBundlePreviewService {
             });
         }
 
+        // The booking's own period, with the plan's as the fallback for a row
+        // written before bundles had one. Quoting the plan's boundary for a
+        // monthly bundle beside a yearly plan named a date up to a year past
+        // the one the cancellation would actually land on.
+        const bookingPeriodEnd = existing.currentPeriodEnd ?? ctx.currentPeriodEnd;
         const effectiveAt = resolveBundleCancelEffectiveAt({
             parentEndsAt: ctx.parentEndsAt,
             canceledAt: now,
-            currentPeriodEnd: ctx.currentPeriodEnd,
+            currentPeriodEnd: bookingPeriodEnd,
             minimumTermEndsAt: existing.minimumTermEndsAt,
         });
-        const periodEnd = ctx.currentPeriodEnd ?? now;
+        const periodEnd = bookingPeriodEnd ?? now;
         if (
             existing.minimumTermEndsAt &&
             existing.minimumTermEndsAt.getTime() > periodEnd.getTime()

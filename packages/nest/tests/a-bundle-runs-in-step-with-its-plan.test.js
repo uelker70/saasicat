@@ -8,6 +8,7 @@ import {
     bundleFirstPeriodStart,
     bundleNextPeriodEnd,
     computeNextBundlePeriod,
+    resolvePlanAnchorDay,
     retreatOneCycle,
 } from '../dist/billing/index.js';
 
@@ -552,5 +553,184 @@ describe('rolling a booking on, period after period', () => {
             at('2026-03-01'),
         );
         assert.equal(iso(next.currentPeriodEnd), '2026-03-31');
+    });
+});
+
+describe('cancelling one, against its own period', () => {
+    // A cancellation takes effect at the end of the period being paid for. For
+    // a monthly bundle beside a yearly plan those are months apart, and reading
+    // the plan's boundary kept the booking committed — and billed — until the
+    // annual renewal, for up to eleven months the tenant never asked for.
+
+    function serviceFor(booking) {
+        const cancelled = [];
+        const svc = new SubscriptionBundlesService(
+            {
+                add: async (data) => ({ id: 'sb-1', ...data }),
+                listBySubscription: async () => [],
+                listActiveBySubscription: async () => [],
+                findById: async () => booking,
+                cancel: async (id, patch) => {
+                    cancelled.push(patch);
+                    return { ...booking, ...patch };
+                },
+            },
+            { findVersionById: async () => null },
+            { defaultMinimumTermMonths: 0 },
+        );
+        return { svc, cancelled };
+    }
+
+    const monthlyBookingOnYearlyPlan = {
+        id: 'sb-1',
+        subscriptionId: 'sub-1',
+        bundleVersionId: 'bv-1',
+        minimumTermEndsAt: null,
+        billingCycle: 'MONTHLY',
+        currentPeriodStart: at('2026-02-28'),
+        currentPeriodEnd: at('2026-03-31'),
+        canceledAt: null,
+        canceledEffectiveAt: null,
+    };
+
+    test('a monthly booking ends with its month, not with the plan’s year', async () => {
+        const { svc } = serviceFor(monthlyBookingOnYearlyPlan);
+        const result = await svc.cancelBundleFromSubscription({
+            subscriptionBundleId: 'sb-1',
+            canceledAt: at('2026-03-05'),
+            // What the plan would have said: eleven months later.
+            currentPeriodEnd: at('2027-01-01'),
+            parentEndsAt: null,
+        });
+        assert.equal(iso(result.canceledEffectiveAt), '2026-03-31');
+    });
+
+    test('a booking from before the columns existed still ends with the plan', async () => {
+        // It was billed with the plan, so the plan's boundary is the period it
+        // is paying for. Reading null as "ends now" would end it mid-period.
+        const { svc } = serviceFor({
+            ...monthlyBookingOnYearlyPlan,
+            billingCycle: null,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+        });
+        const result = await svc.cancelBundleFromSubscription({
+            subscriptionBundleId: 'sb-1',
+            canceledAt: at('2026-03-05'),
+            currentPeriodEnd: at('2027-01-01'),
+            parentEndsAt: null,
+        });
+        assert.equal(iso(result.canceledEffectiveAt), '2027-01-01');
+    });
+
+    test('a minimum term still outranks the period when it runs longer', async () => {
+        const { svc } = serviceFor({
+            ...monthlyBookingOnYearlyPlan,
+            minimumTermEndsAt: at('2026-08-31'),
+        });
+        const result = await svc.cancelBundleFromSubscription({
+            subscriptionBundleId: 'sb-1',
+            canceledAt: at('2026-03-05'),
+            currentPeriodEnd: at('2027-01-01'),
+            parentEndsAt: null,
+        });
+        assert.equal(iso(result.canceledEffectiveAt), '2026-08-31');
+    });
+
+    test('and the parent’s end still caps both', async () => {
+        const { svc } = serviceFor({
+            ...monthlyBookingOnYearlyPlan,
+            minimumTermEndsAt: at('2026-08-31'),
+        });
+        const result = await svc.cancelBundleFromSubscription({
+            subscriptionBundleId: 'sb-1',
+            canceledAt: at('2026-03-05'),
+            currentPeriodEnd: at('2027-01-01'),
+            parentEndsAt: at('2026-05-31'),
+        });
+        assert.equal(iso(result.canceledEffectiveAt), '2026-05-31');
+    });
+});
+
+describe('one answer for the plan’s billing day', () => {
+    // The field that decides whether a preview and a booking describe the same
+    // contract. Resolved in one place so they cannot disagree — they did: the
+    // preview read the window start and the booking left it null, so the
+    // arithmetic read the window END, and for a 31 January to 28 February
+    // window one said the 31st and the other the 28th.
+
+    test('a stored anchor is the answer', () => {
+        assert.equal(
+            resolvePlanAnchorDay({
+                billingAnchorDay: 31,
+                currentPeriodStart: at('2026-01-31'),
+                startedAt: at('2025-06-08'),
+            }),
+            31,
+        );
+    });
+
+    test('without one, the day that opened the window — never the day that closed it', () => {
+        assert.equal(
+            resolvePlanAnchorDay({
+                billingAnchorDay: null,
+                currentPeriodStart: at('2026-01-31'),
+                startedAt: at('2025-06-08'),
+            }),
+            31,
+        );
+    });
+
+    test('without a window either, the day the subscription started', () => {
+        assert.equal(
+            resolvePlanAnchorDay({ billingAnchorDay: null, startedAt: at('2025-06-08') }),
+            8,
+        );
+    });
+
+    test('with nothing at all it says so, rather than inventing a day', () => {
+        assert.equal(resolvePlanAnchorDay({}), null);
+    });
+
+    test('a value that cannot be a day of a month is treated as absent', () => {
+        // Zero is what an EXTRACT over a missing date leaves behind, and day 0
+        // of a month is the last day of the month before it — a boundary that
+        // moves backwards.
+        for (const stored of [0, -1, 32, 1.5, Number.NaN]) {
+            assert.equal(
+                resolvePlanAnchorDay({
+                    billingAnchorDay: stored,
+                    currentPeriodStart: at('2026-01-31'),
+                }),
+                31,
+                `stored ${stored}`,
+            );
+        }
+    });
+
+    test('the preview and the booking reach the same day for the same subscription', () => {
+        // The property that matters, stated directly: one resolver, one answer.
+        const sub = {
+            billingAnchorDay: null,
+            currentPeriodStart: at('2026-01-31'),
+            currentPeriodEnd: at('2026-02-28'),
+            startedAt: at('2025-12-31'),
+        };
+        const anchor = resolvePlanAnchorDay(sub);
+        assert.equal(anchor, 31);
+        assert.equal(
+            iso(
+                bundleFirstPeriodEnd({
+                    startedAt: at('2026-02-17'),
+                    cycle: 'MONTHLY',
+                    planPeriodEnd: sub.currentPeriodEnd,
+                    planAnchorDay: anchor,
+                }),
+            ),
+            '2026-02-28',
+        );
+        // …and the period after it lands on the 31st, which is the half a
+        // clamped anchor would have lost.
+        assert.equal(iso(bundleNextPeriodEnd(at('2026-02-28'), 'MONTHLY', anchor)), '2026-03-31');
     });
 });
