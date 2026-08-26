@@ -29,6 +29,9 @@ const RECORD = {
     minimumTermEndsAt: null,
     canceledAt: null,
     canceledEffectiveAt: null,
+    billingCycle: null,
+    currentPeriodStart: null,
+    currentPeriodEnd: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-02T00:00:00.000Z',
 };
@@ -56,7 +59,10 @@ describe('useTenantSubscriptionBundles', () => {
         assert.throws(() => useTenantSubscriptionBundles({}), /billingEndpoint/);
     });
 
-    test('load() maps every wire date onto a Date', async () => {
+    // Named for what it checks: the round trip on this record. The claim that
+    // EVERY declared date is converted is proved next door, against the type
+    // itself, in `every-wire-date-is-hydrated.test.js`.
+    test('load() maps the wire dates on a record onto Dates', async () => {
         const { http, calls } = httpReturning({ body: [RECORD] });
         const view = bundles({ http });
         await view.load();
@@ -69,6 +75,36 @@ describe('useTenantSubscriptionBundles', () => {
         // which is the epoch and would render as 1970.
         assert.equal(view.bundles.value[0].canceledAt, null);
         assert.equal(view.bundles.value[0].minimumTermEndsAt, null);
+    });
+
+    test('the booking’s own period arrives as dates, not as wire strings', async () => {
+        // A monthly bundle beside a yearly plan: its window is the one a tenant
+        // reads to see when the booking renews, and a string here throws the
+        // moment anything calls a date method on it.
+        const { http } = httpReturning({
+            body: [
+                {
+                    ...RECORD,
+                    billingCycle: 'MONTHLY',
+                    currentPeriodStart: '2026-02-28T00:00:00.000Z',
+                    currentPeriodEnd: '2026-03-31T00:00:00.000Z',
+                },
+            ],
+        });
+        const view = bundles({ http });
+        await view.load();
+        const booking = view.bundles.value[0];
+        assert.ok(booking.currentPeriodStart instanceof Date);
+        assert.ok(booking.currentPeriodEnd instanceof Date);
+        assert.equal(booking.currentPeriodEnd.toISOString(), '2026-03-31T00:00:00.000Z');
+    });
+
+    test('a booking with no period of its own keeps null, not the epoch', async () => {
+        const { http } = httpReturning({ body: [RECORD] });
+        const view = bundles({ http });
+        await view.load();
+        assert.equal(view.bundles.value[0].currentPeriodStart, null);
+        assert.equal(view.bundles.value[0].currentPeriodEnd, null);
     });
 
     test('a nullable date that is set is mapped too', async () => {

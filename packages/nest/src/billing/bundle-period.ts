@@ -173,9 +173,17 @@ export function bundleCycleFitsPlan(bundleCycle: BillingCycle, planCycle: Billin
 
 /** What a renewal job reads from a booking to decide whether to roll it on. */
 export interface BundlePeriodRollInput {
-    /** Null on a booking made before bundles had periods — billed with the plan. */
+    /**
+     * Null in two different situations, and the difference decides everything:
+     * a booking made before these columns existed, and one whose plan had no
+     * period to align to yet — a trial, or a subscription awaiting sales.
+     *
+     * `billingCycle` is what tells them apart. The booking route always writes
+     * it, so a row that has one but no window is the second case and is waiting
+     * for a window; a row with neither is the first and is billed with the plan.
+     */
     currentPeriodEnd: Date | null;
-    /** Null means the same thing, and falls back to the plan's rhythm. */
+    /** Null only on a booking made before bundles had a rhythm of their own. */
     billingCycle: BillingCycle | null;
     canceledAt: Date | null;
     canceledEffectiveAt: Date | null;
@@ -187,6 +195,14 @@ export interface BundlePlanContext {
     billingAnchorDay: number | null;
     /** When the plan ends, or null while it runs on. */
     endsAt: Date | null;
+    /**
+     * The plan's own window, which a booking still waiting for one joins.
+     *
+     * Null while the plan has no paid period either — then there is nothing to
+     * align to and the booking keeps waiting.
+     */
+    currentPeriodStart?: Date | null;
+    currentPeriodEnd?: Date | null;
 }
 
 /** The window a roll opens. */
@@ -196,18 +212,29 @@ export interface BundlePeriodWindow {
 }
 
 /**
- * The next window for a booking whose period is over, or `null` for no roll.
+ * The window a booking should hold now, or `null` for nothing to do.
  *
  * The bundle counterpart of `computeNextPeriod`, and the same division of
  * labour: the platform decides, the consumer's cron reads, writes and audits.
  * Without it the columns written at booking would never move again, and "every
  * period after the first runs anchor to anchor" would be a claim nothing keeps.
  *
- * It declines in four cases, and each is a different kind of "not due":
+ * It answers two questions the job cannot tell apart from the outside, because
+ * both look like a booking whose window is not current:
  *
- * - **No period of its own** — a booking from before the columns existed, or one
- *   whose plan had no period to align to. Those are billed with the plan, and
- *   inventing a window for them here would start billing them twice.
+ * - **Opening the first window.** A bundle booked while its plan had no period —
+ *   during a trial, or before sales finished — was stored without one, because
+ *   there was nothing to align to. Once the plan has a paid period the booking
+ *   joins it. Left undone, a monthly bundle on a yearly trial kept granting its
+ *   features and never acquired a window to bill them in.
+ * - **Rolling the next one.** The ordinary case, anchor to anchor.
+ *
+ * It declines in four:
+ *
+ * - **A booking billed with the plan** — written before these columns existed,
+ *   recognisable by having no rhythm of its own either. Giving it a window would
+ *   start billing it a second time.
+ * - **The plan has no paid period yet**, so there is still nothing to align to.
  * - **The period is still running.** The job's filter should not have offered it.
  * - **The booking's own cancellation has landed.** A declared one changes
  *   nothing, exactly as for a subscription.
@@ -225,17 +252,55 @@ export function computeNextBundlePeriod(
     plan: BundlePlanContext,
     now: Date,
 ): BundlePeriodWindow | null {
-    if (booking.currentPeriodEnd === null) return null;
-    if (booking.currentPeriodEnd > now) return null;
-
     const landedAt = booking.canceledEffectiveAt ?? booking.canceledAt;
     if (landedAt !== null && landedAt <= now) return null;
+    if (plan.endsAt !== null && plan.endsAt <= now) return null;
 
+    const window =
+        booking.currentPeriodEnd === null
+            ? openFirstWindow(booking, plan, now)
+            : rollNextWindow(booking, plan, now);
+    if (window === null) return null;
+    // Never past the plan, however the window was arrived at.
+    if (plan.endsAt !== null && plan.endsAt <= window.currentPeriodStart) return null;
+    return plan.endsAt !== null && plan.endsAt < window.currentPeriodEnd
+        ? { currentPeriodStart: window.currentPeriodStart, currentPeriodEnd: plan.endsAt }
+        : window;
+}
+
+/** A booking that was stored without a window, now that the plan has one. */
+function openFirstWindow(
+    booking: BundlePeriodRollInput,
+    plan: BundlePlanContext,
+    now: Date,
+): BundlePeriodWindow | null {
+    // No rhythm either: written before these columns existed, billed with the
+    // plan, and not waiting for anything.
+    if (booking.billingCycle === null) return null;
+    const planPeriodEnd = plan.currentPeriodEnd ?? null;
+    if (planPeriodEnd === null) return null;
+
+    const currentPeriodStart = plan.currentPeriodStart ?? now;
+    const currentPeriodEnd = bundleFirstPeriodEnd({
+        startedAt: currentPeriodStart,
+        cycle: booking.billingCycle,
+        planPeriodEnd,
+        planAnchorDay: plan.billingAnchorDay,
+    });
+    return currentPeriodEnd === null ? null : { currentPeriodStart, currentPeriodEnd };
+}
+
+/** The ordinary case: the period is over, the next one runs anchor to anchor. */
+function rollNextWindow(
+    booking: BundlePeriodRollInput,
+    plan: BundlePlanContext,
+    now: Date,
+): BundlePeriodWindow | null {
     const currentPeriodStart = booking.currentPeriodEnd;
-    if (plan.endsAt !== null && plan.endsAt <= currentPeriodStart) return null;
-
+    if (currentPeriodStart === null || currentPeriodStart > now) return null;
     const cycle = booking.billingCycle ?? plan.billingCycle;
-    const rolled = bundleNextPeriodEnd(currentPeriodStart, cycle, plan.billingAnchorDay);
-    const currentPeriodEnd = plan.endsAt !== null && plan.endsAt < rolled ? plan.endsAt : rolled;
-    return { currentPeriodStart, currentPeriodEnd };
+    return {
+        currentPeriodStart,
+        currentPeriodEnd: bundleNextPeriodEnd(currentPeriodStart, cycle, plan.billingAnchorDay),
+    };
 }

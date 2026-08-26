@@ -35,10 +35,18 @@ and a booking whose plan and rhythm resolve no price is blocked with
 `BUNDLE_NOT_PRICED_FOR_THIS_PLAN` instead of handing the features over for
 nothing.
 
-`computeNextBundlePeriod` is the decision half a renewal job calls to move a
-booking on, mirroring `computeNextPeriod` for the plan: it declines for a
-booking with no period of its own, one still running, one whose cancellation has
-landed, and one whose plan has ended.
+`computeNextBundlePeriod` is the decision half a renewal job calls, mirroring
+`computeNextPeriod` for the plan. It both rolls a period that is over and opens
+the first one for a bundle booked while its plan had no period — during a trial,
+or before sales finished — which would otherwise keep granting its features
+without ever acquiring a window to bill them in. It declines for a booking
+billed with the plan, one whose plan has no paid period yet, one still running,
+one whose cancellation has landed, and one whose plan has ended.
+
+Cancelling a booking now takes effect at the end of the booking's own period
+rather than the plan's. For a monthly bundle beside a yearly plan those are up
+to eleven months apart, and reading the plan's boundary kept a cancelled booking
+committed and billed until the annual renewal.
 
 Existing bookings need a backfill; `docs/guides/upgrade-to-1.0.md` carries the
 statement, the one call to add to the renewal job, and says which rows to leave

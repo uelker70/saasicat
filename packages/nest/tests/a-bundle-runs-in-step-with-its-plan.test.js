@@ -495,10 +495,125 @@ describe('rolling a booking on, period after period', () => {
         assert.equal(roll({}, {}, at('2026-02-20')), null);
     });
 
-    test('a booking with no period of its own stays billed with the plan', () => {
-        // Written before the columns existed. Inventing a window here would
-        // start billing it a second time.
-        assert.equal(roll({ currentPeriodEnd: null }, {}, at('2026-03-01')), null);
+    test('a booking billed with the plan is left alone', () => {
+        // Written before these columns existed — no window AND no rhythm of its
+        // own. Giving it one would start billing it a second time.
+        assert.equal(
+            roll(
+                { currentPeriodEnd: null, billingCycle: null },
+                { currentPeriodStart: at('2026-02-28'), currentPeriodEnd: at('2026-03-31') },
+                at('2026-03-01'),
+            ),
+            null,
+        );
+    });
+
+    test('a booking made before its plan had a period gets one once the plan does', () => {
+        // Booked during a trial, or before sales finished: there was nothing to
+        // align to, so it was stored without a window. Left unopened, a monthly
+        // bundle on a yearly trial kept granting its features and never
+        // acquired a window to bill them in.
+        const opened = roll(
+            { currentPeriodEnd: null, currentPeriodStart: null, billingCycle: 'MONTHLY' },
+            {
+                billingCycle: 'YEARLY',
+                billingAnchorDay: 31,
+                currentPeriodStart: at('2026-01-31'),
+                currentPeriodEnd: at('2027-01-31'),
+            },
+            at('2026-02-05'),
+        );
+        assert.equal(iso(opened.currentPeriodStart), '2026-01-31');
+        // Its own month, on the plan's day — not the plan's year.
+        assert.equal(iso(opened.currentPeriodEnd), '2026-02-28');
+    });
+
+    test('a booking still waiting keeps waiting while the plan has no period either', () => {
+        assert.equal(
+            roll(
+                { currentPeriodEnd: null, billingCycle: 'MONTHLY' },
+                { currentPeriodStart: null, currentPeriodEnd: null },
+                at('2026-03-01'),
+            ),
+            null,
+        );
+    });
+
+    test('a first window is capped by the plan’s end like any other', () => {
+        const opened = roll(
+            { currentPeriodEnd: null, billingCycle: 'MONTHLY' },
+            {
+                billingCycle: 'YEARLY',
+                billingAnchorDay: 31,
+                currentPeriodStart: at('2026-01-31'),
+                currentPeriodEnd: at('2027-01-31'),
+                endsAt: at('2026-02-15'),
+            },
+            at('2026-02-05'),
+        );
+        assert.equal(iso(opened.currentPeriodEnd), '2026-02-15');
+    });
+
+    test('a window that would end at or before it starts is not opened at all', () => {
+        // Only reachable for a plan whose own window starts in the future — a
+        // subscription that begins next month — and that ends on the day it
+        // starts. Without the guard the clamp below would hand back a window
+        // ending where it began, which is a period nobody can be billed for.
+        assert.equal(
+            roll(
+                { currentPeriodEnd: null, billingCycle: 'MONTHLY' },
+                {
+                    billingCycle: 'MONTHLY',
+                    billingAnchorDay: 30,
+                    currentPeriodStart: at('2026-04-30'),
+                    currentPeriodEnd: at('2026-05-30'),
+                    endsAt: at('2026-04-30'),
+                },
+                at('2026-03-01'),
+            ),
+            null,
+        );
+    });
+
+    test('every window it does hand back ends after it starts', () => {
+        // The invariant the guard above protects, stated where it can fail.
+        const cases = [
+            [{ currentPeriodEnd: null, billingCycle: 'MONTHLY' }, {}, at('2026-03-01')],
+            [{}, {}, at('2026-03-01')],
+            [{}, { endsAt: at('2026-03-15') }, at('2026-03-01')],
+        ];
+        for (const [booking, planCtx, now] of cases) {
+            const w = roll(
+                booking,
+                {
+                    currentPeriodStart: at('2026-01-31'),
+                    currentPeriodEnd: at('2026-02-28'),
+                    ...planCtx,
+                },
+                now,
+            );
+            if (w !== null) {
+                assert.ok(
+                    w.currentPeriodEnd > w.currentPeriodStart,
+                    `${iso(w.currentPeriodStart)} → ${iso(w.currentPeriodEnd)}`,
+                );
+            }
+        }
+    });
+
+    test('a cancelled booking is not given a first window either', () => {
+        assert.equal(
+            roll(
+                {
+                    currentPeriodEnd: null,
+                    billingCycle: 'MONTHLY',
+                    canceledEffectiveAt: at('2026-02-01'),
+                },
+                { currentPeriodStart: at('2026-01-31'), currentPeriodEnd: at('2027-01-31') },
+                at('2026-02-05'),
+            ),
+            null,
+        );
     });
 
     test('a landed cancellation of the booking stops it; a declared one does not', () => {

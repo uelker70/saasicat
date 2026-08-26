@@ -439,24 +439,38 @@ period a tenant was billed for changes what the record says happened.
 
 **Your renewal job gains one call.** The platform decides, your cron reads and writes — the same
 division of labour `computeNextPeriod` already has for the plan. `computeNextBundlePeriod` answers
-for a booking whose period is over, and returns `null` for every reason not to roll it: no period
-of its own, the period still running, the booking's own cancellation landed, or the plan ended.
+with the window a booking should hold now, or `null` when there is nothing to do.
 
 ```ts
 import { computeNextBundlePeriod } from '@saasicat/nest';
 
 const next = computeNextBundlePeriod(
     booking, // currentPeriodEnd, billingCycle, canceledAt, canceledEffectiveAt
-    { billingCycle: sub.billingCycle, billingAnchorDay: sub.billingAnchorDay, endsAt },
+    {
+        billingCycle: sub.billingCycle,
+        billingAnchorDay: sub.billingAnchorDay,
+        currentPeriodStart: sub.currentPeriodStart,
+        currentPeriodEnd: sub.currentPeriodEnd,
+        endsAt: sub.canceledEffectiveAt ?? sub.canceledAt,
+    },
     now,
 );
 if (next) await bookings.update(booking.id, next);
 ```
 
-`endsAt` is the plan's end — `canceledEffectiveAt ?? canceledAt`, the same reading every other
-platform reader applies. Without it a booking outlives the plan that pays for it, which is the one
-state the alignment exists to prevent. A job that never calls this leaves every booking on the
-period it was made in; nothing breaks visibly, and the second period is never billed.
+It answers two questions your job cannot tell apart from the outside, because both look like a
+booking whose window is not current. The ordinary one is rolling the next period, anchor to anchor.
+The other is opening the **first** one: a bundle booked while its plan had no period — during a
+trial, or before sales finished — was stored without a window, because there was nothing to align
+to. Once the plan has a paid period the booking joins it. Skip that and a monthly bundle booked on
+a yearly trial keeps granting its features and never acquires a window to bill them in.
+
+Pass the plan's own window for that reason; without it the first case cannot be answered and such
+bookings wait forever. `endsAt` is the plan's end — `canceledEffectiveAt ?? canceledAt`, the same
+reading every other platform reader applies — and without it a booking outlives the plan that pays
+for it, the one state the alignment exists to prevent. A job that never calls this at all leaves
+every booking on the period it was made in; nothing breaks visibly, and the second period is never
+billed.
 
 **A bundle version can no longer be published without a price.** Neither a base price nor any plan
 override resolving one is refused with `BUNDLE_VERSION_NO_PRICE`. A priceless published bundle was

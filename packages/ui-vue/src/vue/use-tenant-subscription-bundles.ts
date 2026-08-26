@@ -159,6 +159,8 @@ function rehydrateDates(raw: SubscriptionBundleRecord): SubscriptionBundleRecord
         minimumTermEndsAt: raw.minimumTermEndsAt ? new Date(raw.minimumTermEndsAt) : null,
         canceledAt: raw.canceledAt ? new Date(raw.canceledAt) : null,
         canceledEffectiveAt: raw.canceledEffectiveAt ? new Date(raw.canceledEffectiveAt) : null,
+        currentPeriodStart: raw.currentPeriodStart ? new Date(raw.currentPeriodStart) : null,
+        currentPeriodEnd: raw.currentPeriodEnd ? new Date(raw.currentPeriodEnd) : null,
         createdAt: new Date(raw.createdAt),
         updatedAt: new Date(raw.updatedAt),
     };
