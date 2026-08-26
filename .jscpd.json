@@ -1,8 +1,5 @@
 {
-    "path": [
-        "packages",
-        "examples"
-    ],
+    "path": ["packages", "examples"],
     "ignore": [
         "**/node_modules/**",
         "**/dist/**",
@@ -16,21 +13,11 @@
         "**/*.test.*",
         "**/*.spec.*"
     ],
-    "format": [
-        "typescript",
-        "javascript",
-        "vue",
-        "scss",
-        "css",
-        "markup"
-    ],
+    "format": ["typescript", "javascript", "vue", "scss", "css", "markup"],
     "minTokens": 50,
     "maxLines": 50000,
     "threshold": 1.85,
-    "reporters": [
-        "console",
-        "json"
-    ],
+    "reporters": ["console", "json"],
     "output": "./.jscpd-report/sources",
     "absolute": false,
     "gitignore": true
