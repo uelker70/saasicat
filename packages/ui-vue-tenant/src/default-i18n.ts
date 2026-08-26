@@ -84,6 +84,9 @@ export interface TenantPlanSectionI18n {
     bundlePreviewMinimumTermLabel: string;
     bundlePreviewMinimumTermMonths: string;
     bundlePreviewMinimumTermNone: string;
+    bundlePreviewFirstPeriodLabel: string;
+    bundlePreviewEndsWithPlanLabel: string;
+    bundlePreviewEndsWithPlanNote: string;
     bundlePreviewRedundantTitle: string;
     bundlePreviewRedundantCoveredByPlan: string;
     bundlePreviewRedundantCoveredByBundle: string;
@@ -274,6 +277,10 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     bundlePreviewMinimumTermLabel: 'Mindestlaufzeit',
     bundlePreviewMinimumTermMonths: 'Monate, bis',
     bundlePreviewMinimumTermNone: 'Keine Mindestlaufzeit',
+    bundlePreviewFirstPeriodLabel: 'Erste Abrechnungsperiode bis',
+    bundlePreviewEndsWithPlanLabel: 'Endet mit dem Tarif am',
+    bundlePreviewEndsWithPlanNote:
+        'Das Bundle läuft im Takt des Tarifs und endet mit ihm — ohne eigene Kündigung. Endet der Tarif vorzeitig, wird die angebrochene Periode nicht erstattet.',
     bundlePreviewRedundantTitle: 'Bereits enthaltene Features (würden doppelt bezahlt)',
     bundlePreviewRedundantCoveredByPlan: 'bereits im Plan',
     bundlePreviewRedundantCoveredByBundle: 'bereits im Bundle',
@@ -462,6 +469,10 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundlePreviewMinimumTermLabel: 'Minimum term',
     bundlePreviewMinimumTermMonths: 'months, until',
     bundlePreviewMinimumTermNone: 'No minimum term',
+    bundlePreviewFirstPeriodLabel: 'First billing period until',
+    bundlePreviewEndsWithPlanLabel: 'Ends with the plan on',
+    bundlePreviewEndsWithPlanNote:
+        'The bundle runs in step with the plan and ends with it — no separate cancellation. If the plan ends early, the period it is in is not refunded.',
     bundlePreviewRedundantTitle: 'Features already included (would be paid for twice)',
     bundlePreviewRedundantCoveredByPlan: 'already in the plan',
     bundlePreviewRedundantCoveredByBundle: 'already in bundle',

@@ -405,6 +405,34 @@ export class BundlesService {
         // ─── Price gate (guards against accidentally publishing seed placeholders) ───
         // Bundle prices may be null (override resolution) — only an EXPLICIT
         // 0.00 value is suspicious (seed draft). Special case: allowZeroPrice: true.
+        // A bundle nobody can be charged for cannot be published.
+        //
+        // Not the same as "null": a null price is deliberate, because a price
+        // may resolve through `pricingOverrides` per plan. What may not exist is
+        // a version from which NO price resolves at all — neither base nor
+        // override — because a tenant can then book it, receive its features,
+        // and be billed nothing for them, with nobody the wiser until an
+        // invoice is reconciled.
+        //
+        // Whether a price resolves for a particular plan AND cycle is a
+        // different question, and this is not the place for it: which cycle a
+        // tenant will be on is not known when a version is published. The
+        // booking preview answers that one, where both facts exist.
+        const hasAnyPrice =
+            draft.monthlyNet != null ||
+            draft.yearlyNet != null ||
+            (draft.pricingOverrides ?? []).some((o) => o.monthlyNet != null || o.yearlyNet != null);
+        if (!hasAnyPrice) {
+            throw new UnprocessableEntityException({
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NO_PRICE,
+                message:
+                    'A bundle version cannot be published without a price: neither a base price ' +
+                    'nor any plan override resolves one, so a tenant booking it would be charged ' +
+                    'nothing for what they receive.',
+                params: { versionId },
+            });
+        }
+
         if (!publishMeta.allowZeroPrice) {
             const explicitZero = (v: string | null | undefined): boolean =>
                 v !== null && v !== undefined && Number.parseFloat(String(v)) <= 0;

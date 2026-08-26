@@ -49,7 +49,13 @@ import {
     BUNDLE_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
-import { periodEndAfter } from './billing-period.js';
+import { billingAnchorDay, periodEndAfter } from './billing-period.js';
+import { resolveBundlePriceNet } from './bundle-price.js';
+import {
+    bundleCycleFitsPlan,
+    bundleFirstPeriodEnd,
+    bundleFirstPeriodStart,
+} from './bundle-period.js';
 import { computeProration, type ProrationDto } from './proration.js';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
@@ -91,6 +97,15 @@ export interface SubscriptionBundlePreviewContext {
      * it describes a different contract from the one that is written.
      */
     parentEndsAt: Date | null;
+    /**
+     * The day of the month the plan is billed on, where it is known.
+     *
+     * The bundle's periods land on this day, so the preview needs the same
+     * value the booking uses. Reading it from the plan's period end instead
+     * would hand on a date a short month has already clamped, and the quoted
+     * first period would then differ from the one written.
+     */
+    planAnchorDay?: number | null;
 }
 
 export interface BundlePreviewSnapshot {
@@ -123,6 +138,24 @@ export interface SubscriptionBundleAddPreviewDto {
     minimumTermMonths: number;
     /** Projected minimum-term end from `now`; null = no minimum term. */
     minimumTermEndsAt: Date | null;
+    /**
+     * End of the first billing period, on the plan's billing day.
+     *
+     * Shorter than a full cycle in the usual case, and charged pro rata for
+     * exactly that stretch (`proration`). Null where the plan has no period to
+     * align to — a trial, or a subscription not yet started.
+     */
+    firstPeriodEnd: Date | null;
+    /**
+     * The day the bundle ends because the plan does, or null while the plan
+     * runs on.
+     *
+     * Ending with the plan is not a cancellation: no notice is needed, and the
+     * period the bundle is in when it happens is not credited. The alignment
+     * exists so that day is a period boundary — this field is what remains
+     * when the plan is already ending on a day the bundle has been paid past.
+     */
+    endsWithPlanAt: Date | null;
     redundantFeatures: RedundantFeatureHint[];
     /**
      * requires-features (#35) that neither the plan nor active bundles nor the
@@ -178,7 +211,12 @@ export class SubscriptionBundlePreviewService {
 
     async previewAdd(
         ctx: SubscriptionBundlePreviewContext,
-        input: { bundleVersionId: string; minimumTermMonths?: number },
+        input: {
+            bundleVersionId: string;
+            minimumTermMonths?: number;
+            /** The bundle's own rhythm. Defaults to the plan's, as the booking does. */
+            billingCycle?: BillingCycle;
+        },
         now = new Date(),
     ): Promise<SubscriptionBundleAddPreviewDto> {
         const bundleVersion = await this.bundles.findVersionById(input.bundleVersionId);
@@ -192,6 +230,21 @@ export class SubscriptionBundlePreviewService {
 
         const blockers: SubscriptionBundlePreviewIssue[] = [];
         const warnings: SubscriptionBundlePreviewIssue[] = [];
+
+        // The bundle's rhythm, not the plan's — the same default the booking
+        // takes, and the same refusal. Quoting the plan's rhythm for a bundle
+        // asked for in another one prices a contract nobody is about to sign.
+        const planCycle = ctx.billingCycle as BillingCycle;
+        const billingCycle = input.billingCycle ?? planCycle;
+        if (!bundleCycleFitsPlan(billingCycle, planCycle)) {
+            blockers.push({
+                code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
+                message:
+                    `A ${billingCycle.toLowerCase()} bundle cannot run beside a ` +
+                    `${planCycle.toLowerCase()} plan: it would still be committed on ` +
+                    'every day the plan could end.',
+            });
+        }
 
         this.collectBookabilityBlockers(bundleVersion, ctx.currentPlanKey, blockers);
 
@@ -234,14 +287,53 @@ export class SubscriptionBundlePreviewService {
             });
         }
 
-        const priceNet = resolveBundlePriceNet(bundleVersion, ctx.currentPlanKey, ctx.billingCycle);
+        const priceNet = resolveBundlePriceNet(bundleVersion, ctx.currentPlanKey, billingCycle);
+        if (priceNet === null) {
+            // Published bundles always resolve SOME price — that is checked when
+            // they are published. What cannot be checked there is the
+            // combination: which plan a tenant is on, and in which rhythm. A
+            // bundle priced only monthly, offered to a tenant on a yearly plan,
+            // resolves nothing here, and booking it would hand over features
+            // with no price attached.
+            blockers.push({
+                code: BILLING_ERROR_CODES.BUNDLE_NOT_PRICED_FOR_THIS_PLAN,
+                message:
+                    `This bundle has no ${billingCycle.toLowerCase()} price for the ` +
+                    `${ctx.currentPlanKey} plan, so it cannot be booked from here.`,
+            });
+        }
+        // The plan's day, taken from the start of its window rather than from
+        // its end — the end has already been through a clamp and would hand on
+        // the wrong day for every month after a short one.
+        // …and from `startedAt` where no window has been opened yet, which is the
+        // date that opened this run of periods. Falling through to the period
+        // END would read a day a short month has already shortened.
+        const planWindowStart = ctx.currentPeriodStart ?? ctx.startedAt;
+        const planAnchorDay =
+            ctx.planAnchorDay ?? (planWindowStart ? billingAnchorDay(planWindowStart) : null);
+        const planPeriodEnd =
+            ctx.currentPeriodEnd ??
+            (ctx.startedAt ? periodEndAfter(ctx.startedAt, planCycle, now) : null);
+        // The bundle runs on the plan's day, in the bundle's own rhythm. What it
+        // is charged against is its own period, not the plan's: a monthly
+        // bundle beside a yearly plan is billed for its month, and prorating it
+        // against the plan's year charged a fraction of a year at a monthly
+        // price.
+        const firstPeriodEnd = bundleFirstPeriodEnd({
+            startedAt: now,
+            cycle: billingCycle,
+            planPeriodEnd,
+            planAnchorDay,
+        });
         const proration =
-            ctx.status !== 'TRIAL' && priceNet !== null
+            ctx.status !== 'TRIAL' && priceNet !== null && firstPeriodEnd !== null
                 ? computeProration({
-                      periodStart: ctx.currentPeriodStart ?? ctx.startedAt ?? now,
-                      periodEnd:
-                          ctx.currentPeriodEnd ??
-                          periodEndAfter(ctx.startedAt, ctx.billingCycle as BillingCycle, now),
+                      periodStart: bundleFirstPeriodStart(
+                          firstPeriodEnd,
+                          billingCycle,
+                          planAnchorDay,
+                      ),
+                      periodEnd: firstPeriodEnd,
                       now,
                       currentPriceNet: 0,
                       targetPriceNet: priceNet,
@@ -253,7 +345,7 @@ export class SubscriptionBundlePreviewService {
         return {
             action: 'add',
             bundle: toSnapshot(bundleVersion),
-            billingCycle: ctx.billingCycle,
+            billingCycle,
             proration,
             nextPeriodPriceNet: priceNet,
             minimumTermMonths,
@@ -263,6 +355,8 @@ export class SubscriptionBundlePreviewService {
                 minimumTermMonths > 0 ? addMonths(now, minimumTermMonths) : null,
                 ctx.parentEndsAt,
             ),
+            firstPeriodEnd,
+            endsWithPlanAt: ctx.parentEndsAt,
             redundantFeatures,
             missingRequires,
             blockers,
@@ -320,16 +414,21 @@ export class SubscriptionBundlePreviewService {
             });
         }
 
+        // The rhythm this booking actually runs in, which need not be the plan's
+        // — a monthly bundle beside a yearly plan saves a month per period, not
+        // a year. Older rows predate the column and fall back to the plan's,
+        // which is what they were booked in.
+        const bookedCycle = existing.billingCycle ?? ctx.billingCycle;
         return {
             action: 'cancel',
             subscriptionBundleId: existing.id,
             bundle: toSnapshot(bundleVersion),
-            billingCycle: ctx.billingCycle,
+            billingCycle: bookedCycle,
             effectiveAt,
             nextPeriodSavingsNet: resolveBundlePriceNet(
                 bundleVersion,
                 ctx.currentPlanKey,
-                ctx.billingCycle,
+                bookedCycle,
             ),
             blockers,
             warnings,
@@ -445,30 +544,6 @@ export class SubscriptionBundlePreviewService {
         const stem = await this.bundles.findById(bundleVersion.bundleId);
         return stem?.projectKey ?? null;
     }
-}
-
-/**
- * List price (net) for the billing cycle including plan-specific
- * pricing override (BundlePricingOverride with `planId`). null = no price
- * maintained for the cycle.
- */
-export function resolveBundlePriceNet(
-    bundleVersion: BundleVersionRow,
-    planKey: string,
-    billingCycle: string,
-): number | null {
-    const override = (bundleVersion.pricingOverrides ?? []).find((o) => o.planId === planKey);
-    const yearly = billingCycle === 'YEARLY';
-    const raw = yearly
-        ? override?.yearlyNet !== undefined
-            ? override.yearlyNet
-            : bundleVersion.yearlyNet
-        : override?.monthlyNet !== undefined
-          ? override.monthlyNet
-          : bundleVersion.monthlyNet;
-    if (raw === null || raw === undefined) return null;
-    const parsed = Number.parseFloat(raw);
-    return Number.isFinite(parsed) ? parsed : null;
 }
 
 function toSnapshot(bundleVersion: BundleVersionRow): BundlePreviewSnapshot {

@@ -14,6 +14,8 @@
 // notification cron, TrialExpirationService.
 
 export * from './billing-period.js';
+export * from './bundle-period.js';
+export * from './bundle-price.js';
 export * from './cancellation.js';
 export * from './version-diff.js';
 export * from './version-publish.js';

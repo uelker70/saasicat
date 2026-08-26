@@ -123,6 +123,11 @@ export function buildTenantSubscriptionBundlesController(
                 minimumTermMonths: dto.minimumTermMonths,
                 // A bundle cannot commit past the subscription paying for it.
                 parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                // And it runs in the plan's rhythm, on the plan's day.
+                planCycle: sub.billingCycle as BillingCycle,
+                planPeriodEnd: sub.currentPeriodEnd ?? null,
+                planAnchorDay: sub.billingAnchorDay ?? null,
+                billingCycle: dto.billingCycle as BillingCycle | undefined,
             });
             await this.refreezeContract(tenantId, sub);
             return result;
@@ -160,11 +165,13 @@ export function buildTenantSubscriptionBundlesController(
                 // booking caps that at the parent's end. Both, or the two
                 // describe different contracts.
                 parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                planAnchorDay: sub.billingAnchorDay ?? null,
             };
             return hasAdd
                 ? this.previewService.previewAdd(ctx, {
                       bundleVersionId: dto.bundleVersionId!,
                       minimumTermMonths: dto.minimumTermMonths,
+                      billingCycle: dto.billingCycle as BillingCycle | undefined,
                   })
                 : this.previewService.previewCancel(ctx, {
                       subscriptionBundleId: dto.subscriptionBundleId!,

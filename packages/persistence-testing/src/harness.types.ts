@@ -16,6 +16,7 @@ import type {
     PromoCodeRepository,
     PromoSubscriptionLookup,
     SubscriptionContractRepository,
+    SubscriptionBundleRepository,
     SubscriptionRepository,
     TenantSubscriptionWritePort,
     TransactionRunner,
@@ -46,6 +47,14 @@ export interface ContractAdapterInstances {
     tenantSubscriptionWrite?: TenantSubscriptionWritePort;
     /** Enables BundleVersion validity-window and auto-succession scenarios. */
     bundleRepository?: BundleRepository;
+    /**
+     * Enables the booking scenarios — the junction a tenant's bundles hang off.
+     *
+     * Separate from `bundleRepository`, which is the catalog: one answers what
+     * may be sold, the other what a tenant actually bought and for which
+     * period. `adapter-drizzle` has neither yet.
+     */
+    subscriptionBundleRepository?: SubscriptionBundleRepository;
     /** Enables PlanVersion lifecycle, identity and validity-window scenarios. */
     planRepository?: PlanRepository;
     /**
@@ -81,6 +90,23 @@ export interface ContractSeed {
         /** Defaults to null; set it where a scenario reads it. */
         startedAt?: Date;
     }): Promise<{ subscriptionId: string }>;
+    /**
+     * A published BundleVersion to book against.
+     *
+     * A fixture writer rather than a call into `bundleRepository`: the catalog
+     * repository is a subject of the suite, not a tool for setting up someone
+     * else's scenario, and a booking scenario that failed because the catalog
+     * did would say the wrong thing.
+     *
+     * Optional because an adapter may not carry the catalog tables at all —
+     * `adapter-drizzle` does not. A required writer nobody can implement is a
+     * contract that lies about what conformance means; the booking scenarios
+     * gate on this and report the gap as a skip instead.
+     */
+    createBundleVersion?(input: {
+        bundleKey: string;
+        features: string[];
+    }): Promise<{ bundleVersionId: string }>;
     createPromoCode(input: {
         code: string;
         maxRedemptions: number | null;

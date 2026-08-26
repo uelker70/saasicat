@@ -69,6 +69,10 @@
                         <small>{{ cycleUnit }}</small>
                     </strong>
                 </div>
+                <div v-if="addPreview.firstPeriodEnd" class="sp-bundle-preview__price-row">
+                    <span>{{ i18n.bundlePreviewFirstPeriodLabel }}</span>
+                    <strong>{{ formatDate(addPreview.firstPeriodEnd) }}</strong>
+                </div>
                 <div class="sp-bundle-preview__price-row">
                     <span>{{ i18n.bundlePreviewMinimumTermLabel }}</span>
                     <span v-if="addPreview.minimumTermMonths > 0 && addPreview.minimumTermEndsAt">
@@ -78,6 +82,18 @@
                     </span>
                     <span v-else>{{ i18n.bundlePreviewMinimumTermNone }}</span>
                 </div>
+                <div v-if="addPreview.endsWithPlanAt" class="sp-bundle-preview__price-row">
+                    <span>{{ i18n.bundlePreviewEndsWithPlanLabel }}</span>
+                    <strong>{{ formatDate(addPreview.endsWithPlanAt) }}</strong>
+                </div>
+                <!--
+                    A term of the booking rather than a warning: it holds for
+                    every bundle, and a warning that always fires teaches people
+                    to skip warnings.
+                -->
+                <p class="sp-bundle-preview__note">
+                    {{ i18n.bundlePreviewEndsWithPlanNote }}
+                </p>
             </section>
 
             <!-- Add preview: redundancy hint (AK-13) -->

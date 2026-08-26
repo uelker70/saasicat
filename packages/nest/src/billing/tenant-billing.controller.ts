@@ -714,6 +714,11 @@ export class TenantBillingController {
                         // Onboarding refuses an ended subscription above, and a
                         // cancellation still outstanding still caps the term.
                         parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
+                        // The bundle runs in step with the plan it is booked
+                        // beside — the plan whose window onboarding just opened.
+                        planCycle: dto.billingCycle as BillingCycle,
+                        planPeriodEnd: period?.end ?? null,
+                        planAnchorDay: period?.start.getUTCDate() ?? null,
                     });
                     bundlesAdded += 1;
                 } catch (err) {

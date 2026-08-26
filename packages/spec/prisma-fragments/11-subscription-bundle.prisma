@@ -29,6 +29,23 @@ model SubscriptionBundle {
     // only at `minimumTermEndsAt`.
     minimumTermEndsAt DateTime?
 
+    // The rhythm this booking is billed in, and the window it is billed for.
+    //
+    // A bundle may run in a shorter rhythm than its plan but never a longer
+    // one, so a yearly bundle exists only beside a yearly plan. Its periods end
+    // on the day the plan's do: the first one is short, from the booking to the
+    // next occurrence of that day, and every one after it runs anchor to
+    // anchor. Aligned at booking rather than trimmed at the end, because a trim
+    // means somebody was committed to more than they received.
+    //
+    // Null on a booking made before these columns existed, and on one whose
+    // plan has no period at all — a trial, or a subscription awaiting sales.
+    // Readers fall back to the plan's cycle, which is what every booking used
+    // before this.
+    billingCycle       String?
+    currentPeriodStart DateTime?
+    currentPeriodEnd   DateTime?
+
     // Cancellation: requested at `canceledAt`, effective at
     // `canceledEffectiveAt` (period/term end). Both null = active booking.
     canceledAt          DateTime?

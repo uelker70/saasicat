@@ -38,6 +38,37 @@ export function advanceOneCycle(d: Date, cycle: BillingCycle, anchorDay?: number
 }
 
 /**
+ * One period backwards, on `anchorDay` where the month has one.
+ *
+ * The mirror of `advanceOneCycle`, and it exists for one question: how long is
+ * the full period that ends here? A short first period is charged pro rata
+ * against a whole cycle, and a whole cycle is only measurable from both of its
+ * ends. Reading its length from the calendar month instead is wrong wherever
+ * the anchor is not the 1st — a period ending on 28 February with an anchor of
+ * 31 runs from 31 January, which is 28 days, not the 31 that February's
+ * neighbour would suggest.
+ *
+ * The same clamp rule applies, and applies to this step's output: from 31
+ * March backwards on anchor 31 is 28 February, and from there backwards again
+ * is 31 January, not 28 January. The anchor is never consumed.
+ */
+export function retreatOneCycle(d: Date, cycle: BillingCycle, anchorDay?: number): Date {
+    const year = d.getUTCFullYear() - (cycle === 'YEARLY' ? 1 : 0);
+    const month = d.getUTCMonth() - (cycle === 'YEARLY' ? 0 : 1);
+    // `setUTCFullYear` normalises month -1 to December of the previous year, so
+    // a January date needs no special case here.
+    const normalisedYear = year + Math.floor(month / 12);
+    const normalisedMonth = ((month % 12) + 12) % 12;
+    const day = Math.min(
+        usableAnchor(anchorDay) ?? d.getUTCDate(),
+        daysInMonth(normalisedYear, normalisedMonth),
+    );
+    const out = new Date(d);
+    out.setUTCFullYear(normalisedYear, normalisedMonth, day);
+    return out;
+}
+
+/**
  * The day of the month a subscription is billed on.
  *
  * Read from whichever date opened the current run of periods — the start of the

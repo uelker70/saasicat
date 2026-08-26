@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 132 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 135 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -73,6 +73,7 @@ Plans, versions, bundles, marketing entries.
 | `BUNDLE_VERSION_NOT_EDITABLE`                  | BundleVersion '{versionId}' is not editable. Only drafts and published versions are editable that are latest-in-chain, bind no subscription yet, and whose validFrom lies in the future.                                                                |
 | `BUNDLE_VERSION_NOT_FOUND`                     | BundleVersion '{bundleVersionId}' not found                                                                                                                                                                                                             |
 | `BUNDLE_VERSION_NOT_PUBLISHED`                 | BundleVersion '{bundleVersionId}' is not published and cannot be booked.                                                                                                                                                                                |
+| `BUNDLE_VERSION_NO_PRICE`                      | This bundle version cannot be published without a price: neither a base price nor any plan override resolves one.                                                                                                                                       |
 | `BUNDLE_VERSION_REGRESSION`                    | This bundle version is regressive (feature removed / quota lowered / price raised). Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).                                                                          |
 | `BUNDLE_VERSION_SUPERSEDED`                    | BundleVersion '{bundleVersionId}' has been superseded by a newer version.                                                                                                                                                                               |
 | `BUNDLE_VERSION_VALID_FROM_INVALID`            | validFrom '{validFrom}' is not a valid date                                                                                                                                                                                                             |
@@ -125,7 +126,9 @@ Subscriptions, plan changes, entitlements.
 | Code                                         | Shipped English text                                                                                                                        |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BUNDLE_ALREADY_SUBSCRIBED`                  | Subscription '{subscriptionId}' has already actively booked this bundle.                                                                    |
+| `BUNDLE_CYCLE_EXCEEDS_PLAN`                  | A {billingCycle} bundle cannot run beside a {planCycle} plan: it would still be committed on every day the plan could end.                  |
 | `BUNDLE_INCOMPATIBLE_WITH_PLAN`              | BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].                                    |
+| `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`            | This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.                                           |
 | `BUNDLE_NOT_SELF_SERVICE`                    | Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.                                         |
 | `BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS`          | Exactly one of bundleVersionId (add preview) or subscriptionBundleId (cancel preview) must be given.                                        |
 | `FEATURE_NOT_LICENSED`                       | Feature {featureKeys} is not included in the current plan.                                                                                  |

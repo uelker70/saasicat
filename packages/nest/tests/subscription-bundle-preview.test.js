@@ -352,3 +352,179 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
         );
     });
 });
+
+describe('a bundle billed in its own rhythm', () => {
+    // The booking route has taken a `billingCycle` since bundles gained a
+    // rhythm of their own; the preview did not, and quoted the plan's. A tenant
+    // asking for a monthly bundle beside a yearly plan was shown the yearly
+    // price, prorated across the plan's year, and then charged the monthly one.
+    // A preview that describes a different contract from the one written is the
+    // one thing a preview may never do.
+
+    const YEARLY_CTX = {
+        ...CTX,
+        billingCycle: 'YEARLY',
+        currentPeriodStart: new Date('2026-01-01T00:00:00Z'),
+        currentPeriodEnd: new Date('2027-01-01T00:00:00Z'),
+        planAnchorDay: 1,
+    };
+
+    test('a monthly bundle on a yearly plan is quoted monthly, over its own month', async () => {
+        const bv = await createPublishedBundle({
+            key: 'B-CYCLE',
+            monthlyNet: '31.00',
+            yearlyNet: '310.00',
+        });
+        const dto = await buildService().previewAdd(
+            YEARLY_CTX,
+            { bundleVersionId: bv.id, billingCycle: 'MONTHLY' },
+            NOW,
+        );
+
+        assert.equal(dto.billingCycle, 'MONTHLY');
+        assert.equal(dto.nextPeriodPriceNet, 31);
+        // May, not the plan's year: 31 days, 15 of them still to come.
+        assert.equal(dto.proration.daysInPeriod, 31);
+        assert.equal(dto.proration.daysRemainingInPeriod, 15);
+        assert.equal(dto.proration.targetPriceNet, 31);
+        assert.equal(dto.firstPeriodEnd.toISOString().slice(0, 10), '2026-06-01');
+    });
+
+    test('without a cycle it still quotes the plan’s', async () => {
+        const bv = await createPublishedBundle({
+            key: 'B-DEFAULT',
+            monthlyNet: '31.00',
+            yearlyNet: '310.00',
+        });
+        const dto = await buildService().previewAdd(YEARLY_CTX, { bundleVersionId: bv.id }, NOW);
+
+        assert.equal(dto.billingCycle, 'YEARLY');
+        assert.equal(dto.nextPeriodPriceNet, 310);
+        assert.equal(dto.proration.daysInPeriod, 365);
+        assert.equal(dto.firstPeriodEnd.toISOString().slice(0, 10), '2027-01-01');
+    });
+
+    test('a yearly bundle beside a monthly plan is refused, not quoted', async () => {
+        const bv = await createPublishedBundle({ key: 'B-TOOLONG', yearlyNet: '310.00' });
+        const dto = await buildService().previewAdd(
+            CTX,
+            { bundleVersionId: bv.id, billingCycle: 'YEARLY' },
+            NOW,
+        );
+
+        assert.ok(
+            dto.blockers.some((b) => b.code === 'BUNDLE_CYCLE_EXCEEDS_PLAN'),
+            `expected a cycle blocker, got ${JSON.stringify(dto.blockers)}`,
+        );
+    });
+
+    test('a bundle with no price in the asked rhythm is refused, not given away', async () => {
+        // Published with a yearly price only — legitimate, and the publish gate
+        // passes it. What it cannot do is answer a monthly request.
+        const bv = await createPublishedBundle({
+            key: 'B-YEARLY-ONLY',
+            monthlyNet: null,
+            yearlyNet: '310.00',
+        });
+        const dto = await buildService().previewAdd(
+            YEARLY_CTX,
+            { bundleVersionId: bv.id, billingCycle: 'MONTHLY' },
+            NOW,
+        );
+
+        assert.equal(dto.nextPeriodPriceNet, null);
+        assert.equal(dto.proration, null);
+        assert.ok(
+            dto.blockers.some((b) => b.code === 'BUNDLE_NOT_PRICED_FOR_THIS_PLAN'),
+            `expected a pricing blocker, got ${JSON.stringify(dto.blockers)}`,
+        );
+    });
+
+    test('the preview names the day the plan takes the bundle down with it', async () => {
+        const bv = await createPublishedBundle({ key: 'B-ENDING', monthlyNet: '31.00' });
+        const endsAt = new Date('2026-08-01T00:00:00Z');
+        const dto = await buildService().previewAdd(
+            { ...CTX, parentEndsAt: endsAt },
+            { bundleVersionId: bv.id },
+            NOW,
+        );
+
+        assert.equal(dto.endsWithPlanAt.toISOString(), endsAt.toISOString());
+        // And the term it commits to cannot outlive that day.
+        assert.ok(dto.minimumTermEndsAt <= endsAt);
+    });
+
+    test('a plan that runs on names no end at all', async () => {
+        const bv = await createPublishedBundle({ key: 'B-OPEN', monthlyNet: '31.00' });
+        const dto = await buildService().previewAdd(CTX, { bundleVersionId: bv.id }, NOW);
+
+        assert.equal(dto.endsWithPlanAt, null);
+    });
+});
+
+describe('where the plan’s billing day is read from', () => {
+    // The anchor decides which day the bundle's periods land on, so a preview
+    // reading it from the wrong place quotes a different first period from the
+    // one the booking writes. Three sources, in order of authority.
+
+    test('the stored anchor wins over the window it would be guessed from', async () => {
+        const bv = await createPublishedBundle({ key: 'B-ANCHOR', monthlyNet: '31.00' });
+        const dto = await buildService().previewAdd(
+            {
+                ...CTX,
+                // The window says the 1st; the subscription is billed on the
+                // 31st and February shortened its last boundary.
+                currentPeriodStart: new Date('2026-04-30T00:00:00Z'),
+                currentPeriodEnd: new Date('2026-05-31T00:00:00Z'),
+                planAnchorDay: 31,
+            },
+            { bundleVersionId: bv.id },
+            NOW,
+        );
+
+        assert.equal(dto.firstPeriodEnd.toISOString().slice(0, 10), '2026-05-31');
+    });
+
+    test('without one it is read from the window start, not the window end', async () => {
+        // The two only differ once a short month has clamped the end, so the
+        // fixture is a window that has been through one: 31 January to 28
+        // February. Reading the end gives an anchor of 28 and a 31-day cycle to
+        // prorate against; reading the start gives 31 and the 28 days the
+        // period actually has. The end date is the same either way — which is
+        // why asserting on that alone proves nothing.
+        const bv = await createPublishedBundle({ key: 'B-FROM-START', monthlyNet: '28.00' });
+        const dto = await buildService().previewAdd(
+            {
+                ...CTX,
+                currentPeriodStart: new Date('2026-01-31T00:00:00Z'),
+                currentPeriodEnd: new Date('2026-02-28T00:00:00Z'),
+                planAnchorDay: null,
+            },
+            { bundleVersionId: bv.id },
+            new Date('2026-02-17T00:00:00Z'),
+        );
+
+        assert.equal(dto.firstPeriodEnd.toISOString().slice(0, 10), '2026-02-28');
+        assert.equal(dto.proration.daysInPeriod, 28);
+        assert.equal(dto.proration.daysRemainingInPeriod, 11);
+    });
+
+    test('with no window at all it falls back to the date the subscription started', async () => {
+        // A subscription whose first window has not been opened yet: `startedAt`
+        // is what opened this run of periods, and its day is the anchor.
+        const bv = await createPublishedBundle({ key: 'B-NO-WINDOW', monthlyNet: '31.00' });
+        const dto = await buildService().previewAdd(
+            {
+                ...CTX,
+                startedAt: new Date('2026-01-09T00:00:00Z'),
+                currentPeriodStart: null,
+                currentPeriodEnd: null,
+                planAnchorDay: null,
+            },
+            { bundleVersionId: bv.id },
+            NOW,
+        );
+
+        assert.equal(dto.firstPeriodEnd.toISOString().slice(0, 10), '2026-06-09');
+    });
+});

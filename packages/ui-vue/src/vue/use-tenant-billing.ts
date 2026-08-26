@@ -252,6 +252,18 @@ export interface BundleAddPreviewShape {
     nextPeriodPriceNet: number | null;
     minimumTermMonths: number;
     minimumTermEndsAt: string | null;
+    /**
+     * End of the first billing period — on the plan's billing day, so usually
+     * shorter than a full cycle and charged pro rata for that stretch. Null
+     * where the plan has no period to align to.
+     */
+    firstPeriodEnd: string | null;
+    /**
+     * The day the plan takes the bundle down with it, or null while the plan
+     * runs on. Not a cancellation, and the period it happens in is not
+     * credited — which is what the alignment exists to make rare.
+     */
+    endsWithPlanAt: string | null;
     redundantFeatures: RedundantFeatureHintShape[];
     missingRequires: string[];
     blockers: BundlePreviewIssueShape[];

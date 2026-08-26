@@ -12,6 +12,8 @@ function createMemoryHarness() {
     const freshState = () => ({
         planVersions: [],
         subscriptions: [],
+        bundleVersions: [],
+        subscriptionBundles: [],
         promoCodes: [],
         redemptions: [],
         audits: [],
@@ -226,7 +228,72 @@ function createMemoryHarness() {
         },
     };
 
+    // The booking junction. Dumb persistence on purpose: what a booking may
+    // commit to is decided above it, and an adapter that decided any of it
+    // would stop being interchangeable with the ones that do not.
+    const subscriptionBundleRepository = {
+        async add(data) {
+            const row = {
+                id: nextId('sb'),
+                subscriptionId: data.subscriptionId,
+                bundleVersionId: data.bundleVersionId,
+                startedAt: data.startedAt,
+                minimumTermEndsAt: data.minimumTermEndsAt ?? null,
+                billingCycle: data.billingCycle ?? null,
+                currentPeriodStart: data.currentPeriodStart ?? null,
+                currentPeriodEnd: data.currentPeriodEnd ?? null,
+                canceledAt: null,
+                canceledEffectiveAt: null,
+            };
+            state.subscriptionBundles.push(row);
+            return { ...row };
+        },
+        async listBySubscription(subscriptionId) {
+            return state.subscriptionBundles
+                .filter((row) => row.subscriptionId === subscriptionId)
+                .map((row) => ({ ...row }));
+        },
+        async findById(id) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            return row ? { ...row } : null;
+        },
+        async listActiveBySubscription(subscriptionId, now = new Date()) {
+            return state.subscriptionBundles
+                .filter(
+                    (row) =>
+                        row.subscriptionId === subscriptionId &&
+                        (row.canceledEffectiveAt === null || row.canceledEffectiveAt > now),
+                )
+                .map((row) => ({ ...row }));
+        },
+        async cancel(id, { canceledAt, canceledEffectiveAt }) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (!row) return null;
+            row.canceledAt = canceledAt;
+            row.canceledEffectiveAt = canceledEffectiveAt;
+            return { ...row };
+        },
+        async countActiveByBundleVersionId(bundleVersionId, now = new Date()) {
+            return state.subscriptionBundles.filter(
+                (row) =>
+                    row.bundleVersionId === bundleVersionId &&
+                    (row.canceledEffectiveAt === null || row.canceledEffectiveAt > now),
+            ).length;
+        },
+    };
+
     const seed = {
+        async createBundleVersion(input) {
+            const row = {
+                id: nextId('bv'),
+                bundleKey: input.bundleKey,
+                features: [...input.features],
+                quotas: {},
+                publishedAt: new Date(),
+            };
+            state.bundleVersions.push(row);
+            return { bundleVersionId: row.id };
+        },
         async createPlanVersion(input) {
             const row = {
                 id: nextId('pv'),
@@ -307,6 +374,7 @@ function createMemoryHarness() {
             mfa,
             tenantSubscriptionWrite,
             promoSubscriptionLookup,
+            subscriptionBundleRepository,
         },
         seed,
         async reset() {

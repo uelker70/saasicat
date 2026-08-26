@@ -136,10 +136,15 @@ describe('BundlesService — Version lifecycle', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        await service.createBundleDraft({ bundleId: bundle.id, features: ['SEPA_DIRECT_DEBIT'] });
+        await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['SEPA_DIRECT_DEBIT'],
+        });
         await assert.rejects(
             () =>
                 service.createBundleDraft({
+                    monthlyNet: '9.90',
                     bundleId: bundle.id,
                     features: ['RECEIVABLES'],
                 }),
@@ -155,6 +160,7 @@ describe('BundlesService — Version lifecycle', () => {
             label: 'X',
         });
         const draft = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['SEPA_DIRECT_DEBIT'],
         });
@@ -294,6 +300,7 @@ describe('BundlesService — Strict mode check', () => {
             label: 'X',
         });
         const result = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['SEPA_DIRECT_DEBIT', 'RECEIVABLES'],
         });
@@ -316,6 +323,7 @@ describe('BundlesService — Strict mode check', () => {
         await assert.rejects(
             () =>
                 service.createBundleDraft({
+                    monthlyNet: '9.90',
                     bundleId: bundle.id,
                     features: ['SEPA_DIRECT_DEBIT', 'RECEIVABLES'],
                 }),
@@ -331,6 +339,7 @@ describe('BundlesService — Strict mode check', () => {
             label: 'X',
         });
         const result = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['ANY_UNKNOWN_FEATURE'],
         });
@@ -357,6 +366,7 @@ describe('BundlesService — Strict mode check', () => {
         await assert.rejects(
             () =>
                 service.createBundleDraft({
+                    monthlyNet: '9.90',
                     bundleId: bundle.id,
                     features: ['SEPA_DIRECT_DEBIT'],
                     compatibility: { planIds: ['STARTER', 'NON_EXISTENT_PLAN'] },
@@ -384,6 +394,7 @@ describe('BundlesService — Strict mode check', () => {
             label: 'X',
         });
         const result = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['SEPA_DIRECT_DEBIT'],
             compatibility: { planIds: ['UNKNOWN_PLAN'] },
@@ -403,6 +414,7 @@ describe('BundlesService — Strict mode check', () => {
             label: 'X',
         });
         const result = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['SEPA_DIRECT_DEBIT'],
             quotas: { storageGb: 50, unknownQuota: 100 },
@@ -425,6 +437,7 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             label: 'X',
         });
         const v1 = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['A'],
         });
@@ -433,6 +446,7 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             validFrom: '2026-01-01',
         });
         const v2 = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['A', 'B'],
         });
@@ -452,6 +466,7 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             label: 'X',
         });
         const draft = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['A'],
         });
@@ -472,12 +487,20 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const v1 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const v1 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         await service.publishBundleVersion(v1.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-01-01',
         });
-        const v2 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A', 'B'] });
+        const v2 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A', 'B'],
+        });
         await service.publishBundleVersion(v2.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-06-01',
@@ -495,12 +518,20 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const v1 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const v1 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         await service.publishBundleVersion(v1.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-06-01',
         });
-        const v2 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A', 'B'] });
+        const v2 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A', 'B'],
+        });
         await assert.rejects(
             () =>
                 service.publishBundleVersion(v2.bundleVersion.id, {
@@ -523,7 +554,11 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const draft = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const draft = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         const published = await service.publishBundleVersion(draft.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: FUTURE,
@@ -544,7 +579,11 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const draft = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const draft = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         const published = await service.publishBundleVersion(draft.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: FUTURE,
@@ -571,12 +610,20 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const v1 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const v1 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         await service.publishBundleVersion(v1.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: '2098-01-01',
         });
-        const v2 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A', 'B'] });
+        const v2 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A', 'B'],
+        });
         const published = await service.publishBundleVersion(v2.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: '2099-01-01',
@@ -603,6 +650,7 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             label: 'X',
         });
         const draft = await service.createBundleDraft({
+            monthlyNet: '9.90',
             bundleId: bundle.id,
             features: ['A'],
             validFrom: '2099-01-01',
@@ -629,7 +677,11 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const draft = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const draft = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         const published = await service.publishBundleVersion(draft.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: FUTURE,
@@ -655,13 +707,21 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const draft = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const draft = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         await service.discardBundleDraft(draft.bundleVersion.id);
         const after = await service.listBundleVersions(bundle.id);
         assert.equal(after.length, 0);
 
         // Discard on published → 422
-        const draft2 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const draft2 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         await service.publishBundleVersion(draft2.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-01-01',
@@ -684,12 +744,20 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
             bundleKey: 'BANKING',
             label: 'X',
         });
-        const v1 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
+        const v1 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A'],
+        });
         const v1Published = await service.publishBundleVersion(v1.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: FUTURE,
         });
-        const v2 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A', 'B'] });
+        const v2 = await service.createBundleDraft({
+            monthlyNet: '9.90',
+            bundleId: bundle.id,
+            features: ['A', 'B'],
+        });
         await service.publishBundleVersion(v2.bundleVersion.id, {
             publishedByUserId: null,
             validFrom: FUTURE_NEXT,

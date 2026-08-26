@@ -10,6 +10,9 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 
 /** DB columns this repository reads from `subscription_bundles`. */
 interface SubscriptionBundleDbRow {
+    billingCycle?: string | null;
+    currentPeriodStart?: Date | null;
+    currentPeriodEnd?: Date | null;
     id: string;
     subscriptionId: string;
     bundleVersionId: string;
@@ -86,6 +89,9 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
                 bundleVersionId: data.bundleVersionId,
                 startedAt: data.startedAt,
                 minimumTermEndsAt: data.minimumTermEndsAt ?? null,
+                billingCycle: data.billingCycle ?? null,
+                currentPeriodStart: data.currentPeriodStart ?? null,
+                currentPeriodEnd: data.currentPeriodEnd ?? null,
             },
         });
         return toRecord(row);
@@ -133,6 +139,9 @@ function toRecord(row: SubscriptionBundleDbRow): SubscriptionBundleRecord {
         bundleVersionId: row.bundleVersionId,
         startedAt: row.startedAt,
         minimumTermEndsAt: row.minimumTermEndsAt,
+        billingCycle: row.billingCycle ?? null,
+        currentPeriodStart: row.currentPeriodStart ?? null,
+        currentPeriodEnd: row.currentPeriodEnd ?? null,
         canceledAt: row.canceledAt,
         canceledEffectiveAt: row.canceledEffectiveAt,
         createdAt: row.createdAt,

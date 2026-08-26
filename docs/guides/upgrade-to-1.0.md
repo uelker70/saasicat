@@ -372,6 +372,113 @@ them cannot tell a subscription that ends next January from one that ended last 
 silent answer is the wrong one. `@saasicat/adapter-prisma` and `@saasicat/adapter-drizzle` both
 supply them.
 
+### A bundle now runs in step with the plan that pays for it
+
+A booked bundle used to have no period of its own. It was billed alongside the plan by
+convention, which held for as long as every bundle was billed in the plan's rhythm — and stopped
+holding the moment one was not. Three columns on `subscription_bundles` give it a period it can
+state:
+
+```prisma
+model SubscriptionBundle {
+    // …
+    billingCycle       String?     // new: the rhythm this booking is billed in
+    currentPeriodStart DateTime?   // new: the window it is billed for
+    currentPeriodEnd   DateTime?
+}
+```
+
+```sql
+ALTER TABLE "subscription_bundles"
+    ADD COLUMN "billingCycle"       TEXT,
+    ADD COLUMN "currentPeriodStart" TIMESTAMP(3),
+    ADD COLUMN "currentPeriodEnd"   TIMESTAMP(3);
+```
+
+The rule those columns carry is one sentence: **a bundle's periods end on the day the plan's do.**
+The first one is short — from the booking to the next occurrence of the plan's billing day — and is
+charged pro rata for exactly that stretch. Every period after it runs anchor to anchor, in step with
+the plan for as long as both live, and the last one lands on the day the plan ends.
+
+That is arithmetic at the start rather than a repair at the end, and the difference matters: a
+bundle whose period outlives its plan has to be trimmed, and a trimmed period is one somebody was
+committed to more of than they received. Aligning at booking means the case never arises.
+
+Two consequences follow from the rule rather than from the code:
+
+- **A bundle may run in a shorter rhythm than its plan, never a longer one.** A monthly bundle
+  beside a yearly plan lands on the plan's day every month, and on the plan's own boundary in the
+  month the plan ends. A yearly bundle beside a monthly plan has no boundary to meet — the plan
+  ends twelve times before the bundle's first period does, and each of those is a moment the plan
+  could stop and leave the bundle committed with nothing to grant. Booking one is refused with
+  `BUNDLE_CYCLE_EXCEEDS_PLAN`, and the preview reports it as a blocker rather than quoting a price.
+- **Ending with the plan is not a cancellation.** No notice is given and none is needed, and the
+  period the bundle is in when it happens is not refunded. The tenant preview states both before
+  the booking is confirmed: the first period's end, the plan's end where there is one, and the
+  no-refund rule in words.
+
+**A backfill is required if you have bookings**, and unlike the anchor above it is not cosmetic.
+A row with all three columns null is read as "billed with the plan", which is what every existing
+booking was — so nothing breaks on the next request. What the null costs is the next renewal: the
+booking has no window of its own to advance. Adopting the plan's window is the identity migration,
+and from there the arithmetic keeps them aligned:
+
+```sql
+UPDATE "subscription_bundles" AS sb
+   SET "billingCycle"       = s."billingCycle",
+       "currentPeriodStart" = s."currentPeriodStart",
+       "currentPeriodEnd"   = s."currentPeriodEnd"
+  FROM "subscriptions" AS s
+ WHERE s."id" = sb."subscriptionId"
+   AND sb."billingCycle" IS NULL
+   AND sb."canceledEffectiveAt" IS NULL;
+```
+
+Bookings that have already ended are left alone deliberately: they are history, and rewriting a
+period a tenant was billed for changes what the record says happened.
+
+**Your renewal job gains one call.** The platform decides, your cron reads and writes — the same
+division of labour `computeNextPeriod` already has for the plan. `computeNextBundlePeriod` answers
+for a booking whose period is over, and returns `null` for every reason not to roll it: no period
+of its own, the period still running, the booking's own cancellation landed, or the plan ended.
+
+```ts
+import { computeNextBundlePeriod } from '@saasicat/nest';
+
+const next = computeNextBundlePeriod(
+    booking, // currentPeriodEnd, billingCycle, canceledAt, canceledEffectiveAt
+    { billingCycle: sub.billingCycle, billingAnchorDay: sub.billingAnchorDay, endsAt },
+    now,
+);
+if (next) await bookings.update(booking.id, next);
+```
+
+`endsAt` is the plan's end — `canceledEffectiveAt ?? canceledAt`, the same reading every other
+platform reader applies. Without it a booking outlives the plan that pays for it, which is the one
+state the alignment exists to prevent. A job that never calls this leaves every booking on the
+period it was made in; nothing breaks visibly, and the second period is never billed.
+
+**A bundle version can no longer be published without a price.** Neither a base price nor any plan
+override resolving one is refused with `BUNDLE_VERSION_NO_PRICE`. A priceless published bundle was
+bookable and handed over its features for nothing, and no reader downstream could tell that from a
+deliberate free add-on. If your catalog holds one, publishing it again is what surfaces it:
+
+```sql
+SELECT bv."id", b."bundleKey"
+  FROM "bundle_versions" AS bv
+  JOIN "bundles" AS b ON b."id" = bv."bundleId"
+ WHERE bv."publishedAt" IS NOT NULL
+   AND bv."monthlyNet" IS NULL
+   AND bv."yearlyNet" IS NULL;
+```
+
+Rows it returns still need checking against their pricing overrides — an override that resolves a
+price is enough, and the gate accepts it.
+
+**If you implement the ports yourself**, `SubscriptionBundleRecord` gained the three fields and
+`CreateSubscriptionBundleData` accepts them. They are optional, and an adapter that omits them
+leaves every booking on the pre-1.0 reading.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

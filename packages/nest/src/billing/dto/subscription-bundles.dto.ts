@@ -1,7 +1,7 @@
 // DTOs for `TenantSubscriptionBundlesController` (
 // P11.7.3). class-validator validation at the HTTP boundary.
 
-import { IsInt, IsOptional, IsUUID, Matches, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsUUID, Matches, Max, Min } from 'class-validator';
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
 
@@ -19,6 +19,20 @@ export class AddSubscriptionBundleDto {
     @Min(0)
     @Max(120)
     minimumTermMonths?: number;
+
+    /**
+     * The rhythm to bill this bundle in. Defaults to the plan's.
+     *
+     * A bundle may run in a shorter rhythm than its plan — monthly beside a
+     * yearly plan is the interesting case — but never a longer one. A yearly
+     * bundle on a monthly plan is refused rather than modelled: it has no
+     * boundary to meet, and every one of the plan's twelve period ends is a
+     * moment the plan could stop and leave the bundle committed with nothing to
+     * grant.
+     */
+    @IsOptional()
+    @IsIn(['MONTHLY', 'YEARLY'])
+    billingCycle?: 'MONTHLY' | 'YEARLY';
 }
 
 /**
@@ -43,6 +57,20 @@ export class PreviewSubscriptionBundleDto {
     @Min(0)
     @Max(120)
     minimumTermMonths?: number;
+
+    /**
+     * Add preview only — the rhythm to quote, analogous to
+     * `AddSubscriptionBundleDto`. Defaults to the plan's.
+     *
+     * The booking has taken this since bundles gained a rhythm of their own.
+     * The preview not taking it meant a tenant asking for a monthly bundle on a
+     * yearly plan was quoted the yearly one and then charged the monthly one —
+     * a preview describing a different contract from the one written, which is
+     * the one thing a preview may never do.
+     */
+    @IsOptional()
+    @IsIn(['MONTHLY', 'YEARLY'])
+    billingCycle?: 'MONTHLY' | 'YEARLY';
 }
 
 export class CancelSubscriptionBundleDto {
