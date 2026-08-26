@@ -13,13 +13,8 @@
 //       pnpm --filter @saasicat/adapter-drizzle test:integration
 
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
 import { describe, test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import pg from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
@@ -34,47 +29,21 @@ import {
     DrizzleTransactionRunner,
     saasicatSchema,
 } from '../../dist/index.js';
+import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '../../dist/index.js';
+import { openDisposableDatabase } from './support/disposable-database.mjs';
 
-const databaseUrl = process.env.SAASICAT_TEST_DATABASE_URL;
-if (!databaseUrl) {
-    throw new Error(
-        'SAASICAT_TEST_DATABASE_URL is required for the integration tests — point it at a ' +
-            'disposable PostgreSQL database (see the header of this file).',
-    );
-}
+const { pool, db } = await openDisposableDatabase();
 
-const require = createRequire(import.meta.url);
-const specRoot = dirname(require.resolve('@saasicat/spec/package.json'));
-
-const pool = new pg.Pool({ connectionString: databaseUrl, max: 10 });
-const db = drizzle(pool);
-
-function sqlStatements(file) {
-    return readFileSync(file, 'utf8')
-        .split(';')
-        .map((statement) =>
-            statement
-                .split('\n')
-                .filter((line) => !line.trim().startsWith('--'))
-                .join('\n')
-                .trim(),
-        )
-        .filter(Boolean);
-}
-
-// Disposable-database contract: rebuild the schema from the normative
-// reference DDL on every run.
-await pool.query('DROP SCHEMA IF EXISTS public CASCADE');
-await pool.query('CREATE SCHEMA public');
-for (const statement of sqlStatements(join(specRoot, 'sql', 'reference-schema.postgres.sql'))) {
-    await pool.query(statement);
-}
+const PROJECT_KEY = 'adapter-drizzle-contract';
 
 const PLATFORM_TABLES = [
     'promo_code_redemptions',
     'promo_code_validation_logs',
     'promo_codes',
+    'subscription_bundles',
     'subscriptions',
+    'bundle_versions',
+    'bundles',
     'plan_versions',
     'plans',
     'audit_logs',
@@ -100,8 +69,38 @@ function createHarness() {
             mfa: new DrizzleMfaAdapter(db),
             audit: new DrizzleAuditAdapter(db),
             auditQuery: new DrizzleAuditQueryAdapter(db),
+            subscriptionBundleRepository: new DrizzleSubscriptionBundleRepository(db),
+            bundleRepository: new DrizzleBundleRepository(db, { validityWindows: true }),
         },
         seed: {
+            async createBundleVersion(input) {
+                const bundleId = randomUUID();
+                await db.insert(saasicatSchema.bundles).values({
+                    id: bundleId,
+                    projectKey: PROJECT_KEY,
+                    bundleKey: input.bundleKey,
+                    label: input.bundleKey,
+                    sortOrder: 0,
+                    i18n: {},
+                    updatedAt: new Date(),
+                });
+                const id = randomUUID();
+                await db.insert(saasicatSchema.bundleVersions).values({
+                    id,
+                    bundleId,
+                    version: 1,
+                    features: input.features,
+                    quotas: {},
+                    compatibility: {},
+                    pricingOverrides: [],
+                    monthlyNet: '9.90',
+                    yearlyNet: '99.00',
+                    changeNote: 'seed',
+                    publishedAt: new Date(),
+                    updatedAt: new Date(),
+                });
+                return { bundleVersionId: id };
+            },
             async createPlanVersion(input) {
                 const id = randomUUID();
                 await db.insert(saasicatSchema.planVersions).values({
@@ -159,7 +158,7 @@ function createHarness() {
 
 persistenceAdapterContract({
     name: 'adapter-drizzle @ postgres (canonical reference schema)',
-    projectKey: 'adapter-drizzle-contract',
+    projectKey: PROJECT_KEY,
     create: async () => createHarness(),
 });
 

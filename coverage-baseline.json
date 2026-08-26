@@ -25,13 +25,13 @@
         }
     },
     "adapter-drizzle": {
-        "line": 60.33,
-        "branch": 63.76,
-        "funcs": 69.95,
+        "line": 55.85,
+        "branch": 63.04,
+        "funcs": 62.14,
         "withDatabase": {
-            "line": 76.61,
-            "branch": 65.74,
-            "funcs": 83.94
+            "line": 81.72,
+            "branch": 68.78,
+            "funcs": 86.94
         }
     },
     "persistence-testing": {
