@@ -64,6 +64,7 @@ CREATE TABLE "subscriptions" (
     "currentPeriodStart" TIMESTAMP(3),
     "currentPeriodEnd" TIMESTAMP(3),
     "minimumTermUntil" TIMESTAMP(3),
+    "billingAnchorDay" INTEGER,
     "planVersionId" TEXT NOT NULL,
     "pendingPlanVersionId" TEXT,
     "pendingPlanVersionEffectiveAt" TIMESTAMP(3),

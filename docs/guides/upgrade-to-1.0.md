@@ -248,6 +248,19 @@ ALTER TABLE "subscriptions"
     ADD COLUMN "minimumTermUntil"    TIMESTAMP(3);
 ```
 
+A third column arrives with the billing anchor:
+
+```prisma
+model Subscription {
+    // …
+    billingAnchorDay Int?   // new: the day of the month this is billed on, 1–31
+}
+```
+
+```sql
+ALTER TABLE "subscriptions" ADD COLUMN "billingAnchorDay" INTEGER;
+```
+
 `saasicat schema check --prisma-schema=path/to/schema.prisma` compares your schema against the
 shipped fragments and names what is missing; run it before the deploy rather than after.
 
@@ -284,6 +297,34 @@ return {
 They are required rather than optional because the alternative is silent: a record without them
 cannot distinguish a subscription that ends next January from one that ended last January, and the
 quiet answer is that it keeps everything.
+
+### A subscription is billed on a day, and February no longer takes it
+
+Period boundaries used to read their day from the previous boundary, and the previous boundary had
+already been clamped to fit a shorter month. A subscription starting on the 31st was billed on the
+28th from its first February onwards — and on the 28th for the rest of its life. Three days lost
+once, silently, with every later date measured from the wrong one: the renewal window, the notice
+deadline, and the contract end a customer is told about.
+
+`billingAnchorDay` holds the day, is written when a period window opens, and is never rewritten by
+a renewal — reading its own previous result is precisely the drift it exists to stop. The anchor is
+a **day number**, clamped down where the month is too short and not consumed by that clamp: an
+anchor of 31 gives 28 February and then **31** March; an anchor of 30 gives **30** October, not the
+31st. It is "the 30th", not "the end of the month".
+
+**Nothing changes for a row without the column.** `computeNextPeriod` falls back to the day of the
+period end, which is today's behaviour, so the migration is additive and an app that does not read
+the column keeps exactly what it has. **A backfill is optional and cosmetic**, and only correct
+where a subscription has never had its window reopened by a plan change:
+
+```sql
+UPDATE "subscriptions"
+   SET "billingAnchorDay" = EXTRACT(DAY FROM "currentPeriodStart")
+ WHERE "billingAnchorDay" IS NULL
+   AND "currentPeriodStart" IS NOT NULL;
+```
+
+Leaving it null and letting the next plan change set it is the safer default.
 
 ### A cancellation that has taken effect now ends the entitlements
 

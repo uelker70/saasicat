@@ -249,6 +249,19 @@ export interface SubscriptionUsageRecord {
      */
     minimumTermUntil?: Date | null;
     /**
+     * The day of the month the subscription is billed on, 1–31.
+     *
+     * Read by the cancellation rules: a declaration after the notice window
+     * lands one period past the term end, and that step has to measure from the
+     * billing day rather than from a term end that may already have been
+     * clamped by a short month.
+     *
+     * Optional, because an adapter that does not store the column keeps today's
+     * behaviour — the step then takes its day from the term end, which is
+     * correct except in the month after a clamp.
+     */
+    billingAnchorDay?: number | null;
+    /**
      * When a cancellation was declared, and when it lands.
      *
      * Required for the reason the same pair is required on

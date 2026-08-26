@@ -44,6 +44,8 @@ export interface SubscriptionRowLike {
     currentPeriodEnd?: Date | null;
     /** End of what was committed to. Null on a trial or a pre-existing row. */
     minimumTermUntil?: Date | null;
+    /** The day of the month this subscription is billed on, 1–31. */
+    billingAnchorDay?: number | null;
     /** When a cancellation was declared, and when it lands. */
     canceledAt?: Date | null;
     canceledEffectiveAt?: Date | null;
