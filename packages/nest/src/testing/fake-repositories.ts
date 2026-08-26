@@ -479,7 +479,9 @@ export class FakeBundleRepository implements BundleRepository {
 
     async findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null> {
         for (const b of this.bundles.values()) {
-            if (b.projectKey === projectKey && b.bundleKey === bundleKey && b.deletedAt === null) {
+            // Retired bundles included: the unique index does not exclude
+            // them, and this answers the database's question.
+            if (b.projectKey === projectKey && b.bundleKey === bundleKey) {
                 return b;
             }
         }

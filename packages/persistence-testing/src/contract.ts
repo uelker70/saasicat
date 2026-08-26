@@ -776,10 +776,19 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             }
         });
 
-        test('a retired bundle is not what its key names any more', async (t) => {
+        test('a retired bundle still occupies its key', async (t) => {
+            // `findByKey` answers the database's question, and
+            // `bundles_projectKey_bundleKey_key` is an unconditional unique
+            // index: retiring a bundle does not free its key. Its one caller is
+            // the duplicate check in `createBundle`, so an adapter that hides
+            // retired rows lets that check pass and the insert then fail on the
+            // constraint — a 500 where the service had `BUNDLE_ALREADY_EXISTS`
+            // ready. `list` is the active-catalogue lookup, and it excludes
+            // them.
             const catalog = harness.adapter.bundleRepository;
             const retire = catalog?.softDelete?.bind(catalog);
-            if (!catalog || !retire || !catalog.findByKey) {
+            const byKey = catalog?.findByKey?.bind(catalog);
+            if (!catalog || !retire || !byKey) {
                 t.skip('adapter provides no BundleRepository');
                 return;
             }
@@ -788,20 +797,20 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 bundleKey: 'RETIRED_KEY',
                 label: 'Retired',
             });
-            assert.equal(
-                (await catalog.findByKey(options.projectKey, 'RETIRED_KEY'))?.id,
-                bundle.id,
-            );
+            assert.equal((await byKey(options.projectKey, 'RETIRED_KEY'))?.id, bundle.id);
 
             await retire(bundle.id);
+            const stillThere = await byKey(options.projectKey, 'RETIRED_KEY');
+            assert.equal(stillThere?.id, bundle.id, 'the key is not free again');
+            assert.ok(stillThere?.deletedAt, 'and the row says it is retired');
+
+            // The active catalogue is the other question, and `list` answers it.
+            const listed = await catalog.list({ projectKey: options.projectKey });
             assert.equal(
-                await catalog.findByKey(options.projectKey, 'RETIRED_KEY'),
-                null,
-                'the service uses this as its existence check — a retired key is free again',
+                listed.some((row) => row.id === bundle.id),
+                false,
+                'a retired bundle is not in the catalogue an operator browses',
             );
-            // …and the row is still readable by id, because a booking pinned to
-            // one of its versions has to resolve.
-            assert.ok((await catalog.findById(bundle.id))?.deletedAt);
         });
 
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {

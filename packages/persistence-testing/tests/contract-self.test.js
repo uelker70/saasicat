@@ -327,6 +327,29 @@ function createMemoryHarness() {
             const row = state.bundles.find((candidate) => candidate.id === bundleId);
             return row ? { ...row } : null;
         },
+        async findByKey(projectKey, bundleKey) {
+            // Retired rows included: the unique index does not exclude them, and
+            // this method answers the database's question.
+            const row = state.bundles.find(
+                (candidate) =>
+                    candidate.projectKey === projectKey && candidate.bundleKey === bundleKey,
+            );
+            return row ? { ...row } : null;
+        },
+        async list(filter) {
+            const excludeDeleted = filter.excludeDeleted ?? true;
+            return state.bundles
+                .filter(
+                    (row) =>
+                        row.projectKey === filter.projectKey &&
+                        (!excludeDeleted || row.deletedAt === null),
+                )
+                .map((row) => ({ ...row }));
+        },
+        async softDelete(bundleId) {
+            const row = state.bundles.find((candidate) => candidate.id === bundleId);
+            if (row) row.deletedAt = FIXED_NOW;
+        },
         async createDraft(data) {
             const versions = state.bundleVersions.filter((v) => v.bundleId === data.bundleId);
             const row = {

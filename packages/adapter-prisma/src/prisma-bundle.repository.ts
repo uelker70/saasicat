@@ -181,9 +181,24 @@ export class PrismaBundleRepository implements BundleRepository {
         return row ? toBundleStemRow(row) : null;
     }
 
+    /**
+     * Whether this project already uses this bundle key — **including retired
+     * bundles**.
+     *
+     * Its one caller is the duplicate check in `createBundle`, and the question
+     * it asks is the database's: `bundles_projectKey_bundleKey_key` is an
+     * unconditional unique index, so a soft-deleted bundle still occupies its
+     * key. Excluding retired rows here makes the check pass and the insert then
+     * fail on the constraint — a 500 where the service had
+     * `BUNDLE_ALREADY_EXISTS` ready.
+     *
+     * Two review rounds landed on this line from opposite sides, which is what
+     * finally settled it: there is no caller that wants the active-catalogue
+     * reading. `list` is that lookup, and it excludes retired rows by default.
+     */
     async findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null> {
         const row = await this.db().bundle.findFirst({
-            where: { projectKey, bundleKey, deletedAt: null },
+            where: { projectKey, bundleKey },
         });
         return row ? toBundleStemRow(row) : null;
     }
