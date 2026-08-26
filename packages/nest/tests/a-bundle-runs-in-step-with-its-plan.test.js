@@ -147,6 +147,46 @@ describe('booked anywhere inside a plan period', () => {
     });
 });
 
+describe('a plan whose periods do not end at midnight', () => {
+    // Nothing says a plan's boundaries fall at 00:00 — a subscription started at
+    // 14:00 has its periods end at 14:00. Reading the boundary as midnight makes
+    // the day of the boundary look spent, so a bundle booked that morning was
+    // given the NEXT month and outlived the plan that pays for it.
+    const atTime = (s) => new Date(`${s}Z`);
+    const first = (startedAt, planPeriodEnd) =>
+        bundleFirstPeriodEnd({
+            startedAt: atTime(startedAt),
+            cycle: 'MONTHLY',
+            planPeriodEnd: atTime(planPeriodEnd),
+            planAnchorDay: 15,
+        });
+
+    test('a booking earlier that day still meets the boundary that day', () => {
+        const end = first('2026-02-15T10:00:00.000', '2026-02-15T14:00:00.000');
+        assert.equal(end.toISOString(), '2026-02-15T14:00:00.000Z');
+    });
+
+    test('a booking after it takes the next month, at the same time of day', () => {
+        const end = first('2026-02-15T16:00:00.000', '2026-02-15T14:00:00.000');
+        assert.equal(end.toISOString(), '2026-03-15T14:00:00.000Z');
+    });
+
+    test('and every period after it keeps that time', () => {
+        const end = first('2026-02-15T10:00:00.000', '2026-02-15T14:00:00.000');
+        assert.equal(
+            bundleNextPeriodEnd(end, 'MONTHLY', 15).toISOString(),
+            '2026-03-15T14:00:00.000Z',
+        );
+    });
+
+    test('the pro-rata denominator keeps it too, so a cycle is a whole cycle', () => {
+        const end = first('2026-02-15T10:00:00.000', '2026-02-15T14:00:00.000');
+        const start = bundleFirstPeriodStart(end, 'MONTHLY', 15);
+        assert.equal(start.toISOString(), '2026-01-15T14:00:00.000Z');
+        assert.equal(end.getTime() - start.getTime(), 31 * 86_400_000);
+    });
+});
+
 describe('a yearly bundle', () => {
     test('meets the plan on its own boundary, month and day together', () => {
         // A day of the month says nothing about which month, so a yearly bundle
@@ -557,6 +597,40 @@ describe('rolling a booking on, period after period', () => {
         assert.equal(iso(opened.currentPeriodStart), '2026-01-31');
         // Its own month, on the plan's day — not the plan's year.
         assert.equal(iso(opened.currentPeriodEnd), '2026-02-28');
+    });
+
+    test('a first window opened late lands after now, not months before it', () => {
+        // Booked during a trial in December; the yearly paid period opened on
+        // 1 January; nothing ran until April. January to February is a window
+        // already over, and the integration writes once per booking per run —
+        // so it would stay unbillable for as many runs as were missed.
+        const opened = roll(
+            { currentPeriodEnd: null, billingCycle: 'MONTHLY' },
+            {
+                billingCycle: 'YEARLY',
+                billingAnchorDay: 1,
+                currentPeriodStart: at('2026-01-01'),
+                currentPeriodEnd: at('2027-01-01'),
+            },
+            at('2026-04-10'),
+        );
+        assert.equal(iso(opened.currentPeriodStart), '2026-01-01');
+        assert.equal(iso(opened.currentPeriodEnd), '2026-05-01');
+        assert.ok(opened.currentPeriodEnd > at('2026-04-10'), 'the end must be ahead of now');
+    });
+
+    test('a first window opened promptly is the short one it should be', () => {
+        const opened = roll(
+            { currentPeriodEnd: null, billingCycle: 'MONTHLY' },
+            {
+                billingCycle: 'YEARLY',
+                billingAnchorDay: 1,
+                currentPeriodStart: at('2026-01-01'),
+                currentPeriodEnd: at('2027-01-01'),
+            },
+            at('2026-01-03'),
+        );
+        assert.equal(iso(opened.currentPeriodEnd), '2026-02-01');
     });
 
     test('a booking still waiting keeps waiting while the plan has no period either', () => {

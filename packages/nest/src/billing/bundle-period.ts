@@ -31,13 +31,29 @@ function daysInMonth(year: number, month: number): number {
     return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 }
 
-/** `day` in the month of `reference`, clamped where that month is shorter. */
-function onDayOfMonth(reference: Date, day: number): Date {
+/**
+ * `day` in the month of `reference`, at the plan's time of day, clamped where
+ * that month is shorter.
+ *
+ * The time comes from `timeOfDay` — the plan's own boundary — and not from
+ * midnight. A plan whose periods end at 14:00 was being read as ending at 00:00,
+ * so a bundle booked at 10:00 on the boundary day saw a boundary that had
+ * "already passed", took the next month instead, and was then paid through a
+ * date after its plan had stopped granting it. Midnight is only the right
+ * answer where the plan's boundaries are at midnight, and nothing guarantees
+ * that.
+ */
+function onDayOfMonth(reference: Date, day: number, timeOfDay: Date): Date {
     const year = reference.getUTCFullYear();
     const month = reference.getUTCMonth();
     const out = new Date(reference);
     out.setUTCFullYear(year, month, Math.min(day, daysInMonth(year, month)));
-    out.setUTCHours(0, 0, 0, 0);
+    out.setUTCHours(
+        timeOfDay.getUTCHours(),
+        timeOfDay.getUTCMinutes(),
+        timeOfDay.getUTCSeconds(),
+        timeOfDay.getUTCMilliseconds(),
+    );
     return out;
 }
 
@@ -114,7 +130,7 @@ export function bundleFirstPeriodEnd(input: BundleFirstPeriodInput): Date | null
     // itself have been clamped by a short month and would then hand on the
     // wrong day — the drift the anchor exists to stop.
     const anchor = planAnchorDay ?? planPeriodEnd.getUTCDate();
-    const thisMonth = onDayOfMonth(startedAt, anchor);
+    const thisMonth = onDayOfMonth(startedAt, anchor, planPeriodEnd);
     if (thisMonth > startedAt) return thisMonth;
     return advanceOneCycle(thisMonth, 'MONTHLY', anchor);
 }
@@ -293,13 +309,29 @@ function openFirstWindow(
     if (planPeriodEnd === null) return null;
 
     const currentPeriodStart = plan.currentPeriodStart ?? now;
-    const currentPeriodEnd = bundleFirstPeriodEnd({
+    const firstEnd = bundleFirstPeriodEnd({
         startedAt: currentPeriodStart,
         cycle: booking.billingCycle,
         planPeriodEnd,
         planAnchorDay: plan.billingAnchorDay,
     });
-    return currentPeriodEnd === null ? null : { currentPeriodStart, currentPeriodEnd };
+    if (firstEnd === null) return null;
+    // To a boundary AFTER now, exactly as the roll does. The plan's window may
+    // have opened months ago while nothing was here to notice — a bundle booked
+    // during a trial, a yearly period that began in January, a job that first
+    // runs in April. Handing back January to February would be a window already
+    // over, and the documented integration writes once per booking per run, so
+    // the booking would stay unbillable for as many runs as were missed.
+    const currentPeriodEnd =
+        firstEnd > now
+            ? firstEnd
+            : periodEndAfter(
+                  firstEnd,
+                  booking.billingCycle,
+                  now,
+                  plan.billingAnchorDay ?? undefined,
+              );
+    return { currentPeriodStart, currentPeriodEnd };
 }
 
 /**
