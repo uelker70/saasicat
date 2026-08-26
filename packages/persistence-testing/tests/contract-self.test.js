@@ -5,6 +5,10 @@ import { persistenceAdapterContract } from '../dist/index.js';
 // `pessimisticLocking: false` (in-memory cannot emulate row locks — the
 // same reason the nest fakes must not be used to "verify" adapters).
 
+// A fixed instant: this harness has no clock of its own, and a timestamp that
+// moves between two reads is a difference no scenario asked for.
+const FIXED_NOW = new Date('2026-01-01T00:00:00.000Z');
+
 function createMemoryHarness() {
     let idCounter = 0;
     const nextId = (prefix) => `${prefix}-${++idCounter}`;
@@ -12,6 +16,7 @@ function createMemoryHarness() {
     const freshState = () => ({
         planVersions: [],
         subscriptions: [],
+        bundles: [],
         bundleVersions: [],
         subscriptionBundles: [],
         promoCodes: [],
@@ -251,6 +256,7 @@ function createMemoryHarness() {
         async listBySubscription(subscriptionId) {
             return state.subscriptionBundles
                 .filter((row) => row.subscriptionId === subscriptionId)
+                .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
                 .map((row) => ({ ...row }));
         },
         async findById(id) {
@@ -262,27 +268,156 @@ function createMemoryHarness() {
                 .filter(
                     (row) =>
                         row.subscriptionId === subscriptionId &&
-                        (row.canceledEffectiveAt === null || row.canceledEffectiveAt > now),
+                        (row.canceledAt === null || row.canceledEffectiveAt > now),
                 )
                 .map((row) => ({ ...row }));
         },
         async cancel(id, { canceledAt, canceledEffectiveAt }) {
-            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
-            if (!row) return null;
+            // Refuses an already-cancelled booking, as the port says and both
+            // real adapters now do. A reference implementation that is lenient
+            // where they are strict is not a reference.
+            const row = state.subscriptionBundles.find(
+                (candidate) => candidate.id === id && candidate.canceledAt === null,
+            );
+            if (!row) throw new Error(`SubscriptionBundle '${id}' not found or already cancelled`);
             row.canceledAt = canceledAt;
             row.canceledEffectiveAt = canceledEffectiveAt;
+            return { ...row };
+        },
+        async reactivate(id) {
+            const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
+            if (!row) throw new Error(`SubscriptionBundle '${id}' not found`);
+            row.canceledAt = null;
+            row.canceledEffectiveAt = null;
             return { ...row };
         },
         async countActiveByBundleVersionId(bundleVersionId, now = new Date()) {
             return state.subscriptionBundles.filter(
                 (row) =>
                     row.bundleVersionId === bundleVersionId &&
-                    (row.canceledEffectiveAt === null || row.canceledEffectiveAt > now),
+                    (row.canceledAt === null || row.canceledEffectiveAt > now),
             ).length;
         },
     };
 
+    // The catalogue behind the bookings. Enough of it for the scenarios that
+    // exercise discarding and publishing; `findActiveBundleVersion` is
+    // deliberately absent, so the validity-window scenario still gates off by
+    // capability rather than being answered by an implementation that does not
+    // maintain windows.
+    const bundleRepository = {
+        async create(data) {
+            const row = {
+                id: nextId('bundle'),
+                projectKey: data.projectKey,
+                bundleKey: data.bundleKey,
+                label: data.label,
+                description: data.description ?? null,
+                icon: data.icon ?? null,
+                sortOrder: data.sortOrder ?? 0,
+                i18n: data.i18n ?? {},
+                createdAt: FIXED_NOW,
+                updatedAt: FIXED_NOW,
+                deletedAt: null,
+            };
+            state.bundles.push(row);
+            return { ...row };
+        },
+        async findById(bundleId) {
+            const row = state.bundles.find((candidate) => candidate.id === bundleId);
+            return row ? { ...row } : null;
+        },
+        async findByKey(projectKey, bundleKey) {
+            // Retired rows included: the unique index does not exclude them, and
+            // this method answers the database's question.
+            const row = state.bundles.find(
+                (candidate) =>
+                    candidate.projectKey === projectKey && candidate.bundleKey === bundleKey,
+            );
+            return row ? { ...row } : null;
+        },
+        async list(filter) {
+            const excludeDeleted = filter.excludeDeleted ?? true;
+            return state.bundles
+                .filter(
+                    (row) =>
+                        row.projectKey === filter.projectKey &&
+                        (!excludeDeleted || row.deletedAt === null),
+                )
+                .map((row) => ({ ...row }));
+        },
+        async softDelete(bundleId) {
+            const row = state.bundles.find((candidate) => candidate.id === bundleId);
+            if (row) row.deletedAt = FIXED_NOW;
+        },
+        async createDraft(data) {
+            const versions = state.bundleVersions.filter((v) => v.bundleId === data.bundleId);
+            const row = {
+                id: nextId('bv'),
+                bundleId: data.bundleId,
+                version: versions.length + 1,
+                features: [...data.features],
+                quotas: data.quotas ?? {},
+                publishedAt: null,
+                supersededAt: null,
+                validFrom: null,
+                validUntil: null,
+            };
+            state.bundleVersions.push(row);
+            return { ...row };
+        },
+        async findVersionById(versionId) {
+            const row = state.bundleVersions.find((candidate) => candidate.id === versionId);
+            return row ? { ...row } : null;
+        },
+        async publishDraft(versionId, meta) {
+            // Claimed before the predecessor is touched, as both real adapters
+            // do: a second publication of one draft must lose before it changes
+            // anything, or the two windows end up a gap or an overlap.
+            const row = state.bundleVersions.find(
+                (candidate) => candidate.id === versionId && candidate.publishedAt === null,
+            );
+            if (!row) {
+                throw new Error(`BundleVersion '${versionId}' not found or already published.`);
+            }
+            for (const other of state.bundleVersions) {
+                if (other.bundleId !== row.bundleId || other.id === versionId) continue;
+                if (!other.publishedAt || other.supersededAt) continue;
+                other.supersededAt = FIXED_NOW;
+                const closesAt = new Date(meta.validFrom);
+                closesAt.setUTCDate(closesAt.getUTCDate() - 1);
+                other.validUntil = closesAt;
+            }
+            row.publishedAt = FIXED_NOW;
+            row.validFrom = meta.validFrom;
+            row.validUntil = meta.validUntil;
+            row.supersededAt = null;
+            return { ...row };
+        },
+        async deleteDraft(versionId) {
+            const index = state.bundleVersions.findIndex(
+                (candidate) => candidate.id === versionId && candidate.publishedAt === null,
+            );
+            if (index >= 0) {
+                state.bundleVersions.splice(index, 1);
+                return;
+            }
+            // Gone is the state the caller wanted; published is a refusal they
+            // have to see. Same distinction both real adapters make.
+            if (!state.bundleVersions.some((candidate) => candidate.id === versionId)) return;
+            throw new Error(
+                `BundleVersion '${versionId}' is already published and cannot be discarded.`,
+            );
+        },
+    };
+
     const seed = {
+        async clearBookingRequestDate(subscriptionBundleId) {
+            const row = state.subscriptionBundles.find(
+                (candidate) => candidate.id === subscriptionBundleId,
+            );
+            if (row) row.canceledAt = null;
+        },
         async createBundleVersion(input) {
             const row = {
                 id: nextId('bv'),
@@ -375,6 +510,7 @@ function createMemoryHarness() {
             tenantSubscriptionWrite,
             promoSubscriptionLookup,
             subscriptionBundleRepository,
+            bundleRepository,
         },
         seed,
         async reset() {

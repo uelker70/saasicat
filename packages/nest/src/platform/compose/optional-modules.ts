@@ -17,6 +17,7 @@ import {
 } from '../../subscription-contract/subscription-contract.module.js';
 
 import { optionsOf, type CompositionContext } from './context.js';
+import { resolveBundleRepository } from './bundle-repository-source.js';
 
 /** First-run provisioning of the first SuperAdmin. */
 export function composeSetup({ options, persistence }: CompositionContext): DynamicModule[] {
@@ -60,7 +61,7 @@ export function composeCheckoutOffer({
     return [
         CheckoutOfferModule.forRoot({
             ...config,
-            bundleRepository: config.bundleRepository ?? persistence?.catalog?.bundleRepository,
+            bundleRepository: config.bundleRepository ?? resolveBundleRepository(persistence),
             planRepository: config.planRepository ?? persistence?.catalog?.planRepository,
             catalogEntryRepository:
                 config.catalogEntryRepository ?? persistence?.catalog?.catalogEntryRepository,

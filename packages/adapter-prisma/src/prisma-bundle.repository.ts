@@ -1,15 +1,18 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
     buildActiveVersionWhere,
+    bundleDraftDefaults,
+    bundleStemDefaults,
+    toBundleStemRow,
     type BundleCompatibility,
     type BundleListFilter,
     type BundlePricingOverride,
     type BundleRepository,
     type BundleRow,
     type BundleVersionRow,
-    type CatalogEntryI18n,
     type CreateBundleData,
     type CreateBundleVersionDraftData,
+    type PublishBundleVersionMeta,
     type TransactionContext,
     type UpdateBundleData,
     type UpdateBundleVersionDraftData,
@@ -170,34 +173,43 @@ export class PrismaBundleRepository implements BundleRepository {
             },
             orderBy: [{ sortOrder: 'asc' }, { bundleKey: 'asc' }],
         });
-        return rows.map(toBundleRow);
+        return rows.map(toBundleStemRow);
     }
 
     async findById(bundleId: string): Promise<BundleRow | null> {
         const row = await this.db().bundle.findUnique({ where: { id: bundleId } });
-        return row ? toBundleRow(row) : null;
+        return row ? toBundleStemRow(row) : null;
     }
 
+    /**
+     * Whether this project already uses this bundle key — **including retired
+     * bundles**.
+     *
+     * Its one caller is the duplicate check in `createBundle`, and the question
+     * it asks is the database's: `bundles_projectKey_bundleKey_key` is an
+     * unconditional unique index, so a soft-deleted bundle still occupies its
+     * key. Excluding retired rows here makes the check pass and the insert then
+     * fail on the constraint — a 500 where the service had
+     * `BUNDLE_ALREADY_EXISTS` ready.
+     *
+     * Two review rounds landed on this line from opposite sides, which is what
+     * finally settled it: there is no caller that wants the active-catalogue
+     * reading. `list` is that lookup, and it excludes retired rows by default.
+     */
     async findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null> {
         const row = await this.db().bundle.findFirst({
-            where: { projectKey, bundleKey, deletedAt: null },
+            where: { projectKey, bundleKey },
         });
-        return row ? toBundleRow(row) : null;
+        return row ? toBundleStemRow(row) : null;
     }
 
     async create(data: CreateBundleData): Promise<BundleRow> {
         const created = await this.db().bundle.create({
             data: {
-                projectKey: data.projectKey,
-                bundleKey: data.bundleKey,
-                label: data.label,
-                description: data.description ?? null,
-                icon: data.icon ?? null,
-                sortOrder: data.sortOrder ?? 0,
-                i18n: data.i18n ?? {},
+                ...bundleStemDefaults(data),
             },
         });
-        return toBundleRow(created);
+        return toBundleStemRow(created);
     }
 
     async update(bundleId: string, data: UpdateBundleData): Promise<BundleRow> {
@@ -211,7 +223,7 @@ export class PrismaBundleRepository implements BundleRepository {
                 ...(data.i18n !== undefined ? { i18n: data.i18n } : {}),
             },
         });
-        return toBundleRow(updated);
+        return toBundleStemRow(updated);
     }
 
     async softDelete(bundleId: string): Promise<void> {
@@ -306,16 +318,7 @@ export class PrismaBundleRepository implements BundleRepository {
             data: {
                 bundleId: data.bundleId,
                 version: nextVersion,
-                baseVersionId: data.baseVersionId ?? null,
-                features: data.features,
-                quotas: data.quotas ?? {},
-                compatibility: data.compatibility ?? {},
-                pricingOverrides: data.pricingOverrides ?? [],
-                monthlyNet: data.monthlyNet ?? null,
-                yearlyNet: data.yearlyNet ?? null,
-                marketed: data.marketed ?? true,
-                changeNote: data.changeNote ?? '',
-                createdByUserId: data.createdByUserId ?? null,
+                ...bundleDraftDefaults(data),
                 ...(this.validityWindows
                     ? {
                           validFrom: toNullableDate(data.validFrom),
@@ -360,13 +363,7 @@ export class PrismaBundleRepository implements BundleRepository {
 
     async publishDraft(
         versionId: string,
-        publishMeta: {
-            publishedByUserId: string | null;
-            publishedChanges: VersionChange[];
-            nonRegressive: boolean;
-            validFrom: Date;
-            validUntil: Date | null;
-        },
+        publishMeta: PublishBundleVersionMeta,
         tx?: TransactionContext,
     ): Promise<BundleVersionRow> {
         if (this.validityWindows && tx === undefined) {
@@ -410,23 +407,33 @@ export class PrismaBundleRepository implements BundleRepository {
     private async publishDraftWithValidity(
         db: BundlePrisma,
         versionId: string,
-        publishMeta: {
-            publishedByUserId: string | null;
-            publishedChanges: VersionChange[];
-            nonRegressive: boolean;
-            validFrom: Date;
-            validUntil: Date | null;
-        },
+        publishMeta: PublishBundleVersionMeta,
     ): Promise<BundleVersionRow> {
-        const draft = await db.bundleVersion.findUnique({ where: { id: versionId } });
-        if (!draft) {
-            throw new Error(`BundleVersion '${versionId}' not found.`);
-        }
-
         const now = new Date();
+        // Claim the draft first, and only while it IS one — see the same
+        // comment in `adapter-drizzle`. Superseding the predecessor before
+        // claiming lets two concurrent publications of one draft both do work,
+        // and the stored windows end up a gap or an overlap.
+        const claimed = await db.bundleVersion.updateMany({
+            where: { id: versionId, publishedAt: null },
+            data: {
+                publishedAt: now,
+                publishedByUserId: publishMeta.publishedByUserId,
+                publishedChanges: publishMeta.publishedChanges,
+                nonRegressive: publishMeta.nonRegressive,
+                validFrom: publishMeta.validFrom,
+                validUntil: publishMeta.validUntil,
+            },
+        });
+        if (claimed.count === 0) {
+            throw new Error(`BundleVersion '${versionId}' not found or already published.`);
+        }
+        const published = await db.bundleVersion.findUnique({ where: { id: versionId } });
+        if (!published) throw new Error(`BundleVersion '${versionId}' disappeared`);
+
         await db.bundleVersion.updateMany({
             where: {
-                bundleId: draft.bundleId,
+                bundleId: published.bundleId,
                 publishedAt: { not: null },
                 supersededAt: null,
                 NOT: { id: versionId },
@@ -437,38 +444,34 @@ export class PrismaBundleRepository implements BundleRepository {
             },
         });
 
-        const published = await db.bundleVersion.update({
-            where: { id: versionId },
-            data: {
-                publishedAt: now,
-                publishedByUserId: publishMeta.publishedByUserId,
-                publishedChanges: publishMeta.publishedChanges,
-                nonRegressive: publishMeta.nonRegressive,
-                validFrom: publishMeta.validFrom,
-                validUntil: publishMeta.validUntil,
-            },
-        });
         const bundle = await db.bundle.findUnique({ where: { id: published.bundleId } });
         return toBundleVersionRow(published, bundle, true);
     }
 
     async deleteDraft(versionId: string): Promise<void> {
         const db = this.db();
-        const row = await db.bundleVersion.findUnique({ where: { id: versionId } });
-        if (!row) return;
-        if (row.publishedAt !== null) {
-            throw new Error(
-                `BundleVersion '${versionId}' is already published and cannot be discarded ` +
-                    '(published versions are immutable — contract protection P1).',
-            );
-        }
-        try {
-            await db.bundleVersion.delete({ where: { id: versionId } });
-        } catch (err) {
-            // Concurrent discard already removed the row — treat as a no-op.
-            if ((err as { code?: string } | null)?.code === 'P2025') return;
-            throw err;
-        }
+        // Conditional on the row still being a draft, and the answer read from
+        // what the DELETE matched rather than from a SELECT before it.
+        //
+        // Reading first and deleting by id alone leaves a window: a publish can
+        // commit in between, and the delete then removes a *published* version.
+        // A version published a moment ago has no bookings yet, so the foreign
+        // key does not stand in the way either — the catalogue entry is simply
+        // gone, and nothing in the platform can put it back.
+        const { count } = await db.bundleVersion.deleteMany({
+            where: { id: versionId, publishedAt: null },
+        });
+        if (count > 0) return;
+
+        // Nothing was deleted, and the two reasons need different answers: a
+        // row that is gone is the state the caller wanted, a published one is a
+        // refusal they have to see.
+        const remaining = await db.bundleVersion.findUnique({ where: { id: versionId } });
+        if (!remaining) return;
+        throw new Error(
+            `BundleVersion '${versionId}' is already published and cannot be discarded ` +
+                '(published versions are immutable — contract protection P1).',
+        );
     }
 }
 
@@ -500,26 +503,6 @@ function toCompatibility(value: unknown): BundleCompatibility {
 
 function toPricingOverrides(value: unknown): BundlePricingOverride[] {
     return Array.isArray(value) ? (value as BundlePricingOverride[]) : [];
-}
-
-function toI18n(value: unknown): CatalogEntryI18n {
-    return isPlainObject(value) ? (value as CatalogEntryI18n) : {};
-}
-
-function toBundleRow(row: BundleDbRow): BundleRow {
-    return {
-        id: row.id,
-        projectKey: row.projectKey,
-        bundleKey: row.bundleKey,
-        label: row.label,
-        description: row.description,
-        icon: row.icon,
-        sortOrder: row.sortOrder,
-        i18n: toI18n(row.i18n),
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        deletedAt: row.deletedAt?.toISOString() ?? null,
-    };
 }
 
 function toBundleVersionRow(

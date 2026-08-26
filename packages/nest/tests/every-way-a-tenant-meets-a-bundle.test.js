@@ -228,6 +228,66 @@ describe('an operator publishes a bundle', () => {
 
 // ─── 2. A tenant books one ────────────────────────────────────────────────
 
+describe('a key an operator has retired', () => {
+    // The unique index does not exclude retired rows, so the key is still
+    // taken. What decides whether the operator learns that as a sentence or as
+    // a 500 is one predicate in one repository method.
+
+    test('creating the same key again is refused, with the code that says why', async () => {
+        const bundle = await catalog.createBundle({
+            projectKey: PROJECT,
+            bundleKey: 'REPORTING',
+            label: 'Reporting',
+        });
+        await bundleRepo.softDelete(bundle.id);
+
+        await assert.rejects(
+            () =>
+                catalog.createBundle({
+                    projectKey: PROJECT,
+                    bundleKey: 'REPORTING',
+                    label: 'Reporting, again',
+                }),
+            (err) => {
+                assert.equal(codeOf(err), 'BUNDLE_ALREADY_EXISTS');
+                return true;
+            },
+        );
+    });
+
+    test('a key nobody used is still free', async () => {
+        const bundle = await catalog.createBundle({
+            projectKey: PROJECT,
+            bundleKey: 'REPORTING',
+            label: 'Reporting',
+        });
+        await bundleRepo.softDelete(bundle.id);
+
+        const other = await catalog.createBundle({
+            projectKey: PROJECT,
+            bundleKey: 'ANALYTICS',
+            label: 'Analytics',
+        });
+        assert.ok(other.id);
+    });
+
+    test('and the same key in another project is another key', async () => {
+        const bundle = await catalog.createBundle({
+            projectKey: PROJECT,
+            bundleKey: 'REPORTING',
+            label: 'Reporting',
+        });
+        await bundleRepo.softDelete(bundle.id);
+
+        const elsewhere = await catalog.createBundle({
+            projectKey: 'another-app',
+            bundleKey: 'REPORTING',
+            label: 'Reporting',
+        });
+        assert.ok(elsewhere.id);
+    });
+});
+
 describe('a tenant books a bundle', () => {
     const version = (fields = {}) => ({
         id: 'bv-1',

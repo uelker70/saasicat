@@ -107,6 +107,15 @@ export interface ContractSeed {
         bundleKey: string;
         features: string[];
     }): Promise<{ bundleVersionId: string }>;
+    /**
+     * Clears a booking's `canceledAt` while leaving `canceledEffectiveAt`.
+     *
+     * A shape no repository method produces, and one the nullable columns
+     * nonetheless permit — so the adapters have to agree on how to read it.
+     * Optional: a harness that cannot reach its store directly says so and the
+     * scenario skips, rather than the scenario inventing a way in.
+     */
+    clearBookingRequestDate?(subscriptionBundleId: string): Promise<void>;
     createPromoCode(input: {
         code: string;
         maxRedemptions: number | null;

@@ -22,6 +22,7 @@
 import { assertPersistenceCapabilities, type SaaSiCatPersistenceAdapter } from '@saasicat/core';
 
 import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
+import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 
 /** Everything a rule may look at: the options as given, the adapters as resolved. */
 export interface PlatformConfiguration {
@@ -336,7 +337,7 @@ const tenantBillingPorts = (c: PlatformConfiguration) => {
 
 const bundleRepositories = (c: PlatformConfiguration) => ({
     subscriptionBundleRepository: bundle(c)?.entitlement?.subscriptionBundleRepository,
-    bundleRepository: bundle(c)?.catalog?.bundleRepository,
+    bundleRepository: resolveBundleRepository(bundle(c)),
 });
 
 const entitlementAdapters = (c: PlatformConfiguration) => ({

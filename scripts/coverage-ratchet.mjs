@@ -179,6 +179,14 @@ function measure(pkg, { withDatabase = false } = {}) {
         process.execPath,
         [
             '--test',
+            // One file at a time where a database is involved. Each integration
+            // file rebuilds the canonical schema in the disposable database it
+            // is pointed at, and `node --test` runs files in parallel processes
+            // — so two of them drop and recreate `public` at once and the loser
+            // watches its tables disappear mid-test. The package's own
+            // `test:integration` script says the same thing; this is the second
+            // caller, and it has to say it too.
+            ...(withDatabase ? ['--test-concurrency=1'] : []),
             '--experimental-test-coverage',
             ...COVERAGE_INCLUDE.map((glob) => `--test-coverage-include=${glob}`),
             ...COVERAGE_EXCLUDE.map((glob) => `--test-coverage-exclude=${glob}`),

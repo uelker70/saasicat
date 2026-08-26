@@ -185,3 +185,70 @@ export const superAdminMfa = pgTable('super_admin_mfa', {
     enabledAt: ts('enabledAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
+
+// ─── Bundles: the add-on catalogue and what a tenant booked from it ───
+//
+// A bundle is a versioned grouping of features and quota effects, sold on top
+// of a plan. `subscription_bundles` is the junction: one row per booking,
+// pinned to one concrete `BundleVersion` so what was bought stays what was
+// bought when the catalogue moves on.
+
+export const bundles = pgTable('bundles', {
+    id: text('id').primaryKey(),
+    projectKey: text('projectKey').notNull(),
+    bundleKey: text('bundleKey').notNull(),
+    label: text('label').notNull(),
+    description: text('description'),
+    icon: text('icon'),
+    sortOrder: integer('sortOrder').notNull().default(0),
+    i18n: jsonb('i18n').notNull(),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+    updatedAt: ts('updatedAt').notNull(),
+    deletedAt: ts('deletedAt'),
+});
+
+export const bundleVersions = pgTable('bundle_versions', {
+    id: text('id').primaryKey(),
+    bundleId: text('bundleId').notNull(),
+    version: integer('version').notNull(),
+    baseVersionId: text('baseVersionId'),
+    features: jsonb('features').notNull(),
+    quotas: jsonb('quotas').notNull(),
+    compatibility: jsonb('compatibility').notNull(),
+    pricingOverrides: jsonb('pricingOverrides').notNull(),
+    // Nullable, unlike a plan version's: a bundle may carry no base price and
+    // resolve one per plan through `pricingOverrides` instead.
+    monthlyNet: numeric('monthlyNet', { precision: 10, scale: 2 }),
+    yearlyNet: numeric('yearlyNet', { precision: 10, scale: 2 }),
+    marketed: boolean('marketed').notNull().default(true),
+    publishedAt: ts('publishedAt'),
+    supersededAt: ts('supersededAt'),
+    publishedChanges: jsonb('publishedChanges'),
+    changeNote: text('changeNote').notNull(),
+    nonRegressive: boolean('nonRegressive').notNull().default(true),
+    validFrom: ts('validFrom'),
+    validUntil: ts('validUntil'),
+    createdByUserId: text('createdByUserId'),
+    publishedByUserId: text('publishedByUserId'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+    updatedAt: ts('updatedAt').notNull(),
+});
+
+export const subscriptionBundles = pgTable('subscription_bundles', {
+    id: text('id').primaryKey(),
+    subscriptionId: text('subscriptionId').notNull(),
+    bundleVersionId: text('bundleVersionId').notNull(),
+    startedAt: ts('startedAt').notNull(),
+    minimumTermEndsAt: ts('minimumTermEndsAt'),
+    // The rhythm this booking is billed in and the window it is billed for. A
+    // bundle's periods end on the day the plan's do; all three are null on a
+    // booking made before these columns existed, and on one whose plan had no
+    // period to align to — a trial, or a subscription awaiting sales.
+    billingCycle: text('billingCycle'),
+    currentPeriodStart: ts('currentPeriodStart'),
+    currentPeriodEnd: ts('currentPeriodEnd'),
+    canceledAt: ts('canceledAt'),
+    canceledEffectiveAt: ts('canceledEffectiveAt'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+    updatedAt: ts('updatedAt').notNull(),
+});

@@ -218,6 +218,22 @@ export interface BundleListFilter {
 }
 
 /**
+ * What publishing a bundle draft records.
+ *
+ * Named because it was written out three times — the port, and each adapter's
+ * implementation of it — and a signature restated is a contract restated: the
+ * copies can drift, and nothing but a reader would notice.
+ */
+export interface PublishBundleVersionMeta {
+    publishedByUserId: string | null;
+    publishedChanges: VersionChange[];
+    nonRegressive: boolean;
+    /** Required — validated by the service before the repository call. */
+    validFrom: Date;
+    validUntil: Date | null;
+}
+
+/**
  * Adapter for `Bundle` + `BundleVersion` persistence. Consumers implement
  * this against their Prisma tables (`bundles` + `bundle_versions`).
  *
@@ -306,14 +322,7 @@ export interface BundleRepository {
      */
     publishDraft(
         versionId: string,
-        publishMeta: {
-            publishedByUserId: string | null;
-            publishedChanges: VersionChange[];
-            nonRegressive: boolean;
-            /** Required — validated by the service before the repository call. */
-            validFrom: Date;
-            validUntil: Date | null;
-        },
+        publishMeta: PublishBundleVersionMeta,
         tx?: TransactionContext,
     ): Promise<BundleVersionRow>;
 

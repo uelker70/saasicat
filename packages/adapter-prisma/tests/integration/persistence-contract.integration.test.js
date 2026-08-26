@@ -210,6 +210,12 @@ function createHarness() {
                 });
                 return { bundleVersionId: row.id };
             },
+            async clearBookingRequestDate(subscriptionBundleId) {
+                await prisma.subscriptionBundle.update({
+                    where: { id: subscriptionBundleId },
+                    data: { canceledAt: null },
+                });
+            },
             async createPromoCode(input) {
                 const row = await prisma.promoCode.create({
                     data: {
