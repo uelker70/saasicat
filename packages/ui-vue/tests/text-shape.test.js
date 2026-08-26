@@ -7,6 +7,38 @@ import { looksLikeEmail, trimChar } from '../dist/client/index.js';
 // to hold: the same acceptance as the patterns on ordinary input, and a
 // finish on the input the patterns choked on.
 
+/**
+ * A bound generous enough that only the failure it guards can breach it.
+ *
+ * The regression these two tests exist for is not slowness, it is
+ * NON-TERMINATION: the pattern this replaced backtracked, and on 50,000 '@' it
+ * did not come back. Measured on this machine the linear versions take 0.2 ms
+ * and 4 ms, so two seconds is a margin of hundreds — wide enough to survive a
+ * loaded CI runner and the coverage instrumentation that counts every one of a
+ * million loop iterations.
+ *
+ * The previous bound was 200 ms, which is not such a margin: it failed once
+ * under coverage on a busy machine and passed on the retry. A guard that fails
+ * without a defect teaches people to run it again, which is the same end state
+ * as not having it.
+ *
+ * What this does NOT prove is linearity. A ratio across two input sizes was
+ * tried for that and measured rather than assumed: at a tenfold step the linear
+ * version came out at 6.6× and a deliberately quadratic one at 33× — they do
+ * separate, but the gap is set by how far the JIT has warmed up rather than by
+ * the algorithm, so the threshold would be tuned to one machine. For six lines
+ * of index arithmetic that is more apparatus than the risk deserves. If either
+ * of these ever grows a regex again, the ratio is the thing to reach for.
+ */
+const TERMINATES_WITHIN_MS = 2_000;
+
+/** Milliseconds for one run. */
+function millisFor(work) {
+    const started = performance.now();
+    work();
+    return performance.now() - started;
+}
+
 describe('looksLikeEmail', () => {
     test('accepts what the old pattern accepted', () => {
         for (const ok of ['a@b.c', 'first.last@example.org', 'x@y.co.uk', 'ü@ä.de']) {
@@ -37,10 +69,18 @@ describe('looksLikeEmail', () => {
     });
 
     test('finishes on the input the pattern backtracked on', () => {
-        const hostile = `${'@'.repeat(50_000)}x`;
-        const started = Date.now();
-        assert.equal(looksLikeEmail(hostile), false);
-        assert.ok(Date.now() - started < 200, 'not linear');
+        // Termination, not speed — and termination is all that can be asserted
+        // here. Measured across 50,000, 500,000 and 2,000,000 characters this
+        // runs in 0.16, 0.90 and 0.83 ms: it does not grow monotonically,
+        // because it is fast enough that the numbers are timer noise. A ratio
+        // over noise would be a guard that asserts nothing, so it is not used.
+        const hostile = `${'@'.repeat(500_000)}x`;
+
+        const elapsed = millisFor(() => {
+            assert.equal(looksLikeEmail(hostile), false);
+        });
+
+        assert.ok(elapsed < TERMINATES_WITHIN_MS, `took ${elapsed.toFixed(0)} ms`);
     });
 });
 
@@ -53,8 +93,10 @@ describe('trimChar', () => {
     });
 
     test('finishes on a long run', () => {
-        const started = Date.now();
-        assert.equal(trimChar('-'.repeat(200_000), '-'), '');
-        assert.ok(Date.now() - started < 200);
+        const elapsed = millisFor(() => {
+            assert.equal(trimChar('-'.repeat(1_000_000), '-'), '');
+        });
+
+        assert.ok(elapsed < TERMINATES_WITHIN_MS, `took ${elapsed.toFixed(0)} ms`);
     });
 });
