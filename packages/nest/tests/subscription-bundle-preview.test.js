@@ -509,9 +509,11 @@ describe('where the plan’s billing day is read from', () => {
         assert.equal(dto.proration.daysRemainingInPeriod, 11);
     });
 
-    test('with no window at all it falls back to the date the subscription started', async () => {
-        // A subscription whose first window has not been opened yet: `startedAt`
-        // is what opened this run of periods, and its day is the anchor.
+    test('a plan with no paid window is quoted no period, rather than a projected one', async () => {
+        // A trial, or a subscription awaiting sales. Projecting a boundary from
+        // `startedAt` named a commitment the booking does not write — it passes
+        // the same null through and stores no window — on a date the eventual
+        // paid window need not land on.
         const bv = await createPublishedBundle({ key: 'B-NO-WINDOW', monthlyNet: '31.00' });
         const dto = await buildService().previewAdd(
             {
@@ -525,7 +527,11 @@ describe('where the plan’s billing day is read from', () => {
             NOW,
         );
 
-        assert.equal(dto.firstPeriodEnd.toISOString().slice(0, 10), '2026-06-09');
+        assert.equal(dto.firstPeriodEnd, null);
+        // …and nothing is prorated against a period that does not exist.
+        assert.equal(dto.proration, null);
+        // The price it will cost once a window opens is still worth stating.
+        assert.equal(dto.nextPeriodPriceNet, 31);
     });
 });
 

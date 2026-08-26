@@ -1,6 +1,6 @@
 import type { BillingCycle } from '@saasicat/core';
 
-import { advanceOneCycle, retreatOneCycle } from './billing-period.js';
+import { advanceOneCycle, periodEndAfter, retreatOneCycle } from './billing-period.js';
 
 // When a bundle's periods begin and end.
 //
@@ -252,20 +252,32 @@ export function computeNextBundlePeriod(
     plan: BundlePlanContext,
     now: Date,
 ): BundlePeriodWindow | null {
-    const landedAt = booking.canceledEffectiveAt ?? booking.canceledAt;
-    if (landedAt !== null && landedAt <= now) return null;
-    if (plan.endsAt !== null && plan.endsAt <= now) return null;
+    // Two dates end this booking, and neither may be run past: the plan's end,
+    // and the booking's own cancellation. The second was missed for as long as
+    // only the first was checked — a cancellation declared inside a minimum
+    // term lands on a date measured from the booking, while periods land on the
+    // plan's anchor, so the two rarely coincide and a renewal opened a whole
+    // cycle past the date the cancel API had promised.
+    const endsAt = earliest(plan.endsAt, booking.canceledEffectiveAt ?? booking.canceledAt);
+    if (endsAt !== null && endsAt <= now) return null;
 
     const window =
         booking.currentPeriodEnd === null
             ? openFirstWindow(booking, plan, now)
             : rollNextWindow(booking, plan, now);
     if (window === null) return null;
-    // Never past the plan, however the window was arrived at.
-    if (plan.endsAt !== null && plan.endsAt <= window.currentPeriodStart) return null;
-    return plan.endsAt !== null && plan.endsAt < window.currentPeriodEnd
-        ? { currentPeriodStart: window.currentPeriodStart, currentPeriodEnd: plan.endsAt }
+    // However the window was arrived at, it stops where the booking does.
+    if (endsAt !== null && endsAt <= window.currentPeriodStart) return null;
+    return endsAt !== null && endsAt < window.currentPeriodEnd
+        ? { currentPeriodStart: window.currentPeriodStart, currentPeriodEnd: endsAt }
         : window;
+}
+
+/** The earlier of two dates, either of which may be absent. */
+function earliest(a: Date | null, b: Date | null): Date | null {
+    if (a === null) return b;
+    if (b === null) return a;
+    return a <= b ? a : b;
 }
 
 /** A booking that was stored without a window, now that the plan has one. */
@@ -290,7 +302,17 @@ function openFirstWindow(
     return currentPeriodEnd === null ? null : { currentPeriodStart, currentPeriodEnd };
 }
 
-/** The ordinary case: the period is over, the next one runs anchor to anchor. */
+/**
+ * The ordinary case: the period is over, the next one runs anchor to anchor.
+ *
+ * To the first boundary **after now**, not one cycle on. A job that has not run
+ * for three months would otherwise hand back a window that ended two months
+ * ago, and the integration in the guide writes once per booking per run — so
+ * catching up would take as many runs as were missed. `computeNextPeriod` has
+ * always jumped for the plan; a bundle that did not would drift away from the
+ * plan it is supposed to run in step with, which is the one thing it must not
+ * do.
+ */
 function rollNextWindow(
     booking: BundlePeriodRollInput,
     plan: BundlePlanContext,
@@ -301,6 +323,11 @@ function rollNextWindow(
     const cycle = booking.billingCycle ?? plan.billingCycle;
     return {
         currentPeriodStart,
-        currentPeriodEnd: bundleNextPeriodEnd(currentPeriodStart, cycle, plan.billingAnchorDay),
+        currentPeriodEnd: periodEndAfter(
+            currentPeriodStart,
+            cycle,
+            now,
+            plan.billingAnchorDay ?? undefined,
+        ),
     };
 }

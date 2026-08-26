@@ -49,7 +49,6 @@ import {
     BUNDLE_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
-import { periodEndAfter } from './billing-period.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import {
     bundleCycleFitsPlan,
@@ -310,9 +309,13 @@ export class SubscriptionBundlePreviewService {
             currentPeriodStart: ctx.currentPeriodStart,
             startedAt: ctx.startedAt,
         });
-        const planPeriodEnd =
-            ctx.currentPeriodEnd ??
-            (ctx.startedAt ? periodEndAfter(ctx.startedAt, planCycle, now) : null);
+        // The plan's actual boundary, or none. Projecting one from `startedAt`
+        // quoted a first period for a subscription that has no paid window —
+        // a trial, or one awaiting sales — while the booking passes the same
+        // null through and stores no window at all. The preview would then have
+        // named a commitment nobody wrote, on a date the eventual paid window
+        // need not land on.
+        const planPeriodEnd = ctx.currentPeriodEnd;
         // The bundle runs on the plan's day, in the bundle's own rhythm. What it
         // is charged against is its own period, not the plan's: a monthly
         // bundle beside a yearly plan is billed for its month, and prorating it

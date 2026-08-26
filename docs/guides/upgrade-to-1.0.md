@@ -472,6 +472,20 @@ for it, the one state the alignment exists to prevent. A job that never calls th
 every booking on the period it was made in; nothing breaks visibly, and the second period is never
 billed.
 
+The window it returns already accounts for both dates that can end a booking — the plan's end and
+the booking's own declared cancellation, whichever comes first — and it advances to the first
+boundary **after** `now` rather than by one cycle, so a job that has not run for three months
+catches up in a single write.
+
+**A plan change can no longer strand an add-on.** A bundle may run in a shorter rhythm than its
+plan, never a longer one, and that rule used to be checked only where a bundle is booked. A yearly
+add-on bought beside a yearly plan survived a move to a monthly one. Moving to a shorter cycle is
+now blocked with `BUNDLE_CYCLE_EXCEEDS_PLAN` while such a booking is active, naming the date it
+runs to; cancelling the add-on first lets the change through. It is refused rather than converted
+or ended, because ending it early owes the customer the difference and converting it invents a
+price nobody agreed to. The check is skipped entirely for a consumer that has not registered the
+bundle module.
+
 **A bundle version can no longer be published without a price.** Neither a base price nor any plan
 override resolving one is refused with `BUNDLE_VERSION_NO_PRICE`. A priceless published bundle was
 bookable and handed over its features for nothing, and no reader downstream could tell that from a

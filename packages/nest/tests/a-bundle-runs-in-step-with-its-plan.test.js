@@ -601,6 +601,83 @@ describe('rolling a booking on, period after period', () => {
         }
     });
 
+    test('a job that missed months catches up in one go', () => {
+        // Not one cycle on: the integration writes once per booking per run, so
+        // advancing by a single cycle would hand back a window that ended two
+        // months ago and need as many runs as were missed to catch up. The plan
+        // has always jumped; a bundle that did not would drift away from the
+        // plan it runs in step with.
+        const next = roll({ currentPeriodEnd: at('2026-02-28') }, {}, at('2026-06-05'));
+        assert.equal(iso(next.currentPeriodStart), '2026-02-28');
+        assert.equal(iso(next.currentPeriodEnd), '2026-06-30');
+        assert.ok(next.currentPeriodEnd > at('2026-06-05'), 'the new end must be in the future');
+    });
+
+    test('catching up keeps the anchor rather than losing it to a short month', () => {
+        // Anchor 31, four months missed across a February: the boundary it
+        // lands on is the 31st, not the 28th a clamped step would carry on.
+        const next = roll({ currentPeriodEnd: at('2026-01-31') }, {}, at('2026-05-10'));
+        assert.equal(iso(next.currentPeriodEnd), '2026-05-31');
+    });
+
+    test('a declared cancellation caps the window it opens', () => {
+        // Declared inside a minimum term, so it lands on a date measured from
+        // the booking while periods land on the plan's anchor — the two rarely
+        // coincide, and a whole cycle past that date is service the cancel API
+        // promised would not be billed.
+        const next = roll(
+            { currentPeriodEnd: at('2026-02-28'), canceledEffectiveAt: at('2026-03-15') },
+            {},
+            at('2026-03-01'),
+        );
+        assert.equal(iso(next.currentPeriodEnd), '2026-03-15');
+    });
+
+    test('a declared cancellation already passed opens nothing at all', () => {
+        assert.equal(
+            roll(
+                { currentPeriodEnd: at('2026-02-28'), canceledEffectiveAt: at('2026-02-28') },
+                {},
+                at('2026-03-01'),
+            ),
+            null,
+        );
+    });
+
+    test('whichever ends first wins — the plan or the booking', () => {
+        const bookingFirst = roll(
+            { currentPeriodEnd: at('2026-02-28'), canceledEffectiveAt: at('2026-03-10') },
+            { endsAt: at('2026-03-20') },
+            at('2026-03-01'),
+        );
+        assert.equal(iso(bookingFirst.currentPeriodEnd), '2026-03-10');
+
+        const planFirst = roll(
+            { currentPeriodEnd: at('2026-02-28'), canceledEffectiveAt: at('2026-03-20') },
+            { endsAt: at('2026-03-10') },
+            at('2026-03-01'),
+        );
+        assert.equal(iso(planFirst.currentPeriodEnd), '2026-03-10');
+    });
+
+    test('a first window is capped by a declared cancellation too', () => {
+        const opened = roll(
+            {
+                currentPeriodEnd: null,
+                billingCycle: 'MONTHLY',
+                canceledEffectiveAt: at('2026-02-10'),
+            },
+            {
+                billingCycle: 'YEARLY',
+                billingAnchorDay: 31,
+                currentPeriodStart: at('2026-01-31'),
+                currentPeriodEnd: at('2027-01-31'),
+            },
+            at('2026-02-05'),
+        );
+        assert.equal(iso(opened.currentPeriodEnd), '2026-02-10');
+    });
+
     test('a cancelled booking is not given a first window either', () => {
         assert.equal(
             roll(

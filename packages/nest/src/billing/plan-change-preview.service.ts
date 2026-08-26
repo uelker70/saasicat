@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
 import type {
     BillingCycle,
     PlanCatalog,
+    SubscriptionBundleRepository,
     SubscriptionUsagePort,
     UsageSnapshotPort,
 } from '@saasicat/core';
@@ -11,6 +12,8 @@ import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js'
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { findPlan, getPlanPriceNet } from './plan-helpers.js';
 import { periodEndAfter } from './billing-period.js';
+import { bundleCycleFitsPlan } from './bundle-period.js';
+import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     TRIAL_PROJECTION_PORT_TOKEN,
@@ -159,6 +162,11 @@ export class PlanChangePreviewService {
         @Optional()
         @Inject(TRIAL_PROJECTION_PORT_TOKEN)
         private readonly trialProjection: TrialProjectionPort | null = null,
+        // Optional — a consumer without the bundle module has no bookings to
+        // check, and the rhythm rule below then has nothing to say.
+        @Optional()
+        @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
+        private readonly subscriptionBundles: SubscriptionBundleRepository | null = null,
     ) {}
 
     async preview(
@@ -357,6 +365,29 @@ export class PlanChangePreviewService {
             });
         }
 
+        // A bundle may run in a shorter rhythm than its plan, never a longer
+        // one — and the rule was enforced only where a bundle is booked. A
+        // yearly bundle bought beside a yearly plan survives a move to a
+        // monthly one, and the booking then sits in the state the model calls
+        // impossible: committed for a year beside a plan that ends twelve times
+        // before its period does, each of those a moment the plan could stop
+        // and leave it with nothing to grant.
+        //
+        // Refused rather than converted or ended. Ending it early owes the
+        // customer the difference — the thing this whole alignment exists to
+        // avoid — and converting it invents a price nobody agreed. Cancelling
+        // the bundle first is the tenant's own act, and then the change goes
+        // through.
+        for (const booking of await this.bookingsOutlastingCycle(sub, targetCycle, now)) {
+            blockers.push({
+                code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
+                message:
+                    `A yearly add-on is booked until ${booking.until}. A ` +
+                    `${targetCycle.toLowerCase()} plan cannot carry it — cancel the add-on ` +
+                    'first, or keep the yearly cycle.',
+            });
+        }
+
         // Trial projection (app-specific) — only relevant during an active trial.
         const projectedTrialEndsAt =
             this.trialProjection && sub.status === 'TRIAL'
@@ -417,6 +448,38 @@ export class PlanChangePreviewService {
         const [from, to] = [rank(currentCycle), rank(targetCycle)];
         if (to === from) return 'SAME';
         return to > from ? 'LONGER' : 'SHORTER';
+    }
+
+    /**
+     * Active bookings whose own rhythm would not fit `targetCycle`.
+     *
+     * Reads the booking's stored rhythm, not the plan's: a booking with none
+     * follows the plan and therefore fits any plan by construction. Empty
+     * without the bundle module, which is a consumer that has no bookings at
+     * all rather than one whose bookings are being ignored.
+     */
+    private async bookingsOutlastingCycle(
+        sub: { id?: string | null },
+        targetCycle: string,
+        now: Date,
+    ): Promise<Array<{ until: string }>> {
+        const subscriptionId = sub.id;
+        if (!this.subscriptionBundles || !subscriptionId) return [];
+        const active = await this.subscriptionBundles.listActiveBySubscription(subscriptionId, now);
+        return active
+            .filter(
+                (booking) =>
+                    booking.billingCycle != null &&
+                    !bundleCycleFitsPlan(
+                        booking.billingCycle as BillingCycle,
+                        targetCycle as BillingCycle,
+                    ),
+            )
+            .map((booking) => ({
+                until: (booking.currentPeriodEnd ?? booking.minimumTermEndsAt ?? now)
+                    .toISOString()
+                    .slice(0, 10),
+            }));
     }
 
     private classify(

@@ -43,6 +43,16 @@ without ever acquiring a window to bill them in. It declines for a booking
 billed with the plan, one whose plan has no paid period yet, one still running,
 one whose cancellation has landed, and one whose plan has ended.
 
+The window it returns stops at whichever ends the booking first — the plan's end
+or the booking's own declared cancellation — and advances to the first boundary
+after `now` rather than by one cycle, so a job that missed several months
+catches up in a single write.
+
+A plan change is blocked with `BUNDLE_CYCLE_EXCEEDS_PLAN` while an active
+booking's rhythm would not fit the target cycle. The rule was previously
+enforced only where a bundle is booked, so a yearly add-on survived a move from
+a yearly plan to a monthly one and sat in a state the model calls impossible.
+
 Cancelling a booking now takes effect at the end of the booking's own period
 rather than the plan's. For a monthly bundle beside a yearly plan those are up
 to eleven months apart, and reading the plan's boundary kept a cancelled booking
