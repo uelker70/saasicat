@@ -86,6 +86,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'A bundle version cannot be published with an explicit price of 0.00 (guard against seed placeholders). For free bundles leave it null, or set allowZeroPrice.',
     BUNDLE_VERSION_NO_PRICE:
         'This bundle version cannot be published without a price: neither a base price nor any plan override resolves one.',
+    BUNDLE_VERSION_NOT_PRICED_FOR_PLAN:
+        "This bundle is offered to plan '{planKey}', which is sold {billingCycle}, and no {billingCycle} price resolves for it — neither a base price nor a plan override.",
     BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED:
         'Discard is not implemented in the current repository. Implement BundleRepository.deleteDraft.',
     BUNDLE_VERSION_VALID_FROM_REQUIRED:

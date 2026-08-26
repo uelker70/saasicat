@@ -423,6 +423,16 @@ booking was — so nothing breaks on the next request. What the null costs is th
 booking has no window of its own to advance. Adopting the plan's window is the identity migration,
 and from there the arithmetic keeps them aligned:
 
+List what it will touch before running it:
+
+```sql
+SELECT sb."id", sb."subscriptionId", s."plan", s."billingCycle", s."currentPeriodEnd"
+  FROM "subscription_bundles" AS sb
+  JOIN "subscriptions" AS s ON s."id" = sb."subscriptionId"
+ WHERE sb."billingCycle" IS NULL
+   AND sb."canceledEffectiveAt" IS NULL;
+```
+
 ```sql
 UPDATE "subscription_bundles" AS sb
    SET "billingCycle"       = s."billingCycle",

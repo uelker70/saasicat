@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
+    SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
@@ -19,6 +20,7 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
+import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
 import {
@@ -93,6 +95,19 @@ export interface TenantBillingModuleOptions {
      * `PlanChangePreviewDto.projectedTrialEndsAt` stays `null`.
      */
     trialProjectionPort?: ProviderSpec<TrialProjectionPort>;
+
+    /**
+     * Optional adapter for the tenant's bundle bookings.
+     *
+     * The plan-change preview reads it for one rule: a bundle may run in a
+     * shorter rhythm than its plan, never a longer one, so a move to a shorter
+     * cycle is refused while an add-on with a longer one is still active.
+     * `SubscriptionBundleModule` exports the same token, but it is a sibling
+     * import rather than an ancestor — its exports do not reach this module's
+     * providers, so without this option the rule resolves to "no bookings" and
+     * silently allows the move it exists to prevent.
+     */
+    subscriptionBundleRepository?: ProviderSpec<SubscriptionBundleRepository>;
 
     /**
      * Optional adapter that provides due scheduled plan changes (#19). If it is
@@ -190,6 +205,14 @@ export class TenantBillingModule {
                 provide: SELF_SERVICE_BLOCKED_PLANS_TOKEN,
                 useValue: options.selfServiceBlockedPlans,
             });
+        }
+        if (options.subscriptionBundleRepository) {
+            providers.push(
+                asProvider(
+                    SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN,
+                    options.subscriptionBundleRepository,
+                ),
+            );
         }
         if (options.trialProjectionPort) {
             providers.push(asProvider(TRIAL_PROJECTION_PORT_TOKEN, options.trialProjectionPort));

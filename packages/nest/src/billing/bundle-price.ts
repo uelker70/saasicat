@@ -1,4 +1,4 @@
-import type { BundleVersionRow } from '@saasicat/core';
+import type { BillingCycle, BundleVersionRow } from '@saasicat/core';
 
 // What a bundle costs a given plan in a given rhythm.
 //
@@ -34,4 +34,22 @@ export function resolveBundlePriceNet(
     if (raw === null || raw === undefined) return null;
     const parsed = Number.parseFloat(raw);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * The cycles a plan version is actually sold in.
+ *
+ * Derived from the prices it carries rather than from a list of cycles, so a
+ * plan priced monthly only is a monthly plan and nothing has to say so
+ * separately. A version with neither price is sold in no cycle at all — the
+ * plan's own publish gate refuses that, and here it simply asks nothing.
+ */
+export function cyclesSoldFor(planVersion: {
+    monthlyNet?: string | null;
+    yearlyNet?: string | null;
+}): BillingCycle[] {
+    const cycles: BillingCycle[] = [];
+    if (planVersion.monthlyNet != null) cycles.push('MONTHLY');
+    if (planVersion.yearlyNet != null) cycles.push('YEARLY');
+    return cycles;
 }

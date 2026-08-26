@@ -83,6 +83,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Eine Bundle-Version lässt sich nicht mit einem ausdrücklichen Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Kostenlose Bundles lässt du auf null, oder du setzt allowZeroPrice.',
     BUNDLE_VERSION_NO_PRICE:
         'Diese Bundle-Version kann ohne Preis nicht veröffentlicht werden: weder ein Grundpreis noch eine Plan-Überschreibung ergibt einen.',
+    BUNDLE_VERSION_NOT_PRICED_FOR_PLAN:
+        "Dieses Bundle wird dem Plan '{planKey}' angeboten, der {billingCycle} verkauft wird, und dafür ergibt sich kein {billingCycle} Preis — weder als Grundpreis noch als Plan-Überschreibung.",
     BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED:
         'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementiere BundleRepository.deleteDraft.',
     BUNDLE_VERSION_VALID_FROM_REQUIRED:

@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 135 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 136 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -72,6 +72,7 @@ Plans, versions, bundles, marketing entries.
 | `BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED`       | Discard is not implemented in the current repository. Implement BundleRepository.deleteDraft.                                                                                                                                                           |
 | `BUNDLE_VERSION_NOT_EDITABLE`                  | BundleVersion '{versionId}' is not editable. Only drafts and published versions are editable that are latest-in-chain, bind no subscription yet, and whose validFrom lies in the future.                                                                |
 | `BUNDLE_VERSION_NOT_FOUND`                     | BundleVersion '{bundleVersionId}' not found                                                                                                                                                                                                             |
+| `BUNDLE_VERSION_NOT_PRICED_FOR_PLAN`           | This bundle is offered to plan '{planKey}', which is sold {billingCycle}, and no {billingCycle} price resolves for it — neither a base price nor a plan override.                                                                                       |
 | `BUNDLE_VERSION_NOT_PUBLISHED`                 | BundleVersion '{bundleVersionId}' is not published and cannot be booked.                                                                                                                                                                                |
 | `BUNDLE_VERSION_NO_PRICE`                      | This bundle version cannot be published without a price: neither a base price nor any plan override resolves one.                                                                                                                                       |
 | `BUNDLE_VERSION_REGRESSION`                    | This bundle version is regressive (feature removed / quota lowered / price raised). Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).                                                                          |

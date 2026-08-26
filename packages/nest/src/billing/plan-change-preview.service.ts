@@ -378,7 +378,13 @@ export class PlanChangePreviewService {
         // avoid — and converting it invents a price nobody agreed. Cancelling
         // the bundle first is the tenant's own act, and then the change goes
         // through.
-        for (const booking of await this.bookingsOutlastingCycle(sub, targetCycle, now)) {
+        // Asked as of the day the change lands, not today. A tenant following
+        // the advice below cancels the add-on for the same boundary the change
+        // takes effect at — and the booking is still active until then, so
+        // asking about today would refuse the very move the message told them
+        // to make.
+        const changeLandsAt = effectiveAt ?? now;
+        for (const booking of await this.bookingsOutlastingCycle(sub, targetCycle, changeLandsAt)) {
             blockers.push({
                 code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
                 message:

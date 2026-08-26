@@ -265,7 +265,12 @@ export class SubscriptionBundlesService {
             startedAt,
             minimumTermEndsAt,
             billingCycle,
-            currentPeriodStart: startedAt,
+            // Both ends together or neither. A start without an end is a window
+            // that cannot be reasoned about: it is not running (nothing says
+            // when it stops) and it is not absent (something is written), and
+            // every reader would have to pick one. A booking made while its plan
+            // had no period has no period of its own either, and says so.
+            currentPeriodStart: currentPeriodEnd === null ? null : startedAt,
             currentPeriodEnd,
         });
     }

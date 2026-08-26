@@ -116,6 +116,37 @@ describe('a bundle booked on the plan day itself', () => {
     });
 });
 
+describe('booked anywhere inside a plan period', () => {
+    // The first period is short by however much of the plan's period is left,
+    // and the three positions where that could go wrong are its ends and its
+    // middle. Plan billed on the 21st, period 21.02–21.03.
+    const first = (day) =>
+        bundleFirstPeriodEnd({
+            startedAt: at(day),
+            cycle: 'MONTHLY',
+            planPeriodEnd: at('2026-03-21'),
+            planAnchorDay: 21,
+        });
+
+    test('on the first day it runs the whole way to the plan’s next day', () => {
+        assert.equal(iso(first('2026-02-21')), '2026-03-21');
+    });
+
+    test('in the middle it runs to the same day', () => {
+        assert.equal(iso(first('2026-03-05')), '2026-03-21');
+    });
+
+    test('on the last day it still gets a period rather than none', () => {
+        // 20.03 is the last day inside the window; the boundary is the 21st and
+        // has not passed, so one day remains and is charged as one day.
+        assert.equal(iso(first('2026-03-20')), '2026-03-21');
+    });
+
+    test('a day past the boundary belongs to the next period, not a zero-length one', () => {
+        assert.equal(iso(first('2026-03-22')), '2026-04-21');
+    });
+});
+
 describe('a yearly bundle', () => {
     test('meets the plan on its own boundary, month and day together', () => {
         // A day of the month says nothing about which month, so a yearly bundle

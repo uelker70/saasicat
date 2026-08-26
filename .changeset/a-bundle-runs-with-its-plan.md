@@ -29,11 +29,15 @@ rather than the plan's, and states what the booking commits to before it is
 confirmed: the first period's end, the plan's end where there is one, and that a
 period cut short by the plan ending is not refunded.
 
-A bundle version can no longer be published without a price. Neither a base price
-nor any plan override resolving one is refused with `BUNDLE_VERSION_NO_PRICE`,
-and a booking whose plan and rhythm resolve no price is blocked with
-`BUNDLE_NOT_PRICED_FOR_THIS_PLAN` instead of handing the features over for
-nothing.
+A bundle version can no longer be published without a price, and the gate asks
+two questions rather than one. `BUNDLE_VERSION_NO_PRICE` refuses a version from
+which nothing resolves at all. `BUNDLE_VERSION_NOT_PRICED_FOR_PLAN` refuses one
+that a plan it is offered to could not buy — the plans come from the version's
+own compatibility, the cycles from the prices each plan version carries, so a
+bundle priced monthly only and offered to a plan sold yearly is caught at the
+operator's desk instead of a tenant's checkout. A booking whose plan and rhythm
+resolve no price is blocked with `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`, in the
+preview and in the route, instead of handing the features over for nothing.
 
 `computeNextBundlePeriod` is the decision half a renewal job calls, mirroring
 `computeNextPeriod` for the plan. It both rolls a period that is over and opens

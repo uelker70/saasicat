@@ -152,6 +152,35 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
         assert.equal(hasCycleBlocker(dto), false);
     });
 
+    test('moving to a LONGER cycle with a monthly add-on is fine', async () => {
+        // The rule is one-directional: shorter than the plan is allowed, longer
+        // is not. A monthly add-on beside a yearly plan simply lands on the
+        // plan's day every month — the interesting case, and a permitted one.
+        const monthlyOnYearly = new PlanChangePreviewService(
+            CATALOG,
+            entitlement,
+            {
+                findForTenant: async () => ({
+                    ...(await subscriptions.findForTenant()),
+                    billingCycle: 'MONTHLY',
+                    currentPeriodEnd: new Date('2026-07-01'),
+                }),
+            },
+            { snapshot: async () => ({ users: 1 }) },
+            null,
+            null,
+            bookingsRepo([
+                {
+                    ...YEARLY_BOOKING,
+                    billingCycle: 'MONTHLY',
+                    currentPeriodEnd: new Date('2026-07-01'),
+                },
+            ]),
+        );
+        const dto = await monthlyOnYearly.preview('t1', 'PRO', 'YEARLY', NOW);
+        assert.equal(hasCycleBlocker(dto), false);
+    });
+
     test('the date falls back to the minimum term where no period is stored', async () => {
         const dto = await preview('MONTHLY', [
             {
