@@ -22,6 +22,19 @@ jobs:
     # code being shipped, while production duplication had a third of its
     # headroom unused. Separating them lets each ratchet tighten on its own, and
     # neither can mask the other.
+    #
+    # The production threshold was 1.8 — the value measured when the split
+    # landed — and was raised to 1.85 on 2026-08-26 by the maintainer's explicit
+    # decision, the one thing rule 3.7 otherwise forbids. The cause: a SECOND
+    # persistence adapter. Interchangeable adapters implement the same ports and
+    # are structurally similar by design, which is what jscpd measures. Five
+    # extractions were made first — shared draft and stem defaults, a shared row
+    # mapper, a named publish-meta type, a shared read tail — and two further
+    # attempts made the number worse. What remains is two eight-line clones
+    # inside `schema.ts`, where `bundles`/`plans` and `bundle_versions`/
+    # `plan_versions` share a column tail because the canonical DDL defines it
+    # that way. Setting the threshold to the measured value with no headroom was
+    # the mistake; it still only moves down from here.
     duplication:
         runs-on: ubuntu-latest
         steps:
