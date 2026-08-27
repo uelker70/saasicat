@@ -86,7 +86,8 @@ minimum compiler. The language level is checked rather than promised:
 `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles the closure
 reachable from every source-shipping subpath at that level, with
 `isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`
-set the way a Vite app sets them, and CI runs it. The directories come from the export map, so a new source subpath
+set the way a Vite app sets them, and CI runs it. The directories come from the export map, so a new
+source subpath
 is covered the day it is added. The compiler version is not checked — `satisfies`
 in the shipped source needs 4.9 or newer whatever `lib` says, and testing that
 would mean installing old compilers.
@@ -176,7 +177,8 @@ The fastest way to a running admin app is the scaffolder:
 pnpm create saasicat-admin admin --project-key=myapp
 ```
 
-See the [quickstart](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md) (step 9) for the full setup
+See the [quickstart](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md) (step 9) for
+the full setup
 and the [architecture](https://github.com/uelker70/saasicat/blob/main/docs/explanation/architecture.md)
 for how the pieces fit.
 

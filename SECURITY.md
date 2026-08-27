@@ -104,7 +104,7 @@ endpoint lets anyone forge payment confirmations.
 
 The intended chain is:
 
-```
+```text
 JwtAuthGuard  →  SuperAdminGuard  →  MfaGuard
 ```
 

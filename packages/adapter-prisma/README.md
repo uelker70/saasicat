@@ -277,4 +277,5 @@ recreates its `public` schema.**
 
 - [Quickstart](../../docs/quickstart.md) — from an existing backend to an enforced feature
 - [Data model](../../docs/explanation/data-model.md) — the canonical tables, and who owns which
-- [Ports and adapters](../../docs/explanation/adr/0007-ports-and-adapters.md) — why an adapter never decides
+- [Ports and adapters](../../docs/explanation/adr/0007-ports-and-adapters.md) — why an adapter never
+  decides

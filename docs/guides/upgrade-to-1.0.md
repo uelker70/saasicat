@@ -1,4 +1,5 @@
-<!-- naming-history: this guide names the pre-1.0 identifiers on purpose — they are what it tells you to replace. -->
+<!-- naming-history: this guide names the pre-1.0 identifiers on purpose — they are what it tells
+you to replace. -->
 
 # Migrating to 1.0
 
