@@ -63,10 +63,7 @@ interceptors, so the auth header you already inject applies unchanged:
 import { createAxiosHttpClient, createPlatformLoaders } from '@saasicat/ui-vue';
 import { api } from './api'; // your axios instance, baseURL '/api/v1'
 
-// `projectKey` is the catalogue this admin administers — the same key your backend
-// config uses. Name it: the shell binds the plan catalogue to it, and a shell that
-// names no project is refused at boot rather than sending `?projectKey=`.
-export const ADMIN_ENDPOINTS = { apiBase: '/api/v1/admin', projectKey: 'myapp' };
+export const ADMIN_ENDPOINTS = { apiBase: '/api/v1/admin' };
 
 // The platform passes fully-qualified paths and your instance already carries
 // `/api/v1`, so strip it back off or it is sent twice.
@@ -385,7 +382,6 @@ const {
     syncDiscovery,
 } = useCatalogEntries({
     adminEndpoint: '/api/v1/admin',
-    projectKey: 'myapp',
     http: platformHttpClient,
 });
 

@@ -22,7 +22,7 @@ import {
     usersResource,
 } from '../dist/index.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo app', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 function recorder() {
     const calls = [];
@@ -63,11 +63,11 @@ describe('a list with no filter asks for no filter', () => {
         assert.equal(url, '/api/v1/admin/users');
     });
 
-    test('marketing.listProjections() still carries the bound project', async () => {
-        // The project is not a filter — it comes from the context, so it is on
-        // the URL even when the caller narrows by nothing.
+    test('marketing.listProjections() sends a bare path when nothing narrows it', async () => {
+        // Every part of the filter is optional, and a trailing `?` is a
+        // different URL to anything that caches or logs one.
         const { url } = await call(marketingResource, 'listProjections');
-        assert.equal(url, '/api/v1/admin/catalog/marketing-projections?projectKey=demo+app');
+        assert.equal(url, '/api/v1/admin/catalog/marketing-projections');
     });
 
     test('tenants.list() asks for the first page at the default size', async () => {

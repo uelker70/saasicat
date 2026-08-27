@@ -15,6 +15,7 @@ function createMemoryHarness() {
     const nextId = (prefix) => `${prefix}-${++idCounter}`;
     let state;
     const freshState = () => ({
+        plans: [],
         planVersions: [],
         subscriptions: [],
         bundles: [],
@@ -330,7 +331,6 @@ function createMemoryHarness() {
             const contractId = nextId('contract');
             state.contracts.push({
                 id: contractId,
-                projectKey: data.projectKey,
                 tenantId: data.tenantId,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
@@ -375,7 +375,6 @@ function createMemoryHarness() {
             return state.contracts
                 .filter(
                     (row) =>
-                        (!filter.projectKey || row.projectKey === filter.projectKey) &&
                         (!filter.tenantId || row.tenantId === filter.tenantId) &&
                         (!filter.status || row.status === filter.status) &&
                         (!filter.asOf || inWindow(row, filter.asOf)),
@@ -393,11 +392,68 @@ function createMemoryHarness() {
         },
     };
 
+    // The plan stem, which the contract's identity scenarios need. Only the
+    // stem: the version lifecycle is `planVersionRepository`'s, and offering a
+    // half of it here would make those scenarios pass against a shape no real
+    // adapter has.
+    const planRepository = {
+        async create(data) {
+            // `plans_planKey_key` in memory — a key is taken once for the whole
+            // installation, retired rows included.
+            if (state.plans.some((candidate) => candidate.planKey === data.planKey)) {
+                throw new Error(`planKey '${data.planKey}' is already taken.`);
+            }
+            const row = {
+                id: nextId('plan'),
+                planKey: data.planKey,
+                label: data.label,
+                description: data.description ?? null,
+                icon: data.icon ?? null,
+                sortOrder: data.sortOrder ?? 0,
+                createdAt: FIXED_NOW,
+                updatedAt: FIXED_NOW,
+                deletedAt: null,
+            };
+            state.plans.push(row);
+            return { ...row };
+        },
+        async findById(planId) {
+            const row = state.plans.find((candidate) => candidate.id === planId);
+            return row ? { ...row } : null;
+        },
+        async findByKey(planKey) {
+            // Retired rows included, as for bundles: the unique index does not
+            // exclude them, and this answers the database's question.
+            const row = state.plans.find((candidate) => candidate.planKey === planKey);
+            return row ? { ...row } : null;
+        },
+        async list(filter) {
+            const excludeDeleted = filter.excludeDeleted ?? true;
+            return state.plans
+                .filter((row) => !excludeDeleted || row.deletedAt === null)
+                .map((row) => ({ ...row }));
+        },
+        async update(planId, data) {
+            const row = state.plans.find((candidate) => candidate.id === planId);
+            if (!row) throw new Error(`Plan '${planId}' not found.`);
+            Object.assign(row, data, { updatedAt: FIXED_NOW });
+            return { ...row };
+        },
+        async softDelete(planId) {
+            const row = state.plans.find((candidate) => candidate.id === planId);
+            if (row) row.deletedAt = FIXED_NOW;
+        },
+    };
+
     const bundleRepository = {
         async create(data) {
+            // The unique index, in memory: a key is taken once for the whole
+            // installation, retired rows included.
+            if (state.bundles.some((candidate) => candidate.bundleKey === data.bundleKey)) {
+                throw new Error(`bundleKey '${data.bundleKey}' is already taken.`);
+            }
             const row = {
                 id: nextId('bundle'),
-                projectKey: data.projectKey,
                 bundleKey: data.bundleKey,
                 label: data.label,
                 description: data.description ?? null,
@@ -415,23 +471,16 @@ function createMemoryHarness() {
             const row = state.bundles.find((candidate) => candidate.id === bundleId);
             return row ? { ...row } : null;
         },
-        async findByKey(projectKey, bundleKey) {
+        async findByKey(bundleKey) {
             // Retired rows included: the unique index does not exclude them, and
             // this method answers the database's question.
-            const row = state.bundles.find(
-                (candidate) =>
-                    candidate.projectKey === projectKey && candidate.bundleKey === bundleKey,
-            );
+            const row = state.bundles.find((candidate) => candidate.bundleKey === bundleKey);
             return row ? { ...row } : null;
         },
         async list(filter) {
             const excludeDeleted = filter.excludeDeleted ?? true;
             return state.bundles
-                .filter(
-                    (row) =>
-                        row.projectKey === filter.projectKey &&
-                        (!excludeDeleted || row.deletedAt === null),
-                )
+                .filter((row) => !excludeDeleted || row.deletedAt === null)
                 .map((row) => ({ ...row }));
         },
         async softDelete(bundleId) {
@@ -598,6 +647,7 @@ function createMemoryHarness() {
             tenantSubscriptionWrite,
             promoSubscriptionLookup,
             subscriptionBundleRepository,
+            planRepository,
             bundleRepository,
             subscriptionContractRepository,
         },
@@ -610,6 +660,5 @@ function createMemoryHarness() {
 
 persistenceAdapterContract({
     name: 'in-memory reference adapter (self-test)',
-    projectKey: 'memory-contract',
     create: async () => createMemoryHarness(),
 });

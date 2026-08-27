@@ -50,42 +50,37 @@ describe('BundlesService — Master operations', () => {
     test('createBundle creates a new bundle master record', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const row = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'Banking-Bundle',
         });
-        assert.equal(row.projectKey, PROJECT);
         assert.equal(row.bundleKey, 'BANKING');
         assert.equal(row.deletedAt, null);
         assert.equal(row.sortOrder, 0);
     });
 
-    test('createBundle throws 422 on duplicate (projectKey, bundleKey)', async () => {
+    test('createBundle throws 422 on a duplicate bundleKey', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
-        await service.createBundle({ projectKey: PROJECT, bundleKey: 'BANKING', label: 'X' });
+        await service.createBundle({ bundleKey: 'BANKING', label: 'X' });
         await assert.rejects(
-            () => service.createBundle({ projectKey: PROJECT, bundleKey: 'BANKING', label: 'Y' }),
+            () => service.createBundle({ bundleKey: 'BANKING', label: 'Y' }),
             /already exists/,
         );
     });
 
-    test('updateBundle changes label, leaves projectKey/bundleKey untouched', async () => {
+    test('updateBundle changes label, leaves bundleKey untouched', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'Alt',
         });
         const updated = await service.updateBundle(created.id, { label: 'Neu' });
         assert.equal(updated.label, 'Neu');
-        assert.equal(updated.projectKey, PROJECT);
         assert.equal(updated.bundleKey, 'BANKING');
     });
 
     test('softDeleteBundle is idempotent', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -97,10 +92,10 @@ describe('BundlesService — Master operations', () => {
 
     test('listBundles filters out soft-deleted', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
-        const a = await service.createBundle({ projectKey: PROJECT, bundleKey: 'A', label: 'A' });
-        await service.createBundle({ projectKey: PROJECT, bundleKey: 'B', label: 'B' });
+        const a = await service.createBundle({ bundleKey: 'A', label: 'A' });
+        await service.createBundle({ bundleKey: 'B', label: 'B' });
         await service.softDeleteBundle(a.id);
-        const list = await service.listBundles(PROJECT);
+        const list = await service.listBundles();
         assert.equal(list.length, 1);
         assert.equal(list[0].bundleKey, 'B');
     });
@@ -114,7 +109,6 @@ describe('BundlesService — Version lifecycle', () => {
     test('createBundleDraft creates v1 with baseVersionId=null', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -132,7 +126,6 @@ describe('BundlesService — Version lifecycle', () => {
     test('createBundleDraft throws 422 if a draft already exists', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -155,7 +148,6 @@ describe('BundlesService — Version lifecycle', () => {
     test('updateBundleDraft throws 422 on published version', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -189,7 +181,6 @@ describe('BundlesService — Version lifecycle', () => {
     test('publishBundleVersion classifies diff (feature added = IMPROVEMENT)', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -226,7 +217,6 @@ describe('BundlesService — Version lifecycle', () => {
     test('publishBundleVersion blocks regressive version without forceRegressive', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -258,7 +248,6 @@ describe('BundlesService — Version lifecycle', () => {
     test('publishBundleVersion lets regressive version through with forceRegressive', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -295,7 +284,6 @@ describe('BundlesService — Strict mode check', () => {
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []); // RECEIVABLES missing
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -316,7 +304,6 @@ describe('BundlesService — Strict mode check', () => {
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []);
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'blocking' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -334,7 +321,6 @@ describe('BundlesService — Strict mode check', () => {
     test('without snapshot: no strict check, empty warnings', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }); // no snapshot
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -349,7 +335,7 @@ describe('BundlesService — Strict mode check', () => {
     test('compatibility.planIds drift blocks even in warn-only mode', async () => {
         // PlanRepository with only one existing plan "STARTER".
         const planRepo = new FakePlanRepository();
-        await planRepo.create({ projectKey: PROJECT, planKey: 'STARTER', label: 'Starter' });
+        await planRepo.create({ planKey: 'STARTER', label: 'Starter' });
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []);
         service = new BundlesService(
             repo,
@@ -359,7 +345,6 @@ describe('BundlesService — Strict mode check', () => {
             planRepo,
         );
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -389,7 +374,6 @@ describe('BundlesService — Strict mode check', () => {
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []);
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -409,7 +393,6 @@ describe('BundlesService — Strict mode check', () => {
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], ['storageGb']);
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -432,7 +415,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
     test('listBundleVersions sets isLatestInChain on the highest version', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -461,7 +443,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
     test('publishBundleVersion: without validFrom → 422 BUNDLE_VERSION_VALID_FROM_REQUIRED', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -483,7 +464,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
     test('publishBundleVersion: second version sets previous to supersededAt + auto-succession validUntil', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -514,7 +494,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
     test('publishBundleVersion: validFrom must be strictly after predecessor → 422', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -550,7 +529,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -575,7 +553,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -606,7 +583,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -645,7 +621,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
     test('updateBundleDraft blocks validUntil before validFrom', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -673,7 +648,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -703,7 +677,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
     test('discardBundleDraft removes draft + throws on published', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });
@@ -740,7 +713,6 @@ describe('BundlesService — Editability annotation (Pack 2c)', () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'BANKING',
             label: 'X',
         });

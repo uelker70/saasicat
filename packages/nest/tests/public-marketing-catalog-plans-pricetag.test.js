@@ -9,7 +9,6 @@ import { FakePlanRepository } from '../dist/testing/index.js';
 // maintained priceTag the field stays null and frontends format from
 // monthlyNet/yearlyNet.
 
-const PROJECT = 'demoapp';
 const ASOF = new Date('2026-06-01T00:00:00Z');
 
 const NOOP_PROMOTION_REPO = {
@@ -52,7 +51,7 @@ beforeEach(() => {
 });
 
 async function seedLivePlan({ planKey, planVersionId }) {
-    await planRepo.create({ projectKey: PROJECT, planKey, label: planKey });
+    await planRepo.create({ planKey, label: planKey });
     planRepo.seedVersion({
         id: planVersionId,
         planId: planKey,
@@ -89,7 +88,7 @@ describe('PublicMarketingCatalogService — Plan priceTag (#47)', () => {
             priceTag: 'auf Anfrage',
         });
 
-        const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19, ASOF);
+        const cat = await service.getCatalog('de', 'EUR', 19, ASOF);
         assert.equal(cat.plans.length, 1);
         assert.equal(cat.plans[0].priceTag, 'auf Anfrage');
     });
@@ -104,7 +103,7 @@ describe('PublicMarketingCatalogService — Plan priceTag (#47)', () => {
             description: '',
         });
 
-        const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19, ASOF);
+        const cat = await service.getCatalog('de', 'EUR', 19, ASOF);
         assert.equal(cat.plans[0].priceTag, null);
     });
 });

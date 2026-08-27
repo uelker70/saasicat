@@ -6,8 +6,8 @@
 //
 // Global catalog tables (no tenantId, no RLS). Write access only via the
 // SUPER_ADMIN guard in the AdminController of the `@saasicat/nest`
-// package. Entries are assigned to the respective consumer app via
-// `projectKey`.
+// package. One installation serves one application, so `bundleKey` is the
+// whole identity.
 //
 // Versioning pattern identical to PlanVersion:
 //   - at most 1 draft (publishedAt IS NULL) per identity — constraint via a
@@ -25,7 +25,6 @@
 
 model Bundle {
     id          String   @id @default(uuid())
-    projectKey  String // e.g. 'clubapp' | 'demoapp' | …
     bundleKey   String // SCREAMING_SNAKE_CASE, e.g. 'SPORT', 'ACCOUNTING', 'EVERSEND_PEPPOL'
     label       String
     description String?
@@ -41,8 +40,8 @@ model Bundle {
 
     versions BundleVersion[]
 
-    @@unique([projectKey, bundleKey])
-    @@index([projectKey, deletedAt])
+    @@unique([bundleKey])
+    @@index([deletedAt])
     @@map("bundles")
 }
 

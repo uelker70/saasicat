@@ -29,7 +29,7 @@ with an explanation if it finds `"node"`.
 
 ```bash
 pnpm add @saasicat/core @saasicat/spec @saasicat/nest @saasicat/adapter-prisma @saasicat/cli
-pnpm exec saasicat init --project-key=notesapp --quota=notes:Note
+pnpm exec saasicat init --app-key=notesapp --quota=notes:Note
 ```
 
 `init` writes the wiring: the app identity file, the persistence bundle, the

@@ -337,7 +337,6 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
                 // Read per call: the locale changes while the app runs.
                 context: () => ({
                     apiBase: endpoints.apiBase,
-                    projectKey: endpoints.projectKey,
                     locale: i18n.locale.value,
                 }),
                 resources: platformResources,

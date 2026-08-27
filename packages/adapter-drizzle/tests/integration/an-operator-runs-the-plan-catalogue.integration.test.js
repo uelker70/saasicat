@@ -24,9 +24,6 @@ import {
 } from '../../dist/index.js';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
-const PROJECT = 'plan-catalogue-probe';
-const OTHER_PROJECT = 'someone-elses-project';
-
 let pool;
 let db;
 let plans;
@@ -50,7 +47,6 @@ beforeEach(async () => {
 
 const createPlan = (overrides = {}) =>
     plans.create({
-        projectKey: PROJECT,
         planKey: `STANDARD_${randomUUID().slice(0, 8)}`,
         label: 'Standard',
         ...overrides,
@@ -76,18 +72,16 @@ const publish = (versionId, validFrom) =>
     });
 
 describe('the plans an operator has on sale', () => {
-    test('a plan is found by its key, and only inside its own project', async () => {
+    test('a plan is found by its key, and a key nobody took is not', async () => {
         const plan = await createPlan();
-        assert.equal((await plans.findByKey(PROJECT, plan.planKey))?.id, plan.id);
-        // The same key in another project is a different plan. Answering with
-        // this one would leak one tenant's catalogue into another's.
-        assert.equal(await plans.findByKey(OTHER_PROJECT, plan.planKey), null);
+        assert.equal((await plans.findByKey(plan.planKey))?.id, plan.id);
+        assert.equal(await plans.findByKey('NOBODY_TOOK_THIS'), null);
     });
 
     test('listing is ordered by sort order, then by key', async () => {
         const late = await createPlan({ planKey: 'AAA', sortOrder: 9, label: 'Sorted last' });
         const early = await createPlan({ planKey: 'ZZZ', sortOrder: 1, label: 'Sorted first' });
-        const listed = await plans.list({ projectKey: PROJECT });
+        const listed = await plans.list({});
         assert.deepEqual(
             listed.map((row) => row.id),
             [early.id, late.id],
@@ -97,58 +91,62 @@ describe('the plans an operator has on sale', () => {
     test('a retired plan drops out of the list, and comes back when asked for', async () => {
         const plan = await createPlan();
         await plans.softDelete(plan.id);
-        assert.deepEqual(await plans.list({ projectKey: PROJECT }), []);
+        assert.deepEqual(await plans.list({}), []);
         assert.deepEqual(
-            (await plans.list({ projectKey: PROJECT, excludeDeleted: false })).map((r) => r.id),
+            (await plans.list({ excludeDeleted: false })).map((r) => r.id),
             [plan.id],
         );
-        // And it is no longer offered by key either — a retired plan must not
-        // be bookable through a link somebody kept.
-        assert.equal(await plans.findByKey(PROJECT, plan.planKey), null);
     });
 
     test('onlyPublished hides a plan whose versions are all still drafts', async () => {
         const unsold = await createPlan();
         await draftFor(unsold.planKey);
-        assert.deepEqual(await plans.list({ projectKey: PROJECT, onlyPublished: true }), []);
+        assert.deepEqual(await plans.list({ onlyPublished: true }), []);
 
         const sold = await createPlan();
         const draft = await draftFor(sold.planKey);
         await publish(draft.id, new Date('2026-01-01T00:00:00.000Z'));
         assert.deepEqual(
-            (await plans.list({ projectKey: PROJECT, onlyPublished: true })).map((r) => r.id),
+            (await plans.list({ onlyPublished: true })).map((r) => r.id),
             [sold.id],
         );
     });
 
-    test('onlyPublished does not let another project vouch for this one', async () => {
-        // `plan_versions.planId` holds the plan KEY and no project, while
-        // `plans` is unique per (projectKey, planKey) — so two projects may use
-        // the same key and their versions are indistinguishable from the
-        // version table alone. Treating either project's published version as
-        // evidence puts one tenant's draft into another's catalogue.
-        //
-        // The two plans share one version lineage, and the schema says so:
-        // `plan_versions_draft_per_plan` is unique on the key alone, so the
-        // second project cannot even open a draft while the first one's is
-        // open. Publishing theirs first is the only order that reaches the
-        // state, and it is the state a real catalogue lands in.
+    test('a plan key cannot be claimed twice, so no version lineage is shared', async () => {
+        // The defect this replaces: `plans` used to be unique per (project,
+        // plan key) while `plan_versions.planId` held the key alone, so two
+        // plans sharing a key shared one version lineage — and
+        // `plan_versions_draft_per_plan`, unique on the key, then blocked the
+        // second one from even opening a draft. The key is now the whole
+        // identity, enforced where it belongs: on `plans`.
         const SHARED_KEY = `SHARED_${randomUUID().slice(0, 8)}`;
-        await plans.create({
-            projectKey: OTHER_PROJECT,
-            planKey: SHARED_KEY,
-            label: 'Theirs, published',
-        });
+        await plans.create({ planKey: SHARED_KEY, label: 'Theirs, published' });
         const theirs = await draftFor(SHARED_KEY);
         await publish(theirs.id, new Date('2026-01-01T00:00:00.000Z'));
-        await plans.create({ projectKey: PROJECT, planKey: SHARED_KEY, label: 'Ours, a draft' });
-        await draftFor(SHARED_KEY);
 
-        assert.deepEqual(
-            await plans.list({ projectKey: PROJECT, onlyPublished: true }),
-            [],
-            "an ambiguous key fails closed rather than borrowing the other project's publication",
+        await assert.rejects(
+            plans.create({ planKey: SHARED_KEY, label: 'Ours, a draft' }),
+            'the second claim on a plan key is refused by the database',
         );
+        assert.deepEqual(
+            (await plans.list({ onlyPublished: true })).map((row) => row.planKey),
+            [SHARED_KEY],
+            'and the one plan that owns the key keeps its published version',
+        );
+    });
+
+    test('a retired plan still occupies its key', async () => {
+        // `plans_planKey_key` is unconditional, so a soft delete does not free
+        // the key. `findByKey` is the duplicate check in `createPlan`, and an
+        // adapter that hid retired rows would turn a 409 into a constraint
+        // violation.
+        const plan = await createPlan();
+        await plans.softDelete(plan.id);
+
+        const stillThere = await plans.findByKey(plan.planKey);
+        assert.equal(stillThere?.id, plan.id, 'the key is not free again');
+        assert.ok(stillThere?.deletedAt, 'and the row says it is retired');
+        assert.deepEqual(await plans.list({}), []);
     });
 
     test('renaming a plan touches what was named and nothing else', async () => {
@@ -286,7 +284,7 @@ describe("a tenant's own writes", () => {
     const TENANT = 'tenant-catalogue-probe';
 
     async function livePlan(planKey, validFrom = new Date('2026-01-01T00:00:00.000Z')) {
-        const plan = await plans.create({ projectKey: PROJECT, planKey, label: planKey });
+        const plan = await plans.create({ planKey, label: planKey });
         const draft = await draftFor(planKey);
         const version = await publish(draft.id, validFrom);
         return { plan, version };
@@ -380,7 +378,7 @@ describe("a tenant's own writes", () => {
 
     test('changing to a plan with no live version says so rather than binding nothing', async () => {
         const { version } = await livePlan('IMM_ONLY');
-        await plans.create({ projectKey: PROJECT, planKey: 'DRAFT_ONLY', label: 'Draft only' });
+        await plans.create({ planKey: 'DRAFT_ONLY', label: 'Draft only' });
         await draftFor('DRAFT_ONLY');
         await seedSubscription('IMM_ONLY', version.id);
         await assert.rejects(
@@ -557,7 +555,6 @@ describe('the statements a tenant write sends', () => {
 
     async function seed(status = 'TRIAL', extra = {}) {
         const plan = await plans.create({
-            projectKey: PROJECT,
             planKey: `STMT_${randomUUID().slice(0, 8)}`,
             label: 'Statement probe',
         });
@@ -651,7 +648,7 @@ describe('the subscription a tenant is shown', () => {
     const TENANT = 'tenant-usage-probe';
 
     async function livePlanVersion(planKey, validFrom = new Date('2026-01-01T00:00:00.000Z')) {
-        await plans.create({ projectKey: PROJECT, planKey, label: planKey });
+        await plans.create({ planKey, label: planKey });
         const draft = await draftFor(planKey);
         return publish(draft.id, validFrom);
     }

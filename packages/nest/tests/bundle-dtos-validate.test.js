@@ -32,7 +32,6 @@ function refusedProperties(Dto, payload) {
 }
 
 const VALID_BUNDLE = {
-    projectKey: 'my-app',
     bundleKey: 'BANKING',
     label: 'Banking',
     description: 'Payments and statements',
@@ -56,21 +55,13 @@ describe('CreateBundleDto', () => {
         assert.deepEqual(refusedProperties(CreateBundleDto, VALID_BUNDLE), []);
     });
 
-    test('requires the three identity fields', () => {
-        assert.deepEqual(refusedProperties(CreateBundleDto, {}), [
-            'bundleKey',
-            'label',
-            'projectKey',
-        ]);
+    test('requires the two identity fields', () => {
+        assert.deepEqual(refusedProperties(CreateBundleDto, {}), ['bundleKey', 'label']);
     });
 
-    test('holds the key patterns', () => {
-        // The keys are what a URL and a feature lookup are built from, so their
+    test('holds the key pattern', () => {
+        // The key is what a URL and a feature lookup are built from, so its
         // shape is a contract rather than a preference.
-        assert.deepEqual(
-            refusedProperties(CreateBundleDto, { ...VALID_BUNDLE, projectKey: 'My_App' }),
-            ['projectKey'],
-        );
         assert.deepEqual(
             refusedProperties(CreateBundleDto, { ...VALID_BUNDLE, bundleKey: 'banking' }),
             ['bundleKey'],

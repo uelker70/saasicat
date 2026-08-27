@@ -42,7 +42,6 @@
 
 model CapabilityCatalogEntry {
     id            String  @id @default(uuid())
-    projectKey    String // e.g. 'clubapp' | 'demoapp' | …
     capabilityKey String // 'invoice.create' | 'member.archive' | …
     label         String
     description   String?
@@ -77,9 +76,9 @@ model CapabilityCatalogEntry {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, capabilityKey])
-    @@index([projectKey, codeStatus])
-    @@index([projectKey, featureKey])
+    @@unique([capabilityKey])
+    @@index([codeStatus])
+    @@index([featureKey])
     @@map("capability_catalog_entries")
 }
 
@@ -100,7 +99,6 @@ model CapabilityCatalogEntry {
 
 model FeatureCatalogEntry {
     id          String  @id @default(uuid())
-    projectKey  String
     featureKey  String // 'INVOICE_MANAGEMENT' | 'MEMBER_LIST' | …
     label       String
     description String?
@@ -148,9 +146,9 @@ model FeatureCatalogEntry {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, featureKey])
-    @@index([projectKey, discoveryStatus])
-    @@index([projectKey, plannedOnly])
+    @@unique([featureKey])
+    @@index([discoveryStatus])
+    @@index([plannedOnly])
     @@map("feature_catalog_entries")
 }
 
@@ -164,7 +162,6 @@ model FeatureCatalogEntry {
 
 model QuotaCatalogEntry {
     id          String  @id @default(uuid())
-    projectKey  String
     quotaKey    String // 'invoicesPerMonth' | 'members' | 'storageGb' | …
     label       String
     description String?
@@ -200,8 +197,8 @@ model QuotaCatalogEntry {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, quotaKey])
-    @@index([projectKey, discoveryStatus])
+    @@unique([quotaKey])
+    @@index([discoveryStatus])
     @@map("quota_catalog_entries")
 }
 
@@ -223,8 +220,7 @@ model QuotaCatalogEntry {
 // -----------------------------------------------------------------------------
 
 model MarketingProjection {
-    id         String @id @default(uuid())
-    projectKey String
+    id String @id @default(uuid())
 
     // Polymorphic reference to a versioned entity.
     targetType      String // 'PLAN' | 'BUNDLE'
@@ -268,21 +264,22 @@ model MarketingProjection {
     updatedAt DateTime @updatedAt
 
     @@unique([targetType, targetVersionId, locale])
-    @@index([projectKey, targetType, locale, priority])
+    @@index([targetType, locale, priority])
     @@map("marketing_projections")
 }
 
 // -----------------------------------------------------------------------------
-// MarketingSettings — project-wide, runtime-editable marketing config.
-// One row per project (`projectKey` unique). Currently exactly one field:
-// `activeLocales` — the subset of the `availableLocales` pool activated in the
-// marketing catalog (the pool comes from the app config, SPEC_V2 §6.5).
-// If the row is missing, the full pool counts as active.
+// MarketingSettings — installation-wide, runtime-editable marketing config.
+// At most one row, which the constant primary key is what enforces: an insert
+// that leaves `id` to its default collides with the row already there.
+// Currently exactly one field: `activeLocales` — the subset of the
+// `availableLocales` pool activated in the marketing catalog (the pool comes
+// from the app config, SPEC_V2 §6.5). If the row is missing, the full pool
+// counts as active.
 // -----------------------------------------------------------------------------
 
 model MarketingSettings {
-    id         String @id @default(uuid())
-    projectKey String @unique
+    id String @id @default("marketing-settings")
 
     activeLocales Json @default("[]") // string[]
 

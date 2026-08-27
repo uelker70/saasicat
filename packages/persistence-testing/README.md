@@ -46,7 +46,6 @@ import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 
 persistenceAdapterContract({
     name: 'adapter-drizzle @ postgres',
-    projectKey: 'my-app',
     create: async () => ({
         adapter: {
             capabilities: { transactions: true, pessimisticLocking: true /* … */ },

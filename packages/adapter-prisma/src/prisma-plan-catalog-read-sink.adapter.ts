@@ -67,20 +67,14 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
         return this.prisma as unknown as PlanCatalogReadPrisma;
     }
 
-    async loadSnapshot(projectKey: string): Promise<PlanCatalogReadSnapshot> {
-        if (this.binding.mode === 'normalized-plan-id' && this.binding.projectKey !== projectKey) {
-            throw new Error(
-                `Prisma plan binding is configured for project '${this.binding.projectKey}', ` +
-                    `not '${projectKey}'.`,
-            );
-        }
+    async loadSnapshot(): Promise<PlanCatalogReadSnapshot> {
         const db = this.db();
         // `sortOrder` alone is not a total order — rows sharing a value come
         // back in whatever order Postgres picks, which differs between reads.
         // The snapshot feeds the admin-manifest hash, so an unstable order
         // makes two processes reading identical data disagree on the hash.
         const plans = await db.plan.findMany({
-            where: { projectKey, deletedAt: null },
+            where: { deletedAt: null },
             orderBy: [{ sortOrder: 'asc' }, { planKey: 'asc' }],
         });
         const planKeysByStoredId = new Map(
@@ -102,7 +96,7 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
                       orderBy: [{ planId: 'asc' }, { version: 'asc' }],
                   });
         const featureEntries = await db.featureCatalogEntry.findMany({
-            where: { projectKey, deletedAt: null },
+            where: { deletedAt: null },
             orderBy: [{ sortOrder: 'asc' }, { featureKey: 'asc' }],
         });
         return {
@@ -111,8 +105,8 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
                 const planKey = planKeysByStoredId.get(row.planId);
                 if (!planKey) {
                     throw new Error(
-                        `PlanVersion ${row.id} references plan '${row.planId}' outside project ` +
-                            `'${projectKey}'.`,
+                        `PlanVersion ${row.id} references a plan that does not exist: ` +
+                            `'${row.planId}'.`,
                     );
                 }
                 return toPlanVersionRow(row, planKey, this.fields);
@@ -129,7 +123,6 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
 function toFeatureCatalogEntryRow(row: FeatureCatalogEntryRowLike): FeatureCatalogEntryRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         featureKey: row.featureKey,
         label: row.label,
         description: row.description,

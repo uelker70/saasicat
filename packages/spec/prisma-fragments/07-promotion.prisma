@@ -14,8 +14,7 @@
 // via the SUPER_ADMIN guard in the AdminController.
 
 model Promotion {
-    id         String @id @default(uuid())
-    projectKey String // e.g. 'clubapp' | 'demoapp' | …
+    id String @id @default(uuid())
 
     // Internal label (not public).
     internalLabel String
@@ -60,6 +59,6 @@ model Promotion {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@index([projectKey, targetType, validFrom, validTo])
+    @@index([targetType, validFrom, validTo])
     @@map("promotions")
 }

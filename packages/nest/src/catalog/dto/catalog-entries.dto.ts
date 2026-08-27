@@ -1,17 +1,12 @@
 // DTOs for the catalog-entries endpoints (discovery review).
 
-import { IsIn, IsObject, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { CatalogEntryI18n, DiscoverySnapshot, DiscoveryStatus } from '@saasicat/core';
 
-const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const REVIEW_STATUSES = ['pending', 'approved', 'outdated', 'obsolete'] as const;
 const CODE_STATUSES = ['active', 'experimental', 'deprecated', 'retired'] as const;
 
 export class ListCatalogEntriesQueryDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey must be kebab-case' })
-    projectKey!: string;
-
     /** Filter for features/quotas (approval lifecycle). */
     @IsOptional()
     @IsString()
@@ -70,9 +65,8 @@ export class UpdateCatalogEntryBaseDto {
 
 /**
  * Body of `POST …/discovery/sync` — the discovery snapshot the UI
- * previously loaded from `GET /admin/discovery`. Validated by the service
- * against `projectKey`; deep validation is not needed because the
- * SuperAdmin guard secures the source.
+ * previously loaded from `GET /admin/discovery`. Deep validation is not needed
+ * because the SuperAdmin guard secures the source.
  */
 export class SyncDiscoveryDto {
     @IsObject()

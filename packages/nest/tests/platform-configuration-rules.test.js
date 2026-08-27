@@ -19,7 +19,6 @@ import {
 // asked.
 
 const MINIMAL_CATALOG = {
-    projectKey: 'demo',
     currency: 'EUR',
     vatRate: 19,
     plans: [],

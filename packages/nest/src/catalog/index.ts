@@ -96,15 +96,8 @@ export {
     SyncDiscoveryDto,
     UpdateCatalogEntryI18nDto,
 } from './dto/catalog-entries.dto.js';
-export {
-    CreatePromotionDto,
-    ListPromotionsQueryDto,
-    UpdatePromotionDto,
-} from './dto/promotions.dto.js';
-export {
-    ListMarketingSettingsQueryDto,
-    UpdateMarketingSettingsDto,
-} from './dto/marketing-settings.dto.js';
+export { CreatePromotionDto, UpdatePromotionDto } from './dto/promotions.dto.js';
+export { UpdateMarketingSettingsDto } from './dto/marketing-settings.dto.js';
 export { CreatePlanDto, UpdatePlanDto } from './dto/plans.dto.js';
 export {
     CreatePlanVersionDraftDto,

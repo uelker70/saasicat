@@ -10,7 +10,7 @@ import {
 
 describe('PlanCatalogDoctorCheck', () => {
     test('error when no plans', async () => {
-        const check = new PlanCatalogDoctorCheck({ projectKey: 'app', plans: [] });
+        const check = new PlanCatalogDoctorCheck({ app: { name: 'App' }, plans: [] });
         const r = await check.run();
         assert.equal(r.severity, 'error');
         assert.match(r.message, /no plans/);
@@ -18,7 +18,7 @@ describe('PlanCatalogDoctorCheck', () => {
 
     test('ok with plans + details contain planIds', async () => {
         const check = new PlanCatalogDoctorCheck({
-            projectKey: 'app',
+            app: { name: 'App' },
             plans: [{ id: 'starter' }, { id: 'pro' }],
             features: [{ key: 'NOTES' }],
         });

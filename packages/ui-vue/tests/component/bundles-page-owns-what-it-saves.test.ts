@@ -16,7 +16,6 @@ import { provideStubResources } from './support/stub-resources.js';
 
 const BUNDLE = {
     id: 'b-1',
-    projectKey: 'notesapp',
     bundleKey: 'extra',
     label: 'Extra',
     description: null,

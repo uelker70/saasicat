@@ -59,20 +59,14 @@ const seams = [
             return { ...view, load: view.rescan };
         },
     ],
-    [
-        'useCatalogEntries.load',
-        (http) => useCatalogEntries({ adminEndpoint: '/api/admin', projectKey: 'p', http }),
-    ],
-    [
-        'usePromotions.load',
-        (http) => usePromotions({ adminEndpoint: '/api/admin', projectKey: 'p', http }),
-    ],
+    ['useCatalogEntries.load', (http) => useCatalogEntries({ adminEndpoint: '/api/admin', http })],
+    ['usePromotions.load', (http) => usePromotions({ adminEndpoint: '/api/admin', http })],
     [
         'useMarketingProjections.load',
         (http) =>
             useMarketingProjections({
                 adminEndpoint: '/api/admin',
-                filter: { projectKey: 'p' },
+                filter: {},
                 http,
             }),
     ],

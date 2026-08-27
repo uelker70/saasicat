@@ -25,7 +25,6 @@ export interface PlanVersionMappingFields {
 /** A `plans` row as either adapter reads it back. */
 export interface CanonicalPlanRow {
     id: string;
-    projectKey: string;
     planKey: string;
     label: string;
     description: string | null;
@@ -60,40 +59,9 @@ export interface CanonicalPlanVersionRow {
     updatedAt: Date;
 }
 
-/**
- * The plan keys that identify exactly one plan across every project.
- *
- * `plan_versions.planId` holds the plan **key** and carries no project, while
- * `plans` is unique per `(projectKey, planKey)` — so two projects may use the
- * same key, and from the version table alone their versions are
- * indistinguishable. Any question answered by joining the two on the key is
- * therefore undecidable for a shared key, and the safe answer is to leave it
- * out: treating either project's published version as evidence puts one
- * tenant's unreleased plan into another's catalogue.
- *
- * Fail closed rather than guess, and the caller decides what a dropped key
- * means for it.
- */
-export function unambiguousPlanKeys(
-    plans: ReadonlyArray<{ projectKey: string; planKey: string }>,
-): Set<string> {
-    const projectsByKey = new Map<string, Set<string>>();
-    for (const plan of plans) {
-        const projects = projectsByKey.get(plan.planKey) ?? new Set<string>();
-        projects.add(plan.projectKey);
-        projectsByKey.set(plan.planKey, projects);
-    }
-    const unambiguous = new Set<string>();
-    for (const [planKey, projects] of projectsByKey) {
-        if (projects.size === 1) unambiguous.add(planKey);
-    }
-    return unambiguous;
-}
-
 export function toPlanRow(row: CanonicalPlanRow): PlanRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         planKey: row.planKey,
         label: row.label,
         description: row.description,

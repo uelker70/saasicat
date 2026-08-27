@@ -32,7 +32,7 @@ export const FREE = {
 
 export const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demo',
+    app: { name: 'Demo App' },
     currency: 'EUR',
     vatRate: 19,
     plans: [PRO, FREE],

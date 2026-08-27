@@ -54,9 +54,9 @@ Options:
 
 The bundle also ships `planCatalogReadSink` for DB hydration. To use it,
 omit `planCatalog` and pass the identity the database cannot provide:
-`SaaSiCatModule.forRoot({ persistence, dbCatalog: { projectKey,
-currency, vatRate } })` — without `dbCatalog` the module refuses to boot
-(the sink would otherwise load an empty catalog for project key `''`).
+`SaaSiCatModule.forRoot({ persistence, dbCatalog: { app, currency, vatRate } })`
+— without `dbCatalog` the module refuses to boot, because branding, currency
+and VAT cannot come from the database.
 
 Slices the mega module does not wire (promo) spread into the domain module:
 
@@ -143,10 +143,7 @@ outputs still use the semantic key:
 
 ```ts
 const schema = {
-    planBinding: {
-        mode: 'normalized-plan-id',
-        projectKey: 'my-app',
-    },
+    planBinding: { mode: 'normalized-plan-id' },
     planVersionFields: {
         validityWindows: true,
         endsAt: true,

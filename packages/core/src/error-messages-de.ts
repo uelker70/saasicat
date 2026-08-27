@@ -105,12 +105,12 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_VERSION_NOT_FOUND: "PlanVersion '{versionId}' nicht gefunden",
     BUNDLE_NOT_FOUND: "Bundle '{bundleId}' nicht gefunden",
     BUNDLE_VERSION_NOT_FOUND: "BundleVersion '{bundleVersionId}' nicht gefunden",
-    FEATURE_NOT_FOUND: "Feature '{featureKey}' im Projekt '{projectKey}' nicht gefunden",
-    QUOTA_NOT_FOUND: "Quota '{quotaKey}' im Projekt '{projectKey}' nicht gefunden",
+    FEATURE_NOT_FOUND: "Feature '{featureKey}' nicht gefunden",
+    QUOTA_NOT_FOUND: "Quota '{quotaKey}' nicht gefunden",
     PROMOTION_NOT_FOUND: "Promotion '{promotionId}' nicht gefunden",
     MARKETING_PROJECTION_NOT_FOUND: "MarketingProjection '{projectionId}' nicht gefunden",
-    PLAN_ALREADY_EXISTS: "Plan '{planKey}' gibt es im Projekt '{projectKey}' bereits",
-    BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' gibt es im Projekt '{projectKey}' bereits",
+    PLAN_ALREADY_EXISTS: "Plan '{planKey}' gibt es bereits",
+    BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' gibt es bereits",
     MARKETING_PROJECTION_ALREADY_EXISTS:
         'Für {targetType}/{targetVersionId}/{locale} gibt es bereits eine Marketing-Projektion — bearbeite sie per PATCH',
     PLAN_DRAFT_ALREADY_EXISTS:
@@ -149,7 +149,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     TENANT_NOT_FOUND: 'Mandant {slug} nicht gefunden',
     NO_ACTIVE_PLAN_VERSION:
         'Zum {asOf} ist keine Planversion für {planId} aktiv — weder ist das validFrom-Fenster erfüllt, noch steht eine jüngste Live-Version bereit.',
-    PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" steht nicht im Katalog ({projectKey})',
+    PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" steht nicht im Katalog',
     PLAN_NOT_SELF_SERVICE: '{planKey} wird nicht per Self-Service freigeschaltet.',
     PLAN_CHANGE_BLOCKED: 'Während des Onboardings ist ein Planwechsel gesperrt.',
     NO_PENDING_PLAN_VERSION: 'Es wartet keine Planversion auf eine Bestätigung.',

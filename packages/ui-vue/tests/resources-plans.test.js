@@ -21,7 +21,7 @@ import {
     requestJsonBody,
 } from '../dist/index.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo app', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 /** Records every request and answers with what the test asked for. */
 function recordingHttp({ status = 200, body = {}, unparseable = false } = {}) {
@@ -68,23 +68,23 @@ describe('bindResource', () => {
         ]);
     });
 
-    test('reads a context getter per call, so a changed project is picked up', async () => {
+    test('reads a context getter per call, so a changed endpoint is picked up', async () => {
         const { http, calls } = recordingHttp({ body: [] });
-        let projectKey = 'first';
-        const ops = bindResource(plansResource, http, () => ({ ...CTX, projectKey }));
+        let apiBase = '/api/first/admin';
+        const ops = bindResource(plansResource, http, () => ({ ...CTX, apiBase }));
         await ops.list();
-        projectKey = 'second';
+        apiBase = '/api/second/admin';
         await ops.list();
-        assert.match(calls[0].url, /projectKey=first$/);
-        assert.match(calls[1].url, /projectKey=second$/);
+        assert.equal(calls[0].url, '/api/first/admin/catalog/plans');
+        assert.equal(calls[1].url, '/api/second/admin/catalog/plans');
     });
 });
 
 describe('plansResource', () => {
-    test('list scopes to the project, encoding the value but not the key', async () => {
+    test('list addresses the plan catalogue', async () => {
         const { http, calls } = recordingHttp({ body: [] });
         await bindPlans(http).list();
-        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans?projectKey=demo%20app');
+        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans');
         assert.equal(calls[0].init.method, 'GET');
     });
 
@@ -96,10 +96,7 @@ describe('plansResource', () => {
     test('tenantCounts has its own path and the same scoping', async () => {
         const { http, calls } = recordingHttp({ body: {} });
         await bindPlans(http).tenantCounts();
-        assert.equal(
-            calls[0].url,
-            '/api/v1/admin/catalog/plans/tenant-counts?projectKey=demo%20app',
-        );
+        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans/tenant-counts');
     });
 
     test('tenantCounts turns an empty response into an empty map', async () => {
@@ -109,13 +106,10 @@ describe('plansResource', () => {
 
     test('create posts to the unscoped collection — the body carries the project', async () => {
         const { http, calls } = recordingHttp({ body: { id: 'p1' } });
-        await bindPlans(http).create({ planKey: 'pro', projectKey: 'demo app' });
+        await bindPlans(http).create({ planKey: 'pro' });
         assert.equal(calls[0].url, '/api/v1/admin/catalog/plans');
         assert.equal(calls[0].init.method, 'POST');
-        assert.equal(
-            calls[0].init.body,
-            JSON.stringify({ planKey: 'pro', projectKey: 'demo app' }),
-        );
+        assert.equal(calls[0].init.body, JSON.stringify({ planKey: 'pro' }));
     });
 
     test('update patches the plan by id', async () => {

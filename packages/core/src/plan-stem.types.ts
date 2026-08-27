@@ -6,7 +6,7 @@
 // soft delete.
 //
 // Conventions:
-//  - `planKey` is the business plan identity (unique per `projectKey`);
+//  - `planKey` is the business plan identity (unique for the installation);
 //    historically the value stored in `PlanVersion.planId` and
 //    `Subscription.plan`.
 //  - `deletedAt` activates soft delete: deleted plans stay effective for
@@ -19,7 +19,6 @@
 
 export interface PlanRow {
     id: string;
-    projectKey: string;
     planKey: string;
     label: string;
     description: string | null;
@@ -37,7 +36,6 @@ export interface PlanRow {
  * creation (follows in M6 Pack 2).
  */
 export interface CreatePlanData {
-    projectKey: string;
     planKey: string;
     label: string;
     description?: string | null;
@@ -46,9 +44,9 @@ export interface CreatePlanData {
 }
 
 /**
- * Fields that may be changed on the plan stem. `planKey` and `projectKey`
- * are deliberately not here — stem identity is immutable; whoever wants to
- * change it creates a new plan and retires the old one.
+ * Fields that may be changed on the plan stem. `planKey` is deliberately not
+ * here — stem identity is immutable; whoever wants to change it creates a new
+ * plan and retires the old one.
  */
 export interface UpdatePlanData {
     label?: string;

@@ -130,7 +130,7 @@ NotesApp labels, columns and plan choices.
 ## Where to go from here
 
 - **SuperAdmin UI:** already scaffolded in [`admin/`](admin/) via
-  `pnpm create saasicat-admin admin --project-key=notesapp` (quickstart step 9).
+  `pnpm create saasicat-admin admin --app-key=notesapp` (quickstart step 9).
   Its `services/http.ts` sends this example's demo auth headers instead of a
   bearer token — swap it for your auth backend.
 - **Real payment collection:** keep the current contract and entitlement

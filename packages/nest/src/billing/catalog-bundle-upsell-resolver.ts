@@ -27,7 +27,6 @@ import {
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
-    PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
 } from './public-catalog.tokens.js';
 import { UPSELL_OFFER_CURRENCY_TOKEN } from './upsell.tokens.js';
 
@@ -44,8 +43,6 @@ export class CatalogBundleUpsellResolver implements UpsellOfferResolver {
     constructor(
         @Inject(PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN)
         private readonly bundleRepo: BundleRepository,
-        @Inject(PUBLIC_CATALOG_PROJECT_KEY_TOKEN)
-        private readonly projectKey: string,
         @Optional()
         @Inject(PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntryRepo: CatalogEntryRepository | null = null,
@@ -83,16 +80,13 @@ export class CatalogBundleUpsellResolver implements UpsellOfferResolver {
      */
     private async lookupUnmetRequires(featureKeys: string[]): Promise<string[]> {
         if (!this.catalogEntryRepo) return [];
-        const rows = await this.catalogEntryRepo.listFeatures({ projectKey: this.projectKey });
+        const rows = await this.catalogEntryRepo.listFeatures({});
         return collectUnsatisfiedRequires(featureKeys, buildFeatureRequiresIndex(rows));
     }
 
     /** Only published-and-live AND marketed — non-marketed bundles are not an offer. */
     private async listLiveMarketedBundles(): Promise<BundleVersionRow[]> {
-        const stems = await this.bundleRepo.list({
-            projectKey: this.projectKey,
-            excludeDeleted: true,
-        });
+        const stems = await this.bundleRepo.list({ excludeDeleted: true });
         const out: BundleVersionRow[] = [];
         for (const stem of stems) {
             const live = await this.bundleRepo.findLatestLive(stem.id);

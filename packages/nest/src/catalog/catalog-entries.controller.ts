@@ -45,28 +45,26 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
 
         @Get('capabilities')
         listCapabilities(@Query() query: ListCatalogEntriesQueryDto) {
-            return this.service.listCapabilities(query.projectKey, query.codeStatus);
+            return this.service.listCapabilities(query.codeStatus);
         }
 
         @Get('features')
         listFeatures(@Query() query: ListCatalogEntriesQueryDto) {
-            return this.service.listFeatures(query.projectKey, query.discoveryStatus);
+            return this.service.listFeatures(query.discoveryStatus);
         }
 
         @Get('quotas')
         listQuotas(@Query() query: ListCatalogEntriesQueryDto) {
-            return this.service.listQuotas(query.projectKey, query.discoveryStatus);
+            return this.service.listQuotas(query.discoveryStatus);
         }
 
         @Patch('features/:key/review')
         async reviewFeature(
             @Req() req: unknown,
             @Param('key') featureKey: string,
-            @Query('projectKey') projectKey: string,
             @Body() dto: ReviewCatalogEntryDto,
         ) {
             const row = await this.service.reviewFeature(
-                projectKey,
                 featureKey,
                 dto,
                 this.audit?.resolveUserId(req) ?? null,
@@ -74,7 +72,7 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
             await this.audit?.logFromRequest(
                 req,
                 'CatalogFeatureEntry',
-                `${projectKey}:${featureKey}`,
+                featureKey,
                 'REVIEW_FEATURE',
                 { discoveryStatus: dto.discoveryStatus },
             );
@@ -85,22 +83,16 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
         async reviewQuota(
             @Req() req: unknown,
             @Param('key') quotaKey: string,
-            @Query('projectKey') projectKey: string,
             @Body() dto: ReviewCatalogEntryDto,
         ) {
             const row = await this.service.reviewQuota(
-                projectKey,
                 quotaKey,
                 dto,
                 this.audit?.resolveUserId(req) ?? null,
             );
-            await this.audit?.logFromRequest(
-                req,
-                'CatalogQuotaEntry',
-                `${projectKey}:${quotaKey}`,
-                'REVIEW_QUOTA',
-                { discoveryStatus: dto.discoveryStatus },
-            );
+            await this.audit?.logFromRequest(req, 'CatalogQuotaEntry', quotaKey, 'REVIEW_QUOTA', {
+                discoveryStatus: dto.discoveryStatus,
+            });
             return row;
         }
 
@@ -108,14 +100,13 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
         async setFeatureI18n(
             @Req() req: unknown,
             @Param('key') featureKey: string,
-            @Query('projectKey') projectKey: string,
             @Body() dto: UpdateCatalogEntryI18nDto,
         ) {
-            const row = await this.service.setFeatureI18n(projectKey, featureKey, dto.i18n);
+            const row = await this.service.setFeatureI18n(featureKey, dto.i18n);
             await this.audit?.logFromRequest(
                 req,
                 'CatalogFeatureEntry',
-                `${projectKey}:${featureKey}`,
+                featureKey,
                 'SET_FEATURE_I18N',
                 { locales: Object.keys(dto.i18n ?? {}) },
             );
@@ -126,17 +117,12 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
         async setQuotaI18n(
             @Req() req: unknown,
             @Param('key') quotaKey: string,
-            @Query('projectKey') projectKey: string,
             @Body() dto: UpdateCatalogEntryI18nDto,
         ) {
-            const row = await this.service.setQuotaI18n(projectKey, quotaKey, dto.i18n);
-            await this.audit?.logFromRequest(
-                req,
-                'CatalogQuotaEntry',
-                `${projectKey}:${quotaKey}`,
-                'SET_QUOTA_I18N',
-                { locales: Object.keys(dto.i18n ?? {}) },
-            );
+            const row = await this.service.setQuotaI18n(quotaKey, dto.i18n);
+            await this.audit?.logFromRequest(req, 'CatalogQuotaEntry', quotaKey, 'SET_QUOTA_I18N', {
+                locales: Object.keys(dto.i18n ?? {}),
+            });
             return row;
         }
 
@@ -144,14 +130,13 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
         async setFeatureBase(
             @Req() req: unknown,
             @Param('key') featureKey: string,
-            @Query('projectKey') projectKey: string,
             @Body() dto: UpdateCatalogEntryBaseDto,
         ) {
-            const row = await this.service.setFeatureBase(projectKey, featureKey, dto);
+            const row = await this.service.setFeatureBase(featureKey, dto);
             await this.audit?.logFromRequest(
                 req,
                 'CatalogFeatureEntry',
-                `${projectKey}:${featureKey}`,
+                featureKey,
                 'SET_FEATURE_BASE',
                 {
                     label: dto.label,
@@ -167,17 +152,13 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
         async setQuotaBase(
             @Req() req: unknown,
             @Param('key') quotaKey: string,
-            @Query('projectKey') projectKey: string,
             @Body() dto: UpdateCatalogEntryBaseDto,
         ) {
-            const row = await this.service.setQuotaBase(projectKey, quotaKey, dto);
-            await this.audit?.logFromRequest(
-                req,
-                'CatalogQuotaEntry',
-                `${projectKey}:${quotaKey}`,
-                'SET_QUOTA_BASE',
-                { label: dto.label, description: dto.description },
-            );
+            const row = await this.service.setQuotaBase(quotaKey, dto);
+            await this.audit?.logFromRequest(req, 'CatalogQuotaEntry', quotaKey, 'SET_QUOTA_BASE', {
+                label: dto.label,
+                description: dto.description,
+            });
             return row;
         }
 

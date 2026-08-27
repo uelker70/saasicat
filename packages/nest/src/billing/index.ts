@@ -53,7 +53,6 @@ export * from './public-catalog.module.js';
 export {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
-    PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
 } from './public-catalog.tokens.js';
 export * from './tenant-billing.tokens.js';
 export * from './composed-tenant-auth.guard.js';

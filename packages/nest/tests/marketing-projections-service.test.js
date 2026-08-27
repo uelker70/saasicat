@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { MarketingProjectionsService } from '../dist/catalog/index.js';
 import { FakeMarketingProjectionRepository } from '../dist/testing/index.js';
 
-const PROJECT = 'clubapp';
 const TARGET_VERSION = '11111111-1111-1111-1111-111111111111';
 
 let repo;
@@ -18,7 +17,6 @@ beforeEach(() => {
 describe('MarketingProjectionsService — master data operations', () => {
     test('create creates a MarketingProjection (default locale=de)', async () => {
         const row = await service.create({
-            projectKey: PROJECT,
             targetType: 'BUNDLE',
             targetVersionId: TARGET_VERSION,
             displayLabel: 'Banking-Bundle',
@@ -33,7 +31,6 @@ describe('MarketingProjectionsService — master data operations', () => {
 
     test('create sets marketing defaults (visible, badge, trial)', async () => {
         const row = await service.create({
-            projectKey: PROJECT,
             targetType: 'PLAN',
             targetVersionId: TARGET_VERSION,
             displayLabel: 'Starter',
@@ -47,7 +44,6 @@ describe('MarketingProjectionsService — master data operations', () => {
 
     test('update changes top features, badge and trial', async () => {
         const created = await service.create({
-            projectKey: PROJECT,
             targetType: 'PLAN',
             targetVersionId: TARGET_VERSION,
             displayLabel: 'Starter',
@@ -71,7 +67,6 @@ describe('MarketingProjectionsService — master data operations', () => {
 
     test('create throws 409 on duplicate creation (same Target+Locale)', async () => {
         await service.create({
-            projectKey: PROJECT,
             targetType: 'BUNDLE',
             targetVersionId: TARGET_VERSION,
             displayLabel: 'X',
@@ -80,7 +75,6 @@ describe('MarketingProjectionsService — master data operations', () => {
         await assert.rejects(
             () =>
                 service.create({
-                    projectKey: PROJECT,
                     targetType: 'BUNDLE',
                     targetVersionId: TARGET_VERSION,
                     displayLabel: 'Y',
@@ -92,7 +86,6 @@ describe('MarketingProjectionsService — master data operations', () => {
 
     test('create accepts multiple locales per target', async () => {
         await service.create({
-            projectKey: PROJECT,
             targetType: 'BUNDLE',
             targetVersionId: TARGET_VERSION,
             locale: 'de',
@@ -100,7 +93,6 @@ describe('MarketingProjectionsService — master data operations', () => {
             description: 'X',
         });
         const en = await service.create({
-            projectKey: PROJECT,
             targetType: 'BUNDLE',
             targetVersionId: TARGET_VERSION,
             locale: 'en',
@@ -108,13 +100,12 @@ describe('MarketingProjectionsService — master data operations', () => {
             description: 'X',
         });
         assert.equal(en.locale, 'en');
-        const list = await service.list({ projectKey: PROJECT, targetVersionId: TARGET_VERSION });
+        const list = await service.list({ targetVersionId: TARGET_VERSION });
         assert.equal(list.length, 2);
     });
 
     test('update changes required and marketing fields', async () => {
         const created = await service.create({
-            projectKey: PROJECT,
             targetType: 'BUNDLE',
             targetVersionId: TARGET_VERSION,
             displayLabel: 'Alt',
@@ -134,7 +125,6 @@ describe('MarketingProjectionsService — master data operations', () => {
 
     test('delete removes the row', async () => {
         const created = await service.create({
-            projectKey: PROJECT,
             targetType: 'BUNDLE',
             targetVersionId: TARGET_VERSION,
             displayLabel: 'X',
@@ -147,20 +137,18 @@ describe('MarketingProjectionsService — master data operations', () => {
 
     test('list filters by targetType + locale', async () => {
         await service.create({
-            projectKey: PROJECT,
             targetType: 'BUNDLE',
             targetVersionId: TARGET_VERSION,
             displayLabel: 'X',
             description: 'X',
         });
         await service.create({
-            projectKey: PROJECT,
             targetType: 'PLAN',
             targetVersionId: '22222222-2222-2222-2222-222222222222',
             displayLabel: 'Y',
             description: 'Y',
         });
-        const bundles = await service.list({ projectKey: PROJECT, targetType: 'BUNDLE' });
+        const bundles = await service.list({ targetType: 'BUNDLE' });
         assert.equal(bundles.length, 1);
     });
 

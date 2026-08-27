@@ -31,12 +31,7 @@ import type {
     UpdatePlanVersionDraftData,
 } from '../plan-version-lifecycle.types.js';
 import type { PlanVersionRow } from '../plan-version-row.types.js';
-import type {
-    CreatePromotionData,
-    PromotionFilter,
-    PromotionRow,
-    UpdatePromotionData,
-} from '../promotion.types.js';
+import type { CreatePromotionData, PromotionRow, UpdatePromotionData } from '../promotion.types.js';
 import type { VersionChange } from '../subscription.types.js';
 
 // =============================================================================
@@ -45,7 +40,6 @@ import type { VersionChange } from '../subscription.types.js';
 
 /** Filter for `PlanRepository.list()`. */
 export interface PlanListFilter {
-    projectKey: string;
     /** Exclude soft-deleted plans — default `true`. */
     excludeDeleted?: boolean;
     /**
@@ -81,7 +75,7 @@ export interface PlanRepository {
     // ─── Stem operations (Pack 1) ───
     list(filter: PlanListFilter): Promise<PlanRow[]>;
     findById(planId: string): Promise<PlanRow | null>;
-    findByKey(projectKey: string, planKey: string): Promise<PlanRow | null>;
+    findByKey(planKey: string): Promise<PlanRow | null>;
     create(data: CreatePlanData): Promise<PlanRow>;
     update(planId: string, data: UpdatePlanData): Promise<PlanRow>;
     /** Sets `deletedAt` to NOW(); soft-deleted plans are filtered from `list` by default. */
@@ -212,7 +206,6 @@ export interface PlanRepository {
 
 /** Filter for `BundleRepository.list()`. */
 export interface BundleListFilter {
-    projectKey: string;
     /** Exclude soft-deleted bundles — default `true`. */
     excludeDeleted?: boolean;
 }
@@ -252,7 +245,7 @@ export interface BundleRepository {
     // ─── Stem operations ───
     list(filter: BundleListFilter): Promise<BundleRow[]>;
     findById(bundleId: string): Promise<BundleRow | null>;
-    findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null>;
+    findByKey(bundleKey: string): Promise<BundleRow | null>;
     create(data: CreateBundleData): Promise<BundleRow>;
     update(bundleId: string, data: UpdateBundleData): Promise<BundleRow>;
     /** Sets `deletedAt` to NOW(); soft-deleted bundles are filtered from `list` by default. */
@@ -378,7 +371,6 @@ export interface MarketingProjectionRepository {
 
 /** Upsert input for a capability from the discovery sync. */
 export interface UpsertCapabilityEntryData {
-    projectKey: string;
     capabilityKey: string;
     label: string;
     description: string | null;
@@ -396,7 +388,6 @@ export interface UpsertCapabilityEntryData {
 
 /** Upsert input for a feature from the discovery sync. */
 export interface UpsertFeatureEntryData {
-    projectKey: string;
     featureKey: string;
     label: string;
     description: string | null;
@@ -411,7 +402,6 @@ export interface UpsertFeatureEntryData {
 
 /** Upsert input for a quota from the discovery sync. */
 export interface UpsertQuotaEntryData {
-    projectKey: string;
     quotaKey: string;
     label: string;
     description: string | null;
@@ -443,7 +433,7 @@ export interface SetCatalogEntryReviewData {
  * Prisma tables.
  *
  * Binding:
- * - `upsert*` matches on (`projectKey`, `<key>`) and leaves `i18n`,
+ * - `upsert*` matches on `<key>` and leaves `i18n`,
  *   `sortOrder`, `createdAt` as well as the approval fields (`approvedAt`/
  *   `approvedBy`/`approvedSignature`) **untouched** on an update —
  *   only the code-derived fields + the status (resolved by the service)
@@ -461,11 +451,7 @@ export interface CatalogEntryRepository {
     upsertFeature(data: UpsertFeatureEntryData): Promise<FeatureCatalogEntryRow>;
     upsertQuota(data: UpsertQuotaEntryData): Promise<QuotaCatalogEntryRow>;
 
-    retireMissing(
-        projectKey: string,
-        type: 'capability' | 'feature' | 'quota',
-        presentKeys: string[],
-    ): Promise<number>;
+    retireMissing(type: 'capability' | 'feature' | 'quota', presentKeys: string[]): Promise<number>;
 
     /**
      * Sets or clears the successor pointer of a feature/quota
@@ -476,52 +462,35 @@ export interface CatalogEntryRepository {
      * then skips the pointers with a warn log.
      */
     setFeatureSuccessor?(
-        projectKey: string,
         featureKey: string,
         successorKey: string | null,
     ): Promise<FeatureCatalogEntryRow>;
     setQuotaSuccessor?(
-        projectKey: string,
         quotaKey: string,
         successorKey: string | null,
     ): Promise<QuotaCatalogEntryRow>;
 
-    findFeature(projectKey: string, featureKey: string): Promise<FeatureCatalogEntryRow | null>;
-    findQuota(projectKey: string, quotaKey: string): Promise<QuotaCatalogEntryRow | null>;
+    findFeature(featureKey: string): Promise<FeatureCatalogEntryRow | null>;
+    findQuota(quotaKey: string): Promise<QuotaCatalogEntryRow | null>;
 
     setFeatureReview(
-        projectKey: string,
         featureKey: string,
         data: SetCatalogEntryReviewData,
     ): Promise<FeatureCatalogEntryRow>;
     setQuotaReview(
-        projectKey: string,
         quotaKey: string,
         data: SetCatalogEntryReviewData,
     ): Promise<QuotaCatalogEntryRow>;
 
-    setFeatureI18n(
-        projectKey: string,
-        featureKey: string,
-        i18n: CatalogEntryI18n,
-    ): Promise<FeatureCatalogEntryRow>;
-    setQuotaI18n(
-        projectKey: string,
-        quotaKey: string,
-        i18n: CatalogEntryI18n,
-    ): Promise<QuotaCatalogEntryRow>;
+    setFeatureI18n(featureKey: string, i18n: CatalogEntryI18n): Promise<FeatureCatalogEntryRow>;
+    setQuotaI18n(quotaKey: string, i18n: CatalogEntryI18n): Promise<QuotaCatalogEntryRow>;
 
     /** Sets the editable base fields (default locale `label`/`description`). */
     setFeatureBase(
-        projectKey: string,
         featureKey: string,
         data: UpdateCatalogEntryBaseData,
     ): Promise<FeatureCatalogEntryRow>;
-    setQuotaBase(
-        projectKey: string,
-        quotaKey: string,
-        data: UpdateCatalogEntryBaseData,
-    ): Promise<QuotaCatalogEntryRow>;
+    setQuotaBase(quotaKey: string, data: UpdateCatalogEntryBaseData): Promise<QuotaCatalogEntryRow>;
 }
 
 // =============================================================================
@@ -534,7 +503,7 @@ export interface CatalogEntryRepository {
  * this against their `promotions` Prisma table.
  */
 export interface PromotionRepository {
-    list(filter: PromotionFilter): Promise<PromotionRow[]>;
+    list(): Promise<PromotionRow[]>;
     findById(id: string): Promise<PromotionRow | null>;
     create(data: CreatePromotionData): Promise<PromotionRow>;
     update(id: string, data: UpdatePromotionData): Promise<PromotionRow>;
@@ -547,11 +516,11 @@ export interface PromotionRepository {
 // =============================================================================
 
 /**
- * Adapter for `marketing_settings` — one row per project. `get` returns
- * `null` as long as the SuperAdmin has saved nothing (then the full
- * `availableLocales` pool counts as active). `upsert` creates the row or replaces it.
+ * Adapter for `marketing_settings` — at most one row. `get` returns `null` as
+ * long as the SuperAdmin has saved nothing (then the full `availableLocales`
+ * pool counts as active). `upsert` creates the row or replaces it.
  */
 export interface MarketingSettingsRepository {
-    get(projectKey: string): Promise<MarketingSettingsRow | null>;
-    upsert(projectKey: string, data: UpdateMarketingSettingsData): Promise<MarketingSettingsRow>;
+    get(): Promise<MarketingSettingsRow | null>;
+    upsert(data: UpdateMarketingSettingsData): Promise<MarketingSettingsRow>;
 }

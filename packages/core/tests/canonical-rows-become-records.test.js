@@ -21,7 +21,6 @@ const UPDATED = new Date('2026-02-01T00:00:00.000Z');
 function planRow(overrides = {}) {
     return {
         id: 'plan-1',
-        projectKey: 'demo',
         planKey: 'STANDARD',
         label: 'Standard',
         description: null,
@@ -148,7 +147,6 @@ describe('a plan version row becomes a version record', () => {
 function contractRow(overrides = {}) {
     return {
         id: 'contract-1',
-        projectKey: 'demo',
         tenantId: 'tenant-1',
         status: 'active',
         effectiveFrom: CREATED,

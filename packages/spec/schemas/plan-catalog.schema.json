@@ -4,22 +4,17 @@
     "title": "PlanCatalog",
     "description": "Language-neutral definition of a plan catalog + app identity for a SaaS app. Maintained by the consumer as a YAML/JSON file (`config/saas.yaml`) and mirrored into platform tables at backend boot.",
     "type": "object",
-    "required": ["schemaVersion", "projectKey", "currency", "vatRate"],
+    "required": ["schemaVersion", "app", "currency", "vatRate"],
     "additionalProperties": false,
     "properties": {
         "schemaVersion": {
             "type": "integer",
             "const": 1
         },
-        "projectKey": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9-]{1,30}$",
-            "description": "Unique key of the consuming project. Cross-audit marker."
-        },
         "app": {
             "type": "object",
             "additionalProperties": false,
-            "description": "App identity block (branding + version). Consumed by AdminPublicBootController + AdminManifestConfigFactory.",
+            "description": "App identity block (branding + version). One installation serves one application, so this is the only place it is named. Consumed by AdminPublicBootController + AdminManifestConfigFactory.",
             "required": ["name"],
             "properties": {
                 "name": {

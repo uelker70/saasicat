@@ -97,7 +97,7 @@ Create `config/saas.yaml` (schema:
 the app identity (branding + version) and the app-global marketing config —
 source-of-truth separation:
 
-- **App identity** (branding, version, project key) → this file.
+- **App identity** (name, branding, version) → this file.
 - **Features / quotas / capabilities** → code (`@ImplementsCapability`,
   `@DefinesQuota`), published via discovery.
 - **Plans / bundles** → DB tables `plan` + `catalogPlanVersion` + `bundles`.
@@ -105,9 +105,7 @@ source-of-truth separation:
 
 ```yaml
 schemaVersion: 1
-projectKey: myapp
 app:
-    key: myapp
     name: MyApp
     label: MyApp Cockpit
 currency: EUR
@@ -243,10 +241,9 @@ For a database-managed runtime catalog, replace `planCatalog` with:
 
 ```ts
 dbCatalog: {
-    projectKey: SAAS_CONFIG.projectKey,
+    app: SAAS_CONFIG.app,
     currency: SAAS_CONFIG.currency,
     vatRate: SAAS_CONFIG.vatRate,
-    app: SAAS_CONFIG.app,
     marketing: SAAS_CONFIG.marketing,
 }
 ```
@@ -464,11 +461,11 @@ export class AdminManifestConfigFactory {
     build(): AdminManifestConfig {
         return {
             project: {
-                key: this.planCatalog.projectKey,
-                displayName: this.planCatalog.app?.name ?? this.planCatalog.projectKey,
-                label: this.planCatalog.app?.label,
-                icon: this.planCatalog.app?.icon,
-                logoUrl: this.planCatalog.app?.logoUrl,
+                key: this.planCatalog.app.name,
+                displayName: this.planCatalog.app.name,
+                label: this.planCatalog.app.label,
+                icon: this.planCatalog.app.icon,
+                logoUrl: this.planCatalog.app.logoUrl,
                 environment: this.resolveEnvironment(),
                 availableLocales: this.planCatalog.marketing?.availableLocales,
                 defaultLocale: this.planCatalog.marketing?.availableLocales?.[0],

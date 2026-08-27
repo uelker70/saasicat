@@ -63,9 +63,8 @@ export interface PlanCatalogApp {
 
 export interface PlanCatalog {
     schemaVersion: 1;
-    projectKey: string;
-    /** App identity (branding + version), see PlanCatalogApp. Optional. */
-    app?: PlanCatalogApp;
+    /** App identity (branding + version), see PlanCatalogApp. */
+    app: PlanCatalogApp;
     /** ISO-4217 currency code. */
     currency: string;
     /** VAT rate in percent. */

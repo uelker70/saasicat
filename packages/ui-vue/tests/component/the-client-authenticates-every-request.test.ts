@@ -24,7 +24,7 @@ import {
 import { authenticating } from '../support/authenticating-client.mjs';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 /** The page reaches the network through the registry, so the fixture builds one. */
 function shellWith(http: unknown): Record<symbol, unknown> {

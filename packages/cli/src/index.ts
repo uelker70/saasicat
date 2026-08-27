@@ -1,4 +1,6 @@
 // @saasicat/cli — cross-cutting helpers for consumer CLIs.
+// project-key-history: this barrel exports `codemods/v1-project-key`, which is
+// named after the identifier it removes.
 //
 // Spec: packages/spec/cli-conventions.md.
 //
@@ -16,9 +18,11 @@
 //   - migration-constraints: where the non-DSL constraints go in a migration
 //   - fk-pointers:         enabling the FK relations to the app's own models
 //   - init/plan:           what `saasicat init` writes, as data
-//   - init/catalog-keys:   the key rules, read off the catalogue schema
+//   - init/catalog-keys:   the key rules — two read off the catalogue schema
 //   - codemods/v1-imports: rewriting ui-vue imports to the 1.0 export map
 //   - codemods/v1-rename:  rewriting the names 1.0 changed (stems, keys, tokens)
+//   - codemods/v1-project-key: taking `projectKey` out, where that is decidable
+//     (project-key-history: the command's name is the retired identifier)
 //   - init/patch-app-module: adding the platform to an existing AppModule
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
@@ -41,6 +45,7 @@ export * from './init/module-resolution.js';
 export * from './init/catalog-keys.js';
 export * from './codemods/v1-imports.js';
 export * from './codemods/v1-rename.js';
+export * from './codemods/v1-project-key.js';
 export * from './init/patch-app-module.js';
 export * from './cli-context.module.js';
 export * from './manifest.command.js';

@@ -24,9 +24,8 @@ The core adapters are missing: mfa, audit, rlsBypass. Bind them through
 
 No plan catalogue is reachable. Either set `planCatalog` (the quickstart YAML
 path) or, for DB hydration, BOTH a `planCatalogReadSink` (via `adapters` or
-`persistence`) AND `dbCatalog` ({ projectKey, currency, vatRate }). Without the
-identity the sink loads with projectKey '' and the app boots with a silently
-empty catalogue.
+`persistence`) AND `dbCatalog` ({ app, currency, vatRate }). Without the
+identity the app boots with a silently empty catalogue.
 
 ### catalog.requires-persistence
 

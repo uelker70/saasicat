@@ -37,7 +37,7 @@ is the finished state of this page.
 ```bash
 cd notesapp/backend
 pnpm add @saasicat/core @saasicat/spec @saasicat/nest @saasicat/adapter-prisma @saasicat/cli
-pnpm exec saasicat init --project-key=notesapp --quota=notes:Note
+pnpm exec saasicat init --app-key=notesapp --quota=notes:Note
 ```
 
 `init` writes six files and edits one: the app identity (`config/saas.yaml`),
@@ -132,7 +132,7 @@ email, password, TOTP. It disables itself the moment the account exists.
 
 ```bash
 cd notesapp
-pnpm create saasicat-admin admin --project-key=notesapp --api-base=/api/v1/admin
+pnpm create saasicat-admin admin --app-key=notesapp --api-base=/api/v1/admin
 cd admin && pnpm install && pnpm dev   # http://localhost:9100/admin/login
 ```
 
@@ -194,7 +194,7 @@ dashboard. The **Discovery page** shows `notes.create` as "discovered", the
 Add these in this order:
 
 1. **Switch the runtime catalog to the database:** replace `planCatalog` with
-   `dbCatalog: { projectKey, currency, vatRate, app, marketing }`. The
+   `dbCatalog: { app, currency, vatRate, marketing }`. The
    persistence bundle already supplies the read sink and catalog repositories.
 
 2. **Manifest contributions** for your own SuperAdmin KPI cards, tenant

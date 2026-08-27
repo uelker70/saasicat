@@ -135,8 +135,6 @@ export interface PersistenceContractHarness {
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */
     name: string;
-    /** Project identity used by catalog lifecycle scenarios. */
-    projectKey: string;
     /** Builds the harness once for the whole suite. */
     create(): Promise<PersistenceContractHarness>;
 }

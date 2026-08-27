@@ -41,13 +41,12 @@ export class PlansService {
      * `SubscriptionRepository` is registered or it does not implement
      * `countActiveByPlanKey`.
      */
-    async getTenantCounts(projectKey: string): Promise<Record<string, number>> {
-        return (await this.subscriptions?.countActiveByPlanKey?.(projectKey)) ?? {};
+    async getTenantCounts(): Promise<Record<string, number>> {
+        return (await this.subscriptions?.countActiveByPlanKey?.()) ?? {};
     }
 
-    listPlans(projectKey: string, opts: { onlyPublished?: boolean } = {}): Promise<PlanRow[]> {
+    listPlans(opts: { onlyPublished?: boolean } = {}): Promise<PlanRow[]> {
         return this.repo.list({
-            projectKey,
             excludeDeleted: true,
             onlyPublished: opts.onlyPublished ?? false,
         });
@@ -66,12 +65,12 @@ export class PlansService {
     }
 
     async createPlan(data: CreatePlanData): Promise<PlanRow> {
-        const existing = await this.repo.findByKey(data.projectKey, data.planKey);
+        const existing = await this.repo.findByKey(data.planKey);
         if (existing) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_ALREADY_EXISTS,
-                message: `Plan '${data.planKey}' already exists in project '${data.projectKey}'`,
-                params: { planKey: data.planKey, projectKey: data.projectKey },
+                message: `Plan '${data.planKey}' already exists`,
+                params: { planKey: data.planKey },
             });
         }
         return this.repo.create(data);

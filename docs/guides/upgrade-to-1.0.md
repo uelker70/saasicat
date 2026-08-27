@@ -1,5 +1,5 @@
 <!-- naming-history: this guide names the pre-1.0 identifiers on purpose — they are what it tells
-you to replace. -->
+you to replace. project-key-history: `projectKey` is one of them. -->
 
 # Migrating to 1.0
 
@@ -11,9 +11,13 @@ command does almost all of it:
 npx @saasicat/cli@latest codemod v1 --dir=.
 ```
 
-It runs `v1-imports` (the surface cut) and then `v1-rename` (the names), is idempotent, skips
-`node_modules/` and `dist/`, and **reports rather than guesses** the two cases it cannot decide —
-both are listed at the end. Run it with `--dry-run` first if you want to see the count.
+It runs `v1-imports` (the surface cut), then `v1-rename` (the names), then `v1-project-key` (the
+column that left the model), is idempotent, skips `node_modules/` and `dist/`, and **reports rather
+than guesses** the cases it cannot decide — they are listed at the end. Run it with `--dry-run`
+first if you want to see the count.
+
+One step is **not** in there, because no codemod can do it: your database still has the column.
+[The migration below](#projectkey-is-gone-from-the-database) is a SQL file you run once.
 
 ## What changed, and what it becomes
 
@@ -578,6 +582,62 @@ now the decision: an add-on hangs off the plan that pays for it, its commitment 
 term, and a second waiting period on top is one nobody could explain to a customer. A test refuses
 any reference to the notice machinery from the bundle path, so the rule cannot drift back in.
 
+### `projectKey` is gone from the database
+
+One installation serves one application. A plan key, a bundle key, a feature key and a quota key
+are unique for the whole installation, and nothing carries a project above them.
+
+The column never had a second value to hold. Nothing in the platform could configure a second
+project — `config/saas.yaml` names one, `compose/base.ts` resolves it once at boot, and there is no
+per-request switch — while `subscriptions.tenantId` is unique installation-wide, so a customer of
+two applications in one database could not exist. What the column did do was contradict the schema
+beside it: `plan_versions.planId` holds the plan **key** and no project, so two plans sharing a key
+shared one version lineage, and `plan_versions_draft_per_plan` then stopped the second one from
+opening a draft at all.
+
+**Ten tables lose it:** `plans`, `bundles`, `capability_catalog_entries`,
+`feature_catalog_entries`, `quota_catalog_entries`, `marketing_projections`, `marketing_settings`,
+`promotions`, `checkout_offers`, `subscription_contracts`. Every `(projectKey, <key>)` unique index
+becomes `(<key>)`, and the composite lookup indexes lose their first column.
+
+**Run the migration once, against your database:**
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.postgres.sql
+```
+
+It opens a transaction and starts with a guard: if any of those tables holds rows under more than
+one project key, it **stops and names the table and the values** rather than merging rows nobody
+meant to merge — two `STANDARD` plans would collide on the new unique index, and which of them
+survives is not a decision a migration should take. Delete the rows that do not belong to this
+installation, then run it again. It is a one-way door: the values are dropped, not archived.
+
+**In your code**, `v1-project-key` removes what it can decide:
+
+| before                                                          | after                                     |
+| --------------------------------------------------------------- | ----------------------------------------- |
+| `projectKey: myapp` in `config/saas.yaml`                       | gone — `app.name` is now required instead |
+| `dbCatalog: { projectKey, currency, vatRate }`                  | `dbCatalog: { app, currency, vatRate }`   |
+| `{ apiBase: '…', projectKey: 'myapp' }` (`SuperAdminEndpoints`) | `{ apiBase: '…' }`                        |
+| `?projectKey=…` on an admin catalogue URL                       | gone — the endpoints no longer read it    |
+| `plans.create({ projectKey, planKey, … })`                      | `plans.create({ planKey, … })`            |
+| `usePlans({ adminEndpoint, projectKey, http })`                 | `usePlans({ adminEndpoint, http })`       |
+
+It leaves an object it cannot tell from one of your own — a literal with a `projectKey` and nothing
+the platform asks for beside it — and prints the file and line so you can look.
+
+**Three more things move with it.** `app.name` is now **required** in `config/saas.yaml`: it is the
+one place the application names itself, and it is what the manifest and the login page display.
+`PublicMarketingCatalogResponse` no longer carries `projectKey`. And four error messages lost the
+phrase — `PLAN_ALREADY_EXISTS` now reads `Plan 'STANDARD' already exists`, and its `params` no
+longer carry the key. Nothing in the admin UI, the tenant UI, the CLI or the example app read that
+parameter, so a message you render from the catalogue is unaffected.
+
+**`saasicat init` renamed its flag** to match: `--project-key` is `--app-key`, and so is
+`pnpm create saasicat-admin`'s. It is now what it always did — the slug of the application, used
+for the npm package name, the storage prefix and the generated identifiers — and it is no longer
+written into `config/saas.yaml`.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.
@@ -587,7 +647,9 @@ any reference to the notice machinery from the bundle path, so the rule cannot d
 4. **A `file:` override that points into this repository** — the package directories are their
    npm names now (`packages/nest`, not `packages/saas-platform-nest`). The codemod does not scan
    `package.json`; update the path by hand.
-5. **A feature guard of your own.** With `globalFeatureGuard: false`, 1.0 refuses to boot when a
+5. **An object literal with a `projectKey` the codemod could not place** — see above; it prints
+   the file and line. Delete the ones that addressed the platform catalogue, keep your own.
+6. **A feature guard of your own.** With `globalFeatureGuard: false`, 1.0 refuses to boot when a
    `@RequireFeature` route has no feature guard in front of it — and it recognises a guard only by
    `FEATURE_GUARD_MARKER`, which `StaticFeatureGuard` and `FeatureGuard` carry. A guard you wrote
    yourself enforces the annotation just as well and is still reported, route by route. Mark it:

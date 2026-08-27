@@ -13,13 +13,7 @@ import type {
     UpdatePlanVersionDraftData,
     VersionChange,
 } from '@saasicat/core';
-import {
-    previousUtcDay,
-    startOfUtcDay,
-    toPlanRow,
-    toPlanVersionRow,
-    unambiguousPlanKeys,
-} from '@saasicat/core';
+import { previousUtcDay, startOfUtcDay, toPlanRow, toPlanVersionRow } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { plans, planVersions } from './schema.js';
 
@@ -81,37 +75,23 @@ export class DrizzlePlanRepository implements PlanRepository {
         const stems = await this.db
             .select()
             .from(plans)
-            .where(
-                and(
-                    eq(plans.projectKey, filter.projectKey),
-                    ...(excludeDeleted ? [isNull(plans.deletedAt)] : []),
-                ),
-            )
+            .where(and(...(excludeDeleted ? [isNull(plans.deletedAt)] : [])))
             .orderBy(asc(plans.sortOrder), asc(plans.planKey));
         if (!filter.onlyPublished) return stems.map(toPlanRow);
         if (stems.length === 0) return [];
 
-        // A version carries the plan key and no project, so a key two projects
-        // share cannot be attributed from the version table. Keys that are not
-        // unique across projects are dropped rather than guessed — see
-        // `unambiguousPlanKeys`.
-        const candidateKeys = [...new Set(stems.map((stem) => stem.planKey))];
-        const sameKeyAnywhere = await this.db
-            .select({ projectKey: plans.projectKey, planKey: plans.planKey })
-            .from(plans)
-            .where(inArray(plans.planKey, candidateKeys));
-        const decidable = unambiguousPlanKeys(sameKeyAnywhere);
-        const askable = candidateKeys.filter((planKey) => decidable.has(planKey));
-        if (askable.length === 0) return [];
-
+        // A version carries the plan key, and a key names one plan for the
+        // whole installation — so the version table answers directly.
+        //
         // One query for all of them rather than one per plan: `onlyPublished`
         // is the marketing catalogue's filter and runs on every page load.
+        const candidateKeys = [...new Set(stems.map((stem) => stem.planKey))];
         const live = await this.db
             .select({ planId: planVersions.planId })
             .from(planVersions)
             .where(
                 and(
-                    inArray(planVersions.planId, askable),
+                    inArray(planVersions.planId, candidateKeys),
                     sql`${planVersions.publishedAt} IS NOT NULL`,
                     isNull(planVersions.supersededAt),
                 ),
@@ -125,18 +105,16 @@ export class DrizzlePlanRepository implements PlanRepository {
         return rows[0] ? toPlanRow(rows[0]) : null;
     }
 
-    async findByKey(projectKey: string, planKey: string): Promise<PlanRow | null> {
-        const rows = await this.db
-            .select()
-            .from(plans)
-            .where(
-                and(
-                    eq(plans.projectKey, projectKey),
-                    eq(plans.planKey, planKey),
-                    isNull(plans.deletedAt),
-                ),
-            )
-            .limit(1);
+    /**
+     * Whether this installation already uses this plan key — **including
+     * retired plans**.
+     *
+     * `plans_planKey_key` is unconditional, so a soft delete does not free the
+     * key, and the duplicate check in `createPlan` needs the database's answer
+     * rather than the active catalogue's. `list` is that other lookup.
+     */
+    async findByKey(planKey: string): Promise<PlanRow | null> {
+        const rows = await this.db.select().from(plans).where(eq(plans.planKey, planKey)).limit(1);
         return rows[0] ? toPlanRow(rows[0]) : null;
     }
 
@@ -146,7 +124,6 @@ export class DrizzlePlanRepository implements PlanRepository {
             .insert(plans)
             .values({
                 id: randomUUID(),
-                projectKey: data.projectKey,
                 planKey: data.planKey,
                 label: data.label,
                 description: data.description ?? null,

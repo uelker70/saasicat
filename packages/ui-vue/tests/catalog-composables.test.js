@@ -73,9 +73,8 @@ const rejected = (promise) =>
     );
 
 describe('usePlans', () => {
-    test('the endpoint and the project key are both required', () => {
-        assert.throws(() => usePlans({ projectKey: 'p' }), /adminEndpoint/);
-        assert.throws(() => usePlans({ adminEndpoint: ADMIN }), /projectKey/);
+    test('the endpoint is required', () => {
+        assert.throws(() => usePlans({}), /adminEndpoint/);
     });
 
     test('load() filters by project key and sends the auth header', async () => {
@@ -83,12 +82,11 @@ describe('usePlans', () => {
         const view = inApp(() =>
             usePlans({
                 adminEndpoint: ADMIN,
-                projectKey: 'notes app',
                 http: authenticating(http, 'tok'),
             }),
         );
         await view.load();
-        assert.equal(calls[0].url, `${ADMIN}/catalog/plans?projectKey=notes%20app`);
+        assert.equal(calls[0].url, `${ADMIN}/catalog/plans`);
         assert.equal(calls[0].headers.Authorization, 'Bearer tok');
         assert.deepEqual(view.plans.value, [{ id: 'p1', planKey: 'pro' }]);
         assert.equal(view.loading.value, false);
@@ -97,13 +95,13 @@ describe('usePlans', () => {
 
     test('load() without a token sends none rather than an empty one', async () => {
         const { http, calls } = httpQueue([{ body: [] }]);
-        await inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http })).load();
+        await inApp(() => usePlans({ adminEndpoint: ADMIN, http })).load();
         assert.equal(calls[0].headers.Authorization, undefined);
     });
 
     test('a failed load lands on `error` and leaves the list alone', async () => {
         const { http } = httpQueue([{ status: 403, body: { code: 'FORBIDDEN' } }]);
-        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, http }));
         await view.load();
         assert.ok(view.error.value instanceof PlansApiError);
         assert.equal(view.error.value.status, 403);
@@ -114,7 +112,7 @@ describe('usePlans', () => {
 
     test('an unparseable error body is still an error, with no body', async () => {
         const { http } = httpQueue([{ status: 502, unparseable: true }]);
-        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, http }));
         await view.load();
         assert.equal(view.error.value.status, 502);
         assert.equal(view.error.value.body, null);
@@ -122,7 +120,7 @@ describe('usePlans', () => {
 
     test('create() appends the created row', async () => {
         const { http, calls } = httpQueue([{ status: 201, body: { id: 'p2', planKey: 'team' } }]);
-        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, http }));
         const created = await view.create({ planKey: 'team' });
         assert.equal(calls[0].method, 'POST');
         assert.equal(calls[0].body, JSON.stringify({ planKey: 'team' }));
@@ -140,7 +138,7 @@ describe('usePlans', () => {
             },
             { body: { id: 'p2', planKey: 'team-renamed' } },
         ]);
-        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, http }));
         await view.load();
         await view.update('p2', { planKey: 'team-renamed' });
         assert.equal(calls[1].method, 'PATCH');
@@ -160,7 +158,7 @@ describe('usePlans', () => {
                 { body: [{ id: 'p1' }, { id: 'p2' }] },
                 { status: 204 },
             ]);
-            const view = inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+            const view = inApp(() => usePlans({ adminEndpoint: ADMIN, http }));
             await view.load();
             await view[name]('p1');
             assert.equal(calls[1].method, 'DELETE', name);
@@ -171,7 +169,7 @@ describe('usePlans', () => {
 
     test('a mutation the server answered without a body does not touch the list', async () => {
         const { http } = httpQueue([{ body: [{ id: 'p1' }] }, { status: 204 }]);
-        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, http }));
         await view.load();
 
         const created = await rejected(view.create({ planKey: 'x' }));
@@ -185,19 +183,15 @@ describe('usePlans', () => {
 
     test('loadTenantCounts() fills the map, and swallows its own failure', async () => {
         const ok = httpQueue([{ body: { pro: 3 } }]);
-        const view = inApp(() =>
-            usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http: ok.http }),
-        );
+        const view = inApp(() => usePlans({ adminEndpoint: ADMIN, http: ok.http }));
         await view.loadTenantCounts();
-        assert.equal(ok.calls[0].url, `${ADMIN}/catalog/plans/tenant-counts?projectKey=p`);
+        assert.equal(ok.calls[0].url, `${ADMIN}/catalog/plans/tenant-counts`);
         assert.deepEqual(view.tenantCountsByPlanKey.value, { pro: 3 });
 
         // Decorative counters must not turn a working plan list into an error
         // page — the composable documents that, so it is worth holding.
         const failing = httpQueue([{ status: 500, body: {} }]);
-        const view2 = inApp(() =>
-            usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http: failing.http }),
-        );
+        const view2 = inApp(() => usePlans({ adminEndpoint: ADMIN, http: failing.http }));
         await view2.loadTenantCounts();
         assert.deepEqual(view2.tenantCountsByPlanKey.value, {});
         assert.equal(view2.error.value, null);
@@ -205,7 +199,7 @@ describe('usePlans', () => {
 
     test('autoLoad fetches without being asked', async () => {
         const { http, calls } = httpQueue([{ body: [] }]);
-        inApp(() => usePlans({ adminEndpoint: ADMIN, projectKey: 'p', http, autoLoad: true }));
+        inApp(() => usePlans({ adminEndpoint: ADMIN, http, autoLoad: true }));
         await new Promise((resolve) => setTimeout(resolve, 0));
         assert.equal(calls.length, 1);
     });
@@ -308,9 +302,8 @@ describe('usePlanVersions', () => {
 });
 
 describe('useBundles', () => {
-    test('the endpoint and the project key are both required', () => {
-        assert.throws(() => useBundles({ projectKey: 'p' }), /adminEndpoint/);
-        assert.throws(() => useBundles({ adminEndpoint: ADMIN }), /projectKey/);
+    test('the endpoint is required', () => {
+        assert.throws(() => useBundles({}), /adminEndpoint/);
     });
 
     test('load(), create(), update() and softDelete() keep the list in step', async () => {
@@ -320,7 +313,7 @@ describe('useBundles', () => {
             { body: { id: 'b2', bundleKey: 'extra-plus' } },
             { status: 204 },
         ]);
-        const view = inApp(() => useBundles({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+        const view = inApp(() => useBundles({ adminEndpoint: ADMIN, http }));
         await view.load();
         await view.create({ bundleKey: 'extra' });
         assert.equal(view.bundles.value.length, 2);
@@ -336,7 +329,7 @@ describe('useBundles', () => {
 
     test('a failed load lands on `error`', async () => {
         const { http } = httpQueue([{ status: 404, body: {} }]);
-        const view = inApp(() => useBundles({ adminEndpoint: ADMIN, projectKey: 'p', http }));
+        const view = inApp(() => useBundles({ adminEndpoint: ADMIN, http }));
         await view.load();
         assert.ok(view.error.value instanceof BundlesApiError);
         assert.match(view.error.value.message, /Bundles API responded with HTTP 404/);
@@ -344,7 +337,7 @@ describe('useBundles', () => {
 
     test('autoLoad fetches without being asked', async () => {
         const { http, calls } = httpQueue([{ body: [] }]);
-        inApp(() => useBundles({ adminEndpoint: ADMIN, projectKey: 'p', http, autoLoad: true }));
+        inApp(() => useBundles({ adminEndpoint: ADMIN, http, autoLoad: true }));
         await new Promise((resolve) => setTimeout(resolve, 0));
         assert.equal(calls.length, 1);
     });
@@ -419,11 +412,10 @@ describe('useBundleVersions', () => {
 });
 
 describe('useCatalogEntries', () => {
-    const options = (http, extra) => ({ adminEndpoint: ADMIN, projectKey: 'p', http, ...extra });
+    const options = (http, extra) => ({ adminEndpoint: ADMIN, http, ...extra });
 
-    test('the endpoint and the project key are both required', () => {
-        assert.throws(() => useCatalogEntries({ projectKey: 'p' }), /adminEndpoint/);
-        assert.throws(() => useCatalogEntries({ adminEndpoint: ADMIN }), /projectKey/);
+    test('the endpoint is required', () => {
+        assert.throws(() => useCatalogEntries({}), /adminEndpoint/);
     });
 
     test('load() reads capabilities, features and quotas in one go', async () => {
@@ -433,9 +425,9 @@ describe('useCatalogEntries', () => {
         assert.deepEqual(
             calls.map((c) => c.url),
             [
-                `${ADMIN}/catalog/capabilities?projectKey=p`,
-                `${ADMIN}/catalog/features?projectKey=p`,
-                `${ADMIN}/catalog/quotas?projectKey=p`,
+                `${ADMIN}/catalog/capabilities`,
+                `${ADMIN}/catalog/features`,
+                `${ADMIN}/catalog/quotas`,
             ],
         );
         assert.deepEqual(view.capabilities.value, []);
@@ -462,7 +454,7 @@ describe('useCatalogEntries', () => {
         await view.load();
         await view.reviewFeature('f1', { status: 'approved' });
         await view.reviewQuota('q1', { status: 'approved' });
-        assert.equal(calls[3].url, `${ADMIN}/catalog/features/f1/review?projectKey=p`);
+        assert.equal(calls[3].url, `${ADMIN}/catalog/features/f1/review`);
         assert.equal(calls[3].method, 'PATCH');
         assert.deepEqual(view.features.value, [{ featureKey: 'f1', status: 'approved' }]);
         assert.deepEqual(view.quotas.value, [{ quotaKey: 'q1', status: 'approved' }]);
@@ -478,10 +470,10 @@ describe('useCatalogEntries', () => {
         assert.deepEqual(
             calls.map((c) => c.url),
             [
-                `${ADMIN}/catalog/features/f1/i18n?projectKey=p`,
-                `${ADMIN}/catalog/quotas/q1/i18n?projectKey=p`,
-                `${ADMIN}/catalog/features/f1?projectKey=p`,
-                `${ADMIN}/catalog/quotas/q1?projectKey=p`,
+                `${ADMIN}/catalog/features/f1/i18n`,
+                `${ADMIN}/catalog/quotas/q1/i18n`,
+                `${ADMIN}/catalog/features/f1`,
+                `${ADMIN}/catalog/quotas/q1`,
             ],
         );
     });
@@ -526,11 +518,10 @@ describe('useCatalogEntries', () => {
 });
 
 describe('usePromotions', () => {
-    const options = (http, extra) => ({ adminEndpoint: ADMIN, projectKey: 'p', http, ...extra });
+    const options = (http, extra) => ({ adminEndpoint: ADMIN, http, ...extra });
 
-    test('the endpoint and the project key are both required', () => {
-        assert.throws(() => usePromotions({ projectKey: 'p' }), /adminEndpoint/);
-        assert.throws(() => usePromotions({ adminEndpoint: ADMIN }), /projectKey/);
+    test('the endpoint is required', () => {
+        assert.throws(() => usePromotions({}), /adminEndpoint/);
     });
 
     test('load(), create(), update() and remove() keep the list in step', async () => {
@@ -542,7 +533,7 @@ describe('usePromotions', () => {
         ]);
         const view = inApp(() => usePromotions(options(http)));
         await view.load();
-        assert.equal(calls[0].url, `${ADMIN}/catalog/promotions?projectKey=p`);
+        assert.equal(calls[0].url, `${ADMIN}/catalog/promotions`);
         await view.create({ label: 'Summer' });
         await view.update('pr2', { label: 'Summer sale' });
         assert.deepEqual(view.promotions.value[1], { id: 'pr2', label: 'Summer sale' });
@@ -569,23 +560,19 @@ describe('usePromotions', () => {
 describe('useMarketingProjections', () => {
     const options = (http, extra) => ({
         adminEndpoint: ADMIN,
-        filter: { projectKey: 'p' },
+        filter: {},
         http,
         ...extra,
     });
 
-    test('the endpoint and the filter project key are both required', () => {
-        assert.throws(
-            () => useMarketingProjections({ filter: { projectKey: 'p' } }),
-            /adminEndpoint/,
-        );
-        assert.throws(() => useMarketingProjections({ adminEndpoint: ADMIN }), /projectKey/);
+    test('the endpoint is required', () => {
+        assert.throws(() => useMarketingProjections({ filter: {} }), /adminEndpoint/);
     });
 
     test('the query string carries only the filter parts that are set', async () => {
         const bare = httpQueue([{ body: [] }]);
         await inApp(() => useMarketingProjections(options(bare.http))).load();
-        assert.equal(bare.calls[0].url, `${ADMIN}/catalog/marketing-projections?projectKey=p`);
+        assert.equal(bare.calls[0].url, `${ADMIN}/catalog/marketing-projections`);
 
         const full = httpQueue([{ body: [] }]);
         const view = inApp(() =>
@@ -593,7 +580,6 @@ describe('useMarketingProjections', () => {
                 adminEndpoint: ADMIN,
                 http: full.http,
                 filter: {
-                    projectKey: 'p',
                     targetType: 'PLAN',
                     targetVersionId: 'v1',
                     locale: 'de',
@@ -603,15 +589,15 @@ describe('useMarketingProjections', () => {
         await view.load();
         assert.equal(
             full.calls[0].url,
-            `${ADMIN}/catalog/marketing-projections?projectKey=p&targetType=PLAN&targetVersionId=v1&locale=de`,
+            `${ADMIN}/catalog/marketing-projections?targetType=PLAN&targetVersionId=v1&locale=de`,
         );
     });
 
     test('setFilter() replaces the filter and reloads with it', async () => {
         const { http, calls } = httpQueue([{ body: [] }]);
         const view = inApp(() => useMarketingProjections(options(http)));
-        await view.setFilter({ projectKey: 'p', locale: 'en' });
-        assert.deepEqual(view.filter.value, { projectKey: 'p', locale: 'en' });
+        await view.setFilter({ locale: 'en' });
+        assert.deepEqual(view.filter.value, { locale: 'en' });
         assert.match(calls[0].url, /locale=en/);
     });
 

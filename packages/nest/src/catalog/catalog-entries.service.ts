@@ -170,26 +170,20 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         }
     }
 
-    listCapabilities(
-        projectKey: string,
-        codeStatus?: string,
-    ): Promise<CapabilityCatalogEntryRow[]> {
+    listCapabilities(codeStatus?: string): Promise<CapabilityCatalogEntryRow[]> {
         return this.repo.listCapabilities({
-            projectKey,
             codeStatus: codeStatus as CapabilityCodeStatus | undefined,
         });
     }
 
-    listFeatures(projectKey: string, discoveryStatus?: string): Promise<FeatureCatalogEntryRow[]> {
+    listFeatures(discoveryStatus?: string): Promise<FeatureCatalogEntryRow[]> {
         return this.repo.listFeatures({
-            projectKey,
             discoveryStatus: discoveryStatus as DiscoveryStatus | undefined,
         });
     }
 
-    listQuotas(projectKey: string, discoveryStatus?: string): Promise<QuotaCatalogEntryRow[]> {
+    listQuotas(discoveryStatus?: string): Promise<QuotaCatalogEntryRow[]> {
         return this.repo.listQuotas({
-            projectKey,
             discoveryStatus: discoveryStatus as DiscoveryStatus | undefined,
         });
     }
@@ -201,21 +195,19 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
      * `obsolete` keep the last approval as history.
      */
     async reviewFeature(
-        projectKey: string,
         featureKey: string,
         data: ReviewCatalogEntryData,
         reviewedBy: string | null,
     ): Promise<FeatureCatalogEntryRow> {
-        const existing = await this.repo.findFeature(projectKey, featureKey);
+        const existing = await this.repo.findFeature(featureKey);
         if (!existing) {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.FEATURE_NOT_FOUND,
-                message: `Feature '${featureKey}' not found in project '${projectKey}'`,
-                params: { featureKey, projectKey },
+                message: `Feature '${featureKey}' not found`,
+                params: { featureKey },
             });
         }
         return this.repo.setFeatureReview(
-            projectKey,
             featureKey,
             this.resolveReviewUpdate(existing, data.discoveryStatus, reviewedBy, (snapshot) =>
                 featureApprovalSignature(featureKey, snapshot),
@@ -225,21 +217,19 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
 
     /** Approval transition of a quota — same state machine as features (#20). */
     async reviewQuota(
-        projectKey: string,
         quotaKey: string,
         data: ReviewCatalogEntryData,
         reviewedBy: string | null,
     ): Promise<QuotaCatalogEntryRow> {
-        const existing = await this.repo.findQuota(projectKey, quotaKey);
+        const existing = await this.repo.findQuota(quotaKey);
         if (!existing) {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.QUOTA_NOT_FOUND,
-                message: `Quota '${quotaKey}' not found in project '${projectKey}'`,
-                params: { quotaKey, projectKey },
+                message: `Quota '${quotaKey}' not found`,
+                params: { quotaKey },
             });
         }
         return this.repo.setQuotaReview(
-            projectKey,
             quotaKey,
             this.resolveReviewUpdate(existing, data.discoveryStatus, reviewedBy, (snapshot) => {
                 const discovered = snapshot.quotas.find((q) => q.quotaKey === quotaKey);
@@ -298,38 +288,28 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         };
     }
 
-    setFeatureI18n(
-        projectKey: string,
-        featureKey: string,
-        i18n: CatalogEntryI18n,
-    ): Promise<FeatureCatalogEntryRow> {
-        return this.repo.setFeatureI18n(projectKey, featureKey, i18n);
+    setFeatureI18n(featureKey: string, i18n: CatalogEntryI18n): Promise<FeatureCatalogEntryRow> {
+        return this.repo.setFeatureI18n(featureKey, i18n);
     }
 
-    setQuotaI18n(
-        projectKey: string,
-        quotaKey: string,
-        i18n: CatalogEntryI18n,
-    ): Promise<QuotaCatalogEntryRow> {
-        return this.repo.setQuotaI18n(projectKey, quotaKey, i18n);
+    setQuotaI18n(quotaKey: string, i18n: CatalogEntryI18n): Promise<QuotaCatalogEntryRow> {
+        return this.repo.setQuotaI18n(quotaKey, i18n);
     }
 
     /** Sets the editable default-locale label/description of a feature. */
     setFeatureBase(
-        projectKey: string,
         featureKey: string,
         data: UpdateCatalogEntryBaseData,
     ): Promise<FeatureCatalogEntryRow> {
-        return this.repo.setFeatureBase(projectKey, featureKey, data);
+        return this.repo.setFeatureBase(featureKey, data);
     }
 
     /** Sets the editable default-locale label/description of a quota. */
     setQuotaBase(
-        projectKey: string,
         quotaKey: string,
         data: UpdateCatalogEntryBaseData,
     ): Promise<QuotaCatalogEntryRow> {
-        return this.repo.setQuotaBase(projectKey, quotaKey, data);
+        return this.repo.setQuotaBase(quotaKey, data);
     }
 
     /**
@@ -337,11 +317,10 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
      * Idempotent — can run against the same snapshot any number of times.
      */
     async syncFromSnapshot(snapshot: DiscoverySnapshot): Promise<SyncDiscoveryResult> {
-        const projectKey = snapshot.app.key;
         const nowIso = new Date().toISOString();
 
         // ─── Capabilities (read-only code facts, #20) ───
-        const existingCaps = await this.repo.listCapabilities({ projectKey });
+        const existingCaps = await this.repo.listCapabilities({});
         const capByKey = new Map(existingCaps.map((c) => [c.capabilityKey, c]));
         const presentCaps: string[] = [];
         let capDiscovered = 0;
@@ -351,7 +330,6 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
             const existing = capByKey.get(cap.capabilityKey);
             if (!existing || existing.codeStatus === 'retired') capDiscovered++;
             await this.repo.upsertCapability({
-                projectKey,
                 capabilityKey: cap.capabilityKey,
                 label: cap.label ?? cap.capabilityKey,
                 description: existing?.description ?? null,
@@ -369,10 +347,10 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 reason: cap.reason ?? existing?.reason ?? null,
             });
         }
-        const capRetired = await this.repo.retireMissing(projectKey, 'capability', presentCaps);
+        const capRetired = await this.repo.retireMissing('capability', presentCaps);
 
         // ─── Features ───
-        const existingFeatures = await this.repo.listFeatures({ projectKey });
+        const existingFeatures = await this.repo.listFeatures({});
         const featureByKey = new Map(existingFeatures.map((f) => [f.featureKey, f]));
         const presentFeatures: string[] = [];
         let featureDiscovered = 0;
@@ -398,7 +376,6 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
             // SuperAdmin-/already-seeded and wins.
             const hasCuratedLabel = existing != null && existing.label !== feature.featureKey;
             await this.repo.upsertFeature({
-                projectKey,
                 featureKey: feature.featureKey,
                 label: hasCuratedLabel ? existing.label : (meta?.label ?? feature.featureKey),
                 description: existing?.description ?? meta?.description ?? null,
@@ -410,19 +387,12 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
             // Icon is not in the upsertFeature input → separate (partial
             // setFeatureBase), likewise only when the DB has no icon yet.
             if (meta?.icon && !existing?.icon) {
-                await this.repo.setFeatureBase(projectKey, feature.featureKey, {
-                    icon: meta.icon,
-                });
+                await this.repo.setFeatureBase(feature.featureKey, { icon: meta.icon });
             }
         }
-        const featureRetired = await this.repo.retireMissing(
-            projectKey,
-            'feature',
-            presentFeatures,
-        );
+        const featureRetired = await this.repo.retireMissing('feature', presentFeatures);
         const featureReplaced = await this.applySuccessorPointers(
             'feature',
-            projectKey,
             existingFeatures.map((f) => ({ key: f.featureKey, successorKey: f.successorKey })),
             new Set(presentFeatures),
             buildSuccessorIndex(
@@ -434,7 +404,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         );
 
         // ─── Quotas ───
-        const existingQuotas = await this.repo.listQuotas({ projectKey });
+        const existingQuotas = await this.repo.listQuotas({});
         const quotaByKey = new Map(existingQuotas.map((q) => [q.quotaKey, q]));
         const presentQuotas: string[] = [];
         let quotaDiscovered = 0;
@@ -452,7 +422,6 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 quotaOutdated++;
             }
             await this.repo.upsertQuota({
-                projectKey,
                 quotaKey: quota.quotaKey,
                 label: quota.label,
                 description: existing?.description ?? null,
@@ -464,10 +433,9 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 replaces: quota.replaces ?? [],
             });
         }
-        const quotaRetired = await this.repo.retireMissing(projectKey, 'quota', presentQuotas);
+        const quotaRetired = await this.repo.retireMissing('quota', presentQuotas);
         const quotaReplaced = await this.applySuccessorPointers(
             'quota',
-            projectKey,
             existingQuotas.map((q) => ({ key: q.quotaKey, successorKey: q.successorKey })),
             new Set(presentQuotas),
             buildSuccessorIndex(
@@ -511,7 +479,6 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
      */
     private async applySuccessorPointers(
         type: 'feature' | 'quota',
-        projectKey: string,
         existing: readonly { key: string; successorKey: string | null | undefined }[],
         presentKeys: ReadonlySet<string>,
         claimantsByOldKey: ReadonlyMap<string, string[]>,
@@ -551,7 +518,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         }
         let replaced = 0;
         for (const change of changes) {
-            await setSuccessor(projectKey, change.key, change.successorKey);
+            await setSuccessor(change.key, change.successorKey);
             if (change.successorKey !== null) replaced++;
         }
         return replaced;

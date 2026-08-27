@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, asc, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type {
     CatalogEntryI18n,
     DiscoveryStatus,
@@ -26,11 +26,11 @@ const CATALOG_VERSION_FIELDS = { validityWindows: false, endsAt: false } as cons
 export class DrizzlePlanCatalogReadSink implements PlanCatalogReadSink {
     constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient) {}
 
-    async loadSnapshot(projectKey: string): Promise<PlanCatalogReadSnapshot> {
+    async loadSnapshot(): Promise<PlanCatalogReadSnapshot> {
         const planRows = await this.db
             .select()
             .from(plans)
-            .where(and(eq(plans.projectKey, projectKey), isNull(plans.deletedAt)))
+            .where(isNull(plans.deletedAt))
             .orderBy(asc(plans.sortOrder));
         const planKeys = planRows.map((plan) => plan.planKey);
         const liveVersionRows =
@@ -49,12 +49,7 @@ export class DrizzlePlanCatalogReadSink implements PlanCatalogReadSink {
         const featureRows = await this.db
             .select()
             .from(featureCatalogEntries)
-            .where(
-                and(
-                    eq(featureCatalogEntries.projectKey, projectKey),
-                    isNull(featureCatalogEntries.deletedAt),
-                ),
-            )
+            .where(isNull(featureCatalogEntries.deletedAt))
             .orderBy(asc(featureCatalogEntries.sortOrder));
         return {
             plans: (planRows as Array<typeof plans.$inferSelect>).map((row) => toPlanRow(row)),
@@ -73,7 +68,6 @@ function toFeatureCatalogEntryRow(
 ): FeatureCatalogEntryRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         featureKey: row.featureKey,
         label: row.label,
         description: row.description,

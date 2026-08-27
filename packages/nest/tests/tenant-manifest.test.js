@@ -10,7 +10,7 @@ import {
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'app',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     plans: [

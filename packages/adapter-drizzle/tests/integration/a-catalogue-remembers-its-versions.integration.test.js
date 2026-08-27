@@ -15,8 +15,6 @@ import { randomUUID } from 'node:crypto';
 import { DrizzleBundleRepository } from '../../dist/index.js';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
-const PROJECT = 'catalogue-probe';
-
 let pool;
 let db;
 let repository;
@@ -36,7 +34,6 @@ beforeEach(async () => {
 
 const createBundle = (overrides = {}) =>
     repository.create({
-        projectKey: PROJECT,
         bundleKey: `REPORTING_${randomUUID().slice(0, 8)}`,
         label: 'Reporting',
         ...overrides,
@@ -54,7 +51,6 @@ const publish = (versionId, validFrom) =>
 describe('an operator manages a bundle', () => {
     test('a new bundle comes back with its defaults filled in', async () => {
         const bundle = await createBundle();
-        assert.equal(bundle.projectKey, PROJECT);
         assert.equal(bundle.sortOrder, 0);
         assert.deepEqual(bundle.i18n, {});
         assert.equal(bundle.description, null);
@@ -63,13 +59,13 @@ describe('an operator manages a bundle', () => {
 
     test('it is findable by its key as well as its id', async () => {
         const bundle = await createBundle({ bundleKey: 'ANALYTICS' });
-        assert.equal((await repository.findByKey(PROJECT, 'ANALYTICS')).id, bundle.id);
+        assert.equal((await repository.findByKey('ANALYTICS')).id, bundle.id);
         assert.equal((await repository.findById(bundle.id)).bundleKey, 'ANALYTICS');
     });
 
-    test('a key in another project is not this project’s bundle', async () => {
+    test('a key nobody took has no bundle', async () => {
         await createBundle({ bundleKey: 'ANALYTICS' });
-        assert.equal(await repository.findByKey('somebody-else', 'ANALYTICS'), null);
+        assert.equal(await repository.findByKey('NOBODY_TOOK_THIS'), null);
     });
 
     test('an update changes what it names and leaves the rest alone', async () => {
@@ -94,7 +90,7 @@ describe('an operator manages a bundle', () => {
         const retired = await createBundle({ bundleKey: 'RETIRED' });
         await repository.softDelete(retired.id);
 
-        const listed = await repository.list({ projectKey: PROJECT });
+        const listed = await repository.list({});
         assert.deepEqual(
             listed.map((row) => row.id),
             [kept.id],
@@ -107,7 +103,7 @@ describe('an operator manages a bundle', () => {
     test('…and can be listed deliberately', async () => {
         const retired = await createBundle();
         await repository.softDelete(retired.id);
-        const listed = await repository.list({ projectKey: PROJECT, excludeDeleted: false });
+        const listed = await repository.list({ excludeDeleted: false });
         assert.equal(listed.length, 1);
     });
 
@@ -117,15 +113,17 @@ describe('an operator manages a bundle', () => {
         await createBundle({ bundleKey: 'C_FIRST', sortOrder: 0 });
 
         assert.deepEqual(
-            (await repository.list({ projectKey: PROJECT })).map((row) => row.bundleKey),
+            (await repository.list({})).map((row) => row.bundleKey),
             ['C_FIRST', 'B_SECOND', 'A_THIRD'],
         );
     });
 
-    test('another project’s bundles are not in this project’s list', async () => {
-        await createBundle();
-        const listed = await repository.list({ projectKey: 'somebody-else' });
-        assert.deepEqual(listed, []);
+    test('a bundle key cannot be claimed twice', async () => {
+        const bundle = await createBundle();
+        await assert.rejects(
+            createBundle({ bundleKey: bundle.bundleKey, label: 'A second claim' }),
+            'the key names one bundle for the whole installation',
+        );
     });
 });
 
@@ -276,11 +274,7 @@ describe('reading inside a transaction stays on its connection', () => {
         const { pool: single, db: singleDb } = await openDisposableDatabase({ max: 1 });
         try {
             const repo = new DrizzleBundleRepository(singleDb, { validityWindows: true });
-            const bundle = await repo.create({
-                projectKey: PROJECT,
-                bundleKey: 'SOLO',
-                label: 'Solo',
-            });
+            const bundle = await repo.create({ bundleKey: 'SOLO', label: 'Solo' });
             const draft = await repo.createDraft({ bundleId: bundle.id, features: ['A'] });
             await repo.publishDraft(draft.id, {
                 publishedByUserId: null,

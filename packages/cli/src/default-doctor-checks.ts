@@ -46,7 +46,7 @@ export class PlanCatalogDoctorCheck implements DoctorCheck {
             severity: 'ok',
             message: `${plans.length} plan(s), ${this.catalog.features?.length ?? 0} feature(s) loaded.`,
             details: {
-                projectKey: this.catalog.projectKey,
+                app: this.catalog.app.name,
                 planIds: plans.map((p) => p.id),
             },
         };

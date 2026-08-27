@@ -1,5 +1,5 @@
 {
-    "name": "__PROJECT_KEY__-admin",
+    "name": "__APP_KEY__-admin",
     "version": "0.0.1",
     "private": true,
     "type": "module",

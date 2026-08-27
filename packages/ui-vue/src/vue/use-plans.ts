@@ -24,8 +24,6 @@ export interface UsePlansOptions {
      */
     adminEndpoint: string;
     http?: HttpClient;
-    /** Required: projectKey the list is filtered against. */
-    projectKey: string;
     /** With `true`, loads on composable init. Default `false`. */
     autoLoad?: boolean;
 }
@@ -58,7 +56,7 @@ export interface UsePlansResult {
     load: () => Promise<void>;
     /**
      * Loads the platform-wide tenant counters
-     * (`GET /admin/catalog/plans/tenant-counts?projectKey=…`) and writes them
+     * (`GET /admin/catalog/plans/tenant-counts`) and writes them
      * into `tenantCountsByPlanKey`. Best-effort: errors are swallowed
      * (empty map), since the counters are only decorative in the plan overview.
      */
@@ -80,10 +78,6 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             'usePlans: `adminEndpoint` is required (e.g. "/api/admin" or ' + '"/api/v1/admin").',
         );
     }
-    if (!options?.projectKey) {
-        throw new Error('usePlans: `projectKey` is required.');
-    }
-
     const http = options.http ?? defaultHttpClient();
     const plans = ref<PlanRow[]>([]);
     const loading = ref(false);
@@ -132,9 +126,7 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
         loading.value = true;
         error.value = null;
         try {
-            const data = await fetchJson<PlanRow[]>(
-                `${baseUrl}?projectKey=${encodeURIComponent(options.projectKey)}`,
-            );
+            const data = await fetchJson<PlanRow[]>(baseUrl);
             plans.value = data ?? [];
         } catch (err) {
             error.value = err instanceof Error ? err : new Error(String(err));
@@ -145,9 +137,7 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
 
     async function loadTenantCounts(): Promise<void> {
         try {
-            const data = await fetchJson<Record<string, number>>(
-                `${baseUrl}/tenant-counts?projectKey=${encodeURIComponent(options.projectKey)}`,
-            );
+            const data = await fetchJson<Record<string, number>>(`${baseUrl}/tenant-counts`);
             tenantCountsByPlanKey.value = data ?? {};
         } catch {
             // Best-effort: counters are decorative — do not block plan loading.

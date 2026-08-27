@@ -10,15 +10,13 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-    auditResource,
     createResourceRegistry,
     planVersionsResource,
     plansResource,
     platformResources,
-    tenantsResource,
 } from '../dist/index.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 function recordingHttp(body = []) {
     const calls = [];
@@ -62,101 +60,33 @@ describe('createResourceRegistry — the http requirement', () => {
     });
 });
 
-describe('createResourceRegistry — the project a catalogue belongs to', () => {
-    // An empty `projectKey` is the one misconfiguration nothing downstream
-    // catches: `?projectKey=` is a valid request, and an admin API that filters
-    // on it answers for no project at all — an empty catalogue that looks like
-    // an empty catalogue. `usePlans` has refused it at construction from the
-    // start; the registry path had lost the check.
-    const NO_PROJECT = { apiBase: '/api/v1/admin', locale: 'en' };
+describe('createResourceRegistry — a registry without a project to name', () => {
+    // The predecessor of this block guarded a per-project key: an empty one
+    // was the one misconfiguration nothing downstream caught, because an empty
+    // filter value is a valid request that an admin API answers for nothing at
+    // all. The key is gone, so the refusal is gone with it — what remains is
+    // that a registry built from a bare context works.
+    const BARE = { apiBase: '/api/v1/admin', locale: 'en' };
 
-    test('refuses to build a project-scoped resource without a project', () => {
-        const { http } = recordingHttp();
-        assert.throws(
-            () =>
-                createResourceRegistry({
-                    http,
-                    context: { ...CTX, projectKey: '' },
-                    resources: platformResources,
-                }),
-            (err) => {
-                assert.match(err.message, /Resource "plans" is project-scoped/);
-                // The message has to name the option the app actually sets.
-                assert.match(err.message, /endpoints\.projectKey/);
-                assert.match(err.message, /context\.projectKey/);
-                return true;
-            },
-        );
-    });
-
-    test('an absent key is the same mistake as an empty one, and so is a blank', () => {
-        const { http } = recordingHttp();
-        for (const context of [NO_PROJECT, { ...CTX, projectKey: '   ' }]) {
-            assert.throws(
-                () => createResourceRegistry({ http, context, resources: platformResources }),
-                /is project-scoped/,
-            );
-        }
-    });
-
-    test('a context getter is asked once at boot, not left until the first click', () => {
-        const { http } = recordingHttp();
-        let asked = 0;
-        assert.throws(
-            () =>
-                createResourceRegistry({
-                    http,
-                    context: () => {
-                        asked += 1;
-                        return NO_PROJECT;
-                    },
-                    resources: { plans: plansResource },
-                }),
-            /is project-scoped/,
-        );
-        assert.equal(asked, 1);
-    });
-
-    test('the resources that never send a project are built without one', () => {
-        // The reason the check reads the descriptor instead of being made once
-        // for the registry: an admin that lists tenants and reads the audit
-        // trail administers no catalogue, and refusing it would be wrong.
+    test('every platform resource builds from apiBase and locale alone', () => {
         const { http } = recordingHttp();
         const registry = createResourceRegistry({
             http,
-            context: NO_PROJECT,
-            resources: {
-                tenants: tenantsResource,
-                audit: auditResource,
-                planVersions: planVersionsResource,
-            },
+            context: BARE,
+            resources: platformResources,
         });
-        assert.deepEqual(registry.keys(), ['tenants', 'audit', 'planVersions']);
+        assert.ok(registry.keys().includes('plans'));
     });
 
-    test('an app that names its project is unaffected', async () => {
+    test('and the plan list it hands out addresses the catalogue', async () => {
         const { http, calls } = recordingHttp();
         const registry = createResourceRegistry({
             http,
-            context: CTX,
+            context: BARE,
             resources: platformResources,
         });
         await registry.get('plans').list();
-        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans?projectKey=demo');
-    });
-
-    test('a context override may be where the project comes from', async () => {
-        // The check sees the context the operations will see, overrides merged
-        // — so an app that scopes one resource elsewhere is not caught out.
-        const { http, calls } = recordingHttp();
-        const registry = createResourceRegistry({
-            http,
-            context: NO_PROJECT,
-            resources: { plans: plansResource },
-            overrides: { plans: { context: { projectKey: 'from-override' } } },
-        });
-        await registry.get('plans').list();
-        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans?projectKey=from-override');
+        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans');
     });
 });
 
@@ -164,7 +94,7 @@ describe('createResourceRegistry — reaching a resource', () => {
     test('hands out the operations of the resource asked for', async () => {
         const { http, calls } = recordingHttp();
         await registryWith(http).get('plans').list();
-        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans?projectKey=demo');
+        assert.equal(calls[0].url, '/api/v1/admin/catalog/plans');
     });
 
     test('an unknown key fails by name, listing what there is', () => {
@@ -192,17 +122,17 @@ describe('createResourceRegistry — reaching a resource', () => {
 
     test('a context getter is read per call', async () => {
         const { http, calls } = recordingHttp();
-        let projectKey = 'first';
+        let apiBase = '/api/first/admin';
         const registry = createResourceRegistry({
             http,
-            context: () => ({ ...CTX, projectKey }),
+            context: () => ({ ...CTX, apiBase }),
             resources: { plans: plansResource },
         });
         await registry.get('plans').list();
-        projectKey = 'second';
+        apiBase = '/api/second/admin';
         await registry.get('plans').list();
-        assert.match(calls[0].url, /projectKey=first$/);
-        assert.match(calls[1].url, /projectKey=second$/);
+        assert.equal(calls[0].url, '/api/first/admin/catalog/plans');
+        assert.equal(calls[1].url, '/api/second/admin/catalog/plans');
     });
 });
 
@@ -214,7 +144,7 @@ describe('createResourceRegistry — overrides', () => {
         });
         await registry.get('plans').list();
         await registry.get('planVersions').listForPlan('p1');
-        assert.equal(calls[0].url, '/api/legacy/admin/catalog/plans?projectKey=demo');
+        assert.equal(calls[0].url, '/api/legacy/admin/catalog/plans');
         assert.equal(calls[1].url, '/api/v1/admin/catalog/plans/p1/versions');
     });
 

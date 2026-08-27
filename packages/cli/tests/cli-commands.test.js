@@ -88,8 +88,8 @@ describe('the help text', () => {
     });
 
     test('and every `init` example it prints actually runs', async () => {
-        // The example was `--project-key=x`, one character, which the catalogue
-        // schema refuses. Then it was `--project-key=myapp` with no `--quota`,
+        // The example was `--app-key=x`, one character, which the catalogue
+        // schema refuses. Then it was `--app-key=myapp` with no `--quota`,
         // which writes `quotas: {}` — also refused, and only at first boot.
         // Extracting the key and testing that alone missed the second one, so
         // this runs the whole line the help shows.
@@ -289,16 +289,13 @@ describe('schema migrate', () => {
 describe('init', () => {
     test('scaffolds the wiring, patches the module, and names the next steps', async () => {
         const root = await project('init-ok');
-        const { stdout, code } = await cli(
-            ['init', '--project-key=notesapp', '--quota=notes:Note'],
-            {
-                cwd: root,
-            },
-        );
+        const { stdout, code } = await cli(['init', '--app-key=notesapp', '--quota=notes:Note'], {
+            cwd: root,
+        });
 
         assert.equal(code, 0, stdout);
         const config = await readFile(join(root, 'config', 'saas.yaml'), 'utf8');
-        assert.match(config, /projectKey: notesapp/);
+        assert.match(config, /name: Notesapp/);
 
         const appModule = await readFile(join(root, 'src', 'app.module.ts'), 'utf8');
         assert.match(appModule, /SaaSiCatModule\.forRoot/);
@@ -313,9 +310,9 @@ describe('init', () => {
 
     test('refuses to overwrite what is already there', async () => {
         const root = await project('init-twice');
-        await cli(['init', '--project-key=notesapp', '--quota=notes:Note'], { cwd: root });
+        await cli(['init', '--app-key=notesapp', '--quota=notes:Note'], { cwd: root });
         const { stdout, stderr, code } = await cli(
-            ['init', '--project-key=notesapp', '--quota=notes:Note'],
+            ['init', '--app-key=notesapp', '--quota=notes:Note'],
             { cwd: root },
         );
         assert.notEqual(code, 0, 'the second run overwrote the first');
@@ -332,10 +329,9 @@ describe('init', () => {
             '{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node" } }\n',
             'utf8',
         );
-        const { stderr, code } = await cli(
-            ['init', '--project-key=notesapp', '--quota=notes:Note'],
-            { cwd: root },
-        );
+        const { stderr, code } = await cli(['init', '--app-key=notesapp', '--quota=notes:Note'], {
+            cwd: root,
+        });
         assert.equal(code, 1);
         assert.match(stderr, /moduleResolution/);
         assert.match(stderr, /nodenext/);
@@ -358,10 +354,9 @@ describe('init', () => {
             '{ "extends": "./tsconfig.base.json", "compilerOptions": { "strict": true } }\n',
             'utf8',
         );
-        const { stderr, code } = await cli(
-            ['init', '--project-key=notesapp', '--quota=notes:Note'],
-            { cwd: root },
-        );
+        const { stderr, code } = await cli(['init', '--app-key=notesapp', '--quota=notes:Note'], {
+            cwd: root,
+        });
         assert.equal(code, 1);
         assert.match(stderr, /moduleResolution/);
         await assert.rejects(
@@ -370,25 +365,25 @@ describe('init', () => {
         );
     });
 
-    test('a key the platform would refuse is refused here, before any write', async () => {
+    test('a key the generated files would refuse is refused here, before any write', async () => {
         const root = await project('init-bad-key');
-        const { stderr, code } = await cli(['init', '--project-key=NotesApp'], { cwd: root });
+        const { stderr, code } = await cli(['init', '--app-key=NotesApp'], { cwd: root });
 
         assert.equal(code, 1);
-        assert.match(stderr, /not a valid project key/);
+        assert.match(stderr, /not a valid app key/);
         await assert.rejects(readFile(join(root, 'config', 'saas.yaml'), 'utf8'));
     });
 
     test('without a key it says which flag is missing', async () => {
         const { stderr, code } = await cli(['init'], { cwd: dir });
         assert.equal(code, 1);
-        assert.match(stderr, /--project-key/);
+        assert.match(stderr, /--app-key/);
     });
 
     test('--dry-run lists the files and writes none of them', async () => {
         const root = await project('init-dry');
         const { stdout, code } = await cli(
-            ['init', '--project-key=notesapp', '--quota=notes:Note', '--dry-run'],
+            ['init', '--app-key=notesapp', '--quota=notes:Note', '--dry-run'],
             {
                 cwd: root,
             },

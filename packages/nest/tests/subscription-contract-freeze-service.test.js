@@ -8,7 +8,7 @@ import { SubscriptionContractFreezeService } from '../dist/billing/index.js';
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demo',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     plans: [
@@ -62,13 +62,7 @@ function makeService({
             return bundles;
         },
     };
-    const service = new SubscriptionContractFreezeService(
-        CATALOG,
-        entitlements,
-        contracts,
-        'demo',
-        source,
-    );
+    const service = new SubscriptionContractFreezeService(CATALOG, entitlements, contracts, source);
     return { calls, service };
 }
 
@@ -83,7 +77,6 @@ test('freezes plan as active contract with snapshot + plan line item', async () 
 
     assert.equal(calls.created.length, 1);
     const contract = calls.created[0];
-    assert.equal(contract.projectKey, 'demo');
     assert.equal(contract.tenantId, 't1');
     assert.equal(contract.status, 'active');
     assert.equal(contract.originalPlanVersionId, 'pv-standard-3');

@@ -165,7 +165,6 @@ model AuditLog {
 
 model CapabilityCatalogEntry {
     id            String  @id @default(uuid())
-    projectKey    String // e.g. 'clubapp' | 'demoapp' | …
     capabilityKey String // 'invoice.create' | 'member.archive' | …
     label         String
     description   String?
@@ -200,9 +199,9 @@ model CapabilityCatalogEntry {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, capabilityKey])
-    @@index([projectKey, codeStatus])
-    @@index([projectKey, featureKey])
+    @@unique([capabilityKey])
+    @@index([codeStatus])
+    @@index([featureKey])
     @@map("capability_catalog_entries")
 }
 
@@ -223,7 +222,6 @@ model CapabilityCatalogEntry {
 
 model FeatureCatalogEntry {
     id          String  @id @default(uuid())
-    projectKey  String
     featureKey  String // 'INVOICE_MANAGEMENT' | 'MEMBER_LIST' | …
     label       String
     description String?
@@ -271,9 +269,9 @@ model FeatureCatalogEntry {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, featureKey])
-    @@index([projectKey, discoveryStatus])
-    @@index([projectKey, plannedOnly])
+    @@unique([featureKey])
+    @@index([discoveryStatus])
+    @@index([plannedOnly])
     @@map("feature_catalog_entries")
 }
 
@@ -287,7 +285,6 @@ model FeatureCatalogEntry {
 
 model QuotaCatalogEntry {
     id          String  @id @default(uuid())
-    projectKey  String
     quotaKey    String // 'invoicesPerMonth' | 'members' | 'storageGb' | …
     label       String
     description String?
@@ -323,8 +320,8 @@ model QuotaCatalogEntry {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, quotaKey])
-    @@index([projectKey, discoveryStatus])
+    @@unique([quotaKey])
+    @@index([discoveryStatus])
     @@map("quota_catalog_entries")
 }
 
@@ -346,8 +343,7 @@ model QuotaCatalogEntry {
 // -----------------------------------------------------------------------------
 
 model MarketingProjection {
-    id         String @id @default(uuid())
-    projectKey String
+    id String @id @default(uuid())
 
     // Polymorphic reference to a versioned entity.
     targetType      String // 'PLAN' | 'BUNDLE'
@@ -391,21 +387,20 @@ model MarketingProjection {
     updatedAt DateTime @updatedAt
 
     @@unique([targetType, targetVersionId, locale])
-    @@index([projectKey, targetType, locale, priority])
+    @@index([targetType, locale, priority])
     @@map("marketing_projections")
 }
 
 // -----------------------------------------------------------------------------
-// MarketingSettings — project-wide, runtime-editable marketing config.
-// One row per project (`projectKey` unique). Currently exactly one field:
+// MarketingSettings — installation-wide, runtime-editable marketing config.
+// At most one row, enforced by a constant primary key. Currently one field:
 // `activeLocales` — the subset of the `availableLocales` pool activated in the
 // marketing catalog (the pool comes from the app config, SPEC_V2 §6.5).
 // If the row is missing, the full pool counts as active.
 // -----------------------------------------------------------------------------
 
 model MarketingSettings {
-    id         String @id @default(uuid())
-    projectKey String @unique
+    id String @id @default("marketing-settings")
 
     activeLocales Json @default("[]") // string[]
 
@@ -647,8 +642,7 @@ model SubscriptionPaymentMethod {
 // -----------------------------------------------------------------------------
 
 model CheckoutOffer {
-    id         String @id @default(uuid())
-    projectKey String
+    id String @id @default(uuid())
 
     planKey       String
     planVersionId String?
@@ -673,7 +667,7 @@ model CheckoutOffer {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@index([projectKey, status])
+    @@index([status])
     @@map("checkout_offers")
 }
 
@@ -845,7 +839,7 @@ model PromoCodeValidationLog {
 // -----------------------------------------------------------------------------
 // Plan — root identity of a plan (SPEC_V2 §11.1 M6).
 // `planKey` is the business plan identity (STARTER / STANDARD / PROFESSIONAL),
-// unique per `projectKey`. PlanVersion.planId points **softly** to
+// unique for the installation. PlanVersion.planId points **softly** to
 // `Plan.planKey` (no DB FK — the binding is enforced via service logic in M6
 // so that the greenfield cutover can run without a destructive schema
 // migration).
@@ -857,7 +851,6 @@ model PromoCodeValidationLog {
 
 model Plan {
     id          String  @id @default(uuid())
-    projectKey  String
     planKey     String
     label       String
     description String?
@@ -868,8 +861,8 @@ model Plan {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, planKey])
-    @@index([projectKey, deletedAt])
+    @@unique([planKey])
+    @@index([deletedAt])
     @@map("plans")
 }
 
@@ -933,8 +926,8 @@ model PlanVersion {
 //
 // Global catalog tables (no tenantId, no RLS). Write access only via the
 // SUPER_ADMIN guard in the AdminController of the `@saasicat/nest`
-// package. Entries are assigned to the respective consumer app via
-// `projectKey`.
+// package. One installation serves one application, so `bundleKey` is the
+// whole identity.
 //
 // Versioning pattern identical to PlanVersion:
 //   - at most 1 draft (publishedAt IS NULL) per identity — constraint via a
@@ -952,7 +945,6 @@ model PlanVersion {
 
 model Bundle {
     id          String   @id @default(uuid())
-    projectKey  String // e.g. 'clubapp' | 'demoapp' | …
     bundleKey   String // SCREAMING_SNAKE_CASE, e.g. 'SPORT', 'ACCOUNTING', 'EVERSEND_PEPPOL'
     label       String
     description String?
@@ -968,8 +960,8 @@ model Bundle {
 
     versions BundleVersion[]
 
-    @@unique([projectKey, bundleKey])
-    @@index([projectKey, deletedAt])
+    @@unique([bundleKey])
+    @@index([deletedAt])
     @@map("bundles")
 }
 
@@ -1044,8 +1036,7 @@ model BundleVersion {
 // via the SUPER_ADMIN guard in the AdminController.
 
 model Promotion {
-    id         String @id @default(uuid())
-    projectKey String // e.g. 'clubapp' | 'demoapp' | …
+    id String @id @default(uuid())
 
     // Internal label (not public).
     internalLabel String
@@ -1090,7 +1081,7 @@ model Promotion {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@index([projectKey, targetType, validFrom, validTo])
+    @@index([targetType, validFrom, validTo])
     @@map("promotions")
 }
 
@@ -1121,9 +1112,8 @@ enum ContractLineItemKind {
 }
 
 model SubscriptionContract {
-    id         String @id @default(uuid())
-    projectKey String
-    tenantId   String
+    id       String @id @default(uuid())
+    tenantId String
 
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
@@ -1150,7 +1140,7 @@ model SubscriptionContract {
     tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
     @@index([tenantId, status, effectiveFrom])
-    @@index([projectKey, status])
+    @@index([status])
     @@index([originalOfferId])
     @@map("subscription_contracts")
 }

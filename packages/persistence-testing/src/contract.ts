@@ -26,7 +26,6 @@ function sleep(ms: number): Promise<void> {
  * ```ts
  * persistenceAdapterContract({
  *     name: 'adapter-prisma @ postgres',
- *     projectKey: 'my-app',
  *     create: () => createPrismaHarness(),
  * });
  * ```
@@ -274,11 +273,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             const plan = await repository.create({
-                projectKey: options.projectKey,
                 planKey: 'STANDARD',
                 label: 'Standard',
             });
-            assert.equal(plan.projectKey, options.projectKey);
+            assert.equal(plan.planKey, 'STANDARD');
             const firstDraft = await repository.createPlanVersionDraft({
                 planId: 'STANDARD',
                 features: ['CORE'],
@@ -346,11 +344,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             const bundle = await repository.create({
-                projectKey: options.projectKey,
                 bundleKey: 'REPORTING',
                 label: 'Reporting',
             });
-            assert.equal(bundle.projectKey, options.projectKey);
+            assert.equal(bundle.bundleKey, 'REPORTING');
             const firstDraft = await repository.createDraft({
                 bundleId: bundle.id,
                 features: ['REPORTS'],
@@ -671,7 +668,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             const bundle = await catalog.create({
-                projectKey: options.projectKey,
                 bundleKey: 'RACE',
                 label: 'Race',
             });
@@ -712,7 +708,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             const bundle = await catalog.create({
-                projectKey: options.projectKey,
                 bundleKey: 'CLAIM',
                 label: 'Claim',
             });
@@ -776,9 +771,67 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             }
         });
 
+        test('a plan key names one plan for the whole installation', async (t) => {
+            // The uniqueness the schema promises, exercised where it is
+            // actually enforced. It used to be scoped to a project, so a second
+            // plan under the same key was legal as long as the projects
+            // differed — and `plan_versions.planId` holds the key alone, which
+            // meant two plans could share one version lineage. The plan key is
+            // now the whole identity, and this is the scenario that says so:
+            // the second `create` is refused, whatever it is called.
+            const repository = harness.adapter.planRepository;
+            if (!repository) {
+                t.skip('adapter provides no PlanRepository');
+                return;
+            }
+            await repository.create({ planKey: 'DOUBLE', label: 'First' });
+            await assert.rejects(
+                () => repository.create({ planKey: 'DOUBLE', label: 'Second' }),
+                'a plan key is taken once',
+            );
+        });
+
+        test('a bundle key names one bundle for the whole installation', async (t) => {
+            const catalog = harness.adapter.bundleRepository;
+            if (!catalog) {
+                t.skip('adapter provides no BundleRepository');
+                return;
+            }
+            await catalog.create({ bundleKey: 'DOUBLE', label: 'First' });
+            await assert.rejects(
+                () => catalog.create({ bundleKey: 'DOUBLE', label: 'Second' }),
+                'a bundle key is taken once',
+            );
+        });
+
+        test('a retired plan still occupies its key', async (t) => {
+            // The same rule as for bundles, and for the same reason: the unique
+            // index is unconditional, so a soft delete does not free the key.
+            // `createPlan`'s duplicate check calls `findByKey`, and an adapter
+            // that hides retired rows turns a 409 into a constraint violation.
+            const repository = harness.adapter.planRepository;
+            const retire = repository?.softDelete?.bind(repository);
+            const byKey = repository?.findByKey?.bind(repository);
+            if (!repository || !retire || !byKey) {
+                t.skip('adapter provides no PlanRepository');
+                return;
+            }
+            const plan = await repository.create({ planKey: 'RETIRED_PLAN', label: 'Retired' });
+            await retire(plan.id);
+
+            const stillThere = await byKey('RETIRED_PLAN');
+            assert.equal(stillThere?.id, plan.id, 'the key is not free again');
+            assert.ok(stillThere?.deletedAt, 'and the row says it is retired');
+            assert.equal(
+                (await repository.list({})).some((row) => row.id === plan.id),
+                false,
+                'a retired plan is not in the catalogue an operator browses',
+            );
+        });
+
         test('a retired bundle still occupies its key', async (t) => {
             // `findByKey` answers the database's question, and
-            // `bundles_projectKey_bundleKey_key` is an unconditional unique
+            // `bundles_bundleKey_key` is an unconditional unique
             // index: retiring a bundle does not free its key. Its one caller is
             // the duplicate check in `createBundle`, so an adapter that hides
             // retired rows lets that check pass and the insert then fail on the
@@ -793,19 +846,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             const bundle = await catalog.create({
-                projectKey: options.projectKey,
                 bundleKey: 'RETIRED_KEY',
                 label: 'Retired',
             });
-            assert.equal((await byKey(options.projectKey, 'RETIRED_KEY'))?.id, bundle.id);
+            assert.equal((await byKey('RETIRED_KEY'))?.id, bundle.id);
 
             await retire(bundle.id);
-            const stillThere = await byKey(options.projectKey, 'RETIRED_KEY');
+            const stillThere = await byKey('RETIRED_KEY');
             assert.equal(stillThere?.id, bundle.id, 'the key is not free again');
             assert.ok(stillThere?.deletedAt, 'and the row says it is retired');
 
             // The active catalogue is the other question, and `list` answers it.
-            const listed = await catalog.list({ projectKey: options.projectKey });
+            const listed = await catalog.list({});
             assert.equal(
                 listed.some((row) => row.id === bundle.id),
                 false,
@@ -1265,7 +1317,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const tenantId = 'tenant-contract-lifecycle';
             const signedAt = new Date('2026-01-01T00:00:00.000Z');
             const created = await contracts.create({
-                projectKey: options.projectKey,
                 tenantId,
                 effectiveFrom: signedAt,
                 priceSnapshot: {
@@ -1454,7 +1505,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 totalGross: gross,
             });
             const first = await contracts.create({
-                projectKey: options.projectKey,
                 tenantId,
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: priceAt(19.9, 23.68),
@@ -1475,7 +1525,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 status: 'superseded',
             });
             const second = await contracts.create({
-                projectKey: options.projectKey,
                 tenantId,
                 effectiveFrom: handover,
                 priceSnapshot: priceAt(24.9, 29.63),

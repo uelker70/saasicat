@@ -37,7 +37,7 @@ import {
     usersResource,
 } from '../dist/index.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 function recordingHttp(body = {}) {
     const calls = [];

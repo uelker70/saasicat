@@ -32,7 +32,7 @@ DefinesQuota({
 
 const PLAN_CATALOG = {
     schemaVersion: 1,
-    projectKey: 'notesapp',
+    app: { name: 'NotesApp' },
     currency: 'EUR',
     vatRate: 19,
     plans: [

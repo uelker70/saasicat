@@ -47,7 +47,6 @@ import {
 } from '../dist/index.js';
 
 const ADMIN_ENDPOINT = '/api/v1/admin';
-const PROJECT_KEY = 'demo app';
 const PLAN_ID = 'plan-1';
 const VERSION_ID = 'version-9';
 
@@ -84,7 +83,7 @@ async function viaComposable(build) {
 /** What the descriptor put on the wire for the same call. */
 async function viaResource(def, op, args) {
     const { http, calls } = recorder();
-    const ctx = { apiBase: ADMIN_ENDPOINT, projectKey: PROJECT_KEY, locale: 'en' };
+    const ctx = { apiBase: ADMIN_ENDPOINT, locale: 'en' };
     await bindResource(def, http, ctx)[op](...args);
     return calls;
 }
@@ -92,7 +91,6 @@ async function viaResource(def, op, args) {
 function plansComposable(http) {
     return usePlans({
         adminEndpoint: ADMIN_ENDPOINT,
-        projectKey: PROJECT_KEY,
         http,
         autoLoad: false,
     });
@@ -127,7 +125,7 @@ const PLAN_CASES = [
         // takes it from the bound context. Same bytes on the wire — that is
         // the point of comparing here rather than asserting a URL twice.
         name: 'create',
-        run: (c) => c.create({ planKey: 'pro', projectKey: PROJECT_KEY }),
+        run: (c) => c.create({ planKey: 'pro' }),
         op: 'create',
         args: [{ planKey: 'pro' }],
     },
@@ -382,7 +380,6 @@ const FAMILIES = [
         build: (http) =>
             useBundles({
                 adminEndpoint: ADMIN_ENDPOINT,
-                projectKey: PROJECT_KEY,
                 http,
                 autoLoad: false,
             }),
@@ -393,7 +390,7 @@ const FAMILIES = [
                 // takes the project from the caller, the descriptor from the
                 // context. Identical bytes, which is what is being checked.
                 op: 'create',
-                run: (c) => c.create({ bundleKey: 'starter', projectKey: PROJECT_KEY }),
+                run: (c) => c.create({ bundleKey: 'starter' }),
                 args: [{ bundleKey: 'starter' }],
             },
             {
@@ -443,7 +440,6 @@ const FAMILIES = [
         build: (http) =>
             useCatalogEntries({
                 adminEndpoint: ADMIN_ENDPOINT,
-                projectKey: PROJECT_KEY,
                 http,
                 autoLoad: false,
             }),
@@ -508,7 +504,7 @@ const FAMILIES = [
         build: (http) =>
             useMarketingProjections({
                 adminEndpoint: ADMIN_ENDPOINT,
-                filter: { projectKey: PROJECT_KEY },
+                filter: {},
                 http,
                 autoLoad: false,
             }),
@@ -536,7 +532,7 @@ const FAMILIES = [
                 args: [],
                 expect: [
                     {
-                        url: `${ADMIN_ENDPOINT}/catalog/marketing-settings?projectKey=demo%20app`,
+                        url: `${ADMIN_ENDPOINT}/catalog/marketing-settings`,
                         method: 'GET',
                         body: undefined,
                     },
@@ -550,7 +546,6 @@ const FAMILIES = [
                         url: `${ADMIN_ENDPOINT}/catalog/marketing-settings`,
                         method: 'PUT',
                         body: JSON.stringify({
-                            projectKey: PROJECT_KEY,
                             activeLocales: ['en', 'de'],
                         }),
                     },
@@ -564,7 +559,6 @@ const FAMILIES = [
         build: (http) =>
             usePromotions({
                 adminEndpoint: ADMIN_ENDPOINT,
-                projectKey: PROJECT_KEY,
                 http,
                 autoLoad: false,
             }),

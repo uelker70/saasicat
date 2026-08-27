@@ -61,12 +61,23 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 
 ### Catalog & versioning
 
-| Entity                                                                                                           | Identity / uniqueness                            | Notes                                                                    |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------ |
-| `Plan` (`plans`)                                                                                                 | `(projectKey, planKey)` unique                   | Stem = identity + UI ordering; soft delete keeps versions billing-valid. |
-| `PlanVersion` (`plan_versions`)                                                                                  | `(planId, version)` unique                       | Versioned sales artifact (features/quotas/prices as snapshot).           |
-| `Bundle`/`BundleVersion`                                                                                         | `(projectKey, bundleKey)`, `(bundleId, version)` | Same lifecycle as plans.                                                 |
-| `CapabilityCatalogEntry`, `FeatureCatalogEntry`, `QuotaCatalogEntry`, `MarketingProjection`, `MarketingSettings` | `(projectKey, key)` unique                       | Discovery/approval projections of code-declared capabilities.            |
+| Entity                                                               | Identity / uniqueness                   | Notes                                                                    |
+| -------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------ |
+| `Plan` (`plans`)                                                     | `planKey` unique                        | Stem = identity + UI ordering; soft delete keeps versions billing-valid. |
+| `PlanVersion` (`plan_versions`)                                      | `(planId, version)` unique              | Versioned sales artifact (features/quotas/prices as snapshot).           |
+| `Bundle`/`BundleVersion`                                             | `bundleKey`, `(bundleId, version)`      | Same lifecycle as plans.                                                 |
+| `CapabilityCatalogEntry`, `FeatureCatalogEntry`, `QuotaCatalogEntry` | its own key, unique                     | Discovery/approval projections of code-declared capabilities.            |
+| `MarketingProjection`                                                | `(targetType, targetVersionId, locale)` | Locale-specific marketing texts for one plan or bundle version.          |
+| `MarketingSettings`                                                  | at most one row                         | The activated locale subset; a constant primary key is what caps it.     |
+
+**One installation, one application.** A plan key, a bundle key, a feature key
+and a quota key are unique for the whole installation — there is no namespace
+above them, and none of the tables carries one. The platform reads the
+application's name from `config/saas.yaml#app.name` and stores it nowhere: it
+labels the manifest and the login page, and it is not part of any row's
+identity. Two applications therefore mean two installations, each with its own
+database — which is what `subscriptions.tenantId`, unique installation-wide,
+has always required anyway.
 
 **Version-lineage invariants** (both versioned families):
 

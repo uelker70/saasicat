@@ -93,11 +93,7 @@ export class DrizzleBundleRepository implements BundleRepository {
         const rows = await this.db
             .select()
             .from(bundles)
-            .where(
-                excludeDeleted
-                    ? and(eq(bundles.projectKey, filter.projectKey), isNull(bundles.deletedAt))
-                    : eq(bundles.projectKey, filter.projectKey),
-            )
+            .where(excludeDeleted ? isNull(bundles.deletedAt) : undefined)
             .orderBy(asc(bundles.sortOrder), asc(bundles.bundleKey));
         return rows.map(toBundleStemRow);
     }
@@ -112,7 +108,7 @@ export class DrizzleBundleRepository implements BundleRepository {
      * bundles**.
      *
      * Its one caller is the duplicate check in `createBundle`, and the question
-     * it asks is the database's: `bundles_projectKey_bundleKey_key` is an
+     * it asks is the database's: `bundles_bundleKey_key` is an
      * unconditional unique index, so a soft-deleted bundle still occupies its
      * key. Excluding retired rows here makes the check pass and the insert then
      * fail on the constraint — a 500 where the service had
@@ -122,11 +118,11 @@ export class DrizzleBundleRepository implements BundleRepository {
      * finally settled it: there is no caller that wants the active-catalogue
      * reading. `list` is that lookup, and it excludes retired rows by default.
      */
-    async findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null> {
+    async findByKey(bundleKey: string): Promise<BundleRow | null> {
         const rows = await this.db
             .select()
             .from(bundles)
-            .where(and(eq(bundles.projectKey, projectKey), eq(bundles.bundleKey, bundleKey)))
+            .where(eq(bundles.bundleKey, bundleKey))
             .limit(1);
         return rows[0] ? toBundleStemRow(rows[0]) : null;
     }

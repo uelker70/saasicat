@@ -192,11 +192,7 @@ function createHarness() {
             },
             async createBundleVersion(input) {
                 const bundle = await prisma.bundle.create({
-                    data: {
-                        projectKey: PROJECT_KEY,
-                        bundleKey: input.bundleKey,
-                        label: input.bundleKey,
-                    },
+                    data: { bundleKey: input.bundleKey, label: input.bundleKey },
                 });
                 const row = await prisma.bundleVersion.create({
                     data: {
@@ -241,11 +237,8 @@ function createHarness() {
     };
 }
 
-const PROJECT_KEY = 'adapter-prisma-contract';
-
 persistenceAdapterContract({
     name: 'adapter-prisma @ postgres (canonical fragments schema)',
-    projectKey: PROJECT_KEY,
     create: async () => createHarness(),
 });
 

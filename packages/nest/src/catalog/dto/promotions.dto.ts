@@ -20,24 +20,12 @@ import type {
     PromotionValue,
 } from '@saasicat/core';
 
-const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}/;
 const TYPES = ['percent', 'amount', 'intro', 'freeMonths'] as const;
 const CYCLES = ['monthly', 'yearly', 'both'] as const;
 const TARGET_TYPES = ['PLAN', 'BUNDLE', 'OFFER'] as const;
 
-export class ListPromotionsQueryDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey must be kebab-case' })
-    projectKey!: string;
-}
-
 export class CreatePromotionDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN)
-    @MaxLength(64)
-    projectKey!: string;
-
     @IsString()
     @MaxLength(120)
     internalLabel!: string;

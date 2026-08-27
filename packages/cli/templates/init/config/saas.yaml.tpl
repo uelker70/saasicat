@@ -1,5 +1,4 @@
 schemaVersion: 1
-projectKey: __PROJECT_KEY__
 
 app:
     name: __APP_LABEL__

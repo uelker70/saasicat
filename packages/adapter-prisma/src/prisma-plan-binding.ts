@@ -10,15 +10,9 @@ import type { PrismaModelDelegateLike } from './prisma-client-token.js';
  */
 export type PrismaPlanBindingMode = 'legacy-plan-key' | 'normalized-plan-id';
 
-export type PrismaPlanBindingOptions =
-    | {
-          mode?: 'legacy-plan-key';
-          projectKey?: string;
-      }
-    | {
-          mode: 'normalized-plan-id';
-          projectKey: string;
-      };
+export interface PrismaPlanBindingOptions {
+    mode?: PrismaPlanBindingMode;
+}
 
 /**
  * Prisma delegate names used by the two independent plan-version slices.
@@ -77,7 +71,6 @@ export interface PrismaSchemaOptions {
 export interface ResolvedPrismaSchemaOptions {
     planBinding: {
         mode: PrismaPlanBindingMode;
-        projectKey?: string;
     };
     delegates: {
         catalogPlanVersion: string;
@@ -100,7 +93,6 @@ export const PRISMA_SCHEMA_OPTIONS_TOKEN = Symbol.for(
 
 interface PlanIdentityRow {
     id: string;
-    projectKey: string;
     planKey: string;
 }
 
@@ -110,9 +102,8 @@ interface PlanIdentityClient {
 
 export interface PrismaPlanBindingResolver {
     readonly mode: PrismaPlanBindingMode;
-    readonly projectKey?: string;
-    toStoragePlanId(client: unknown, planKey: string, projectKey?: string): Promise<string>;
-    toPlanKey(client: unknown, storedPlanId: string, projectKey?: string): Promise<string>;
+    toStoragePlanId(client: unknown, planKey: string): Promise<string>;
+    toPlanKey(client: unknown, storedPlanId: string): Promise<string>;
 }
 
 const DEFAULT_SCHEMA_OPTIONS: ResolvedPrismaSchemaOptions = {
@@ -139,21 +130,12 @@ export function resolvePrismaSchemaOptions(
     options?: PrismaSchemaOptions,
 ): ResolvedPrismaSchemaOptions {
     const mode = options?.planBinding?.mode ?? 'legacy-plan-key';
-    const projectKey = options?.planBinding?.projectKey;
-    if (mode === 'normalized-plan-id' && !projectKey?.trim()) {
-        throw new Error(
-            "Prisma plan binding mode 'normalized-plan-id' requires a non-empty projectKey.",
-        );
-    }
     const sharedFields = options?.planVersionFields;
     const catalogFields = sharedFields?.catalog;
     const entitlementFields = sharedFields?.entitlement;
 
     return {
-        planBinding: {
-            mode,
-            ...(projectKey ? { projectKey } : {}),
-        },
+        planBinding: { mode },
         delegates: {
             catalogPlanVersion:
                 options?.delegates?.catalogPlanVersion ??
@@ -204,30 +186,27 @@ export function createPrismaPlanBindingResolver(
 
     return {
         mode: resolved.mode,
-        projectKey: resolved.projectKey,
 
-        async toStoragePlanId(client, planKey, projectKey) {
+        async toStoragePlanId(client, planKey) {
             if (resolved.mode === 'legacy-plan-key') return planKey;
 
-            const scope = resolveProjectKey(resolved.projectKey, projectKey);
             const plan = await asPlanIdentityClient(client).plan.findFirst({
-                where: { projectKey: scope, planKey, deletedAt: null },
+                where: { planKey, deletedAt: null },
             });
             if (!plan) {
-                throw new Error(`Plan '${planKey}' not found in project '${scope}'.`);
+                throw new Error(`Plan '${planKey}' not found.`);
             }
             return plan.id;
         },
 
-        async toPlanKey(client, storedPlanId, projectKey) {
+        async toPlanKey(client, storedPlanId) {
             if (resolved.mode === 'legacy-plan-key') return storedPlanId;
 
-            const scope = resolveProjectKey(resolved.projectKey, projectKey);
             const plan = await asPlanIdentityClient(client).plan.findUnique({
                 where: { id: storedPlanId },
             });
-            if (!plan || plan.projectKey !== scope) {
-                throw new Error(`Plan id '${storedPlanId}' not found in project '${scope}'.`);
+            if (!plan) {
+                throw new Error(`Plan id '${storedPlanId}' not found.`);
             }
             return plan.planKey;
         },
@@ -248,19 +227,6 @@ export function getPrismaDelegate<Row>(
         );
     }
     return delegate as PrismaModelDelegateLike<Row>;
-}
-
-function resolveProjectKey(configured?: string, requested?: string): string {
-    const projectKey = requested ?? configured;
-    if (!projectKey) {
-        throw new Error("Prisma plan binding mode 'normalized-plan-id' requires a projectKey.");
-    }
-    if (configured && requested && configured !== requested) {
-        throw new Error(
-            `Prisma plan binding is configured for project '${configured}', not '${requested}'.`,
-        );
-    }
-    return projectKey;
 }
 
 function asPlanIdentityClient(client: unknown): PlanIdentityClient {

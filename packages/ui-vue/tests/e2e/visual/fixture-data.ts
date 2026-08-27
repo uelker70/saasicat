@@ -122,7 +122,6 @@ const BOOT = {
 export const FIXTURE_BUNDLES: BundleRow[] = [
     {
         id: 'b-1',
-        projectKey: 'fixture',
         bundleKey: 'STARTER_PACK',
         label: 'Starter Pack',
         description: 'Everything a small team needs to get going.',
@@ -230,7 +229,6 @@ const FEATURE_APPROVED_AT = '2026-01-20T09:00:00.000Z';
 export const FIXTURE_CATALOG_CAPABILITIES: CapabilityCatalogEntryRow[] = [
     {
         id: 'cap-1',
-        projectKey: 'fixture',
         capabilityKey: 'notes.export.pdf',
         label: 'Export as PDF',
         description: null,
@@ -253,7 +251,6 @@ export const FIXTURE_CATALOG_CAPABILITIES: CapabilityCatalogEntryRow[] = [
     },
     {
         id: 'cap-2',
-        projectKey: 'fixture',
         capabilityKey: 'notes.export.csv',
         label: 'Export as CSV',
         description: null,
@@ -274,7 +271,6 @@ export const FIXTURE_CATALOG_CAPABILITIES: CapabilityCatalogEntryRow[] = [
     },
     {
         id: 'cap-3',
-        projectKey: 'fixture',
         capabilityKey: 'notes.share.link',
         label: 'Share via link',
         description: null,
@@ -295,7 +291,6 @@ export const FIXTURE_CATALOG_CAPABILITIES: CapabilityCatalogEntryRow[] = [
     },
     {
         id: 'cap-4',
-        projectKey: 'fixture',
         capabilityKey: 'team.roles.assign',
         label: 'Assign a role',
         description: null,
@@ -318,7 +313,6 @@ export const FIXTURE_CATALOG_CAPABILITIES: CapabilityCatalogEntryRow[] = [
         // No `featureKey` — the page's orphan bucket, and the only thing that
         // makes its section and its hint paragraph exist.
         id: 'cap-5',
-        projectKey: 'fixture',
         capabilityKey: 'legacy.import',
         label: 'Import from the legacy store',
         description: null,
@@ -342,7 +336,6 @@ export const FIXTURE_CATALOG_CAPABILITIES: CapabilityCatalogEntryRow[] = [
 export const FIXTURE_CATALOG_FEATURES: FeatureCatalogEntryRow[] = [
     {
         id: 'fce-1',
-        projectKey: 'fixture',
         featureKey: 'notes.export',
         label: 'Notizen exportieren',
         description: 'Notizen als PDF oder CSV herunterladen.',
@@ -368,7 +361,6 @@ export const FIXTURE_CATALOG_FEATURES: FeatureCatalogEntryRow[] = [
     },
     {
         id: 'fce-2',
-        projectKey: 'fixture',
         featureKey: 'notes.share',
         label: 'Notizen teilen',
         description: 'Notizen über einen Link freigeben.',
@@ -394,7 +386,6 @@ export const FIXTURE_CATALOG_FEATURES: FeatureCatalogEntryRow[] = [
     },
     {
         id: 'fce-3',
-        projectKey: 'fixture',
         featureKey: 'team.roles',
         label: 'Rollen',
         description: 'Rollen und Berechtigungen im Team.',
@@ -423,7 +414,6 @@ export const FIXTURE_CATALOG_FEATURES: FeatureCatalogEntryRow[] = [
         // No capability declares it, so it lands in the ownerless group that
         // sorts last, and its card body shows the "no capabilities" hint.
         id: 'fce-4',
-        projectKey: 'fixture',
         featureKey: 'notes.attachments',
         label: 'Anhänge',
         description: 'Dateien an eine Notiz hängen.',
@@ -451,7 +441,6 @@ export const FIXTURE_CATALOG_FEATURES: FeatureCatalogEntryRow[] = [
 export const FIXTURE_CATALOG_QUOTAS: QuotaCatalogEntryRow[] = [
     {
         id: 'qce-1',
-        projectKey: 'fixture',
         quotaKey: 'notes',
         label: 'Notizen',
         description: 'Wie viele Notizen ein Mandant anlegen darf.',
@@ -481,7 +470,6 @@ export const FIXTURE_CATALOG_QUOTAS: QuotaCatalogEntryRow[] = [
         // `usageProvider: null` on a HARD quota — deploy-blocking, and the only
         // state that paints the card's negative mark and its warning line.
         id: 'qce-2',
-        projectKey: 'fixture',
         quotaKey: 'storageGb',
         label: 'Speicher',
         description: null,
@@ -506,7 +494,6 @@ export const FIXTURE_CATALOG_QUOTAS: QuotaCatalogEntryRow[] = [
 export const FIXTURE_PLANS: PlanRow[] = [
     {
         id: 'pl-1',
-        projectKey: 'fixture',
         planKey: 'PRO',
         label: 'Pro',
         description: 'For growing teams.',
@@ -593,7 +580,6 @@ export const FIXTURE_BUNDLE_VERSIONS: BundleVersionRow[] = [
 export const FIXTURE_MARKETING_PROJECTIONS: MarketingProjectionRow[] = [
     {
         id: 'mp-1',
-        projectKey: 'fixture',
         targetType: 'PLAN',
         targetVersionId: 'plv-1',
         locale: 'en',

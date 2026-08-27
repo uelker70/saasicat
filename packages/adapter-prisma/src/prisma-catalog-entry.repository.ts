@@ -21,7 +21,6 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 /** DB columns this repository reads from `capability_catalog_entries`. */
 interface CapabilityCatalogEntryDbRow {
     id: string;
-    projectKey: string;
     capabilityKey: string;
     label: string;
     description: string | null;
@@ -44,7 +43,6 @@ interface CapabilityCatalogEntryDbRow {
 /** DB columns this repository reads from `feature_catalog_entries`. */
 interface FeatureCatalogEntryDbRow {
     id: string;
-    projectKey: string;
     featureKey: string;
     label: string;
     description: string | null;
@@ -71,7 +69,6 @@ interface FeatureCatalogEntryDbRow {
 /** DB columns this repository reads from `quota_catalog_entries`. */
 interface QuotaCatalogEntryDbRow {
     id: string;
-    projectKey: string;
     quotaKey: string;
     label: string;
     description: string | null;
@@ -133,7 +130,6 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     async listCapabilities(filter: CatalogEntryFilter): Promise<CapabilityCatalogEntryRow[]> {
         const rows = await this.db.capabilityCatalogEntry.findMany({
             where: {
-                projectKey: filter.projectKey,
                 deletedAt: null,
                 ...(filter.codeStatus ? { codeStatus: filter.codeStatus } : {}),
             },
@@ -145,7 +141,6 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     async listFeatures(filter: CatalogEntryFilter): Promise<FeatureCatalogEntryRow[]> {
         const rows = await this.db.featureCatalogEntry.findMany({
             where: {
-                projectKey: filter.projectKey,
                 deletedAt: null,
                 ...(filter.discoveryStatus ? { discoveryStatus: filter.discoveryStatus } : {}),
             },
@@ -157,7 +152,6 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     async listQuotas(filter: CatalogEntryFilter): Promise<QuotaCatalogEntryRow[]> {
         const rows = await this.db.quotaCatalogEntry.findMany({
             where: {
-                projectKey: filter.projectKey,
                 deletedAt: null,
                 ...(filter.discoveryStatus ? { discoveryStatus: filter.discoveryStatus } : {}),
             },
@@ -181,14 +175,8 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
             reason: data.reason,
         };
         const row = await this.db.capabilityCatalogEntry.upsert({
-            where: {
-                projectKey_capabilityKey: {
-                    projectKey: data.projectKey,
-                    capabilityKey: data.capabilityKey,
-                },
-            },
+            where: { capabilityKey: data.capabilityKey },
             create: {
-                projectKey: data.projectKey,
                 capabilityKey: data.capabilityKey,
                 ...codeFields,
             },
@@ -207,14 +195,8 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
             ...(data.core !== undefined ? { core: data.core } : {}),
         };
         const row = await this.db.featureCatalogEntry.upsert({
-            where: {
-                projectKey_featureKey: {
-                    projectKey: data.projectKey,
-                    featureKey: data.featureKey,
-                },
-            },
+            where: { featureKey: data.featureKey },
             create: {
-                projectKey: data.projectKey,
                 featureKey: data.featureKey,
                 ...codeFields,
             },
@@ -235,14 +217,8 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
             replaces: data.replaces,
         };
         const row = await this.db.quotaCatalogEntry.upsert({
-            where: {
-                projectKey_quotaKey: {
-                    projectKey: data.projectKey,
-                    quotaKey: data.quotaKey,
-                },
-            },
+            where: { quotaKey: data.quotaKey },
             create: {
-                projectKey: data.projectKey,
                 quotaKey: data.quotaKey,
                 ...codeFields,
             },
@@ -252,14 +228,12 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     }
 
     async retireMissing(
-        projectKey: string,
         type: 'capability' | 'feature' | 'quota',
         presentKeys: string[],
     ): Promise<number> {
         if (type === 'capability') {
             const res = await this.db.capabilityCatalogEntry.updateMany({
                 where: {
-                    projectKey,
                     deletedAt: null,
                     codeStatus: { not: 'retired' },
                     capabilityKey: { notIn: presentKeys },
@@ -271,7 +245,6 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
         if (type === 'feature') {
             const res = await this.db.featureCatalogEntry.updateMany({
                 where: {
-                    projectKey,
                     deletedAt: null,
                     discoveryStatus: { not: 'obsolete' },
                     featureKey: { notIn: presentKeys },
@@ -282,7 +255,6 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
         }
         const res = await this.db.quotaCatalogEntry.updateMany({
             where: {
-                projectKey,
                 deletedAt: null,
                 discoveryStatus: { not: 'obsolete' },
                 quotaKey: { notIn: presentKeys },
@@ -293,53 +265,47 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     }
 
     async setFeatureSuccessor(
-        projectKey: string,
         featureKey: string,
         successorKey: string | null,
     ): Promise<FeatureCatalogEntryRow> {
         const row = await this.db.featureCatalogEntry.update({
-            where: { projectKey_featureKey: { projectKey, featureKey } },
+            where: { featureKey },
             data: { successorKey },
         });
         return toFeatureRow(row);
     }
 
     async setQuotaSuccessor(
-        projectKey: string,
         quotaKey: string,
         successorKey: string | null,
     ): Promise<QuotaCatalogEntryRow> {
         const row = await this.db.quotaCatalogEntry.update({
-            where: { projectKey_quotaKey: { projectKey, quotaKey } },
+            where: { quotaKey },
             data: { successorKey },
         });
         return toQuotaRow(row);
     }
 
-    async findFeature(
-        projectKey: string,
-        featureKey: string,
-    ): Promise<FeatureCatalogEntryRow | null> {
+    async findFeature(featureKey: string): Promise<FeatureCatalogEntryRow | null> {
         const row = await this.db.featureCatalogEntry.findUnique({
-            where: { projectKey_featureKey: { projectKey, featureKey } },
+            where: { featureKey },
         });
         return row ? toFeatureRow(row) : null;
     }
 
-    async findQuota(projectKey: string, quotaKey: string): Promise<QuotaCatalogEntryRow | null> {
+    async findQuota(quotaKey: string): Promise<QuotaCatalogEntryRow | null> {
         const row = await this.db.quotaCatalogEntry.findUnique({
-            where: { projectKey_quotaKey: { projectKey, quotaKey } },
+            where: { quotaKey },
         });
         return row ? toQuotaRow(row) : null;
     }
 
     async setFeatureReview(
-        projectKey: string,
         featureKey: string,
         data: SetCatalogEntryReviewData,
     ): Promise<FeatureCatalogEntryRow> {
         const row = await this.db.featureCatalogEntry.update({
-            where: { projectKey_featureKey: { projectKey, featureKey } },
+            where: { featureKey },
             data: {
                 discoveryStatus: data.discoveryStatus,
                 approvedAt: data.approvedAt ? new Date(data.approvedAt) : null,
@@ -351,12 +317,11 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     }
 
     async setQuotaReview(
-        projectKey: string,
         quotaKey: string,
         data: SetCatalogEntryReviewData,
     ): Promise<QuotaCatalogEntryRow> {
         const row = await this.db.quotaCatalogEntry.update({
-            where: { projectKey_quotaKey: { projectKey, quotaKey } },
+            where: { quotaKey },
             data: {
                 discoveryStatus: data.discoveryStatus,
                 approvedAt: data.approvedAt ? new Date(data.approvedAt) : null,
@@ -368,36 +333,30 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     }
 
     async setFeatureI18n(
-        projectKey: string,
         featureKey: string,
         i18n: CatalogEntryI18n,
     ): Promise<FeatureCatalogEntryRow> {
         const row = await this.db.featureCatalogEntry.update({
-            where: { projectKey_featureKey: { projectKey, featureKey } },
+            where: { featureKey },
             data: { i18n },
         });
         return toFeatureRow(row);
     }
 
-    async setQuotaI18n(
-        projectKey: string,
-        quotaKey: string,
-        i18n: CatalogEntryI18n,
-    ): Promise<QuotaCatalogEntryRow> {
+    async setQuotaI18n(quotaKey: string, i18n: CatalogEntryI18n): Promise<QuotaCatalogEntryRow> {
         const row = await this.db.quotaCatalogEntry.update({
-            where: { projectKey_quotaKey: { projectKey, quotaKey } },
+            where: { quotaKey },
             data: { i18n },
         });
         return toQuotaRow(row);
     }
 
     async setFeatureBase(
-        projectKey: string,
         featureKey: string,
         data: UpdateCatalogEntryBaseData,
     ): Promise<FeatureCatalogEntryRow> {
         const row = await this.db.featureCatalogEntry.update({
-            where: { projectKey_featureKey: { projectKey, featureKey } },
+            where: { featureKey },
             data: {
                 ...(data.label !== undefined ? { label: data.label } : {}),
                 ...(data.description !== undefined ? { description: data.description } : {}),
@@ -409,12 +368,11 @@ export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
     }
 
     async setQuotaBase(
-        projectKey: string,
         quotaKey: string,
         data: UpdateCatalogEntryBaseData,
     ): Promise<QuotaCatalogEntryRow> {
         const row = await this.db.quotaCatalogEntry.update({
-            where: { projectKey_quotaKey: { projectKey, quotaKey } },
+            where: { quotaKey },
             data: {
                 ...(data.label !== undefined ? { label: data.label } : {}),
                 ...(data.description !== undefined ? { description: data.description } : {}),
@@ -435,7 +393,6 @@ function toI18n(value: unknown): CatalogEntryI18n {
 function toCapabilityRow(row: CapabilityCatalogEntryDbRow): CapabilityCatalogEntryRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         capabilityKey: row.capabilityKey,
         label: row.label,
         description: row.description,
@@ -459,7 +416,6 @@ function toCapabilityRow(row: CapabilityCatalogEntryDbRow): CapabilityCatalogEnt
 function toFeatureRow(row: FeatureCatalogEntryDbRow): FeatureCatalogEntryRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         featureKey: row.featureKey,
         label: row.label,
         description: row.description,
@@ -487,7 +443,6 @@ function toFeatureRow(row: FeatureCatalogEntryDbRow): FeatureCatalogEntryRow {
 function toQuotaRow(row: QuotaCatalogEntryDbRow): QuotaCatalogEntryRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         quotaKey: row.quotaKey,
         label: row.label,
         description: row.description,

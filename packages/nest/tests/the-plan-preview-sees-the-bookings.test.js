@@ -29,7 +29,6 @@ class FakeJwtGuard {
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'test-app',
     app: { name: 'TestApp', version: '0.0.1' },
     currency: 'EUR',
     vatRate: 19.0,

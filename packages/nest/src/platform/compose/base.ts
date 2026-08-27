@@ -23,18 +23,13 @@ const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
 /**
  * Who this application is, for discovery and the public catalogue.
  *
- * Falls back through both catalogue paths before `'app'`, so an app that
- * hydrates from the database is still identified by its project key rather
- * than by a placeholder that would collide with every other one.
+ * `app.name` is the only place an installation names itself, and both
+ * catalogue paths require it — so there is nothing to fall back to and no
+ * placeholder that would collide with every other installation's.
  */
 export function resolveAppInfo(options: SaaSiCatModuleOptions): DiscoveryAppInfo {
-    return (
-        options.app ?? {
-            key: options.planCatalog?.projectKey ?? options.dbCatalog?.projectKey ?? 'app',
-            version:
-                options.planCatalog?.app?.version ?? options.dbCatalog?.app?.version ?? '0.0.0',
-        }
-    );
+    const app = options.planCatalog?.app ?? options.dbCatalog?.app;
+    return options.app ?? { key: app?.name ?? '', version: app?.version ?? '0.0.0' };
 }
 
 /**
@@ -54,7 +49,6 @@ export function composePlanCatalog(
     // configuration that reaches here without it.
     const dbCatalog = options.dbCatalog as NonNullable<SaaSiCatModuleOptions['dbCatalog']>;
     return PlanCatalogModule.forRoot({
-        projectKey: dbCatalog.projectKey,
         app: dbCatalog.app,
         currency: dbCatalog.currency,
         vatRate: dbCatalog.vatRate,

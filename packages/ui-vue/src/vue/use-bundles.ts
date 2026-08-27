@@ -28,8 +28,6 @@ export interface UseBundlesOptions {
      */
     adminEndpoint: string;
     http?: HttpClient;
-    /** Required: projectKey the list is filtered against. */
-    projectKey: string;
     /** When `true`, loads on composable init. Default `false`. */
     autoLoad?: boolean;
 }
@@ -67,10 +65,6 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
                 'different globalPrefix conventions.',
         );
     }
-    if (!options?.projectKey) {
-        throw new Error('useBundles: `projectKey` is required.');
-    }
-
     const http = options.http ?? defaultHttpClient();
     const bundles = ref<BundleRow[]>([]);
     const loading = ref(false);
@@ -114,9 +108,7 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
         loading.value = true;
         error.value = null;
         try {
-            const data = await fetchJson<BundleRow[]>(
-                `${baseUrl}?projectKey=${encodeURIComponent(options.projectKey)}`,
-            );
+            const data = await fetchJson<BundleRow[]>(baseUrl);
             bundles.value = data ?? [];
         } catch (err) {
             error.value = err instanceof Error ? err : new Error(String(err));

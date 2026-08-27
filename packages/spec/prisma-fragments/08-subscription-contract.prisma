@@ -25,9 +25,8 @@ enum ContractLineItemKind {
 }
 
 model SubscriptionContract {
-    id         String @id @default(uuid())
-    projectKey String
-    tenantId   String
+    id       String @id @default(uuid())
+    tenantId String
 
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
@@ -54,7 +53,7 @@ model SubscriptionContract {
     // tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
     @@index([tenantId, status, effectiveFrom])
-    @@index([projectKey, status])
+    @@index([status])
     @@index([originalOfferId])
     @@map("subscription_contracts")
 }

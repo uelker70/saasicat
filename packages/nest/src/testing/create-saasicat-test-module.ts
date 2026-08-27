@@ -11,7 +11,7 @@
 // const moduleRef = await createSaaSiCatTestModule({
 //     planCatalog: {
 //         schemaVersion: 1,
-//         projectKey: 'notesapp',
+//         app: { name: 'NotesApp' },
 //         currency: 'EUR',
 //         vatRate: 19,
 //         plans: [{ id: 'starter', features: ['NOTES'], quotas: { notesMax: 25 } }],

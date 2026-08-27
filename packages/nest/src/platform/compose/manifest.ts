@@ -98,11 +98,12 @@ export function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory'
     return {
         useFactory: (catalog: PlanCatalog): AdminManifestConfig => ({
             project: {
-                key: catalog.projectKey,
-                displayName: catalog.app?.name ?? catalog.projectKey,
-                label: catalog.app?.label,
-                icon: catalog.app?.icon,
-                logoUrl: catalog.app?.logoUrl,
+                // One name, from the one place an installation carries it.
+                key: catalog.app.name,
+                displayName: catalog.app.name,
+                label: catalog.app.label,
+                icon: catalog.app.icon,
+                logoUrl: catalog.app.logoUrl,
                 environment: (process.env.NODE_ENV === 'production'
                     ? 'production'
                     : 'development') as 'production' | 'development',

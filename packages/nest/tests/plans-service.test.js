@@ -7,8 +7,6 @@ import { FakePlanRepository } from '../dist/testing/index.js';
 // PlansService — plan-root CRUD.
 // PlanVersion lifecycle is explicitly not part of this package (follows in Pack 2).
 
-const PROJECT = 'clubapp';
-
 function makeService() {
     const repo = new FakePlanRepository();
     return { service: new PlansService(repo), repo };
@@ -18,7 +16,6 @@ describe('PlansService — root operations', () => {
     test('createPlan + listPlans + getPlan happy path', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'STARTER',
             label: 'Starter',
             sortOrder: 10,
@@ -27,7 +24,7 @@ describe('PlansService — root operations', () => {
         assert.equal(created.sortOrder, 10);
         assert.equal(created.deletedAt, null);
 
-        const list = await service.listPlans(PROJECT);
+        const list = await service.listPlans();
         assert.equal(list.length, 1);
         assert.equal(list[0].id, created.id);
 
@@ -38,14 +35,12 @@ describe('PlansService — root operations', () => {
     test('createPlan: duplicate planKey → UnprocessableEntity', async () => {
         const { service } = makeService();
         await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'STARTER',
             label: 'Starter',
         });
         await assert.rejects(
             () =>
                 service.createPlan({
-                    projectKey: PROJECT,
                     planKey: 'STARTER',
                     label: 'Doppelt',
                 }),
@@ -56,26 +51,21 @@ describe('PlansService — root operations', () => {
         );
     });
 
-    test('createPlan: same planKey allowed in a different project', async () => {
+    test('createPlan: a plan key is taken once for the installation', async () => {
+        // It used to be free for a second project to reuse it, which is what
+        // entangled the two plans' version lineage — `plan_versions.planId`
+        // holds the key alone. The key is now the whole identity.
         const { service } = makeService();
-        await service.createPlan({
-            projectKey: 'clubapp',
-            planKey: 'STARTER',
-            label: 'ClubApp Starter',
-        });
-        const demoApp = await service.createPlan({
-            projectKey: 'demoapp',
-            planKey: 'STARTER',
-            label: 'DemoApp Starter',
-        });
-        assert.equal(demoApp.projectKey, 'demoapp');
-        assert.equal(demoApp.planKey, 'STARTER');
+        await service.createPlan({ planKey: 'STARTER', label: 'Starter' });
+        await assert.rejects(
+            () => service.createPlan({ planKey: 'STARTER', label: 'A second Starter' }),
+            /already exists/,
+        );
     });
 
     test('updatePlan changes label + sortOrder', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'STD',
             label: 'Standard',
         });
@@ -103,12 +93,11 @@ describe('PlansService — root operations', () => {
     test('softDeletePlan without versions sets deletedAt + disappears from list', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'PRO',
             label: 'Professional',
         });
         await service.softDeletePlan(created.id);
-        const list = await service.listPlans(PROJECT);
+        const list = await service.listPlans();
         assert.equal(list.length, 0);
 
         // getPlan still returns it (contract protection P1: existing subscriptions still see it)
@@ -119,7 +108,6 @@ describe('PlansService — root operations', () => {
     test('softDeletePlan idempotent (second call without throw)', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'IDEM',
             label: 'Idempotent',
         });
@@ -144,7 +132,6 @@ describe('PlansService — root operations', () => {
             strictModeCheckMode: 'warn-only',
         });
         const created = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'WITH_LIVE_SOFT',
             label: 'With Live',
         });
@@ -177,7 +164,6 @@ describe('PlansService — root operations', () => {
             strictModeCheckMode: 'warn-only',
         });
         const created = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'WITH_SUPERSEDED',
             label: 'Superseded',
         });
@@ -225,7 +211,6 @@ describe('PlansService — root operations', () => {
             strictModeCheckMode: 'warn-only',
         });
         const created = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'DRAFT_ONLY',
             label: 'Draft Only',
         });
@@ -238,7 +223,7 @@ describe('PlansService — root operations', () => {
         });
         // soft-delete allowed: no published version exists.
         await service.softDeletePlan(created.id);
-        const list = await service.listPlans(PROJECT);
+        const list = await service.listPlans();
         assert.equal(
             list.find((p) => p.planKey === 'DRAFT_ONLY'),
             undefined,
@@ -248,12 +233,11 @@ describe('PlansService — root operations', () => {
     test('hardDeletePlan: without versions → plan is gone from list', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
-            projectKey: 'clubapp',
             planKey: 'PURGE_ME',
             label: 'Purge Me',
         });
         await service.hardDeletePlan(created.id);
-        const all = await service.listPlans('clubapp');
+        const all = await service.listPlans();
         assert.equal(
             all.find((p) => p.planKey === 'PURGE_ME'),
             undefined,
@@ -267,7 +251,6 @@ describe('PlansService — root operations', () => {
             strictModeCheckMode: 'warn-only',
         });
         const created = await service.createPlan({
-            projectKey: 'clubapp',
             planKey: 'WITH_DRAFT',
             label: 'With Draft',
         });
@@ -296,7 +279,6 @@ describe('PlansService — root operations', () => {
             strictModeCheckMode: 'warn-only',
         });
         const created = await service.createPlan({
-            projectKey: 'clubapp',
             planKey: 'WITH_LIVE',
             label: 'With Live',
         });
@@ -335,24 +317,14 @@ describe('PlansService — root operations', () => {
         );
     });
 
-    test('listPlans: scoped per projectKey', async () => {
+    test('listPlans returns every plan of the installation', async () => {
         const { service } = makeService();
-        await service.createPlan({
-            projectKey: 'clubapp',
-            planKey: 'A',
-            label: 'A',
-        });
-        await service.createPlan({
-            projectKey: 'demoapp',
-            planKey: 'B',
-            label: 'B',
-        });
-        const v = await service.listPlans('clubapp');
-        const c = await service.listPlans('demoapp');
-        assert.equal(v.length, 1);
-        assert.equal(c.length, 1);
-        assert.equal(v[0].planKey, 'A');
-        assert.equal(c[0].planKey, 'B');
+        await service.createPlan({ planKey: 'A', label: 'A' });
+        await service.createPlan({ planKey: 'B', label: 'B' });
+        assert.deepEqual((await service.listPlans()).map((plan) => plan.planKey).sort(), [
+            'A',
+            'B',
+        ]);
     });
 
     test('listPlans onlyPublished: only plans with a live version', async () => {
@@ -363,7 +335,6 @@ describe('PlansService — root operations', () => {
 
         // Plan with a published version.
         const live = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'LIVE_PLAN',
             label: 'Live',
         });
@@ -382,7 +353,6 @@ describe('PlansService — root operations', () => {
 
         // Plan only as draft (no live version).
         const draftOnly = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'DRAFT_PLAN',
             label: 'Draft',
         });
@@ -394,10 +364,10 @@ describe('PlansService — root operations', () => {
             yearlyNet: '0.00',
         });
 
-        const all = await service.listPlans(PROJECT);
+        const all = await service.listPlans();
         assert.equal(all.length, 2);
 
-        const published = await service.listPlans(PROJECT, { onlyPublished: true });
+        const published = await service.listPlans({ onlyPublished: true });
         assert.equal(published.length, 1);
         assert.equal(published[0].planKey, 'LIVE_PLAN');
     });
@@ -408,7 +378,6 @@ describe('PlansService — root operations', () => {
             strictModeCheckMode: 'warn-only',
         });
         const plan = await service.createPlan({
-            projectKey: PROJECT,
             planKey: 'SUPERSEDED_ONLY',
             label: 'Superseded',
         });
@@ -438,7 +407,7 @@ describe('PlansService — root operations', () => {
             validFrom: '2026-06-01',
         });
 
-        const published = await service.listPlans(PROJECT, { onlyPublished: true });
+        const published = await service.listPlans({ onlyPublished: true });
         assert.equal(published.length, 1);
         assert.equal(published[0].planKey, 'SUPERSEDED_ONLY');
     });

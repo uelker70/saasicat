@@ -15,17 +15,12 @@ import {
     ParseUUIDPipe,
     Patch,
     Post,
-    Query,
     type Type,
     UseGuards,
 } from '@nestjs/common';
 
 import { PromotionsService } from './promotions.service.js';
-import {
-    CreatePromotionDto,
-    ListPromotionsQueryDto,
-    UpdatePromotionDto,
-} from './dto/promotions.dto.js';
+import { CreatePromotionDto, UpdatePromotionDto } from './dto/promotions.dto.js';
 
 export function buildPromotionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/promotions')
@@ -37,8 +32,8 @@ export function buildPromotionsController(guards: Array<Type<CanActivate>>): Typ
         ) {}
 
         @Get()
-        list(@Query() query: ListPromotionsQueryDto) {
-            return this.service.list(query.projectKey);
+        list() {
+            return this.service.list();
         }
 
         @Get(':id')

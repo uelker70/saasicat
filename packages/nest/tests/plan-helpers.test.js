@@ -16,7 +16,7 @@ import {
 
 const DEMOAPP_LIKE_CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demoapp',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     features: [
@@ -76,7 +76,7 @@ test('findPlan returns undefined for an unknown ID', () => {
 test('getPlanOrThrow throws a typed error for an unknown ID', () => {
     assert.throws(
         () => getPlanOrThrow(DEMOAPP_LIKE_CATALOG, 'NIRVANA'),
-        /Plan "NIRVANA" not found in the catalog \(demoapp\)/,
+        /Plan "NIRVANA" is not in the catalog/,
     );
 });
 

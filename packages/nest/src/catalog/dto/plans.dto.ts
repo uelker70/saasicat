@@ -13,16 +13,8 @@ import {
 //: only plan master-record CRUD, no PlanVersion lifecycle.
 
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
-const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 export class CreatePlanDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN, {
-        message: 'projectKey must be kebab-case (e.g. "my-app")',
-    })
-    @MaxLength(64)
-    projectKey!: string;
-
     @IsString()
     @Matches(KEY_PATTERN, {
         message: 'planKey must be SCREAMING_SNAKE_CASE (e.g. "STARTER")',

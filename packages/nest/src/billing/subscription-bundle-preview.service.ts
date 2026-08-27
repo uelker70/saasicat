@@ -535,9 +535,7 @@ export class SubscriptionBundlePreviewService {
         activeBundleVersions: BundleVersionRow[],
     ): Promise<string[]> {
         if (!this.catalogEntries) return [];
-        const projectKey = await this.resolveProjectKey(bundleVersion);
-        if (!projectKey) return [];
-        const entries = await this.catalogEntries.listFeatures({ projectKey });
+        const entries = await this.catalogEntries.listFeatures({});
         const requiresIndex = buildFeatureRequiresIndex(entries);
         const covered = new Set<string>([
             ...planFeatures,
@@ -546,12 +544,6 @@ export class SubscriptionBundlePreviewService {
         return collectUnsatisfiedRequires(bundleVersion.features ?? [], requiresIndex).filter(
             (key) => !covered.has(key),
         );
-    }
-
-    /** `projectKey` lives on the bundle stem, not on the version. */
-    private async resolveProjectKey(bundleVersion: BundleVersionRow): Promise<string | null> {
-        const stem = await this.bundles.findById(bundleVersion.bundleId);
-        return stem?.projectKey ?? null;
     }
 }
 

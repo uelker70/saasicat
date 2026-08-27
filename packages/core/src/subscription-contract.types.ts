@@ -60,7 +60,6 @@ export interface SubscriptionContractPriceSnapshot {
 
 export interface SubscriptionContractRecord {
     id: string;
-    projectKey: string;
     tenantId: string;
     status: SubscriptionContractStatus;
     effectiveFrom: Date;
@@ -84,7 +83,6 @@ export type NewContractLineItemData = Omit<
 >;
 
 export interface CreateSubscriptionContractData {
-    projectKey: string;
     tenantId: string;
     status?: SubscriptionContractStatus;
     effectiveFrom: Date;
@@ -119,7 +117,6 @@ export interface TerminateSubscriptionContractData {
 }
 
 export interface SubscriptionContractFilter {
-    projectKey?: string;
     tenantId?: string;
     status?: SubscriptionContractStatus;
     asOf?: Date;
@@ -143,7 +140,6 @@ export interface InvoiceLineItemSnapshot {
 
 export interface SubscriptionContractInvoiceSnapshot {
     contractId: string;
-    projectKey: string;
     tenantId: string;
     originalOfferId: string | null;
     currency: string;

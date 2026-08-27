@@ -18,7 +18,6 @@ import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
-    PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
 } from './public-catalog.tokens.js';
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { getMarketedPlans } from './plan-helpers.js';
@@ -27,7 +26,7 @@ import { getMarketedPlans } from './plan-helpers.js';
 // onboarding and tenant self-service UIs.
 //
 //   - GET /billing/plans?locale=de: marketing merge optional (if a
-//     MarketingProjection repo + projectKey are configured)
+//     MarketingProjection repo is configured)
 //   - GET /billing/bundles?locale=de: NEW (M6 Pack 2c)
 
 interface MarketingFields {
@@ -85,9 +84,6 @@ export class PublicCatalogController {
         @Inject(BILLING_FEATURE_UI_REGISTRY_TOKEN)
         private readonly featureRegistry: FeatureUiRegistry,
         @Optional()
-        @Inject(PUBLIC_CATALOG_PROJECT_KEY_TOKEN)
-        private readonly projectKey: string | null = null,
-        @Optional()
         @Inject(PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN)
         private readonly marketingRepo: MarketingProjectionRepository | null = null,
         @Optional()
@@ -132,10 +128,10 @@ export class PublicCatalogController {
         // wins over the static registry icon; label/description stay from the
         // registry (auto-sync sets label=featureKey fallback). DB errors must
         // not break the auth-free endpoint → fall back to the registry.
-        if (!this.catalogEntryRepo || !this.projectKey) return this.featureRegistry;
+        if (!this.catalogEntryRepo) return this.featureRegistry;
         let rows;
         try {
-            rows = await this.catalogEntryRepo.listFeatures({ projectKey: this.projectKey });
+            rows = await this.catalogEntryRepo.listFeatures({});
         } catch {
             return this.featureRegistry;
         }
@@ -169,8 +165,8 @@ export class PublicCatalogController {
         @Query('locale') localeParam = 'de',
     ): Promise<PublicBundleEntry[]> {
         const locale = lang || localeParam;
-        if (!this.bundleRepo || !this.projectKey) return [];
-        const stems = await this.bundleRepo.list({ projectKey: this.projectKey });
+        if (!this.bundleRepo) return [];
+        const stems = await this.bundleRepo.list({});
         const requiresIndex = await this.loadFeatureRequiresIndex();
         const out: PublicBundleEntry[] = [];
         for (const stem of stems) {
@@ -190,9 +186,9 @@ export class PublicCatalogController {
      * `requiresFeatures` then stays conservatively empty.
      */
     private async loadFeatureRequiresIndex(): Promise<FeatureRequiresIndex> {
-        if (!this.catalogEntryRepo || !this.projectKey) return new Map();
+        if (!this.catalogEntryRepo) return new Map();
         try {
-            const rows = await this.catalogEntryRepo.listFeatures({ projectKey: this.projectKey });
+            const rows = await this.catalogEntryRepo.listFeatures({});
             return buildFeatureRequiresIndex(rows);
         } catch {
             return new Map();
@@ -204,9 +200,8 @@ export class PublicCatalogController {
         targetVersionId: string,
         locale: string,
     ): Promise<MarketingFields | undefined> {
-        if (!this.marketingRepo || !this.projectKey) return undefined;
+        if (!this.marketingRepo) return undefined;
         const rows = await this.marketingRepo.list({
-            projectKey: this.projectKey,
             targetType,
             targetVersionId,
             locale,

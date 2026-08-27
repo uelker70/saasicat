@@ -12,7 +12,7 @@ describe('createSaaSiCatTestModule', () => {
         const dyn = createSaaSiCatTestModule({
             planCatalog: {
                 schemaVersion: 1,
-                projectKey: 'test',
+                app: { name: 'Test App' },
                 currency: 'EUR',
                 vatRate: 19,
                 plans: [{ id: 'starter', features: ['NOTES'], quotas: {} }],
@@ -45,7 +45,7 @@ describe('createSaaSiCatTestModule', () => {
         const dyn = createSaaSiCatTestModule({
             planCatalog: {
                 schemaVersion: 1,
-                projectKey: 'test',
+                app: { name: 'Test App' },
                 currency: 'EUR',
                 vatRate: 19,
                 plans: [{ id: 'starter', features: [], quotas: {} }],

@@ -11,7 +11,6 @@ const TODAY = new Date('2026-05-17T12:00:00Z');
 function promo(over = {}) {
     return {
         id: 'p1',
-        projectKey: 'clubapp',
         internalLabel: 'Test',
         type: 'percent',
         value: 20,

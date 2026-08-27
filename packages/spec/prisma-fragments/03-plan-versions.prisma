@@ -20,7 +20,7 @@
 // -----------------------------------------------------------------------------
 // Plan — root identity of a plan (SPEC_V2 §11.1 M6).
 // `planKey` is the business plan identity (STARTER / STANDARD / PROFESSIONAL),
-// unique per `projectKey`. PlanVersion.planId points **softly** to
+// unique for the installation. PlanVersion.planId points **softly** to
 // `Plan.planKey` (no DB FK — the binding is enforced via service logic in M6
 // so that the greenfield cutover can run without a destructive schema
 // migration).
@@ -32,7 +32,6 @@
 
 model Plan {
     id          String  @id @default(uuid())
-    projectKey  String
     planKey     String
     label       String
     description String?
@@ -43,8 +42,8 @@ model Plan {
     updatedAt DateTime  @updatedAt
     deletedAt DateTime?
 
-    @@unique([projectKey, planKey])
-    @@index([projectKey, deletedAt])
+    @@unique([planKey])
+    @@index([deletedAt])
     @@map("plans")
 }
 

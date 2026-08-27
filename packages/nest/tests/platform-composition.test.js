@@ -25,7 +25,6 @@ import {
 
 const MINIMAL_CATALOG = {
     schemaVersion: 1,
-    projectKey: 'test-app',
     app: { name: 'TestApp', version: '0.0.1' },
     currency: 'EUR',
     vatRate: 19,
@@ -191,16 +190,16 @@ describe('the base modules', () => {
         // VAT are `dbCatalog`, and `catalog.identity-or-sink` refuses a
         // configuration without it.
         const dyn = SaaSiCatModule.forRoot({
-            dbCatalog: { projectKey: 'from-db', currency: 'EUR', vatRate: 19 },
+            dbCatalog: { app: { name: 'TestApp' }, currency: 'EUR', vatRate: 19 },
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT, planCatalogReadSink: REPO },
         });
         assert.ok(dyn.imports.some((m) => m?.module?.name === 'PlanCatalogModule'));
     });
 
-    test('the app identity falls back through both catalogue paths', () => {
-        // `'app'` as a key would collide with every other application that also
-        // did not say — so the fallbacks are worth pinning.
+    test('the app identity comes from the catalogue that is configured', () => {
+        // `app.name` is the one place an installation names itself, and both
+        // catalogue paths require it — so there is nothing left to fall back to.
         const fromYaml = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },

@@ -95,7 +95,6 @@ export const planVersions = pgTable('plan_versions', {
 
 export const plans = pgTable('plans', {
     id: text('id').primaryKey(),
-    projectKey: text('projectKey').notNull(),
     planKey: text('planKey').notNull(),
     label: text('label').notNull(),
     description: text('description'),
@@ -116,7 +115,6 @@ export const plans = pgTable('plans', {
 
 export const subscriptionContracts = pgTable('subscription_contracts', {
     id: text('id').primaryKey(),
-    projectKey: text('projectKey').notNull(),
     tenantId: text('tenantId').notNull(),
     // Postgres enum, declared as text: parameterized values are coerced and
     // reads come back as strings, which is what the records expect.
@@ -157,7 +155,6 @@ export const contractLineItems = pgTable('contract_line_items', {
 
 export const featureCatalogEntries = pgTable('feature_catalog_entries', {
     id: text('id').primaryKey(),
-    projectKey: text('projectKey').notNull(),
     featureKey: text('featureKey').notNull(),
     label: text('label').notNull(),
     description: text('description'),
@@ -277,7 +274,6 @@ export const superAdminMfa = pgTable('super_admin_mfa', {
 
 export const bundles = pgTable('bundles', {
     id: text('id').primaryKey(),
-    projectKey: text('projectKey').notNull(),
     bundleKey: text('bundleKey').notNull(),
     label: text('label').notNull(),
     description: text('description'),

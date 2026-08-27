@@ -122,7 +122,6 @@ export interface PublicComparisonRow {
 
 /** Response of `GET /public/marketing-catalog`. */
 export interface PublicMarketingCatalogResponse {
-    projectKey: string;
     locale: string;
     currency: string;
     /** VAT rate in percent — for the CheckoutOffer price breakdown. */

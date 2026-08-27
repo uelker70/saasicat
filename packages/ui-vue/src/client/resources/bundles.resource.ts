@@ -39,47 +39,30 @@ function bundleVersionsUrl(ctx: ResourceContext): string {
     return `${ctx.apiBase}/catalog/bundle-versions`;
 }
 
-/** `?projectKey=…` — the key is a literal, only the value is encoded. */
-function scoped(url: string, ctx: ResourceContext): string {
-    return `${url}?projectKey=${encodeURIComponent(ctx.projectKey)}`;
-}
+/** The bundle catalogue: the stem list and the stem CRUD. */
+export const bundlesResource = defineResource('bundles', {
+    list: async (http, ctx): Promise<BundleRow[]> =>
+        (await requestJson<BundleRow[]>(http, bundlesUrl(ctx))) ?? [],
 
-/**
- * The bundle catalogue — read per project, like the plan catalogue.
- *
- * `create` takes the project from the context rather than from the caller, for
- * the reason spelled out on `plansResource.create`: the composable this
- * replaces made it the caller's job, so `list()` and `create()` read two
- * different sources for one value and a stale one creates a bundle outside the
- * project the list is showing.
- */
-export const bundlesResource = defineResource(
-    'bundles',
-    {
-        list: async (http, ctx): Promise<BundleRow[]> =>
-            (await requestJson<BundleRow[]>(http, scoped(bundlesUrl(ctx), ctx))) ?? [],
+    create: (http, ctx, data: CreateBundleData): Promise<BundleRow> =>
+        requestJsonBody<BundleRow>(http, bundlesUrl(ctx), 'Create returned no body', {
+            method: 'POST',
+            body: data,
+        }),
 
-        create: (http, ctx, data: Omit<CreateBundleData, 'projectKey'>): Promise<BundleRow> =>
-            requestJsonBody<BundleRow>(http, bundlesUrl(ctx), 'Create returned no body', {
-                method: 'POST',
-                body: { ...data, projectKey: ctx.projectKey },
-            }),
+    update: (http, ctx, bundleId: string, data: UpdateBundleData): Promise<BundleRow> =>
+        requestJsonBody<BundleRow>(
+            http,
+            `${bundlesUrl(ctx)}/${bundleId}`,
+            'Update returned no body',
+            { method: 'PATCH', body: data },
+        ),
 
-        update: (http, ctx, bundleId: string, data: UpdateBundleData): Promise<BundleRow> =>
-            requestJsonBody<BundleRow>(
-                http,
-                `${bundlesUrl(ctx)}/${bundleId}`,
-                'Update returned no body',
-                { method: 'PATCH', body: data },
-            ),
-
-        /** Marks the bundle deleted. */
-        softDelete: async (http, ctx, bundleId: string): Promise<void> => {
-            await requestJson(http, `${bundlesUrl(ctx)}/${bundleId}`, { method: 'DELETE' });
-        },
+    /** Marks the bundle deleted. */
+    softDelete: async (http, ctx, bundleId: string): Promise<void> => {
+        await requestJson(http, `${bundlesUrl(ctx)}/${bundleId}`, { method: 'DELETE' });
     },
-    { projectScoped: true },
-);
+});
 
 /**
  * Bundle version lifecycle.

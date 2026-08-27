@@ -30,11 +30,11 @@ const DEMO_TENANTS: DemoTenant[] = [
     { id: 'initech', slug: 'initech', name: 'Initech AG', isActive: false, notes: 7 },
 ];
 
+/** The one `marketing_settings` row, matching the schema's constant default. */
+const MARKETING_SETTINGS_ROW_ID = 'marketing-settings';
+
 /** Matches DemoPasswordHasher — scrypt with a 64-byte key. */
 const SUPER_ADMIN = { email: 'admin@notesapp.example', password: 'demo' };
-
-/** Catalog rows are scoped to the app via `projectKey` (matches config/saas.yaml). */
-const PROJECT_KEY = 'notesapp';
 
 /** A plan stem plus its single published v1 (mirrors config/saas.yaml). */
 interface PlanSeed {
@@ -305,9 +305,8 @@ async function seedPlans(prisma: PrismaClient): Promise<void> {
     const now = new Date();
     for (const spec of PLANS) {
         await prisma.plan.upsert({
-            where: { projectKey_planKey: { projectKey: PROJECT_KEY, planKey: spec.planKey } },
+            where: { planKey: spec.planKey },
             create: {
-                projectKey: PROJECT_KEY,
                 planKey: spec.planKey,
                 label: spec.label,
                 description: spec.description,
@@ -356,9 +355,8 @@ async function seedBundles(prisma: PrismaClient): Promise<void> {
         // BundleVersion.bundleId is a real FK to Bundle.id, so upsert the stem
         // first and reuse its generated id for the version.
         const bundle = await prisma.bundle.upsert({
-            where: { projectKey_bundleKey: { projectKey: PROJECT_KEY, bundleKey: spec.bundleKey } },
+            where: { bundleKey: spec.bundleKey },
             create: {
-                projectKey: PROJECT_KEY,
                 bundleKey: spec.bundleKey,
                 label: spec.label,
                 description: spec.description,
@@ -401,9 +399,11 @@ async function seedBundles(prisma: PrismaClient): Promise<void> {
 }
 
 async function seedMarketing(prisma: PrismaClient): Promise<void> {
+    // The table holds at most one row, and the schema's constant primary key
+    // is what enforces it — so the seed addresses the same row on every run.
     await prisma.marketingSettings.upsert({
-        where: { projectKey: PROJECT_KEY },
-        create: { projectKey: PROJECT_KEY, activeLocales: ['en'] },
+        where: { id: MARKETING_SETTINGS_ROW_ID },
+        create: { id: MARKETING_SETTINGS_ROW_ID, activeLocales: ['en'] },
         update: { activeLocales: ['en'] },
     });
 
@@ -414,7 +414,6 @@ async function seedMarketing(prisma: PrismaClient): Promise<void> {
             where: { id: promo.id },
             create: {
                 id: promo.id,
-                projectKey: PROJECT_KEY,
                 internalLabel: promo.internalLabel,
                 type: promo.type,
                 value: promo.value,
@@ -500,7 +499,7 @@ async function seedSubscriptionBundles(prisma: PrismaClient): Promise<void> {
         );
     }
     const bundle = await prisma.bundle.findUnique({
-        where: { projectKey_bundleKey: { projectKey: PROJECT_KEY, bundleKey: ACME_BUNDLE_KEY } },
+        where: { bundleKey: ACME_BUNDLE_KEY },
     });
     const bundleVersion = bundle
         ? await prisma.bundleVersion.findUnique({

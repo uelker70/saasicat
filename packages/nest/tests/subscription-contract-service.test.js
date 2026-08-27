@@ -75,7 +75,6 @@ const DISCOUNT_LINE = {
 function consumedOffer() {
     return {
         id: 'offer-1',
-        projectKey: 'clubapp',
         planKey: 'STANDARD',
         planVersionId: 'pv-1',
         billingCycle: 'yearly',
@@ -171,14 +170,12 @@ describe('SubscriptionContractService', () => {
 
     test('replaceActiveContract closes the old contract and creates a new one', async () => {
         const first = await service.create({
-            projectKey: 'clubapp',
             tenantId: 'tenant-1',
             effectiveFrom: EFFECTIVE_FROM,
             priceSnapshot: PRICE,
             lineItems: [PLAN_LINE],
         });
         const secondData = {
-            projectKey: 'clubapp',
             tenantId: 'tenant-1',
             effectiveFrom: new Date('2026-07-01T00:00:00.000Z'),
             priceSnapshot: PRICE,
@@ -202,7 +199,6 @@ describe('SubscriptionContractService', () => {
         await assert.rejects(
             () =>
                 service.create({
-                    projectKey: 'clubapp',
                     tenantId: 'tenant-1',
                     effectiveFrom: EFFECTIVE_FROM,
                     priceSnapshot: PRICE,
@@ -239,7 +235,6 @@ describe('SubscriptionContractService', () => {
 
     test('subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the contract', async () => {
         const contract = await service.create({
-            projectKey: 'clubapp',
             tenantId: 'tenant-1',
             effectiveFrom: EFFECTIVE_FROM,
             originalOfferId: 'offer-1',
@@ -250,7 +245,6 @@ describe('SubscriptionContractService', () => {
         const snapshot = subscriptionContractToInvoiceSnapshot(contract);
 
         assert.equal(snapshot.contractId, contract.id);
-        assert.equal(snapshot.projectKey, 'clubapp');
         assert.equal(snapshot.tenantId, 'tenant-1');
         assert.equal(snapshot.originalOfferId, 'offer-1');
         assert.equal(snapshot.currency, 'EUR');
@@ -276,7 +270,6 @@ describe('SubscriptionContractService', () => {
 
     test('getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract', async () => {
         await service.create({
-            projectKey: 'clubapp',
             tenantId: 'tenant-1',
             effectiveFrom: EFFECTIVE_FROM,
             priceSnapshot: PRICE,

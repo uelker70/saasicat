@@ -8,7 +8,6 @@ import {
     IsObject,
     IsOptional,
     IsString,
-    Matches,
     MaxLength,
 } from 'class-validator';
 import type {
@@ -18,15 +17,9 @@ import type {
     CheckoutOfferPromotionSnapshot,
 } from '@saasicat/core';
 
-const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const CYCLES = ['monthly', 'yearly'] as const;
 
 export class CreateCheckoutOfferDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey must be kebab-case' })
-    @MaxLength(64)
-    projectKey!: string;
-
     @IsString()
     @MaxLength(64)
     planKey!: string;

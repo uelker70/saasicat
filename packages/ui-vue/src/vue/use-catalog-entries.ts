@@ -27,8 +27,6 @@ export interface UseCatalogEntriesOptions {
     /** Admin endpoint prefix incl. globalPrefix (`/api/admin`, `/api/v1/admin`). */
     adminEndpoint: string;
     http?: HttpClient;
-    /** projectKey the catalog entries are filtered against. */
-    projectKey: string;
     autoLoad?: boolean;
 }
 
@@ -87,10 +85,6 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
     if (!options?.adminEndpoint) {
         throw new Error('useCatalogEntries: `adminEndpoint` is required.');
     }
-    if (!options?.projectKey) {
-        throw new Error('useCatalogEntries: `projectKey` is required.');
-    }
-
     const http = options.http ?? defaultHttpClient();
     const capabilities = ref<CapabilityCatalogEntryRow[]>([]);
     const features = ref<FeatureCatalogEntryRow[]>([]);
@@ -99,7 +93,6 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
     const error = ref<Error | null>(null);
 
     const base = `${options.adminEndpoint}/catalog`;
-    const pk = encodeURIComponent(options.projectKey);
 
     function authHeaders(): Record<string, string> {
         return {};
@@ -138,9 +131,9 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         error.value = null;
         try {
             const [caps, feats, qs] = await Promise.all([
-                fetchJson<CapabilityCatalogEntryRow[]>(`${base}/capabilities?projectKey=${pk}`),
-                fetchJson<FeatureCatalogEntryRow[]>(`${base}/features?projectKey=${pk}`),
-                fetchJson<QuotaCatalogEntryRow[]>(`${base}/quotas?projectKey=${pk}`),
+                fetchJson<CapabilityCatalogEntryRow[]>(`${base}/capabilities`),
+                fetchJson<FeatureCatalogEntryRow[]>(`${base}/features`),
+                fetchJson<QuotaCatalogEntryRow[]>(`${base}/quotas`),
             ]);
             capabilities.value = caps ?? [];
             features.value = feats ?? [];
@@ -157,7 +150,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         data: ReviewCatalogEntryData,
     ): Promise<FeatureCatalogEntryRow> {
         const updated = await fetchJson<FeatureCatalogEntryRow>(
-            `${base}/features/${encodeURIComponent(featureKey)}/review?projectKey=${pk}`,
+            `${base}/features/${encodeURIComponent(featureKey)}/review`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
         if (!updated)
@@ -171,7 +164,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         data: ReviewCatalogEntryData,
     ): Promise<QuotaCatalogEntryRow> {
         const updated = await fetchJson<QuotaCatalogEntryRow>(
-            `${base}/quotas/${encodeURIComponent(quotaKey)}/review?projectKey=${pk}`,
+            `${base}/quotas/${encodeURIComponent(quotaKey)}/review`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
         if (!updated)
@@ -185,7 +178,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         i18n: CatalogEntryI18n,
     ): Promise<FeatureCatalogEntryRow> {
         const updated = await fetchJson<FeatureCatalogEntryRow>(
-            `${base}/features/${encodeURIComponent(featureKey)}/i18n?projectKey=${pk}`,
+            `${base}/features/${encodeURIComponent(featureKey)}/i18n`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
         if (!updated)
@@ -199,7 +192,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         i18n: CatalogEntryI18n,
     ): Promise<QuotaCatalogEntryRow> {
         const updated = await fetchJson<QuotaCatalogEntryRow>(
-            `${base}/quotas/${encodeURIComponent(quotaKey)}/i18n?projectKey=${pk}`,
+            `${base}/quotas/${encodeURIComponent(quotaKey)}/i18n`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
         if (!updated)
@@ -213,7 +206,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         data: UpdateCatalogEntryBaseData,
     ): Promise<FeatureCatalogEntryRow> {
         const updated = await fetchJson<FeatureCatalogEntryRow>(
-            `${base}/features/${encodeURIComponent(featureKey)}?projectKey=${pk}`,
+            `${base}/features/${encodeURIComponent(featureKey)}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
         if (!updated)
@@ -227,7 +220,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         data: UpdateCatalogEntryBaseData,
     ): Promise<QuotaCatalogEntryRow> {
         const updated = await fetchJson<QuotaCatalogEntryRow>(
-            `${base}/quotas/${encodeURIComponent(quotaKey)}?projectKey=${pk}`,
+            `${base}/quotas/${encodeURIComponent(quotaKey)}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
         if (!updated)

@@ -18,7 +18,6 @@ import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
-    PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
 } from './public-catalog.tokens.js';
 
 // PublicCatalogModule — auth-free catalog endpoints under `/billing/*`.
@@ -30,12 +29,6 @@ export interface PublicCatalogModuleOptions {
     /** Required: consumer-specific FeatureUiRegistry. */
     featureUiRegistry: FeatureUiRegistry;
     /**
-     * — app identity (e.g. "clubapp"). Used
-     * for marketing lookups + bundle filters.
-     * Optional; if omitted, the new endpoints return empty lists.
-     */
-    projectKey?: string;
-    /**
      * Optional. When set, `/billing/bundles` is active.
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
@@ -45,9 +38,9 @@ export interface PublicCatalogModuleOptions {
      */
     marketingRepository?: ProviderSpec<MarketingProjectionRepository>;
     /**
-     * Optional (#13). When set (+ projectKey), `/billing/feature-registry`
-     * overlays the editable `FeatureCatalogEntry.icon` from the DB over the
-     * static registry.
+     * Optional (#13). When set, `/billing/feature-registry` overlays the
+     * editable `FeatureCatalogEntry.icon` from the DB over the static
+     * registry.
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
     /**
@@ -68,12 +61,6 @@ export class PublicCatalogModule {
                 useValue: options.featureUiRegistry,
             },
         ];
-        if (options.projectKey !== undefined) {
-            providers.push({
-                provide: PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
-                useValue: options.projectKey,
-            });
-        }
         if (options.bundleRepository) {
             providers.push(
                 asProvider(PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN, options.bundleRepository),

@@ -43,7 +43,7 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
     imports: [
         PrismaModule,
         PlanCatalogModule.forRoot({
-            projectKey: 'myapp',
+            app: { name: 'MyApp' },
             currency: 'EUR',
             vatRate: 19,
             // The catalogue is read from the database, not from a file — the

@@ -6,7 +6,7 @@
 import axios from 'axios';
 import { createAxiosHttpClient } from '@saasicat/ui-vue';
 
-const TOKEN_KEY = '__PROJECT_KEY__-admin-token';
+const TOKEN_KEY = '__APP_KEY__-admin-token';
 
 export const api = axios.create({ baseURL: '/api/v1' });
 api.interceptors.request.use((cfg) => {

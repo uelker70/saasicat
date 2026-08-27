@@ -12,7 +12,7 @@ import {
 } from '../dist/index.js';
 
 const APP_SCHEMA = {
-    planBinding: { mode: 'normalized-plan-id', projectKey: 'app' },
+    planBinding: { mode: 'normalized-plan-id' },
     delegates: {
         catalogPlanVersion: 'catalogPlanVersion',
         entitlementPlanVersion: 'entitlementPlanVersion',
@@ -49,20 +49,14 @@ describe('Prisma plan binding options', () => {
         assert.equal(await resolver.toPlanKey({}, 'BASIC'), 'BASIC');
     });
 
-    test('normalized mode requires projectKey and resolves both directions', async () => {
-        assert.throws(
-            () => createPrismaPlanBindingResolver({ mode: 'normalized-plan-id' }),
-            /requires a non-empty projectKey/,
-        );
+    test('normalized mode resolves both directions', async () => {
         const client = fakePrisma();
         const resolver = createPrismaPlanBindingResolver(APP_SCHEMA.planBinding);
 
         assert.equal(await resolver.toStoragePlanId(client, 'BASIC'), 'plan-basic');
         assert.equal(await resolver.toPlanKey(client, 'plan-basic'), 'BASIC');
-        await assert.rejects(
-            resolver.toPlanKey(client, 'plan-other'),
-            /not found in project 'app'/,
-        );
+        await assert.rejects(resolver.toPlanKey(client, 'plan-missing'), /not found/);
+        await assert.rejects(resolver.toStoragePlanId(client, 'NO_SUCH_KEY'), /not found/);
     });
 });
 
@@ -78,12 +72,10 @@ describe('normalized plan identity across Prisma adapters', () => {
                 endsAt: new Date('2026-08-01T12:00:00.000Z'),
             }),
         );
-        const snapshot = await new PrismaPlanCatalogReadSink(client, APP_SCHEMA).loadSnapshot(
-            'app',
-        );
+        const snapshot = await new PrismaPlanCatalogReadSink(client, APP_SCHEMA).loadSnapshot();
 
         assert.deepEqual(client.catalogPlanVersion.calls.findMany[0].where.planId, {
-            in: ['plan-basic'],
+            in: ['plan-basic', 'plan-pro'],
         });
         assert.equal(client.planVersion.calls.findMany.length, 0);
         assert.equal(snapshot.livePlanVersions[0].planId, 'BASIC');
@@ -140,11 +132,11 @@ describe('normalized plan identity across Prisma adapters', () => {
         assert.equal(subscription.planVersion.planId, 'BASIC');
     });
 
-    test('active subscription counts use authoritative PlanVersions and stay project-scoped', async () => {
+    test('active subscription counts use authoritative PlanVersions', async () => {
         const client = fakePrisma();
         client.entitlementPlanVersion.rows.push(
             versionRow({ id: 'app-v1', planId: 'plan-basic' }),
-            versionRow({ id: 'other-v1', planId: 'plan-other' }),
+            versionRow({ id: 'pro-v1', planId: 'plan-pro' }),
         );
         client.subscription.rows.push(
             subscriptionRow({
@@ -161,10 +153,10 @@ describe('normalized plan identity across Prisma adapters', () => {
                 planVersionId: 'app-v1',
             }),
             subscriptionRow({
-                id: 'other-active',
-                tenantId: 'tenant-other',
+                id: 'pro-active',
+                tenantId: 'tenant-pro',
                 plan: 'BASIC',
-                planVersionId: 'other-v1',
+                planVersionId: 'pro-v1',
             }),
             subscriptionRow({
                 id: 'app-canceled',
@@ -175,10 +167,9 @@ describe('normalized plan identity across Prisma adapters', () => {
         );
 
         const repository = new PrismaSubscriptionRepository(client, APP_SCHEMA);
-        assert.deepEqual(await repository.countActiveByPlanKey('app'), { BASIC: 2 });
+        assert.deepEqual(await repository.countActiveByPlanKey(), { BASIC: 2, PRO: 1 });
         assert.deepEqual(client.plan.calls.findMany.at(-1).where, {
-            projectKey: 'app',
-            id: { in: ['plan-basic', 'plan-other'] },
+            id: { in: ['plan-basic', 'plan-pro'] },
         });
     });
 
@@ -453,13 +444,31 @@ describe('PrismaPlanRepository normalized lifecycle', () => {
         });
     });
 
-    test('legacy onlyPublished fails closed for plan keys shared by projects', async () => {
+    test('legacy onlyPublished reads the live versions, and a key names one plan', async () => {
+        // The predecessor of this test asserted the opposite: `plans` used to be
+        // unique per (project, plan key), so a shared key made ownership
+        // undecidable and `onlyPublished` returned nothing. The plan key is now
+        // the whole identity, and the live version answers directly.
         const client = fakePrisma();
         client.planVersion.rows.push(versionRow({ planId: 'BASIC' }));
         const repo = new PrismaPlanRepository(client);
 
-        assert.deepEqual(await repo.list({ projectKey: 'app', onlyPublished: true }), []);
-        assert.deepEqual(client.planVersion.calls.findMany[0].where.planId, { in: [] });
+        assert.deepEqual(
+            (await repo.list({ onlyPublished: true })).map((plan) => plan.planKey),
+            ['BASIC'],
+        );
+        assert.deepEqual(client.planVersion.calls.findMany[0].where, {
+            publishedAt: { not: null },
+            supersededAt: null,
+        });
+    });
+
+    test('legacy onlyPublished omits a plan whose only version is a draft', async () => {
+        const client = fakePrisma();
+        client.planVersion.rows.push(versionRow({ planId: 'BASIC', publishedAt: null }));
+        const repo = new PrismaPlanRepository(client);
+
+        assert.deepEqual(await repo.list({ onlyPublished: true }), []);
     });
 });
 
@@ -480,7 +489,7 @@ describe('prismaPersistence schema forwarding', () => {
 });
 
 function fakePrisma() {
-    const plans = [planRow(), planRow({ id: 'plan-other', projectKey: 'other', planKey: 'BASIC' })];
+    const plans = [planRow(), planRow({ id: 'plan-pro', planKey: 'PRO' })];
     const client = {
         transactionCalls: 0,
         plan: {
@@ -631,7 +640,6 @@ function subscriptionDelegate() {
 function planRow(overrides = {}) {
     return {
         id: 'plan-basic',
-        projectKey: 'app',
         planKey: 'BASIC',
         label: 'Basic',
         description: null,

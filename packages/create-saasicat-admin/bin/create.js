@@ -20,7 +20,7 @@ const OWN_VERSION = JSON.parse(
 ).version;
 
 export const DEFAULT_TOKENS = {
-    PROJECT_KEY: 'app',
+    APP_KEY: 'app',
     BRAND_NAME: 'App',
     LOGO_TEXT: 'AP',
     API_BASE: '/api/v1/admin',
@@ -30,7 +30,7 @@ export const DEFAULT_TOKENS = {
 };
 
 const TOKEN_FLAGS = {
-    'project-key': 'PROJECT_KEY',
+    'app-key': 'APP_KEY',
     'brand-name': 'BRAND_NAME',
     'logo-text': 'LOGO_TEXT',
     'api-base': 'API_BASE',
@@ -119,7 +119,7 @@ async function main() {
         console.log('Usage: pnpm create saasicat-admin <dir> [flags]');
         console.log('');
         console.log('Flags:');
-        console.log('  --project-key=app           the catalogue this admin administers');
+        console.log('  --app-key=app               the slug of this application');
         console.log('                              (also the storage-key prefix)');
         console.log('  --brand-name=App            brand name in the header');
         console.log('  --logo-text=AP              two-letter badge');

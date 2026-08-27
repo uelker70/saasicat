@@ -59,13 +59,18 @@ function contractStore() {
 
 function service(contracts) {
     return new SubscriptionContractFreezeService(
-        { schemaVersion: 1, projectKey: 'demo', currency: 'EUR', vatRate: 19, plans: [] },
+        {
+            schemaVersion: 1,
+            app: { name: 'Demo App' },
+            currency: 'EUR',
+            vatRate: 19,
+            plans: [],
+        },
         {
             computeLimits: async () => ({ plan: 'PRO', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
         contracts,
-        'demo',
         {
             loadBookedBundles: async () => ({ lineItems: [], bundleVersionIds: [] }),
             findLivePlanVersionId: async () => null,

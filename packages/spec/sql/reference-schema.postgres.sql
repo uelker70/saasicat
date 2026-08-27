@@ -114,7 +114,6 @@ CREATE TABLE "subscription_payment_methods" (
 -- CreateTable
 CREATE TABLE "checkout_offers" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "planKey" TEXT NOT NULL,
     "planVersionId" TEXT,
     "billingCycle" TEXT NOT NULL,
@@ -200,7 +199,6 @@ CREATE TABLE "promo_code_validation_logs" (
 -- CreateTable
 CREATE TABLE "plans" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "planKey" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "description" TEXT,
@@ -260,7 +258,6 @@ CREATE TABLE "audit_logs" (
 -- CreateTable
 CREATE TABLE "bundles" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "bundleKey" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "description" TEXT,
@@ -305,7 +302,6 @@ CREATE TABLE "bundle_versions" (
 -- CreateTable
 CREATE TABLE "capability_catalog_entries" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "capabilityKey" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "description" TEXT,
@@ -330,7 +326,6 @@ CREATE TABLE "capability_catalog_entries" (
 -- CreateTable
 CREATE TABLE "feature_catalog_entries" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "featureKey" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "description" TEXT,
@@ -359,7 +354,6 @@ CREATE TABLE "feature_catalog_entries" (
 -- CreateTable
 CREATE TABLE "quota_catalog_entries" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "quotaKey" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "description" TEXT,
@@ -385,7 +379,6 @@ CREATE TABLE "quota_catalog_entries" (
 -- CreateTable
 CREATE TABLE "marketing_projections" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "targetType" TEXT NOT NULL,
     "targetVersionId" TEXT NOT NULL,
     "locale" TEXT NOT NULL DEFAULT 'de',
@@ -408,8 +401,7 @@ CREATE TABLE "marketing_projections" (
 
 -- CreateTable
 CREATE TABLE "marketing_settings" (
-    "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
+    "id" TEXT NOT NULL DEFAULT 'marketing-settings',
     "activeLocales" JSONB NOT NULL DEFAULT '[]',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -420,7 +412,6 @@ CREATE TABLE "marketing_settings" (
 -- CreateTable
 CREATE TABLE "promotions" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "internalLabel" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "value" JSONB NOT NULL,
@@ -444,7 +435,6 @@ CREATE TABLE "promotions" (
 -- CreateTable
 CREATE TABLE "subscription_contracts" (
     "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "status" "SubscriptionContractStatus" NOT NULL DEFAULT 'active',
     "effectiveFrom" TIMESTAMP(3) NOT NULL,
@@ -595,7 +585,7 @@ CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "subscriptions"("currentPer
 CREATE UNIQUE INDEX "subscription_payment_methods_subscriptionId_key" ON "subscription_payment_methods"("subscriptionId");
 
 -- CreateIndex
-CREATE INDEX "checkout_offers_projectKey_status_idx" ON "checkout_offers"("projectKey", "status");
+CREATE INDEX "checkout_offers_status_idx" ON "checkout_offers"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "promo_codes_code_key" ON "promo_codes"("code");
@@ -628,10 +618,10 @@ CREATE INDEX "promo_code_validation_logs_ipHash_createdAt_idx" ON "promo_code_va
 CREATE INDEX "promo_code_validation_logs_sessionId_createdAt_idx" ON "promo_code_validation_logs"("sessionId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "plans_projectKey_deletedAt_idx" ON "plans"("projectKey", "deletedAt");
+CREATE INDEX "plans_deletedAt_idx" ON "plans"("deletedAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "plans_projectKey_planKey_key" ON "plans"("projectKey", "planKey");
+CREATE UNIQUE INDEX "plans_planKey_key" ON "plans"("planKey");
 
 -- CreateIndex
 CREATE INDEX "plan_versions_planId_supersededAt_idx" ON "plan_versions"("planId", "supersededAt");
@@ -658,10 +648,10 @@ CREATE INDEX "audit_logs_entity_action_createdAt_idx" ON "audit_logs"("entity", 
 CREATE INDEX "audit_logs_actorTag_createdAt_idx" ON "audit_logs"("actorTag", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "bundles_projectKey_deletedAt_idx" ON "bundles"("projectKey", "deletedAt");
+CREATE INDEX "bundles_deletedAt_idx" ON "bundles"("deletedAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "bundles_projectKey_bundleKey_key" ON "bundles"("projectKey", "bundleKey");
+CREATE UNIQUE INDEX "bundles_bundleKey_key" ON "bundles"("bundleKey");
 
 -- CreateIndex
 CREATE INDEX "bundle_versions_bundleId_supersededAt_idx" ON "bundle_versions"("bundleId", "supersededAt");
@@ -676,46 +666,43 @@ CREATE INDEX "bundle_versions_bundleId_validFrom_idx" ON "bundle_versions"("bund
 CREATE UNIQUE INDEX "bundle_versions_bundleId_version_key" ON "bundle_versions"("bundleId", "version");
 
 -- CreateIndex
-CREATE INDEX "capability_catalog_entries_projectKey_codeStatus_idx" ON "capability_catalog_entries"("projectKey", "codeStatus");
+CREATE INDEX "capability_catalog_entries_codeStatus_idx" ON "capability_catalog_entries"("codeStatus");
 
 -- CreateIndex
-CREATE INDEX "capability_catalog_entries_projectKey_featureKey_idx" ON "capability_catalog_entries"("projectKey", "featureKey");
+CREATE INDEX "capability_catalog_entries_featureKey_idx" ON "capability_catalog_entries"("featureKey");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "capability_catalog_entries_projectKey_capabilityKey_key" ON "capability_catalog_entries"("projectKey", "capabilityKey");
+CREATE UNIQUE INDEX "capability_catalog_entries_capabilityKey_key" ON "capability_catalog_entries"("capabilityKey");
 
 -- CreateIndex
-CREATE INDEX "feature_catalog_entries_projectKey_discoveryStatus_idx" ON "feature_catalog_entries"("projectKey", "discoveryStatus");
+CREATE INDEX "feature_catalog_entries_discoveryStatus_idx" ON "feature_catalog_entries"("discoveryStatus");
 
 -- CreateIndex
-CREATE INDEX "feature_catalog_entries_projectKey_plannedOnly_idx" ON "feature_catalog_entries"("projectKey", "plannedOnly");
+CREATE INDEX "feature_catalog_entries_plannedOnly_idx" ON "feature_catalog_entries"("plannedOnly");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "feature_catalog_entries_projectKey_featureKey_key" ON "feature_catalog_entries"("projectKey", "featureKey");
+CREATE UNIQUE INDEX "feature_catalog_entries_featureKey_key" ON "feature_catalog_entries"("featureKey");
 
 -- CreateIndex
-CREATE INDEX "quota_catalog_entries_projectKey_discoveryStatus_idx" ON "quota_catalog_entries"("projectKey", "discoveryStatus");
+CREATE INDEX "quota_catalog_entries_discoveryStatus_idx" ON "quota_catalog_entries"("discoveryStatus");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "quota_catalog_entries_projectKey_quotaKey_key" ON "quota_catalog_entries"("projectKey", "quotaKey");
+CREATE UNIQUE INDEX "quota_catalog_entries_quotaKey_key" ON "quota_catalog_entries"("quotaKey");
 
 -- CreateIndex
-CREATE INDEX "marketing_projections_projectKey_targetType_locale_priority_idx" ON "marketing_projections"("projectKey", "targetType", "locale", "priority");
+CREATE INDEX "marketing_projections_targetType_locale_priority_idx" ON "marketing_projections"("targetType", "locale", "priority");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "marketing_projections_targetType_targetVersionId_locale_key" ON "marketing_projections"("targetType", "targetVersionId", "locale");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "marketing_settings_projectKey_key" ON "marketing_settings"("projectKey");
-
--- CreateIndex
-CREATE INDEX "promotions_projectKey_targetType_validFrom_validTo_idx" ON "promotions"("projectKey", "targetType", "validFrom", "validTo");
+CREATE INDEX "promotions_targetType_validFrom_validTo_idx" ON "promotions"("targetType", "validFrom", "validTo");
 
 -- CreateIndex
 CREATE INDEX "subscription_contracts_tenantId_status_effectiveFrom_idx" ON "subscription_contracts"("tenantId", "status", "effectiveFrom");
 
 -- CreateIndex
-CREATE INDEX "subscription_contracts_projectKey_status_idx" ON "subscription_contracts"("projectKey", "status");
+CREATE INDEX "subscription_contracts_status_idx" ON "subscription_contracts"("status");
 
 -- CreateIndex
 CREATE INDEX "subscription_contracts_originalOfferId_idx" ON "subscription_contracts"("originalOfferId");

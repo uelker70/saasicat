@@ -41,7 +41,6 @@
                 <BundleCreatePanel
                     v-if="createOpen"
                     class="q-mb-sm"
-                    :project-key="projectKey"
                     :available-features="snapshot?.features ?? []"
                     :available-quotas="snapshot?.quotas ?? []"
                     :plans="plans"
@@ -137,7 +136,6 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
 import { classifyBundleVersionDiff } from '@saasicat/core';
 import { useResource } from '../vue/resource-registry.js';
-import { useSuperAdminEndpoints } from '../vue/use-super-admin-context.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type {
     bundlesResource,
@@ -250,11 +248,6 @@ const props = defineProps<{
 // wired four composables by hand to produce them — `useBundles`,
 // `useBundleVersionsMap`, `useCatalogEntries`, `usePlanVersions` — plus a
 // snapshot loader. All five read endpoints these resources already declare.
-// The project the shell was configured for. It used to be a prop, which meant
-// an app could hand this page a different project than the one its resources
-// read from — two answers to one question.
-const { projectKey } = useSuperAdminEndpoints();
-
 const bundlesOps = useResource('bundles', props.resources?.bundles);
 const versionsOps = useResource('bundleVersions', props.resources?.bundleVersions);
 const catalogOps = useResource('catalog', props.resources?.catalog);

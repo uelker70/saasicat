@@ -18,7 +18,6 @@ import {
     ParseUUIDPipe,
     Patch,
     Post,
-    Query,
     type Type,
     UseGuards,
 } from '@nestjs/common';
@@ -48,8 +47,8 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
         // ─── Root operations ───
 
         @Get()
-        listBundles(@Query('projectKey') projectKey: string) {
-            return this.service.listBundles(projectKey);
+        listBundles() {
+            return this.service.listBundles();
         }
 
         @Get(':id')

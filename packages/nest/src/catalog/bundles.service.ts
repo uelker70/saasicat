@@ -131,8 +131,8 @@ export class BundlesService {
     // Master operations
     // =========================================================================
 
-    listBundles(projectKey: string): Promise<BundleRow[]> {
-        return this.repo.list({ projectKey, excludeDeleted: true });
+    listBundles(): Promise<BundleRow[]> {
+        return this.repo.list({ excludeDeleted: true });
     }
 
     async getBundle(
@@ -151,12 +151,12 @@ export class BundlesService {
     }
 
     async createBundle(data: CreateBundleData): Promise<BundleRow> {
-        const existing = await this.repo.findByKey(data.projectKey, data.bundleKey);
+        const existing = await this.repo.findByKey(data.bundleKey);
         if (existing) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.BUNDLE_ALREADY_EXISTS,
-                message: `Bundle '${data.bundleKey}' already exists in project '${data.projectKey}'`,
-                params: { bundleKey: data.bundleKey, projectKey: data.projectKey },
+                message: `Bundle '${data.bundleKey}' already exists`,
+                params: { bundleKey: data.bundleKey },
             });
         }
         return this.repo.create(data);
@@ -301,14 +301,11 @@ export class BundlesService {
             data = { ...data, baseVersionId: latestLive?.id ?? null };
         }
 
-        const warnings = await this.runStrictCheck(
-            {
-                features: data.features,
-                quotas: data.quotas ?? {},
-                compatibility: data.compatibility,
-            },
-            bundle.projectKey,
-        );
+        const warnings = await this.runStrictCheck({
+            features: data.features,
+            quotas: data.quotas ?? {},
+            compatibility: data.compatibility,
+        });
         this.gateOrPass(warnings);
 
         const bundleVersion = await this.repo.createDraft(data);
@@ -354,8 +351,7 @@ export class BundlesService {
             quotas: data.quotas ?? existing.quotas,
             compatibility: data.compatibility ?? existing.compatibility,
         };
-        const bundle = await this.repo.findById(existing.bundleId);
-        const warnings = await this.runStrictCheck(merged, bundle?.projectKey ?? null);
+        const warnings = await this.runStrictCheck(merged);
         this.gateOrPass(warnings);
         await this.assertBundleVersionWindowUpdate(existing, data);
 
@@ -393,15 +389,11 @@ export class BundlesService {
             });
         }
 
-        const bundle = await this.repo.findById(draft.bundleId);
-        const warnings = await this.runStrictCheck(
-            {
-                features: draft.features,
-                quotas: draft.quotas,
-                compatibility: draft.compatibility,
-            },
-            bundle?.projectKey ?? null,
-        );
+        const warnings = await this.runStrictCheck({
+            features: draft.features,
+            quotas: draft.quotas,
+            compatibility: draft.compatibility,
+        });
         this.gateOrPass(warnings);
 
         // ─── Price gate (guards against accidentally publishing seed placeholders) ───
@@ -505,28 +497,24 @@ export class BundlesService {
     // Helper
     // =========================================================================
 
-    private async runStrictCheck(
-        draft: {
-            features: string[];
-            quotas: Record<string, number>;
-            compatibility?: BundleCompatibility;
-        },
-        projectKey: string | null,
-    ): Promise<StrictModeWarning[]> {
+    private async runStrictCheck(draft: {
+        features: string[];
+        quotas: Record<string, number>;
+        compatibility?: BundleCompatibility;
+    }): Promise<StrictModeWarning[]> {
         const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
         if (!snapshot) return [];
         const planIds = draft.compatibility?.planIds ?? [];
         let knownPlanKeys: Set<string> | null = null;
-        if (planIds.length > 0 && this.planRepo && projectKey) {
+        if (planIds.length > 0 && this.planRepo) {
             // Lazy: only list when the bundle actually sets plan-compat keys —
             // otherwise we save the repo call. `findByKey` individually would be
             // one round-trip per planKey; `list` is more pragmatic and fine for
             // SuperAdmin with few plans.
-            const all = await this.planRepo.list({ projectKey });
+            const all = await this.planRepo.list({});
             knownPlanKeys = new Set(all.map((p) => p.planKey));
         }
-        // Approved gate (#20 Slice 5): projectKey == snapshot.app.key (convention).
-        const approved = await loadApprovedCatalogKeys(this.catalogEntries, snapshot.app.key);
+        const approved = await loadApprovedCatalogKeys(this.catalogEntries);
         return validateBundleDraft(draft, snapshot, knownPlanKeys, this.marketedOnly, approved);
     }
 
@@ -540,10 +528,9 @@ export class BundlesService {
      * desk, which is the wrong end of the mistake.
      *
      * The expectation comes from the catalog, not from a list: the plans are
-     * whichever the compatibility declares (empty = every plan in the project),
-     * and the cycles are whichever each plan version carries a price for. Add a
-     * third cycle to the catalog one day and this asks about it without being
-     * told.
+     * whichever the compatibility declares (empty = every plan), and the cycles
+     * are whichever each plan version carries a price for. Add a third cycle to
+     * the catalog one day and this asks about it without being told.
      *
      * Skipped where no plan repository is bound — a consumer without one has no
      * catalog to derive from, and guessing would refuse valid bundles.
@@ -553,11 +540,9 @@ export class BundlesService {
         versionId: string,
     ): Promise<void> {
         if (!this.planRepo?.listVersions) return;
-        const projectKey = await this.resolveProjectKeyOf(draft.bundleId);
-        if (!projectKey) return;
 
         const declared = draft.compatibility?.planIds ?? [];
-        const plans = await this.planRepo.list({ projectKey, onlyPublished: true });
+        const plans = await this.planRepo.list({ onlyPublished: true });
         const offeredTo = plans.filter(
             (plan) => declared.length === 0 || declared.includes(plan.planKey),
         );
@@ -584,12 +569,6 @@ export class BundlesService {
     private async liveVersionOf(planKey: string): Promise<PlanVersionRow | null> {
         const versions = (await this.planRepo?.listVersions?.(planKey)) ?? [];
         return versions.find((version) => version.publishedAt && !version.supersededAt) ?? null;
-    }
-
-    /** `projectKey` lives on the bundle stem, not on the version. */
-    private async resolveProjectKeyOf(bundleId: string): Promise<string | null> {
-        const stem = await this.repo.findById(bundleId);
-        return stem?.projectKey ?? null;
     }
 
     private gateOrPass(warnings: StrictModeWarning[]): void {

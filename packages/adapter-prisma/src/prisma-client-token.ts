@@ -83,7 +83,6 @@ export interface PlanVersionRowLike {
 
 export interface PlanRowLike {
     id: string;
-    projectKey: string;
     planKey: string;
     label: string;
     description: string | null;
@@ -96,7 +95,6 @@ export interface PlanRowLike {
 
 export interface FeatureCatalogEntryRowLike {
     id: string;
-    projectKey: string;
     featureKey: string;
     label: string;
     description: string | null;
@@ -251,16 +249,13 @@ export interface PlanVersionDelegateLike {
 }
 
 export interface PlanDelegateLike {
-    findFirst(args: {
-        where: { projectKey?: string; planKey?: string; deletedAt?: null };
-    }): Promise<PlanRowLike | null>;
+    findFirst(args: { where: { planKey?: string; deletedAt?: null } }): Promise<PlanRowLike | null>;
     findMany(args?: {
-        where?: { projectKey?: string; deletedAt?: null };
+        where?: { deletedAt?: null };
         orderBy?: { sortOrder?: SortDirection };
     }): Promise<PlanRowLike[]>;
     create(args: {
         data: {
-            projectKey: string;
             planKey: string;
             label: string;
             description?: string | null;
@@ -271,15 +266,14 @@ export interface PlanDelegateLike {
 
 export interface FeatureCatalogEntryDelegateLike {
     findFirst(args: {
-        where: { projectKey?: string; featureKey?: string; deletedAt?: null };
+        where: { featureKey?: string; deletedAt?: null };
     }): Promise<FeatureCatalogEntryRowLike | null>;
     findMany(args?: {
-        where?: { projectKey?: string; deletedAt?: null };
+        where?: { deletedAt?: null };
         orderBy?: { sortOrder?: SortDirection };
     }): Promise<FeatureCatalogEntryRowLike[]>;
     create(args: {
         data: {
-            projectKey: string;
             featureKey: string;
             label: string;
             icon?: string | null;

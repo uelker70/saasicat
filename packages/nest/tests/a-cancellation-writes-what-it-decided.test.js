@@ -267,7 +267,7 @@ describe('a declaration made after the notice window closed', () => {
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demo',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     plans: [
