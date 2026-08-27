@@ -56,7 +56,11 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         // stands.
         return this.db.transaction(async (tx) => {
             const db = tx as unknown as DrizzleClient;
-            const current = await this.requireSubscription(db, tenantId);
+            // Locked, not merely read: everything below decides from this row —
+            // whether the pending version belongs elsewhere, above all — and a
+            // decision made on a row that then changes is applied to a state
+            // nobody looked at. The lock makes read and write one moment.
+            const current = await this.requireSubscription(db, tenantId, { lock: true });
             const planVersionId = await this.activeVersionId(
                 input.planId,
                 input.periodStart ?? new Date(),
@@ -162,7 +166,6 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         tenantId: string,
         input: CancelSubscriptionInput,
     ): Promise<CancelSubscriptionResult> {
-        const sub = await this.requireSubscription(this.db, tenantId);
         const now = new Date();
         const claimed = await this.db
             .update(subscriptions)
@@ -174,7 +177,13 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 // against, and writing the field on every call would erase a
                 // term that is still running.
                 ...(input.minimumTermUntil ? { minimumTermUntil: input.minimumTermUntil } : {}),
-                status: input.terminateNow ? 'CANCELED' : sub.status,
+                // Written only when the cancellation is already effective.
+                // Restating the status this call read would undo whatever
+                // changed it in between — a trial going live between the read
+                // and the write came back as `TRIAL`, entitlements and all.
+                // An ordinary cancellation records dates; it has no opinion
+                // about the status.
+                ...(input.terminateNow ? { status: 'CANCELED' } : {}),
                 updatedAt: now,
             })
             // Only while both cancellation columns are still empty. Two
@@ -270,12 +279,19 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         return claimed.length;
     }
 
-    private async requireSubscription(db: DrizzleClient, tenantId: string) {
-        const rows = await db
-            .select()
-            .from(subscriptions)
-            .where(eq(subscriptions.tenantId, tenantId))
-            .limit(1);
+    /**
+     * `lock: true` takes the row for the rest of the transaction, so a caller
+     * deciding from what it read cannot have the ground move underneath it. It
+     * is only meaningful inside a transaction — outside one the lock is
+     * released with the statement.
+     */
+    private async requireSubscription(
+        db: DrizzleClient,
+        tenantId: string,
+        options: { lock?: boolean } = {},
+    ) {
+        const query = db.select().from(subscriptions).where(eq(subscriptions.tenantId, tenantId));
+        const rows = await (options.lock ? query.for('update') : query).limit(1);
         if (!rows[0]) throw new Error(`No subscription for tenant ${tenantId}.`);
         return rows[0];
     }

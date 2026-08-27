@@ -13,4 +13,6 @@ The persistence contract's contract-lifecycle scenario was a placeholder that fa
 
 `@saasicat/core` gains the pieces both adapters were spelling out separately: `toPlanRow`, `toPlanVersionRow`, `toSubscriptionContractRecord` and `toContractLineItemRecord` map canonical rows to records in one place, `previousUtcDay` and `ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES` are the window and status rules the adapters share, and `CancelSubscriptionInput`/`CancelSubscriptionResult` name a shape that was written out three times. `cancelSubscription` keeps the same structural signature.
 
+Two read-then-write windows in the tenant's own writes are closed in **both** adapters: an ordinary cancellation no longer restates the status it read a moment earlier — a trial going live in between came back as `TRIAL`, entitlements and all — and an immediate plan change now locks the row its decisions come from.
+
 One reading changes as a consequence: a `publishedChanges` column holding something other than an array now reads as `null` in the plan-catalogue projections rather than being cast, which is what the other mappers already did.

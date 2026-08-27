@@ -12,6 +12,7 @@
 
 import { after, before, beforeEach, describe, test } from 'node:test';
 import { eq } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
@@ -506,5 +507,123 @@ describe("a tenant's own writes", () => {
             minimumTermUntil: new Date('2026-02-01T00:00:00.000Z'),
         });
         assert.equal(ended.status, 'CANCELED');
+    });
+});
+
+// What the adapter actually asks the database to do.
+//
+// Both writes below used to decide from a row they had read a moment earlier,
+// which is a window another writer can step into. The repairs close the window
+// rather than narrow it — one statement stops naming a column it has no opinion
+// about, the other takes the row it decides from — so the property to pin is
+// the statement itself, and the SQL is where that is observable.
+//
+// Recorded from a real run against the real database: these are the statements
+// PostgreSQL received, not a rehearsal of them.
+describe('the statements a tenant write sends', () => {
+    const TENANT = 'tenant-statement-probe';
+
+    async function recordStatements(run) {
+        const statements = [];
+        const recordingPool = {
+            query(...args) {
+                statements.push(typeof args[0] === 'string' ? args[0] : args[0].text);
+                return pool.query(...args);
+            },
+            connect: (...args) => pool.connect(...args),
+            end: () => {},
+        };
+        await run(drizzle(recordingPool));
+        return statements;
+    }
+
+    async function seed(status = 'TRIAL', extra = {}) {
+        const plan = await plans.create({
+            projectKey: PROJECT,
+            planKey: `STMT_${randomUUID().slice(0, 8)}`,
+            label: 'Statement probe',
+        });
+        const draft = await draftFor(plan.planKey);
+        const version = await publish(draft.id, new Date('2026-01-01T00:00:00.000Z'));
+        await db.insert(saasicatSchema.subscriptions).values({
+            id: randomUUID(),
+            tenantId: TENANT,
+            plan: plan.planKey,
+            planVersionId: version.id,
+            billingCycle: 'MONTHLY',
+            status,
+            startedAt: new Date('2026-01-01T00:00:00.000Z'),
+            isPilot: false,
+            updatedAt: new Date(),
+            ...extra,
+        });
+        return { plan, version };
+    }
+
+    const updates = (statements) =>
+        statements.filter((sql) => sql.trim().toLowerCase().startsWith('update "subscriptions"'));
+
+    test('an ordinary cancellation never names the status column', async () => {
+        await seed('TRIAL');
+        const statements = await recordStatements((recording) =>
+            new DrizzleTenantSubscriptionWrite(recording).cancelSubscription(TENANT, {
+                canceledAt: new Date('2026-02-01T00:00:00.000Z'),
+                effectiveAt: new Date('2026-03-01T00:00:00.000Z'),
+                terminateNow: false,
+            }),
+        );
+        const [update] = updates(statements);
+        assert.ok(update, 'the cancellation must issue an update');
+        assert.equal(
+            update.includes('"status"'),
+            false,
+            'restating the status this call read would undo whatever changed it in between',
+        );
+        assert.ok(update.includes('"canceledAt"'), 'and it still records the dates');
+    });
+
+    test('ending a contract on the spot does name it', async () => {
+        await seed('ACTIVE');
+        const statements = await recordStatements((recording) =>
+            new DrizzleTenantSubscriptionWrite(recording).cancelSubscription(TENANT, {
+                canceledAt: new Date('2026-02-01T00:00:00.000Z'),
+                effectiveAt: new Date('2026-02-01T00:00:00.000Z'),
+                terminateNow: true,
+            }),
+        );
+        assert.ok(updates(statements)[0].includes('"status"'));
+        const [row] = await db
+            .select()
+            .from(saasicatSchema.subscriptions)
+            .where(eq(saasicatSchema.subscriptions.tenantId, TENANT));
+        assert.equal(row.status, 'CANCELED');
+    });
+
+    test('an immediate change locks the row it decides from', async () => {
+        const target = await seed('ACTIVE');
+        const statements = await recordStatements((recording) =>
+            new DrizzleTenantSubscriptionWrite(recording).changePlanImmediate(TENANT, {
+                planId: target.plan.planKey,
+                cycle: 'MONTHLY',
+                periodStart: null,
+                periodEnd: null,
+                nextStatus: null,
+                expectedCanceledAt: null,
+            }),
+        );
+        const read = statements.find(
+            (sql) =>
+                sql.trim().toLowerCase().startsWith('select') &&
+                sql.includes('from "subscriptions"'),
+        );
+        assert.ok(read, 'the change reads the subscription it is about to rewrite');
+        assert.ok(
+            read.toLowerCase().includes('for update'),
+            'everything below that read decides from it — an unlocked row can move in between',
+        );
+        assert.ok(
+            statements.some((sql) => sql.trim().toLowerCase() === 'begin'),
+            'and the lock only means something inside a transaction',
+        );
     });
 });

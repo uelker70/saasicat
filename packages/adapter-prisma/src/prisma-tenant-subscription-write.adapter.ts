@@ -349,7 +349,11 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 // against, and writing the field on every call would erase a
                 // term that is still running.
                 ...(input.minimumTermUntil ? { minimumTermUntil: input.minimumTermUntil } : {}),
-                status: input.terminateNow ? 'CANCELED' : sub.status,
+                // Written only when the cancellation is already effective.
+                // Restating the status this call read would undo whatever
+                // changed it in between — a trial going live between the read
+                // and the write came back as `TRIAL`, entitlements and all.
+                ...(input.terminateNow ? { status: 'CANCELED' } : {}),
             },
         });
         const current = await subscription.findUnique({ where: { tenantId } });
