@@ -606,8 +606,8 @@ becomes `(<key>)`, and the composite lookup indexes lose their first column.
 psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.postgres.sql
 ```
 
-It opens a transaction and starts with a guard: if any of those tables holds rows under more than
-one project key, it **stops and names the table and the values** rather than merging rows nobody
+It opens a transaction and starts with a guard: if those tables between them hold rows under more
+than one project key, it **stops and names which table held which** rather than merging rows nobody
 meant to merge — two `STANDARD` plans would collide on the new unique index, and which of them
 survives is not a decision a migration should take. Delete the rows that do not belong to this
 installation, then run it again. It is a one-way door: the values are dropped, not archived.

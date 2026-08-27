@@ -142,7 +142,14 @@ function enclosingObject(text: string, at: number): { open: number; close: numbe
 }
 
 /**
- * Where a `projectKey:` member ends: after its value's comma, or at the brace.
+ * Where a `projectKey:` member ends: after its separator, or at the brace.
+ *
+ * Both separators count. A comma ends a member of an object literal; a
+ * semicolon ends one of an interface or type literal, and treating it as part
+ * of the value is how this cut through `planKey: string;` and everything after
+ * it, emptying a consumer's interface. `isTypeBody` keeps such a body out of
+ * the codemod's way entirely — this is the second line of defence, so no shape
+ * either of them fails to classify can take more than its own member.
  *
  * Quotes are tracked, not just brackets. `projectKey: 'my,app'` would otherwise
  * end at the comma inside the string and leave half a literal behind — a
@@ -162,9 +169,41 @@ function memberEnd(text: string, from: number, close: number): number {
         if (ch === "'" || ch === '"' || ch === '`') quote = ch;
         else if (ch === '{' || ch === '[' || ch === '(') depth += 1;
         else if (ch === '}' || ch === ']' || ch === ')') depth -= 1;
-        else if (depth === 0 && ch === ',') return i + 1;
+        else if (depth === 0 && (ch === ',' || ch === ';')) return i + 1;
     }
     return close;
+}
+
+/**
+ * Whether an object body is a type's rather than a value's.
+ *
+ * An interface or a type literal separates its members with `;`, and its
+ * `projectKey` is a declaration, not a payload — removing it rewrites what a
+ * consumer's own code *says about* a shape rather than what it sends. The
+ * distinction was claimed in a comment here and never implemented, and the
+ * cost was not a wrong member but a wrong span: with no comma to stop at, the
+ * cut ran to the closing brace and took every member after it.
+ *
+ * `?:` is already excluded upstream — a member scan requires the colon to
+ * follow the name directly, so `projectKey?: string` never reaches here. This
+ * is the required form, `projectKey: string`.
+ */
+function isTypeBody(body: string): boolean {
+    let depth = 0;
+    let quote = '';
+    for (let i = 0; i < body.length; i += 1) {
+        const ch = body[i];
+        if (quote) {
+            if (ch === '\\') i += 1;
+            else if (ch === quote) quote = '';
+            continue;
+        }
+        if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+        else if (ch === '{' || ch === '[' || ch === '(') depth += 1;
+        else if (ch === '}' || ch === ']' || ch === ')') depth -= 1;
+        else if (depth === 0 && ch === ';') return true;
+    }
+    return false;
 }
 
 /**
@@ -182,6 +221,37 @@ function hasPlatformSibling(body: string): boolean {
             let after = at + sibling.length;
             while (after < body.length && isSpace(body[after])) after += 1;
             if (body[after] === ':') return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Whether another member follows within the same object.
+ *
+ * Asked only where no separator was found before the closing brace. That is
+ * true of a genuine last member — and of a body this scanner cannot read, such
+ * as a type literal whose members are separated by newlines alone. The two are
+ * told apart by what comes after: a further `name:` at depth zero means the cut
+ * would run through it.
+ */
+function hasFurtherMember(text: string, from: number, close: number): boolean {
+    let depth = 0;
+    let quote = '';
+    let sawOwnColon = false;
+    for (let i = from; i < close; i += 1) {
+        const ch = text[i];
+        if (quote) {
+            if (ch === '\\') i += 1;
+            else if (ch === quote) quote = '';
+            continue;
+        }
+        if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+        else if (ch === '{' || ch === '[' || ch === '(') depth += 1;
+        else if (ch === '}' || ch === ']' || ch === ')') depth -= 1;
+        else if (depth === 0 && ch === ':') {
+            if (sawOwnColon) return true;
+            sawOwnColon = true;
         }
     }
     return false;
@@ -228,8 +298,13 @@ export function removeProjectKey(
 
     for (const at of members.reverse()) {
         const object = enclosingObject(working, at);
-        const decidable =
-            object !== null && hasPlatformSibling(working.slice(object.open, object.close));
+        // From INSIDE the brace: including it would open a depth of one, and
+        // every separator in the body would then read as nested.
+        const body = object === null ? '' : working.slice(object.open + 1, object.close);
+        // A type body is reported, never rewritten: its `projectKey` describes a
+        // shape rather than sending one, and which of those a consumer still
+        // needs is theirs to decide.
+        const decidable = object !== null && !isTypeBody(body) && hasPlatformSibling(body);
         if (!decidable) {
             undecided.push(lineAt(working, at));
             continue;
@@ -237,6 +312,14 @@ export function removeProjectKey(
         let start = at;
         while (start > 0 && (working[start - 1] === ' ' || working[start - 1] === '\t')) start -= 1;
         let end = memberEnd(working, at, object.close);
+        if (end === object.close && hasFurtherMember(working, at + 'projectKey'.length, end)) {
+            // No separator before the brace, yet another member after this one:
+            // the object separates them some way this scanner does not read
+            // (a newline-separated type literal is the one that got here), and
+            // cutting to the brace would take that member with it.
+            undecided.push(lineAt(working, at));
+            continue;
+        }
         if (end === object.close) {
             // It was the last member, so it had no comma of its own — the one
             // that separated it from its predecessor has to go with it, or the

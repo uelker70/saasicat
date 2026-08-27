@@ -114,6 +114,60 @@ describe("an object that could be the consumer's own", () => {
     });
 });
 
+describe('a type declaration is not a payload', () => {
+    // Reported by review, and the worst defect this codemod had: an interface
+    // separates its members with `;`, the member scanner stopped only at `,`,
+    // so the cut ran to the closing brace and emptied the interface. The member
+    // it was asked about was the least of what it removed.
+
+    test('an interface keeps every member, including the one asked about', () => {
+        const source = [
+            'interface AdminEndpoints {',
+            '    projectKey: string;',
+            '    planKey: string;',
+            '    apiBase: string;',
+            '}',
+        ].join('\n');
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source, 'a type declaration must come back untouched');
+        assert.equal(result.rewritten, 0);
+        assert.deepEqual(result.undecided, [2]);
+    });
+
+    test('and so does a type literal whose members are separated by newlines alone', () => {
+        // No separator at all before the brace, which is what the `;` rule
+        // alone does not catch: what follows the member is how it is known.
+        const source = ['type X = {', '    projectKey: string', '    planKey: string', '}'].join(
+            '\n',
+        );
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.deepEqual(result.undecided, [2]);
+    });
+
+    test('an optional type member never reached the scanner in the first place', () => {
+        const source = 'interface E {\n    projectKey?: string;\n    apiBase: string;\n}';
+        assert.equal(removeProjectKey(source).text, source);
+    });
+
+    test('a real literal beside a type declaration is still rewritten', () => {
+        // The counter-check for the exclusion: a rule that skipped everything
+        // would pass all three tests above and do nothing at all.
+        const source = [
+            'interface E {',
+            '    projectKey: string;',
+            '    apiBase: string;',
+            '}',
+            "const e: E = { apiBase: '/a', projectKey: 'myapp' };",
+        ].join('\n');
+        const result = removeProjectKey(source);
+        assert.match(result.text, /const e: E = \{ apiBase: '\/a' \};/);
+        assert.match(result.text, /projectKey: string;/);
+        assert.equal(result.rewritten, 1);
+        assert.deepEqual(result.undecided, [2]);
+    });
+});
+
 describe('the catalogue configuration', () => {
     test('loses the top-level key and nothing else', () => {
         const yaml = ['schemaVersion: 1', 'projectKey: myapp', '', 'app:', '    name: MyApp'].join(

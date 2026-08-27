@@ -36,9 +36,10 @@ primary key rather than by its project.
 psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.postgres.sql
 ```
 
-It starts with a guard. Where a table holds rows under more than one project
-key, it stops and names the table and the values rather than merging rows that
-would then collide on the new unique index. It is a one-way door.
+It starts with a guard. Where the catalogue holds rows under more than one
+project key — in one table or spread across several — it stops and names which
+table held which, rather than merging rows that would then collide on the new
+unique index. It is a one-way door.
 
 **For your code**, `saasicat codemod v1` gained a third pass —
 `v1-project-key` — which removes the `?projectKey=` query part, the field from

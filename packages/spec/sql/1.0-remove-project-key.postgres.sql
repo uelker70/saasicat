@@ -17,11 +17,15 @@
 --
 --   psql "$DATABASE_URL" -f 1.0-remove-project-key.postgres.sql
 --
--- The first statement is a guard. If any affected table holds rows under more
--- than one project, the migration STOPS and names the table and the values,
--- rather than merging rows nobody meant to merge — two `STANDARD` plans would
--- otherwise collide on the new unique index, and which of them survives is not
--- a decision a migration should take.
+-- The first statement is a guard. If the affected tables between them hold rows
+-- under more than one project, the migration STOPS and names the table each key
+-- came from, rather than merging rows nobody meant to merge — two `STANDARD`
+-- plans would otherwise collide on the new unique index, and which of them
+-- survives is not a decision a migration should take.
+--
+-- The question is asked across the tables and not once per table. A per-table
+-- count is one where `plans` holds only `alpha` and `bundles` only `beta`, and
+-- that is a two-project installation whose evidence this migration would drop.
 --
 -- Applies to a database created from `reference-schema.postgres.sql` at 0.27 or
 -- any release before 1.0.
@@ -43,26 +47,35 @@ DECLARE
         'subscription_contracts'
     ];
     target text;
-    found integer;
-    values_seen text;
+    keys_here text[];
+    -- Every key seen anywhere, with the table it came from, so the message can
+    -- say where the disagreement is rather than only that there is one.
+    seen text[] := ARRAY[]::text[];
+    witnesses text[] := ARRAY[]::text[];
 BEGIN
     FOREACH target IN ARRAY affected LOOP
         IF to_regclass(format('%I', target)) IS NULL THEN
             CONTINUE;  -- an installation that never adopted this fragment
         END IF;
-        EXECUTE format(
-            'SELECT count(DISTINCT "projectKey"), string_agg(DISTINCT "projectKey", '', '') FROM %I',
-            target
-        ) INTO found, values_seen;
-        IF found > 1 THEN
-            RAISE EXCEPTION
-                'Table % holds rows under % different project keys (%). Removing the column '
-                'would merge them, and a duplicate key would then collide on the new unique '
-                'index. Decide which rows belong to this installation and delete the rest, '
-                'then run this migration again.',
-                target, found, values_seen;
+        EXECUTE format('SELECT array_agg(DISTINCT "projectKey") FROM %I', target)
+            INTO keys_here;
+        IF keys_here IS NULL THEN
+            CONTINUE;  -- an empty table says nothing about the installation
         END IF;
+        seen := ARRAY(SELECT DISTINCT unnest(seen || keys_here) ORDER BY 1);
+        witnesses := witnesses || format('%s: %s', target, array_to_string(keys_here, ', '));
     END LOOP;
+
+    IF array_length(seen, 1) > 1 THEN
+        RAISE EXCEPTION
+            'The catalogue holds rows under % different project keys (%). Removing the column '
+            'would merge them, and a duplicate key would then collide on the new unique index. '
+            'Per table: %. Decide which rows belong to this installation and delete the rest, '
+            'then run this migration again.',
+            array_length(seen, 1),
+            array_to_string(seen, ', '),
+            array_to_string(witnesses, ' | ');
+    END IF;
 END $$;
 
 -- ─── The indexes that carried the column ───
