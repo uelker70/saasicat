@@ -82,11 +82,15 @@ export interface ProjectKeyResult {
  * costs nothing real: across both consumer repositories every value is
  * `vereinsfux`, `${PROJECT_KEY}` or `${encodeURIComponent(pk)}`.
  */
-function stripQueryParameter(text: string): { text: string; removed: number } {
+function stripQueryParameter(text: string): {
+    text: string;
+    /** Offsets in the ORIGINAL text that were taken — see `removeProjectKey`. */
+    taken: Set<number>;
+} {
     const NEEDLE = 'projectKey=';
     let out = '';
     let index = 0;
-    let removed = 0;
+    const taken = new Set<number>();
     for (;;) {
         const at = text.indexOf(NEEDLE, index);
         if (at < 0) break;
@@ -113,9 +117,9 @@ function stripQueryParameter(text: string): { text: string; removed: number } {
         } else {
             index = value;
         }
-        removed += 1;
+        taken.add(at);
     }
-    return { text: out + text.slice(index), removed };
+    return { text: out + text.slice(index), taken };
 }
 
 /**
@@ -143,7 +147,18 @@ function simpleValueEnd(text: string, from: number): number | null {
     let i = from;
     while (i < text.length) {
         const ch = text[i];
-        if (ch === '&' || ch === "'" || ch === '"' || ch === '`' || ch === '\n' || ch === ' ') {
+        // `#` ends the query and starts a fragment. Reading it as part of the
+        // value took `#details` with the parameter — a client-side target the
+        // consumer meant to keep.
+        if (
+            ch === '&' ||
+            ch === '#' ||
+            ch === "'" ||
+            ch === '"' ||
+            ch === '`' ||
+            ch === '\n' ||
+            ch === ' '
+        ) {
             return i;
         }
         if (ch !== '$' || text[i + 1] !== '{') {
@@ -211,26 +226,32 @@ export function removeProjectKey(
     const query = stripQueryParameter(text);
     const reported = new Set<number>();
 
-    // Everything the query pass did not take is reported, whatever shape it is
-    // in. A member, a shorthand, a type declaration, a string in a comment: the
-    // codemod does not claim to know which, and saying so by line is worth more
-    // than a guess that is right most of the time.
-    for (
-        let at = query.text.indexOf('projectKey');
-        at >= 0;
-        at = query.text.indexOf('projectKey', at + 1)
-    ) {
+    // Counted over the ORIGINAL text, not the rewritten one.
+    //
+    // A rewrite can shorten the file — a `${…}` a formatter broke across lines
+    // is still a simple value — and the report is what an integrator opens
+    // their editor on. Under `--dry-run` nothing is written at all, so a line
+    // numbered against the rewritten copy names a line of a file that does not
+    // exist. `taken` carries the offsets the query pass removed, so those are
+    // not reported twice.
+    //
+    // Everything else is reported, whatever shape it is in: a member, a
+    // shorthand, a type declaration, a string in a comment. The codemod does not
+    // claim to know which, and saying so by line is worth more than a guess that
+    // is right most of the time.
+    for (let at = text.indexOf('projectKey'); at >= 0; at = text.indexOf('projectKey', at + 1)) {
+        if (query.taken.has(at)) continue;
         // A longer identifier that merely ends in it — `old_projectKey` — is
         // somebody else's name, and naming it would send a reader looking for
         // something that is not there.
-        if (isIdentifierChar(query.text[at - 1])) continue;
-        if (isIdentifierChar(query.text[at + 'projectKey'.length])) continue;
-        reported.add(lineAt(query.text, at));
+        if (isIdentifierChar(text[at - 1])) continue;
+        if (isIdentifierChar(text[at + 'projectKey'.length])) continue;
+        reported.add(lineAt(text, at));
     }
 
     return {
         text: query.text,
-        rewritten: query.removed,
+        rewritten: query.taken.size,
         undecided: [...reported].sort((a, b) => a - b),
     };
 }

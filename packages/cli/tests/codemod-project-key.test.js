@@ -44,6 +44,14 @@ describe('a query parameter the admin API no longer reads', () => {
         assert.equal(result.text, 'const u = `/catalog/plans?locale=de`;');
     });
 
+    test('a fragment survives the parameter in front of it', () => {
+        // `#` ends the query. Reading it as part of the value took `#details`
+        // with the parameter — a client-side target the consumer meant to keep.
+        const result = removeProjectKey('const u = `/catalog/plans?projectKey=x#details`;');
+        assert.equal(result.text, 'const u = `/catalog/plans#details`;');
+        assert.equal(result.rewritten, 1);
+    });
+
     test('a call expression is simple enough to keep', () => {
         // The form the real consumers write. If this stopped being rewritten
         // the rule below would be too narrow to be worth having.
@@ -188,6 +196,31 @@ describe("a longer identifier is somebody else's name", () => {
     test('and neither is a suffix', () => {
         const source = 'const x = { myProjectKeyish: 1, projectKeys: [] };';
         assert.deepEqual(removeProjectKey(source).undecided, []);
+    });
+});
+
+describe('the report names lines of the file a person will open', () => {
+    // The report is this codemod's main output, so a wrong line number sends
+    // the reader to the wrong place. Lines used to be counted against the
+    // rewritten copy — and under `--dry-run` nothing is written at all, so they
+    // named lines of a file that did not exist.
+
+    test('a rewrite that shortens the file does not shift the lines it reports', () => {
+        const source = [
+            'const u = `/catalog/plans?projectKey=${',
+            '    PROJECT_KEY',
+            '}`;',
+            'const own = { projectKey: 1 };',
+        ].join('\n');
+        const result = removeProjectKey(source);
+        assert.equal(result.rewritten, 1, 'the multi-line interpolation is still simple');
+        assert.deepEqual(result.undecided, [4], "the consumer's own object is on line 4");
+    });
+
+    test('and a parameter that was removed is not also reported', () => {
+        const result = removeProjectKey("const u = '/catalog/plans?projectKey=x';");
+        assert.equal(result.rewritten, 1);
+        assert.deepEqual(result.undecided, []);
     });
 });
 
