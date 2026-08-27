@@ -20,7 +20,14 @@ export { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
 export { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
 export { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
 export { DrizzleSubscriptionRepository } from './drizzle-subscription.repository.js';
+export {
+    DrizzlePlanRepository,
+    type DrizzlePlanRepositoryOptions,
+} from './drizzle-plan.repository.js';
 export { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.js';
+export { DrizzleSubscriptionContractRepository } from './drizzle-subscription-contract.repository.js';
+export { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
+export { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';
 export { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 export { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
 export { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';

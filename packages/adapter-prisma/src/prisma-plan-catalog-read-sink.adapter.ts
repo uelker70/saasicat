@@ -5,10 +5,8 @@ import type {
     FeatureCatalogEntryRow,
     PlanCatalogReadSink,
     PlanCatalogReadSnapshot,
-    PlanRow,
-    PlanVersionRow,
-    VersionChange,
 } from '@saasicat/core';
+import { toPlanRow, toPlanVersionRow } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type FeatureCatalogEntryRowLike,
@@ -25,7 +23,6 @@ import {
     type PrismaPlanVersionFieldCapabilities,
     type PrismaSchemaOptions,
 } from './prisma-plan-binding.js';
-import { toQuotaMap, toStringArray } from './tx.js';
 
 /** Root-client fields used directly; the PlanVersion delegate is configurable. */
 interface PlanCatalogReadClient {
@@ -127,54 +124,6 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
     private planVersions(): PrismaModelDelegateLike<PlanVersionRowLike> {
         return getPrismaDelegate(this.prisma, this.delegateName);
     }
-}
-
-function toPlanRow(row: PlanRowLike): PlanRow {
-    return {
-        id: row.id,
-        projectKey: row.projectKey,
-        planKey: row.planKey,
-        label: row.label,
-        description: row.description,
-        icon: row.icon,
-        sortOrder: row.sortOrder,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
-    };
-}
-
-function toPlanVersionRow(
-    row: PlanVersionRowLike,
-    planKey: string,
-    fields: Required<PrismaPlanVersionFieldCapabilities>,
-): PlanVersionRow {
-    const mapped: PlanVersionRow = {
-        id: row.id,
-        planId: planKey,
-        version: row.version,
-        baseVersionId: row.baseVersionId,
-        publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
-        supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
-        publishedChanges: (row.publishedChanges as VersionChange[] | null) ?? null,
-        changeNote: row.changeNote,
-        nonRegressive: row.nonRegressive,
-        validFrom: fields.validityWindows && row.validFrom ? row.validFrom.toISOString() : null,
-        validUntil: fields.validityWindows && row.validUntil ? row.validUntil.toISOString() : null,
-        createdByUserId: row.createdByUserId,
-        publishedByUserId: row.publishedByUserId,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        features: toStringArray(row.features),
-        quotas: toQuotaMap(row.quotas),
-        monthlyNet: String(row.monthlyNet),
-        yearlyNet: String(row.yearlyNet),
-        marketed: row.marketed,
-    };
-    if (fields.endsAt) {
-        mapped.endsAt = row.endsAt?.toISOString() ?? null;
-    }
-    return mapped;
 }
 
 function toFeatureCatalogEntryRow(row: FeatureCatalogEntryRowLike): FeatureCatalogEntryRow {

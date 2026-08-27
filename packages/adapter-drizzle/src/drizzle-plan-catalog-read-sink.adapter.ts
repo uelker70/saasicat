@@ -6,12 +6,15 @@ import type {
     FeatureCatalogEntryRow,
     PlanCatalogReadSink,
     PlanCatalogReadSnapshot,
-    PlanRow,
-    PlanVersionRow,
-    VersionChange,
 } from '@saasicat/core';
-import { DRIZZLE_DB_TOKEN, toQuotaMap, toStringArray, type DrizzleClient } from './client.js';
+import { toPlanRow, toPlanVersionRow } from '@saasicat/core';
+import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { featureCatalogEntries, plans, planVersions } from './schema.js';
+
+// The catalogue projection answers neither question: it reads the published
+// versions for the marketing catalogue, where a booking window and a
+// termination date play no part.
+const CATALOG_VERSION_FIELDS = { validityWindows: false, endsAt: false } as const;
 
 /**
  * `PlanCatalogReadSink` against the canonical `plans`, `plan_versions` and
@@ -54,55 +57,15 @@ export class DrizzlePlanCatalogReadSink implements PlanCatalogReadSink {
             )
             .orderBy(asc(featureCatalogEntries.sortOrder));
         return {
-            plans: (planRows as Array<typeof plans.$inferSelect>).map(toPlanRow),
+            plans: (planRows as Array<typeof plans.$inferSelect>).map((row) => toPlanRow(row)),
             livePlanVersions: (liveVersionRows as Array<typeof planVersions.$inferSelect>).map(
-                toPlanVersionRow,
+                (row) => toPlanVersionRow(row, row.planId, CATALOG_VERSION_FIELDS),
             ),
             featureEntries: (featureRows as Array<typeof featureCatalogEntries.$inferSelect>).map(
                 toFeatureCatalogEntryRow,
             ),
         };
     }
-}
-
-function toPlanRow(row: typeof plans.$inferSelect): PlanRow {
-    return {
-        id: row.id,
-        projectKey: row.projectKey,
-        planKey: row.planKey,
-        label: row.label,
-        description: row.description,
-        icon: row.icon,
-        sortOrder: row.sortOrder,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
-    };
-}
-
-function toPlanVersionRow(row: typeof planVersions.$inferSelect): PlanVersionRow {
-    return {
-        id: row.id,
-        planId: row.planId,
-        version: row.version,
-        baseVersionId: row.baseVersionId,
-        publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
-        supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
-        publishedChanges: (row.publishedChanges as VersionChange[] | null) ?? null,
-        changeNote: row.changeNote,
-        nonRegressive: row.nonRegressive,
-        validFrom: null,
-        validUntil: null,
-        createdByUserId: row.createdByUserId,
-        publishedByUserId: row.publishedByUserId,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        features: toStringArray(row.features),
-        quotas: toQuotaMap(row.quotas),
-        monthlyNet: String(row.monthlyNet),
-        yearlyNet: String(row.yearlyNet),
-        marketed: row.marketed,
-    };
 }
 
 function toFeatureCatalogEntryRow(

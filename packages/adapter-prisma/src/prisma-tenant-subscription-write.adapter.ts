@@ -1,6 +1,8 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type {
     ApplyOnboardingSelectionInput,
+    CancelSubscriptionInput,
+    CancelSubscriptionResult,
     ApplyOnboardingSelectionResult,
     ImmediatePlanChangeInput,
     PromoCodeRedemptionRecord,
@@ -320,18 +322,8 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
 
     async cancelSubscription(
         tenantId: string,
-        input: {
-            canceledAt: Date;
-            effectiveAt: Date;
-            terminateNow: boolean;
-            minimumTermUntil?: Date;
-        },
-    ): Promise<{
-        canceledAt: Date | null;
-        canceledEffectiveAt: Date | null;
-        status: string;
-        alreadyCanceled: boolean;
-    }> {
+        input: CancelSubscriptionInput,
+    ): Promise<CancelSubscriptionResult> {
         const subscription = this.subscription(this.prisma);
         const sub = await subscription.findUnique({ where: { tenantId } });
         if (!sub) {
@@ -357,7 +349,11 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
                 // against, and writing the field on every call would erase a
                 // term that is still running.
                 ...(input.minimumTermUntil ? { minimumTermUntil: input.minimumTermUntil } : {}),
-                status: input.terminateNow ? 'CANCELED' : sub.status,
+                // Written only when the cancellation is already effective.
+                // Restating the status this call read would undo whatever
+                // changed it in between — a trial going live between the read
+                // and the write came back as `TRIAL`, entitlements and all.
+                ...(input.terminateNow ? { status: 'CANCELED' } : {}),
             },
         });
         const current = await subscription.findUnique({ where: { tenantId } });

@@ -16,6 +16,10 @@ import { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.
 import { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';
 import { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 import { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
+import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
+import { DrizzleSubscriptionContractRepository } from './drizzle-subscription-contract.repository.js';
+import { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
+import { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';
 import { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';
 import { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-validation-log.repository.js';
 import { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';
@@ -34,6 +38,14 @@ export interface DrizzlePersistenceOptions {
      * answering with dates it does not maintain.
      */
     bundle?: { validityWindows?: boolean };
+
+    /**
+     * Plan-repository behaviour, the same opt-in one level up: with
+     * `validityWindows: true` a plan version's `validFrom`/`validUntil` are
+     * written and read, publishing closes the predecessor's window on the day
+     * before the successor opens, and `findActivePlanVersion` is offered.
+     */
+    plan?: { validityWindows?: boolean };
 
     /**
      * The app's Drizzle database: either a ready instance
@@ -108,11 +120,36 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             subscriptionBundleRepository: provide(
                 (client) => new DrizzleSubscriptionBundleRepository(client),
             ),
+            // What the tenant actually agreed to, frozen at signing. Entitlement
+            // prefers it over the live catalogue where it exists, which is what
+            // makes a price change stop at the contracts already signed.
+            subscriptionContractRepository: provide(
+                (client) => new DrizzleSubscriptionContractRepository(client),
+            ),
             // The catalogue behind those bookings: entitlement resolves a
             // booking's features by reading the pinned version.
             bundleRepository: provide(
                 (client) => new DrizzleBundleRepository(client, options.bundle),
             ),
+        },
+        // The editable catalogue: which plans a project sells and in which
+        // versions. Present since 2026-08-27 — before that this adapter could
+        // read a plan version but not author one, so a Drizzle consumer had to
+        // bring their own `CatalogModule` wiring for a slice the adapter was
+        // otherwise complete for.
+        catalog: {
+            planRepository: provide((client) => new DrizzlePlanRepository(client, options.plan)),
+            bundleRepository: provide(
+                (client) => new DrizzleBundleRepository(client, options.bundle),
+            ),
+        },
+        // The tenant's own billing page and the writes behind its buttons.
+        // Both members are required, and until 2026-08-27 neither existed —
+        // which left `DrizzleTenantSubscriptionWrite` unreachable through the
+        // documented `drizzlePersistence({ db })` path however complete it was.
+        tenantBilling: {
+            subscriptionUsagePort: provide((client) => new DrizzleSubscriptionUsageAdapter(client)),
+            subscriptionWritePort: provide((client) => new DrizzleTenantSubscriptionWrite(client)),
         },
         promo: {
             promoCodeRepository: provide((client) => new DrizzlePromoCodeRepository(client)),

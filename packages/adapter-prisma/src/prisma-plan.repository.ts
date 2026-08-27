@@ -13,6 +13,7 @@ import {
     type VersionChange,
     definedFields,
 } from '@saasicat/core';
+import { previousUtcDay, toPlanRow, toPlanVersionRow } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type DecimalLike,
@@ -27,7 +28,6 @@ import {
     type PrismaPlanVersionFieldCapabilities,
     type PrismaSchemaOptions,
 } from './prisma-plan-binding.js';
-import { toQuotaMap, toStringArray } from './tx.js';
 
 /** DB columns this repository reads from `plans`. */
 interface PlanDbRow {
@@ -438,9 +438,7 @@ export class PrismaPlanRepository implements PlanRepository {
             });
             const now = new Date();
             if (previous) {
-                const predecessorValidUntil = new Date(
-                    publishMeta.validFrom.getTime() - 24 * 60 * 60 * 1000,
-                );
+                const predecessorValidUntil = previousUtcDay(publishMeta.validFrom);
                 await planVersion.update({
                     where: { id: previous.id },
                     data: {
@@ -503,54 +501,4 @@ export class PrismaPlanRepository implements PlanRepository {
     private toPlanVersionRow(row: PlanVersionDbRow, planKey: string): PlanVersionRow {
         return toPlanVersionRow(row, planKey, this.fields);
     }
-}
-
-function toPlanRow(row: PlanDbRow): PlanRow {
-    return {
-        id: row.id,
-        projectKey: row.projectKey,
-        planKey: row.planKey,
-        label: row.label,
-        description: row.description,
-        icon: row.icon,
-        sortOrder: row.sortOrder,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        deletedAt: row.deletedAt?.toISOString() ?? null,
-    };
-}
-
-function toPlanVersionRow(
-    row: PlanVersionDbRow,
-    planKey: string,
-    fields: Required<PrismaPlanVersionFieldCapabilities>,
-): PlanVersionRow {
-    const mapped: PlanVersionRow = {
-        id: row.id,
-        version: row.version,
-        baseVersionId: row.baseVersionId,
-        planId: planKey,
-        features: toStringArray(row.features),
-        quotas: toQuotaMap(row.quotas),
-        monthlyNet: row.monthlyNet.toString(),
-        yearlyNet: row.yearlyNet.toString(),
-        marketed: row.marketed,
-        publishedAt: row.publishedAt?.toISOString() ?? null,
-        supersededAt: row.supersededAt?.toISOString() ?? null,
-        publishedChanges: Array.isArray(row.publishedChanges)
-            ? (row.publishedChanges as VersionChange[])
-            : null,
-        changeNote: row.changeNote,
-        nonRegressive: row.nonRegressive,
-        validFrom: fields.validityWindows && row.validFrom ? row.validFrom.toISOString() : null,
-        validUntil: fields.validityWindows && row.validUntil ? row.validUntil.toISOString() : null,
-        createdByUserId: row.createdByUserId,
-        publishedByUserId: row.publishedByUserId,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-    };
-    if (fields.endsAt) {
-        mapped.endsAt = row.endsAt?.toISOString() ?? null;
-    }
-    return mapped;
 }

@@ -18,7 +18,12 @@ import type {
     UpdateBundleVersionDraftData,
     VersionChange,
 } from '@saasicat/core';
-import { bundleDraftDefaults, bundleStemDefaults, toBundleStemRow } from '@saasicat/core';
+import {
+    bundleDraftDefaults,
+    bundleStemDefaults,
+    previousUtcDay,
+    toBundleStemRow,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { bundles, bundleVersions } from './schema.js';
 
@@ -492,11 +497,4 @@ function toIso(value: Date | null): string | null {
 
 function toNullableDate(value: string | null | undefined): Date | null {
     return value ? new Date(value) : null;
-}
-
-/** A window closes the day before its successor opens. */
-function previousUtcDay(value: Date): Date {
-    const result = new Date(value);
-    result.setUTCDate(result.getUTCDate() - 1);
-    return result;
 }

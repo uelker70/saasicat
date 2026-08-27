@@ -1,17 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
-    ContractLineItemKind,
-    ContractLineItemRecord,
     CreateSubscriptionContractData,
-    EffectiveLimitsSnapshot,
     NewContractLineItemData,
     SubscriptionContractFilter,
-    SubscriptionContractPriceSnapshot,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
-    SubscriptionContractStatus,
     TerminateSubscriptionContractData,
     TransactionContext,
+} from '@saasicat/core';
+import {
+    ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    toSubscriptionContractRecord,
+    type CanonicalContractRow,
 } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
@@ -19,9 +19,6 @@ import {
     type PrismaLike,
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
-import { toQuotaMap, toStringArray } from './tx.js';
-
-const ACTIVE_CONTRACT_STATUSES = ['active', 'scheduled'];
 
 /** DB columns this repository reads from `contract_line_items`. */
 interface ContractLineItemDbRow {
@@ -44,26 +41,15 @@ interface ContractLineItemDbRow {
     createdAt: Date;
 }
 
-/** DB columns this repository reads from `subscription_contracts` (+ line items). */
-interface SubscriptionContractDbRow {
-    id: string;
-    projectKey: string;
-    tenantId: string;
-    status: string;
-    effectiveFrom: Date;
-    effectiveUntil: Date | null;
-    originalOfferId: string | null;
-    originalPlanVersionId: string | null;
-    originalBundleVersionIds: unknown;
-    entitlementSnapshot: unknown;
-    priceSnapshot: unknown;
-    promotionSnapshots: unknown;
-    promoCodeSnapshots: unknown;
-    termsSnapshot: unknown;
-    createdAt: Date;
-    updatedAt: Date;
+/**
+ * What this repository reads back: the canonical contract row plus its lines.
+ * The column list itself comes from `@saasicat/core`, which is also what maps
+ * it — declaring it a second time here is how the mapper and the reader start
+ * to disagree about what a column holds.
+ */
+type SubscriptionContractDbRow = CanonicalContractRow & {
     lineItems: ContractLineItemDbRow[];
-}
+};
 
 /** Narrow view of the injected client used by this repository. */
 interface SubscriptionContractPrisma {
@@ -101,7 +87,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
             include: { lineItems: true },
             orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
         });
-        return rows.map(toRecord);
+        return rows.map((row) => toSubscriptionContractRecord(row, row.lineItems));
     }
 
     async findById(contractId: string): Promise<SubscriptionContractRecord | null> {
@@ -109,7 +95,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
             where: { id: contractId },
             include: { lineItems: true },
         });
-        return row ? toRecord(row) : null;
+        return row ? toSubscriptionContractRecord(row, row.lineItems) : null;
     }
 
     async findActiveByTenantId(
@@ -120,14 +106,14 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
         const row = await this.db(tx).subscriptionContract.findFirst({
             where: {
                 tenantId,
-                status: { in: ACTIVE_CONTRACT_STATUSES },
+                status: { in: [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES] },
                 effectiveFrom: { lte: asOf },
                 OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: asOf } }],
             },
             include: { lineItems: true },
             orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
         });
-        return row ? toRecord(row) : null;
+        return row ? toSubscriptionContractRecord(row, row.lineItems) : null;
     }
 
     async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
@@ -154,7 +140,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
             },
             include: { lineItems: true },
         });
-        return toRecord(row);
+        return toSubscriptionContractRecord(row, row.lineItems);
     }
 
     async terminate(
@@ -172,7 +158,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
             },
             include: { lineItems: true },
         });
-        return toRecord(row);
+        return toSubscriptionContractRecord(row, row.lineItems);
     }
 }
 
@@ -192,63 +178,5 @@ function toLineItemCreate(item: NewContractLineItemData) {
         featuresSnapshot: item.featuresSnapshot,
         quotaEffectsSnapshot: item.quotaEffectsSnapshot,
         ...(item.metadata != null ? { metadata: item.metadata } : {}),
-    };
-}
-
-function isPlainObject(value: unknown): boolean {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function toUnknownArray(value: unknown): unknown[] {
-    return Array.isArray(value) ? value : [];
-}
-
-function toRecordOrNull(value: unknown): Record<string, unknown> | null {
-    return isPlainObject(value) ? (value as Record<string, unknown>) : null;
-}
-
-function toLineItem(row: ContractLineItemDbRow): ContractLineItemRecord {
-    return {
-        id: row.id,
-        contractId: row.contractId,
-        kind: row.kind as ContractLineItemKind,
-        sourceKey: row.sourceKey,
-        sourceVersionId: row.sourceVersionId,
-        titleSnapshot: row.titleSnapshot,
-        descriptionSnapshot: row.descriptionSnapshot,
-        quantity: row.quantity,
-        unit: row.unit,
-        priceNet: Number(row.priceNet),
-        priceGross: Number(row.priceGross),
-        billingCycle: row.billingCycle as 'monthly' | 'yearly',
-        minimumTermUntil: row.minimumTermUntil,
-        featuresSnapshot: toStringArray(row.featuresSnapshot),
-        quotaEffectsSnapshot: toQuotaMap(row.quotaEffectsSnapshot),
-        metadata: toRecordOrNull(row.metadata),
-        createdAt: row.createdAt,
-    };
-}
-
-function toRecord(row: SubscriptionContractDbRow): SubscriptionContractRecord {
-    return {
-        id: row.id,
-        projectKey: row.projectKey,
-        tenantId: row.tenantId,
-        status: row.status as SubscriptionContractStatus,
-        effectiveFrom: row.effectiveFrom,
-        effectiveUntil: row.effectiveUntil,
-        originalOfferId: row.originalOfferId,
-        originalPlanVersionId: row.originalPlanVersionId,
-        originalBundleVersionIds: toStringArray(row.originalBundleVersionIds),
-        entitlementSnapshot: isPlainObject(row.entitlementSnapshot)
-            ? (row.entitlementSnapshot as EffectiveLimitsSnapshot)
-            : null,
-        priceSnapshot: row.priceSnapshot as SubscriptionContractPriceSnapshot,
-        promotionSnapshots: toUnknownArray(row.promotionSnapshots),
-        promoCodeSnapshots: toUnknownArray(row.promoCodeSnapshots),
-        termsSnapshot: toRecordOrNull(row.termsSnapshot),
-        lineItems: row.lineItems.map(toLineItem),
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
     };
 }

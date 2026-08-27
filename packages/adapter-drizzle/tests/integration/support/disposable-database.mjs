@@ -42,7 +42,11 @@ function sqlStatements(file) {
  * Requires `SAASICAT_TEST_DATABASE_URL` pointing at a **disposable** database:
  * this drops the `public` schema.
  */
-export async function openDisposableDatabase({ max = 10, rebuild = true } = {}) {
+export async function openDisposableDatabase({
+    max = 10,
+    rebuild = true,
+    connectionTimeoutMillis,
+} = {}) {
     const databaseUrl = process.env.SAASICAT_TEST_DATABASE_URL;
     if (!databaseUrl) {
         throw new Error(
@@ -53,7 +57,15 @@ export async function openDisposableDatabase({ max = 10, rebuild = true } = {}) 
     const require = createRequire(import.meta.url);
     const specRoot = dirname(require.resolve('@saasicat/spec/package.json'));
 
-    const pool = new pg.Pool({ connectionString: databaseUrl, max });
+    // `connectionTimeoutMillis` turns "waiting for a connection" into a fast
+    // error. A test that pins a pool exhaustion needs that: without it the wait
+    // is unbounded and the run hangs instead of failing, and `pool.end()` then
+    // waits for the same connection during cleanup.
+    const pool = new pg.Pool({
+        connectionString: databaseUrl,
+        max,
+        ...(connectionTimeoutMillis === undefined ? {} : { connectionTimeoutMillis }),
+    });
     // `rebuild: false` opens a second connection onto a schema the caller has
     // already built — for a test that needs a narrower pool, not a fresh
     // database. Rebuilding there would drop the tables the surrounding file is

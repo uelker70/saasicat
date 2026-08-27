@@ -44,6 +44,8 @@ export * from './feature-requires.js';
 export * from './upsell.types.js';
 export * from './registration.types.js';
 export * from './setup.types.js';
+export * from './plan-mapping.js';
+export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';
 export * from './version-editability.js';

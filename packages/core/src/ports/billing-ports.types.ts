@@ -439,6 +439,36 @@ export type RedeemPromoInTransactionCallback = (
  * app-specific. The platform service calls `invalidateTenant` in the
  * EntitlementService after a successful adapter call.
  */
+/** What `cancelSubscription` is told to write. Named so both adapters spell
+ * the same shape once rather than each restating it. */
+export interface CancelSubscriptionInput {
+    canceledAt: Date;
+    effectiveAt: Date;
+    terminateNow: boolean;
+    minimumTermUntil?: Date;
+}
+
+/** What `cancelSubscription` answers with. */
+export interface CancelSubscriptionResult {
+    canceledAt: Date | null;
+    canceledEffectiveAt: Date | null;
+    status: string;
+    /**
+     * True when a cancellation was already recorded and this call changed
+     * nothing — the stored dates are returned instead.
+     *
+     * The caller checks first, but a check and a write are two moments, and two
+     * requests can pass the check before either writes. Straddling a notice
+     * deadline that costs a billing cycle: the first declaration lands on time,
+     * the second recomputes against a later `now`, and an unconditional write
+     * replaces the first answer with one a period further out. An
+     * implementation therefore claims the row only while both cancellation
+     * fields are still empty, and answers `true` here when the claim finds
+     * nothing to claim.
+     */
+    alreadyCanceled: boolean;
+}
+
 export interface TenantSubscriptionWritePort {
     /** Immediate change: set plan + cycle, clear pending fields, optionally reset the period. */
     changePlanImmediate(
@@ -499,31 +529,8 @@ export interface TenantSubscriptionWritePort {
      */
     cancelSubscription(
         tenantId: string,
-        input: {
-            canceledAt: Date;
-            effectiveAt: Date;
-            terminateNow: boolean;
-            minimumTermUntil?: Date;
-        },
-    ): Promise<{
-        canceledAt: Date | null;
-        canceledEffectiveAt: Date | null;
-        status: string;
-        /**
-         * True when a cancellation was already recorded and this call changed
-         * nothing — the stored dates are returned instead.
-         *
-         * The caller checks first, but a check and a write are two moments, and
-         * two requests can pass the check before either writes. Straddling a
-         * notice deadline that costs a billing cycle: the first declaration
-         * lands on time, the second recomputes against a later `now`, and an
-         * unconditional write replaces the first answer with one a period
-         * further out. An implementation therefore claims the row only while
-         * both cancellation fields are still empty, and answers `true` here
-         * when the claim finds nothing to claim.
-         */
-        alreadyCanceled: boolean;
-    }>;
+        input: CancelSubscriptionInput,
+    ): Promise<CancelSubscriptionResult>;
 
     /**
      * Atomic onboarding creation: sets plan + cycle + period window

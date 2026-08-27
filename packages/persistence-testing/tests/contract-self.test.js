@@ -1,3 +1,4 @@
+import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES } from '@saasicat/core';
 import { persistenceAdapterContract } from '../dist/index.js';
 
 // Self-test of the contract kit: an in-memory reference adapter with correct
@@ -23,6 +24,8 @@ function createMemoryHarness() {
         redemptions: [],
         audits: [],
         mfa: new Map(),
+        contracts: [],
+        contractLines: [],
     });
 
     const transactionRunner = {
@@ -305,6 +308,91 @@ function createMemoryHarness() {
     // deliberately absent, so the validity-window scenario still gates off by
     // capability rather than being answered by an implementation that does not
     // maintain windows.
+    // The same statuses the adapters look a live contract up under. Imported
+    // rather than restated: a status added to the list must reach this
+    // reference too, or the self-test stops describing what the adapters do.
+    const ACTIVE_CONTRACT_STATUSES = [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES];
+    const inWindow = (row, asOf) =>
+        row.effectiveFrom <= asOf && (row.effectiveUntil === null || row.effectiveUntil > asOf);
+    const byNewestFirst = (a, b) => b.effectiveFrom - a.effectiveFrom || b.createdAt - a.createdAt;
+    const withLines = (row) => ({
+        ...row,
+        lineItems: state.contractLines
+            .filter((line) => line.contractId === row.id)
+            .map((line) => ({ ...line })),
+    });
+
+    // Contracts, append-only. There is no `update` here on purpose: the port
+    // has none, and an implementation that quietly offered one would let a
+    // scenario pass against a shape no real adapter can produce.
+    const subscriptionContractRepository = {
+        async create(data) {
+            const contractId = nextId('contract');
+            state.contracts.push({
+                id: contractId,
+                projectKey: data.projectKey,
+                tenantId: data.tenantId,
+                status: data.status ?? 'active',
+                effectiveFrom: data.effectiveFrom,
+                effectiveUntil: data.effectiveUntil ?? null,
+                originalOfferId: data.originalOfferId ?? null,
+                originalPlanVersionId: data.originalPlanVersionId ?? null,
+                originalBundleVersionIds: data.originalBundleVersionIds ?? [],
+                entitlementSnapshot: data.entitlementSnapshot ?? null,
+                priceSnapshot: data.priceSnapshot,
+                promotionSnapshots: data.promotionSnapshots ?? [],
+                promoCodeSnapshots: data.promoCodeSnapshots ?? [],
+                termsSnapshot: data.termsSnapshot ?? null,
+                createdAt: FIXED_NOW,
+                updatedAt: FIXED_NOW,
+            });
+            for (const item of data.lineItems) {
+                state.contractLines.push({
+                    ...item,
+                    id: nextId('line'),
+                    contractId,
+                    createdAt: FIXED_NOW,
+                });
+            }
+            return subscriptionContractRepository.findById(contractId);
+        },
+        async findById(contractId) {
+            const row = state.contracts.find((candidate) => candidate.id === contractId);
+            return row ? withLines(row) : null;
+        },
+        async findActiveByTenantId(tenantId, asOf = FIXED_NOW) {
+            const live = state.contracts
+                .filter(
+                    (row) =>
+                        row.tenantId === tenantId &&
+                        ACTIVE_CONTRACT_STATUSES.includes(row.status) &&
+                        inWindow(row, asOf),
+                )
+                .sort(byNewestFirst);
+            return live[0] ? withLines(live[0]) : null;
+        },
+        async list(filter) {
+            return state.contracts
+                .filter(
+                    (row) =>
+                        (!filter.projectKey || row.projectKey === filter.projectKey) &&
+                        (!filter.tenantId || row.tenantId === filter.tenantId) &&
+                        (!filter.status || row.status === filter.status) &&
+                        (!filter.asOf || inWindow(row, filter.asOf)),
+                )
+                .sort(byNewestFirst)
+                .map(withLines);
+        },
+        async terminate(contractId, data) {
+            const row = state.contracts.find((candidate) => candidate.id === contractId);
+            if (!row) throw new Error(`SubscriptionContract '${contractId}' not found.`);
+            row.effectiveUntil = data.effectiveUntil;
+            if (data.status !== null) row.status = data.status;
+            row.updatedAt = FIXED_NOW;
+            return withLines(row);
+        },
+    };
+
     const bundleRepository = {
         async create(data) {
             const row = {
@@ -511,6 +599,7 @@ function createMemoryHarness() {
             promoSubscriptionLookup,
             subscriptionBundleRepository,
             bundleRepository,
+            subscriptionContractRepository,
         },
         seed,
         async reset() {

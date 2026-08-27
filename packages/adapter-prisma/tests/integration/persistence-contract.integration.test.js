@@ -31,6 +31,7 @@ import {
     PrismaPromoCodeRedemptionRepository,
     PrismaPromoCodeRepository,
     PrismaPromoSubscriptionLookup,
+    PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
     PrismaTenantSubscriptionWriteAdapter,
     PrismaTransactionRunner,
@@ -155,6 +156,7 @@ function createHarness() {
                     catalog: { validityWindows: true, endsAt: true },
                 },
             }),
+            subscriptionContractRepository: new PrismaSubscriptionContractRepository(prisma),
         },
         seed: {
             async createPlanVersion(input) {
