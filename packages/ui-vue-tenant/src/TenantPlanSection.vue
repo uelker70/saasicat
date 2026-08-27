@@ -456,10 +456,19 @@ const availableBundles = computed<CatalogBundle[]>(() =>
     }),
 );
 
+// The plan is part of the question, not just the bundles: a price is resolved
+// against it, so an in-place plan change that leaves the catalogue untouched
+// still invalidates every figure here. Watching only the bundle ids left the
+// previous plan's overrides on the cards — a bundle priced only on the new plan
+// stayed disabled, and one priced only on the old plan stayed bookable at a
+// number nobody would be charged.
 watch(
-    () => (catalog.bundles.value ?? []).map((b) => b.bundleVersionId).join(','),
-    async (ids) => {
-        resolvedBundlePrices.value = ids ? await billing.loadBundlePrices(ids.split(',')) : {};
+    () =>
+        `${usage.value?.plan ?? ''}|${(catalog.bundles.value ?? []).map((b) => b.bundleVersionId).join(',')}`,
+    async (key) => {
+        const [plan, ids] = key.split('|');
+        resolvedBundlePrices.value =
+            plan && ids ? await billing.loadBundlePrices(ids.split(',')) : {};
     },
     { immediate: true },
 );

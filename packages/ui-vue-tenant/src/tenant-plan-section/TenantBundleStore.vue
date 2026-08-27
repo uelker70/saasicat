@@ -54,7 +54,11 @@
                  would be a question with one answer. -->
             <div v-if="offersCycleChoice" class="sp-bundle-store__cycle">
                 <span class="sp-bundle-store__cycle-legend">{{ i18n.bundleCycleLegend }}</span>
-                <PlanCycleToggle v-model="selectedCycle" :i18n="cycleI18n" />
+                <PlanCycleToggle
+                    :model-value="selectedCycle"
+                    :i18n="cycleI18n"
+                    @update:model-value="chooseCycle"
+                />
             </div>
             <div v-if="availableRows.length === 0" class="sp-bundle-store__empty">
                 {{ i18n.bundlesAvailableEmpty }}
@@ -256,14 +260,31 @@ const cyclesFor = (planCycle: BillingCycleStr): BillingCycleStr[] =>
     planCycle === 'YEARLY' ? ['MONTHLY', 'YEARLY'] : ['MONTHLY'];
 
 const selectedCycle = ref<BillingCycleStr>(props.planCycle);
+/**
+ * Whether the tenant has said anything about the rhythm.
+ *
+ * Without it there is no telling "monthly, because the plan was monthly" from
+ * "monthly, because I chose it" — and the two want opposite things when the
+ * plan turns yearly: the first should follow, the second should stay. The
+ * distinction is not derivable from the selection, so it needs its own word.
+ */
+const cycleChosen = ref(false);
+
+function chooseCycle(cycle: BillingCycleStr): void {
+    cycleChosen.value = true;
+    selectedCycle.value = cycle;
+}
+
 // The plan's rhythm can change under the section (a plan change lands, the
-// usage reloads). Following it keeps the preselection honest, and a tenant on a
-// monthly plan cannot be left holding a yearly selection that is no longer
-// offered.
+// usage reloads). An untouched control follows it, so "do nothing and get the
+// plan's rhythm" keeps holding after an upgrade; a chosen one is left alone
+// unless the new plan no longer offers it.
 watch(
     () => props.planCycle,
     (cycle) => {
-        if (!cyclesFor(cycle).includes(selectedCycle.value)) selectedCycle.value = cycle;
+        if (!cycleChosen.value || !cyclesFor(cycle).includes(selectedCycle.value)) {
+            selectedCycle.value = cycle;
+        }
     },
 );
 

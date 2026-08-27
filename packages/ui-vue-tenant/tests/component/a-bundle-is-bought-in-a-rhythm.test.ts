@@ -156,6 +156,37 @@ describe('a bundle that is not sold in the chosen rhythm', () => {
 });
 
 describe('a plan whose rhythm changes underneath the section', () => {
+    test('an untouched control follows the plan when it turns yearly', async () => {
+        // The promise is that doing nothing gives you the plan's rhythm. A
+        // tenant who was never offered a choice — monthly plan, no control —
+        // must not be left on monthly add-ons after upgrading, which is what a
+        // selection kept "because monthly is still legal" would do.
+        const wrapper = mountStore({ planCycle: 'MONTHLY' });
+        expect(toggle(wrapper).exists()).toBe(false);
+        await wrapper.setProps({ planCycle: 'YEARLY' } as never);
+        expect(toggle(wrapper).exists()).toBe(true);
+        expect(cardPrice(wrapper)).toContain('100.00 EUR');
+        expect(cardPrice(wrapper)).toContain('net/year');
+    });
+
+    test('a rhythm the tenant chose survives a plan change that still offers it', async () => {
+        // The other half of the same distinction: monthly-because-I-said-so is
+        // not monthly-because-the-plan-was. Overriding a deliberate choice
+        // would reprice an add-on the tenant picked on purpose.
+        //
+        // The plan has to actually move for the watcher to run, and it has to
+        // land back on yearly for the choice to be worth keeping — so this is a
+        // round trip. Setting the same value twice would be a test that cannot
+        // fail.
+        const wrapper = mountStore({ planCycle: 'YEARLY' });
+        wrapper.findComponent({ name: 'PlanCycleToggle' }).vm.$emit('update:modelValue', 'MONTHLY');
+        await nextTick();
+        await wrapper.setProps({ planCycle: 'MONTHLY' } as never);
+        await wrapper.setProps({ planCycle: 'YEARLY' } as never);
+        expect(cardPrice(wrapper)).toContain('10.00 EUR');
+        expect(cardPrice(wrapper)).toContain('net/month');
+    });
+
     test('drops a selection the plan no longer offers', async () => {
         // A plan change lands and the usage reloads. A yearly selection left
         // standing on a monthly plan would price every card at a figure the
