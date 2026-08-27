@@ -55,6 +55,7 @@ import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
+import { noticeDaysFor, type CancellationNoticePeriods } from './cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
@@ -194,7 +195,7 @@ export class TenantBillingController {
         // because nothing type-checks a boolean landing where a service was.
         @Optional()
         @Inject(CANCELLATION_NOTICE_DAYS_TOKEN)
-        private readonly cancellationNoticeDays: number = 0,
+        private readonly cancellationNoticeDays: CancellationNoticePeriods = {},
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -1017,7 +1018,10 @@ export class TenantBillingController {
                 billingAnchorDay: sub.billingAnchorDay ?? null,
             },
             now,
-            this.cancellationNoticeDays,
+            // The rhythm of the CONTRACT, not of the plan somebody is looking
+            // at: a customer on a yearly subscription is owed the yearly
+            // notice even where the same plan is also sold monthly.
+            noticeDaysFor(this.cancellationNoticeDays, sub.billingCycle),
         );
     }
 

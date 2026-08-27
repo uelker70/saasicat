@@ -62,6 +62,10 @@ function recordingWritePort() {
 // The notice period is the sixteenth constructor argument and every slot before
 // it has to be filled. Named here rather than counted at each call site.
 function buildController(subscription, port, noticePeriodDays = 0) {
+    // Both rhythms carry the same number here, so a fixture that switches
+    // `billingCycle` keeps the notice the case is about. Which of the two is
+    // read is proved on its own, next door.
+    const notice = { monthly: noticePeriodDays, yearly: noticePeriodDays };
     return new TenantBillingController(
         {
             computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),
@@ -85,7 +89,7 @@ function buildController(subscription, port, noticePeriodDays = 0) {
         null, // subscriptionBundles
         null, // contractFreeze
         null, // trialProjection
-        noticePeriodDays,
+        notice,
     );
 }
 

@@ -96,12 +96,58 @@ export function decideCancellation(input: CancellationInput): CancellationDecisi
         return { effectiveAt: termEndsAt, termEndsAt, afterNoticeDeadline: false, noticeDeadline };
     }
 
-    return {
-        effectiveAt: advanceOneCycle(termEndsAt, billingCycle, anchorDay),
-        termEndsAt,
-        afterNoticeDeadline: true,
-        noticeDeadline,
-    };
+    // Far enough that the notice is actually served, not exactly one period on.
+    //
+    // One step is right whenever the notice is shorter than the period, which
+    // is the case an installation should configure. Where it is not — 60 days
+    // of notice on a monthly cycle — one step gives the customer between 31 and
+    // 60 days depending on the day they happened to declare, and the operator
+    // has promised 60. Stepping until the notice is served degrades honestly
+    // instead: a misconfiguration then costs the customer a longer wait rather
+    // than costing the operator a promise they cannot keep.
+    let effectiveAt = advanceOneCycle(termEndsAt, billingCycle, anchorDay);
+    while (effectiveAt.getTime() - now.getTime() < noticePeriodDays * DAY_MS) {
+        effectiveAt = advanceOneCycle(effectiveAt, billingCycle, anchorDay);
+    }
+    return { effectiveAt, termEndsAt, afterNoticeDeadline: true, noticeDeadline };
+}
+
+/**
+ * Notice periods, one per rhythm.
+ *
+ * One number for both was the shape until 2026-08-27, and it could not be right
+ * for both: a yearly contract with a fortnight of notice is unusual, and a
+ * monthly contract with three months of notice is void against a consumer. The
+ * two are configured apart because real contracts set them apart.
+ *
+ * Both default to zero — no notice at all — which is the reading a customer
+ * expects and the one that generates no disputes.
+ *
+ * **No ceiling is enforced.** §309 Nr. 9 BGB limits the notice period in German
+ * consumer contracts to one month, and an installation serving businesses is
+ * not bound by it. The platform cannot know which it is, so the number is the
+ * consumer app's to choose and this is the sentence that says what it costs.
+ */
+export interface CancellationNoticePeriods {
+    /** Days of notice for a monthly subscription. */
+    monthly?: number;
+    /** Days of notice for a yearly subscription. */
+    yearly?: number;
+}
+
+/**
+ * The notice a subscription on `billingCycle` is owed.
+ *
+ * Absent means none. The two rhythms are read apart rather than one falling
+ * back to the other: a configuration that names only one has deliberately left
+ * the other at zero, and inferring it would be inventing a term.
+ */
+export function noticeDaysFor(
+    periods: CancellationNoticePeriods | undefined,
+    billingCycle: string,
+): number {
+    if (!periods) return 0;
+    return (billingCycle === 'YEARLY' ? periods.yearly : periods.monthly) ?? 0;
 }
 
 /**
