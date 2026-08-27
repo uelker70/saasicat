@@ -37,5 +37,15 @@ and `SubscriptionBundleShape` gains `priceNet` and `billingCycle`. A consumer
 without the new prices endpoint keeps the catalogue's own figures, which is what
 every consumer had before.
 
+Mixed rhythms in one contract are new, and the contract snapshot accounts for
+them: each line keeps the rhythm it is billed in, and the total states one
+period of the contract's own rhythm, so a monthly add-on beside a yearly plan
+counts as often as it falls due rather than once. `ContractFreezeSourcePort`
+now says what its `cycle` argument means — the plan's, not the bookings'.
+
+The price lookup answers only about versions a tenant could have been shown:
+published and not superseded. A caller naming an unpublished id would otherwise
+be told its plan-specific pricing.
+
 On a monthly plan nothing changes and no control appears: a question with one
 answer is not a question.
