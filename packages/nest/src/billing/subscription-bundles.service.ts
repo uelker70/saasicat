@@ -187,7 +187,13 @@ export class SubscriptionBundlesService {
         const entries = await Promise.all(
             bundleVersionIds.map(async (id) => {
                 const bv = await this.bundles.findVersionById(id);
-                if (!bv) return null;
+                // Only what the tenant could have been shown. The caller names
+                // ids, and an authenticated tenant can name one that never
+                // appeared in their catalogue — a draft, or a version somebody
+                // superseded — and would then be told its plan-specific
+                // pricing. The public catalogue serves live versions only, and
+                // this answers about the same set.
+                if (!bv || !isLive(bv)) return null;
                 return [
                     id,
                     {
@@ -438,6 +444,11 @@ export function addMonths(date: Date, months: number): Date {
  * ended, which is the opposite of what a zero-month term is for, and possibly
  * a whole further period away.
  */
+/** Published and not superseded — what a tenant's catalogue can contain. */
+function isLive(version: { publishedAt: string | null; supersededAt: string | null }): boolean {
+    return version.publishedAt !== null && version.supersededAt === null;
+}
+
 export function clampToParent(ownTermEndsAt: Date | null, parentEndsAt: Date | null): Date | null {
     if (ownTermEndsAt === null || parentEndsAt === null) return ownTermEndsAt;
     return ownTermEndsAt < parentEndsAt ? ownTermEndsAt : parentEndsAt;

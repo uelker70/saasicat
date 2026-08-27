@@ -86,6 +86,13 @@ export interface ContractFreezeSourcePort {
      * The tenant's active (non-terminated) bundle bookings as line items.
      * `vatRate` is passed through so the gross price is computed consistently
      * with the catalog VAT. Apps without a bundle schema return empty lists.
+     *
+     * `cycle` is the **plan's** rhythm, not the bookings'. A tenant on a yearly
+     * plan may hold monthly add-ons, so a source prices each booking in the
+     * rhythm that booking was made in and says which one that is on the line's
+     * own `billingCycle`. Pricing every line in the plan's rhythm puts a figure
+     * on the contract that nobody is charged, and the contract is the evidence
+     * of what was agreed.
      */
     loadBookedBundles(
         tenantId: string,

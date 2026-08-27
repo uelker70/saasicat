@@ -473,7 +473,10 @@ const commitBundlePrices = latestAnswerWins(
     },
     ({ prices, failed, message }) => {
         resolvedBundlePrices.value = prices;
-        if (failed) bundleError.value = message ?? null;
+        // Assigned either way: a retry that succeeded leaves the cards holding
+        // fresh prices, and an error still on screen above them describes a
+        // state that no longer exists.
+        bundleError.value = failed ? (message ?? null) : null;
     },
 );
 

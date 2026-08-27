@@ -164,3 +164,55 @@ describe('the prices a store is shown', () => {
         assert.deepEqual(await service.resolvePricesFor(STARTER, []), {});
     });
 });
+
+describe('which bundles a tenant may ask the price of', () => {
+    test('a draft is not priced, because it was never on offer', async () => {
+        // The caller names ids. An authenticated tenant can name one that never
+        // appeared in their catalogue, and answering would disclose the
+        // plan-specific pricing of something nobody has published.
+        const bundle = await bundleRepo.create({
+            projectKey: PROJECT,
+            bundleKey: 'DRAFT_ONLY',
+            label: 'Draft only',
+        });
+        const draft = await bundleRepo.createDraft({
+            bundleId: bundle.id,
+            features: ['F'],
+            monthlyNet: '9.90',
+            yearlyNet: '99.00',
+            pricingOverrides: [{ planId: STARTER, monthlyNet: '1.00' }],
+        });
+        assert.deepEqual(await service.resolvePricesFor(STARTER, [draft.id]), {});
+    });
+
+    test('a superseded version is not priced either', async () => {
+        const first = await publishBundle({ key: 'SUP' });
+        const secondDraft = await bundleRepo.createDraft({
+            bundleId: first.bundleId,
+            features: ['F'],
+            monthlyNet: '19.90',
+            yearlyNet: '199.00',
+        });
+        const second = await bundleRepo.publishDraft(secondDraft.id, {
+            publishedByUserId: null,
+            publishedChanges: [],
+            nonRegressive: true,
+            validFrom: new Date('2026-06-01T00:00:00Z'),
+            validUntil: null,
+        });
+        // The live one answers; the one it replaced does not.
+        assert.deepEqual((await service.resolvePricesFor(STARTER, [second.id]))[second.id], {
+            monthlyNet: 19.9,
+            yearlyNet: 199,
+        });
+        assert.deepEqual(await service.resolvePricesFor(STARTER, [first.id]), {});
+    });
+
+    test('a live version among dead ones still answers', async () => {
+        // Without this, an implementation that answers nothing at all passes
+        // both tests above.
+        const live = await publishBundle({ key: 'MIXED' });
+        const prices = await service.resolvePricesFor(STARTER, [live.id, 'gone']);
+        assert.deepEqual(Object.keys(prices), [live.id]);
+    });
+});

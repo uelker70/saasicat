@@ -110,7 +110,17 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         };
 
         const lineItems: NewContractLineItemData[] = [planLineItem, ...bundles.lineItems];
-        const subtotalNet = round2(lineItems.reduce((sum, li) => sum + li.priceNet, 0));
+        // Each line keeps the rhythm it is billed in; the total states one
+        // period of the contract's own rhythm, so a line billed more often than
+        // the contract counts as often as it falls due.
+        //
+        // Add-ons may run monthly beside a yearly plan, so the two rhythms sit
+        // in one contract and adding the figures as they stand would put a
+        // single month of an add-on into a year's total. That was the shape
+        // before mixed rhythms could be bought; now they can.
+        const subtotalNet = round2(
+            lineItems.reduce((sum, li) => sum + priceOverOnePeriodOf(cycle, li), 0),
+        );
 
         const data: CreateSubscriptionContractData = {
             projectKey: this.projectKey,
@@ -146,6 +156,25 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         this.entitlements.invalidateTenant(tenantId);
     }
 }
+
+/**
+ * What a line costs over one period of the contract's rhythm.
+ *
+ * A monthly line in a yearly contract falls due twelve times, so it counts
+ * twelve times. The other direction cannot occur — a bundle may not outlast the
+ * plan it hangs on, which is what `bundleCycleFitsPlan` refuses — and if it
+ * ever did, dividing would invent a price nobody is charged, so it is left as
+ * it stands and the line's own `billingCycle` says what it really is.
+ */
+function priceOverOnePeriodOf(
+    contractCycle: 'monthly' | 'yearly',
+    line: { priceNet: number; billingCycle: 'monthly' | 'yearly' },
+): number {
+    const monthlyInYearly = contractCycle === 'yearly' && line.billingCycle === 'monthly';
+    return monthlyInYearly ? line.priceNet * MONTHS_PER_YEAR : line.priceNet;
+}
+
+const MONTHS_PER_YEAR = 12;
 
 function round2(value: number): number {
     return Math.round(value * 100) / 100;
