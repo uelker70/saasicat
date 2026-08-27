@@ -128,7 +128,10 @@ describe('a key belongs to the installation, not to a project', () => {
         // The declaration must be in use, or a typo in the marker would turn
         // every declared file into an offender at once — or, if the marker were
         // matched too loosely, silently excuse them all.
-        assert.ok(declared >= 1 && declared <= 8, `${declared} files declare history`);
+        // Nine today: this test, the migration SQL and the test that applies it
+        // twice, the codemod with its own test, the CLI barrel and bin that name
+        // that command, the upgrade guide, and the changeset describing it.
+        assert.ok(declared >= 1 && declared <= 9, `${declared} files declare history`);
     });
 
     test('the rule is not vacuous: it refuses each spelling', () => {

@@ -263,6 +263,32 @@ reach, and ranks the remaining gaps by what a failure would cost rather than by
 percentage. Read it before assuming a number means what it looks like — two
 packages there carry two numbers each, for good reasons.
 
+### Migrations are applied twice
+
+The `.sql` files under `@saasicat/spec/sql/` are shipped for a consumer to apply
+by hand or from an entrypoint script. Nothing here keeps a migration ledger — no
+Prisma Migrate, no Flyway, no Liquibase — so a retried deploy, a restarted
+container or a re-run pipeline step applies them again.
+
+A second run therefore has to have a defined outcome: it does nothing, or it
+refuses with a sentence saying why. Never an unexplained error from the
+database, and never a second application of the same effect. For DDL that means
+`IF EXISTS`/`IF NOT EXISTS` plus a check for the state already being reached;
+for a backfill, a marker or a condition that stops matching after the first run.
+
+`pnpm --filter @saasicat/spec test:integration` builds the shipped reference
+schema, applies every other `sql/*.sql` twice, and fails when the second run
+raises or moves the schema the first one settled. It needs
+`SAASICAT_TEST_DATABASE_URL` and runs in the `persistence-contract` CI job
+beside the adapter contracts. The set of files comes from the directory, so a
+migration added there is covered without being listed anywhere.
+
+This exists because it happened. The 1.0 migration dropped a column, and on the
+next container start its own guard asked that column for its distinct values —
+of a table that no longer had it. `db push` never ran, the entrypoint's `set -e`
+took the container down, and the message named a column rather than the retry.
+The first run was correct and tested; nobody had run it twice.
+
 ## Licensing of contributions
 
 SaaSiCat is distributed under [PolyForm Shield 1.0.0](LICENSE): source-available, not OSI

@@ -1,6 +1,9 @@
 // Every SQL file this package ships is applied twice, and the second time has
 // to be uneventful.
 //
+// project-key-history: the migration this was written for is named after the
+// retired identifier, and the scan asserts it by name.
+//
 // The rule it holds: **a second run has a defined outcome.** Either it does
 // nothing, or it refuses with a sentence naming why — never an unexplained SQL
 // error, and never a second application of the same effect.
@@ -12,11 +15,12 @@
 // stopped deployment — and deployments are retried, containers restart, and a
 // failed pipeline step gets run again.
 //
-// It is written because that is exactly what happened. `1.0-remove-project-key`
-// dropped the column and then, on the next container start, its own guard asked
-// `SELECT DISTINCT "projectKey"` of a table that no longer had one: `column
-// "projectKey" does not exist`, transaction aborted, container down. The first
-// run was correct and tested; nobody had run it twice.
+// It is written because that is exactly what happened. The 1.0 migration dropped
+// a column and then, on the next container start, its own guard asked that
+// column for its distinct values — of a table that no longer had it. The
+// transaction aborted, `set -e` took the container down, and the message named
+// a column rather than the retry. The first run was correct and tested; nobody
+// had run it twice.
 //
 // The scope is derived, not listed: every `sql/*.sql` except the reference
 // schema, which is the starting point rather than a step and is deliberately
