@@ -606,11 +606,20 @@ becomes `(<key>)`, and the composite lookup indexes lose their first column.
 psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.postgres.sql
 ```
 
+**If your dev setup uses `prisma db push`**, run the file before it, not instead of it. `db push`
+refuses a change that would drop a column holding data — `Use the --accept-data-loss flag` — and it
+is right to: it cannot know whether those rows still matter. Do not add the flag; it would arm every
+future schema change to discard data without being asked. Run the migration, which checks the rows
+first, and `db push` then has nothing destructive left to do.
+`examples/notesapp/docker-entrypoint.sh` does exactly that, in that order.
+
 It opens a transaction and starts with a guard: if those tables between them hold rows under more
 than one project key, it **stops and names which table held which** rather than merging rows nobody
 meant to merge — two `STANDARD` plans would collide on the new unique index, and which of them
 survives is not a decision a migration should take. Delete the rows that do not belong to this
-installation, then run it again. It is a one-way door: the values are dropped, not archived.
+installation, then run it again. It is a one-way door — the values are dropped, not archived — but
+running it twice is safe: a table whose column has already gone is skipped, so a second run does
+nothing rather than failing.
 
 **In your code**, `v1-project-key` removes what it can decide:
 

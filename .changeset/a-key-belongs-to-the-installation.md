@@ -39,7 +39,12 @@ psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.p
 It starts with a guard. Where the catalogue holds rows under more than one
 project key — in one table or spread across several — it stops and names which
 table held which, rather than merging rows that would then collide on the new
-unique index. It is a one-way door.
+unique index. It is a one-way door, and safe to run again: a table whose column
+has already gone is skipped.
+
+If your dev setup uses `prisma db push`, run the file **before** it. `db push`
+refuses to drop a column that still holds data, and adding `--accept-data-loss`
+would arm every future change to discard data unasked.
 
 **For your code**, `saasicat codemod v1` gained a third pass —
 `v1-project-key`. It removes the `?projectKey=` query part from a `/catalog/`

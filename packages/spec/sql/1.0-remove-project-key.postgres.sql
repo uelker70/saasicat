@@ -12,8 +12,10 @@
 -- installation-wide, so two applications in one database was never a shape this
 -- model could carry.
 --
--- Run this ONCE against an existing database, inside the transaction it opens.
--- It is a one-way door: the values are dropped, not archived.
+-- Run this against an existing database, inside the transaction it opens. It is
+-- a one-way door — the values are dropped, not archived — but it is safe to run
+-- again: a table whose column has already gone is skipped, so a second run does
+-- nothing rather than failing.
 --
 --   psql "$DATABASE_URL" -f 1.0-remove-project-key.postgres.sql
 --
@@ -56,6 +58,20 @@ BEGIN
     FOREACH target IN ARRAY affected LOOP
         IF to_regclass(format('%I', target)) IS NULL THEN
             CONTINUE;  -- an installation that never adopted this fragment
+        END IF;
+        -- A table that has already been migrated says nothing, and asking it
+        -- would raise `column "projectKey" does not exist`. Everything below
+        -- this block is written with IF EXISTS / IF NOT EXISTS, so with this
+        -- check the whole file is a no-op on a second run rather than an error
+        -- — which is what a deploy that retries, or a container that restarts,
+        -- needs it to be.
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = target
+              AND column_name = 'projectKey'
+        ) THEN
+            CONTINUE;
         END IF;
         EXECUTE format('SELECT array_agg(DISTINCT "projectKey") FROM %I', target)
             INTO keys_here;
