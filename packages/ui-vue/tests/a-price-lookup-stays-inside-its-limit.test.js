@@ -80,13 +80,35 @@ describe('loadBundlePrices', () => {
         });
     });
 
+    const failingWith = (status) => async () => ({
+        status,
+        headers: { get: () => null },
+        json: async () => ({ message: 'no' }),
+        text: async () => 'no',
+    });
+
     test('a consumer without the endpoint keeps the catalogue rather than breaking', async () => {
-        const billing = useTenantBilling({
+        // 404 is a permanent, intended answer: this consumer has not wired the
+        // route, and the catalogue's own figures are what they always had.
+        const billing = useTenantBilling({ http: failingWith(404), autoLoad: false });
+        assert.deepEqual(await billing.loadBundlePrices(ids(3)), {});
+        const notImplemented = useTenantBilling({ http: failingWith(501), autoLoad: false });
+        assert.deepEqual(await notImplemented.loadBundlePrices(ids(3)), {});
+    });
+
+    test('a failed lookup is not the same answer as an absent one', async () => {
+        // A 500 or a dropped connection is a failure to load prices. Answering
+        // it with an empty map prices every card from the public catalogue and
+        // leaves nothing on screen to say those are not the charged figures.
+        const billing = useTenantBilling({ http: failingWith(500), autoLoad: false });
+        await assert.rejects(billing.loadBundlePrices(ids(3)), /HTTP 500/);
+
+        const offline = useTenantBilling({
             http: async () => {
-                throw new Error('404');
+                throw new Error('network down');
             },
             autoLoad: false,
         });
-        assert.deepEqual(await billing.loadBundlePrices(ids(3)), {});
+        await assert.rejects(offline.loadBundlePrices(ids(3)), /network down/);
     });
 });

@@ -455,9 +455,25 @@ const resolvedBundlePrices = ref<Record<string, ResolvedBundlePrice>>({});
  * since left is not merely stale — it is about a different question.
  */
 const commitBundlePrices = latestAnswerWins(
-    (ids: string[]) => billing.loadBundlePrices(ids),
-    (prices) => {
+    async (ids: string[]) => {
+        try {
+            return { prices: await billing.loadBundlePrices(ids), failed: false };
+        } catch (err) {
+            // Cleared rather than kept: prices belong to a plan, and holding
+            // the previous plan's figures would be wrong in a way nobody can
+            // see. Cleared *and* announced, because the cards then show the
+            // catalogue's own numbers, which are not necessarily the ones being
+            // charged.
+            return {
+                prices: {},
+                failed: true,
+                message: err instanceof Error ? err.message : String(err),
+            };
+        }
+    },
+    ({ prices, failed, message }) => {
         resolvedBundlePrices.value = prices;
+        if (failed) bundleError.value = message ?? null;
     },
 );
 

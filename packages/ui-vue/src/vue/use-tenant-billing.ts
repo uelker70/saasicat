@@ -166,6 +166,12 @@ export interface PlanSnapshotShape {
  * `null` where no price is maintained for that combination, which the booking
  * refuses with `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`.
  */
+/** 404/501: the consumer has not wired this route. Anything else is a failure. */
+function isEndpointAbsent(err: unknown): boolean {
+    const status = (err as { status?: number } | null)?.status;
+    return status === 404 || status === 501;
+}
+
 export interface ResolvedBundlePrice {
     monthlyNet: number | null;
     yearlyNet: number | null;
@@ -491,9 +497,14 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
      *
      * The public catalogue serves base prices and has no plan to resolve a
      * `BundlePricingOverride` against, so a bundle priced only through an
-     * override reads there as having no price at all. Non-fatal: a consumer
-     * without the endpoint keeps the catalogue's own figures, which is what
-     * every consumer had before.
+     * override reads there as having no price at all.
+     *
+     * Answers `{}` where the consumer has not wired the route, which leaves the
+     * catalogue's own figures standing — what every consumer had before. Any
+     * other failure **throws**: prices that could not be loaded and prices that
+     * do not exist are different states, and answering both with an empty map
+     * puts the public catalogue's numbers on screen with nothing to say they
+     * are not the ones being charged.
      */
     async function loadBundlePrices(
         bundleVersionIds: string[],
@@ -519,8 +530,15 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
                 ),
             );
             return Object.assign({}, ...answers.map((answer) => answer ?? {}));
-        } catch {
-            return {};
+        } catch (err) {
+            // An absent endpoint is a consumer that has not wired this route,
+            // and falling back to the catalogue's own figures is the right,
+            // permanent answer for them. Anything else — a 500, a dropped
+            // connection — is a failure to load prices, and answering it the
+            // same way prices every card from the public catalogue with nothing
+            // on screen to say so.
+            if (isEndpointAbsent(err)) return {};
+            throw err;
         }
     }
 
