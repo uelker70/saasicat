@@ -36,6 +36,12 @@
         // compares them against it. Same reason as above: a hand edit here
         // lasts until the next run, and Prettier already governs their width.
         "!docs/reference/**",
+        // A coding session puts its git worktrees here, so a second checkout of
+        // the whole repository sits inside this one and every tool that walks
+        // the tree reports the other branch's files as ours. `.gitignore` says
+        // so and names the two tools that had to repeat the entry; this is the
+        // third, because markdownlint does not read `.gitignore` either.
+        "!.claude/**",
         // The internal planning folder: German, gitignored, never published.
         "!handoff/**",
     ],
