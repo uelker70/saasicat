@@ -62,6 +62,52 @@ describe('a notice longer than the period is served, not approximated', () => {
     });
 });
 
+describe('a port that does not store the billing day', () => {
+    // `billingAnchorDay` is optional on the usage port, and a consumer's own
+    // implementation may omit it. Without it every step reads its day from the
+    // step before — which has already been clamped — so one February eats the
+    // day and never returns it. Over one step that is invisible; over several
+    // it compounds into a month the customer did not owe.
+
+    const withoutAnchor = (declaredOn, noticePeriodDays, currentPeriodEnd) =>
+        decideCancellation({
+            now: at(declaredOn),
+            currentPeriodEnd: at(currentPeriodEnd),
+            minimumTermUntil: null,
+            billingCycle: 'MONTHLY',
+            noticePeriodDays,
+            // omitted on purpose
+        });
+
+    test('the fallback day is read once, not at every step', () => {
+        // Term ends 31 January, 60 days of notice, declared on the 30th.
+        // Re-reading gives 28 Feb → 28 Mar (57 days, still short) → 28 Apr.
+        // Keeping it gives 28 Feb → 31 Mar, which is 60 days exactly.
+        const decision = withoutAnchor('2026-01-30', 60, '2026-01-31');
+        assert.equal(decision.effectiveAt.toISOString().slice(0, 10), '2026-03-31');
+        assert.ok(daysBetween('2026-01-30', decision.effectiveAt) >= 60);
+    });
+
+    test('and a single step is unaffected, which is why this hid so long', () => {
+        const decision = withoutAnchor('2026-01-30', 14, '2026-01-31');
+        assert.equal(decision.effectiveAt.toISOString().slice(0, 10), '2026-02-28');
+    });
+
+    test('a stored anchor still wins over the fallback', () => {
+        const decision = decideCancellation({
+            now: at('2026-01-30'),
+            currentPeriodEnd: at('2026-02-28'),
+            minimumTermUntil: null,
+            billingCycle: 'MONTHLY',
+            noticePeriodDays: 60,
+            // The subscription is billed on the 31st; the period end was
+            // clamped by February, and the stored anchor is what says so.
+            billingAnchorDay: 31,
+        });
+        assert.equal(decision.effectiveAt.toISOString().slice(0, 10), '2026-03-31');
+    });
+});
+
 describe('a notice shorter than the period behaves as it always did', () => {
     test('declared in time, it ends with the period', () => {
         const decision = decide('2026-03-01', 14);

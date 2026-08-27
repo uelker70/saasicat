@@ -1,6 +1,6 @@
 import type { BillingCycle } from '@saasicat/core';
 
-import { advanceOneCycle } from './billing-period.js';
+import { advanceOneCycle, billingAnchorDay } from './billing-period.js';
 
 // When a cancellation lands.
 //
@@ -105,9 +105,24 @@ export function decideCancellation(input: CancellationInput): CancellationDecisi
     // has promised 60. Stepping until the notice is served degrades honestly
     // instead: a misconfiguration then costs the customer a longer wait rather
     // than costing the operator a promise they cannot keep.
-    let effectiveAt = advanceOneCycle(termEndsAt, billingCycle, anchorDay);
+    // Resolved once, before any stepping.
+    //
+    // Without an anchor each step reads its day from the step before it, and
+    // the step before it has already been through a clamp — so one February
+    // eats the day and never gives it back. Over a single step that was
+    // invisible; over several it compounds: from a term ending 31 January with
+    // 60 days of notice, the walk went 28 February, 28 March (57 days, still
+    // short), 28 April, holding the customer a month longer than the notice
+    // asked for. With the anchor kept it is 28 February, 31 March, and it
+    // stops.
+    //
+    // Reading the fallback from `termEndsAt` inherits whatever clamp that date
+    // already carries — a port that omits `billingAnchorDay` cannot be rescued
+    // here. What this removes is the compounding, not the original loss.
+    const steppingAnchor = anchorDay ?? billingAnchorDay(termEndsAt);
+    let effectiveAt = advanceOneCycle(termEndsAt, billingCycle, steppingAnchor);
     while (effectiveAt.getTime() - now.getTime() < noticePeriodDays * DAY_MS) {
-        effectiveAt = advanceOneCycle(effectiveAt, billingCycle, anchorDay);
+        effectiveAt = advanceOneCycle(effectiveAt, billingCycle, steppingAnchor);
     }
     return { effectiveAt, termEndsAt, afterNoticeDeadline: true, noticeDeadline };
 }
