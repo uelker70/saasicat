@@ -19,6 +19,7 @@ import {
 // asked.
 
 const MINIMAL_CATALOG = {
+    app: { name: 'TestApp' },
     currency: 'EUR',
     vatRate: 19,
     plans: [],
@@ -289,6 +290,14 @@ describe('every rule can actually fail', () => {
             },
             adapters: CORE_ADAPTERS,
         },
+        // A catalogue that names no application.
+        {
+            options: {
+                planCatalog: { currency: 'EUR', vatRate: 19, plans: [] },
+                controller: { guards: [] },
+            },
+            adapters: CORE_ADAPTERS,
+        },
     ];
 
     test('every rule fails in at least one probe', () => {
@@ -325,6 +334,79 @@ describe('every rule can actually fail', () => {
             (r) => r.id === 'entitlement.requires-transactional-persistence',
         );
         assert.match(messageOf(rule, PROBES[2]), /transactions, pessimistic locking/);
+    });
+});
+
+describe('a catalogue that names no application', () => {
+    // `app.name` is the one place an installation names itself, and it feeds
+    // the manifest display name, the login-page brand and the discovery key.
+    // Before this rule an absent one was a silent empty string all the way
+    // through — the app booted, and nothing on screen or in the snapshot said
+    // the identity was missing.
+
+    const NAMELESS = { schemaVersion: 1, currency: 'EUR', vatRate: 19, plans: [] };
+
+    test('is a violation of its own, named', () => {
+        const violations = findViolations({
+            options: { planCatalog: NAMELESS, controller: { guards: [] } },
+            adapters: CORE_ADAPTERS,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.app-is-named'],
+        );
+        assert.match(violations[0].message, /app\.name/);
+    });
+
+    test('and so is a blank one, which is the same omission spelled differently', () => {
+        const violations = findViolations({
+            options: {
+                planCatalog: { ...NAMELESS, app: { name: '   ' } },
+                controller: { guards: [] },
+            },
+            adapters: CORE_ADAPTERS,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.app-is-named'],
+        );
+    });
+
+    test('a named one passes', () => {
+        const violations = findViolations({
+            options: {
+                planCatalog: { ...NAMELESS, app: { name: 'MyApp' } },
+                controller: { guards: [] },
+            },
+            adapters: CORE_ADAPTERS,
+        });
+        assert.deepEqual(violations, []);
+    });
+
+    test('the DB-hydration path is held to it too', () => {
+        const violations = findViolations({
+            options: {
+                dbCatalog: { currency: 'EUR', vatRate: 19 },
+                controller: { guards: [] },
+            },
+            adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.app-is-named'],
+        );
+    });
+
+    test('and a configuration with no catalogue at all is the other finding, not both', () => {
+        // Reporting the missing name as well would name one omission twice.
+        const violations = findViolations({
+            options: { controller: { guards: [] } },
+            adapters: CORE_ADAPTERS,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.identity-or-sink'],
+        );
     });
 });
 

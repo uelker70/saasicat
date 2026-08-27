@@ -41,6 +41,15 @@ describe('a query parameter the admin API no longer reads', () => {
         const source = 'const x = { myProjectKey: 1 };';
         assert.equal(removeProjectKey(source).text, source);
     });
+
+    test('an occurrence at the very start does not end the scan', () => {
+        // `indexOf` returning 0 is a found needle with nothing in front of it,
+        // not an absent one. Reading it as absent stopped the scan, and every
+        // later query part in the same file went unrewritten.
+        const result = removeProjectKey('projectKey=leftover\nconst u = `/plans?projectKey=x`;');
+        assert.equal(result.text, 'projectKey=leftover\nconst u = `/plans`;');
+        assert.equal(result.rewritten, 1);
+    });
 });
 
 describe('an object member, when the object says whose it is', () => {
@@ -64,6 +73,16 @@ describe('an object member, when the object says whose it is', () => {
             ['const c = {', '    vatRate: 19,', "    projectKey: 'myapp'", '};'].join('\n'),
         );
         assert.equal(result.text, ['const c = {', '    vatRate: 19', '};'].join('\n'));
+    });
+
+    test('a value containing a comma is not cut in half', () => {
+        // The member ends at the comma that separates it from the next one,
+        // not at one inside its own string. The scanner tracked brackets and
+        // not quotes, and left `app', planKey: 'STARTER' }` behind.
+        const result = removeProjectKey(
+            "plans.create({ projectKey: 'my,app', planKey: 'STARTER' });",
+        );
+        assert.equal(result.text, "plans.create({ planKey: 'STARTER' });");
     });
 
     test('a create body is decidable through the key beside it', () => {

@@ -11,6 +11,7 @@ import {
     composeFeatures,
     composeModuleExports,
 } from '../dist/platform/index.js';
+import { DISCOVERY_APP_INFO_TOKEN } from '../dist/discovery/index.js';
 
 // Two properties the decomposition exists to keep, asked as behaviour.
 //
@@ -197,6 +198,14 @@ describe('the base modules', () => {
         assert.ok(dyn.imports.some((m) => m?.module?.name === 'PlanCatalogModule'));
     });
 
+    // The identity the DiscoveryModule was actually handed. Both tests below
+    // used to assert only that the module was mounted, which is true of every
+    // configuration — including the one that mounts it with an empty name.
+    const identityOf = (dyn) =>
+        dyn.imports
+            .find((m) => m?.module?.name === 'DiscoveryModule')
+            ?.providers?.find((p) => p.provide === DISCOVERY_APP_INFO_TOKEN)?.useValue;
+
     test('the app identity comes from the catalogue that is configured', () => {
         // `app.name` is the one place an installation names itself, and both
         // catalogue paths require it — so there is nothing left to fall back to.
@@ -205,8 +214,14 @@ describe('the base modules', () => {
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT },
         });
-        const discovery = fromYaml.imports.find((m) => m?.module?.name === 'DiscoveryModule');
-        assert.ok(discovery, 'discovery is not mounted at all');
+        assert.deepEqual(identityOf(fromYaml), { key: 'TestApp', version: '0.0.1' });
+
+        const fromDb = SaaSiCatModule.forRoot({
+            dbCatalog: { app: { name: 'FromDb' }, currency: 'EUR', vatRate: 19 },
+            controller: { guards: [] },
+            adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT, planCatalogReadSink: REPO },
+        });
+        assert.deepEqual(identityOf(fromDb), { key: 'FromDb', version: '0.0.0' });
     });
 
     test('an explicit app identity wins over the catalogue', () => {
@@ -216,7 +231,7 @@ describe('the base modules', () => {
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT },
         });
-        assert.ok(dyn.imports.length > 0);
+        assert.deepEqual(identityOf(dyn), { key: 'explicit', version: '9.9.9' });
     });
 });
 

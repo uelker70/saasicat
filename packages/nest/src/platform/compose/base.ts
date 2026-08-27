@@ -5,7 +5,13 @@
 // and the manifest is not a configuration anyone asked for.
 
 import type { DynamicModule } from '@nestjs/common';
-import type { AuditPort, MfaPort, PlanCatalogReadSink, RlsBypassPort } from '@saasicat/core';
+import type {
+    AuditPort,
+    MfaPort,
+    PlanCatalog,
+    PlanCatalogReadSink,
+    RlsBypassPort,
+} from '@saasicat/core';
 
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
 import { AdminModule } from '../../admin/admin.module.js';
@@ -28,8 +34,16 @@ const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
  * placeholder that would collide with every other installation's.
  */
 export function resolveAppInfo(options: SaaSiCatModuleOptions): DiscoveryAppInfo {
-    const app = options.planCatalog?.app ?? options.dbCatalog?.app;
-    return options.app ?? { key: app?.name ?? '', version: app?.version ?? '0.0.0' };
+    if (options.app) return options.app;
+    // Non-null here: `assertConfiguration` runs before this, and two of its
+    // rules together guarantee it — `catalog.identity-or-sink` refuses a
+    // configuration with neither catalogue, `catalog.app-is-named` refuses one
+    // whose catalogue names no application. Deliberately not `?? ''`: an empty
+    // key would reach the discovery snapshot and the manifest with nothing
+    // saying the identity was missing, which is the failure mode the old
+    // `'app'` placeholder existed to avoid.
+    const app = (options.planCatalog?.app ?? options.dbCatalog?.app) as PlanCatalog['app'];
+    return { key: app.name, version: app.version ?? '0.0.0' };
 }
 
 /**

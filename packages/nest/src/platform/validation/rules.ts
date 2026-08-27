@@ -159,6 +159,21 @@ const RULE_SPECS: readonly RuleSpec[] = [
             'identity the app boots with a silently empty catalogue.',
     },
     {
+        id: 'catalog.app-is-named',
+        // Only where a catalogue is reachable at all — otherwise
+        // `catalog.identity-or-sink` is the finding, and reporting both would
+        // name the same omission twice.
+        when: (c) => Boolean(c.options.planCatalog ?? c.options.dbCatalog),
+        assert: (c) =>
+            Boolean((c.options.planCatalog?.app ?? c.options.dbCatalog?.app)?.name?.trim()),
+        message:
+            'the catalogue names no application. `app.name` is the one place an installation ' +
+            'names itself — it is the manifest display name, the login-page brand and the ' +
+            'discovery snapshot key — so an absent one is not a default to fill in: the app ' +
+            'would boot identified by an empty string. Set `app: { name: … }` in ' +
+            'config/saas.yaml, or in `dbCatalog` on the DB-hydration path.',
+    },
+    {
         id: 'catalog.requires-persistence',
         when: (c) => Boolean(c.options.catalog),
         assert: (c) => Boolean(bundle(c)?.catalog),

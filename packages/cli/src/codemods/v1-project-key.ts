@@ -75,8 +75,12 @@ function stripQueryParameter(text: string): { text: string; removed: number } {
     let removed = 0;
     for (;;) {
         const at = text.indexOf(NEEDLE, index);
-        if (at < 1) break;
-        const separator = text[at - 1];
+        if (at < 0) break;
+        // `at === 0` is the needle with nothing in front of it, so it is not a
+        // query part. It has to fall through to the copy-and-continue branch
+        // rather than end the scan, or a later occurrence in the same file
+        // would go unrewritten.
+        const separator = at === 0 ? '' : text[at - 1];
         if (separator !== '?' && separator !== '&') {
             out += text.slice(index, at + NEEDLE.length);
             index = at + NEEDLE.length;
@@ -137,12 +141,26 @@ function enclosingObject(text: string, at: number): { open: number; close: numbe
     return null;
 }
 
-/** Where a `projectKey:` member ends: after its value's comma, or at the brace. */
+/**
+ * Where a `projectKey:` member ends: after its value's comma, or at the brace.
+ *
+ * Quotes are tracked, not just brackets. `projectKey: 'my,app'` would otherwise
+ * end at the comma inside the string and leave half a literal behind — a
+ * consumer's value is theirs, and a scanner that assumes it holds no separator
+ * is a scanner that corrupts the one file it was meant to fix.
+ */
 function memberEnd(text: string, from: number, close: number): number {
     let depth = 0;
+    let quote = '';
     for (let i = from; i < close; i += 1) {
         const ch = text[i];
-        if (ch === '{' || ch === '[' || ch === '(') depth += 1;
+        if (quote) {
+            if (ch === '\\') i += 1;
+            else if (ch === quote) quote = '';
+            continue;
+        }
+        if (ch === "'" || ch === '"' || ch === '`') quote = ch;
+        else if (ch === '{' || ch === '[' || ch === '(') depth += 1;
         else if (ch === '}' || ch === ']' || ch === ')') depth -= 1;
         else if (depth === 0 && ch === ',') return i + 1;
     }
