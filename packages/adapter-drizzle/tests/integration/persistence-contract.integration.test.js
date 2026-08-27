@@ -30,6 +30,11 @@ import {
     saasicatSchema,
 } from '../../dist/index.js';
 import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '../../dist/index.js';
+import {
+    DrizzlePlanRepository,
+    DrizzleSubscriptionContractRepository,
+    DrizzleTenantSubscriptionWrite,
+} from '../../dist/index.js';
 import { openDisposableDatabase } from './support/disposable-database.mjs';
 
 const { pool, db } = await openDisposableDatabase();
@@ -71,6 +76,9 @@ function createHarness() {
             auditQuery: new DrizzleAuditQueryAdapter(db),
             subscriptionBundleRepository: new DrizzleSubscriptionBundleRepository(db),
             bundleRepository: new DrizzleBundleRepository(db, { validityWindows: true }),
+            planRepository: new DrizzlePlanRepository(db, { validityWindows: true }),
+            tenantSubscriptionWrite: new DrizzleTenantSubscriptionWrite(db),
+            subscriptionContractRepository: new DrizzleSubscriptionContractRepository(db),
         },
         seed: {
             async createBundleVersion(input) {

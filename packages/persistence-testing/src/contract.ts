@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test } from 'node:test';
-import type { TransactionContext } from '@saasicat/core';
+import type { NewContractLineItemData, TransactionContext } from '@saasicat/core';
 import type {
     PersistenceAdapterContractOptions,
     PersistenceContractHarness,
@@ -1256,16 +1256,286 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // -------------------------------------------------------------
-        // Roadmap scenarios — always visible, skipped until the slice ships
-        // -------------------------------------------------------------
-
-        test('immutable subscription contracts (append-only, terminate-only)', (t) => {
-            if (!harness.adapter.subscriptionContractRepository) {
-                t.skip('adapter provides no SubscriptionContractRepository — scenario pending');
+        test('a contract keeps what was agreed, and ending it does not rewrite it', async (t) => {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            if (!contracts) {
+                t.skip('adapter provides no SubscriptionContractRepository');
                 return;
             }
-            assert.fail(
-                'SubscriptionContractRepository present but the contract kit has no scenario yet — extend the kit',
+            const tenantId = 'tenant-contract-lifecycle';
+            const signedAt = new Date('2026-01-01T00:00:00.000Z');
+            const created = await contracts.create({
+                projectKey: options.projectKey,
+                tenantId,
+                effectiveFrom: signedAt,
+                priceSnapshot: {
+                    currency: 'EUR',
+                    billingCycle: 'monthly',
+                    subtotalNet: 29.9,
+                    discountNet: 0,
+                    totalNet: 29.9,
+                    vatRate: 19,
+                    totalGross: 35.58,
+                },
+                entitlementSnapshot: {
+                    plan: 'STANDARD',
+                    features: ['CORE'],
+                    quotas: { users: 5 },
+                },
+                originalBundleVersionIds: ['bundle-version-1'],
+                termsSnapshot: { noticePeriodDays: 30 },
+                lineItems: [
+                    {
+                        kind: 'plan',
+                        sourceKey: 'STANDARD',
+                        sourceVersionId: 'plan-version-1',
+                        titleSnapshot: 'Standard',
+                        descriptionSnapshot: 'The plan as it was signed',
+                        quantity: 1,
+                        unit: null,
+                        priceNet: 19.9,
+                        priceGross: 23.68,
+                        billingCycle: 'monthly',
+                        minimumTermUntil: new Date('2027-01-01T00:00:00.000Z'),
+                        featuresSnapshot: ['CORE'],
+                        quotaEffectsSnapshot: { users: 5 },
+                        metadata: { origin: 'onboarding' },
+                    },
+                    {
+                        kind: 'bundle',
+                        sourceKey: 'EXTRA-SEATS',
+                        sourceVersionId: 'bundle-version-1',
+                        titleSnapshot: 'Extra seats',
+                        descriptionSnapshot: null,
+                        quantity: 1,
+                        unit: 'seat',
+                        priceNet: 10.0,
+                        priceGross: 11.9,
+                        billingCycle: 'monthly',
+                        minimumTermUntil: null,
+                        featuresSnapshot: [],
+                        quotaEffectsSnapshot: { users: 5 },
+                        metadata: null,
+                    },
+                ],
+            });
+
+            // What was agreed comes back as it was agreed — the snapshot is the
+            // evidence a dispute is settled against.
+            assert.equal(created.status, 'active');
+            assert.equal(created.tenantId, tenantId);
+            assert.equal(created.lineItems.length, 2);
+            assert.deepEqual(created.originalBundleVersionIds, ['bundle-version-1']);
+            assert.deepEqual(created.termsSnapshot, { noticePeriodDays: 30 });
+            const planLine = created.lineItems.find((item) => item.kind === 'plan');
+            assert.ok(planLine, 'plan line expected');
+            assert.equal(planLine.priceNet, 19.9, 'money must survive the round trip unrounded');
+            assert.equal(planLine.priceGross, 23.68);
+            assert.equal(planLine.billingCycle, 'monthly');
+            assert.deepEqual(planLine.quotaEffectsSnapshot, { users: 5 });
+            assert.equal(planLine.descriptionSnapshot, 'The plan as it was signed');
+            assert.equal(
+                planLine.minimumTermUntil?.getTime(),
+                new Date('2027-01-01T00:00:00.000Z').getTime(),
+                'the commitment is part of what was agreed',
+            );
+            assert.deepEqual(planLine.metadata, { origin: 'onboarding' });
+            const bundleLine = created.lineItems.find((item) => item.kind === 'bundle');
+            assert.ok(bundleLine, 'bundle line expected');
+            // The nullable half of every one of those fields, so an adapter
+            // that writes a default instead of a null is caught too.
+            assert.equal(bundleLine.descriptionSnapshot, null);
+            assert.equal(bundleLine.unit, 'seat');
+            assert.equal(bundleLine.minimumTermUntil, null);
+            assert.equal(bundleLine.metadata, null);
+
+            const readBack = await contracts.findById(created.id);
+            assert.ok(readBack, 'contract expected by id');
+            assert.equal(
+                readBack.lineItems.length,
+                2,
+                'lines belong to the contract, not the call',
+            );
+
+            // In force from the day it starts, and not a moment before.
+            assert.equal(
+                (
+                    await contracts.findActiveByTenantId(
+                        tenantId,
+                        new Date('2026-06-01T00:00:00.000Z'),
+                    )
+                )?.id,
+                created.id,
+            );
+            assert.equal(
+                await contracts.findActiveByTenantId(
+                    tenantId,
+                    new Date('2025-12-31T23:59:59.999Z'),
+                ),
+                null,
+                'a contract is not active before it starts',
+            );
+
+            // Ending it writes a window, and leaves everything else alone.
+            const endsAt = new Date('2026-07-01T00:00:00.000Z');
+            const terminated = await contracts.terminate(created.id, {
+                effectiveUntil: endsAt,
+                status: null,
+            });
+            assert.equal(
+                terminated.status,
+                'active',
+                'a null status leaves the contract in the state it had',
+            );
+            assert.equal(terminated.effectiveUntil?.getTime(), endsAt.getTime());
+            assert.equal(terminated.lineItems.length, 2, 'ending a contract keeps its lines');
+            assert.equal(
+                terminated.priceSnapshot.totalNet,
+                created.priceSnapshot.totalNet,
+                'ending a contract does not restate its price',
+            );
+
+            // Still there, still readable — append-only means the row survives
+            // its own end.
+            const afterEnd = await contracts.findById(created.id);
+            assert.ok(afterEnd, 'a terminated contract is still readable');
+            assert.equal(afterEnd.lineItems.length, 2);
+
+            assert.equal(
+                (
+                    await contracts.findActiveByTenantId(
+                        tenantId,
+                        new Date('2026-06-30T00:00:00.000Z'),
+                    )
+                )?.id,
+                created.id,
+                'active up to the moment it ends',
+            );
+            assert.equal(
+                await contracts.findActiveByTenantId(tenantId, endsAt),
+                null,
+                'and not at that moment',
+            );
+        });
+
+        test('a successor takes over without erasing the contract it replaces', async (t) => {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            if (!contracts) {
+                t.skip('adapter provides no SubscriptionContractRepository');
+                return;
+            }
+            const tenantId = 'tenant-contract-succession';
+            const handover = new Date('2026-04-01T00:00:00.000Z');
+            // Setup, not subject: this test is about which contract is in
+            // force, so the line is built once and repriced per contract.
+            const lineAt = (priceNet: number, priceGross: number): NewContractLineItemData => ({
+                kind: 'plan',
+                sourceKey: 'STANDARD',
+                sourceVersionId: null,
+                titleSnapshot: 'Standard',
+                descriptionSnapshot: null,
+                quantity: 1,
+                unit: null,
+                priceNet,
+                priceGross,
+                billingCycle: 'monthly',
+                minimumTermUntil: null,
+                featuresSnapshot: [],
+                quotaEffectsSnapshot: {},
+                metadata: null,
+            });
+            const priceAt = (net: number, gross: number) => ({
+                currency: 'EUR',
+                billingCycle: 'monthly' as const,
+                subtotalNet: net,
+                discountNet: 0,
+                totalNet: net,
+                vatRate: 19,
+                totalGross: gross,
+            });
+            const first = await contracts.create({
+                projectKey: options.projectKey,
+                tenantId,
+                effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+                priceSnapshot: priceAt(19.9, 23.68),
+                lineItems: [lineAt(19.9, 23.68)],
+            });
+            // While it is the live agreement, the active lookup finds it.
+            assert.equal(
+                (
+                    await contracts.findActiveByTenantId(
+                        tenantId,
+                        new Date('2026-03-31T00:00:00.000Z'),
+                    )
+                )?.id,
+                first.id,
+            );
+            await contracts.terminate(first.id, {
+                effectiveUntil: handover,
+                status: 'superseded',
+            });
+            const second = await contracts.create({
+                projectKey: options.projectKey,
+                tenantId,
+                effectiveFrom: handover,
+                priceSnapshot: priceAt(24.9, 29.63),
+                lineItems: [lineAt(24.9, 29.63)],
+            });
+
+            assert.equal(
+                (await contracts.findActiveByTenantId(tenantId, handover))?.id,
+                second.id,
+                'the successor takes over at the moment the predecessor ends',
+            );
+            // And the predecessor is gone from that lookup for good — not
+            // merely outside its window. `findActiveByTenantId` answers "which
+            // agreement is live", and `superseded` is not a live status, so
+            // passing it an earlier `asOf` does not bring the old contract
+            // back. That question — what was in force then — is `list`'s, and
+            // the next assertions are it.
+            assert.equal(
+                await contracts.findActiveByTenantId(
+                    tenantId,
+                    new Date('2026-03-31T00:00:00.000Z'),
+                ),
+                null,
+                'a superseded contract is not live at any asOf',
+            );
+
+            const superseded = await contracts.findById(first.id);
+            assert.equal(superseded?.status, 'superseded');
+            assert.equal(
+                superseded?.priceSnapshot.totalNet,
+                19.9,
+                'the replaced contract keeps the price it was signed at',
+            );
+
+            const history = await contracts.list({ tenantId });
+            assert.equal(history.length, 2, 'both contracts remain in the history');
+            // Each contract carries its own lines, at its own price. Listing
+            // two at once is where an adapter that reads the lines in one
+            // query can hand them all to whichever contract came first.
+            assert.deepEqual(
+                history.map((contract) => contract.lineItems.map((item) => item.priceNet)),
+                [[24.9], [19.9]],
+            );
+            assert.deepEqual(
+                history.map((contract) => contract.id),
+                [second.id, first.id],
+                'newest first',
+            );
+            assert.deepEqual(
+                (
+                    await contracts.list({ tenantId, asOf: new Date('2026-03-31T00:00:00.000Z') })
+                ).map((contract) => contract.id),
+                [first.id],
+                'asOf narrows the history to what was in force then',
+            );
+            assert.deepEqual(
+                (await contracts.list({ tenantId, status: 'superseded' })).map(
+                    (contract) => contract.id,
+                ),
+                [first.id],
             );
         });
     });

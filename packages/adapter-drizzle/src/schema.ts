@@ -35,6 +35,33 @@ export const subscriptions = pgTable('subscriptions', {
     // that ended last January as running.
     canceledAt: ts('canceledAt'),
     canceledEffectiveAt: ts('canceledEffectiveAt'),
+    // The billing window, the commitment and the day it is billed on. Omitted
+    // until 2026-08-27, and a column this file omits is one the repositories
+    // cannot return — which is why the renewal, plan-change and cancellation
+    // paths could not be served from this adapter at all.
+    trialEndsAt: ts('trialEndsAt'),
+    currentPeriodStart: ts('currentPeriodStart'),
+    currentPeriodEnd: ts('currentPeriodEnd'),
+    minimumTermUntil: ts('minimumTermUntil'),
+    billingAnchorDay: integer('billingAnchorDay'),
+    // A pending version change and how far it has got: announced, reminded
+    // about, accepted, and the date it lands.
+    pendingPlanVersionEffectiveAt: ts('pendingPlanVersionEffectiveAt'),
+    pendingPlanVersionAccepted: boolean('pendingPlanVersionAccepted').notNull().default(false),
+    pendingPlanVersionAcceptedAt: ts('pendingPlanVersionAcceptedAt'),
+    pendingPlanVersionAcceptedByUserId: text('pendingPlanVersionAcceptedByUserId'),
+    pendingPlanVersionNotifiedAt: ts('pendingPlanVersionNotifiedAt'),
+    pendingPlanVersionReminderSentAt: ts('pendingPlanVersionReminderSentAt'),
+    postTrialPlan: text('postTrialPlan'),
+    pendingBillingCycle: text('pendingBillingCycle'),
+    // A negotiated price and the note that explains it, a pilot window, the
+    // offer this subscription came from, and the package as it was sold.
+    customMonthlyNet: numeric('customMonthlyNet', { precision: 10, scale: 2 }),
+    customNote: text('customNote'),
+    pilotEndsAt: ts('pilotEndsAt'),
+    pilotNote: text('pilotNote'),
+    checkoutOfferId: text('checkoutOfferId'),
+    packageSnapshot: jsonb('packageSnapshot'),
     createdAt: ts('createdAt').notNull().defaultNow(),
     updatedAt: ts('updatedAt').notNull(),
 });
@@ -54,6 +81,12 @@ export const planVersions = pgTable('plan_versions', {
     publishedChanges: jsonb('publishedChanges'),
     changeNote: text('changeNote').notNull(),
     nonRegressive: boolean('nonRegressive').notNull().default(true),
+    // The booking window for new subscriptions, and the day the plan itself
+    // stops. All three nullable, so a schema that predates them stays valid and
+    // an adapter that does not maintain them says so rather than writing them.
+    validFrom: ts('validFrom'),
+    validUntil: ts('validUntil'),
+    endsAt: ts('endsAt'),
     createdByUserId: text('createdByUserId'),
     publishedByUserId: text('publishedByUserId'),
     createdAt: ts('createdAt').notNull().defaultNow(),
@@ -71,6 +104,55 @@ export const plans = pgTable('plans', {
     createdAt: ts('createdAt').notNull().defaultNow(),
     updatedAt: ts('updatedAt').notNull(),
     deletedAt: ts('deletedAt'),
+});
+
+// ─── Contracts: what was actually sold, and never rewritten ───
+//
+// Append-only by design. An existing contract is terminated, never edited, and
+// its line items are never touched — that is what makes it a billing source
+// rather than a cache of the current plan. Every `…Snapshot` column is a copy
+// taken at signing, for the same reason: what was sold has to stay readable
+// after the catalogue has moved on.
+
+export const subscriptionContracts = pgTable('subscription_contracts', {
+    id: text('id').primaryKey(),
+    projectKey: text('projectKey').notNull(),
+    tenantId: text('tenantId').notNull(),
+    // Postgres enum, declared as text: parameterized values are coerced and
+    // reads come back as strings, which is what the records expect.
+    status: text('status').notNull().default('active'),
+    effectiveFrom: ts('effectiveFrom').notNull(),
+    effectiveUntil: ts('effectiveUntil'),
+    originalOfferId: text('originalOfferId'),
+    originalPlanVersionId: text('originalPlanVersionId'),
+    originalBundleVersionIds: jsonb('originalBundleVersionIds').notNull(),
+    entitlementSnapshot: jsonb('entitlementSnapshot'),
+    priceSnapshot: jsonb('priceSnapshot').notNull(),
+    promotionSnapshots: jsonb('promotionSnapshots').notNull(),
+    promoCodeSnapshots: jsonb('promoCodeSnapshots').notNull(),
+    termsSnapshot: jsonb('termsSnapshot'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+    updatedAt: ts('updatedAt').notNull(),
+});
+
+export const contractLineItems = pgTable('contract_line_items', {
+    id: text('id').primaryKey(),
+    contractId: text('contractId').notNull(),
+    kind: text('kind').notNull(),
+    sourceKey: text('sourceKey').notNull(),
+    sourceVersionId: text('sourceVersionId'),
+    titleSnapshot: text('titleSnapshot').notNull(),
+    descriptionSnapshot: text('descriptionSnapshot'),
+    quantity: integer('quantity').notNull().default(1),
+    unit: text('unit'),
+    priceNet: numeric('priceNet', { precision: 10, scale: 2 }).notNull(),
+    priceGross: numeric('priceGross', { precision: 10, scale: 2 }).notNull(),
+    billingCycle: text('billingCycle').notNull(),
+    minimumTermUntil: ts('minimumTermUntil'),
+    featuresSnapshot: jsonb('featuresSnapshot').notNull(),
+    quotaEffectsSnapshot: jsonb('quotaEffectsSnapshot').notNull(),
+    metadata: jsonb('metadata'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
 });
 
 export const featureCatalogEntries = pgTable('feature_catalog_entries', {

@@ -30,6 +30,23 @@ export function startOfUtcDay(date: Date): Date {
     return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
+/**
+ * The day before `value` — how a validity window closes when its successor
+ * opens (`validUntil = successor.validFrom − 1 day`, the rule this module's
+ * header states and `startOfUtcDay` above is the reading half of).
+ *
+ * It lived as three separate expressions before 2026-08-27: one in each
+ * adapter's publish path and one in the bundle repository, all agreeing by
+ * coincidence rather than by construction. Day arithmetic rather than
+ * `− 24 * 60 * 60 * 1000`: the subtraction is only equivalent while the value
+ * is a UTC midnight, and nothing in the type says it is.
+ */
+export function previousUtcDay(value: Date): Date {
+    const result = new Date(value);
+    result.setUTCDate(result.getUTCDate() - 1);
+    return result;
+}
+
 /** `<=` upper bound for a date (structurally Prisma-compatible). */
 interface DateAtOrBefore {
     lte: Date;

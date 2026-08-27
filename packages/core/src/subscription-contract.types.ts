@@ -3,6 +3,21 @@ import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
 export type ContractLineItemKind = 'plan' | 'bundle' | 'discount';
 export type SubscriptionContractStatus = 'active' | 'scheduled' | 'terminated' | 'superseded';
 
+/**
+ * The statuses a contract is looked up under when asking "what is this tenant
+ * on right now" — `scheduled` included, because a contract that starts today
+ * and has not been switched to `active` yet is still the one in force at its
+ * own `effectiveFrom`.
+ *
+ * One list rather than one per adapter: the two adapters have to answer
+ * `findActiveByTenantId` the same way, and a status added here must not reach
+ * only whichever of them somebody remembered.
+ */
+export const ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES: readonly SubscriptionContractStatus[] = [
+    'active',
+    'scheduled',
+];
+
 export interface ContractLineItemRecord {
     id: string;
     contractId: string;
