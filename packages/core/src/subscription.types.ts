@@ -173,7 +173,16 @@ export interface SubscriptionBundleRecord {
 export interface SubscriptionBundleView extends SubscriptionBundleRecord {
     bundleKey: string | null;
     label: string | null;
-    monthlyNet: string | null;
+    /**
+     * What this booking is billed at, in the rhythm it was booked in and with
+     * the plan's pricing override applied.
+     *
+     * It was `monthlyNet` until 2026-08-27 and carried the bundle's base
+     * monthly price whatever the booking was — so a yearly booking of a bundle
+     * priced 10 monthly and 100 yearly reported 10. The name was half the
+     * defect: a field called `monthlyNet` on a yearly booking cannot be right.
+     */
+    priceNet: number | null;
 }
 
 export interface CreateSubscriptionBundleData {

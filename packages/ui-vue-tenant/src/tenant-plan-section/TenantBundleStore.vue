@@ -213,13 +213,16 @@ const bookedRows = computed<BookedRow[]>(() =>
             bundleVersionId: b.bundleVersionId,
             // Server label takes precedence; catalog join only as fallback; UUID as last resort.
             label: b.label ?? cat?.label ?? b.bundleVersionId,
-            // The server sends the price for the rhythm the booking is in;
-            // the catalogue join is the fallback, and has to pick the same
-            // rhythm or it quotes a figure nobody is charged.
+            // The server resolves the price for the rhythm the booking is in,
+            // including the plan's override. The catalogue join is the fallback
+            // and has to pick the same rhythm — and for a booking from before
+            // the column existed, that rhythm is the plan's.
             priceNet:
-                b.monthlyNet != null
-                    ? Number(b.monthlyNet)
-                    : ((b.billingCycle === 'YEARLY' ? cat?.yearlyNet : cat?.monthlyNet) ?? 0),
+                b.priceNet != null
+                    ? b.priceNet
+                    : (((b.billingCycle ?? props.planCycle) === 'YEARLY'
+                          ? cat?.yearlyNet
+                          : cat?.monthlyNet) ?? 0),
             billingCycle: b.billingCycle ?? null,
             minimumTermEndsAt: b.minimumTermEndsAt,
             canceledAt: b.canceledAt,
@@ -272,8 +275,17 @@ const cycleI18n = computed(() => ({
     yearly: i18n.value.cycleYearly,
 }));
 
+/**
+ * The unit for a rhythm, with the plan's as the fallback.
+ *
+ * A booking made before the rhythm was recorded took the plan's, because that
+ * was the only thing it could take — so on a yearly plan such a row is yearly,
+ * and reading it as monthly misstates what the tenant pays.
+ */
 const unitFor = (cycle: string | null | undefined): string =>
-    cycle === 'YEARLY' ? i18n.value.bundlesPerYear : i18n.value.bundlesPerMonth;
+    (cycle ?? props.planCycle) === 'YEARLY'
+        ? i18n.value.bundlesPerYear
+        : i18n.value.bundlesPerMonth;
 
 /**
  * What the bundle costs in a rhythm, or null when no price is maintained for

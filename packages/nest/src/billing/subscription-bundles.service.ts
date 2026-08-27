@@ -135,7 +135,21 @@ export class SubscriptionBundlesService {
     }
 
     /** All bundle bookings of a subscription (for the "My Bundles" page). */
-    async listForSubscription(subscriptionId: string): Promise<SubscriptionBundleView[]> {
+    /**
+     * The tenant's bookings, with the price each one is actually billed at.
+     *
+     * `planKey` is required because a price is not a property of a bundle
+     * alone: a `BundlePricingOverride` can set a different one per plan, and
+     * the rhythm decides which of the two figures applies. Returning the base
+     * monthly price regardless — which this did until 2026-08-27 — puts a
+     * number on the tenant's screen that nobody is charged, and on a yearly
+     * booking it was out by whatever the yearly price is.
+     */
+    async listForSubscription(
+        subscriptionId: string,
+        planKey: string,
+        planCycle: string,
+    ): Promise<SubscriptionBundleView[]> {
         const records = await this.repo.listBySubscription(subscriptionId);
         // Resolve label/key/price from the booked BundleVersion so the UI
         // displays booked bundles without a catalog join (otherwise UUID fallback, because
@@ -143,14 +157,47 @@ export class SubscriptionBundlesService {
         return Promise.all(
             records.map(async (r) => {
                 const bv = await this.bundles.findVersionById(r.bundleVersionId);
+                // A booking made before the column existed took the plan's
+                // rhythm, because that was the only thing it could take.
+                const cycle = r.billingCycle ?? planCycle;
                 return {
                     ...r,
                     bundleKey: bv?.bundleKey ?? null,
                     label: bv?.label ?? null,
-                    monthlyNet: bv?.monthlyNet ?? null,
+                    priceNet: bv ? resolveBundlePriceNet(bv, planKey, cycle) : null,
                 };
             }),
         );
+    }
+
+    /**
+     * List prices for the given bundle versions, in both rhythms, resolved for
+     * one plan.
+     *
+     * The public catalogue cannot answer this: it has no tenant and therefore
+     * no plan, so it serves the base prices and a bundle priced only through an
+     * override reads as having no price at all. A tenant UI that treated those
+     * fields as final hid such a bundle behind "not available in this rhythm"
+     * while the booking would have gone through.
+     */
+    async resolvePricesFor(
+        planKey: string,
+        bundleVersionIds: string[],
+    ): Promise<Record<string, { monthlyNet: number | null; yearlyNet: number | null }>> {
+        const entries = await Promise.all(
+            bundleVersionIds.map(async (id) => {
+                const bv = await this.bundles.findVersionById(id);
+                if (!bv) return null;
+                return [
+                    id,
+                    {
+                        monthlyNet: resolveBundlePriceNet(bv, planKey, 'MONTHLY'),
+                        yearlyNet: resolveBundlePriceNet(bv, planKey, 'YEARLY'),
+                    },
+                ] as const;
+            }),
+        );
+        return Object.fromEntries(entries.filter((entry) => entry !== null));
     }
 
     async addBundleToSubscription(

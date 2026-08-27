@@ -142,7 +142,7 @@ describe('a bundle that is not sold in the chosen rhythm', () => {
                     id: 'sb-1',
                     subscriptionId: 'sub-1',
                     bundleVersionId: MONTHLY_ONLY.bundleVersionId,
-                    monthlyNet: '10.00',
+                    priceNet: 10,
                     billingCycle: 'MONTHLY',
                     startedAt: '2026-01-01T00:00:00.000Z',
                     minimumTermEndsAt: null,
@@ -170,12 +170,15 @@ describe('a plan whose rhythm changes underneath the section', () => {
 });
 
 describe('what a booked bundle says it costs', () => {
-    const booking = (billingCycle: string | null, monthlyNet: string | null) => ({
+    // `priceNet` is what the server resolved for the rhythm the booking is in,
+    // with the plan's override applied. It is deliberately a figure the
+    // catalogue does not carry, so a test cannot pass by falling back to it.
+    const booking = (billingCycle: string | null, priceNet: number | null) => ({
         id: 'sb-1',
         subscriptionId: 'sub-1',
         bundleVersionId: PRICED_BOTH.bundleVersionId,
         label: 'Analytics',
-        monthlyNet,
+        priceNet,
         billingCycle,
         startedAt: '2026-01-01T00:00:00.000Z',
         minimumTermEndsAt: null,
@@ -183,27 +186,40 @@ describe('what a booked bundle says it costs', () => {
         canceledEffectiveAt: null,
     });
 
-    test('a yearly booking reads as yearly, whatever the store is showing', () => {
-        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('YEARLY', '100.00')] });
-        expect(wrapper.find('.sp-plan-section__item-price').text()).toContain('net/year');
+    const bookedPrice = (w: VueWrapper) => w.find('.sp-plan-section__item-price').text();
+
+    test('a yearly booking states the yearly charge, not a monthly figure', () => {
+        // The regression this pins: the wire used to carry the bundle's base
+        // monthly price whatever the booking was, so a bundle at 10 monthly
+        // and 100 yearly read "10.00 EUR net/year" once booked.
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('YEARLY', 100)] });
+        expect(bookedPrice(wrapper)).toContain('100.00 EUR');
+        expect(bookedPrice(wrapper)).toContain('net/year');
     });
 
     test('a monthly booking beside a yearly plan reads as monthly', () => {
-        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('MONTHLY', '10.00')] });
-        expect(wrapper.find('.sp-plan-section__item-price').text()).toContain('net/month');
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('MONTHLY', 10)] });
+        expect(bookedPrice(wrapper)).toContain('10.00 EUR');
+        expect(bookedPrice(wrapper)).toContain('net/month');
     });
 
-    test('a booking from before the rhythm was recorded falls back to the month', () => {
-        // Absent is not yearly: the default the booking would have taken is the
-        // plan's, and every such row predates yearly add-ons entirely.
-        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking(null, '10.00')] });
-        expect(wrapper.find('.sp-plan-section__item-price').text()).toContain('net/month');
+    test('a price only an override supplies is shown, though no catalogue price exists', () => {
+        // The server resolved it against the plan; the catalogue cannot. A
+        // reader falling back to the catalogue would show 100, or nothing.
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('YEARLY', 77)] });
+        expect(bookedPrice(wrapper)).toContain('77.00 EUR');
     });
 
-    test('a price the server did not send is joined from the catalogue in the same rhythm', () => {
-        // The fallback has to pick the rhythm the booking is in, or it quotes a
-        // figure nobody is charged.
-        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('YEARLY', null)] });
-        expect(wrapper.find('.sp-plan-section__item-price').text()).toContain('100.00 EUR');
+    test("a booking from before the rhythm was recorded takes the plan's", () => {
+        // Absent is not monthly: such a booking took the plan's rhythm, because
+        // that was the only rhythm it could take.
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking(null, null)] });
+        expect(bookedPrice(wrapper)).toContain('net/year');
+        expect(bookedPrice(wrapper)).toContain('100.00 EUR');
+    });
+
+    test("a price the server did not send is joined from the catalogue in the booking's rhythm", () => {
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('MONTHLY', null)] });
+        expect(bookedPrice(wrapper)).toContain('10.00 EUR');
     });
 });

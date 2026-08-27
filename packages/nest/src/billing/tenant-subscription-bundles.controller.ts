@@ -59,6 +59,7 @@ import {
     AddSubscriptionBundleDto,
     CancelSubscriptionBundleDto,
     PreviewSubscriptionBundleDto,
+    BundlePriceLookupDto,
 } from './dto/subscription-bundles.dto.js';
 import {
     SubscriptionBundlePreviewService,
@@ -109,7 +110,30 @@ export function buildTenantSubscriptionBundlesController(
         @Get()
         async list(@Req() req: RequestLike) {
             const sub = await this.requireSubscription(this.requireTenantId(req));
-            return this.service.listForSubscription(this.requireSubscriptionPk(sub));
+            // The plan and its rhythm travel with the request: a booking's
+            // price depends on both, and neither is a property of the bundle.
+            return this.service.listForSubscription(
+                this.requireSubscriptionPk(sub),
+                sub.plan,
+                sub.billingCycle,
+            );
+        }
+
+        /**
+         * List prices for the bundles the store is showing, resolved for this
+         * tenant's plan.
+         *
+         * A read with a body, like `preview` beside it: the caller names the
+         * bundle versions it is displaying. The public catalogue serves base
+         * prices and has no plan to resolve an override against, so a tenant UI
+         * pricing from it quotes a figure that may not be the one charged — and
+         * reads a bundle priced only through an override as having no price at
+         * all.
+         */
+        @Post('prices')
+        async prices(@Req() req: RequestLike, @Body() dto: BundlePriceLookupDto) {
+            const sub = await this.requireSubscription(this.requireTenantId(req));
+            return this.service.resolvePricesFor(sub.plan, dto.bundleVersionIds);
         }
 
         @Post()

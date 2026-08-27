@@ -253,7 +253,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { provideTenantI18n } from './tenant-i18n.js';
 import PackageSnapshotPanel from './PackageSnapshotPanel.vue';
 import PendingVersionBanner from './PendingVersionBanner.vue';
@@ -279,7 +279,12 @@ import {
     type BundlePreviewShape,
     type SubscriptionBundleShape,
 } from '@saasicat/ui-vue';
-import { useTenantBillingCatalog, type CatalogBundle, type CatalogPlan } from '@saasicat/ui-vue';
+import {
+    useTenantBillingCatalog,
+    type CatalogBundle,
+    type CatalogPlan,
+    type ResolvedBundlePrice,
+} from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
 
@@ -434,7 +439,30 @@ const catalogQuotaKeys = computed(() => {
 const bookablePlans = computed<CatalogPlan[]>(() => catalog.plans.value ?? []);
 
 // Bundle store (#15): available catalog bundles + booked bundles.
-const availableBundles = computed<CatalogBundle[]>(() => catalog.bundles.value ?? []);
+/**
+ * Prices resolved for this tenant's plan, by bundle version.
+ *
+ * The public catalogue has no tenant and therefore no plan, so it serves base
+ * prices and reads a bundle priced only through a `BundlePricingOverride` as
+ * having no price at all. Empty where the endpoint is absent, in which case the
+ * catalogue's own figures stand — which is what every consumer had before.
+ */
+const resolvedBundlePrices = ref<Record<string, ResolvedBundlePrice>>({});
+
+const availableBundles = computed<CatalogBundle[]>(() =>
+    (catalog.bundles.value ?? []).map((bundle) => {
+        const resolved = resolvedBundlePrices.value[bundle.bundleVersionId];
+        return resolved ? { ...bundle, ...resolved } : bundle;
+    }),
+);
+
+watch(
+    () => (catalog.bundles.value ?? []).map((b) => b.bundleVersionId).join(','),
+    async (ids) => {
+        resolvedBundlePrices.value = ids ? await billing.loadBundlePrices(ids.split(',')) : {};
+    },
+    { immediate: true },
+);
 // A canceled bundle stays active until the end of the already-paid period
 // (canceledEffectiveAt lies in the future) and is still shown under
 // "Gebuchte Bundles" — the feature is paid for the period. Only once

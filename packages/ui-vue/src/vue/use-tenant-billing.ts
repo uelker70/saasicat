@@ -160,6 +160,16 @@ export interface PlanSnapshotShape {
  * catalog (`GET /billing/bundles`) — the record itself carries only the
  * version reference.
  */
+/**
+ * A bundle's list price in both rhythms, resolved for one tenant's plan —
+ * `null` where no price is maintained for that combination, which the booking
+ * refuses with `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`.
+ */
+export interface ResolvedBundlePrice {
+    monthlyNet: number | null;
+    yearlyNet: number | null;
+}
+
 export interface SubscriptionBundleShape {
     id: string;
     subscriptionId: string;
@@ -168,7 +178,14 @@ export interface SubscriptionBundleShape {
      *  key/price, so that booked bundles can be shown without a catalog join. */
     bundleKey?: string | null;
     label?: string | null;
-    monthlyNet?: string | null;
+    /**
+     * What this booking is billed at: the price for the rhythm it was booked
+     * in, with the plan's pricing override applied.
+     *
+     * It was `monthlyNet` and always carried the bundle's base monthly figure,
+     * so a yearly booking reported a number nobody is charged.
+     */
+    priceNet?: number | null;
     /**
      * The rhythm this booking is billed in, which need not be the plan's: a
      * yearly plan may carry monthly add-ons.
@@ -373,6 +390,12 @@ export interface UseTenantBillingResult {
      * setting the main `error` — the page degrades gracefully.
      */
     subscriptionBundles: Ref<SubscriptionBundleShape[]>;
+    /**
+     * List prices for the given bundle versions, resolved for this tenant's
+     * plan. Returns `{}` where the endpoint is absent, so a consumer without it
+     * keeps the public catalogue's own figures.
+     */
+    loadBundlePrices(bundleVersionIds: string[]): Promise<Record<string, ResolvedBundlePrice>>;
     /** Reloads only the booked bundles (non-fatal). */
     loadBundles: () => Promise<void>;
     /** Books a bundle via `bundleVersionId` + reloads the list. */
@@ -458,6 +481,32 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
                 (await fetchOrThrow<SubscriptionBundleShape[]>('/subscription-bundles')) ?? [];
         } catch {
             subscriptionBundles.value = [];
+        }
+    }
+
+    /**
+     * List prices for the bundles a store is about to show, resolved for this
+     * tenant's plan.
+     *
+     * The public catalogue serves base prices and has no plan to resolve a
+     * `BundlePricingOverride` against, so a bundle priced only through an
+     * override reads there as having no price at all. Non-fatal: a consumer
+     * without the endpoint keeps the catalogue's own figures, which is what
+     * every consumer had before.
+     */
+    async function loadBundlePrices(
+        bundleVersionIds: string[],
+    ): Promise<Record<string, ResolvedBundlePrice>> {
+        if (bundleVersionIds.length === 0) return {};
+        try {
+            return (
+                (await fetchOrThrow<Record<string, ResolvedBundlePrice>>(
+                    '/subscription-bundles/prices',
+                    { method: 'POST', body: { bundleVersionIds } },
+                )) ?? {}
+            );
+        } catch {
+            return {};
         }
     }
 
@@ -562,6 +611,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         subscriptionBundles,
         loadBundles,
         addBundle,
+        loadBundlePrices,
         cancelBundle,
         reactivateBundle,
         previewAddBundle,

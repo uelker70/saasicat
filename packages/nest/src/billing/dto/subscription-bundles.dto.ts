@@ -1,7 +1,17 @@
 // DTOs for `TenantSubscriptionBundlesController` (
 // P11.7.3). class-validator validation at the HTTP boundary.
 
-import { IsIn, IsInt, IsOptional, IsUUID, Matches, Max, Min } from 'class-validator';
+import {
+    ArrayMaxSize,
+    IsArray,
+    IsIn,
+    IsInt,
+    IsOptional,
+    IsUUID,
+    Matches,
+    Max,
+    Min,
+} from 'class-validator';
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
 
@@ -84,4 +94,16 @@ export class CancelSubscriptionBundleDto {
         message: 'canceledAt must be an ISO date (YYYY-MM-DD)',
     })
     canceledAt?: string;
+}
+
+/** Which bundles the store is showing, so their prices can be resolved. */
+export class BundlePriceLookupDto {
+    /**
+     * Capped rather than unbounded: the caller names what it is displaying, and
+     * a page shows a catalogue, not a database. Each id costs a lookup.
+     */
+    @IsArray()
+    @ArrayMaxSize(200)
+    @IsUUID('4', { each: true })
+    bundleVersionIds!: string[];
 }
