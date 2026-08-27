@@ -115,8 +115,14 @@ export class SubscriptionBundleModule {
                 : []),
             {
                 provide: SUBSCRIPTION_BUNDLE_CONFIG_TOKEN,
+                // Handed over, not decided. The default belongs to the
+                // services, because a consumer can construct those directly and
+                // both paths have to answer the same — and a module filling the
+                // value in makes their default unreachable, which is what kept
+                // every add-on committed for twelve months after the default
+                // had already been changed to none.
                 useValue: {
-                    defaultMinimumTermMonths: options.defaultMinimumTermMonths ?? 12,
+                    defaultMinimumTermMonths: options.defaultMinimumTermMonths,
                 } satisfies SubscriptionBundleConfig,
             },
             ...(options.selfServiceBlockedBundles
