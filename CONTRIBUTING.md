@@ -270,8 +270,11 @@ open source. Reading, running, changing and redistributing it are permitted, as 
 and selling your own SaaS on it. The restriction is one sentence, quoted rather than
 summarised:
 
-> Any purpose is a permitted purpose, except for providing any product that competes with the
-> software or any product the licensor or any of its affiliates provides using the software.
+<!-- markdownlint-disable MD013 -- quoted verbatim; a guard keeps it word for word -->
+
+> Any purpose is a permitted purpose, except for providing any product that competes with the software or any product the licensor or any of its affiliates provides using the software.
+
+<!-- markdownlint-enable MD013 -->
 
 That covers the applications the author builds with SaaSiCat, not only SaaSiCat itself. The
 reasoning is in [ADR 0001](docs/explanation/adr/0001-source-available-licensing.md).

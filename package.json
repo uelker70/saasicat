@@ -15,6 +15,7 @@
         "duplication": "pnpm dlx jscpd@4 || fail=1; pnpm dlx jscpd@4 -c .jscpd.tests.json || fail=1; exit ${fail:-0}",
         "lint": "eslint .",
         "lint:css": "stylelint \"packages/ui-vue/src/{pages,features,internal}/**/*.{vue,css}\" \"packages/ui-vue-tenant/src/**/*.{vue,css}\" --max-warnings 0",
+        "lint:md": "markdownlint-cli2",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "release:version": "changeset version && node scripts/stamp-spec-version.mjs",
@@ -24,6 +25,7 @@
         "tokens:update": "node packages/ui-vue/tests/design-token-budget.test.js --update"
     },
     "devDependencies": {
+        "markdownlint-cli2": "^0.18.1",
         "@changesets/cli": "^2.31.1",
         "@eslint/js": "^10.0.1",
         "eslint": "^10.2.0",

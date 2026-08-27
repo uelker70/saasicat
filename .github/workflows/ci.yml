@@ -139,6 +139,13 @@ jobs:
             # layout pass — so a single raw value fails the job.
             - name: Lint stylesheets
               run: pnpm run lint:css
+            # The whole tree, not just what the branch changed: the repository was
+            # brought to zero findings, so a gate over everything is both simpler
+            # and stronger than a diff — and it needs no git history to compute.
+            # The configuration is aligned with Prettier, or the two would ask
+            # for opposite things (see .markdownlint-cli2.jsonc).
+            - name: Lint Markdown
+              run: pnpm run lint:md
             # Prettier is configured; without this nothing makes a diff obey it.
             - name: Check formatting
               run: pnpm run format:check
