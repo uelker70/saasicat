@@ -183,6 +183,24 @@ export function bundleNextPeriodEnd(
  * on a yearly plan simply lands on the plan's day every month, and on the
  * plan's own boundary in the month the plan ends.
  */
+/**
+ * How long a booking commits the tenant when nobody says otherwise: **not at
+ * all**.
+ *
+ * An add-on can be cancelled at any time up to the moment its next period
+ * begins, and the cancellation takes effect at the end of the period it is in.
+ * The tenant pays for the period they are in, it ends normally, and nothing
+ * has to be paid back — which is the whole reason the rule is shaped this way.
+ *
+ * It was 12 until 2026-08-27, applied to every booking without an operator
+ * doing anything, and it made that rule impossible: a cancellation lands at
+ * `max(currentPeriodEnd, minimumTermEndsAt)`, so a monthly add-on booked today
+ * could not be cancelled to next month. On a yearly plan the term even
+ * outlasted the bundle's own last period. An operator who wants a commitment
+ * configures one; nobody gets one by default.
+ */
+export const DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS = 0;
+
 export function bundleCycleFitsPlan(bundleCycle: BillingCycle, planCycle: BillingCycle): boolean {
     return !(bundleCycle === 'YEARLY' && planCycle === 'MONTHLY');
 }

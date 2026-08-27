@@ -47,5 +47,16 @@ The price lookup answers only about versions a tenant could have been shown:
 published and not superseded. A caller naming an unpublished id would otherwise
 be told its plan-specific pricing.
 
+A booking no longer commits the tenant to anything by default. It used to write
+a twelve-month minimum term on every add-on without an operator doing anything,
+which made the cancellation rule impossible to keep: a cancellation lands at
+`max(currentPeriodEnd, minimumTermEndsAt)`, so a monthly add-on could not be
+cancelled to its next period, and on a yearly plan the term outlasted the
+bundle's own last period. An add-on can now be cancelled at any time up to the
+moment its next period begins, effective at the end of the period it is in — so
+nothing ever has to be refunded. `defaultMinimumTermMonths` still configures a
+commitment for an operator who wants one, and it is still capped at the plan's
+end.
+
 On a monthly plan nothing changes and no control appears: a question with one
 answer is not a question.

@@ -10,7 +10,7 @@
 //     inject: [PrismaSubscriptionBundleRepository],
 //   },
 //   bundleRepository: { useExisting: BUNDLE_REPOSITORY_TOKEN },
-//   defaultMinimumTermMonths: 12,
+//   defaultMinimumTermMonths: 12,   // opt in; 0 (no commitment) is the default
 //   imports: [PrismaModule, CatalogModule],
 // })
 // ```

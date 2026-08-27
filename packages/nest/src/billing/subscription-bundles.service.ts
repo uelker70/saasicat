@@ -30,7 +30,11 @@ import type {
     SubscriptionBundleView,
 } from '@saasicat/core';
 
-import { bundleCycleFitsPlan, bundleFirstPeriodEnd } from './bundle-period.js';
+import {
+    bundleCycleFitsPlan,
+    bundleFirstPeriodEnd,
+    DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS,
+} from './bundle-period.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/core';
@@ -44,7 +48,11 @@ import {
 } from './subscription-bundles.tokens.js';
 
 export interface SubscriptionBundleConfig {
-    /** Default minimum term in months on `add`. Default = 12. */
+    /**
+     * Default minimum term in months on `add`. Default = 0 — no commitment,
+     * so an add-on can be cancelled to its own period end. An operator who
+     * wants one configures it.
+     */
     defaultMinimumTermMonths?: number;
 }
 
@@ -131,7 +139,8 @@ export class SubscriptionBundlesService {
         @Inject(SELF_SERVICE_BLOCKED_BUNDLES_TOKEN)
         private readonly blockedBundles: SelfServiceBlockedBundles | null = null,
     ) {
-        this.defaultMinTermMonths = config.defaultMinimumTermMonths ?? 12;
+        this.defaultMinTermMonths =
+            config.defaultMinimumTermMonths ?? DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS;
     }
 
     /** All bundle bookings of a subscription (for the "My Bundles" page). */

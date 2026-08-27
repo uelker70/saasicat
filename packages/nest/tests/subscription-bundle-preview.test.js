@@ -61,13 +61,19 @@ beforeEach(() => {
     });
 });
 
-function buildService({ catalogEntryRepo = null, blockedBundles = null, plans = planRepo } = {}) {
+function buildService({
+    catalogEntryRepo = null,
+    blockedBundles = null,
+    plans = planRepo,
+    ...config
+} = {}) {
     return new SubscriptionBundlePreviewService(
         subBundleRepo,
         bundleRepo,
         plans,
         catalogEntryRepo,
         blockedBundles,
+        config,
     );
 }
 
@@ -148,20 +154,26 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.equal(dto.nextPeriodPriceNet, 31);
     });
 
-    test('minimum term: default 12 months from now, 0 = none', async () => {
+    test('the preview quotes no commitment, because a booking makes none', async () => {
+        // What the tenant is shown before agreeing has to be what the booking
+        // writes — `bundle-price.ts` demands that of prices and it holds for
+        // terms too. A preview naming a commitment the booking does not create
+        // describes a different contract from the one signed.
         const bv = await createPublishedBundle({ key: 'B1' });
-        const svc = buildService();
+        const dto = await buildService().previewAdd(CTX, { bundleVersionId: bv.id }, NOW);
+        assert.equal(dto.minimumTermMonths, 0);
+        assert.equal(dto.minimumTermEndsAt, null);
+    });
 
-        const dto = await svc.previewAdd(CTX, { bundleVersionId: bv.id }, NOW);
-        assert.equal(dto.minimumTermMonths, 12);
-        assert.equal(dto.minimumTermEndsAt.toISOString(), '2027-05-17T00:00:00.000Z');
-
-        const none = await svc.previewAdd(
+    test('the preview quotes a commitment an operator configured', async () => {
+        const bv = await createPublishedBundle({ key: 'B1c' });
+        const dto = await buildService({ defaultMinimumTermMonths: 12 }).previewAdd(
             CTX,
-            { bundleVersionId: bv.id, minimumTermMonths: 0 },
+            { bundleVersionId: bv.id },
             NOW,
         );
-        assert.equal(none.minimumTermEndsAt, null);
+        assert.equal(dto.minimumTermMonths, 12);
+        assert.equal(dto.minimumTermEndsAt.toISOString(), '2027-05-17T00:00:00.000Z');
     });
 
     test('redundancy (AK-13): feature already in plan → hint + warning', async () => {

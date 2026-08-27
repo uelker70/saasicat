@@ -51,14 +51,22 @@ async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
 }
 
 describe('SubscriptionBundlesService — addBundleToSubscription', () => {
-    test('creates the booking + sets the minimum term to the +12 months default', async () => {
+    test('a booking commits the tenant to nothing unless somebody says so', async () => {
+        // The rule, not the number: an add-on can be cancelled at any time up
+        // to the moment its next period begins, effective at the end of the
+        // period it is in. A commitment written by default makes that
+        // impossible, because a cancellation lands at
+        // `max(currentPeriodEnd, minimumTermEndsAt)`.
+        //
+        // The predecessor of this test asserted "+12 months default" and could
+        // not fail while the default was wrong — it described the code rather
+        // than the promise.
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
-        const startedAt = new Date('2026-03-15T00:00:00Z');
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
             bundleVersionId: bv.id,
             currentPlanKey: STARTER,
-            startedAt,
+            startedAt: new Date('2026-03-15T00:00:00Z'),
             parentEndsAt: null,
             planCycle: 'YEARLY',
             planPeriodEnd: null,
@@ -67,7 +75,24 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
         assert.equal(row.subscriptionId, SUB_A);
         assert.equal(row.bundleVersionId, bv.id);
         assert.equal(row.canceledAt, null);
-        // 12 months later (UTC), day 15 is preserved
+        assert.equal(row.minimumTermEndsAt, null, 'nobody asked for a commitment');
+    });
+
+    test('an operator who wants a commitment still gets one', async () => {
+        const bv = await createPublishedBundle({ key: 'B1b', planIds: [STARTER] });
+        const withTerm = new SubscriptionBundlesService(subBundleRepo, bundleRepo, {
+            defaultMinimumTermMonths: 12,
+        });
+        const row = await withTerm.addBundleToSubscription({
+            subscriptionId: SUB_A,
+            bundleVersionId: bv.id,
+            currentPlanKey: STARTER,
+            startedAt: new Date('2026-03-15T00:00:00Z'),
+            parentEndsAt: null,
+            planCycle: 'YEARLY',
+            planPeriodEnd: null,
+            planAnchorDay: null,
+        });
         assert.equal(row.minimumTermEndsAt?.toISOString(), '2027-03-15T00:00:00.000Z');
     });
 

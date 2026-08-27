@@ -321,6 +321,12 @@ describe('what the dialog promises before the booking', () => {
                     yearlyNet: 50,
                 }),
             },
+            // The config is the sixth argument. It used to be passed third,
+            // where `plans` is, so it never arrived — and the test passed only
+            // because the value it asked for happened to be the default.
+            null,
+            null,
+            null,
             { defaultMinimumTermMonths: 12 },
         );
     }
