@@ -11,6 +11,7 @@ import {
     type UpdatePlanData,
     type UpdatePlanVersionDraftData,
     type VersionChange,
+    definedFields,
 } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
@@ -260,12 +261,7 @@ export class PrismaPlanRepository implements PlanRepository {
     async update(planId: string, data: UpdatePlanData): Promise<PlanRow> {
         const updated = await this.db().plan.update({
             where: { id: planId },
-            data: {
-                ...(data.label !== undefined ? { label: data.label } : {}),
-                ...(data.description !== undefined ? { description: data.description } : {}),
-                ...(data.icon !== undefined ? { icon: data.icon } : {}),
-                ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
-            },
+            data: definedFields(data, ['label', 'description', 'icon', 'sortOrder']),
         });
         return toPlanRow(updated);
     }
