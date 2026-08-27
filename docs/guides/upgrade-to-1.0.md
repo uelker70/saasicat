@@ -619,12 +619,20 @@ installation, then run it again. It is a one-way door: the values are dropped, n
 | `projectKey: myapp` in `config/saas.yaml`                       | gone — `app.name` is now required instead |
 | `dbCatalog: { projectKey, currency, vatRate }`                  | `dbCatalog: { app, currency, vatRate }`   |
 | `{ apiBase: '…', projectKey: 'myapp' }` (`SuperAdminEndpoints`) | `{ apiBase: '…' }`                        |
-| `?projectKey=…` on an admin catalogue URL                       | gone — the endpoints no longer read it    |
+| `?projectKey=…` on a `/catalog/` URL                            | gone — those endpoints no longer read it  |
 | `plans.create({ projectKey, planKey, … })`                      | `plans.create({ planKey, … })`            |
 | `usePlans({ adminEndpoint, projectKey, http })`                 | `usePlans({ adminEndpoint, http })`       |
 
-It leaves an object it cannot tell from one of your own — a literal with a `projectKey` and nothing
-the platform asks for beside it — and prints the file and line so you can look.
+**What it rewrites is what it can decide**, and the deciding field is the shape of the value: a
+quoted string is a value and cannot be a type, while `projectKey: PROJECT_KEY` and
+`projectKey: SomeType` are the same tokens. So it rewrites a quoted member sitting beside something
+only the platform asks for, a `?projectKey=` on a `/catalog/` URL, and the key in `saas.yaml`.
+
+**Everything else it prints, by file and line**, for you to look at: a bare-identifier value, a
+`projectKey` declared in one of your own interfaces, the shorthand `{ projectKey }`, a query
+parameter on an endpoint of your own, an object it cannot tell from your own data. It errs towards
+leaving work for you rather than removing yours — a run that reports twenty lines is doing its job,
+and those twenty are minutes.
 
 **Three more things move with it.** `app.name` is now **required** in `config/saas.yaml`: it is the
 one place the application names itself, and it is what the manifest and the login page display.

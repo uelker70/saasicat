@@ -28,13 +28,29 @@ describe('a query parameter the admin API no longer reads', () => {
     });
 
     test('a later one takes its own ampersand', () => {
-        const result = removeProjectKey('fetch(`${b}/plans?onlyPublished=true&projectKey=myapp`);');
-        assert.equal(result.text, 'fetch(`${b}/plans?onlyPublished=true`);');
+        const result = removeProjectKey(
+            'fetch(`${b}/catalog/plans?onlyPublished=true&projectKey=myapp`);',
+        );
+        assert.equal(result.text, 'fetch(`${b}/catalog/plans?onlyPublished=true`);');
     });
 
     test('an interpolation with an ampersand inside it stays whole', () => {
-        const result = removeProjectKey('const u = `/plans?projectKey=${a && b}&locale=de`;');
-        assert.equal(result.text, 'const u = `/plans?locale=de`;');
+        const result = removeProjectKey(
+            'const u = `/catalog/plans?projectKey=${a && b}&locale=de`;',
+        );
+        assert.equal(result.text, 'const u = `/catalog/plans?locale=de`;');
+    });
+
+    test("somebody else's endpoint keeps its parameter, and is reported", () => {
+        // The admin routes that read it all sat under `/catalog/`. A consumer
+        // calling their own `/api/reports?projectKey=` is asking a question this
+        // platform never answered, and rewriting it would silently change a
+        // request that still works.
+        const source = 'fetch(`/api/reports?projectKey=${key}&from=2026`);';
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.equal(result.rewritten, 0);
+        assert.deepEqual(result.undecided, [1], 'one line, one entry to look at');
     });
 
     test('a word that merely ends in the needle is not a parameter', () => {
@@ -46,8 +62,10 @@ describe('a query parameter the admin API no longer reads', () => {
         // `indexOf` returning 0 is a found needle with nothing in front of it,
         // not an absent one. Reading it as absent stopped the scan, and every
         // later query part in the same file went unrewritten.
-        const result = removeProjectKey('projectKey=leftover\nconst u = `/plans?projectKey=x`;');
-        assert.equal(result.text, 'projectKey=leftover\nconst u = `/plans`;');
+        const result = removeProjectKey(
+            'projectKey=leftover\nconst u = `/catalog/plans?projectKey=x`;',
+        );
+        assert.equal(result.text, 'projectKey=leftover\nconst u = `/catalog/plans`;');
         assert.equal(result.rewritten, 1);
     });
 });
@@ -165,6 +183,57 @@ describe('a type declaration is not a payload', () => {
         assert.match(result.text, /projectKey: string;/);
         assert.equal(result.rewritten, 1);
         assert.deepEqual(result.undecided, [2]);
+    });
+});
+
+describe('the value decides, not the punctuation around it', () => {
+    // Three review rounds landed on this predicate before it was measured. The
+    // separator never says which side a member is on — an interface uses `;`, a
+    // type literal may use a newline, and TypeScript permits `,` between type
+    // members. A quoted string does: no type expression is one.
+
+    test('a comma-separated type body is left alone, which no separator rule caught', () => {
+        const source = 'interface E { projectKey: string, apiBase: string }';
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.deepEqual(result.undecided, [1]);
+    });
+
+    test('a bare-identifier value is reported rather than guessed at', () => {
+        // `PROJECT_KEY` and a type reference are the same tokens. Thirty
+        // occurrences take this form across the two consumer repositories, and
+        // a minute of a person's attention beats deleting a type member.
+        const source = "const o = { apiBase: '/x', projectKey: PROJECT_KEY };";
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.deepEqual(result.undecided, [1]);
+    });
+
+    test('the shorthand form is reported, where it used to pass in silence', () => {
+        // 46 of these in one consumer repository. The scan required a colon, so
+        // they were neither rewritten nor named — and the codemod reported
+        // itself done.
+        const source = 'const o = { apiBase, projectKey, planKey };';
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.deepEqual(result.undecided, [1]);
+    });
+
+    test('a longer identifier that merely ends in it is not an occurrence', () => {
+        // The cut started inside somebody else's name and left `old_` behind,
+        // reporting it as rewritten.
+        const source = "const o = { apiBase: '/x', old_projectKey: 'mine' };";
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.equal(result.rewritten, 0);
+        assert.deepEqual(result.undecided, [], 'not this identifier, so not this codemod');
+    });
+
+    test('and a quoted value beside a platform member still goes', () => {
+        // The counter-check: a rule that rewrote nothing would pass all four.
+        const result = removeProjectKey("const o = { apiBase: '/x', projectKey: 'myapp' };");
+        assert.equal(result.text, "const o = { apiBase: '/x' };");
+        assert.equal(result.rewritten, 1);
     });
 });
 
