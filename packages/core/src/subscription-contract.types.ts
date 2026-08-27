@@ -13,6 +13,16 @@ export type SubscriptionContractStatus = 'active' | 'scheduled' | 'terminated' |
  * `findActiveByTenantId` the same way, and a status added here must not reach
  * only whichever of them somebody remembered.
  */
+/**
+ * How many bundle versions one price lookup may name.
+ *
+ * One number rather than two: the server validates against it and the client
+ * batches to stay inside it, and a client that learned the cap by receiving a
+ * 400 would fail silently — the lookup answers with an empty map, and every
+ * card falls back to a catalogue price the tenant may not be charged.
+ */
+export const BUNDLE_PRICE_LOOKUP_LIMIT = 200;
+
 export const ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES: readonly SubscriptionContractStatus[] = [
     'active',
     'scheduled',

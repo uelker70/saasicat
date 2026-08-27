@@ -292,9 +292,14 @@ function chooseCycle(cycle: BillingCycleStr): void {
 watch(
     () => props.planCycle,
     (cycle) => {
-        if (!cycleChosen.value || !cyclesFor(cycle).includes(selectedCycle.value)) {
-            selectedCycle.value = cycle;
-        }
+        if (cyclesFor(cycle).includes(selectedCycle.value) && cycleChosen.value) return;
+        // Either nothing was chosen, or what was chosen is no longer on offer.
+        // The second case replaces the selection, and a replacement is not a
+        // choice: leaving the marker set would let a forced monthly survive a
+        // later return to a yearly plan as though the tenant had asked for it,
+        // when their last actual answer was yearly.
+        cycleChosen.value = false;
+        selectedCycle.value = cycle;
     },
 );
 

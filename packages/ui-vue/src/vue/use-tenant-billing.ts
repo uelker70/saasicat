@@ -10,6 +10,7 @@
 // Do **NOT** set `apiPrefix='/api/billing'` when the HTTP adapter already
 // has `/api` as its baseURL — the result would be `/api/api/billing/...` (404).
 
+import { BUNDLE_PRICE_LOOKUP_LIMIT } from '@saasicat/core';
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import { trimTrailingSlashes } from '../client/http-json.js';
@@ -498,13 +499,26 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         bundleVersionIds: string[],
     ): Promise<Record<string, ResolvedBundlePrice>> {
         if (bundleVersionIds.length === 0) return {};
+        // In batches, because the endpoint caps a request at BUNDLE_PRICE_LOOKUP_LIMIT
+        // ids and a catalogue larger than that would otherwise be rejected
+        // whole. The failure would be silent — the catch below turns it into an
+        // empty map — and every card would quietly fall back to the public
+        // catalogue's base prices, which is exactly what this call exists to
+        // stop.
+        const batches: string[][] = [];
+        for (let from = 0; from < bundleVersionIds.length; from += BUNDLE_PRICE_LOOKUP_LIMIT) {
+            batches.push(bundleVersionIds.slice(from, from + BUNDLE_PRICE_LOOKUP_LIMIT));
+        }
         try {
-            return (
-                (await fetchOrThrow<Record<string, ResolvedBundlePrice>>(
-                    '/subscription-bundles/prices',
-                    { method: 'POST', body: { bundleVersionIds } },
-                )) ?? {}
+            const answers = await Promise.all(
+                batches.map((ids) =>
+                    fetchOrThrow<Record<string, ResolvedBundlePrice>>(
+                        '/subscription-bundles/prices',
+                        { method: 'POST', body: { bundleVersionIds: ids } },
+                    ),
+                ),
             );
+            return Object.assign({}, ...answers.map((answer) => answer ?? {}));
         } catch {
             return {};
         }

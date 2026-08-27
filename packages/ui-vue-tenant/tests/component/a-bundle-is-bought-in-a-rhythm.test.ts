@@ -187,6 +187,22 @@ describe('a plan whose rhythm changes underneath the section', () => {
         expect(cardPrice(wrapper)).toContain('net/month');
     });
 
+    test('a choice the plan took away does not come back as a choice', async () => {
+        // Chose yearly, dropped to a monthly plan — which replaces the
+        // selection because yearly is no longer on offer — then back to yearly.
+        // Monthly is legal there, so a marker left standing would preserve the
+        // forced value as though it had been asked for, when the tenant's last
+        // actual answer was yearly.
+        const wrapper = mountStore({ planCycle: 'YEARLY' });
+        wrapper.findComponent({ name: 'PlanCycleToggle' }).vm.$emit('update:modelValue', 'YEARLY');
+        await nextTick();
+        await wrapper.setProps({ planCycle: 'MONTHLY' } as never);
+        expect(cardPrice(wrapper)).toContain('net/month');
+        await wrapper.setProps({ planCycle: 'YEARLY' } as never);
+        expect(cardPrice(wrapper)).toContain('100.00 EUR');
+        expect(cardPrice(wrapper)).toContain('net/year');
+    });
+
     test('drops a selection the plan no longer offers', async () => {
         // A plan change lands and the usage reloads. A yearly selection left
         // standing on a monthly plan would price every card at a figure the

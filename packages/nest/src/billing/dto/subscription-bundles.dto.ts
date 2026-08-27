@@ -13,6 +13,8 @@ import {
     Min,
 } from 'class-validator';
 
+import { BUNDLE_PRICE_LOOKUP_LIMIT } from '@saasicat/core';
+
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
 
 export class AddSubscriptionBundleDto {
@@ -103,7 +105,7 @@ export class BundlePriceLookupDto {
      * a page shows a catalogue, not a database. Each id costs a lookup.
      */
     @IsArray()
-    @ArrayMaxSize(200)
+    @ArrayMaxSize(BUNDLE_PRICE_LOOKUP_LIMIT)
     @IsUUID('4', { each: true })
     bundleVersionIds!: string[];
 }
