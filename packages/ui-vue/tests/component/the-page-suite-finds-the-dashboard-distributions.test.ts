@@ -16,7 +16,7 @@ import {
 } from '../../src/index.js';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 /** A shell whose registry never reaches the network: the manifest lists no KPI cards. */
 function shell(): Record<symbol, unknown> {

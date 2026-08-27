@@ -29,7 +29,6 @@ import { toQuotaMap, toStringArray } from './tx.js';
 /** DB columns this repository reads from `bundles`. */
 interface BundleDbRow {
     id: string;
-    projectKey: string;
     bundleKey: string;
     label: string;
     description: string | null;
@@ -169,7 +168,6 @@ export class PrismaBundleRepository implements BundleRepository {
         const excludeDeleted = filter.excludeDeleted ?? true;
         const rows = await this.db().bundle.findMany({
             where: {
-                projectKey: filter.projectKey,
                 ...(excludeDeleted ? { deletedAt: null } : {}),
             },
             orderBy: [{ sortOrder: 'asc' }, { bundleKey: 'asc' }],
@@ -183,11 +181,11 @@ export class PrismaBundleRepository implements BundleRepository {
     }
 
     /**
-     * Whether this project already uses this bundle key — **including retired
-     * bundles**.
+     * Whether this installation already uses this bundle key — **including
+     * retired bundles**.
      *
      * Its one caller is the duplicate check in `createBundle`, and the question
-     * it asks is the database's: `bundles_projectKey_bundleKey_key` is an
+     * it asks is the database's: `bundles_bundleKey_key` is an
      * unconditional unique index, so a soft-deleted bundle still occupies its
      * key. Excluding retired rows here makes the check pass and the insert then
      * fail on the constraint — a 500 where the service had
@@ -197,10 +195,8 @@ export class PrismaBundleRepository implements BundleRepository {
      * finally settled it: there is no caller that wants the active-catalogue
      * reading. `list` is that lookup, and it excludes retired rows by default.
      */
-    async findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null> {
-        const row = await this.db().bundle.findFirst({
-            where: { projectKey, bundleKey },
-        });
+    async findByKey(bundleKey: string): Promise<BundleRow | null> {
+        const row = await this.db().bundle.findFirst({ where: { bundleKey } });
         return row ? toBundleStemRow(row) : null;
     }
 

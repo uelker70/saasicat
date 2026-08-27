@@ -385,7 +385,7 @@ const common = useSaMessages('common');
 // that takes it as a prop lets a consumer hand this page a different one than
 // its siblings read from. The http client is the shell's, so every request
 // carries the app's auth without the page being told how.
-const { apiBase, projectKey } = useSuperAdminEndpoints();
+const { apiBase } = useSuperAdminEndpoints();
 // `useSuperAdminHttp()` falls back to `defaultHttpClient()` — never to a bare
 // `fetch()`, which would drop the app's Authorization header.
 const shellHttpClient = useSuperAdminHttp();
@@ -396,7 +396,6 @@ const PLAN_AUDIT_LIMIT = 200;
 
 const composable: UsePlansResult = usePlans({
     adminEndpoint: apiBase,
-    projectKey: projectKey,
     http: shellHttpClient,
 });
 const {
@@ -502,7 +501,6 @@ async function onCreateSubmit(payload: PlanCreateSubmit): Promise<void> {
     creatingPlan.value = true;
     try {
         const created: PlanRow = await create({
-            projectKey: projectKey,
             planKey: payload.planKey,
             label: payload.label,
             description: payload.description === '' ? undefined : payload.description,
@@ -714,8 +712,8 @@ async function loadEditorSources(): Promise<void> {
     try {
         const [discRes, bundlesRes, featureEntriesRes] = await Promise.all([
             http(`${apiBase}/discovery`, {}),
-            http(`${apiBase}/catalog/bundles?projectKey=${encodeURIComponent(projectKey)}`, {}),
-            http(`${apiBase}/catalog/features?projectKey=${encodeURIComponent(projectKey)}`, {}),
+            http(`${apiBase}/catalog/bundles`, {}),
+            http(`${apiBase}/catalog/features`, {}),
         ]);
         if (featureEntriesRes.status === 200) {
             featureCatalogEntries.value = (await featureEntriesRes

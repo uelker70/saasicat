@@ -7,24 +7,24 @@
 //
 // Three of them are in here, and each one produced a non-booting application:
 //
-//   - `projectKey` must match `^[a-z][a-z0-9-]{1,30}$`. `--project-key=x` — the
-//     command's own documented example — is one character and fails it.
+//   - `--app-key` becomes an npm package name and a browser storage prefix,
+//     so it has to be a slug: `^[a-z][a-z0-9-]{1,30}$`. `--app-key=x` — the
+//     command's own documented example — is one character and fails it. This
+//     one rule is the CLI's own, and named as such: the catalogue schema used
+//     to carry a key of its own, and since that left the model there is
+//     nothing in the schema to derive this one from.
 //   - a quota key must match `^[a-z][A-Za-z0-9]*$` under
 //     `additionalProperties: false`, so `--quota=active-seats:Seat` is rejected
 //     as an additional property. That was this package's own test fixture.
 //   - `quotas` is required on every plan and carries `minProperties: 1`, so
 //     `init` without `--quota` cannot produce a loadable catalogue at all.
 //
-// The rules are imported rather than restated: `@saasicat/spec` is the schema
-// the loader reads (`billing/plan-catalog-loader.ts` imports the same object),
-// so this cannot drift from it. A second copy of a regex would be the defect
-// one level up.
+// The other two are imported rather than restated: `@saasicat/spec` is the
+// schema the loader reads (`billing/plan-catalog-loader.ts` imports the same
+// object), so they cannot drift from it. A second copy of a regex would be the
+// defect one level up.
 
 import { planCatalogSchema } from '@saasicat/spec';
-
-interface StringSchema {
-    readonly pattern?: string;
-}
 
 interface PlanDefSchema {
     readonly required?: readonly string[];
@@ -37,7 +37,6 @@ interface PlanDefSchema {
 }
 
 interface CatalogSchema {
-    readonly properties?: { readonly projectKey?: StringSchema };
     readonly $defs?: { readonly PlanDef?: PlanDefSchema };
 }
 
@@ -59,9 +58,14 @@ function required<T>(value: T | undefined, what: string): T {
     return value;
 }
 
-/** The pattern `plan-catalog.schema.json` puts on `projectKey`. */
-export function projectKeyPattern(): RegExp {
-    return new RegExp(required(schema.properties?.projectKey?.pattern, 'pattern for projectKey'));
+/**
+ * What an app key has to look like — the CLI's own rule, for the reason in the
+ * header: it becomes an npm package name and a browser storage prefix.
+ */
+const APP_KEY_PATTERN = /^[a-z][a-z0-9-]{1,30}$/;
+
+export function appKeyPattern(): RegExp {
+    return APP_KEY_PATTERN;
 }
 
 /** The pattern it puts on the keys inside a plan's `quotas` object. */
@@ -89,14 +93,14 @@ export function minimumQuotasPerPlan(): number {
  * The message carries the pattern rather than a prose paraphrase, because the
  * paraphrase is what goes stale.
  */
-export function assertValidProjectKey(projectKey: string): void {
-    const pattern = projectKeyPattern();
-    if (pattern.test(projectKey)) return;
+export function assertValidAppKey(appKey: string): void {
+    const pattern = appKeyPattern();
+    if (pattern.test(appKey)) return;
     throw new Error(
-        `--project-key=${projectKey} is not a valid project key. ` +
+        `--app-key=${appKey} is not a valid app key. ` +
             `It has to match ${pattern.source} — lower case, starting with a letter, ` +
-            'at least two characters. The platform validates config/saas.yaml against ' +
-            'the same pattern at boot, so this would fail after every file was written.',
+            'at least two characters. It becomes an npm package name and a browser ' +
+            'storage prefix, so this would fail after every file was written.',
     );
 }
 

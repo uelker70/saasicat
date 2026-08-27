@@ -9,7 +9,6 @@ import { FakeBundleRepository, FakeSubscriptionBundleRepository } from '../dist/
 // plan compatibility check, minimum-term default, idempotency, effective-date
 // computation.
 
-const PROJECT = 'clubapp';
 const STARTER = 'STARTER';
 const PRO = 'PRO';
 const SUB_A = 'sub-a';
@@ -26,7 +25,6 @@ beforeEach(() => {
 
 async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
     const bundle = await bundleRepo.create({
-        projectKey: PROJECT,
         bundleKey: key,
         label: key,
     });
@@ -179,7 +177,6 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
 
     test('draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED', async () => {
         const bundle = await bundleRepo.create({
-            projectKey: PROJECT,
             bundleKey: 'B1',
             label: 'X',
         });

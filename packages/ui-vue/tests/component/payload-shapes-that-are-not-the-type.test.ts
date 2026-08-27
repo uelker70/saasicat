@@ -37,7 +37,6 @@ import { provideStubResources } from './support/stub-resources';
  */
 const FEATURE: FeatureCatalogEntryRow = {
     id: 'f-1',
-    projectKey: 'notesapp',
     featureKey: 'export',
     label: 'Export',
     description: null,

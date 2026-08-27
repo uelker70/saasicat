@@ -4,8 +4,8 @@
 // with `entitlementSnapshot` — the `EntitlementService` reads the active
 // contract FIRST, so that later AdminUI catalog changes no longer touch the
 // running plan. The freeze service (`SubscriptionContractFreezeService`)
-// is generic; only `projectKey` (config) and the bundle/plan-version data
-// access (`ContractFreezeSourcePort`) are consumer-specific.
+// is generic; only the bundle/plan-version data access
+// (`ContractFreezeSourcePort`) is consumer-specific.
 
 import type { BillingCycle, NewContractLineItemData } from '@saasicat/core';
 
@@ -20,11 +20,6 @@ export const CONTRACT_FREEZE_PORT_TOKEN = Symbol.for('saasicat/nest/ContractFree
 /** Adapter token: consumer-specific bundle/version data access. */
 export const CONTRACT_FREEZE_SOURCE_PORT_TOKEN = Symbol.for(
     'saasicat/nest/ContractFreezeSourcePort',
-);
-
-/** Config token: the consumer's `projectKey` for the contract. */
-export const CONTRACT_FREEZE_PROJECT_KEY_TOKEN = Symbol.for(
-    'saasicat/nest/ContractFreezeProjectKey',
 );
 
 export interface ContractFreezePort {

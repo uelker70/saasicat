@@ -12,13 +12,13 @@ describe('parseArgs', () => {
     test('positionals + flags + tokens are separated', () => {
         const result = parseArgs([
             'my-admin',
-            '--project-key=notesapp',
+            '--app-key=notesapp',
             '--brand-name=NotesApp',
             '--dry-run',
         ]);
         assert.deepEqual(result.positionals, ['my-admin']);
         assert.equal(result.flags.dryRun, true);
-        assert.equal(result.tokens.PROJECT_KEY, 'notesapp');
+        assert.equal(result.tokens.APP_KEY, 'notesapp');
         assert.equal(result.tokens.BRAND_NAME, 'NotesApp');
         // unchanged:
         assert.equal(result.tokens.LOGO_TEXT, DEFAULT_TOKENS.LOGO_TEXT);
@@ -52,7 +52,7 @@ describe('scaffold', () => {
         const target = await mkdtemp(join(tmpdir(), 'spa-scaffold-'));
         try {
             const tokens = {
-                PROJECT_KEY: 'notesapp',
+                APP_KEY: 'notesapp',
                 BRAND_NAME: 'NotesApp',
                 LOGO_TEXT: 'NA',
                 API_BASE: '/api/v1/admin',
@@ -126,7 +126,7 @@ describe('bin entry point', () => {
             const target = join(dir, 'generated');
             const res = spawnSync(
                 process.execPath,
-                [link, target, '--project-key=demoapp', '--no-install'],
+                [link, target, '--app-key=demoapp', '--no-install'],
                 { encoding: 'utf8' },
             );
 

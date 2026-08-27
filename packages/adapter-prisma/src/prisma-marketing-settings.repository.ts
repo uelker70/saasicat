@@ -7,9 +7,15 @@ import type {
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import { toStringArray } from './tx.js';
 
+/**
+ * The one row the table holds. It is the column default in the canonical
+ * schema, so `create` leaving `id` out lands on the same row every time and a
+ * second insert collides with the primary key.
+ */
+const SETTINGS_ROW_ID = 'marketing-settings';
+
 /** DB columns this repository reads from `marketing_settings`. */
 interface MarketingSettingsDbRow {
-    projectKey: string;
     activeLocales: unknown;
     updatedAt: Date;
 }
@@ -25,8 +31,8 @@ interface MarketingSettingsRepositoryClient {
 
 /**
  * `MarketingSettingsRepository` against the canonical `marketing_settings`
- * table (one row per project). A missing row means "full locale pool active",
- * so `get` returns null and the platform falls back to the pool.
+ * table, which holds at most one row. A missing row means "full locale pool
+ * active", so `get` returns null and the platform falls back to the pool.
  */
 @Injectable()
 export class PrismaMarketingSettingsRepository implements MarketingSettingsRepository {
@@ -39,18 +45,17 @@ export class PrismaMarketingSettingsRepository implements MarketingSettingsRepos
         return this.prisma as unknown as MarketingSettingsPrisma;
     }
 
-    async get(projectKey: string): Promise<MarketingSettingsRow | null> {
-        const row = await this.db.marketingSettings.findUnique({ where: { projectKey } });
+    async get(): Promise<MarketingSettingsRow | null> {
+        const row = await this.db.marketingSettings.findUnique({
+            where: { id: SETTINGS_ROW_ID },
+        });
         return row ? toRow(row) : null;
     }
 
-    async upsert(
-        projectKey: string,
-        data: UpdateMarketingSettingsData,
-    ): Promise<MarketingSettingsRow> {
+    async upsert(data: UpdateMarketingSettingsData): Promise<MarketingSettingsRow> {
         const row = await this.db.marketingSettings.upsert({
-            where: { projectKey },
-            create: { projectKey, activeLocales: data.activeLocales },
+            where: { id: SETTINGS_ROW_ID },
+            create: { id: SETTINGS_ROW_ID, activeLocales: data.activeLocales },
             update: { activeLocales: data.activeLocales },
         });
         return toRow(row);
@@ -59,7 +64,6 @@ export class PrismaMarketingSettingsRepository implements MarketingSettingsRepos
 
 function toRow(row: MarketingSettingsDbRow): MarketingSettingsRow {
     return {
-        projectKey: row.projectKey,
         activeLocales: toStringArray(row.activeLocales),
         updatedAt: row.updatedAt.toISOString(),
     };

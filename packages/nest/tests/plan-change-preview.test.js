@@ -7,7 +7,7 @@ import { PlanChangePreviewService } from '../dist/billing/index.js';
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demo',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     plans: [

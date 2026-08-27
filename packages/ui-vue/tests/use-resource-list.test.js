@@ -23,7 +23,7 @@ import {
     useResourceList,
 } from '../dist/index.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 /** Records what went out and answers with `bodies`, one per call. */
 function recorder(...bodies) {

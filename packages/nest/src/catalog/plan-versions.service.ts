@@ -453,8 +453,7 @@ export class PlanVersionsService {
     }): Promise<StrictModeWarning[]> {
         const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
         if (!snapshot) return [];
-        // Approved gate (#20 Slice 5): projectKey == snapshot.app.key (convention).
-        const approved = await loadApprovedCatalogKeys(this.catalogEntries, snapshot.app.key);
+        const approved = await loadApprovedCatalogKeys(this.catalogEntries);
         return validatePlanDraft(draft, snapshot, this.marketedOnly, approved);
     }
 

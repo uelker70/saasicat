@@ -1,8 +1,8 @@
 // PublicMarketingCatalogController — auth-free endpoint for the
 // website pricing page: `GET /public/marketing-catalog?lang=de`.
 //
-// `projectKey` + `currency` are bound at build time (app identity);
-// the website passes only `?lang=`.
+// `currency` and `vatRate` are bound at build time (app identity); the
+// website passes only `?lang=`.
 
 import {
     type CanActivate,
@@ -19,7 +19,6 @@ import { PublicMarketingCatalogService } from './public-marketing-catalog.servic
 
 export function buildPublicMarketingCatalogController(
     guards: Array<Type<CanActivate>>,
-    projectKey: string,
     currency: string,
     vatRate: number,
 ): Type {
@@ -47,7 +46,7 @@ export function buildPublicMarketingCatalogController(
         ) {
             const locale = lang || localeParam || 'de';
             const asOf = parseAsOf(asOfParam);
-            return this.service.getCatalog(projectKey, locale, currency, vatRate, asOf);
+            return this.service.getCatalog(locale, currency, vatRate, asOf);
         }
     }
 

@@ -386,7 +386,6 @@ const props = defineProps<{
     create: (data: CreatePromotionData) => Promise<PromotionRow>;
     update: (id: string, data: UpdatePromotionData) => Promise<PromotionRow>;
     remove: (id: string) => Promise<void>;
-    projectKey: string;
 }>();
 
 const msg = useSaMessages('marketing');
@@ -613,7 +612,6 @@ function patchI18n(
 
 async function onAdd(): Promise<void> {
     const created = await props.create({
-        projectKey: props.projectKey,
         internalLabel: msg.value.promotionsTab.newPromotionLabel,
         type: 'percent',
         value: 10,

@@ -12,7 +12,7 @@ const NOW = new Date('2026-05-08T12:00:00Z');
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demoapp',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     features: [{ key: 'CASHBOOK' }, { key: 'DMS' }, { key: 'API_ACCESS', plannedOnly: true }],
@@ -201,7 +201,6 @@ describe('EntitlementService — V3 ContractLineItems', () => {
         const { svc, subRepo, contractRepo } = buildContractHarness();
         subRepo.set(buildSub());
         await contractRepo.create({
-            projectKey: 'demoapp',
             tenantId: 't1',
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             priceSnapshot: {
@@ -259,7 +258,6 @@ describe('EntitlementService — V3 ContractLineItems', () => {
         const { svc, subRepo, contractRepo } = buildContractHarness();
         subRepo.set(buildSub());
         await contractRepo.create({
-            projectKey: 'demoapp',
             tenantId: 't1',
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             entitlementSnapshot: {
@@ -489,7 +487,6 @@ describe('EntitlementService — bundles booked after the contract was signed', 
 
     async function createSnapshotContract(contractRepo, extra = {}) {
         await contractRepo.create({
-            projectKey: 'demoapp',
             tenantId: 't1',
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             priceSnapshot: PRICE,
@@ -552,7 +549,6 @@ describe('EntitlementService — bundles booked after the contract was signed', 
         );
         subRepo.set(buildSub());
         await contractRepo.create({
-            projectKey: 'demoapp',
             tenantId: 't1',
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             priceSnapshot: PRICE,

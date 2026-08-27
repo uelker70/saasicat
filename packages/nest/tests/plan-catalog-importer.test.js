@@ -12,13 +12,13 @@ import {
 
 class FakeSink {
     constructor() {
-        this.plans = new Map(); // key: `${projectKey}:${planKey}` → input
+        this.plans = new Map(); // key: planKey → input
         this.planVersions = new Map(); // key: `${planKey}:v${version}` → input
-        this.featureEntries = new Map(); // key: `${projectKey}:${featureKey}` → input
+        this.featureEntries = new Map(); // key: featureKey → input
     }
 
     async upsertPlan(input) {
-        const k = `${input.projectKey}:${input.planKey}`;
+        const k = input.planKey;
         if (this.plans.has(k)) return { created: false, skipReason: 'exists' };
         this.plans.set(k, input);
         return { created: true };
@@ -32,7 +32,7 @@ class FakeSink {
     }
 
     async upsertFeatureCatalogEntry(input) {
-        const k = `${input.projectKey}:${input.featureKey}`;
+        const k = input.featureKey;
         if (this.featureEntries.has(k)) return { created: false, skipReason: 'exists' };
         this.featureEntries.set(k, input);
         return { created: true };
@@ -41,7 +41,8 @@ class FakeSink {
 
 const SAMPLE_YAML = `
 schemaVersion: 1
-projectKey: smoke
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19.0
 features:
@@ -75,8 +76,8 @@ describe('PlanCatalogImporterService', () => {
         // Plans
         assert.equal(report.plansCreated, 2);
         assert.equal(report.plansSkipped, 0);
-        assert.equal(sink.plans.get('smoke:STARTER').label, 'Starter');
-        assert.equal(sink.plans.get('smoke:PRO').description, 'Für anspruchsvolle Vereine');
+        assert.equal(sink.plans.get('STARTER').label, 'Starter');
+        assert.equal(sink.plans.get('PRO').description, 'Für anspruchsvolle Vereine');
 
         // PlanVersions v1
         assert.equal(report.planVersionsCreated, 2);
@@ -87,8 +88,8 @@ describe('PlanCatalogImporterService', () => {
 
         // Features
         assert.equal(report.featureEntriesCreated, 4);
-        assert.equal(sink.featureEntries.get('smoke:CORE_IDENTITY').tier, 'CORE');
-        assert.equal(sink.featureEntries.get('smoke:WHATSAPP').label, 'WhatsApp');
+        assert.equal(sink.featureEntries.get('CORE_IDENTITY').tier, 'CORE');
+        assert.equal(sink.featureEntries.get('WHATSAPP').label, 'WhatsApp');
 
         assert.equal(report.warnings.length, 0);
     });
@@ -111,7 +112,8 @@ describe('PlanCatalogImporterService', () => {
     test('importFromYaml: plan without monthlyNet → warning + skip PlanVersion', async () => {
         const yamlWithEnterprise = `
 schemaVersion: 1
-projectKey: smoke
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19.0
 plans:
@@ -134,7 +136,8 @@ plans:
     test('importFromYaml: yearlyNet default = monthlyNet × 10 when missing', async () => {
         const yamlNoYearly = `
 schemaVersion: 1
-projectKey: smoke
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19.0
 plans:

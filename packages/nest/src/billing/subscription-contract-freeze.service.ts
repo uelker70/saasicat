@@ -12,7 +12,6 @@ import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { findPlan, getPlanPriceNet } from './plan-helpers.js';
 import type { PlanCatalog } from '@saasicat/core';
 import {
-    CONTRACT_FREEZE_PROJECT_KEY_TOKEN,
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
     type ContractFreezePort,
     type ContractFreezeSourcePort,
@@ -26,8 +25,8 @@ import {
 // via the frozen line items + prices.
 //
 // Generic: uses EntitlementService + SubscriptionContractService + PlanCatalog.
-// Consumer-specific are only `projectKey` (config) and the bundle/version
-// data access (`ContractFreezeSourcePort`).
+// Consumer-specific is only the bundle/version data access
+// (`ContractFreezeSourcePort`).
 
 @Injectable()
 export class SubscriptionContractFreezeService implements ContractFreezePort {
@@ -37,7 +36,6 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         @Inject(ENTITLEMENT_SERVICE_TOKEN) private readonly entitlements: EntitlementService,
         @Inject(SubscriptionContractService)
         private readonly contracts: SubscriptionContractService,
-        @Inject(CONTRACT_FREEZE_PROJECT_KEY_TOKEN) private readonly projectKey: string,
         @Inject(CONTRACT_FREEZE_SOURCE_PORT_TOKEN)
         private readonly source: ContractFreezeSourcePort,
     ) {}
@@ -123,7 +121,6 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         );
 
         const data: CreateSubscriptionContractData = {
-            projectKey: this.projectKey,
             tenantId,
             status: 'active',
             effectiveFrom,

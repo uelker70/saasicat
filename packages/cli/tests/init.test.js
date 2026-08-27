@@ -4,8 +4,6 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { planCatalogSchema } from '@saasicat/spec';
-
 import {
     LIMIT_FILTER_PROVIDER,
     patchOptionsFor,
@@ -15,8 +13,11 @@ import {
     pascalCase,
     patchAppModule,
     planInit,
-    projectKeyPattern,
+    appKeyPattern,
+    quotaKeyPattern,
+    minimumQuotasPerPlan,
 } from '../dist/index.js';
+import { planCatalogSchema } from '@saasicat/spec';
 
 // `saasicat init` exists because the halves were the wrong way round: the
 // frontend had a one-command generator and the backend had a markdown file to
@@ -64,7 +65,7 @@ describe('what gets written', () => {
     test('the minimum is seven files, one of them a quota provider', async () => {
         // Seven and not six: every plan must declare a quota, so the smallest
         // loadable catalogue has one, and something has to count it.
-        const { files } = await render({ projectKey: 'freshapp', quotas: ['notes:Note'] });
+        const { files } = await render({ appKey: 'freshapp', quotas: ['notes:Note'] });
         assert.deepEqual(
             files.map((f) => f.path),
             [
@@ -81,7 +82,7 @@ describe('what gets written', () => {
 
     test('each quota adds one provider, named after its key', async () => {
         const { files, plan } = await render({
-            projectKey: 'freshapp',
+            appKey: 'freshapp',
             quotas: ['notes:Note', 'seats:TeamMember'],
         });
         const providers = files.filter((f) => f.path.includes('quota.provider'));
@@ -100,7 +101,7 @@ describe('what gets written', () => {
         // its first boot on `core.adapters-bound` — the opposite of what this
         // command is for. The flag is about the hasher, not about persistence.
         const { files, plan } = await render({
-            projectKey: 'freshapp',
+            appKey: 'freshapp',
             quotas: ['notes:Note'],
             skipHasher: true,
         });
@@ -115,7 +116,7 @@ describe('what gets written', () => {
     });
 
     test('with a hasher the bundle wires it', async () => {
-        const { files } = await render({ projectKey: 'freshapp', quotas: ['notes:Note'] });
+        const { files } = await render({ appKey: 'freshapp', quotas: ['notes:Note'] });
         const persistence = files.find((f) => f.path === 'src/saas/persistence.ts');
         assert.match(persistence.content, /passwordHasher: FreshappPasswordHasher,/);
         assert.match(persistence.content, /import \{ FreshappPasswordHasher \}/);
@@ -126,9 +127,9 @@ describe('what gets written', () => {
         // file compiles as a property name and fails at runtime, in a file
         // nobody wrote and everybody trusts.
         for (const options of [
-            { projectKey: 'freshapp', quotas: ['notes:Note'] },
-            { projectKey: 'freshapp', quotas: ['notes:Note'], skipHasher: true },
-            { projectKey: 'multi-word-key', quotas: ['notes:Note'] },
+            { appKey: 'freshapp', quotas: ['notes:Note'] },
+            { appKey: 'freshapp', quotas: ['notes:Note'], skipHasher: true },
+            { appKey: 'multi-word-key', quotas: ['notes:Note'] },
         ]) {
             const { files } = await render(options);
             for (const file of files) {
@@ -143,8 +144,8 @@ describe('what gets written', () => {
         // and the first person to need it finds out.
         const rendered = new Set();
         for (const options of [
-            { projectKey: 'ab', quotas: ['q:Q'] },
-            { projectKey: 'ab', quotas: ['notes:Note'], skipHasher: true },
+            { appKey: 'ab', quotas: ['q:Q'] },
+            { appKey: 'ab', quotas: ['notes:Note'], skipHasher: true },
         ]) {
             for (const file of planInit(options).files) rendered.add(`${file.template}.tpl`);
         }
@@ -155,7 +156,7 @@ describe('what gets written', () => {
 
 describe('the names it derives', () => {
     test('a multi-word key still produces valid identifiers', async () => {
-        const { plan } = await render({ projectKey: 'team-hub', quotas: ['activeSeats:Seat'] });
+        const { plan } = await render({ appKey: 'team-hub', quotas: ['activeSeats:Seat'] });
         assert.equal(plan.tokens.REGISTRY_CONST, 'TEAM_HUB_FEATURE_UI_REGISTRY');
         assert.equal(plan.tokens.ADMIN_MODULE_CLASS, 'TeamHubAdminModule');
         assert.deepEqual(
@@ -183,7 +184,7 @@ describe('the names it derives', () => {
 
 describe('the YAML it writes', () => {
     test('quotas land under both plans, at different limits', async () => {
-        const { files } = await render({ projectKey: 'freshapp', quotas: ['notes:Note'] });
+        const { files } = await render({ appKey: 'freshapp', quotas: ['notes:Note'] });
         const yaml = files.find((f) => f.path === 'config/saas.yaml').content;
         assert.match(yaml, /quotas:\n {10}notes: 25/);
         assert.match(yaml, /quotas:\n {10}notes: 1000/);
@@ -193,7 +194,7 @@ describe('the YAML it writes', () => {
         // This test used to assert the opposite — that `quotas: {}` was the
         // right rendering for the no-quota case. It IS correct YAML. It is
         // also a document the platform refuses: `quotas` is required on every
-        // plan and carries `minProperties: 1`, so `init --project-key=x`
+        // plan and carries `minProperties: 1`, so `init --app-key=x`
         // without `--quota` wrote every file, patched `app.module.ts`, printed
         // "Next steps" and produced an application whose first boot failed on
         // `/plans/0/quotas: must NOT have fewer than 1 properties`.
@@ -201,14 +202,14 @@ describe('the YAML it writes', () => {
         // Asserting on rendered text is what let it stand for a whole PR. The
         // suite loads the generated catalogue now — see
         // `generated-catalog-loads.test.js`.
-        assert.throws(() => planInit({ projectKey: 'freshapp' }), /at least 1 --quota/);
+        assert.throws(() => planInit({ appKey: 'freshapp' }), /at least 1 --quota/);
     });
 
     test('nothing has a trailing space', async () => {
         // `quotas: __TOKEN__` with a multi-line value left one on every
         // generated file that had quotas — invisible, and rejected by the
         // formatter of whichever project it lands in.
-        const { files } = await render({ projectKey: 'freshapp', quotas: ['notes:Note'] });
+        const { files } = await render({ appKey: 'freshapp', quotas: ['notes:Note'] });
         for (const file of files) {
             const trailing = file.content
                 .split('\n')
@@ -364,7 +365,7 @@ describe('what the plan implies for the patch', () => {
         // and was never wired — and an app that failed `core.adapters-bound` on
         // its first boot.
         for (const skipHasher of [false, true]) {
-            const plan = planInit({ projectKey: 'freshapp', quotas: ['notes:Note'], skipHasher });
+            const plan = planInit({ appKey: 'freshapp', quotas: ['notes:Note'], skipHasher });
             const generated = plan.files.some((f) => f.path === 'src/saas/persistence.ts');
             const imported = patchOptionsFor(plan).persistenceImport !== null;
             assert.equal(
@@ -376,7 +377,7 @@ describe('what the plan implies for the patch', () => {
     });
 
     test('the admin module import path matches the file the plan writes', () => {
-        const plan = planInit({ projectKey: 'team-hub', quotas: ['notes:Note'] });
+        const plan = planInit({ appKey: 'team-hub', quotas: ['notes:Note'] });
         const written = plan.files.find((f) => f.path.includes('-admin.module'));
         const { adminModule } = patchOptionsFor(plan);
         assert.equal(`src/saas/${adminModule.importPath.replace('./saas/', '')}.ts`, written.path);
@@ -384,7 +385,7 @@ describe('what the plan implies for the patch', () => {
 
     test('each quota provider import path matches its file', () => {
         const plan = planInit({
-            projectKey: 'freshapp',
+            appKey: 'freshapp',
             quotas: ['notes:Note', 'activeSeats:Seat'],
         });
         const written = plan.files
@@ -428,37 +429,53 @@ describe('the auth guard the generator cannot know', () => {
     });
 });
 
-describe('a project key the platform would refuse', () => {
-    // The generator wrote the key straight into `config/saas.yaml`, which the
-    // platform validates against `plan-catalog.schema.json` at boot. So an
-    // invalid key produced an application that could not start — after every
-    // file had been written and `app.module.ts` patched. The command's own
-    // help documented `--project-key=x`, which is one character and fails.
+describe('an app key the generated files would refuse', () => {
+    // The key becomes an npm package name (`<key>-admin`) and a browser
+    // storage prefix, so an invalid one produced a scaffold that could not
+    // install — after every file had been written and `app.module.ts` patched.
+    // The command's own help documented `--app-key=x`, which is one character
+    // and fails.
 
     test('is refused before anything is planned', () => {
         for (const key of ['x', 'NotesApp', '1notes', 'notes app', 'a'.repeat(32)]) {
             assert.throws(
-                () => planInit({ projectKey: key }),
-                /not a valid project key/,
+                () => planInit({ appKey: key }),
+                /not a valid app key/,
                 `planInit accepted ${JSON.stringify(key)}`,
             );
         }
     });
 
     test('and a valid one still plans', () => {
-        assert.ok(planInit({ projectKey: 'notesapp', quotas: ['notes:Note'] }).files.length > 0);
-        assert.ok(planInit({ projectKey: 'team-hub-2', quotas: ['notes:Note'] }).files.length > 0);
-    });
-
-    test('the rule comes from the schema, not from a copy of it', () => {
-        // A second regex would be the same defect one level up: it would drift
-        // from the loader and start accepting keys the platform refuses.
-        assert.equal(projectKeyPattern().source, planCatalogSchema.properties.projectKey.pattern);
+        assert.ok(planInit({ appKey: 'notesapp', quotas: ['notes:Note'] }).files.length > 0);
+        assert.ok(planInit({ appKey: 'team-hub-2', quotas: ['notes:Note'] }).files.length > 0);
     });
 
     test('the message carries the pattern rather than a paraphrase of it', () => {
-        const error = thrownBy(() => planInit({ projectKey: 'X' }));
-        assert.match(error.message, new RegExp(escapeRegExp(projectKeyPattern().source)));
+        const error = thrownBy(() => planInit({ appKey: 'X' }));
+        assert.match(error.message, new RegExp(escapeRegExp(appKeyPattern().source)));
+    });
+});
+
+describe('the quota rules come from the schema, not from a copy of them', () => {
+    // A second regex would be the same defect one level up: it would drift from
+    // the loader and start accepting quota keys the platform refuses. The app
+    // key is deliberately not in here — the catalogue schema no longer carries
+    // a key to derive it from, so it is the CLI's own rule, tested by the
+    // refusals above.
+
+    test("the quota key pattern is the schema's", () => {
+        const declared = Object.keys(
+            planCatalogSchema.$defs.PlanDef.properties.quotas.patternProperties,
+        );
+        assert.deepEqual([quotaKeyPattern().source], declared);
+    });
+
+    test("the minimum number of quotas is the schema's", () => {
+        assert.equal(
+            minimumQuotasPerPlan(),
+            planCatalogSchema.$defs.PlanDef.properties.quotas.minProperties,
+        );
     });
 });
 
@@ -485,7 +502,7 @@ describe('an app name a human would type', () => {
 
     test('the classes get identifiers, the catalogue keeps the words', () => {
         const plan = planInit({
-            projectKey: 'notesapp',
+            appKey: 'notesapp',
             appName: 'My App',
             quotas: ['notes:Note'],
         });
@@ -496,7 +513,7 @@ describe('an app name a human would type', () => {
 
     test('and the file names follow the identifier, not the label', () => {
         const plan = planInit({
-            projectKey: 'notesapp',
+            appKey: 'notesapp',
             appName: 'My App',
             quotas: ['notes:Note'],
         });
@@ -509,7 +526,7 @@ describe('an app name a human would type', () => {
         // The property, rather than the two cases above: whatever the option
         // is, nothing that ends up after `class` may contain a space.
         for (const appName of ['My App', 'my app', 'My-App', 'my.app', 'App 2']) {
-            const plan = planInit({ projectKey: 'notesapp', appName, quotas: ['notes:Note'] });
+            const plan = planInit({ appKey: 'notesapp', appName, quotas: ['notes:Note'] });
             for (const value of [plan.hasherClass, plan.tokens.ADMIN_MODULE_CLASS]) {
                 assert.match(value, /^[A-Za-z_$][\w$]*$/, `${appName} → ${value}`);
             }
@@ -525,7 +542,7 @@ describe('the file a quota provider is written to is the file that gets imported
     // path now, so there is one derivation instead of two.
 
     test('for a camel-cased key, where the two used to disagree', () => {
-        const plan = planInit({ projectKey: 'notesapp', quotas: ['apiCalls:ApiCall'] });
+        const plan = planInit({ appKey: 'notesapp', quotas: ['apiCalls:ApiCall'] });
         const written = plan.files
             .filter((f) => f.path.includes('quota.provider'))
             .map((f) => f.path);
@@ -537,7 +554,7 @@ describe('the file a quota provider is written to is the file that gets imported
 
     test('and for every spelling the schema allows', () => {
         const plan = planInit({
-            projectKey: 'notesapp',
+            appKey: 'notesapp',
             quotas: ['notes:Note', 'apiCalls:ApiCall', 'seats2:Seat'],
         });
         const written = plan.files

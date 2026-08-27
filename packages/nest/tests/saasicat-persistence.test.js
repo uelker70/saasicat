@@ -18,7 +18,7 @@ import {
 
 const planCatalog = {
     schemaVersion: 1,
-    projectKey: 'app',
+    app: { name: 'NotesApp' },
     currency: 'EUR',
     vatRate: 19,
     plans: [],
@@ -106,10 +106,10 @@ describe('SaaSiCatModule persistence bundle', () => {
     });
 
     test('DB hydration forwards the dbCatalog identity to the plan-catalog factory', async () => {
-        const seenProjectKeys = [];
+        let loads = 0;
         const sink = {
-            loadSnapshot: async (projectKey) => {
-                seenProjectKeys.push(projectKey);
+            loadSnapshot: async () => {
+                loads++;
                 return { plans: [], livePlanVersions: [], featureEntries: [] };
             },
         };
@@ -117,7 +117,7 @@ describe('SaaSiCatModule persistence bundle', () => {
             controller: { guards: [] },
             persistence: fakeBundle(),
             adapters: { planCatalogReadSink: sink },
-            dbCatalog: { projectKey: 'notesapp', currency: 'EUR', vatRate: 19 },
+            dbCatalog: { app: { name: 'NotesApp' }, currency: 'EUR', vatRate: 19 },
         });
 
         const planCatalogModule = mod.imports[0];
@@ -126,8 +126,8 @@ describe('SaaSiCatModule persistence bundle', () => {
         );
         const catalog = await catalogFactory.useFactory(sink);
 
-        assert.deepEqual(seenProjectKeys, ['notesapp']);
-        assert.equal(catalog.projectKey, 'notesapp');
+        assert.equal(loads, 1);
+        assert.equal(catalog.app.name, 'NotesApp');
         assert.equal(catalog.currency, 'EUR');
         assert.equal(catalog.vatRate, 19);
     });

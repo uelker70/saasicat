@@ -40,7 +40,7 @@ describe('a scaffolded admin type-checks against the ui-vue it was scaffolded fo
                 targetDir: target,
                 templatesDir: TEMPLATES,
                 tokens: {
-                    PROJECT_KEY: 'probe',
+                    APP_KEY: 'probe',
                     BRAND_NAME: 'Probe',
                     LOGO_TEXT: 'PR',
                     API_BASE: '/api',

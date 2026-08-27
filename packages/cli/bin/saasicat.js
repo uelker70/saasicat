@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // `saasicat` — bootstrap CLI for the SaaSiCat framework.
 // naming-history: the codemod help below names the pre-1.0 spellings it rewrites.
+// project-key-history: `codemod v1-project-key` is named after what it removes.
 //
 // Sub-commands:
 //   schema apply [--prisma-schema=PATH] [--fragments=01,02,03]
@@ -16,10 +17,11 @@
 //       apply --all, then `prisma migrate dev`, then append the constraints
 //       Prisma's DSL cannot express to the migration it just wrote.
 //
-//   init --project-key=X --quota=key:Model [--quota=…]... [--app-name=X] [--api-base=X]
+//   init --app-key=X --quota=key:Model [--quota=…]... [--app-name=X] [--api-base=X]
 //   codemod v1-imports [--dir=X] [--dry-run]
 //   codemod v1-rename  [--dir=X] [--dry-run]
-//   codemod v1         [--dir=X] [--dry-run]   — both, in that order
+//   codemod v1-project-key [--dir=X] [--dry-run]
+//   codemod v1         [--dir=X] [--dry-run]   — all three, in that order
 //        [--skip-hasher] [--dry-run] [--dir=.]
 //       Writes the platform wiring — config, persistence, manifest
 //       contribution, admin module, one provider per quota — and adds
@@ -27,7 +29,7 @@
 
 import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -46,7 +48,7 @@ import {
     extractFragmentBlocks,
     findFkPointers,
     hasConstraints,
-    assertValidProjectKey,
+    assertValidAppKey,
     judgeModuleResolution,
     readEffectiveModuleResolution,
     buildImportMap,
@@ -54,6 +56,7 @@ import {
     rewriteImports,
     rewriteManifest,
     rewriteNames,
+    removeProjectKey,
     reportConstraints,
     patchAppModule,
     patchOptionsFor,
@@ -71,7 +74,7 @@ const require_ = createRequire(import.meta.url);
 // `pascalCase` and came back as `value.replace is not a function` with exit 99
 // — an internal error for what is an ordinary typo.
 const VALUE_FLAGS = new Set([
-    'project-key',
+    'app-key',
     'app-name',
     'api-base',
     'quota',
@@ -678,11 +681,32 @@ function codemodTable(name) {
 const CODEMOD_SKIP = new Set(['node_modules', '.git', '.output', 'coverage']);
 const isBuildOutput = (name) => name === 'dist' || name.startsWith('dist-');
 const CODEMOD_EXTENSIONS = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|md)$/;
+/**
+ * Widens the walk for `v1-project-key` alone — see `walkSources`.
+ *
+ * `.prisma` belongs here for the reason `.yaml` does: a consumer copies the
+ * platform's models into their own `schema.prisma`, which is the documented
+ * integration path, so that file carries `projectKey` fields and composite
+ * indexes of its own. Left out of the walk they were neither rewritten nor
+ * reported — and after the SQL migration drops the columns, a schema still
+ * declaring them generates a client that queries them, while the next
+ * `db push` tries to put them back.
+ *
+ * Reported rather than rewritten, like every other declaration: a `.prisma`
+ * model is a schema, and which of its fields a consumer still needs is theirs.
+ */
+const CODEMOD_CONFIG_EXTENSIONS = /\.(yaml|yml|prisma)$/;
 /** Walked for the package renames alone; see `rewriteManifest`. */
 const CODEMOD_MANIFEST = 'package.json';
 
-/** Every source file under `root` a codemod may touch, with its text. */
-async function walkSources(root, visit) {
+/**
+ * Every source file under `root` a codemod may touch, with its text.
+ *
+ * `extra` widens the set for one codemod. Only `v1-project-key` passes it, and
+ * only for `.yaml`: the other two rewrite identifiers and import specifiers,
+ * and letting them loose on a configuration file would corrupt it.
+ */
+async function walkSources(root, visit, extra = null) {
     const walk = async (dir) => {
         for (const entry of await readdir(dir, { withFileTypes: true })) {
             if (CODEMOD_SKIP.has(entry.name) || isBuildOutput(entry.name)) continue;
@@ -691,11 +715,68 @@ async function walkSources(root, visit) {
                 await walk(full);
                 continue;
             }
-            if (!CODEMOD_EXTENSIONS.test(entry.name) && entry.name !== CODEMOD_MANIFEST) continue;
+            const included =
+                CODEMOD_EXTENSIONS.test(entry.name) ||
+                entry.name === CODEMOD_MANIFEST ||
+                (extra !== null && extra.test(entry.name));
+            if (!included) continue;
             await visit(full, await readFile(full, 'utf8'));
         }
     };
     await walk(root);
+}
+
+/**
+ * Takes `projectKey` out of a consumer's code, and names what it will not.
+ *
+ * A removal is not a rename: the word is an ordinary property name. Two forms
+ * need no grammar to decide — a `?projectKey=` on a `/catalog/` URL, and the
+ * top-level key of a `saas.yaml` — and those are rewritten. An object member is
+ * reported: an object literal and a type literal are lexically identical in
+ * TypeScript, so removing one would sometimes delete a member of the consumer's
+ * own type. The migration guide's table says what each shape becomes.
+ */
+async function cmdCodemodV1ProjectKey(args) {
+    const root = resolve(args.dir ?? '.');
+    const dryRun = args['dry-run'] === true;
+
+    const undecided = [];
+    let rewritten = 0;
+    let touched = 0;
+    await walkSources(
+        root,
+        async (full, source) => {
+            if (basename(full) === CODEMOD_MANIFEST) return;
+            const result = removeProjectKey(source, isCatalogConfig(full) ? 'yaml' : 'source');
+            for (const line of result.undecided) undecided.push(`${relative(root, full)}:${line}`);
+            if (result.rewritten === 0) return;
+            if (!dryRun) await writeFile(full, result.text);
+            rewritten += result.rewritten;
+            touched += 1;
+        },
+        CODEMOD_CONFIG_EXTENSIONS,
+    );
+
+    console.log(
+        `${dryRun ? 'Would remove' : 'Removed'} ${rewritten} occurrence(s) in ${touched} file(s).`,
+    );
+    if (undecided.length === 0) return;
+
+    console.log('');
+    console.log(`${undecided.length} occurrence(s) are yours to look at:`);
+    for (const where of undecided) console.log(`  ${where}`);
+    console.log('');
+    console.log('  Two kinds of file end up here. In TypeScript an object literal and a type');
+    console.log('  literal are the same tokens, so this cannot tell a payload member from one');
+    console.log('  of your own declarations without parsing. And a `.prisma` model is a schema:');
+    console.log("  which of its fields you still need is yours to say, not this tool's.");
+    console.log('  It reports rather than guesses — docs/guides/upgrade-to-1.0.md has a table');
+    console.log('  of what each shape becomes.');
+}
+
+/** A `saas.yaml`, whose top-level `projectKey:` needs no anchor. */
+function isCatalogConfig(full) {
+    return basename(full) === 'saas.yaml' || basename(full) === 'saas.yml';
 }
 
 /** Reads a repeated flag (`--quota=a --quota=b`) off argv. */
@@ -706,17 +787,17 @@ function repeatedFlag(argv, name) {
 }
 
 async function cmdInit(args, argv) {
-    if (!args['project-key']) {
-        console.error('✗ --project-key=<key> is required.');
-        console.error('  It names the catalogue this app administers.');
+    if (!args['app-key']) {
+        console.error('✗ --app-key=<key> is required.');
+        console.error('  It is the slug of this application: npm package name, storage prefix.');
         process.exit(1);
     }
 
     // A usage error, so it exits 1 like every other one here rather than
-    // through the top-level handler's 99. The rule itself comes from the
-    // catalogue schema — see src/init/project-key.ts.
+    // through the top-level handler's 99. The rule itself is in
+    // src/init/catalog-keys.ts.
     try {
-        assertValidProjectKey(args['project-key']);
+        assertValidAppKey(args['app-key']);
     } catch (err) {
         console.error(`✗ ${err.message}`);
         process.exit(1);
@@ -741,7 +822,7 @@ async function cmdInit(args, argv) {
     }
 
     const plan = planInit({
-        projectKey: args['project-key'],
+        appKey: args['app-key'],
         appName: args['app-name'],
         apiBase: args['api-base'],
         quotas: repeatedFlag(argv, 'quota'),
@@ -881,11 +962,15 @@ async function main() {
     if (cmd === 'codemod' && sub === 'v1-rename') {
         return cmdCodemodV1Rename(parseArgs(rest));
     }
+    if (cmd === 'codemod' && sub === 'v1-project-key') {
+        return cmdCodemodV1ProjectKey(parseArgs(rest));
+    }
     if (cmd === 'codemod' && sub === 'v1') {
         // Imports first: the rename table keys its per-entry tokens by the
         // specifier they are imported from, which the import rewrite settles.
         await cmdCodemodV1Imports(parseArgs(rest));
-        return cmdCodemodV1Rename(parseArgs(rest));
+        await cmdCodemodV1Rename(parseArgs(rest));
+        return cmdCodemodV1ProjectKey(parseArgs(rest));
     }
     if (cmd === 'init') {
         return cmdInit(parseArgs([sub, ...rest].filter(Boolean)), process.argv.slice(3));
@@ -914,13 +999,13 @@ async function main() {
             '  schema migrate --name=<name>             apply --all + migrate dev + constraints',
         );
         console.log('');
-        console.log('  init --project-key=<key> --quota=<key>:<Model>');
+        console.log('  init --app-key=<key> --quota=<key>:<Model>');
         console.log('          scaffold the platform wiring. At least one --quota:');
         console.log('          every plan must declare one, or the catalogue does not load.');
-        console.log('  init --project-key=myapp --quota=notes:Note --quota=seats:Seat');
+        console.log('  init --app-key=myapp --quota=notes:Note --quota=seats:Seat');
         console.log('');
         console.log('  codemod v1 [--dir=.] [--dry-run]');
-        console.log('          the whole 1.0 migration: v1-imports, then v1-rename');
+        console.log('          the whole 1.0 migration: imports, names, then projectKey');
         console.log('  codemod v1-imports [--dir=.] [--dry-run]');
         console.log('          rewrite @saasicat/ui-vue imports to the 1.0 export map');
         console.log('  codemod v1-rename [--dir=.] [--dry-run]');

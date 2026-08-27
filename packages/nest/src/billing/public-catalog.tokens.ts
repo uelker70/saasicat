@@ -3,7 +3,6 @@
 // — apps without these tables leave them out,
 // the corresponding endpoints then return empty lists.
 
-export const PUBLIC_CATALOG_PROJECT_KEY_TOKEN = Symbol.for('saasicat/nest/PublicCatalogProjectKey');
 export const PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN = Symbol.for(
     'saasicat/nest/PublicCatalogBundleRepository',
 );

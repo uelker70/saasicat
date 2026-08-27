@@ -19,11 +19,11 @@ export class MarketingSettingsService {
     ) {}
 
     /** Returns the stored config or `null` (in which case the full pool applies). */
-    get(projectKey: string): Promise<MarketingSettingsRow | null> {
-        return this.repo.get(projectKey);
+    get(): Promise<MarketingSettingsRow | null> {
+        return this.repo.get();
     }
 
-    upsert(projectKey: string, data: UpdateMarketingSettingsData): Promise<MarketingSettingsRow> {
-        return this.repo.upsert(projectKey, data);
+    upsert(data: UpdateMarketingSettingsData): Promise<MarketingSettingsRow> {
+        return this.repo.upsert(data);
     }
 }

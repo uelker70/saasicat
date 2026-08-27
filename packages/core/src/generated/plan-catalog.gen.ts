@@ -11,13 +11,9 @@
 export interface PlanCatalog {
     schemaVersion: 1;
     /**
-     * Unique key of the consuming project. Cross-audit marker.
+     * App identity block (branding + version). One installation serves one application, so this is the only place it is named. Consumed by AdminPublicBootController + AdminManifestConfigFactory.
      */
-    projectKey: string;
-    /**
-     * App identity block (branding + version). Consumed by AdminPublicBootController + AdminManifestConfigFactory.
-     */
-    app?: {
+    app: {
         /**
          * Brand display name (e.g. "My App").
          */

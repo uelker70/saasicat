@@ -13,8 +13,7 @@
     · useMarketingProjections  — MarketingProjection per (PLAN, live version,
                                  locale). Edits go live immediately.
 
-  Self-sufficient page (like PlansPage): consumers only pass through
-  `adminEndpoint` + `projectKey`, the wrapper stays thin.
+  Self-sufficient page (like PlansPage): the wrapper stays thin.
 -->
 <template>
     <AdminPage class="sa-marketing">
@@ -70,7 +69,6 @@
                     :plans="promoPlanOptions"
                     :active-locales="activeLocaleSet"
                     :busy="busy"
-                    :project-key="projectKey"
                     :create="promotionsApi.create"
                     :update="promotionsApi.update"
                     :remove="promotionsApi.remove"
@@ -288,7 +286,7 @@ const editFeatures = ref<MarketingTopFeature[]>([]);
 // that takes it as a prop lets a consumer hand this page a different one than
 // its siblings read from. The http client is the shell's, so every request
 // carries the app's auth without the page being told how.
-const { apiBase, projectKey } = useSuperAdminEndpoints();
+const { apiBase } = useSuperAdminEndpoints();
 const shellHttpClient = useSuperAdminHttp();
 
 // The marketing resource, reached by name. Replaces two hand-built calls to
@@ -298,19 +296,17 @@ const marketing = useResource('marketing', props.resources);
 
 const plansApi = usePlans({
     adminEndpoint: apiBase,
-    projectKey: projectKey,
     http: shellHttpClient,
 });
 
 const projectionsApi = useMarketingProjections({
     adminEndpoint: apiBase,
     http: shellHttpClient,
-    filter: { projectKey: projectKey, targetType: 'PLAN', locale: activeLocale.value },
+    filter: { targetType: 'PLAN', locale: activeLocale.value },
 });
 
 const promotionsApi = usePromotions({
     adminEndpoint: apiBase,
-    projectKey: projectKey,
     http: shellHttpClient,
 });
 
@@ -318,7 +314,6 @@ const promotionsApi = usePromotions({
 // labels for the top-features editor.
 const catalogEntriesApi = useCatalogEntries({
     adminEndpoint: apiBase,
-    projectKey: projectKey,
     http: shellHttpClient,
 });
 
@@ -629,7 +624,22 @@ const catalogVersion = computed<string>(() => {
     return stamps.sort().slice(-1)[0].slice(0, 10);
 });
 
-const previewUrl = computed(() => `${projectKey}.de/preise`);
+// Decorative browser chrome above the preview. The application names itself
+// in one place, so the mock domain is built from that rather than from a
+// second identifier kept for the purpose.
+const previewUrl = computed(() => `${slugOf(manifest?.project?.displayName ?? 'app')}.de/preise`);
+
+// Split-and-join rather than a trim regex: `/^-+|-+$/` is a quantifier that
+// can match one input several ways, which is the shape that turns a long
+// display name into quadratic work (`regexp/no-super-linear-move`).
+function slugOf(name: string): string {
+    const slug = name
+        .toLowerCase()
+        .split(/[^a-z0-9]/)
+        .filter((part) => part !== '')
+        .join('-');
+    return slug || 'app';
+}
 
 // ─── Pricing ───
 function monthlyOf(row: MarketingRow): number {
@@ -748,7 +758,6 @@ async function patch(row: MarketingRow, partial: Partial<ResolvedMarketing>): Pr
         } else {
             const merged: ResolvedMarketing = { ...row.m, ...partial };
             await projectionsApi.create({
-                projectKey: projectKey,
                 targetType: 'PLAN',
                 targetVersionId: row.liveVersion.id,
                 locale: activeLocale.value,
@@ -878,7 +887,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     busy.value = true;
     try {
         await projectionsApi.setFilter({
-            projectKey: projectKey,
             targetType: 'PLAN',
             locale: loc,
         });

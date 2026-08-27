@@ -13,7 +13,6 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 /** DB columns this repository reads from `marketing_projections`. */
 interface MarketingProjectionDbRow {
     id: string;
-    projectKey: string;
     targetType: string;
     targetVersionId: string;
     locale: string;
@@ -61,7 +60,6 @@ export class PrismaMarketingProjectionRepository implements MarketingProjectionR
     async list(filter: MarketingProjectionFilter): Promise<MarketingProjectionRow[]> {
         const rows = await this.db.marketingProjection.findMany({
             where: {
-                projectKey: filter.projectKey,
                 ...(filter.targetType ? { targetType: filter.targetType } : {}),
                 ...(filter.targetVersionId ? { targetVersionId: filter.targetVersionId } : {}),
                 ...(filter.locale ? { locale: filter.locale } : {}),
@@ -92,7 +90,6 @@ export class PrismaMarketingProjectionRepository implements MarketingProjectionR
     async create(data: CreateMarketingProjectionData): Promise<MarketingProjectionRow> {
         const row = await this.db.marketingProjection.create({
             data: {
-                projectKey: data.projectKey,
                 targetType: data.targetType,
                 targetVersionId: data.targetVersionId,
                 locale: data.locale ?? 'de',
@@ -144,7 +141,6 @@ function toTopFeatures(value: unknown): MarketingTopFeature[] {
 function toRow(row: MarketingProjectionDbRow): MarketingProjectionRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         targetType: row.targetType as MarketingTargetType,
         targetVersionId: row.targetVersionId,
         locale: row.locale,

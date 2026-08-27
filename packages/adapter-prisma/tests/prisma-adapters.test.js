@@ -106,11 +106,7 @@ function fakePrisma() {
         },
         plan: {
             async findFirst({ where }) {
-                return (
-                    state.plans.find(
-                        (p) => p.projectKey === where.projectKey && p.planKey === where.planKey,
-                    ) ?? null
-                );
+                return state.plans.find((p) => p.planKey === where.planKey) ?? null;
             },
             async findMany() {
                 return state.plans;
@@ -132,12 +128,7 @@ function fakePrisma() {
         },
         featureCatalogEntry: {
             async findFirst({ where }) {
-                return (
-                    state.featureEntries.find(
-                        (f) =>
-                            f.projectKey === where.projectKey && f.featureKey === where.featureKey,
-                    ) ?? null
-                );
+                return state.featureEntries.find((f) => f.featureKey === where.featureKey) ?? null;
             },
             async findMany() {
                 return state.featureEntries;
@@ -463,8 +454,8 @@ describe('PrismaSubscriptionRepository', () => {
     test('countActiveByPlanKey aggregates by authoritative PlanVersion identity', async () => {
         const p = fakePrisma();
         p.state.plans.push(
-            { id: 'plan-starter', projectKey: 'app', planKey: 'STARTER' },
-            { id: 'plan-pro', projectKey: 'app', planKey: 'PRO' },
+            { id: 'plan-starter', planKey: 'STARTER' },
+            { id: 'plan-pro', planKey: 'PRO' },
         );
         p.state.planVersions.push(
             planVersionRow({ id: 'pv-1', planId: 'STARTER' }),
@@ -482,7 +473,7 @@ describe('PrismaSubscriptionRepository', () => {
             }),
         );
         const repo = new PrismaSubscriptionRepository(p);
-        assert.deepEqual(await repo.countActiveByPlanKey('app'), { STARTER: 2, PRO: 1 });
+        assert.deepEqual(await repo.countActiveByPlanKey(), { STARTER: 2, PRO: 1 });
     });
 });
 
@@ -742,7 +733,6 @@ describe('PrismaPlanCatalogReadSink', () => {
         const p = fakePrisma();
         p.state.plans.push({
             id: 'plan-1',
-            projectKey: 'app',
             planKey: 'STARTER',
             label: 'Starter',
             description: null,
@@ -755,7 +745,6 @@ describe('PrismaPlanCatalogReadSink', () => {
         p.state.planVersions.push(planVersionRow());
         p.state.featureEntries.push({
             id: 'feat-1',
-            projectKey: 'app',
             featureKey: 'CORE',
             label: 'Core',
             description: null,
@@ -780,7 +769,7 @@ describe('PrismaPlanCatalogReadSink', () => {
         });
         const sink = new PrismaPlanCatalogReadSink(p);
 
-        const snapshot = await sink.loadSnapshot('app');
+        const snapshot = await sink.loadSnapshot();
         assert.equal(snapshot.plans[0].createdAt, '2026-01-01T00:00:00.000Z');
         assert.equal(snapshot.livePlanVersions[0].monthlyNet, '9.90');
         assert.equal(snapshot.livePlanVersions[0].validFrom, null);

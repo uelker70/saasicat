@@ -124,7 +124,6 @@ export class SubscriptionContractService {
         }
         const lineItems = this.lineItemsFromOffer(offer);
         return {
-            projectKey: offer.projectKey,
             tenantId: options.tenantId,
             status: options.status ?? 'active',
             effectiveFrom: options.effectiveFrom,
@@ -301,7 +300,6 @@ export function subscriptionContractToInvoiceSnapshot(
 ): SubscriptionContractInvoiceSnapshot {
     return {
         contractId: contract.id,
-        projectKey: contract.projectKey,
         tenantId: contract.tenantId,
         originalOfferId: contract.originalOfferId,
         currency: contract.priceSnapshot.currency,

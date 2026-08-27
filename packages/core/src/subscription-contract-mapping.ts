@@ -24,7 +24,6 @@ import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
 /** A `subscription_contracts` row as either adapter reads it back. */
 export interface CanonicalContractRow {
     id: string;
-    projectKey: string;
     tenantId: string;
     status: string;
     effectiveFrom: Date;
@@ -68,7 +67,6 @@ export function toSubscriptionContractRecord(
 ): SubscriptionContractRecord {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         tenantId: row.tenantId,
         status: row.status as SubscriptionContractStatus,
         effectiveFrom: row.effectiveFrom,

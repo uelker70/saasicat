@@ -45,8 +45,8 @@ function matchesWhere(row, where) {
 function fakePrisma({
     subscription = subscriptionRow(),
     plans = [
-        { id: 'plan-starter', projectKey: 'app', planKey: 'STARTER' },
-        { id: 'plan-pro', projectKey: 'app', planKey: 'PRO' },
+        { id: 'plan-starter', planKey: 'STARTER' },
+        { id: 'plan-pro', planKey: 'PRO' },
     ],
     planVersions = [
         { id: 'version-starter', planId: 'plan-starter' },
@@ -70,12 +70,7 @@ function fakePrisma({
         state,
         plan: {
             async findFirst({ where }) {
-                return (
-                    plans.find(
-                        (plan) =>
-                            plan.projectKey === where.projectKey && plan.planKey === where.planKey,
-                    ) ?? null
-                );
+                return plans.find((plan) => plan.planKey === where.planKey) ?? null;
             },
             async findUnique({ where }) {
                 return plans.find((plan) => plan.id === where.id) ?? null;
@@ -213,7 +208,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             planVersionDelegate: 'billingPlanVersion',
         });
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
-            planBinding: { mode: 'normalized-plan-id', projectKey: 'app' },
+            planBinding: { mode: 'normalized-plan-id' },
             delegates: { entitlementPlanVersion: 'billingPlanVersion' },
             planVersionFields: {
                 entitlement: { validityWindows: true, endsAt: true },
@@ -255,7 +250,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
             }),
         });
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
-            planBinding: { mode: 'normalized-plan-id', projectKey: 'app' },
+            planBinding: { mode: 'normalized-plan-id' },
             tenantSubscription: { synchronizePlanVersion: true },
         });
 
@@ -273,7 +268,7 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
     test('a failing onboarding callback rolls plan and version back together', async () => {
         const prisma = fakePrisma();
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
-            planBinding: { mode: 'normalized-plan-id', projectKey: 'app' },
+            planBinding: { mode: 'normalized-plan-id' },
             tenantSubscription: {
                 synchronizePlanVersion: true,
                 atomicOnboardingSelection: true,

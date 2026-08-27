@@ -201,8 +201,7 @@ model SubscriptionPaymentMethod {
 // -----------------------------------------------------------------------------
 
 model CheckoutOffer {
-    id         String @id @default(uuid())
-    projectKey String
+    id String @id @default(uuid())
 
     planKey       String
     planVersionId String?
@@ -227,6 +226,6 @@ model CheckoutOffer {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    @@index([projectKey, status])
+    @@index([status])
     @@map("checkout_offers")
 }

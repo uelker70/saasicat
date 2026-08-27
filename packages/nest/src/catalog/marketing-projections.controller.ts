@@ -39,7 +39,6 @@ export function buildMarketingProjectionsController(guards: Array<Type<CanActiva
         @Get()
         list(@Query() query: ListMarketingProjectionsQueryDto) {
             return this.service.list({
-                projectKey: query.projectKey,
                 targetType: query.targetType,
                 targetVersionId: query.targetVersionId,
                 locale: query.locale,

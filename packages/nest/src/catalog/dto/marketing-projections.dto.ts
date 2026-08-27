@@ -16,7 +16,6 @@ import {
 import { Type } from 'class-transformer';
 import { MARKETING_PRIORITY_MAX, MARKETING_PRIORITY_MIN } from '@saasicat/core';
 
-const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const LOCALE_PATTERN = /^[a-z]{2}(-[A-Z]{2})?$/;
 const TARGET_TYPES = ['PLAN', 'BUNDLE'] as const;
 
@@ -39,13 +38,6 @@ export class MarketingTopFeatureDto {
 }
 
 export class CreateMarketingProjectionDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN, {
-        message: 'projectKey must be kebab-case',
-    })
-    @MaxLength(64)
-    projectKey!: string;
-
     @IsString()
     @IsIn(TARGET_TYPES as unknown as string[])
     targetType!: 'PLAN' | 'BUNDLE';
@@ -176,10 +168,6 @@ export class UpdateMarketingProjectionDto {
 }
 
 export class ListMarketingProjectionsQueryDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN)
-    projectKey!: string;
-
     @IsOptional()
     @IsString()
     @IsIn(TARGET_TYPES as unknown as string[])

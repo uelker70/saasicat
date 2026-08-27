@@ -536,24 +536,24 @@ describe('emptyResponse is read off the throw site, not off the class', () => {
         // only wrong in the presence of the fall-through above it.
         const app = createApp({});
         const seams = [
-            ['usePlans.create', () => usePlans(withZero({ projectKey: 'p' })).create({})],
+            ['usePlans.create', () => usePlans(withZero({})).create({})],
             [
                 'usePlanVersions.createDraft',
                 () => usePlanVersions(withZero({ planId: 'pv' })).createDraft({}),
             ],
-            ['useBundles.create', () => useBundles(withZero({ projectKey: 'p' })).create({})],
+            ['useBundles.create', () => useBundles(withZero({})).create({})],
             [
                 'useBundleVersions.createDraft',
                 () => useBundleVersions(withZero({ bundleId: 'b' })).createDraft({}),
             ],
             [
                 'useCatalogEntries.reviewFeature',
-                () => useCatalogEntries(withZero({ projectKey: 'p' })).reviewFeature('f', {}),
+                () => useCatalogEntries(withZero({})).reviewFeature('f', {}),
             ],
-            ['usePromotions.create', () => usePromotions(withZero({ projectKey: 'p' })).create({})],
+            ['usePromotions.create', () => usePromotions(withZero({})).create({})],
             [
                 'useMarketingProjections.create',
-                () => useMarketingProjections(withZero({ filter: { projectKey: 'p' } })).create({}),
+                () => useMarketingProjections(withZero({ filter: {} })).create({}),
             ],
             [
                 'useTenantSubscriptionBundles.add',

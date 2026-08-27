@@ -13,7 +13,8 @@ import {
 
 const VALID_YAML = `
 schemaVersion: 1
-projectKey: demoapp
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19.0
 features:
@@ -35,7 +36,7 @@ plans:
 
 test('loadPlanCatalogFromString accepts valid example', () => {
     const catalog = loadPlanCatalogFromString(VALID_YAML, { source: 'inline-test' });
-    assert.equal(catalog.projectKey, 'demoapp');
+    assert.equal(catalog.app.name, 'Demo App');
     assert.equal(catalog.plans.length, 1);
     assert.equal(catalog.plans[0].id, 'BASIC');
 });
@@ -55,7 +56,8 @@ test('loadPlanCatalogFromString rejects schemaVersion != 1', () => {
 test('loadPlanCatalogFromString rejects missing required fields', () => {
     const yaml = `
 schemaVersion: 1
-projectKey: test-app
+app:
+  name: Demo App
 # currency fehlt
 vatRate: 19
 plans:
@@ -72,7 +74,8 @@ plans:
 test('loadPlanCatalogFromString rejects addons block (#49 — no addon sales)', () => {
     const yaml = `
 schemaVersion: 1
-projectKey: test-app
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19
 plans:
@@ -95,7 +98,8 @@ addons:
 test('cross-field: plan references unknown featureKey → error', () => {
     const yaml = `
 schemaVersion: 1
-projectKey: test-app
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19
 features:
@@ -114,7 +118,8 @@ plans:
 test('cross-field: duplicate plan IDs → error', () => {
     const yaml = `
 schemaVersion: 1
-projectKey: test-app
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19
 plans:
@@ -137,7 +142,8 @@ test('cross-field: plannedOnly:true allows plan reference (roadmap marker)', () 
     // activation protection lives in getActiveFeatureKeys.
     const yaml = `
 schemaVersion: 1
-projectKey: test-app
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19
 features:
@@ -155,7 +161,8 @@ plans:
 test('crossFieldChecks: false skips consistency checks', () => {
     const yaml = `
 schemaVersion: 1
-projectKey: test-app
+app:
+  name: Demo App
 currency: EUR
 vatRate: 19
 features:
@@ -183,7 +190,7 @@ test('loadPlanCatalogFromFile reads YAML file from disk', () => {
     writeFileSync(path, VALID_YAML, 'utf-8');
     try {
         const catalog = loadPlanCatalogFromFile({ path });
-        assert.equal(catalog.projectKey, 'demoapp');
+        assert.equal(catalog.app.name, 'Demo App');
         assert.equal(catalog.plans[0].id, 'BASIC');
     } finally {
         unlinkSync(path);

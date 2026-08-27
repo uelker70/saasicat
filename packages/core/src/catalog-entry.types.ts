@@ -82,7 +82,6 @@ export type CatalogEntryI18n = Record<string, CatalogEntryI18nFields>;
  */
 export interface CapabilityCatalogEntryRow {
     id: string;
-    projectKey: string;
     capabilityKey: string;
     label: string;
     description: string | null;
@@ -130,7 +129,6 @@ export type FeatureTier = 'CORE' | 'ADVANCED' | 'PRO' | 'ENTERPRISE' | string;
  */
 export interface FeatureCatalogEntryRow {
     id: string;
-    projectKey: string;
     featureKey: string;
     label: string;
     description: string | null;
@@ -198,7 +196,6 @@ export interface FeatureCatalogEntryRow {
  */
 export interface QuotaCatalogEntryRow {
     id: string;
-    projectKey: string;
     quotaKey: string;
     label: string;
     description: string | null;
@@ -254,7 +251,6 @@ export interface QuotaCatalogEntryRow {
  * matching field is relevant.
  */
 export interface CatalogEntryFilter {
-    projectKey: string;
     discoveryStatus?: DiscoveryStatus;
     codeStatus?: CapabilityCodeStatus;
 }
@@ -377,7 +373,6 @@ export const MARKETING_PRIORITY_MAX = 10_000;
  */
 export interface MarketingProjectionRow {
     id: string;
-    projectKey: string;
 
     targetType: MarketingTargetType;
     targetVersionId: string;
@@ -438,16 +433,14 @@ export interface MarketingProjectionRow {
 // MarketingProjection service DTOs (Create/Update/Filter)
 // =============================================================================
 
-/** Filter for `MarketingProjectionRepository.list()`. At least projectKey. */
+/** Filter for `MarketingProjectionRepository.list()`. */
 export interface MarketingProjectionFilter {
-    projectKey: string;
     targetType?: MarketingTargetType;
     targetVersionId?: string;
     locale?: string;
 }
 
 export interface CreateMarketingProjectionData {
-    projectKey: string;
     targetType: MarketingTargetType;
     targetVersionId: string;
     locale?: string;

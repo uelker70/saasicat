@@ -123,7 +123,7 @@ pnpm add @saasicat/nest @saasicat/core @saasicat/spec \
 Scaffold the SuperAdmin frontend in one command:
 
 ```bash
-pnpm create saasicat-admin admin --project-key=myapp --brand-name=MyApp
+pnpm create saasicat-admin admin --app-key=myapp --brand-name=MyApp
 ```
 
 Then follow the **[quickstart](docs/quickstart.md)** — from an existing CRUD

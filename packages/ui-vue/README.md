@@ -174,7 +174,7 @@ mount('#app');
 The fastest way to a running admin app is the scaffolder:
 
 ```bash
-pnpm create saasicat-admin admin --project-key=myapp
+pnpm create saasicat-admin admin --app-key=myapp
 ```
 
 See the [quickstart](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md) (step 9) for

@@ -19,7 +19,6 @@ export interface UpsertResult {
 }
 
 export interface UpsertPlanInput {
-    projectKey: string;
     planKey: string;
     label: string;
     description?: string | null;
@@ -41,7 +40,6 @@ export interface UpsertPlanVersionInput {
 }
 
 export interface UpsertFeatureCatalogEntryInput {
-    projectKey: string;
     featureKey: FeatureKey;
     label?: string;
     icon?: string;
@@ -100,5 +98,5 @@ export interface PlanCatalogReadSnapshot {
  * implement it against their Prisma tables.
  */
 export interface PlanCatalogReadSink {
-    loadSnapshot(projectKey: string): Promise<PlanCatalogReadSnapshot>;
+    loadSnapshot(): Promise<PlanCatalogReadSnapshot>;
 }

@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 15 rules, in 11 areas.
+There are 16 rules, in 11 areas.
 
 ## core
 
@@ -24,9 +24,16 @@ The core adapters are missing: mfa, audit, rlsBypass. Bind them through
 
 No plan catalogue is reachable. Either set `planCatalog` (the quickstart YAML
 path) or, for DB hydration, BOTH a `planCatalogReadSink` (via `adapters` or
-`persistence`) AND `dbCatalog` ({ projectKey, currency, vatRate }). Without the
-identity the sink loads with projectKey '' and the app boots with a silently
-empty catalogue.
+`persistence`) AND `dbCatalog` ({ app, currency, vatRate }). Without the
+identity the app boots with a silently empty catalogue.
+
+### catalog.app-is-named
+
+The catalogue names no application. `app.name` is the one place an installation
+names itself — it is the manifest display name, the login-page brand and the
+discovery snapshot key — so an absent one is not a default to fill in: the app
+would boot identified by an empty string. Set `app: { name: … }` in
+config/saas.yaml, or in `dbCatalog` on the DB-hydration path.
 
 ### catalog.requires-persistence
 

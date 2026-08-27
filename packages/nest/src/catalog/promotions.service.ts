@@ -21,8 +21,8 @@ export class PromotionsService {
         private readonly repo: PromotionRepository,
     ) {}
 
-    list(projectKey: string): Promise<PromotionRow[]> {
-        return this.repo.list({ projectKey });
+    list(): Promise<PromotionRow[]> {
+        return this.repo.list();
     }
 
     async getById(id: string): Promise<PromotionRow> {

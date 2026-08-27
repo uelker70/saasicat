@@ -39,7 +39,6 @@ export type PromotionI18n = Record<string, PromotionI18nFields>;
 /** Wire format of a `promotions` row. */
 export interface PromotionRow {
     id: string;
-    projectKey: string;
     /** Internal label (not public). */
     internalLabel: string;
     type: PromotionType;
@@ -66,12 +65,7 @@ export interface PromotionRow {
     updatedAt: string;
 }
 
-export interface PromotionFilter {
-    projectKey: string;
-}
-
 export interface CreatePromotionData {
-    projectKey: string;
     internalLabel: string;
     type: PromotionType;
     value: PromotionValue;

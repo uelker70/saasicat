@@ -32,7 +32,6 @@ import {
 /** DB columns this repository reads from `plans`. */
 interface PlanDbRow {
     id: string;
-    projectKey: string;
     planKey: string;
     label: string;
     description: string | null;
@@ -163,47 +162,18 @@ export class PrismaPlanRepository implements PlanRepository {
         let publishedKeys: string[] | null = null;
         if (filter.onlyPublished) {
             if (this.binding.mode === 'legacy-plan-key') {
-                const projectPlans = await db.plan.findMany({
-                    where: {
-                        projectKey: filter.projectKey,
-                        ...(excludeDeleted ? { deletedAt: null } : {}),
-                    },
-                });
-                const candidateKeys = [...new Set(projectPlans.map((plan) => plan.planKey))];
-                const allMatchingPlans =
-                    candidateKeys.length === 0
-                        ? []
-                        : await db.plan.findMany({
-                              where: { planKey: { in: candidateKeys } },
-                          });
-                const projectsByKey = new Map<string, Set<string>>();
-                for (const plan of allMatchingPlans) {
-                    const projects = projectsByKey.get(plan.planKey) ?? new Set<string>();
-                    projects.add(plan.projectKey);
-                    projectsByKey.set(plan.planKey, projects);
-                }
-                // A soft PlanVersion.planId contains only the planKey. If the
-                // same key exists in more than one project, ownership cannot
-                // be proven and `onlyPublished` must fail closed.
-                const unambiguousKeys = candidateKeys.filter(
-                    (planKey) => projectsByKey.get(planKey)?.size === 1,
-                );
+                // `PlanVersion.planId` holds the plan key, and a key names one
+                // plan for the whole installation — so the live versions say
+                // which keys are published without a lookup on `plans`.
                 const live = await this.versions(db).findMany({
-                    where: {
-                        planId: { in: unambiguousKeys },
-                        publishedAt: { not: null },
-                        supersededAt: null,
-                    },
+                    where: { publishedAt: { not: null }, supersededAt: null },
                 });
                 publishedKeys = [...new Set(live.map((version) => version.planId))];
             } else {
-                const projectPlans = await db.plan.findMany({
-                    where: {
-                        projectKey: filter.projectKey,
-                        ...(excludeDeleted ? { deletedAt: null } : {}),
-                    },
+                const plans = await db.plan.findMany({
+                    where: { ...(excludeDeleted ? { deletedAt: null } : {}) },
                 });
-                const planKeyById = new Map(projectPlans.map((plan) => [plan.id, plan.planKey]));
+                const planKeyById = new Map(plans.map((plan) => [plan.id, plan.planKey]));
                 const live = await this.versions(db).findMany({
                     where: {
                         planId: { in: [...planKeyById.keys()] },
@@ -223,7 +193,6 @@ export class PrismaPlanRepository implements PlanRepository {
         }
         const rows = await db.plan.findMany({
             where: {
-                projectKey: filter.projectKey,
                 ...(excludeDeleted ? { deletedAt: null } : {}),
                 ...(publishedKeys ? { planKey: { in: publishedKeys } } : {}),
             },
@@ -237,17 +206,23 @@ export class PrismaPlanRepository implements PlanRepository {
         return row ? toPlanRow(row) : null;
     }
 
-    async findByKey(projectKey: string, planKey: string): Promise<PlanRow | null> {
-        const row = await this.db().plan.findFirst({
-            where: { projectKey, planKey, deletedAt: null },
-        });
+    /**
+     * Whether this installation already uses this plan key — **including
+     * retired plans**.
+     *
+     * The same reasoning as `PrismaBundleRepository.findByKey`: the unique
+     * index is unconditional, so a soft delete does not free the key, and the
+     * duplicate check in `createPlan` needs the database's answer rather than
+     * the active catalogue's. `list` is that other lookup.
+     */
+    async findByKey(planKey: string): Promise<PlanRow | null> {
+        const row = await this.db().plan.findFirst({ where: { planKey } });
         return row ? toPlanRow(row) : null;
     }
 
     async create(data: CreatePlanData): Promise<PlanRow> {
         const created = await this.db().plan.create({
             data: {
-                projectKey: data.projectKey,
                 planKey: data.planKey,
                 label: data.label,
                 description: data.description ?? null,

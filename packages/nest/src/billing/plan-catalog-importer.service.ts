@@ -9,7 +9,7 @@
 //  - `plans[]`    → `Plan` (master) + `PlanVersion` v1 (published)
 //  - `features[]` → `FeatureCatalogEntry`
 //
-// App-global settings (`projectKey`, `currency`, `vatRate`)
+// App-global settings (app identity, `currency`, `vatRate`)
 // are NOT imported — they stay as static `forRoot()` options
 // in the AppModule (build-time identity, does not belong in the runtime DB).
 
@@ -61,7 +61,6 @@ export class PlanCatalogImporterService {
         // ─── Features ───
         for (const feature of catalog.features ?? []) {
             const result = await this.sink.upsertFeatureCatalogEntry({
-                projectKey: catalog.projectKey,
                 featureKey: feature.key,
                 label: feature.label,
                 icon: feature.icon,
@@ -75,7 +74,6 @@ export class PlanCatalogImporterService {
         // ─── Plans + first PlanVersion v1 ───
         for (const plan of catalog.plans ?? []) {
             const planResult = await this.sink.upsertPlan({
-                projectKey: catalog.projectKey,
                 planKey: plan.id,
                 label: plan.name ?? plan.id,
                 description: plan.tagline ?? null,

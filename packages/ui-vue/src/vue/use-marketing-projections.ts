@@ -65,10 +65,6 @@ export function useMarketingProjections(
     if (!options?.adminEndpoint) {
         throw new Error('useMarketingProjections: `adminEndpoint` is required.');
     }
-    if (!options?.filter?.projectKey) {
-        throw new Error('useMarketingProjections: `filter.projectKey` is required.');
-    }
-
     const http = options.http ?? defaultHttpClient();
     const projections = ref<MarketingProjectionRow[]>([]);
     const filter = ref<MarketingProjectionFilter>({ ...options.filter });
@@ -83,12 +79,15 @@ export function useMarketingProjections(
 
     function buildListUrl(): string {
         const params = new URLSearchParams();
-        params.set('projectKey', filter.value.projectKey);
         if (filter.value.targetType) params.set('targetType', filter.value.targetType);
         if (filter.value.targetVersionId)
             params.set('targetVersionId', filter.value.targetVersionId);
         if (filter.value.locale) params.set('locale', filter.value.locale);
-        return `${baseUrl}?${params.toString()}`;
+        // An unfiltered list is the ordinary case now that the project is not
+        // a filter part, and `${baseUrl}?` is a different URL to `${baseUrl}`
+        // for anything that caches or logs one.
+        const query = params.toString();
+        return query ? `${baseUrl}?${query}` : baseUrl;
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {

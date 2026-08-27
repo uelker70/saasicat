@@ -13,7 +13,6 @@ import { provideStubResources } from './support/stub-resources.js';
 
 const FEATURE = {
     id: 'f-1',
-    projectKey: 'notesapp',
     featureKey: 'EXPORT',
     label: 'Export',
     description: null,

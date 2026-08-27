@@ -13,32 +13,25 @@ function promotionsUrl(ctx: ResourceContext): string {
     return `${ctx.apiBase}/catalog/promotions`;
 }
 
-export const promotionsResource = defineResource(
-    'promotions',
-    {
-        list: async (http, ctx): Promise<PromotionRow[]> =>
-            (await requestJson<PromotionRow[]>(
-                http,
-                `${promotionsUrl(ctx)}?projectKey=${encodeURIComponent(ctx.projectKey)}`,
-            )) ?? [],
+export const promotionsResource = defineResource('promotions', {
+    list: async (http, ctx): Promise<PromotionRow[]> =>
+        (await requestJson<PromotionRow[]>(http, promotionsUrl(ctx))) ?? [],
 
-        create: (http, ctx, data: CreatePromotionData): Promise<PromotionRow> =>
-            requestJsonBody<PromotionRow>(http, promotionsUrl(ctx), 'Create returned no body', {
-                method: 'POST',
-                body: data,
-            }),
+    create: (http, ctx, data: CreatePromotionData): Promise<PromotionRow> =>
+        requestJsonBody<PromotionRow>(http, promotionsUrl(ctx), 'Create returned no body', {
+            method: 'POST',
+            body: data,
+        }),
 
-        update: (http, ctx, id: string, data: UpdatePromotionData): Promise<PromotionRow> =>
-            requestJsonBody<PromotionRow>(
-                http,
-                `${promotionsUrl(ctx)}/${id}`,
-                'Update returned no body',
-                { method: 'PATCH', body: data },
-            ),
+    update: (http, ctx, id: string, data: UpdatePromotionData): Promise<PromotionRow> =>
+        requestJsonBody<PromotionRow>(
+            http,
+            `${promotionsUrl(ctx)}/${id}`,
+            'Update returned no body',
+            { method: 'PATCH', body: data },
+        ),
 
-        remove: async (http, ctx, id: string): Promise<void> => {
-            await requestJson(http, `${promotionsUrl(ctx)}/${id}`, { method: 'DELETE' });
-        },
+    remove: async (http, ctx, id: string): Promise<void> => {
+        await requestJson(http, `${promotionsUrl(ctx)}/${id}`, { method: 'DELETE' });
     },
-    { projectScoped: true },
-);
+});

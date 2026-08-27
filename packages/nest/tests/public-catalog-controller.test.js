@@ -10,7 +10,7 @@ import { FakeBundleRepository } from '../dist/testing/index.js';
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demo',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     features: [
@@ -118,8 +118,8 @@ test('listFeatureRegistry overlays the DB icon over the static registry icon (#1
         MEMBERS: { label: 'Mitglieder', description: 'd', icon: 'groups' },
         SEPA: { label: 'SEPA', description: 'd', icon: 'account_balance' },
     };
-    // Constructor args: catalog, registry, projectKey, marketingRepo, bundleRepo, catalogEntryRepo
-    const ctrl = new PublicCatalogController(CATALOG, baseReg, 'clubapp', null, null, fakeRepo);
+    // Constructor args: catalog, registry, marketingRepo, bundleRepo, catalogEntryRepo
+    const ctrl = new PublicCatalogController(CATALOG, baseReg, null, null, fakeRepo);
     const reg = await ctrl.listFeatureRegistry();
     assert.equal(reg.MEMBERS.icon, 'mdi-account-group'); // DB icon wins
     assert.equal(reg.MEMBERS.label, 'Mitglieder'); // label stays from registry
@@ -132,7 +132,6 @@ test('listFeatureRegistry overlays the DB icon over the static registry icon (#1
 // bundle's own features) from the FeatureCatalogEntries.
 async function createLiveBundle(bundleRepo, { bundleKey, features }) {
     const bundle = await bundleRepo.create({
-        projectKey: 'clubapp',
         bundleKey,
         label: bundleKey,
     });
@@ -172,14 +171,7 @@ test('listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)'
             ];
         },
     };
-    const ctrl = new PublicCatalogController(
-        CATALOG,
-        REGISTRY,
-        'clubapp',
-        null,
-        bundleRepo,
-        catalogEntryRepo,
-    );
+    const ctrl = new PublicCatalogController(CATALOG, REGISTRY, null, bundleRepo, catalogEntryRepo);
 
     const bundles = await ctrl.listBundles();
     const turniere = bundles.find((b) => b.bundleKey === 'TURNIERE');
@@ -194,7 +186,7 @@ test('listBundles without a CatalogEntry repo: requiresFeatures stays empty (gra
         bundleKey: 'TURNIERE',
         features: ['TOURNAMENT_MANAGEMENT'],
     });
-    const ctrl = new PublicCatalogController(CATALOG, REGISTRY, 'clubapp', null, bundleRepo);
+    const ctrl = new PublicCatalogController(CATALOG, REGISTRY, null, bundleRepo);
 
     const bundles = await ctrl.listBundles();
     assert.deepEqual(bundles[0].requiresFeatures, []);

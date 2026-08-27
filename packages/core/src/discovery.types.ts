@@ -106,7 +106,7 @@ export interface DiscoverySnapshot {
     /** ISO timestamp of the boot-time scan. */
     scannedAt: string;
     app: {
-        /** projectKey, same concept as in the catalog tables. */
+        /** The application's name, from `saas.yaml#app.name`. */
         key: string;
         /** Backend version, e.g. from package.json. */
         version: string;

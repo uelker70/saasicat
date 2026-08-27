@@ -109,7 +109,6 @@ async function setupService({
         marketedOnlyFeatures,
     });
     const plan = await stem.createPlan({
-        projectKey: PROJECT,
         planKey: 'STARTER',
         label: 'Starter',
     });
@@ -257,7 +256,6 @@ describe('PlanVersionsService — strict mode integration', () => {
             },
         );
         const plan = await stem.createPlan({
-            projectKey: PROJECT,
             planKey: 'STARTER',
             label: 'Starter',
         });
@@ -305,7 +303,7 @@ describe('PlanVersionsService — strict mode integration', () => {
         // draft already has drift. For that we place the draft directly into a
         // separate blocking repo and publish through it.
         const blockingRepo = new FakePlanRepository();
-        await blockingRepo.create({ projectKey: PROJECT, planKey: 'STARTER', label: 'X' });
+        await blockingRepo.create({ planKey: 'STARTER', label: 'X' });
         blockingRepo.seedVersion({
             ...draft.planVersion,
             planId: 'STARTER', // matches FakePlanRepository convention

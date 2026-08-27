@@ -24,12 +24,11 @@ export class DrizzlePlanCatalogImportSink implements PlanCatalogImportSink {
         const existing = await this.db
             .select({ id: plans.id })
             .from(plans)
-            .where(and(eq(plans.projectKey, input.projectKey), eq(plans.planKey, input.planKey)))
+            .where(eq(plans.planKey, input.planKey))
             .limit(1);
         if (existing[0]) return { created: false, skipReason: 'exists' };
         await this.db.insert(plans).values({
             id: randomUUID(),
-            projectKey: input.projectKey,
             planKey: input.planKey,
             label: input.label,
             description: input.description ?? null,
@@ -88,17 +87,11 @@ export class DrizzlePlanCatalogImportSink implements PlanCatalogImportSink {
         const existing = await this.db
             .select({ id: featureCatalogEntries.id })
             .from(featureCatalogEntries)
-            .where(
-                and(
-                    eq(featureCatalogEntries.projectKey, input.projectKey),
-                    eq(featureCatalogEntries.featureKey, input.featureKey),
-                ),
-            )
+            .where(and(eq(featureCatalogEntries.featureKey, input.featureKey)))
             .limit(1);
         if (existing[0]) return { created: false, skipReason: 'exists' };
         await this.db.insert(featureCatalogEntries).values({
             id: randomUUID(),
-            projectKey: input.projectKey,
             featureKey: input.featureKey,
             label: input.label ?? input.featureKey,
             icon: input.icon ?? null,

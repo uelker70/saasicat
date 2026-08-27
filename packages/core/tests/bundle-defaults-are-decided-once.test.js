@@ -81,7 +81,7 @@ describe('what a new draft starts from', () => {
 });
 
 describe('what a new bundle stem starts from', () => {
-    const minimal = { projectKey: 'app', bundleKey: 'REPORTING', label: 'Reporting' };
+    const minimal = { bundleKey: 'REPORTING', label: 'Reporting' };
 
     test('an omitted description or icon is null, not an empty string', () => {
         const d = bundleStemDefaults(minimal);
@@ -101,7 +101,6 @@ describe('what a new bundle stem starts from', () => {
 
     test('the identity fields are carried straight over', () => {
         const d = bundleStemDefaults(minimal);
-        assert.equal(d.projectKey, 'app');
         assert.equal(d.bundleKey, 'REPORTING');
         assert.equal(d.label, 'Reporting');
     });
@@ -110,7 +109,6 @@ describe('what a new bundle stem starts from', () => {
 describe('reading a stored stem back', () => {
     const stored = {
         id: 'b-1',
-        projectKey: 'app',
         bundleKey: 'REPORTING',
         label: 'Reporting',
         description: null,

@@ -17,7 +17,6 @@ import { FakeBundleRepository, FakeSubscriptionBundleRepository } from '../dist/
 // commitment nobody had asked for — until 2027-08-27, which for a yearly add-on
 // is 35 days *after* the bundle's own last period ends.
 
-const PROJECT = 'clubapp';
 const STARTER = 'STARTER';
 const SUB = 'sub-a';
 
@@ -36,7 +35,7 @@ beforeEach(() => {
 });
 
 async function publishedBundle(key) {
-    const bundle = await bundleRepo.create({ projectKey: PROJECT, bundleKey: key, label: key });
+    const bundle = await bundleRepo.create({ bundleKey: key, label: key });
     const draft = await bundleRepo.createDraft({
         bundleId: bundle.id,
         features: ['F'],

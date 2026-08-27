@@ -257,7 +257,6 @@ interface Form {
 
 const props = withDefaults(
     defineProps<{
-        projectKey: string;
         availableFeatures: DiscoveredFeature[];
         availableQuotas: DiscoveredQuota[];
         plans: PlanRow[];
@@ -455,7 +454,6 @@ async function submit(): Promise<void> {
     submitError.value = null;
     try {
         const bundle = await props.create({
-            projectKey: props.projectKey,
             bundleKey: form.bundleKey,
             label: form.label,
             description: form.description || undefined,

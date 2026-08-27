@@ -71,7 +71,6 @@ export type CheckoutOfferStatus = 'open' | 'consumed' | 'expired';
 /** Wire format of a `checkout_offers` row. */
 export interface CheckoutOfferRow {
     id: string;
-    projectKey: string;
 
     /** Plan selected on the website. */
     planKey: string;
@@ -109,13 +108,11 @@ export interface CheckoutOfferRow {
 }
 
 export interface CheckoutOfferFilter {
-    projectKey: string;
     status?: CheckoutOfferStatus;
 }
 
 /** Body of `POST /public/checkout-offer` — called from the website. */
 export interface CreateCheckoutOfferData {
-    projectKey: string;
     planKey: string;
     planVersionId?: string | null;
     billingCycle: 'monthly' | 'yearly';

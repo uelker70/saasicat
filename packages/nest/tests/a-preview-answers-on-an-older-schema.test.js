@@ -21,7 +21,6 @@ import { FakeBundleRepository, FakeSubscriptionBundleRepository } from '../dist/
 // answer. What this file pins is the platform half: the preview has to survive
 // a repository that does not offer it.
 
-const PROJECT = 'clubapp';
 const NOW = new Date('2026-05-17T00:00:00Z');
 
 const CTX = {
@@ -79,7 +78,6 @@ function plansThatThrow() {
 
 async function publishedBundle(features) {
     const bundle = await bundleRepo.create({
-        projectKey: PROJECT,
         bundleKey: 'ANALYTICS',
         label: 'Analytics',
     });

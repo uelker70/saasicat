@@ -39,8 +39,6 @@ import { openDisposableDatabase } from './support/disposable-database.mjs';
 
 const { pool, db } = await openDisposableDatabase();
 
-const PROJECT_KEY = 'adapter-drizzle-contract';
-
 const PLATFORM_TABLES = [
     'promo_code_redemptions',
     'promo_code_validation_logs',
@@ -85,7 +83,6 @@ function createHarness() {
                 const bundleId = randomUUID();
                 await db.insert(saasicatSchema.bundles).values({
                     id: bundleId,
-                    projectKey: PROJECT_KEY,
                     bundleKey: input.bundleKey,
                     label: input.bundleKey,
                     sortOrder: 0,
@@ -172,7 +169,6 @@ function createHarness() {
 
 persistenceAdapterContract({
     name: 'adapter-drizzle @ postgres (canonical reference schema)',
-    projectKey: PROJECT_KEY,
     create: async () => createHarness(),
 });
 

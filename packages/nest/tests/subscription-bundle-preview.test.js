@@ -12,7 +12,6 @@ import {
 // proration (shared computeProration helper), redundancy hint
 // (sakarel AK-13), requires dependency check (#35) and self-service policy.
 
-const PROJECT = 'clubapp';
 const SUB_A = 'sub-a';
 const NOW = new Date('2026-05-17T00:00:00Z');
 
@@ -95,7 +94,7 @@ async function createPublishedBundle({
     pricingOverrides = [],
     planIds,
 } = {}) {
-    const bundle = await bundleRepo.create({ projectKey: PROJECT, bundleKey: key, label: key });
+    const bundle = await bundleRepo.create({ bundleKey: key, label: key });
     const draft = await bundleRepo.createDraft({
         bundleId: bundle.id,
         features,

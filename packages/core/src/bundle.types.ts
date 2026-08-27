@@ -56,7 +56,6 @@ export interface BundlePricingOverride {
  */
 export interface BundleRow {
     id: string;
-    projectKey: string;
     bundleKey: string;
     label: string;
     description: string | null;
@@ -101,7 +100,6 @@ export interface BundleVersionRow extends VersionedEntityBase {
  * first BundleVersion via `CreateBundleVersionDraftData`.
  */
 export interface CreateBundleData {
-    projectKey: string;
     bundleKey: string;
     label: string;
     description?: string | null;
@@ -111,9 +109,9 @@ export interface CreateBundleData {
 }
 
 /**
- * Fields that may be changed on the bundle master. `bundleKey` and
- * `projectKey` are intentionally not here — master identity is immutable;
- * whoever wants to change them creates a new bundle and retires the old one.
+ * Fields that may be changed on the bundle master. `bundleKey` is
+ * intentionally not here — master identity is immutable; whoever wants to
+ * change it creates a new bundle and retires the old one.
  */
 export interface UpdateBundleData {
     label?: string;

@@ -478,7 +478,7 @@ describe('a change scheduled before the customer cancelled', () => {
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'demo',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     plans: [

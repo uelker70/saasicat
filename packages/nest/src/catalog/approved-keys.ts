@@ -8,12 +8,11 @@ import type { ApprovedCatalogKeys, CatalogEntryRepository } from '@saasicat/core
 
 export async function loadApprovedCatalogKeys(
     repo: CatalogEntryRepository | null,
-    projectKey: string,
 ): Promise<ApprovedCatalogKeys | null> {
     if (!repo) return null;
     const [features, quotas] = await Promise.all([
-        repo.listFeatures({ projectKey, discoveryStatus: 'approved' }),
-        repo.listQuotas({ projectKey, discoveryStatus: 'approved' }),
+        repo.listFeatures({ discoveryStatus: 'approved' }),
+        repo.listQuotas({ discoveryStatus: 'approved' }),
     ]);
     return {
         features: new Set(features.map((f) => f.featureKey)),

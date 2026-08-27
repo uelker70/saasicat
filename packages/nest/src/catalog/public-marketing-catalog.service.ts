@@ -82,7 +82,6 @@ export class PublicMarketingCatalogService {
     ) {}
 
     async getCatalog(
-        projectKey: string,
         locale: string,
         currency: string,
         vatRate: number,
@@ -96,7 +95,6 @@ export class PublicMarketingCatalogService {
         const findLatest = this.planRepo.findLatestLivePlanVersion?.bind(this.planRepo);
         if (!findActive && !findLatest) {
             return {
-                projectKey,
                 locale,
                 currency,
                 vatRate,
@@ -110,10 +108,10 @@ export class PublicMarketingCatalogService {
             : (planKey: string) => findLatest!(planKey);
 
         const [plans, promotions, labelMeta, marketedBundles] = await Promise.all([
-            this.planRepo.list({ projectKey }),
-            this.promotionRepo.list({ projectKey }),
-            this.loadLabelMeta(projectKey, locale),
-            this.loadMarketedBundles(projectKey),
+            this.planRepo.list({}),
+            this.promotionRepo.list(),
+            this.loadLabelMeta(locale),
+            this.loadMarketedBundles(),
         ]);
         const out: PublicMarketingPlan[] = [];
 
@@ -179,7 +177,6 @@ export class PublicMarketingCatalogService {
             )
         ).filter((bundle): bundle is PublicMarketingBundle => bundle !== null);
         return {
-            projectKey,
             locale,
             currency,
             vatRate,
@@ -190,14 +187,14 @@ export class PublicMarketingCatalogService {
     }
 
     /**
-     * Loads all published-and-live bundle versions for a project and
-     * filters on `marketed === true`. Without a registered
-     * `BundleRepository` (apps without the SuperAdmin bundle editor) the
-     * list is empty — the public catalog stays plan-only.
+     * Loads all published-and-live bundle versions and filters on
+     * `marketed === true`. Without a registered `BundleRepository` (apps
+     * without the SuperAdmin bundle editor) the list is empty — the public
+     * catalog stays plan-only.
      */
-    private async loadMarketedBundles(projectKey: string): Promise<BundleVersionRow[]> {
+    private async loadMarketedBundles(): Promise<BundleVersionRow[]> {
         if (!this.bundleRepo) return [];
-        const bundles = await this.bundleRepo.list({ projectKey, excludeDeleted: true });
+        const bundles = await this.bundleRepo.list({ excludeDeleted: true });
         const out: BundleVersionRow[] = [];
         for (const bundle of bundles) {
             const live = await this.bundleRepo.findLatestLive(bundle.id);
@@ -282,14 +279,14 @@ export class PublicMarketingCatalogService {
     }
 
     /** Loads the translated feature/quota labels (+ sortOrder) for a locale. */
-    private async loadLabelMeta(projectKey: string, locale: string): Promise<LabelMeta> {
+    private async loadLabelMeta(locale: string): Promise<LabelMeta> {
         const features = new Map<string, FeatureMeta>();
         const quotas = new Map<string, QuotaMeta>();
         if (!this.catalogEntryRepo) return { features, quotas };
 
         const [featureRows, quotaRows] = await Promise.all([
-            this.catalogEntryRepo.listFeatures({ projectKey }),
-            this.catalogEntryRepo.listQuotas({ projectKey }),
+            this.catalogEntryRepo.listFeatures({}),
+            this.catalogEntryRepo.listQuotas({}),
         ]);
         for (const f of featureRows) {
             features.set(f.featureKey, {

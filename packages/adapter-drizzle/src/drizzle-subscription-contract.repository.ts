@@ -45,9 +45,6 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
             .from(subscriptionContracts)
             .where(
                 and(
-                    ...(filter.projectKey
-                        ? [eq(subscriptionContracts.projectKey, filter.projectKey)]
-                        : []),
                     ...(filter.tenantId
                         ? [eq(subscriptionContracts.tenantId, filter.tenantId)]
                         : []),
@@ -112,7 +109,6 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                 .insert(subscriptionContracts)
                 .values({
                     id: contractId,
-                    projectKey: data.projectKey,
                     tenantId: data.tenantId,
                     status: data.status ?? 'active',
                     effectiveFrom: data.effectiveFrom,

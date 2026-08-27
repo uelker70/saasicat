@@ -42,7 +42,6 @@ const provide = {
 function promotion(id: string, internalLabel: string): PromotionRow {
     return {
         id,
-        projectKey: 'fixture',
         internalLabel,
         type: 'percent',
         value: 10,
@@ -70,7 +69,6 @@ describe('a promotion row opens its editor', () => {
                 promotions: [promotion('p-1', 'Spring sale'), promotion('p-2', 'Launch offer')],
                 plans: [],
                 activeLocales: ['en'],
-                projectKey: 'fixture',
                 create: async () => promotion('p-3', 'New'),
                 update: async () => promotion('p-1', 'Spring sale'),
                 remove: async () => {},
@@ -209,7 +207,6 @@ describe('the promotions tab is a reactive form, not a snapshot', () => {
                 promotions: [promotion('p-1', 'Spring sale')],
                 plans: [],
                 activeLocales: ['en'],
-                projectKey: 'fixture',
                 create: async () => promotion('p-2', 'New'),
                 update: async (id: string, data: Record<string, unknown>) => {
                     calls.push([id, data]);
@@ -244,7 +241,6 @@ describe('a marketing row opens its editor from anywhere but its fields', () => 
     // alone" sit inside the same element.
     const plan = {
         id: 'plan-1',
-        projectKey: 'fixture',
         planKey: 'PRO',
         label: 'Pro',
         description: null,

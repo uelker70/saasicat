@@ -5,7 +5,13 @@
 // and the manifest is not a configuration anyone asked for.
 
 import type { DynamicModule } from '@nestjs/common';
-import type { AuditPort, MfaPort, PlanCatalogReadSink, RlsBypassPort } from '@saasicat/core';
+import type {
+    AuditPort,
+    MfaPort,
+    PlanCatalog,
+    PlanCatalogReadSink,
+    RlsBypassPort,
+} from '@saasicat/core';
 
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
 import { AdminModule } from '../../admin/admin.module.js';
@@ -23,18 +29,21 @@ const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
 /**
  * Who this application is, for discovery and the public catalogue.
  *
- * Falls back through both catalogue paths before `'app'`, so an app that
- * hydrates from the database is still identified by its project key rather
- * than by a placeholder that would collide with every other one.
+ * `app.name` is the only place an installation names itself, and both
+ * catalogue paths require it — so there is nothing to fall back to and no
+ * placeholder that would collide with every other installation's.
  */
 export function resolveAppInfo(options: SaaSiCatModuleOptions): DiscoveryAppInfo {
-    return (
-        options.app ?? {
-            key: options.planCatalog?.projectKey ?? options.dbCatalog?.projectKey ?? 'app',
-            version:
-                options.planCatalog?.app?.version ?? options.dbCatalog?.app?.version ?? '0.0.0',
-        }
-    );
+    if (options.app) return options.app;
+    // Non-null here: `assertConfiguration` runs before this, and two of its
+    // rules together guarantee it — `catalog.identity-or-sink` refuses a
+    // configuration with neither catalogue, `catalog.app-is-named` refuses one
+    // whose catalogue names no application. Deliberately not `?? ''`: an empty
+    // key would reach the discovery snapshot and the manifest with nothing
+    // saying the identity was missing, which is the failure mode the old
+    // `'app'` placeholder existed to avoid.
+    const app = (options.planCatalog?.app ?? options.dbCatalog?.app) as PlanCatalog['app'];
+    return { key: app.name, version: app.version ?? '0.0.0' };
 }
 
 /**
@@ -54,7 +63,6 @@ export function composePlanCatalog(
     // configuration that reaches here without it.
     const dbCatalog = options.dbCatalog as NonNullable<SaaSiCatModuleOptions['dbCatalog']>;
     return PlanCatalogModule.forRoot({
-        projectKey: dbCatalog.projectKey,
         app: dbCatalog.app,
         currency: dbCatalog.currency,
         vatRate: dbCatalog.vatRate,

@@ -91,7 +91,7 @@ export interface StandardPageDef {
 }
 
 export interface ProjectPageDef {
-    /** `<projectKey>.<area>`, e.g. `demoapp.datev`. */
+    /** `<app>.<area>`, e.g. `demoapp.datev`. */
     id: string;
     label: string;
     icon?: string;
@@ -129,7 +129,7 @@ export interface TenantColumnDef {
 }
 
 export interface TenantActionDef {
-    /** `<projectKey>.<area>.<verb>`, e.g. `demoapp.datev.runExport`. */
+    /** `<app>.<area>.<verb>`, e.g. `demoapp.datev.runExport`. */
     id: string;
     label: string;
     /** Lookup in the static actions: map of the shell build. */

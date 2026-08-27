@@ -1391,10 +1391,8 @@ components:
         # ────────── Catalog V2 (DTO = SSOT: packages/nest/src/catalog/dto/*) ──────────
         CatalogPlanCreate:
             type: object
-            required: [projectKey, planKey, label]
+            required: [planKey, label]
             properties:
-                projectKey:
-                    { type: string, pattern: '^[a-z][a-z0-9-]*$', description: 'kebab-case' }
                 planKey:
                     {
                         type: string,
@@ -1435,9 +1433,8 @@ components:
 
         CatalogBundleCreate:
             type: object
-            required: [projectKey, bundleKey, label]
+            required: [bundleKey, label]
             properties:
-                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
                 bundleKey: { type: string, pattern: '^[A-Z][A-Z0-9_]*$', description: 'no hyphen' }
                 label: { type: string, minLength: 1, maxLength: 120 }
                 description: { type: string, maxLength: 2000 }
@@ -1495,9 +1492,8 @@ components:
 
         CatalogMarketingProjectionCreate:
             type: object
-            required: [projectKey, targetType, targetVersionId, displayLabel, description]
+            required: [targetType, targetVersionId, displayLabel, description]
             properties:
-                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
                 targetType: { type: string, enum: [PLAN, BUNDLE] }
                 targetVersionId: { type: string }
                 locale: { type: string, pattern: '^[a-z]{2}(-[A-Z]{2})?$', default: de }
@@ -1613,9 +1609,8 @@ components:
 
         CatalogMarketingSettingsUpdate:
             type: object
-            required: [projectKey, activeLocales]
+            required: [activeLocales]
             properties:
-                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
                 activeLocales:
                     type: array
                     uniqueItems: true
@@ -1623,9 +1618,8 @@ components:
 
         CatalogPromotionCreate:
             type: object
-            required: [projectKey, internalLabel, type, value, validFrom, validTo]
+            required: [internalLabel, type, value, validFrom, validTo]
             properties:
-                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
                 internalLabel: { type: string, maxLength: 120 }
                 type: { type: string, enum: [percent, amount, intro, freeMonths] }
                 value:
@@ -1698,10 +1692,15 @@ components:
         # ────────── Plan-Catalog (mirror of plans.yaml) ──────────
         PlanCatalog:
             type: object
-            required: [schemaVersion, projectKey, currency, vatRate, plans]
+            required: [schemaVersion, app, currency, vatRate, plans]
             properties:
                 schemaVersion: { type: integer, const: 1 }
-                projectKey: { type: string, description: 'Project key of the app (kebab-case)' }
+                app:
+                    type: object
+                    required: [name]
+                    description: 'App identity — the only place the application is named'
+                    properties:
+                        name: { type: string, minLength: 1 }
                 currency: { type: string, pattern: '^[A-Z]{3}$' }
                 vatRate: { type: number, format: decimal, description: 'in percent' }
                 features:

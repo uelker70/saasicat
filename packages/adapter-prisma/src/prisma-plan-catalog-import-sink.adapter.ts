@@ -63,23 +63,11 @@ export class PrismaPlanCatalogImportSink implements PlanCatalogImportSink {
     }
 
     async upsertPlan(input: UpsertPlanInput): Promise<UpsertResult> {
-        if (
-            this.binding.mode === 'normalized-plan-id' &&
-            this.binding.projectKey !== input.projectKey
-        ) {
-            throw new Error(
-                `Prisma plan binding is configured for project '${this.binding.projectKey}', ` +
-                    `not '${input.projectKey}'.`,
-            );
-        }
         const db = this.db();
-        const existing = await db.plan.findFirst({
-            where: { projectKey: input.projectKey, planKey: input.planKey },
-        });
+        const existing = await db.plan.findFirst({ where: { planKey: input.planKey } });
         if (existing) return { created: false, skipReason: 'exists' };
         await db.plan.create({
             data: {
-                projectKey: input.projectKey,
                 planKey: input.planKey,
                 label: input.label,
                 description: input.description ?? null,
@@ -134,12 +122,11 @@ export class PrismaPlanCatalogImportSink implements PlanCatalogImportSink {
     async upsertFeatureCatalogEntry(input: UpsertFeatureCatalogEntryInput): Promise<UpsertResult> {
         const db = this.db();
         const existing = await db.featureCatalogEntry.findFirst({
-            where: { projectKey: input.projectKey, featureKey: input.featureKey },
+            where: { featureKey: input.featureKey },
         });
         if (existing) return { created: false, skipReason: 'exists' };
         await db.featureCatalogEntry.create({
             data: {
-                projectKey: input.projectKey,
                 featureKey: input.featureKey,
                 label: input.label ?? input.featureKey,
                 icon: input.icon ?? null,

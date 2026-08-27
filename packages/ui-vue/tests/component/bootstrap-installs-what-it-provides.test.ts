@@ -68,7 +68,7 @@ describe('the resource registry is installed only with a real client', () => {
         return createSuperAdminApp({
             rootComponent: Root,
             brand: { name: 'Fixture', logoText: 'FX' },
-            endpoints: { apiBase: '/api/v1/admin', projectKey: 'demo' },
+            endpoints: { apiBase: '/api/v1/admin' },
             appRoutes: [{ path: '/:pathMatch(.*)*', component: Root }],
             theme: { persist: false },
             ...extra,

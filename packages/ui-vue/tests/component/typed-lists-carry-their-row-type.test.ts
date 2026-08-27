@@ -22,7 +22,7 @@ import {
 } from '../../src/index.js';
 import type { HttpClient } from '../../src/client/types.js';
 
-const CTX = { apiBase: '/api/v1/admin', projectKey: 'demo', locale: 'en' };
+const CTX = { apiBase: '/api/v1/admin', locale: 'en' };
 
 const oneTenant: HttpClient = () =>
     Promise.resolve({

@@ -4,7 +4,7 @@ import { PromoCodesService } from '../dist/promo/index.js';
 
 const TEST_CATALOG = {
     schemaVersion: 1,
-    projectKey: 'test',
+    app: { name: 'Test App' },
     currency: 'EUR',
     vatRate: 19,
     features: [],

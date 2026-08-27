@@ -38,8 +38,7 @@ export interface PlatformLoaders {
  * Fills in what an app left out.
  *
  * Exported because the bootstrap needs the same answer, and two copies of a
- * default are two places for it to drift — which is how `projectKey` was
- * added to one of them and not the other.
+ * default are two places for it to drift.
  */
 export function resolveSuperAdminEndpoints(
     endpoints: SuperAdminEndpoints,
@@ -48,7 +47,6 @@ export function resolveSuperAdminEndpoints(
         apiBase: endpoints.apiBase,
         publicBootEndpoint: endpoints.publicBootEndpoint ?? `${endpoints.apiBase}/boot`,
         manifestEndpoint: endpoints.manifestEndpoint ?? `${endpoints.apiBase}/manifest`,
-        projectKey: endpoints.projectKey ?? '',
     };
 }
 

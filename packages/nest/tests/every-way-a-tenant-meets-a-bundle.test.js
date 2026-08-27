@@ -24,7 +24,6 @@ import { FakeBundleRepository } from '../dist/testing/index.js';
 // Every step has its negative beside it. A rule that only ever sees inputs it
 // accepts is not a rule that has been tested.
 
-const PROJECT = 'clubapp';
 const at = (s) => new Date(`${s}T00:00:00.000Z`);
 const iso = (d) => (d === null ? null : d.toISOString().slice(0, 10));
 
@@ -68,7 +67,6 @@ function withPlans(plans) {
 
 async function draft(fields) {
     const bundle = await catalog.createBundle({
-        projectKey: PROJECT,
         bundleKey: `B${Math.abs(JSON.stringify(fields).length)}`,
         label: 'Reporting',
     });
@@ -235,7 +233,6 @@ describe('a key an operator has retired', () => {
 
     test('creating the same key again is refused, with the code that says why', async () => {
         const bundle = await catalog.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'REPORTING',
             label: 'Reporting',
         });
@@ -244,7 +241,6 @@ describe('a key an operator has retired', () => {
         await assert.rejects(
             () =>
                 catalog.createBundle({
-                    projectKey: PROJECT,
                     bundleKey: 'REPORTING',
                     label: 'Reporting, again',
                 }),
@@ -257,34 +253,16 @@ describe('a key an operator has retired', () => {
 
     test('a key nobody used is still free', async () => {
         const bundle = await catalog.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'REPORTING',
             label: 'Reporting',
         });
         await bundleRepo.softDelete(bundle.id);
 
         const other = await catalog.createBundle({
-            projectKey: PROJECT,
             bundleKey: 'ANALYTICS',
             label: 'Analytics',
         });
         assert.ok(other.id);
-    });
-
-    test('and the same key in another project is another key', async () => {
-        const bundle = await catalog.createBundle({
-            projectKey: PROJECT,
-            bundleKey: 'REPORTING',
-            label: 'Reporting',
-        });
-        await bundleRepo.softDelete(bundle.id);
-
-        const elsewhere = await catalog.createBundle({
-            projectKey: 'another-app',
-            bundleKey: 'REPORTING',
-            label: 'Reporting',
-        });
-        assert.ok(elsewhere.id);
     });
 });
 

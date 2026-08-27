@@ -114,11 +114,10 @@ export interface SubscriptionRepository {
 
     /**
      * Counts active subscriptions (status `ACTIVE` or `TRIAL`) per plan key,
-     * platform-wide across all tenants of the project — feeds the tenant
-     * column of the SuperAdmin plan list (`GET /admin/catalog/plans/tenant-counts`).
+     * platform-wide across every tenant — feeds the tenant column of the
+     * SuperAdmin plan list (`GET /admin/catalog/plans/tenant-counts`).
      * Cross-version: counts the plan, not a single PlanVersion
-     * (subscriptions on superseded versions are included). `projectKey` is
-     * informational for single-project consumers.
+     * (subscriptions on superseded versions are included).
      *
      * Returns a map `planKey → count`; plans without an active subscription
      * are missing (UI defaults to 0). Platform-wide count across all tenants →
@@ -126,7 +125,7 @@ export interface SubscriptionRepository {
      *
      * Optional — if not implemented, the tenant column stays 0.
      */
-    countActiveByPlanKey?(projectKey: string): Promise<Record<string, number>>;
+    countActiveByPlanKey?(): Promise<Record<string, number>>;
 }
 
 /**

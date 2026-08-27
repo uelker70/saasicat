@@ -54,18 +54,15 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
         // ─── Master operations ───
 
         @Get()
-        listPlans(
-            @Query('projectKey') projectKey: string,
-            @Query('onlyPublished') onlyPublished?: string,
-        ) {
-            return this.service.listPlans(projectKey, { onlyPublished: onlyPublished === 'true' });
+        listPlans(@Query('onlyPublished') onlyPublished?: string) {
+            return this.service.listPlans({ onlyPublished: onlyPublished === 'true' });
         }
 
         // Static route BEFORE `@Get(':id')` — Fastify prioritizes static over
         // parametric; this makes the ordering additionally explicit.
         @Get('tenant-counts')
-        getTenantCounts(@Query('projectKey') projectKey: string) {
-            return this.service.getTenantCounts(projectKey);
+        getTenantCounts() {
+            return this.service.getTenantCounts();
         }
 
         @Get(':id')

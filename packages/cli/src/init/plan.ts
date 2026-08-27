@@ -10,17 +10,13 @@
 // the same code path as the real run rather than a second implementation of it.
 // Still pure with the key check: the schema is a JSON module, not a file read.
 
-import {
-    assertValidProjectKey,
-    assertValidQuotaKey,
-    minimumQuotasPerPlan,
-} from './catalog-keys.js';
+import { assertValidAppKey, assertValidQuotaKey, minimumQuotasPerPlan } from './catalog-keys.js';
 
 /** What the caller asked for. */
 export interface InitOptions {
-    /** The catalogue this app administers. Also the storage-key prefix. */
-    projectKey: string;
-    /** Human name in the manifest and the YAML. Defaults to `projectKey`. */
+    /** Slug of the application: npm package name, storage-key prefix, id prefix. */
+    appKey: string;
+    /** Human name in the manifest and the YAML. Defaults to `appKey`. */
     appName?: string;
     /** Admin API prefix, e.g. `/api/v1/admin`. */
     apiBase?: string;
@@ -139,11 +135,11 @@ const quotaFileName = (key: string): string =>
  * learn for the one file that needs it.
  */
 export function planInit(options: InitOptions): InitPlan {
-    const projectKey = options.projectKey;
-    if (!projectKey) throw new Error('init needs a --project-key.');
-    // Before anything is planned, let alone written: the platform validates
-    // the generated `config/saas.yaml` against this same pattern at boot.
-    assertValidProjectKey(projectKey);
+    const appKey = options.appKey;
+    if (!appKey) throw new Error('init needs an --app-key.');
+    // Before anything is planned, let alone written: the key becomes an npm
+    // package name and a storage prefix, and neither takes an arbitrary string.
+    assertValidAppKey(appKey);
 
     // Two names out of one option, because it feeds two things with different
     // alphabets. `--app-name="My App"` is an ordinary answer to "what is your
@@ -151,22 +147,22 @@ export function planInit(options: InitOptions): InitPlan {
     // not TypeScript, after the generator had written every file. The raw value
     // stays for the YAML and the labels a human reads; identifiers get the
     // PascalCase of it.
-    const appLabel = options.appName ?? pascalCase(projectKey);
+    const appLabel = options.appName ?? pascalCase(appKey);
     const appName = pascalCase(appLabel);
     const apiBase = options.apiBase ?? '/api/v1/admin';
     const quotas = (options.quotas ?? []).map(parseQuota);
     assertEnoughQuotas(quotas);
     const hasherClass = options.skipHasher ? null : `${appName}PasswordHasher`;
-    const featureKey = `${projectKey.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_CORE`;
+    const featureKey = `${appKey.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_CORE`;
 
     const shared: Record<string, string> = {
-        PROJECT_KEY: projectKey,
+        APP_KEY: appKey,
         APP_NAME: appName,
         APP_LABEL: appLabel,
         API_BASE: apiBase,
         FEATURE_KEY: featureKey,
-        REGISTRY_CONST: `${constantCase(projectKey)}_FEATURE_UI_REGISTRY`,
-        MANIFEST_CONST: `${constantCase(projectKey)}_MANIFEST_CONTRIBUTION`,
+        REGISTRY_CONST: `${constantCase(appKey)}_FEATURE_UI_REGISTRY`,
+        MANIFEST_CONST: `${constantCase(appKey)}_MANIFEST_CONTRIBUTION`,
         ADMIN_MODULE_CLASS: `${appName}AdminModule`,
         HASHER_CLASS: hasherClass ?? '',
         HASHER_FILE: hasherClass ? `${kebabCase(appName)}-password.hasher` : '',

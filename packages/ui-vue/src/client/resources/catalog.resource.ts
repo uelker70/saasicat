@@ -1,10 +1,5 @@
 // The capability / feature / quota catalogue.
 //
-// Every operation but one carries `?projectKey=…`, including the mutations —
-// the keys are unique per project, so the server needs it to address the row.
-// The exception is `syncDiscovery`, whose payload carries the snapshot and
-// whose endpoint takes no query; that asymmetry is the server's.
-//
 // `load()` in `useCatalogEntries` fetches the three lists in one `Promise.all`
 // and writes three refs. Here they are three operations: the descriptor's job
 // is the request, and which of them a caller needs — a page showing only
@@ -28,11 +23,6 @@ function catalogUrl(ctx: ResourceContext): string {
     return `${ctx.apiBase}/catalog`;
 }
 
-/** `?projectKey=…` — the key is a literal, only the value is encoded. */
-function scoped(url: string, ctx: ResourceContext): string {
-    return `${url}?projectKey=${encodeURIComponent(ctx.projectKey)}`;
-}
-
 /**
  * The discovered catalogue and the review decisions taken on it.
  *
@@ -40,121 +30,109 @@ function scoped(url: string, ctx: ResourceContext): string {
  * `useCatalogEntries` does, and a feature key legitimately contains characters
  * (`.`, `:`) that a code scan produces.
  */
-export const catalogResource = defineResource(
-    'catalog',
-    {
-        capabilities: async (http, ctx): Promise<CapabilityCatalogEntryRow[]> =>
-            (await requestJson<CapabilityCatalogEntryRow[]>(
-                http,
-                scoped(`${catalogUrl(ctx)}/capabilities`, ctx),
-            )) ?? [],
+export const catalogResource = defineResource('catalog', {
+    capabilities: async (http, ctx): Promise<CapabilityCatalogEntryRow[]> =>
+        (await requestJson<CapabilityCatalogEntryRow[]>(http, `${catalogUrl(ctx)}/capabilities`)) ??
+        [],
 
-        features: async (http, ctx): Promise<FeatureCatalogEntryRow[]> =>
-            (await requestJson<FeatureCatalogEntryRow[]>(
-                http,
-                scoped(`${catalogUrl(ctx)}/features`, ctx),
-            )) ?? [],
+    features: async (http, ctx): Promise<FeatureCatalogEntryRow[]> =>
+        (await requestJson<FeatureCatalogEntryRow[]>(http, `${catalogUrl(ctx)}/features`)) ?? [],
 
-        quotas: async (http, ctx): Promise<QuotaCatalogEntryRow[]> =>
-            (await requestJson<QuotaCatalogEntryRow[]>(
-                http,
-                scoped(`${catalogUrl(ctx)}/quotas`, ctx),
-            )) ?? [],
+    quotas: async (http, ctx): Promise<QuotaCatalogEntryRow[]> =>
+        (await requestJson<QuotaCatalogEntryRow[]>(http, `${catalogUrl(ctx)}/quotas`)) ?? [],
 
-        reviewFeature: (
+    reviewFeature: (
+        http,
+        ctx,
+        featureKey: string,
+        data: ReviewCatalogEntryData,
+    ): Promise<FeatureCatalogEntryRow> =>
+        requestJsonBody<FeatureCatalogEntryRow>(
             http,
-            ctx,
-            featureKey: string,
-            data: ReviewCatalogEntryData,
-        ): Promise<FeatureCatalogEntryRow> =>
-            requestJsonBody<FeatureCatalogEntryRow>(
-                http,
-                scoped(`${catalogUrl(ctx)}/features/${encodeURIComponent(featureKey)}/review`, ctx),
-                'Review returned no body',
-                { method: 'PATCH', body: data },
-            ),
+            `${catalogUrl(ctx)}/features/${encodeURIComponent(featureKey)}/review`,
+            'Review returned no body',
+            { method: 'PATCH', body: data },
+        ),
 
-        reviewQuota: (
+    reviewQuota: (
+        http,
+        ctx,
+        quotaKey: string,
+        data: ReviewCatalogEntryData,
+    ): Promise<QuotaCatalogEntryRow> =>
+        requestJsonBody<QuotaCatalogEntryRow>(
             http,
-            ctx,
-            quotaKey: string,
-            data: ReviewCatalogEntryData,
-        ): Promise<QuotaCatalogEntryRow> =>
-            requestJsonBody<QuotaCatalogEntryRow>(
-                http,
-                scoped(`${catalogUrl(ctx)}/quotas/${encodeURIComponent(quotaKey)}/review`, ctx),
-                'Review returned no body',
-                { method: 'PATCH', body: data },
-            ),
+            `${catalogUrl(ctx)}/quotas/${encodeURIComponent(quotaKey)}/review`,
+            'Review returned no body',
+            { method: 'PATCH', body: data },
+        ),
 
-        /** The translations are wrapped in `{ i18n }` here, not by the caller. */
-        setFeatureI18n: (
+    /** The translations are wrapped in `{ i18n }` here, not by the caller. */
+    setFeatureI18n: (
+        http,
+        ctx,
+        featureKey: string,
+        i18n: CatalogEntryI18n,
+    ): Promise<FeatureCatalogEntryRow> =>
+        requestJsonBody<FeatureCatalogEntryRow>(
             http,
-            ctx,
-            featureKey: string,
-            i18n: CatalogEntryI18n,
-        ): Promise<FeatureCatalogEntryRow> =>
-            requestJsonBody<FeatureCatalogEntryRow>(
-                http,
-                scoped(`${catalogUrl(ctx)}/features/${encodeURIComponent(featureKey)}/i18n`, ctx),
-                'i18n returned no body',
-                { method: 'PATCH', body: { i18n } },
-            ),
+            `${catalogUrl(ctx)}/features/${encodeURIComponent(featureKey)}/i18n`,
+            'i18n returned no body',
+            { method: 'PATCH', body: { i18n } },
+        ),
 
-        setQuotaI18n: (
+    setQuotaI18n: (
+        http,
+        ctx,
+        quotaKey: string,
+        i18n: CatalogEntryI18n,
+    ): Promise<QuotaCatalogEntryRow> =>
+        requestJsonBody<QuotaCatalogEntryRow>(
             http,
-            ctx,
-            quotaKey: string,
-            i18n: CatalogEntryI18n,
-        ): Promise<QuotaCatalogEntryRow> =>
-            requestJsonBody<QuotaCatalogEntryRow>(
-                http,
-                scoped(`${catalogUrl(ctx)}/quotas/${encodeURIComponent(quotaKey)}/i18n`, ctx),
-                'i18n returned no body',
-                { method: 'PATCH', body: { i18n } },
-            ),
+            `${catalogUrl(ctx)}/quotas/${encodeURIComponent(quotaKey)}/i18n`,
+            'i18n returned no body',
+            { method: 'PATCH', body: { i18n } },
+        ),
 
-        setFeatureBase: (
+    setFeatureBase: (
+        http,
+        ctx,
+        featureKey: string,
+        data: UpdateCatalogEntryBaseData,
+    ): Promise<FeatureCatalogEntryRow> =>
+        requestJsonBody<FeatureCatalogEntryRow>(
             http,
-            ctx,
-            featureKey: string,
-            data: UpdateCatalogEntryBaseData,
-        ): Promise<FeatureCatalogEntryRow> =>
-            requestJsonBody<FeatureCatalogEntryRow>(
-                http,
-                scoped(`${catalogUrl(ctx)}/features/${encodeURIComponent(featureKey)}`, ctx),
-                'Base returned no body',
-                { method: 'PATCH', body: data },
-            ),
+            `${catalogUrl(ctx)}/features/${encodeURIComponent(featureKey)}`,
+            'Base returned no body',
+            { method: 'PATCH', body: data },
+        ),
 
-        setQuotaBase: (
+    setQuotaBase: (
+        http,
+        ctx,
+        quotaKey: string,
+        data: UpdateCatalogEntryBaseData,
+    ): Promise<QuotaCatalogEntryRow> =>
+        requestJsonBody<QuotaCatalogEntryRow>(
             http,
-            ctx,
-            quotaKey: string,
-            data: UpdateCatalogEntryBaseData,
-        ): Promise<QuotaCatalogEntryRow> =>
-            requestJsonBody<QuotaCatalogEntryRow>(
-                http,
-                scoped(`${catalogUrl(ctx)}/quotas/${encodeURIComponent(quotaKey)}`, ctx),
-                'Base returned no body',
-                { method: 'PATCH', body: data },
-            ),
+            `${catalogUrl(ctx)}/quotas/${encodeURIComponent(quotaKey)}`,
+            'Base returned no body',
+            { method: 'PATCH', body: data },
+        ),
 
-        /**
-         * Writes a discovery snapshot into the catalogue.
-         *
-         * The request only. `useCatalogEntries.syncDiscovery` reloads the three
-         * lists afterwards, which is that composable keeping its refs true —
-         * not part of the call, and not something an override should inherit
-         * invisibly.
-         */
-        syncDiscovery: (http, ctx, snapshot: DiscoverySnapshot): Promise<SyncDiscoveryResult> =>
-            requestJsonBody<SyncDiscoveryResult>(
-                http,
-                `${catalogUrl(ctx)}/discovery/sync`,
-                'Sync returned no body',
-                { method: 'POST', body: { snapshot } },
-            ),
-    },
-    { projectScoped: true },
-);
+    /**
+     * Writes a discovery snapshot into the catalogue.
+     *
+     * The request only. `useCatalogEntries.syncDiscovery` reloads the three
+     * lists afterwards, which is that composable keeping its refs true —
+     * not part of the call, and not something an override should inherit
+     * invisibly.
+     */
+    syncDiscovery: (http, ctx, snapshot: DiscoverySnapshot): Promise<SyncDiscoveryResult> =>
+        requestJsonBody<SyncDiscoveryResult>(
+            http,
+            `${catalogUrl(ctx)}/discovery/sync`,
+            'Sync returned no body',
+            { method: 'POST', body: { snapshot } },
+        ),
+});

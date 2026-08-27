@@ -4,7 +4,7 @@
 // (hard replace): the catalog is reconstructed
 // from the DB (instead of from YAML). Apps pass through a
 // `PlanCatalogReadSink` + their static app-identity settings
-// (`projectKey`, `currency`, `vatRate`).
+// (app identity, `currency`, `vatRate`).
 //
 // `forRootWithCatalog(catalog)` remains for tests / in-memory setup.
 // The old `forRoot({ path: 'saas.yaml' })` has been dropped — apps
@@ -33,14 +33,13 @@ export const PLAN_CATALOG_TOKEN = Symbol.for('saasicat/nest/PLAN_CATALOG');
 export const PLAN_CATALOG_READ_SINK_TOKEN = Symbol.for('saasicat/nest/PLAN_CATALOG_READ_SINK');
 
 export interface PlanCatalogModuleOptions {
-    /** Build-time identity of the app. */
-    projectKey: string;
     /**
-     * App-identity block (branding + version) from `config/saas.yaml#app`.
-     * Flows into `PLAN_CATALOG_TOKEN.app` and from there into the
-     * AdminPublicBoot endpoint + the AdminManifestConfig.
+     * App-identity block (branding + version) from `config/saas.yaml#app` —
+     * the one place the application is named. Flows into
+     * `PLAN_CATALOG_TOKEN.app` and from there into the AdminPublicBoot
+     * endpoint + the AdminManifestConfig.
      */
-    app?: PlanCatalog['app'];
+    app: PlanCatalog['app'];
     currency: string;
     vatRate: number;
     /**
@@ -71,10 +70,9 @@ export class PlanCatalogModule {
                 {
                     provide: PLAN_CATALOG_TOKEN,
                     useFactory: async (sink: PlanCatalogReadSink) => {
-                        const snapshot = await sink.loadSnapshot(options.projectKey);
+                        const snapshot = await sink.loadSnapshot();
                         return buildPlanCatalogFromSnapshot(
                             {
-                                projectKey: options.projectKey,
                                 app: options.app,
                                 currency: options.currency,
                                 vatRate: options.vatRate,

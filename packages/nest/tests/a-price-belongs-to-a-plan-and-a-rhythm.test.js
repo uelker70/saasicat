@@ -16,7 +16,6 @@ import { FakeBundleRepository, FakeSubscriptionBundleRepository } from '../dist/
 // booking was, so a bundle at 9.90 monthly and 99.00 yearly reported 9.90 after
 // a yearly booking.
 
-const PROJECT = 'clubapp';
 const STARTER = 'STARTER';
 const PRO = 'PRO';
 const SUB = 'sub-a';
@@ -32,7 +31,7 @@ beforeEach(() => {
 });
 
 async function publishBundle({ key, monthlyNet = '9.90', yearlyNet = '99.00', pricingOverrides }) {
-    const bundle = await bundleRepo.create({ projectKey: PROJECT, bundleKey: key, label: key });
+    const bundle = await bundleRepo.create({ bundleKey: key, label: key });
     const draft = await bundleRepo.createDraft({
         bundleId: bundle.id,
         features: ['F'],
@@ -171,7 +170,6 @@ describe('which bundles a tenant may ask the price of', () => {
         // appeared in their catalogue, and answering would disclose the
         // plan-specific pricing of something nobody has published.
         const bundle = await bundleRepo.create({
-            projectKey: PROJECT,
             bundleKey: 'DRAFT_ONLY',
             label: 'Draft only',
         });

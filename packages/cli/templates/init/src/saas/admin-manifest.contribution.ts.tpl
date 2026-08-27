@@ -19,7 +19,7 @@ export const __MANIFEST_CONST__: ManifestContribution = {
     dashboard: {
         kpiCards: [
             {
-                id: '__PROJECT_KEY__.tenants',
+                id: '__APP_KEY__.tenants',
                 label: 'Tenants',
                 // Served by your own controller — the platform does not know
                 // what your KPIs count.

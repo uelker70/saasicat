@@ -13,7 +13,6 @@ import { defaultHttpClient, type HttpClient } from '../client/types.js';
 export interface UsePromotionsOptions {
     adminEndpoint: string;
     http?: HttpClient;
-    projectKey: string;
     autoLoad?: boolean;
 }
 
@@ -51,17 +50,12 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
     if (!options?.adminEndpoint) {
         throw new Error('usePromotions: `adminEndpoint` is required.');
     }
-    if (!options?.projectKey) {
-        throw new Error('usePromotions: `projectKey` is required.');
-    }
-
     const http = options.http ?? defaultHttpClient();
     const promotions = ref<PromotionRow[]>([]);
     const loading = ref(false);
     const error = ref<Error | null>(null);
 
     const baseUrl = `${options.adminEndpoint}/catalog/promotions`;
-    const pk = encodeURIComponent(options.projectKey);
 
     function authHeaders(): Record<string, string> {
         return {};
@@ -99,7 +93,7 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
         loading.value = true;
         error.value = null;
         try {
-            const data = await fetchJson<PromotionRow[]>(`${baseUrl}?projectKey=${pk}`);
+            const data = await fetchJson<PromotionRow[]>(baseUrl);
             promotions.value = data ?? [];
         } catch (err) {
             error.value = err instanceof Error ? err : new Error(String(err));

@@ -188,8 +188,8 @@ export class PlanChangePreviewService {
         if (!targetPlanDef) {
             throw new NotFoundException({
                 code: BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG,
-                message: `Plan "${targetPlan}" is not in the catalog (${this.catalog.projectKey})`,
-                params: { planKey: targetPlan, projectKey: this.catalog.projectKey },
+                message: `Plan "${targetPlan}" is not in the catalog`,
+                params: { planKey: targetPlan },
             });
         }
 

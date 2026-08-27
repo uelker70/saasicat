@@ -74,7 +74,6 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     async list(filter: SubscriptionContractFilter): Promise<SubscriptionContractRecord[]> {
         const rows = await this.db().subscriptionContract.findMany({
             where: {
-                ...(filter.projectKey ? { projectKey: filter.projectKey } : {}),
                 ...(filter.tenantId ? { tenantId: filter.tenantId } : {}),
                 ...(filter.status ? { status: filter.status } : {}),
                 ...(filter.asOf
@@ -119,7 +118,6 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
         const row = await this.db().subscriptionContract.create({
             data: {
-                projectKey: data.projectKey,
                 tenantId: data.tenantId,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,

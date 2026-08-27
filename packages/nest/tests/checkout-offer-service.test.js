@@ -59,10 +59,8 @@ function fakeRepo() {
     const map = new Map();
     let seq = 0;
     return {
-        async list({ projectKey, status }) {
-            return [...map.values()].filter(
-                (o) => o.projectKey === projectKey && (!status || o.status === status),
-            );
+        async list({ status }) {
+            return [...map.values()].filter((o) => !status || o.status === status);
         },
         async findById(id) {
             return map.get(id) ?? null;
@@ -72,7 +70,6 @@ function fakeRepo() {
             const now = new Date().toISOString();
             const row = {
                 id,
-                projectKey: data.projectKey,
                 planKey: data.planKey,
                 planVersionId: data.planVersionId ?? null,
                 billingCycle: data.billingCycle,
@@ -128,7 +125,6 @@ describe('CheckoutOfferService', () => {
 
     function create() {
         return service.create({
-            projectKey: 'clubapp',
             planKey: 'STANDARD',
             billingCycle: 'monthly',
             priceBreakdown: PRICE,
@@ -153,7 +149,6 @@ describe('CheckoutOfferService', () => {
         await assert.rejects(
             () =>
                 service.create({
-                    projectKey: 'clubapp',
                     planKey: 'STANDARD',
                     billingCycle: 'monthly',
                     bundleVersionIds: ['bv-1'],
@@ -166,7 +161,6 @@ describe('CheckoutOfferService', () => {
 
     test('create freezes bundle versions, promotions and promo code into the offer', async () => {
         const offer = await service.create({
-            projectKey: 'clubapp',
             planKey: 'STANDARD',
             planVersionId: 'pv-1',
             billingCycle: 'monthly',
@@ -201,7 +195,6 @@ describe('CheckoutOfferService', () => {
 
     test('create adds the discounted price as a negative discount line item', async () => {
         const offer = await service.create({
-            projectKey: 'clubapp',
             planKey: 'STANDARD',
             planVersionId: 'pv-1',
             billingCycle: 'monthly',
@@ -257,7 +250,6 @@ describe('CheckoutOfferService', () => {
         ]);
         service = new CheckoutOfferService(repo, fakeBundleRepo(bundleRows));
         const offer = await service.create({
-            projectKey: 'clubapp',
             planKey: 'STANDARD',
             billingCycle: 'monthly',
             bundleVersionIds: ['bv-1'],
@@ -287,7 +279,6 @@ describe('CheckoutOfferService', () => {
 
     test('update on an expired offer throws Conflict', async () => {
         const offer = await service.create({
-            projectKey: 'clubapp',
             planKey: 'STANDARD',
             billingCycle: 'monthly',
             priceBreakdown: PRICE,
@@ -367,7 +358,6 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
 
     function offerData(bundleVersions) {
         return {
-            projectKey: 'clubapp',
             planKey: 'STANDARD',
             planVersionId: PLAN_VERSION.id,
             billingCycle: 'monthly',

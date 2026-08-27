@@ -19,7 +19,7 @@ import { applyTokens, planInit } from '../dist/index.js';
 // Two findings lived in that gap at once, and one of them was pinned as correct
 // by a test:
 //
-//   - `init --project-key=notesapp`, the form the help text showed first, wrote
+//   - `init --app-key=notesapp`, the form the help text showed first, wrote
 //     `quotas: {}`. `PlanDef` requires `quotas` with `minProperties: 1`, so the
 //     first boot failed on `/plans/0/quotas: must NOT have fewer than 1
 //     properties` — after every file was written and `app.module.ts` patched.
@@ -44,9 +44,9 @@ async function generatedCatalog(options) {
 
 describe('the catalogue init writes is one the platform accepts', () => {
     test('with a single quota', async () => {
-        const yaml = await generatedCatalog({ projectKey: 'notesapp', quotas: ['notes:Note'] });
+        const yaml = await generatedCatalog({ appKey: 'notesapp', quotas: ['notes:Note'] });
         const catalog = loadPlanCatalogFromString(yaml, { source: 'generated' });
-        assert.equal(catalog.projectKey, 'notesapp');
+        assert.equal(catalog.app.name, 'Notesapp');
         assert.ok(catalog.plans.length >= 1, 'a catalogue with no plans is not a catalogue');
         for (const plan of catalog.plans) {
             assert.ok(Object.keys(plan.quotas).length >= 1, `${plan.id} has no quotas`);
@@ -55,7 +55,7 @@ describe('the catalogue init writes is one the platform accepts', () => {
 
     test('with several, including a camel-cased key', async () => {
         const yaml = await generatedCatalog({
-            projectKey: 'team-hub',
+            appKey: 'team-hub',
             quotas: ['notes:Note', 'activeSeats:Seat'],
         });
         const catalog = loadPlanCatalogFromString(yaml, { source: 'generated' });
@@ -66,7 +66,7 @@ describe('the catalogue init writes is one the platform accepts', () => {
 
     test('and with --skip-hasher, which does not touch the catalogue', async () => {
         const yaml = await generatedCatalog({
-            projectKey: 'notesapp',
+            appKey: 'notesapp',
             quotas: ['notes:Note'],
             skipHasher: true,
         });
@@ -76,7 +76,7 @@ describe('the catalogue init writes is one the platform accepts', () => {
     test('the check is not vacuous — a hand-broken catalogue is refused', async () => {
         // Without this, the three above would pass on a loader that accepted
         // anything, which is exactly the shape of a guard that guards nothing.
-        const yaml = await generatedCatalog({ projectKey: 'notesapp', quotas: ['notes:Note'] });
+        const yaml = await generatedCatalog({ appKey: 'notesapp', quotas: ['notes:Note'] });
         assert.throws(
             () =>
                 loadPlanCatalogFromString(yaml.replace(/notes: \d+/g, 'active-seats: 25'), {
@@ -95,14 +95,14 @@ describe('either init refuses the input, or the platform accepts the output', ()
     // and refused at boot — which is where both findings lived.
 
     const INPUTS = [
-        { projectKey: 'notesapp' },
-        { projectKey: 'notesapp', quotas: [] },
-        { projectKey: 'notesapp', quotas: ['active-seats:Seat'] },
-        { projectKey: 'notesapp', quotas: ['active_seats:Seat'] },
-        { projectKey: 'notesapp', quotas: ['ActiveSeats:Seat'] },
-        { projectKey: 'notesapp', quotas: ['notes:Note'] },
-        { projectKey: 'notesapp', quotas: ['notes:Note', 'activeSeats:Seat'] },
-        { projectKey: 'team-hub', quotas: ['apiCalls:ApiCall'], skipHasher: true },
+        { appKey: 'notesapp' },
+        { appKey: 'notesapp', quotas: [] },
+        { appKey: 'notesapp', quotas: ['active-seats:Seat'] },
+        { appKey: 'notesapp', quotas: ['active_seats:Seat'] },
+        { appKey: 'notesapp', quotas: ['ActiveSeats:Seat'] },
+        { appKey: 'notesapp', quotas: ['notes:Note'] },
+        { appKey: 'notesapp', quotas: ['notes:Note', 'activeSeats:Seat'] },
+        { appKey: 'team-hub', quotas: ['apiCalls:ApiCall'], skipHasher: true },
     ];
 
     for (const input of INPUTS) {

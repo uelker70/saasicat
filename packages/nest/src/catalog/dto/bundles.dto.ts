@@ -68,18 +68,10 @@ const IsSortOrder = () => applyDecorators(IsInt(), Min(0), Max(10_000));
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const FEATURE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const QUOTA_KEY_PATTERN = /^[a-z][A-Za-z0-9]*$/;
-const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const DECIMAL_PATTERN = /^\d+(\.\d{1,2})?$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
 
 export class CreateBundleDto {
-    @IsString()
-    @Matches(PROJECT_KEY_PATTERN, {
-        message: 'projectKey must be kebab-case (e.g. "my-app")',
-    })
-    @MaxLength(64)
-    projectKey!: string;
-
     @IsString()
     @Matches(KEY_PATTERN, {
         message: 'bundleKey must be SCREAMING_SNAKE_CASE (e.g. "BANKING")',

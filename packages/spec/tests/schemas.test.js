@@ -48,7 +48,7 @@ test('planCatalog accepts minimal valid catalog', () => {
     const validate = ajv.compile(planCatalogSchema);
     const ok = validate({
         schemaVersion: 1,
-        projectKey: 'demoapp',
+        app: { name: 'Demo App' },
         currency: 'EUR',
         vatRate: 19,
         plans: [

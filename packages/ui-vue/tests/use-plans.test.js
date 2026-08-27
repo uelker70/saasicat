@@ -33,7 +33,7 @@ function scriptedHttp(answers) {
 }
 
 function plans(http, extra = {}) {
-    return usePlans({ adminEndpoint: ADMIN, projectKey: 'demo', http, ...extra });
+    return usePlans({ adminEndpoint: ADMIN, http, ...extra });
 }
 
 function versions(http, extra = {}) {
@@ -42,11 +42,7 @@ function versions(http, extra = {}) {
 
 describe('usePlans — construction', () => {
     test('refuses to run without an endpoint, because the platform cannot guess it', () => {
-        assert.throws(() => usePlans({ projectKey: 'demo' }), /adminEndpoint. is required/);
-    });
-
-    test('refuses to run without a project key', () => {
-        assert.throws(() => usePlans({ adminEndpoint: ADMIN }), /projectKey. is required/);
+        assert.throws(() => usePlans({}), /adminEndpoint. is required/);
     });
 
     test('does not load until asked', async () => {

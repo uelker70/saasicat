@@ -8,8 +8,6 @@ import { FakeBundleRepository } from '../dist/testing/index.js';
 // UpsellOfferResolver port against published+marketed catalog bundles.
 // Ranking: coverage (feature + uncovered requires, #35) before price.
 
-const PROJECT = 'clubapp';
-
 let bundleRepo;
 
 beforeEach(() => {
@@ -17,7 +15,7 @@ beforeEach(() => {
 });
 
 async function createLiveBundle({ bundleKey, features, monthlyNet, marketed = true }) {
-    const bundle = await bundleRepo.create({ projectKey: PROJECT, bundleKey, label: bundleKey });
+    const bundle = await bundleRepo.create({ bundleKey, label: bundleKey });
     const draft = await bundleRepo.createDraft({
         bundleId: bundle.id,
         features,
@@ -58,7 +56,7 @@ describe('CatalogBundleUpsellResolver', () => {
             monthlyNet: '12.00',
         });
 
-        const resolver = new CatalogBundleUpsellResolver(bundleRepo, PROJECT);
+        const resolver = new CatalogBundleUpsellResolver(bundleRepo);
         const offers = await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1');
 
         assert.deepEqual(offers, [
@@ -80,7 +78,6 @@ describe('CatalogBundleUpsellResolver', () => {
             marketed: false,
         });
         const stem = await bundleRepo.create({
-            projectKey: PROJECT,
             bundleKey: 'DRAFT_ONLY',
             label: 'Draft',
         });
@@ -92,7 +89,7 @@ describe('CatalogBundleUpsellResolver', () => {
             marketed: true,
         });
 
-        const resolver = new CatalogBundleUpsellResolver(bundleRepo, PROJECT);
+        const resolver = new CatalogBundleUpsellResolver(bundleRepo);
         assert.deepEqual(await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1'), []);
     });
 
@@ -108,7 +105,7 @@ describe('CatalogBundleUpsellResolver', () => {
             monthlyNet: '7.90',
         });
 
-        const resolver = new CatalogBundleUpsellResolver(bundleRepo, PROJECT);
+        const resolver = new CatalogBundleUpsellResolver(bundleRepo);
         const offers = await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1');
         assert.deepEqual(
             offers.map((o) => o.bundleKey),
@@ -133,7 +130,6 @@ describe('CatalogBundleUpsellResolver', () => {
 
         const resolver = new CatalogBundleUpsellResolver(
             bundleRepo,
-            PROJECT,
             catalogEntryRepoWith({ TOURNAMENT_MANAGEMENT: ['RESOURCE_MANAGEMENT'] }),
         );
         const offers = await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1');
@@ -152,7 +148,6 @@ describe('CatalogBundleUpsellResolver', () => {
 
         const resolver = new CatalogBundleUpsellResolver(
             bundleRepo,
-            PROJECT,
             catalogEntryRepoWith({ TOURNAMENT_MANAGEMENT: ['RESOURCE_MANAGEMENT'] }),
         );
         assert.deepEqual(await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1'), []);
@@ -164,7 +159,7 @@ describe('CatalogBundleUpsellResolver', () => {
             features: ['TOURNAMENT_MANAGEMENT'],
             monthlyNet: '7.90',
         });
-        const resolver = new CatalogBundleUpsellResolver(bundleRepo, PROJECT, null, 'CHF');
+        const resolver = new CatalogBundleUpsellResolver(bundleRepo, null, 'CHF');
         const offers = await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1');
         assert.equal(offers[0].currency, 'CHF');
     });
@@ -181,7 +176,7 @@ describe('CatalogBundleUpsellResolver', () => {
             monthlyNet: '7.90',
         });
 
-        const resolver = new CatalogBundleUpsellResolver(bundleRepo, PROJECT);
+        const resolver = new CatalogBundleUpsellResolver(bundleRepo);
         const offers = await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1');
         assert.deepEqual(
             offers.map((o) => [o.bundleKey, o.priceMonthlyNet]),
@@ -193,7 +188,7 @@ describe('CatalogBundleUpsellResolver', () => {
     });
 
     test('empty featureKeys → no offers, no repo access', async () => {
-        const resolver = new CatalogBundleUpsellResolver(bundleRepo, PROJECT);
+        const resolver = new CatalogBundleUpsellResolver(bundleRepo);
         assert.deepEqual(await resolver.resolveOffers([], 't1'), []);
     });
 });

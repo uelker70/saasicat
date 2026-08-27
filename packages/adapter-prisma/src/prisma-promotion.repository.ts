@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
     CreatePromotionData,
     PromotionBillingCycle,
-    PromotionFilter,
     PromotionI18n,
     PromotionRepository,
     PromotionRow,
@@ -17,7 +16,6 @@ import { toStringArray } from './tx.js';
 /** DB columns this repository reads from `promotions`. */
 interface PromotionDbRow {
     id: string;
-    projectKey: string;
     internalLabel: string;
     type: string;
     value: unknown;
@@ -69,9 +67,8 @@ export class PrismaPromotionRepository implements PromotionRepository {
         return this.prisma as unknown as PromotionPrisma;
     }
 
-    async list(filter: PromotionFilter): Promise<PromotionRow[]> {
+    async list(): Promise<PromotionRow[]> {
         const rows = await this.db.promotion.findMany({
-            where: { projectKey: filter.projectKey },
             orderBy: [{ validFrom: 'desc' }],
         });
         return rows.map(toRow);
@@ -85,7 +82,6 @@ export class PrismaPromotionRepository implements PromotionRepository {
     async create(data: CreatePromotionData): Promise<PromotionRow> {
         const row = await this.db.promotion.create({
             data: {
-                projectKey: data.projectKey,
                 internalLabel: data.internalLabel,
                 type: data.type,
                 value: data.value,
@@ -176,7 +172,6 @@ function toPromotionI18n(value: unknown): PromotionI18n {
 function toRow(row: PromotionDbRow): PromotionRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         internalLabel: row.internalLabel,
         type: row.type as PromotionType,
         value: toPromotionValue(row.value),

@@ -2,7 +2,7 @@
 // `PlanCatalog` snapshot from DB reads.
 //
 // Inputs:
-//  - App-global settings (projectKey, currency, vatRate) —
+//  - App-global settings (app identity, currency, vatRate) —
 //    build-time identity, provided statically by the AppModule.
 //  - DB snapshot with Plans + live PlanVersions + FeatureCatalogEntries.
 //
@@ -22,9 +22,8 @@ import type {
 } from '@saasicat/core';
 
 export interface PlanCatalogBuildSettings {
-    projectKey: string;
-    /** App identity (branding + version) from `config/saas.yaml#app`. Optional. */
-    app?: PlanCatalog['app'];
+    /** App identity (branding + version) from `config/saas.yaml#app`. */
+    app: PlanCatalog['app'];
     currency: string;
     vatRate: number;
     /** App-wide marketing configuration. Optional. */
@@ -85,8 +84,7 @@ export function buildPlanCatalogFromSnapshot(
 
     return {
         schemaVersion: 1,
-        projectKey: settings.projectKey,
-        ...(settings.app ? { app: settings.app } : {}),
+        app: settings.app,
         currency: settings.currency,
         vatRate: settings.vatRate,
         ...(settings.marketing ? { marketing: settings.marketing } : {}),

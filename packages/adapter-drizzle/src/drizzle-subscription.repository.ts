@@ -60,7 +60,7 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
         return rows.length;
     }
 
-    async countActiveByPlanKey(_projectKey: string): Promise<Record<string, number>> {
+    async countActiveByPlanKey(): Promise<Record<string, number>> {
         // Status alone answers the wrong question: a cancellation that has
         // taken effect leaves the column at ACTIVE, so the count would carry
         // every customer who ever left.

@@ -22,23 +22,17 @@ function fakeRepo() {
         _caps: caps,
         _feats: feats,
         _quotas: quotas,
-        async listCapabilities({ projectKey, codeStatus }) {
-            return [...caps.values()].filter(
-                (c) => c.projectKey === projectKey && (!codeStatus || c.codeStatus === codeStatus),
-            );
+        async listCapabilities({ codeStatus }) {
+            return [...caps.values()].filter((c) => !codeStatus || c.codeStatus === codeStatus);
         },
-        async listFeatures({ projectKey, discoveryStatus }) {
+        async listFeatures({ discoveryStatus }) {
             return [...feats.values()].filter(
-                (f) =>
-                    f.projectKey === projectKey &&
-                    (!discoveryStatus || f.discoveryStatus === discoveryStatus),
+                (f) => !discoveryStatus || f.discoveryStatus === discoveryStatus,
             );
         },
-        async listQuotas({ projectKey, discoveryStatus }) {
+        async listQuotas({ discoveryStatus }) {
             return [...quotas.values()].filter(
-                (q) =>
-                    q.projectKey === projectKey &&
-                    (!discoveryStatus || q.discoveryStatus === discoveryStatus),
+                (q) => !discoveryStatus || q.discoveryStatus === discoveryStatus,
             );
         },
         async upsertCapability(data) {
@@ -100,7 +94,7 @@ function fakeRepo() {
             quotas.set(data.quotaKey, row);
             return row;
         },
-        async retireMissing(projectKey, type, presentKeys) {
+        async retireMissing(type, presentKeys) {
             const present = new Set(presentKeys);
             let n = 0;
             if (type === 'capability') {
@@ -122,48 +116,48 @@ function fakeRepo() {
             }
             return n;
         },
-        async setFeatureSuccessor(_projectKey, featureKey, successorKey) {
+        async setFeatureSuccessor(featureKey, successorKey) {
             const row = feats.get(featureKey);
             row.successorKey = successorKey;
             return row;
         },
-        async setQuotaSuccessor(_projectKey, quotaKey, successorKey) {
+        async setQuotaSuccessor(quotaKey, successorKey) {
             const row = quotas.get(quotaKey);
             row.successorKey = successorKey;
             return row;
         },
-        async findFeature(_projectKey, featureKey) {
+        async findFeature(featureKey) {
             return feats.get(featureKey) ?? null;
         },
-        async findQuota(_projectKey, quotaKey) {
+        async findQuota(quotaKey) {
             return quotas.get(quotaKey) ?? null;
         },
-        async setFeatureReview(_projectKey, featureKey, data) {
+        async setFeatureReview(featureKey, data) {
             const row = feats.get(featureKey);
             Object.assign(row, data, { updatedAt: new Date().toISOString() });
             return row;
         },
-        async setQuotaReview(_projectKey, quotaKey, data) {
+        async setQuotaReview(quotaKey, data) {
             const row = quotas.get(quotaKey);
             Object.assign(row, data, { updatedAt: new Date().toISOString() });
             return row;
         },
-        async setFeatureI18n(_projectKey, featureKey, i18n) {
+        async setFeatureI18n(featureKey, i18n) {
             const row = feats.get(featureKey);
             row.i18n = i18n;
             return row;
         },
-        async setQuotaI18n(_projectKey, quotaKey, i18n) {
+        async setQuotaI18n(quotaKey, i18n) {
             const row = quotas.get(quotaKey);
             row.i18n = i18n;
             return row;
         },
-        async setFeatureBase(_projectKey, featureKey, data) {
+        async setFeatureBase(featureKey, data) {
             const row = feats.get(featureKey);
             Object.assign(row, data);
             return row;
         },
-        async setQuotaBase(_projectKey, quotaKey, data) {
+        async setQuotaBase(quotaKey, data) {
             const row = quotas.get(quotaKey);
             Object.assign(row, data);
             return row;
@@ -231,7 +225,7 @@ describe('CatalogEntriesService', () => {
         );
         assert.equal(result.capabilities.discovered, 2);
         assert.equal(result.capabilities.total, 2);
-        const rows = await service.listCapabilities(PROJECT);
+        const rows = await service.listCapabilities();
         assert.equal(rows.length, 2);
         assert.equal(rows.find((r) => r.capabilityKey === 'member.create').codeStatus, 'active');
         assert.equal(
@@ -244,9 +238,9 @@ describe('CatalogEntriesService', () => {
         await service.syncFromSnapshot(
             snapshot({ features: ['MEMBER_MANAGEMENT'], quotas: [quota('members')] }),
         );
-        const [f] = await service.listFeatures(PROJECT);
+        const [f] = await service.listFeatures();
         assert.equal(f.discoveryStatus, 'pending');
-        const [q] = await service.listQuotas(PROJECT);
+        const [q] = await service.listQuotas();
         assert.equal(q.discoveryStatus, 'pending');
     });
 
@@ -262,9 +256,9 @@ describe('CatalogEntriesService', () => {
         );
         assert.equal(result.capabilities.retired, 1);
         assert.equal(result.features.retired, 1);
-        const retired = await service.listCapabilities(PROJECT, 'retired');
+        const retired = await service.listCapabilities('retired');
         assert.equal(retired[0].capabilityKey, 'member.delete');
-        const obsolete = await service.listFeatures(PROJECT, 'obsolete');
+        const obsolete = await service.listFeatures('obsolete');
         assert.equal(obsolete[0].featureKey, 'B');
     });
 
@@ -272,7 +266,7 @@ describe('CatalogEntriesService', () => {
         await service.syncFromSnapshot(
             snapshot({ caps: [cap('debug.dump', { status: 'internal' })] }),
         );
-        const rows = await service.listCapabilities(PROJECT);
+        const rows = await service.listCapabilities();
         assert.equal(rows.length, 0);
     });
 
@@ -280,7 +274,7 @@ describe('CatalogEntriesService', () => {
         await service.syncFromSnapshot(
             snapshot({ quotas: [quota('apiCalls', { unit: '/month', declaredAt: '' })] }),
         );
-        const [q] = await service.listQuotas(PROJECT);
+        const [q] = await service.listQuotas();
         assert.equal(q.usageProvider, null);
         assert.equal(q.enforcementMode, 'hard');
     });
@@ -298,7 +292,6 @@ describe('CatalogEntriesService', () => {
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
             const row = await svc.reviewFeature(
-                PROJECT,
                 'MEMBER_MANAGEMENT',
                 { discoveryStatus: 'approved' },
                 'admin-1',
@@ -313,13 +306,8 @@ describe('CatalogEntriesService', () => {
             const snap = snapshot({ features: ['A'] });
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
-            await svc.reviewFeature(PROJECT, 'A', { discoveryStatus: 'approved' }, 'admin-1');
-            const row = await svc.reviewFeature(
-                PROJECT,
-                'A',
-                { discoveryStatus: 'pending' },
-                'admin-1',
-            );
+            await svc.reviewFeature('A', { discoveryStatus: 'approved' }, 'admin-1');
+            const row = await svc.reviewFeature('A', { discoveryStatus: 'pending' }, 'admin-1');
             assert.equal(row.discoveryStatus, 'pending');
             assert.equal(row.approvedAt, null);
             assert.equal(row.approvedSignature, null);
@@ -330,7 +318,7 @@ describe('CatalogEntriesService', () => {
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
             await assert.rejects(
-                () => svc.reviewFeature(PROJECT, 'A', { discoveryStatus: 'outdated' }, null),
+                () => svc.reviewFeature('A', { discoveryStatus: 'outdated' }, null),
                 /is not allowed/,
             );
         });
@@ -341,13 +329,7 @@ describe('CatalogEntriesService', () => {
             await svc.syncFromSnapshot(snap);
             const noSnapshotSvc = new CatalogEntriesService(repo, null);
             await assert.rejects(
-                () =>
-                    noSnapshotSvc.reviewFeature(
-                        PROJECT,
-                        'A',
-                        { discoveryStatus: 'approved' },
-                        null,
-                    ),
+                () => noSnapshotSvc.reviewFeature('A', { discoveryStatus: 'approved' }, null),
                 /discovery snapshot/,
             );
         });
@@ -357,7 +339,6 @@ describe('CatalogEntriesService', () => {
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
             const row = await svc.reviewQuota(
-                PROJECT,
                 'members',
                 { discoveryStatus: 'approved' },
                 'admin-1',
@@ -368,7 +349,7 @@ describe('CatalogEntriesService', () => {
 
         test('reviewFeature throws on an unknown key', async () => {
             await assert.rejects(
-                () => service.reviewFeature(PROJECT, 'nope', { discoveryStatus: 'approved' }, null),
+                () => service.reviewFeature('nope', { discoveryStatus: 'approved' }, null),
                 /not found/,
             );
         });
@@ -382,7 +363,7 @@ describe('CatalogEntriesService', () => {
             });
             const svc = new CatalogEntriesService(repo, snap1);
             await svc.syncFromSnapshot(snap1);
-            await svc.reviewFeature(PROJECT, 'SEPA', { discoveryStatus: 'approved' }, 'admin-1');
+            await svc.reviewFeature('SEPA', { discoveryStatus: 'approved' }, 'admin-1');
 
             // A new capability is added → signature diverges.
             const snap2 = snapshot({
@@ -394,7 +375,7 @@ describe('CatalogEntriesService', () => {
             });
             const result = await svc.syncFromSnapshot(snap2);
             assert.equal(result.features.outdated, 1);
-            const [row] = await svc.listFeatures(PROJECT);
+            const [row] = await svc.listFeatures();
             assert.equal(row.discoveryStatus, 'outdated');
             // The last approval is retained as history.
             assert.equal(row.approvedSignature, 'sepa.export@active');
@@ -407,10 +388,10 @@ describe('CatalogEntriesService', () => {
             });
             const svc = new CatalogEntriesService(repo, snap);
             await svc.syncFromSnapshot(snap);
-            await svc.reviewFeature(PROJECT, 'SEPA', { discoveryStatus: 'approved' }, null);
+            await svc.reviewFeature('SEPA', { discoveryStatus: 'approved' }, null);
             const result = await svc.syncFromSnapshot(snap);
             assert.equal(result.features.outdated, 0);
-            const [row] = await svc.listFeatures(PROJECT);
+            const [row] = await svc.listFeatures();
             assert.equal(row.discoveryStatus, 'approved');
         });
 
@@ -418,11 +399,11 @@ describe('CatalogEntriesService', () => {
             const snap1 = snapshot({ quotas: [quota('storage', { unit: 'MB' })] });
             const svc = new CatalogEntriesService(repo, snap1);
             await svc.syncFromSnapshot(snap1);
-            await svc.reviewQuota(PROJECT, 'storage', { discoveryStatus: 'approved' }, null);
+            await svc.reviewQuota('storage', { discoveryStatus: 'approved' }, null);
             const snap2 = snapshot({ quotas: [quota('storage', { unit: 'GB' })] });
             const result = await svc.syncFromSnapshot(snap2);
             assert.equal(result.quotas.outdated, 1);
-            const [row] = await svc.listQuotas(PROJECT);
+            const [row] = await svc.listQuotas();
             assert.equal(row.discoveryStatus, 'outdated');
         });
 
@@ -430,9 +411,9 @@ describe('CatalogEntriesService', () => {
             const snap = snapshot({ features: ['A'] });
             const svc = new CatalogEntriesService(repo, snap);
             await svc.syncFromSnapshot(snap);
-            await svc.reviewFeature(PROJECT, 'A', { discoveryStatus: 'obsolete' }, null);
+            await svc.reviewFeature('A', { discoveryStatus: 'obsolete' }, null);
             await svc.syncFromSnapshot(snap);
-            const [row] = await svc.listFeatures(PROJECT);
+            const [row] = await svc.listFeatures();
             assert.equal(row.discoveryStatus, 'obsolete');
         });
 
@@ -443,7 +424,7 @@ describe('CatalogEntriesService', () => {
             });
             const svc = new CatalogEntriesService(repo, snap1);
             await svc.syncFromSnapshot(snap1);
-            await svc.reviewFeature(PROJECT, 'TRAINING', { discoveryStatus: 'approved' }, null);
+            await svc.reviewFeature('TRAINING', { discoveryStatus: 'approved' }, null);
 
             const snap2 = snapshot({
                 caps: [cap('training.plan', { feature: 'TRAINING', requires: ['RESOURCES'] })],
@@ -457,7 +438,7 @@ describe('CatalogEntriesService', () => {
             });
             const result = await svc.syncFromSnapshot(snap2);
             assert.equal(result.features.outdated, 1);
-            const [row] = await svc.listFeatures(PROJECT);
+            const [row] = await svc.listFeatures();
             assert.equal(row.discoveryStatus, 'outdated');
         });
     });
@@ -474,9 +455,7 @@ describe('CatalogEntriesService', () => {
             );
             assert.equal(result.features.retired, 1);
             assert.equal(result.features.replaced, 1);
-            const old = (await service.listFeatures(PROJECT)).find(
-                (f) => f.featureKey === 'OLD_FEATURE',
-            );
+            const old = (await service.listFeatures()).find((f) => f.featureKey === 'OLD_FEATURE');
             assert.equal(old.discoveryStatus, 'obsolete');
             assert.equal(old.successorKey, 'NEW_FEATURE');
         });
@@ -485,7 +464,7 @@ describe('CatalogEntriesService', () => {
             await service.syncFromSnapshot(snapshot({ features: ['GONE'] }));
             const result = await service.syncFromSnapshot(snapshot({ features: ['UNRELATED'] }));
             assert.equal(result.features.replaced, 0);
-            const gone = (await service.listFeatures(PROJECT)).find((f) => f.featureKey === 'GONE');
+            const gone = (await service.listFeatures()).find((f) => f.featureKey === 'GONE');
             assert.equal(gone.discoveryStatus, 'obsolete');
             assert.equal(gone.successorKey, null);
         });
@@ -500,9 +479,7 @@ describe('CatalogEntriesService', () => {
                     features: ['OLD_FEATURE', featureWithReplaces('NEW_FEATURE', ['OLD_FEATURE'])],
                 }),
             );
-            const old = (await service.listFeatures(PROJECT)).find(
-                (f) => f.featureKey === 'OLD_FEATURE',
-            );
+            const old = (await service.listFeatures()).find((f) => f.featureKey === 'OLD_FEATURE');
             assert.equal(old.successorKey, null);
         });
 
@@ -512,7 +489,7 @@ describe('CatalogEntriesService', () => {
                 snapshot({ quotas: [quota('storageGb', { replaces: ['storageMb'] })] }),
             );
             assert.equal(result.quotas.replaced, 1);
-            const old = (await service.listQuotas(PROJECT)).find((q) => q.quotaKey === 'storageMb');
+            const old = (await service.listQuotas()).find((q) => q.quotaKey === 'storageMb');
             assert.equal(old.discoveryStatus, 'obsolete');
             assert.equal(old.successorKey, 'storageGb');
         });
@@ -534,9 +511,7 @@ describe('CatalogEntriesService', () => {
                 snapshot({ features: [featureWithReplaces('NEW_FEATURE', ['OLD_FEATURE'])] }),
             );
             assert.equal(result.features.replaced, 0);
-            const old = (await service.listFeatures(PROJECT)).find(
-                (f) => f.featureKey === 'OLD_FEATURE',
-            );
+            const old = (await service.listFeatures()).find((f) => f.featureKey === 'OLD_FEATURE');
             assert.equal(old.discoveryStatus, 'obsolete');
             assert.equal(old.successorKey, null);
         });
@@ -554,7 +529,7 @@ describe('CatalogEntriesService', () => {
                     ],
                 }),
             );
-            const [row] = await service.listFeatures(PROJECT);
+            const [row] = await service.listFeatures();
             assert.deepEqual(row.requires, ['RESOURCES']);
             assert.deepEqual(row.replaces, ['OLD_TRAINING']);
         });
@@ -562,7 +537,7 @@ describe('CatalogEntriesService', () => {
 
     test('setFeatureI18n persists translations', async () => {
         await service.syncFromSnapshot(snapshot({ features: ['MEMBER_MANAGEMENT'] }));
-        const updated = await service.setFeatureI18n(PROJECT, 'MEMBER_MANAGEMENT', {
+        const updated = await service.setFeatureI18n('MEMBER_MANAGEMENT', {
             en: { label: 'Member management' },
         });
         assert.equal(updated.i18n.en.label, 'Member management');
@@ -576,7 +551,7 @@ describe('CatalogEntriesService', () => {
             });
             const svc = new CatalogEntriesService(repo, snap);
             await svc.onApplicationBootstrap();
-            const feats = await svc.listFeatures(PROJECT);
+            const feats = await svc.listFeatures();
             assert.equal(feats.length, 1);
             assert.equal(feats[0].featureKey, 'MEMBER_MANAGEMENT');
         });
@@ -592,7 +567,7 @@ describe('CatalogEntriesService', () => {
             };
             const svc = new CatalogEntriesService(repo, snap, {}, null, registry);
             await svc.onApplicationBootstrap();
-            const [f] = await svc.listFeatures(PROJECT);
+            const [f] = await svc.listFeatures();
             assert.equal(f.label, 'Mitgliederverwaltung');
             assert.equal(f.description, 'Mitglieder pflegen.');
             assert.equal(f.icon, 'groups');
@@ -602,13 +577,12 @@ describe('CatalogEntriesService', () => {
             const snap = snapshot({ features: ['MEMBER_MANAGEMENT'] });
             // Simulates an existing entry maintained in the AdminUI.
             await repo.upsertFeature({
-                projectKey: PROJECT,
                 featureKey: 'MEMBER_MANAGEMENT',
                 label: 'Custom-Label',
                 description: 'Custom-Desc',
                 discoveryStatus: 'approved',
             });
-            await repo.setFeatureBase(PROJECT, 'MEMBER_MANAGEMENT', { icon: 'custom_icon' });
+            await repo.setFeatureBase('MEMBER_MANAGEMENT', { icon: 'custom_icon' });
             const registry = {
                 MEMBER_MANAGEMENT: {
                     label: 'Registry',
@@ -618,7 +592,7 @@ describe('CatalogEntriesService', () => {
             };
             const svc = new CatalogEntriesService(repo, snap, {}, null, registry);
             await svc.onApplicationBootstrap();
-            const [f] = await svc.listFeatures(PROJECT);
+            const [f] = await svc.listFeatures();
             assert.equal(f.label, 'Custom-Label');
             assert.equal(f.icon, 'custom_icon');
         });
@@ -627,7 +601,6 @@ describe('CatalogEntriesService', () => {
             const snap = snapshot({ features: ['MEMBER_MANAGEMENT'] });
             // Auto-sync initially creates rows with label==key → must count as "bare".
             await repo.upsertFeature({
-                projectKey: PROJECT,
                 featureKey: 'MEMBER_MANAGEMENT',
                 label: 'MEMBER_MANAGEMENT',
                 description: null,
@@ -642,7 +615,7 @@ describe('CatalogEntriesService', () => {
             };
             const svc = new CatalogEntriesService(repo, snap, {}, null, registry);
             await svc.onApplicationBootstrap();
-            const [f] = await svc.listFeatures(PROJECT);
+            const [f] = await svc.listFeatures();
             assert.equal(f.label, 'Mitgliederverwaltung');
             assert.equal(f.icon, 'groups');
         });
@@ -653,13 +626,13 @@ describe('CatalogEntriesService', () => {
                 autoSyncDiscoveryAtBoot: false,
             });
             await svc.onApplicationBootstrap();
-            assert.equal((await svc.listFeatures(PROJECT)).length, 0);
+            assert.equal((await svc.listFeatures()).length, 0);
         });
 
         test('no-op without an injected snapshot', async () => {
             const svc = new CatalogEntriesService(repo, null);
             await svc.onApplicationBootstrap();
-            assert.equal((await svc.listFeatures(PROJECT)).length, 0);
+            assert.equal((await svc.listFeatures()).length, 0);
         });
 
         test('swallows a sync error at boot (no boot crash)', async () => {

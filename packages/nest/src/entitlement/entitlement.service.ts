@@ -352,7 +352,6 @@ export class EntitlementService {
                 throw new InternalServerErrorException(
                     codedError(BILLING_ERROR_CODES.QUOTA_DIMENSION_UNKNOWN, {
                         dimension: input.dimension,
-                        projectKey: this.catalog.projectKey,
                     }),
                 );
             }

@@ -79,7 +79,6 @@ export class CheckoutOfferService {
     async create(data: CreateCheckoutOfferData): Promise<CheckoutOfferRow> {
         const normalized = this.normalizeCreateData(data);
         await this.assertFeatureRequiresSatisfied({
-            projectKey: normalized.projectKey,
             planKey: normalized.planKey,
             planVersionId: normalized.planVersionId ?? null,
             bundleVersionIds: normalized.bundleVersionIds ?? [],
@@ -94,7 +93,6 @@ export class CheckoutOfferService {
         this.assertOpen(existing, 'changed');
         const next = this.normalizeUpdateData(existing, data);
         await this.assertFeatureRequiresSatisfied({
-            projectKey: existing.projectKey,
             planKey: existing.planKey,
             planVersionId: existing.planVersionId,
             bundleVersionIds: next.bundleVersionIds ?? [],
@@ -125,16 +123,13 @@ export class CheckoutOfferService {
      * skipped (graceful — no requires data available).
      */
     private async assertFeatureRequiresSatisfied(input: {
-        projectKey: string;
         planKey: string;
         planVersionId: string | null;
         bundleVersionIds: string[];
         lineItems: CheckoutOfferLineItem[];
     }): Promise<void> {
         if (!this.catalogEntries) return;
-        const entries = await this.catalogEntries.listFeatures({
-            projectKey: input.projectKey,
-        });
+        const entries = await this.catalogEntries.listFeatures({});
         const requiresIndex = buildFeatureRequiresIndex(entries);
         if (requiresIndex.size === 0) return;
 

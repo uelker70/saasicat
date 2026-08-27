@@ -51,7 +51,6 @@ export function bundleDraftDefaults(data: CreateBundleVersionDraftData): {
  * decide differently.
  */
 export function bundleStemDefaults(data: CreateBundleData): {
-    projectKey: string;
     bundleKey: string;
     label: string;
     description: string | null;
@@ -60,7 +59,6 @@ export function bundleStemDefaults(data: CreateBundleData): {
     i18n: CatalogEntryI18n;
 } {
     return {
-        projectKey: data.projectKey,
         bundleKey: data.bundleKey,
         label: data.label,
         description: data.description ?? null,
@@ -73,7 +71,6 @@ export function bundleStemDefaults(data: CreateBundleData): {
 /** The stored shape both adapters read a bundle stem back from. */
 export interface StoredBundleStem {
     id: string;
-    projectKey: string;
     bundleKey: string;
     label: string;
     description: string | null;
@@ -97,7 +94,6 @@ export interface StoredBundleStem {
 export function toBundleStemRow(row: StoredBundleStem): BundleRow {
     return {
         id: row.id,
-        projectKey: row.projectKey,
         bundleKey: row.bundleKey,
         label: row.label,
         description: row.description,

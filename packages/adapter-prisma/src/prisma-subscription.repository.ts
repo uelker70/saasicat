@@ -104,7 +104,7 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
         });
     }
 
-    async countActiveByPlanKey(projectKey: string): Promise<Record<string, number>> {
+    async countActiveByPlanKey(): Promise<Record<string, number>> {
         const db = this.db();
         const subscriptions = await this.subscriptions(db).findMany({
             // Status alone answers the wrong question. A cancellation that has
@@ -140,13 +140,13 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
             planVersions.map((planVersion) => [planVersion.id, planVersion]),
         );
         const storedPlanIds = [...new Set(planVersions.map((planVersion) => planVersion.planId))];
-        const planKeyByStoredId = await this.planKeysForProject(db, storedPlanIds, projectKey);
+        const planKeyByStoredId = await this.planKeys(db, storedPlanIds);
 
         const counts: Record<string, number> = {};
         for (const subscription of subscriptions) {
             const planVersion = planVersionById.get(subscription.planVersionId);
             const planKey = planVersion ? planKeyByStoredId.get(planVersion.planId) : undefined;
-            // Missing/cross-project/ambiguous references fail closed. The
+            // A reference to a plan that is not there fails closed. The
             // concrete PlanVersion, not denormalized Subscription.plan, is the
             // authoritative plan identity.
             if (!planKey) continue;
@@ -227,47 +227,32 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
         return getPrismaDelegate(client, this.subscriptionDelegateName);
     }
 
-    private async planKeysForProject(
+    /**
+     * Maps whatever `PlanVersion.planId` holds onto the semantic plan key.
+     *
+     * Under `normalized-plan-id` that is a lookup; under `legacy-plan-key` the
+     * stored value already is the key and maps to itself — but only for a plan
+     * that exists, so a version left behind by a deleted plan drops out of the
+     * count instead of inventing one.
+     */
+    private async planKeys(
         db: SubscriptionPrisma,
         storedPlanIds: string[],
-        projectKey: string,
     ): Promise<Map<string, string>> {
         if (storedPlanIds.length === 0) return new Map();
 
         if (this.binding.mode === 'normalized-plan-id') {
-            if (this.binding.projectKey && this.binding.projectKey !== projectKey) {
-                throw new Error(
-                    `Prisma plan binding is configured for project '${this.binding.projectKey}', ` +
-                        `not '${projectKey}'.`,
-                );
-            }
             const plans = await db.plan.findMany({
-                where: { projectKey, id: { in: storedPlanIds } },
+                where: { id: { in: storedPlanIds } },
                 select: { id: true, planKey: true },
             });
             return new Map(plans.map((plan) => [plan.id, plan.planKey]));
         }
 
-        // A legacy PlanVersion stores only the semantic planKey. If the same
-        // key exists in multiple projects, ownership cannot be proven; omit it
-        // rather than leaking another project's subscriptions into the count.
         const plans = await db.plan.findMany({
             where: { planKey: { in: storedPlanIds } },
-            select: { projectKey: true, planKey: true },
+            select: { planKey: true },
         });
-        const projectsByPlanKey = new Map<string, Set<string>>();
-        for (const plan of plans) {
-            const projects = projectsByPlanKey.get(plan.planKey) ?? new Set<string>();
-            projects.add(plan.projectKey);
-            projectsByPlanKey.set(plan.planKey, projects);
-        }
-        return new Map(
-            storedPlanIds.flatMap((planKey) => {
-                const projects = projectsByPlanKey.get(planKey);
-                return projects?.size === 1 && projects.has(projectKey)
-                    ? [[planKey, planKey] as const]
-                    : [];
-            }),
-        );
+        return new Map(plans.map((plan) => [plan.planKey, plan.planKey]));
     }
 }

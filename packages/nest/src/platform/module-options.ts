@@ -256,15 +256,14 @@ export interface SaaSiCatModuleOptions {
     planCatalog?: PlanCatalog;
     /**
      * App identity for the DB-hydration path — required when `planCatalog`
-     * is omitted. The read sink only loads plans/features (filtered by
-     * `projectKey`); branding, currency and VAT cannot come from the
-     * database and must be supplied here.
+     * is omitted. The read sink only loads plans and features; branding,
+     * currency and VAT cannot come from the database and must be supplied
+     * here.
      */
     dbCatalog?: {
-        projectKey: string;
         currency: string;
         vatRate: number;
-        app?: PlanCatalog['app'];
+        app: PlanCatalog['app'];
         marketing?: PlanCatalog['marketing'];
     };
     /**

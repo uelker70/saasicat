@@ -25,7 +25,6 @@ class FakeGuard {
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'app',
     app: { name: 'App', version: '0.0.1' },
     currency: 'EUR',
     vatRate: 19,

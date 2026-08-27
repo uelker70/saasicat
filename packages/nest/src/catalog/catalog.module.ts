@@ -100,7 +100,6 @@ export interface CatalogModuleOptions {
      */
     publicMarketingCatalog?: {
         guards: Array<Type<CanActivate>>;
-        projectKey: string;
         currency: string;
         vatRate: number;
     };
@@ -192,7 +191,6 @@ export class CatalogModule {
             controllers.push(
                 buildPublicMarketingCatalogController(
                     options.publicMarketingCatalog.guards,
-                    options.publicMarketingCatalog.projectKey,
                     options.publicMarketingCatalog.currency,
                     options.publicMarketingCatalog.vatRate,
                 ),

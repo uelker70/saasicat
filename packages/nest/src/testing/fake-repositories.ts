@@ -251,7 +251,6 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
 
     async list(filter: SubscriptionContractFilter): Promise<SubscriptionContractRecord[]> {
         return [...this.byId.values()]
-            .filter((row) => !filter.projectKey || row.projectKey === filter.projectKey)
             .filter((row) => !filter.tenantId || row.tenantId === filter.tenantId)
             .filter((row) => !filter.status || row.status === filter.status)
             .filter((row) => !filter.asOf || this.isActiveAt(row, filter.asOf))
@@ -280,7 +279,6 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         const id = `contract-${this.nextContractId++}`;
         const row: SubscriptionContractRecord = {
             id,
-            projectKey: data.projectKey,
             tenantId: data.tenantId,
             status: data.status ?? 'active',
             effectiveFrom: new Date(data.effectiveFrom),
@@ -468,31 +466,31 @@ export class FakeBundleRepository implements BundleRepository {
 
     async list(filter: BundleListFilter): Promise<BundleRow[]> {
         const excludeDeleted = filter.excludeDeleted ?? true;
-        return [...this.bundles.values()].filter(
-            (b) => b.projectKey === filter.projectKey && (!excludeDeleted || b.deletedAt === null),
-        );
+        return [...this.bundles.values()].filter((b) => !excludeDeleted || b.deletedAt === null);
     }
 
     async findById(bundleId: string): Promise<BundleRow | null> {
         return this.bundles.get(bundleId) ?? null;
     }
 
-    async findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null> {
+    async findByKey(bundleKey: string): Promise<BundleRow | null> {
         for (const b of this.bundles.values()) {
             // Retired bundles included: the unique index does not exclude
             // them, and this answers the database's question.
-            if (b.projectKey === projectKey && b.bundleKey === bundleKey) {
-                return b;
-            }
+            if (b.bundleKey === bundleKey) return b;
         }
         return null;
     }
 
     async create(data: CreateBundleData): Promise<BundleRow> {
+        // `bundles_bundleKey_key` in memory — a key is taken once for the
+        // whole installation, and a double claim fails here as it would there.
+        if (await this.findByKey(data.bundleKey)) {
+            throw new Error(`bundleKey '${data.bundleKey}' is already taken.`);
+        }
         const now = this.nowIso();
         const row: BundleRow = {
             id: this.genId('bbbb'),
-            projectKey: data.projectKey,
             bundleKey: data.bundleKey,
             label: data.label,
             description: data.description ?? null,
@@ -710,7 +708,6 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
 
     async list(filter: MarketingProjectionFilter): Promise<MarketingProjectionRow[]> {
         return [...this.rows.values()].filter((r) => {
-            if (r.projectKey !== filter.projectKey) return false;
             if (filter.targetType && r.targetType !== filter.targetType) return false;
             if (filter.targetVersionId && r.targetVersionId !== filter.targetVersionId)
                 return false;
@@ -751,7 +748,6 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
         const now = this.nowIso();
         const row: MarketingProjectionRow = {
             id: this.genId(),
-            projectKey: data.projectKey,
             targetType: data.targetType,
             targetVersionId: data.targetVersionId,
             locale,
@@ -852,9 +848,7 @@ export class FakePlanRepository implements PlanRepository {
             : null;
         return [...this.plans.values()].filter(
             (p) =>
-                p.projectKey === filter.projectKey &&
-                (!excludeDeleted || p.deletedAt === null) &&
-                (!liveKeys || liveKeys.has(p.planKey)),
+                (!excludeDeleted || p.deletedAt === null) && (!liveKeys || liveKeys.has(p.planKey)),
         );
     }
 
@@ -862,20 +856,23 @@ export class FakePlanRepository implements PlanRepository {
         return this.plans.get(planId) ?? null;
     }
 
-    async findByKey(projectKey: string, planKey: string): Promise<PlanRow | null> {
+    async findByKey(planKey: string): Promise<PlanRow | null> {
         for (const p of this.plans.values()) {
-            if (p.projectKey === projectKey && p.planKey === planKey && p.deletedAt === null) {
-                return p;
-            }
+            // Retired plans included, for the same reason as bundles: the
+            // unique index does not exclude them.
+            if (p.planKey === planKey) return p;
         }
         return null;
     }
 
     async create(data: CreatePlanData): Promise<PlanRow> {
+        // `plans_planKey_key` in memory.
+        if (await this.findByKey(data.planKey)) {
+            throw new Error(`planKey '${data.planKey}' is already taken.`);
+        }
         const now = this.nowIso();
         const row: PlanRow = {
             id: this.genId(),
-            projectKey: data.projectKey,
             planKey: data.planKey,
             label: data.label,
             description: data.description ?? null,

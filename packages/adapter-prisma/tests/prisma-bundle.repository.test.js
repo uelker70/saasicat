@@ -7,7 +7,6 @@ const EPOCH = new Date('2026-01-01T00:00:00.000Z');
 function bundleRow(overrides = {}) {
     return {
         id: 'bundle-1',
-        projectKey: 'test-app',
         bundleKey: 'SPORT',
         label: 'Sport',
         description: null,

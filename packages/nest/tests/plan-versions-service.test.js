@@ -8,8 +8,6 @@ import { FakePlanRepository, FakeSubscriptionRepository } from '../dist/testing/
 // Strict mode check is inactive in Pack 2a (`warnings` is always empty);
 // comes with Pack 2c.
 
-const PROJECT = 'clubapp';
-
 async function setupWithPlan(planKey = 'STARTER', subscriptions = null) {
     const repo = new FakePlanRepository();
     const stem = new PlansService(repo);
@@ -20,7 +18,6 @@ async function setupWithPlan(planKey = 'STARTER', subscriptions = null) {
         subscriptions,
     );
     const plan = await stem.createPlan({
-        projectKey: PROJECT,
         planKey,
         label: planKey,
     });

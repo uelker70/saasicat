@@ -23,7 +23,7 @@ function boot(brand: Record<string, unknown>) {
     return createSuperAdminApp({
         rootComponent: Root,
         brand,
-        endpoints: { apiBase: '/api/v1/admin', projectKey: 'demo' },
+        endpoints: { apiBase: '/api/v1/admin' },
         appRoutes: [{ path: '/:pathMatch(.*)*', component: Root }],
         theme: { persist: false },
     } as never);

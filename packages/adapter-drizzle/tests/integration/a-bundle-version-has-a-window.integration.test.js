@@ -36,7 +36,6 @@ after(async () => {
 beforeEach(async () => {
     await pool.query('TRUNCATE TABLE bundle_versions, bundles RESTART IDENTITY CASCADE');
     const bundle = await repository.create({
-        projectKey: 'window-probe',
         bundleKey: `REPORTING_${randomUUID().slice(0, 8)}`,
         label: 'Reporting',
     });

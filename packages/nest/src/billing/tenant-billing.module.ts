@@ -26,7 +26,6 @@ import { PendingPlanMaterializationService } from './pending-plan-materializatio
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
 import {
     CONTRACT_FREEZE_PORT_TOKEN,
-    CONTRACT_FREEZE_PROJECT_KEY_TOKEN,
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
     type ContractFreezeSourcePort,
 } from './contract-freeze.tokens.js';
@@ -122,13 +121,12 @@ export interface TenantBillingModuleOptions {
      * Optional contract freeze hook (#18). If it is configured, the
      * platform `changePlan` path (non-TRIAL) AND the materialization freeze
      * the agreed service after the plan mutation as a `SubscriptionContract`
-     * (analogous to `trialProjectionPort`). Consumer-specific are only `projectKey`
-     * + bundle/version data access (`sourcePort`); the contract logic is
+     * (analogous to `trialProjectionPort`). Consumer-specific is only the
+     * bundle/version data access (`sourcePort`); the contract logic is
      * generic. `subscriptionContractRepository` is the same repo that also goes
      * to `EntitlementModule.forRoot` — the freeze needs it in its own scope.
      */
     contractFreeze?: {
-        projectKey: string;
         sourcePort: ProviderSpec<ContractFreezeSourcePort>;
         subscriptionContractRepository: ProviderSpec<SubscriptionContractRepository>;
     };
@@ -237,10 +235,6 @@ export class TenantBillingModule {
         const hasContractFreeze = Boolean(options.contractFreeze);
         if (options.contractFreeze) {
             providers.push(
-                {
-                    provide: CONTRACT_FREEZE_PROJECT_KEY_TOKEN,
-                    useValue: options.contractFreeze.projectKey,
-                },
                 asProvider(CONTRACT_FREEZE_SOURCE_PORT_TOKEN, options.contractFreeze.sourcePort),
                 asProvider(
                     SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,

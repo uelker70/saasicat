@@ -62,8 +62,8 @@ async function seedCatalogAndSubscription() {
     const bundleId = randomUUID();
     await pool.query(
         `INSERT INTO bundles
-           ("id","projectKey","bundleKey","label","sortOrder","i18n","createdAt","updatedAt")
-         VALUES ($1,'probe',$2,'Reporting',0,'{}',NOW(),NOW())`,
+           ("id","bundleKey","label","sortOrder","i18n","createdAt","updatedAt")
+         VALUES ($1,$2,'Reporting',0,'{}',NOW(),NOW())`,
         [bundleId, `REPORTING_${randomUUID().slice(0, 8)}`],
     );
     const makeVersion = async (version) => {

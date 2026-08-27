@@ -1,5 +1,5 @@
 <!-- naming-history: this guide names the pre-1.0 identifiers on purpose — they are what it tells
-you to replace. -->
+you to replace. project-key-history: `projectKey` is one of them. -->
 
 # Migrating to 1.0
 
@@ -11,9 +11,13 @@ command does almost all of it:
 npx @saasicat/cli@latest codemod v1 --dir=.
 ```
 
-It runs `v1-imports` (the surface cut) and then `v1-rename` (the names), is idempotent, skips
-`node_modules/` and `dist/`, and **reports rather than guesses** the two cases it cannot decide —
-both are listed at the end. Run it with `--dry-run` first if you want to see the count.
+It runs `v1-imports` (the surface cut), then `v1-rename` (the names), then `v1-project-key` (the
+column that left the model), is idempotent, skips `node_modules/` and `dist/`, and **reports rather
+than guesses** the cases it cannot decide — they are listed at the end. Run it with `--dry-run`
+first if you want to see the count.
+
+One step is **not** in there, because no codemod can do it: your database still has the column.
+[The migration below](#projectkey-is-gone-from-the-database) is a SQL file you run once.
 
 ## What changed, and what it becomes
 
@@ -578,6 +582,97 @@ now the decision: an add-on hangs off the plan that pays for it, its commitment 
 term, and a second waiting period on top is one nobody could explain to a customer. A test refuses
 any reference to the notice machinery from the bundle path, so the rule cannot drift back in.
 
+### `projectKey` is gone from the database
+
+One installation serves one application. A plan key, a bundle key, a feature key and a quota key
+are unique for the whole installation, and nothing carries a project above them.
+
+The column never had a second value to hold. Nothing in the platform could configure a second
+project — `config/saas.yaml` names one, `compose/base.ts` resolves it once at boot, and there is no
+per-request switch — while `subscriptions.tenantId` is unique installation-wide, so a customer of
+two applications in one database could not exist. What the column did do was contradict the schema
+beside it: `plan_versions.planId` holds the plan **key** and no project, so two plans sharing a key
+shared one version lineage, and `plan_versions_draft_per_plan` then stopped the second one from
+opening a draft at all.
+
+**Ten tables lose it:** `plans`, `bundles`, `capability_catalog_entries`,
+`feature_catalog_entries`, `quota_catalog_entries`, `marketing_projections`, `marketing_settings`,
+`promotions`, `checkout_offers`, `subscription_contracts`. Every `(projectKey, <key>)` unique index
+becomes `(<key>)`, and the composite lookup indexes lose their first column.
+
+**Run the migration once, against your database:**
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.postgres.sql
+```
+
+**If your dev setup uses `prisma db push`**, run the file before it, not instead of it. `db push`
+refuses a change that would drop a column holding data — `Use the --accept-data-loss flag` — and it
+is right to: it cannot know whether those rows still matter. Do not add the flag; it would arm every
+future schema change to discard data without being asked. Run the migration, which checks the rows
+first, and `db push` then has nothing destructive left to do.
+`examples/notesapp/docker-entrypoint.sh` does exactly that, in that order.
+
+It opens a transaction and starts with a guard: if those tables between them hold rows under more
+than one project key, it **stops and names which table held which** rather than merging rows nobody
+meant to merge — two `STANDARD` plans would collide on the new unique index, and which of them
+survives is not a decision a migration should take. Delete the rows that do not belong to this
+installation, then run it again. It is a one-way door — the values are dropped, not archived — but
+running it twice is safe: a table whose column has already gone is skipped, so a second run does
+nothing rather than failing.
+
+It is also safe on a **partial** schema. The Prisma fragments are adopted à la carte, and each
+table's changes are made only where that table exists — an app that never took `bundles` migrates
+the tables it does have instead of rolling the whole thing back.
+
+One thing the migration adds rather than removes: a `CHECK` that keeps `marketing_settings` to a
+single row. It used to be a convention resting on a default, and a default does not apply to a
+caller that supplies the value.
+
+**In your code**, `v1-project-key` removes what it can decide:
+
+| before                                                          | after                                     |
+| --------------------------------------------------------------- | ----------------------------------------- |
+| `projectKey: myapp` in `config/saas.yaml`                       | gone — `app.name` is now required instead |
+| `dbCatalog: { projectKey, currency, vatRate }`                  | `dbCatalog: { app, currency, vatRate }`   |
+| `{ apiBase: '…', projectKey: 'myapp' }` (`SuperAdminEndpoints`) | `{ apiBase: '…' }`                        |
+| `?projectKey=…` on a `/catalog/` URL                            | gone — those endpoints no longer read it  |
+| `plans.create({ projectKey, planKey, … })`                      | `plans.create({ planKey, … })`            |
+| `usePlans({ adminEndpoint, projectKey, http })`                 | `usePlans({ adminEndpoint, http })`       |
+
+**It rewrites two of those and prints the rest.** The two it rewrites need no grammar to decide: a
+`?projectKey=` on a `/catalog/` URL — the prefix every endpoint that read it sat under — and the key
+in `config/saas.yaml`, a file whose schema this platform owns.
+
+**Your `schema.prisma` it prints too, and does not touch.** If you copied the platform's models
+into it — the documented path — it declares `projectKey` fields and `@@unique([projectKey, …])`
+indexes of its own. Those have to go, or the generated client queries columns the database no longer
+has and the next `db push` tries to put them back. Which fields your models still need is yours to
+say, so the codemod names the lines and leaves the edit to you.
+
+**Every object member it prints, by file and line.** Not because the shapes are unclear, but because
+telling one apart from a declaration of your own is not something a text scan can do: in TypeScript
+`{ projectKey: 'app', apiBase: string }` is a valid _type_ and `{ projectKey: 'app', apiBase: '/a' }`
+is a valid _value_, and they are the same tokens. A codemod that guessed would occasionally delete a
+member of your own interface, and you would find out later. So it errs towards leaving work for you
+rather than removing yours.
+
+The list it prints is the work: the table above says what each shape becomes, and one editor pass
+per shape does it — `projectKey: 'myapp',` appears identically in most places it appears at all.
+`old_projectKey` and `projectKeys` are not reported; they are not this identifier.
+
+**Three more things move with it.** `app.name` is now **required** in `config/saas.yaml`: it is the
+one place the application names itself, and it is what the manifest and the login page display.
+`PublicMarketingCatalogResponse` no longer carries `projectKey`. And four error messages lost the
+phrase — `PLAN_ALREADY_EXISTS` now reads `Plan 'STANDARD' already exists`, and its `params` no
+longer carry the key. Nothing in the admin UI, the tenant UI, the CLI or the example app read that
+parameter, so a message you render from the catalogue is unaffected.
+
+**`saasicat init` renamed its flag** to match: `--project-key` is `--app-key`, and so is
+`pnpm create saasicat-admin`'s. It is now what it always did — the slug of the application, used
+for the npm package name, the storage prefix and the generated identifiers — and it is no longer
+written into `config/saas.yaml`.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.
@@ -587,7 +682,9 @@ any reference to the notice machinery from the bundle path, so the rule cannot d
 4. **A `file:` override that points into this repository** — the package directories are their
    npm names now (`packages/nest`, not `packages/saas-platform-nest`). The codemod does not scan
    `package.json`; update the path by hand.
-5. **A feature guard of your own.** With `globalFeatureGuard: false`, 1.0 refuses to boot when a
+5. **An object literal with a `projectKey` the codemod could not place** — see above; it prints
+   the file and line. Delete the ones that addressed the platform catalogue, keep your own.
+6. **A feature guard of your own.** With `globalFeatureGuard: false`, 1.0 refuses to boot when a
    `@RequireFeature` route has no feature guard in front of it — and it recognises a guard only by
    `FEATURE_GUARD_MARKER`, which `StaticFeatureGuard` and `FeatureGuard` carry. A guard you wrote
    yourself enforces the annotation just as well and is still reported, route by route. Mark it:
