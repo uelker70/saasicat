@@ -42,10 +42,12 @@ table held which, rather than merging rows that would then collide on the new
 unique index. It is a one-way door.
 
 **For your code**, `saasicat codemod v1` gained a third pass —
-`v1-project-key` — which removes the `?projectKey=` query part, the field from
-an object that also carries something only the platform asks for, and the key
-from `config/saas.yaml`. What it cannot tell from a field of your own it
-reports by file and line instead of guessing.
+`v1-project-key`. It removes the `?projectKey=` query part from a `/catalog/`
+URL and the key from `config/saas.yaml`, and it _reports_ every object member
+by file and line rather than removing it: in TypeScript an object literal and a
+type literal are the same tokens, so a scan that rewrote members would sometimes
+delete one of your own declarations. The upgrade guide's table says what each
+reported shape becomes.
 
 **What changes at the surface:**
 

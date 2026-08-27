@@ -623,16 +623,20 @@ installation, then run it again. It is a one-way door: the values are dropped, n
 | `plans.create({ projectKey, planKey, … })`                      | `plans.create({ planKey, … })`            |
 | `usePlans({ adminEndpoint, projectKey, http })`                 | `usePlans({ adminEndpoint, http })`       |
 
-**What it rewrites is what it can decide**, and the deciding field is the shape of the value: a
-quoted string is a value and cannot be a type, while `projectKey: PROJECT_KEY` and
-`projectKey: SomeType` are the same tokens. So it rewrites a quoted member sitting beside something
-only the platform asks for, a `?projectKey=` on a `/catalog/` URL, and the key in `saas.yaml`.
+**It rewrites two of those and prints the rest.** The two it rewrites need no grammar to decide: a
+`?projectKey=` on a `/catalog/` URL — the prefix every endpoint that read it sat under — and the key
+in `config/saas.yaml`, a file whose schema this platform owns.
 
-**Everything else it prints, by file and line**, for you to look at: a bare-identifier value, a
-`projectKey` declared in one of your own interfaces, the shorthand `{ projectKey }`, a query
-parameter on an endpoint of your own, an object it cannot tell from your own data. It errs towards
-leaving work for you rather than removing yours — a run that reports twenty lines is doing its job,
-and those twenty are minutes.
+**Every object member it prints, by file and line.** Not because the shapes are unclear, but because
+telling one apart from a declaration of your own is not something a text scan can do: in TypeScript
+`{ projectKey: 'app', apiBase: string }` is a valid _type_ and `{ projectKey: 'app', apiBase: '/a' }`
+is a valid _value_, and they are the same tokens. A codemod that guessed would occasionally delete a
+member of your own interface, and you would find out later. So it errs towards leaving work for you
+rather than removing yours.
+
+The list it prints is the work: the table above says what each shape becomes, and one editor pass
+per shape does it — `projectKey: 'myapp',` appears identically in most places it appears at all.
+`old_projectKey` and `projectKeys` are not reported; they are not this identifier.
 
 **Three more things move with it.** `app.name` is now **required** in `config/saas.yaml`: it is the
 one place the application names itself, and it is what the manifest and the login page display.

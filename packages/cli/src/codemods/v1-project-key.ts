@@ -8,65 +8,43 @@
 // may carry one that has nothing to do with this platform — deleting those is
 // data loss the codemod cannot see afterwards.
 //
-// Three review rounds landed on this one predicate before it was measured
-// rather than patched again, so here is the measurement. Counted over the two
-// real consumer repositories, every occurrence takes one of five shapes, and
-// the field that separates them is the shape of the VALUE:
+// So this rewrites two forms and REPORTS everything else. The line between them
+// took four attempts and three review rounds, and the reason it moved is worth
+// writing down rather than repeating:
 //
-//   | shape                        | count | decidable |
-//   | ---------------------------- | ----- | --------- |
-//   | `projectKey: 'vereinsfux'`   |  ~83  | yes — a quoted literal is a value and cannot be a type
-//   | `projectKey,` (shorthand)    |   46  | no — no value to read at all
-//   | `projectKey: PROJECT_KEY`    |   30  | no — a const and a type reference are the same tokens
-//   | `projectKey: string`         |   11  | no by separator, yes by value: not quoted
-//   | `?projectKey=…` in a URL     |    6  | yes — if the path is one the platform served it on
+//   attempt            counter-example
+//   ---------------    -----------------------------------------------------
+//   comma-terminated   an interface separates members with `;`
+//   `;`-free body      TypeScript permits `,` between type members
+//   another member     a type literal may separate them with a newline alone
+//   quoted value       `interface E { projectKey: 'app' }` — `tsc` accepts it
 //
-// So the rule is the value's shape, not the separator around it. Separators
-// were the first three attempts and each had a counter-example: an interface
-// uses `;`, a type literal may use a newline, and TypeScript permits `,`
-// between type members — the punctuation never says which side it is on. A
-// quoted string does: no type expression is one.
+// Each was a proxy for one question: is this brace an object literal or a type
+// literal? In TypeScript the two are LEXICALLY IDENTICAL. `{ projectKey: 'app',
+// apiBase: string }` is a valid type and `{ projectKey: 'app', apiBase: '/a' }`
+// is a valid value, and no amount of punctuation-reading separates them —
+// only the enclosing grammar does, and reading that reliably means parsing.
 //
-// Rewritten automatically, because each is decidable:
+// This codemod does not parse, so it does not decide. An object member is
+// reported with its file and line; the migration guide's table says what each
+// shape becomes, and a person's editor does the rest in one pass. That is the
+// trade: minutes of somebody's attention against the chance of silently
+// deleting a member of their own type.
 //
-//   - a `projectKey:` member whose value is a QUOTED STRING, inside an object
-//     that also carries a member only the platform asks for (`apiBase`,
-//     `vatRate`, `planKey`, …), where `projectKey` is the whole identifier.
-//   - `?projectKey=…` in a URL whose path names `/catalog/`, which is the
-//     prefix every endpoint that read the parameter sat under. A consumer's own
-//     `/api/reports?projectKey=` is not one of them and is left alone.
-//   - the top-level `projectKey:` line of a `config/saas.yaml`, whose schema
-//     this platform owns outright.
+// Rewritten, because neither needs the grammar:
 //
-// Everything else is REPORTED by file and line: a bare-identifier value, a type
-// member, a shorthand, a query part on somebody else's endpoint, an object with
-// no platform member beside it. Which way this errs is the point — it leaves
-// work for a person, never removes theirs. An integrator who reads the report
-// finishes in minutes; one who does not still has compiling code.
+//   - the top-level `projectKey:` line of a `config/saas.yaml`, a file whose
+//     schema this platform owns outright.
+//   - `?projectKey=…` in a URL whose path names `/catalog/`, the prefix every
+//     endpoint that read the parameter sat under. A consumer's own
+//     `/api/reports?projectKey=` is a request this platform never served.
+//
+// Reported, with the line: every `projectKey` in a source file that is not one
+// of those two. Which way this errs is the point — it leaves work for a person,
+// never removes theirs.
 //
 // Pure functions, like `v1-imports.ts` and `v1-rename.ts`: the caller reads and
 // writes the files, which is what makes the rules testable without one.
-
-/**
- * Members whose presence in an object literal identifies it as a platform
- * payload rather than the consumer's own data.
- *
- * Derived from what the removed field actually sat beside — the endpoint
- * constant, the `dbCatalog`/`PlanCatalogModule` identity, and the catalogue
- * create bodies. A literal carrying none of them is left alone and reported.
- */
-const PLATFORM_SIBLINGS = [
-    'apiBase',
-    'vatRate',
-    'planKey',
-    'bundleKey',
-    'featureKey',
-    'quotaKey',
-    'capabilityKey',
-    'targetVersionId',
-    'activeLocales',
-    'internalLabel',
-] as const;
 
 export interface ProjectKeyResult {
     readonly text: string;
@@ -79,11 +57,6 @@ export interface ProjectKeyResult {
      * consumer's own field, and a wrong deletion is worse than a named one.
      */
     readonly undecided: readonly number[];
-}
-
-/** Whitespace, in one pass and without backtracking. */
-function isSpace(ch: string): boolean {
-    return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
 }
 
 /**
@@ -119,16 +92,33 @@ function stripQueryParameter(text: string): {
         }
         // The value runs to the next parameter separator or to whatever ends
         // the string the URL is written in.
+        //
+        // Every `{` counts, not only the one that opens an interpolation. The
+        // scan used to increment on `${` and decrement on any `}`, so a nested
+        // object inside the expression — `${flag ? { x: 1 } : b}` — closed the
+        // depth on its own brace and the following space was read as the end of
+        // the value. What came out was `/catalog/plans : b}&locale=de`, counted
+        // as a rewrite.
         let end = at + NEEDLE.length;
         let depth = 0;
         while (end < text.length) {
             const ch = text[end];
-            // `${…}` may legitimately contain `&`, `'` and a backtick.
-            if (ch === '$' && text[end + 1] === '{') depth += 1;
+            if (ch === '$' && text[end + 1] === '{') {
+                depth += 1;
+                end += 1;
+            } else if (ch === '{' && depth > 0) depth += 1;
             else if (ch === '}' && depth > 0) depth -= 1;
             else if (depth === 0 && (ch === '&' || ch === "'" || ch === '"' || ch === '`')) break;
             else if (depth === 0 && (ch === '\n' || ch === ' ')) break;
             end += 1;
+        }
+        // An interpolation that never closed means the scan ran past the end of
+        // the string it was reading. Nothing sound can be cut from that.
+        if (depth > 0) {
+            skipped.push(lineAt(text, at));
+            out += text.slice(index, at + NEEDLE.length);
+            index = at + NEEDLE.length;
+            continue;
         }
         // Whose endpoint is this? Every admin route that read the parameter sat
         // under `/catalog/`; a consumer's own `/api/reports?projectKey=` is
@@ -170,137 +160,6 @@ function servesTheCatalogue(text: string, at: number): boolean {
     return text.slice(start, at).includes('/catalog/');
 }
 
-/** The object literal a `projectKey:` member sits in, or null when it has none. */
-function enclosingObject(text: string, at: number): { open: number; close: number } | null {
-    let open = -1;
-    let depth = 0;
-    for (let i = at - 1; i >= 0; i -= 1) {
-        const ch = text[i];
-        if (ch === '}') depth += 1;
-        else if (ch === '{') {
-            if (depth === 0) {
-                open = i;
-                break;
-            }
-            depth -= 1;
-        }
-    }
-    if (open < 0) return null;
-
-    depth = 0;
-    for (let i = open + 1; i < text.length; i += 1) {
-        const ch = text[i];
-        if (ch === '{') depth += 1;
-        else if (ch === '}') {
-            if (depth === 0) return { open, close: i };
-            depth -= 1;
-        }
-    }
-    return null;
-}
-
-/**
- * Where a `projectKey:` member ends: after its separator, or at the brace.
- *
- * Both separators count. A comma ends a member of an object literal; a
- * semicolon ends one of an interface or type literal, and treating it as part
- * of the value is how this cut through `planKey: string;` and everything after
- * it, emptying a consumer's interface. `isTypeBody` keeps such a body out of
- * the codemod's way entirely — this is the second line of defence, so no shape
- * either of them fails to classify can take more than its own member.
- *
- * Quotes are tracked, not just brackets. `projectKey: 'my,app'` would otherwise
- * end at the comma inside the string and leave half a literal behind — a
- * consumer's value is theirs, and a scanner that assumes it holds no separator
- * is a scanner that corrupts the one file it was meant to fix.
- */
-function memberEnd(text: string, from: number, close: number): number {
-    let depth = 0;
-    let quote = '';
-    for (let i = from; i < close; i += 1) {
-        const ch = text[i];
-        if (quote) {
-            if (ch === '\\') i += 1;
-            else if (ch === quote) quote = '';
-            continue;
-        }
-        if (ch === "'" || ch === '"' || ch === '`') quote = ch;
-        else if (ch === '{' || ch === '[' || ch === '(') depth += 1;
-        else if (ch === '}' || ch === ']' || ch === ')') depth -= 1;
-        else if (depth === 0 && (ch === ',' || ch === ';')) return i + 1;
-    }
-    return close;
-}
-
-/**
- * Whether an object body is a type's rather than a value's.
- *
- * An interface or a type literal separates its members with `;`, and its
- * `projectKey` is a declaration, not a payload — removing it rewrites what a
- * consumer's own code *says about* a shape rather than what it sends. The
- * distinction was claimed in a comment here and never implemented, and the
- * cost was not a wrong member but a wrong span: with no comma to stop at, the
- * cut ran to the closing brace and took every member after it.
- *
- * `?:` is already excluded upstream — a member scan requires the colon to
- * follow the name directly, so `projectKey?: string` never reaches here. This
- * is the required form, `projectKey: string`.
- */
-function isTypeBody(body: string): boolean {
-    let depth = 0;
-    let quote = '';
-    for (let i = 0; i < body.length; i += 1) {
-        const ch = body[i];
-        if (quote) {
-            if (ch === '\\') i += 1;
-            else if (ch === quote) quote = '';
-            continue;
-        }
-        if (ch === "'" || ch === '"' || ch === '`') quote = ch;
-        else if (ch === '{' || ch === '[' || ch === '(') depth += 1;
-        else if (ch === '}' || ch === ']' || ch === ')') depth -= 1;
-        else if (depth === 0 && ch === ';') return true;
-    }
-    return false;
-}
-
-/**
- * Whether an object literal carries one of the members that identify it.
- *
- * Scanned rather than matched: building `new RegExp(`…${sibling}…`)` is the
- * shape the guidelines forbid, and the check is a substring plus two character
- * tests either side of it.
- */
-function hasPlatformSibling(body: string): boolean {
-    for (const sibling of PLATFORM_SIBLINGS) {
-        for (let at = body.indexOf(sibling); at >= 0; at = body.indexOf(sibling, at + 1)) {
-            const before = at === 0 ? '{' : body[at - 1];
-            if (before !== '{' && before !== ',' && !isSpace(before)) continue;
-            let after = at + sibling.length;
-            while (after < body.length && isSpace(body[after])) after += 1;
-            if (body[after] === ':') return true;
-        }
-    }
-    return false;
-}
-
-/**
- * Whether a member's value is a quoted string — the one shape that is a value
- * and cannot be a type.
- *
- * `projectKey: PROJECT_KEY` is not accepted: a constant and a type reference
- * are the same tokens, and this codemod does not guess between them. Thirty
- * occurrences in the two consumer repositories take that form and are reported
- * instead, which is a minute of a person's attention against the alternative
- * of deleting a type member that looked like one.
- */
-function hasQuotedValue(text: string, colonAt: number, close: number): boolean {
-    let i = colonAt + 1;
-    while (i < close && isSpace(text[i])) i += 1;
-    const ch = text[i];
-    return ch === "'" || ch === '"' || ch === '`';
-}
-
 /** Whether an identifier character sits next to an offset — a longer name. */
 function isIdentifierChar(ch: string | undefined): boolean {
     return ch !== undefined && /[A-Za-z0-9_$]/.test(ch);
@@ -326,82 +185,30 @@ export function removeProjectKey(
     if (kind === 'yaml') return removeFromYaml(text);
 
     const query = stripQueryParameter(text);
-    let working = query.text;
-    let rewritten = query.removed;
-    const undecided: number[] = [...query.skipped];
+    const reported = new Set<number>(query.skipped);
 
-    // Right to left, so an earlier offset is still valid after a later cut.
-    // Every occurrence of the whole identifier is collected, member or not:
-    // one that cannot be rewritten still has to be reported, and the shorthand
-    // `{ projectKey }` — 46 of them in one consumer repository — was passing
-    // through in silence while the codemod claimed to be done.
-    const occurrences: Array<{ at: number; colon: number | null }> = [];
+    // Everything the query pass did not take is reported, whatever shape it is
+    // in. A member, a shorthand, a type declaration, a string in a comment: the
+    // codemod does not claim to know which, and saying so by line is worth more
+    // than a guess that is right most of the time.
     for (
-        let at = working.indexOf('projectKey');
+        let at = query.text.indexOf('projectKey');
         at >= 0;
-        at = working.indexOf('projectKey', at + 1)
+        at = query.text.indexOf('projectKey', at + 1)
     ) {
         // A longer identifier that merely ends in it — `old_projectKey` — is
-        // somebody else's name. Cutting from inside one left `{ apiBase: '/x',
-        // old_ }` and called it rewritten.
-        if (isIdentifierChar(working[at - 1])) continue;
-        let after = at + 'projectKey'.length;
-        if (isIdentifierChar(working[after])) continue;
-        while (after < working.length && isSpace(working[after])) after += 1;
-        occurrences.push({ at, colon: working[after] === ':' ? after : null });
+        // somebody else's name, and naming it would send a reader looking for
+        // something that is not there.
+        if (isIdentifierChar(query.text[at - 1])) continue;
+        if (isIdentifierChar(query.text[at + 'projectKey'.length])) continue;
+        reported.add(lineAt(query.text, at));
     }
 
-    for (const { at, colon } of occurrences.reverse()) {
-        const object = colon === null ? null : enclosingObject(working, at);
-        // From INSIDE the brace: including it would open a depth of one, and
-        // every separator in the body would then read as nested.
-        const body = object === null ? '' : working.slice(object.open + 1, object.close);
-        // The value's shape is what decides, per the measurement in the header.
-        // The other three are cheap corroboration, not the discriminator.
-        const decidable =
-            object !== null &&
-            colon !== null &&
-            hasQuotedValue(working, colon, object.close) &&
-            !isTypeBody(body) &&
-            hasPlatformSibling(body);
-        if (!decidable || object === null) {
-            undecided.push(lineAt(working, at));
-            continue;
-        }
-        let start = at;
-        while (start > 0 && (working[start - 1] === ' ' || working[start - 1] === '\t')) start -= 1;
-        let end = memberEnd(working, at, object.close);
-        if (end === object.close) {
-            // It was the last member, so it had no comma of its own — the one
-            // that separated it from its predecessor has to go with it, or the
-            // literal is left as `{ apiBase: '…', }`.
-            while (start > 0 && isSpace(working[start - 1])) start -= 1;
-            if (working[start - 1] === ',') start -= 1;
-        } else if (working[end] === '\n') {
-            // Take the line's newline with it, so the cut leaves no blank line.
-            end += 1;
-        } else if (start > 0 && working[start - 1] === '\n') {
-            start -= 1;
-        }
-        // Cutting the LAST member takes the whitespace before the closing brace
-        // with it, and that whitespace is the literal's shape: a space on one
-        // line, a newline and an indent on several. Put back exactly what was
-        // there, or `{ a: 1 }` comes out as `{ a: 1}`.
-        let joiner = '';
-        if (end === object.close) {
-            let ws = object.close;
-            while (ws > start && isSpace(working[ws - 1])) ws -= 1;
-            joiner = working.slice(ws, object.close);
-        }
-        working = working.slice(0, start) + joiner + working.slice(end);
-        rewritten += 1;
-    }
-
-    // One line, one entry. A query part the scan skipped is also an occurrence
-    // the member scan sees, and reporting `loaders.ts:12` twice tells a reader
-    // there are two things to look at when there is one.
-    const reported = [...new Set(undecided)].sort((a, b) => a - b);
-    return { text: working, rewritten, undecided: reported };
+    return {
+        text: query.text,
+        rewritten: query.removed,
+        undecided: [...reported].sort((a, b) => a - b),
+    };
 }
 
 /** `projectKey: notesapp` at the top level of `config/saas.yaml`. */

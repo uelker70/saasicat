@@ -714,14 +714,14 @@ async function walkSources(root, visit, extra = null) {
 }
 
 /**
- * Takes `projectKey` out of a consumer's code.
+ * Takes `projectKey` out of a consumer's code, and names what it will not.
  *
- * A removal is not a rename: the word is an ordinary property name, and a
- * consumer's own object may carry one that has nothing to do with this
- * platform. `removeProjectKey` rewrites what is anchored to something only the
- * platform produces — a `?projectKey=` query part, a member of an object that
- * also carries `apiBase`/`vatRate`/`planKey`/…, the top-level key of a
- * `saas.yaml` — and names the rest instead of guessing at it.
+ * A removal is not a rename: the word is an ordinary property name. Two forms
+ * need no grammar to decide — a `?projectKey=` on a `/catalog/` URL, and the
+ * top-level key of a `saas.yaml` — and those are rewritten. An object member is
+ * reported: an object literal and a type literal are lexically identical in
+ * TypeScript, so removing one would sometimes delete a member of the consumer's
+ * own type. The migration guide's table says what each shape becomes.
  */
 async function cmdCodemodV1ProjectKey(args) {
     const root = resolve(args.dir ?? '.');
@@ -750,10 +750,13 @@ async function cmdCodemodV1ProjectKey(args) {
     if (undecided.length === 0) return;
 
     console.log('');
-    console.log('These were left in place — the codemod could not tell them from your own field:');
+    console.log(`${undecided.length} occurrence(s) are yours to look at:`);
     for (const where of undecided) console.log(`  ${where}`);
     console.log('');
-    console.log('  Delete the ones that addressed the platform catalogue; keep your own.');
+    console.log('  An object literal and a type literal are the same tokens in TypeScript, so');
+    console.log('  this cannot tell a payload member from one of your own declarations without');
+    console.log('  parsing. It reports rather than guesses. docs/guides/upgrade-to-1.0.md has a');
+    console.log('  table of what each shape becomes.');
 }
 
 /** A `saas.yaml`, whose top-level `projectKey:` needs no anchor. */

@@ -1,12 +1,15 @@
-// What `saasicat codemod v1-project-key` does, and what it deliberately does not.
+// What `saasicat codemod v1-project-key` rewrites, and what it deliberately
+// only reports.
 //
 // project-key-history: this file names the retired identifier because it is the
 // subject of the codemod it checks.
 //
-// A removal is riskier than a rename: `projectKey` is an ordinary property
-// name, and deleting a consumer's own field would be data loss the codemod
-// cannot see. So the interesting cases here are as much about what survives as
-// about what goes.
+// The line between the two moved four times under review, and the tests below
+// are written around where it ended up: an object member is REPORTED, never
+// rewritten, because an object literal and a type literal are lexically
+// identical in TypeScript and this codemod does not parse. What it rewrites is
+// the two forms that need no grammar — the key in a `saas.yaml`, and a query
+// part on a `/catalog/` URL.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,21 +44,35 @@ describe('a query parameter the admin API no longer reads', () => {
         assert.equal(result.text, 'const u = `/catalog/plans?locale=de`;');
     });
 
+    test('and so does one holding a nested object', () => {
+        // Every `{` counts, not only the one that opens the interpolation. The
+        // scan used to close its depth on the nested object's own brace and read
+        // the following space as the end of the value, emitting
+        // `/catalog/plans : a && b}&locale=de` and calling it a rewrite.
+        const result = removeProjectKey(
+            'const u = `/catalog/plans?projectKey=${flag ? { x: 1 } : a && b}&locale=de`;',
+        );
+        assert.equal(result.text, 'const u = `/catalog/plans?locale=de`;');
+        assert.equal(result.rewritten, 1);
+    });
+
+    test('an interpolation that never closes is reported, not cut', () => {
+        const source = 'const u = `/catalog/plans?projectKey=${oops';
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.equal(result.rewritten, 0);
+    });
+
     test("somebody else's endpoint keeps its parameter, and is reported", () => {
-        // The admin routes that read it all sat under `/catalog/`. A consumer
-        // calling their own `/api/reports?projectKey=` is asking a question this
-        // platform never answered, and rewriting it would silently change a
-        // request that still works.
+        // Every admin route that read the parameter sat under `/catalog/`. A
+        // consumer calling their own `/api/reports?projectKey=` is asking a
+        // question this platform never answered, and rewriting it would
+        // silently change a request that still works.
         const source = 'fetch(`/api/reports?projectKey=${key}&from=2026`);';
         const result = removeProjectKey(source);
         assert.equal(result.text, source);
         assert.equal(result.rewritten, 0);
         assert.deepEqual(result.undecided, [1], 'one line, one entry to look at');
-    });
-
-    test('a word that merely ends in the needle is not a parameter', () => {
-        const source = 'const x = { myProjectKey: 1 };';
-        assert.equal(removeProjectKey(source).text, source);
     });
 
     test('an occurrence at the very start does not end the scan', () => {
@@ -65,175 +82,84 @@ describe('a query parameter the admin API no longer reads', () => {
         const result = removeProjectKey(
             'projectKey=leftover\nconst u = `/catalog/plans?projectKey=x`;',
         );
-        assert.equal(result.text, 'projectKey=leftover\nconst u = `/catalog/plans`;');
+        assert.match(result.text, /const u = `\/catalog\/plans`;/);
         assert.equal(result.rewritten, 1);
     });
 });
 
-describe('an object member, when the object says whose it is', () => {
-    test('the endpoint constant loses it and keeps its shape', () => {
-        const result = removeProjectKey(
-            "export const E = { apiBase: '/api/v1/admin', projectKey: 'myapp' };",
-        );
-        assert.equal(result.text, "export const E = { apiBase: '/api/v1/admin' };");
-        assert.deepEqual(result.undecided, []);
-    });
+describe('an object member is reported, never rewritten', () => {
+    // Four attempts at telling an object literal from a type literal, four
+    // counter-examples: an interface uses `;`, a type literal may use a
+    // newline, TypeScript permits `,` between type members, and
+    // `interface E { projectKey: 'app' }` is a valid string-literal type that
+    // `tsc` accepts. The two constructs are lexically identical; only the
+    // enclosing grammar separates them, and this codemod does not parse.
 
-    test('a multi-line literal keeps its newline and indent', () => {
-        const result = removeProjectKey(
-            ['const c = {', "    projectKey: 'myapp',", '    vatRate: 19,', '};'].join('\n'),
-        );
-        assert.equal(result.text, ['const c = {', '    vatRate: 19,', '};'].join('\n'));
-    });
-
-    test('a last member without a trailing comma takes the separating one', () => {
-        const result = removeProjectKey(
-            ['const c = {', '    vatRate: 19,', "    projectKey: 'myapp'", '};'].join('\n'),
-        );
-        assert.equal(result.text, ['const c = {', '    vatRate: 19', '};'].join('\n'));
-    });
-
-    test('a value containing a comma is not cut in half', () => {
-        // The member ends at the comma that separates it from the next one,
-        // not at one inside its own string. The scanner tracked brackets and
-        // not quotes, and left `app', planKey: 'STARTER' }` behind.
-        const result = removeProjectKey(
-            "plans.create({ projectKey: 'my,app', planKey: 'STARTER' });",
-        );
-        assert.equal(result.text, "plans.create({ planKey: 'STARTER' });");
-    });
-
-    test('a create body is decidable through the key beside it', () => {
-        const result = removeProjectKey(
-            "await plans.create({ projectKey: 'myapp', planKey: 'STARTER' });",
-        );
-        assert.equal(result.text, "await plans.create({ planKey: 'STARTER' });");
-    });
-});
-
-describe("an object that could be the consumer's own", () => {
-    // The counter-check for the whole design: a codemod that removed this too
-    // would pass every test above and still corrupt a consumer's code.
-    const MINE = "const mine = { projectKey: 'my-own-thing', colour: 'red' };";
-
-    test('is left exactly as it was', () => {
-        assert.equal(removeProjectKey(MINE).text, MINE);
-        assert.equal(removeProjectKey(MINE).rewritten, 0);
-    });
-
-    test('and is reported by line, so nobody has to search for it', () => {
-        const result = removeProjectKey(`const a = 1;\n${MINE}\n`);
-        assert.deepEqual(result.undecided, [2]);
-    });
-
-    test('several are reported in the order they appear', () => {
-        const result = removeProjectKey([MINE, 'const b = 2;', MINE].join('\n'));
-        assert.deepEqual(result.undecided, [1, 3]);
-    });
-});
-
-describe('a type declaration is not a payload', () => {
-    // Reported by review, and the worst defect this codemod had: an interface
-    // separates its members with `;`, the member scanner stopped only at `,`,
-    // so the cut ran to the closing brace and emptied the interface. The member
-    // it was asked about was the least of what it removed.
-
-    test('an interface keeps every member, including the one asked about', () => {
-        const source = [
-            'interface AdminEndpoints {',
-            '    projectKey: string;',
-            '    planKey: string;',
-            '    apiBase: string;',
-            '}',
-        ].join('\n');
+    const leaves = (source, lines) => {
         const result = removeProjectKey(source);
-        assert.equal(result.text, source, 'a type declaration must come back untouched');
+        assert.equal(result.text, source, 'the source must come back untouched');
         assert.equal(result.rewritten, 0);
-        assert.deepEqual(result.undecided, [2]);
+        assert.deepEqual(result.undecided, lines);
+    };
+
+    test('the endpoint constant', () => {
+        leaves("export const E = { apiBase: '/api/v1/admin', projectKey: 'myapp' };", [1]);
     });
 
-    test('and so does a type literal whose members are separated by newlines alone', () => {
-        // No separator at all before the brace, which is what the `;` rule
-        // alone does not catch: what follows the member is how it is known.
-        const source = ['type X = {', '    projectKey: string', '    planKey: string', '}'].join(
-            '\n',
-        );
-        const result = removeProjectKey(source);
-        assert.equal(result.text, source);
-        assert.deepEqual(result.undecided, [2]);
+    test('a create body', () => {
+        leaves("plans.create({ projectKey: 'myapp', planKey: 'STARTER' });", [1]);
     });
 
-    test('an optional type member never reached the scanner in the first place', () => {
-        const source = 'interface E {\n    projectKey?: string;\n    apiBase: string;\n}';
-        assert.equal(removeProjectKey(source).text, source);
+    test('a string-literal type member, which `tsc` accepts', () => {
+        leaves("interface E { projectKey: 'vereinsfux', apiBase: string }", [1]);
     });
 
-    test('a real literal beside a type declaration is still rewritten', () => {
-        // The counter-check for the exclusion: a rule that skipped everything
-        // would pass all three tests above and do nothing at all.
+    test('an interface member', () => {
+        leaves('interface E {\n    projectKey: string;\n    apiBase: string;\n}', [2]);
+    });
+
+    test('a bare-identifier value', () => {
+        leaves("const o = { apiBase: '/x', projectKey: PROJECT_KEY };", [1]);
+    });
+
+    test('the shorthand form, which used to pass in silence', () => {
+        // 46 of these in one consumer repository. An earlier scan required a
+        // colon, so they were neither rewritten nor named, and the codemod
+        // reported itself done.
+        leaves('const o = { apiBase, projectKey, planKey };', [1]);
+    });
+
+    test("a consumer's own object", () => {
+        leaves("const mine = { projectKey: 'my-own-thing', colour: 'red' };", [1]);
+    });
+
+    test('several are reported in the order they appear, once per line', () => {
         const source = [
-            'interface E {',
-            '    projectKey: string;',
-            '    apiBase: string;',
-            '}',
-            "const e: E = { apiBase: '/a', projectKey: 'myapp' };",
+            "const a = { projectKey: 'x' };",
+            'const b = 2;',
+            'const c = { projectKey };',
         ].join('\n');
-        const result = removeProjectKey(source);
-        assert.match(result.text, /const e: E = \{ apiBase: '\/a' \};/);
-        assert.match(result.text, /projectKey: string;/);
-        assert.equal(result.rewritten, 1);
-        assert.deepEqual(result.undecided, [2]);
+        assert.deepEqual(removeProjectKey(source).undecided, [1, 3]);
     });
 });
 
-describe('the value decides, not the punctuation around it', () => {
-    // Three review rounds landed on this predicate before it was measured. The
-    // separator never says which side a member is on — an interface uses `;`, a
-    // type literal may use a newline, and TypeScript permits `,` between type
-    // members. A quoted string does: no type expression is one.
+describe("a longer identifier is somebody else's name", () => {
+    // The cut used to start inside one and leave `old_` behind, reporting it as
+    // rewritten. It is not this identifier, so it is not this codemod's
+    // business — not rewritten and not reported either, or a reader goes
+    // looking for something that is not there.
 
-    test('a comma-separated type body is left alone, which no separator rule caught', () => {
-        const source = 'interface E { projectKey: string, apiBase: string }';
-        const result = removeProjectKey(source);
-        assert.equal(result.text, source);
-        assert.deepEqual(result.undecided, [1]);
-    });
-
-    test('a bare-identifier value is reported rather than guessed at', () => {
-        // `PROJECT_KEY` and a type reference are the same tokens. Thirty
-        // occurrences take this form across the two consumer repositories, and
-        // a minute of a person's attention beats deleting a type member.
-        const source = "const o = { apiBase: '/x', projectKey: PROJECT_KEY };";
-        const result = removeProjectKey(source);
-        assert.equal(result.text, source);
-        assert.deepEqual(result.undecided, [1]);
-    });
-
-    test('the shorthand form is reported, where it used to pass in silence', () => {
-        // 46 of these in one consumer repository. The scan required a colon, so
-        // they were neither rewritten nor named — and the codemod reported
-        // itself done.
-        const source = 'const o = { apiBase, projectKey, planKey };';
-        const result = removeProjectKey(source);
-        assert.equal(result.text, source);
-        assert.deepEqual(result.undecided, [1]);
-    });
-
-    test('a longer identifier that merely ends in it is not an occurrence', () => {
-        // The cut started inside somebody else's name and left `old_` behind,
-        // reporting it as rewritten.
+    test('is neither rewritten nor reported', () => {
         const source = "const o = { apiBase: '/x', old_projectKey: 'mine' };";
         const result = removeProjectKey(source);
         assert.equal(result.text, source);
         assert.equal(result.rewritten, 0);
-        assert.deepEqual(result.undecided, [], 'not this identifier, so not this codemod');
+        assert.deepEqual(result.undecided, []);
     });
 
-    test('and a quoted value beside a platform member still goes', () => {
-        // The counter-check: a rule that rewrote nothing would pass all four.
-        const result = removeProjectKey("const o = { apiBase: '/x', projectKey: 'myapp' };");
-        assert.equal(result.text, "const o = { apiBase: '/x' };");
-        assert.equal(result.rewritten, 1);
+    test('and neither is a suffix', () => {
+        const source = 'const x = { myProjectKeyish: 1, projectKeys: [] };';
+        assert.deepEqual(removeProjectKey(source).undecided, []);
     });
 });
 
