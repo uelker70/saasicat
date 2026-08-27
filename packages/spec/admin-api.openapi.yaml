@@ -29,7 +29,7 @@ openapi: 3.1.0
 
 info:
     title: SaaS Platform SuperAdmin API
-    version: 1.0.0-rc.6
+    version: 1.0.0-rc.7
     description: |
         Read and write operations for platform administration:
         tenants, users, subscriptions, promo codes, audit log,

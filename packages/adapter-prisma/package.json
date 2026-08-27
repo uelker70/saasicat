@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/adapter-prisma",
-    "version": "1.0.0-rc.6",
+    "version": "1.0.0-rc.7",
     "description": "Prisma + PostgreSQL persistence for SaaSiCat: one standard bundle for core, catalog, entitlement, tenant billing, Admin resources and promo, plus individual adapters for custom compositions.",
     "type": "module",
     "main": "./dist/index.cjs",
