@@ -189,6 +189,14 @@ jobs:
               run: pnpm install --frozen-lockfile
             - name: Build adapters and their workspace dependencies
               run: pnpm --filter "@saasicat/adapter-prisma..." --filter "@saasicat/adapter-drizzle..." build
+            # Nothing remembers which of the shipped `.sql` files has run — this
+            # package has no migration ledger — so a retried deploy or a
+            # restarted container applies them again. That second run is the
+            # subject.
+            - name: Apply every shipped migration twice
+              env:
+                  SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
+              run: pnpm --filter "@saasicat/spec" test:integration
             - name: Run persistence contract against PostgreSQL (adapter-prisma)
               env:
                   SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
