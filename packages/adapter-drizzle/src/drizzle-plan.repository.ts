@@ -345,13 +345,18 @@ export class DrizzlePlanRepository implements PlanRepository {
                     : {}),
                 updatedAt: new Date(),
             })
-            // Only while it is still a draft. A published version is immutable
-            // (contract protection P1), and an unconditional update by id would
-            // rewrite one that was published between read and write.
-            .where(and(eq(planVersions.id, versionId), isNull(planVersions.publishedAt)))
+            // By id, and nothing else. Whether a version may be edited is the
+            // service's decision, not this adapter's: `PlanVersionsService`
+            // allows a *published* version that is latest-in-chain, binds no
+            // subscription and whose `validFrom` is still in the future, so an
+            // operator can correct a price before it takes effect. A
+            // `publishedAt IS NULL` guard here reads like caution and is
+            // actually a stricter contract than the port has — it made every
+            // scheduled version uncorrectable through this adapter.
+            .where(eq(planVersions.id, versionId))
             .returning();
         if (!rows[0]) {
-            throw new Error(`PlanVersion '${versionId}' not found or already published.`);
+            throw new Error(`PlanVersion '${versionId}' not found.`);
         }
         return this.versionRow(rows[0]);
     }

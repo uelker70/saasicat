@@ -18,6 +18,8 @@ import { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 import { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
 import { DrizzleSubscriptionContractRepository } from './drizzle-subscription-contract.repository.js';
+import { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
+import { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';
 import { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';
 import { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-validation-log.repository.js';
 import { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';
@@ -140,6 +142,14 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             bundleRepository: provide(
                 (client) => new DrizzleBundleRepository(client, options.bundle),
             ),
+        },
+        // The tenant's own billing page and the writes behind its buttons.
+        // Both members are required, and until 2026-08-27 neither existed —
+        // which left `DrizzleTenantSubscriptionWrite` unreachable through the
+        // documented `drizzlePersistence({ db })` path however complete it was.
+        tenantBilling: {
+            subscriptionUsagePort: provide((client) => new DrizzleSubscriptionUsageAdapter(client)),
+            subscriptionWritePort: provide((client) => new DrizzleTenantSubscriptionWrite(client)),
         },
         promo: {
             promoCodeRepository: provide((client) => new DrizzlePromoCodeRepository(client)),

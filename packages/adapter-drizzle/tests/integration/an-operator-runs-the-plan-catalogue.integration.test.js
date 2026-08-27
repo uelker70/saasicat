@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
     DrizzlePlanRepository,
+    DrizzleSubscriptionUsageAdapter,
     DrizzleTenantSubscriptionWrite,
     saasicatSchema,
 } from '../../dist/index.js';
@@ -30,11 +31,13 @@ let pool;
 let db;
 let plans;
 let tenantWrite;
+let usage;
 
 before(async () => {
     ({ pool, db } = await openDisposableDatabase({ max: 4 }));
     plans = new DrizzlePlanRepository(db, { validityWindows: true });
     tenantWrite = new DrizzleTenantSubscriptionWrite(db);
+    usage = new DrizzleSubscriptionUsageAdapter(db);
 });
 
 after(async () => {
@@ -215,7 +218,7 @@ describe('the versions behind a plan', () => {
         );
     });
 
-    test('a draft can be edited, and a published version cannot', async () => {
+    test('a draft can be edited, and only the named fields move', async () => {
         const plan = await createPlan();
         const draft = await draftFor(plan.planKey);
         const edited = await plans.updatePlanVersionDraft(draft.id, {
@@ -225,14 +228,29 @@ describe('the versions behind a plan', () => {
         assert.equal(edited.monthlyNet, '24.90');
         assert.equal(edited.changeNote, 'Price rise');
         assert.deepEqual(edited.features, ['CORE'], 'an unnamed field stays as it was');
+    });
 
-        await publish(draft.id, new Date('2026-01-01T00:00:00.000Z'));
-        // The prices a tenant signed under must not move underneath them.
+    test('a version published for a future date can still be corrected', async () => {
+        // `PlanVersionsService.updatePlanDraft` allows exactly this: published,
+        // latest in its chain, no subscription bound, `validFrom` still ahead.
+        // An operator correcting a price before it takes effect is the whole
+        // point of scheduling one, and the adapter must not be the thing that
+        // refuses it.
+        const plan = await createPlan();
+        const draft = await draftFor(plan.planKey);
+        const scheduled = await publish(draft.id, new Date('2027-01-01T00:00:00.000Z'));
+        const corrected = await plans.updatePlanVersionDraft(scheduled.id, {
+            monthlyNet: '21.90',
+        });
+        assert.equal(corrected.monthlyNet, '21.90');
+        assert.equal((await plans.findVersionById(scheduled.id))?.monthlyNet, '21.90');
+    });
+
+    test('editing a version that is gone says so', async () => {
         await assert.rejects(
-            plans.updatePlanVersionDraft(draft.id, { monthlyNet: '99.00' }),
-            /already published/,
+            plans.updatePlanVersionDraft(randomUUID(), { monthlyNet: '9.90' }),
+            /not found/,
         );
-        assert.equal((await plans.findVersionById(draft.id))?.monthlyNet, '24.90');
     });
 
     test('a draft can be discarded, a published version cannot, and a missing one is a no-op', async () => {
@@ -625,5 +643,118 @@ describe('the statements a tenant write sends', () => {
             statements.some((sql) => sql.trim().toLowerCase() === 'begin'),
             'and the lock only means something inside a transaction',
         );
+    });
+});
+
+// What the tenant's own billing page reads.
+describe('the subscription a tenant is shown', () => {
+    const TENANT = 'tenant-usage-probe';
+
+    async function livePlanVersion(planKey, validFrom = new Date('2026-01-01T00:00:00.000Z')) {
+        await plans.create({ projectKey: PROJECT, planKey, label: planKey });
+        const draft = await draftFor(planKey);
+        return publish(draft.id, validFrom);
+    }
+
+    test('a tenant with no subscription reads as none, not as an error', async () => {
+        assert.equal(await usage.findForTenant('nobody-at-all'), null);
+    });
+
+    test('the dates and the plan version a person is shown all come back', async () => {
+        const version = await livePlanVersion('USAGE_A');
+        await db.insert(saasicatSchema.subscriptions).values({
+            id: randomUUID(),
+            tenantId: TENANT,
+            plan: 'USAGE_A',
+            planVersionId: version.id,
+            billingCycle: 'YEARLY',
+            status: 'ACTIVE',
+            startedAt: new Date('2026-01-01T00:00:00.000Z'),
+            currentPeriodStart: new Date('2026-01-01T00:00:00.000Z'),
+            currentPeriodEnd: new Date('2027-01-01T00:00:00.000Z'),
+            minimumTermUntil: new Date('2027-01-01T00:00:00.000Z'),
+            billingAnchorDay: 1,
+            trialEndsAt: new Date('2026-01-15T00:00:00.000Z'),
+            isPilot: false,
+            updatedAt: new Date(),
+        });
+
+        const record = await usage.findForTenant(TENANT);
+        assert.ok(record);
+        assert.equal(record.plan, 'USAGE_A');
+        assert.equal(record.billingCycle, 'YEARLY');
+        assert.equal(record.status, 'ACTIVE');
+        assert.equal(record.billingAnchorDay, 1);
+        assert.equal(
+            record.currentPeriodEnd?.getTime(),
+            new Date('2027-01-01T00:00:00.000Z').getTime(),
+        );
+        assert.equal(
+            record.minimumTermUntil?.getTime(),
+            new Date('2027-01-01T00:00:00.000Z').getTime(),
+            'the commitment is what the cancellation rules measure against',
+        );
+        assert.equal(record.planVersion.id, version.id);
+        assert.equal(record.planVersion.planId, 'USAGE_A');
+        // Nothing pending, and that reads as nothing rather than as a shape
+        // full of nulls.
+        assert.equal(record.pendingPlanVersion, null);
+        assert.equal(record.pendingPlanVersionEffectiveAt, null);
+        assert.equal(record.pendingPlanVersionAccepted, false);
+    });
+
+    test('a pending version comes with what a person needs to decide', async () => {
+        const current = await livePlanVersion('USAGE_FROM');
+        const pending = await livePlanVersion('USAGE_TO', new Date('2026-06-01T00:00:00.000Z'));
+        await db.insert(saasicatSchema.subscriptions).values({
+            id: randomUUID(),
+            tenantId: TENANT,
+            plan: 'USAGE_FROM',
+            planVersionId: current.id,
+            billingCycle: 'MONTHLY',
+            status: 'ACTIVE',
+            startedAt: new Date('2026-01-01T00:00:00.000Z'),
+            isPilot: false,
+            pendingPlanVersionId: pending.id,
+            pendingPlanVersionEffectiveAt: new Date('2026-06-01T00:00:00.000Z'),
+            updatedAt: new Date(),
+        });
+
+        const record = await usage.findForTenant(TENANT);
+        assert.equal(record?.pendingPlanVersion?.id, pending.id);
+        assert.equal(
+            record?.pendingPlanVersion?.nonRegressive,
+            true,
+            'whether the change takes anything away is the question being answered',
+        );
+        assert.equal(
+            record?.pendingPlanVersionEffectiveAt?.getTime(),
+            new Date('2026-06-01T00:00:00.000Z').getTime(),
+        );
+    });
+
+    test('the version a subscription is billed for cannot be deleted underneath it', async () => {
+        // The adapter throws when the version is missing, and this is why that
+        // branch is not reachable here: the canonical schema refuses to orphan
+        // a subscription. Asserting the constraint says what actually holds —
+        // a test that deleted the row to reach the throw would be describing a
+        // state this schema cannot produce.
+        const version = await livePlanVersion('USAGE_ORPHAN');
+        await db.insert(saasicatSchema.subscriptions).values({
+            id: randomUUID(),
+            tenantId: TENANT,
+            plan: 'USAGE_ORPHAN',
+            planVersionId: version.id,
+            billingCycle: 'MONTHLY',
+            status: 'ACTIVE',
+            startedAt: new Date('2026-01-01T00:00:00.000Z'),
+            isPilot: false,
+            updatedAt: new Date(),
+        });
+        await assert.rejects(
+            pool.query('DELETE FROM plan_versions WHERE id = $1', [version.id]),
+            /violates.*foreign key constraint/,
+        );
+        assert.ok(await usage.findForTenant(TENANT), 'and the tenant still reads their plan');
     });
 });

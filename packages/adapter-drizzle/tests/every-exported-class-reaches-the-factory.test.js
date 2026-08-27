@@ -26,23 +26,34 @@ const factorySource = readFileSync(
 );
 
 /**
- * A repository or adapter is a class this package exports whose name says it
- * persists something. Option interfaces, tokens and the schema are not.
+ * Every class this package exports, taken as a class rather than as a name.
+ *
+ * The first version of this check matched `Drizzle*Repository|Adapter`, and a
+ * naming convention is not a derivation: `DrizzleTenantSubscriptionWrite` ends
+ * in neither word, so the check passed while the class it was meant to protect
+ * was reachable from nothing. Asking what a value *is* cannot be narrowed by a
+ * name somebody chose later.
  */
-const repositoryNames = Object.keys(adapter)
-    .filter((name) => /^Drizzle.+(Repository|Adapter)$/.test(name))
+const exportedClasses = Object.entries(adapter)
+    .filter(
+        ([, value]) =>
+            typeof value === 'function' &&
+            value.prototype !== undefined &&
+            Object.getOwnPropertyDescriptor(value, 'prototype')?.writable === false,
+    )
+    .map(([name]) => name)
     .sort();
 
 describe('the persistence factory', () => {
     test('names enough exports for this check to mean anything', () => {
         // Without this, a broken filter passes by finding nothing.
         assert.ok(
-            repositoryNames.length >= 10,
-            `expected the package to export repositories, found ${repositoryNames.length}`,
+            exportedClasses.length >= 10,
+            `expected the package to export classes, found ${exportedClasses.length}`,
         );
     });
 
-    for (const name of repositoryNames) {
+    for (const name of exportedClasses) {
         test(`${name} is reachable through drizzlePersistence()`, () => {
             assert.ok(
                 factorySource.includes(`new ${name}(`),
