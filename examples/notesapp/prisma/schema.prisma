@@ -393,7 +393,8 @@ model MarketingProjection {
 
 // -----------------------------------------------------------------------------
 // MarketingSettings — installation-wide, runtime-editable marketing config.
-// At most one row, enforced by a constant primary key. Currently one field:
+// At most one row — a CHECK in the platform constraints holds it, not the
+// default on `id`. Currently one field:
 // `activeLocales` — the subset of the `availableLocales` pool activated in the
 // marketing catalog (the pool comes from the app config, SPEC_V2 §6.5).
 // If the row is missing, the full pool counts as active.

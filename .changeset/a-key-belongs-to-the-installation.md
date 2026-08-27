@@ -42,9 +42,19 @@ table held which, rather than merging rows that would then collide on the new
 unique index. It is a one-way door, and safe to run again: a table whose column
 has already gone is skipped.
 
+Each table's changes are made only where that table exists, so an app that
+adopted a subset of the Prisma fragments migrates what it has. The file also
+adds a `CHECK` keeping `marketing_settings` to one row — that was a convention
+resting on a column default, and a default does not apply to a caller that
+supplies the value.
+
 If your dev setup uses `prisma db push`, run the file **before** it. `db push`
 refuses to drop a column that still holds data, and adding `--accept-data-loss`
 would arm every future change to discard data unasked.
+
+The codemod reads your `schema.prisma` as well and reports what it finds there:
+a schema you copied the platform's models into still declares the columns, and
+a client generated from it would query them.
 
 **For your code**, `saasicat codemod v1` gained a third pass —
 `v1-project-key`. It removes the `?projectKey=` query part from a `/catalog/`

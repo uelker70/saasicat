@@ -114,62 +114,90 @@ DROP INDEX IF EXISTS "marketing_settings_projectKey_key";
 DROP INDEX IF EXISTS "promotions_projectKey_targetType_validFrom_validTo_idx";
 DROP INDEX IF EXISTS "subscription_contracts_projectKey_status_idx";
 
--- ─── The column ───
-
-ALTER TABLE "plans"                       DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "bundles"                     DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "capability_catalog_entries"  DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "feature_catalog_entries"     DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "quota_catalog_entries"       DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "marketing_projections"       DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "marketing_settings"          DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "promotions"                  DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "checkout_offers"             DROP COLUMN IF EXISTS "projectKey";
-ALTER TABLE "subscription_contracts"      DROP COLUMN IF EXISTS "projectKey";
-
--- ─── The tightened uniques, and the lookup indexes that shrank with them ───
-
-CREATE UNIQUE INDEX IF NOT EXISTS "plans_planKey_key" ON "plans"("planKey");
-CREATE INDEX IF NOT EXISTS "plans_deletedAt_idx" ON "plans"("deletedAt");
-
-CREATE UNIQUE INDEX IF NOT EXISTS "bundles_bundleKey_key" ON "bundles"("bundleKey");
-CREATE INDEX IF NOT EXISTS "bundles_deletedAt_idx" ON "bundles"("deletedAt");
-
-CREATE UNIQUE INDEX IF NOT EXISTS "capability_catalog_entries_capabilityKey_key"
-    ON "capability_catalog_entries"("capabilityKey");
-CREATE INDEX IF NOT EXISTS "capability_catalog_entries_codeStatus_idx"
-    ON "capability_catalog_entries"("codeStatus");
-CREATE INDEX IF NOT EXISTS "capability_catalog_entries_featureKey_idx"
-    ON "capability_catalog_entries"("featureKey");
-
-CREATE UNIQUE INDEX IF NOT EXISTS "feature_catalog_entries_featureKey_key"
-    ON "feature_catalog_entries"("featureKey");
-CREATE INDEX IF NOT EXISTS "feature_catalog_entries_discoveryStatus_idx"
-    ON "feature_catalog_entries"("discoveryStatus");
-CREATE INDEX IF NOT EXISTS "feature_catalog_entries_plannedOnly_idx"
-    ON "feature_catalog_entries"("plannedOnly");
-
-CREATE UNIQUE INDEX IF NOT EXISTS "quota_catalog_entries_quotaKey_key"
-    ON "quota_catalog_entries"("quotaKey");
-CREATE INDEX IF NOT EXISTS "quota_catalog_entries_discoveryStatus_idx"
-    ON "quota_catalog_entries"("discoveryStatus");
-
-CREATE INDEX IF NOT EXISTS "marketing_projections_targetType_locale_priority_idx"
-    ON "marketing_projections"("targetType", "locale", "priority");
-CREATE INDEX IF NOT EXISTS "promotions_targetType_validFrom_validTo_idx"
-    ON "promotions"("targetType", "validFrom", "validTo");
-CREATE INDEX IF NOT EXISTS "checkout_offers_status_idx" ON "checkout_offers"("status");
-CREATE INDEX IF NOT EXISTS "subscription_contracts_status_idx"
-    ON "subscription_contracts"("status");
-
--- ─── `marketing_settings` becomes a singleton ───
+-- ─── The column, the tightened uniques, and the shrunken lookup indexes ───
 --
--- The row was identified by its project; now it is identified by a constant
--- primary key, which is what caps the table at one row. An installation that
--- already has exactly one row keeps it under the new id; the guard above has
--- already refused anything else.
+-- Per table, and only where the table is there. The Prisma fragments are
+-- adopted à la carte — `saasicat schema check` reports what an app did not take
+-- — and an unconditional `ALTER TABLE "bundles"` raises `relation does not
+-- exist` on an app that never adopted bundles, which rolls back everything,
+-- including the tables it could have migrated. `IF EXISTS` on the column does
+-- not help when it is the relation that is missing.
+--
+-- One list, so a table and what happens to it cannot drift apart.
 
-ALTER TABLE "marketing_settings" ALTER COLUMN "id" SET DEFAULT 'marketing-settings';
-UPDATE "marketing_settings" SET "id" = 'marketing-settings';
+DO $$
+DECLARE
+    step record;
+    statement text;
+BEGIN
+    FOR step IN
+        SELECT * FROM (VALUES
+            ('plans', ARRAY[
+                'ALTER TABLE "plans" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE UNIQUE INDEX IF NOT EXISTS "plans_planKey_key" ON "plans"("planKey")',
+                'CREATE INDEX IF NOT EXISTS "plans_deletedAt_idx" ON "plans"("deletedAt")'
+            ]),
+            ('bundles', ARRAY[
+                'ALTER TABLE "bundles" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE UNIQUE INDEX IF NOT EXISTS "bundles_bundleKey_key" ON "bundles"("bundleKey")',
+                'CREATE INDEX IF NOT EXISTS "bundles_deletedAt_idx" ON "bundles"("deletedAt")'
+            ]),
+            ('capability_catalog_entries', ARRAY[
+                'ALTER TABLE "capability_catalog_entries" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE UNIQUE INDEX IF NOT EXISTS "capability_catalog_entries_capabilityKey_key" ON "capability_catalog_entries"("capabilityKey")',
+                'CREATE INDEX IF NOT EXISTS "capability_catalog_entries_codeStatus_idx" ON "capability_catalog_entries"("codeStatus")',
+                'CREATE INDEX IF NOT EXISTS "capability_catalog_entries_featureKey_idx" ON "capability_catalog_entries"("featureKey")'
+            ]),
+            ('feature_catalog_entries', ARRAY[
+                'ALTER TABLE "feature_catalog_entries" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE UNIQUE INDEX IF NOT EXISTS "feature_catalog_entries_featureKey_key" ON "feature_catalog_entries"("featureKey")',
+                'CREATE INDEX IF NOT EXISTS "feature_catalog_entries_discoveryStatus_idx" ON "feature_catalog_entries"("discoveryStatus")',
+                'CREATE INDEX IF NOT EXISTS "feature_catalog_entries_plannedOnly_idx" ON "feature_catalog_entries"("plannedOnly")'
+            ]),
+            ('quota_catalog_entries', ARRAY[
+                'ALTER TABLE "quota_catalog_entries" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE UNIQUE INDEX IF NOT EXISTS "quota_catalog_entries_quotaKey_key" ON "quota_catalog_entries"("quotaKey")',
+                'CREATE INDEX IF NOT EXISTS "quota_catalog_entries_discoveryStatus_idx" ON "quota_catalog_entries"("discoveryStatus")'
+            ]),
+            ('marketing_projections', ARRAY[
+                'ALTER TABLE "marketing_projections" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE INDEX IF NOT EXISTS "marketing_projections_targetType_locale_priority_idx" ON "marketing_projections"("targetType", "locale", "priority")'
+            ]),
+            ('promotions', ARRAY[
+                'ALTER TABLE "promotions" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE INDEX IF NOT EXISTS "promotions_targetType_validFrom_validTo_idx" ON "promotions"("targetType", "validFrom", "validTo")'
+            ]),
+            ('checkout_offers', ARRAY[
+                'ALTER TABLE "checkout_offers" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE INDEX IF NOT EXISTS "checkout_offers_status_idx" ON "checkout_offers"("status")'
+            ]),
+            ('subscription_contracts', ARRAY[
+                'ALTER TABLE "subscription_contracts" DROP COLUMN IF EXISTS "projectKey"',
+                'CREATE INDEX IF NOT EXISTS "subscription_contracts_status_idx" ON "subscription_contracts"("status")'
+            ]),
+            -- `marketing_settings` loses the column and gains the identity that
+            -- replaces it: one row, under a constant primary key. The CHECK is
+            -- what actually holds it. A default only applies where the caller
+            -- omits the id and a primary key accepts every distinct value, so
+            -- without it a consumer writing the row directly could make as many
+            -- as it liked — which is what the comment claiming otherwise was
+            -- worth.
+            ('marketing_settings', ARRAY[
+                'ALTER TABLE "marketing_settings" DROP COLUMN IF EXISTS "projectKey"',
+                'ALTER TABLE "marketing_settings" ALTER COLUMN "id" SET DEFAULT ''marketing-settings''',
+                'UPDATE "marketing_settings" SET "id" = ''marketing-settings''',
+                'ALTER TABLE "marketing_settings" DROP CONSTRAINT IF EXISTS "marketing_settings_is_a_singleton"',
+                'ALTER TABLE "marketing_settings" ADD CONSTRAINT "marketing_settings_is_a_singleton" CHECK ("id" = ''marketing-settings'')'
+            ])
+        ) AS t(relname, statements)
+    LOOP
+        IF to_regclass(format('%I', step.relname)) IS NULL THEN
+            CONTINUE;  -- a fragment this installation never adopted
+        END IF;
+        FOREACH statement IN ARRAY step.statements LOOP
+            EXECUTE statement;
+        END LOOP;
+    END LOOP;
+END $$;
 
 COMMIT;

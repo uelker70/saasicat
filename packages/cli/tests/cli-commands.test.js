@@ -1,3 +1,5 @@
+// project-key-history: the `v1-project-key` cases below carry the retired
+// identifier, because removing it is what that command does.
 // naming-history: the codemod cases below carry the pre-1.0 spellings on
 // purpose — they are what the command rewrites.
 import { after, before, describe, test } from 'node:test';
@@ -472,6 +474,73 @@ describe('codemod v1-imports', () => {
                 `the codemod wrote into ${skipped}/`,
             );
         }
+    });
+});
+
+describe('codemod v1-project-key', () => {
+    // The walk is the subject here, not the rewriting — that has its own unit
+    // tests. What this pins is WHICH files the command opens: a consumer's
+    // `config/saas.yaml` and their `schema.prisma` are not source files, and
+    // both carry the identifier. The Prisma one is the expensive omission: it
+    // was neither rewritten nor reported, so a consumer who ran `codemod v1`
+    // and then the SQL migration was left with a schema declaring columns the
+    // database no longer had.
+
+    async function consumer(name) {
+        const root = join(dir, name);
+        await mkdir(join(root, 'prisma'), { recursive: true });
+        await mkdir(join(root, 'config'), { recursive: true });
+        await writeFile(
+            join(root, 'prisma', 'schema.prisma'),
+            [
+                'model Plan {',
+                '  id String @id',
+                '  projectKey String',
+                '  planKey String',
+                '  @@unique([projectKey, planKey])',
+                '}',
+                '',
+            ].join('\n'),
+            'utf8',
+        );
+        await writeFile(
+            join(root, 'config', 'saas.yaml'),
+            ['schemaVersion: 1', 'projectKey: myapp', 'currency: EUR', ''].join('\n'),
+            'utf8',
+        );
+        await writeFile(
+            join(root, 'api.ts'),
+            'const u = `/api/v1/admin/catalog/plans?projectKey=myapp`;\n',
+            'utf8',
+        );
+        return root;
+    }
+
+    test('takes the key out of saas.yaml and the query, and reports the schema', async () => {
+        const root = await consumer('codemod-pk');
+        const { stdout, code } = await cli(['codemod', 'v1-project-key', `--dir=${root}`]);
+
+        assert.equal(code, 0, stdout);
+
+        const yaml = await readFile(join(root, 'config', 'saas.yaml'), 'utf8');
+        assert.doesNotMatch(yaml, /projectKey/, "the config key is the platform's to remove");
+
+        const api = await readFile(join(root, 'api.ts'), 'utf8');
+        assert.equal(api.trim(), 'const u = `/api/v1/admin/catalog/plans`;');
+
+        const schema = await readFile(join(root, 'prisma', 'schema.prisma'), 'utf8');
+        assert.match(schema, /projectKey String/, "a schema is not this tool's to rewrite");
+        assert.match(stdout, /prisma\/schema\.prisma:3/, 'but it has to be named');
+        assert.match(stdout, /prisma\/schema\.prisma:5/, 'including the composite index');
+    });
+
+    test('is idempotent, like the other two', async () => {
+        const root = await consumer('codemod-pk-twice');
+        await cli(['codemod', 'v1-project-key', `--dir=${root}`]);
+        const once = await readFile(join(root, 'api.ts'), 'utf8');
+        const { code } = await cli(['codemod', 'v1-project-key', `--dir=${root}`]);
+        assert.equal(code, 0);
+        assert.equal(await readFile(join(root, 'api.ts'), 'utf8'), once);
     });
 });
 

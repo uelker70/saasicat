@@ -516,9 +516,10 @@ export interface PromotionRepository {
 // =============================================================================
 
 /**
- * Adapter for `marketing_settings` — at most one row. `get` returns `null` as
- * long as the SuperAdmin has saved nothing (then the full `availableLocales`
- * pool counts as active). `upsert` creates the row or replaces it.
+ * Adapter for `marketing_settings` — at most one row, which a `CHECK` on the
+ * canonical schema holds rather than convention. `get` returns `null` as long
+ * as the SuperAdmin has saved nothing (then the full `availableLocales` pool
+ * counts as active). `upsert` creates the row or replaces it.
  */
 export interface MarketingSettingsRepository {
     get(): Promise<MarketingSettingsRow | null>;

@@ -681,8 +681,21 @@ function codemodTable(name) {
 const CODEMOD_SKIP = new Set(['node_modules', '.git', '.output', 'coverage']);
 const isBuildOutput = (name) => name === 'dist' || name.startsWith('dist-');
 const CODEMOD_EXTENSIONS = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|md)$/;
-/** Widens the walk for `v1-project-key` alone — see `walkSources`. */
-const CODEMOD_CONFIG_EXTENSIONS = /\.(yaml|yml)$/;
+/**
+ * Widens the walk for `v1-project-key` alone — see `walkSources`.
+ *
+ * `.prisma` belongs here for the reason `.yaml` does: a consumer copies the
+ * platform's models into their own `schema.prisma`, which is the documented
+ * integration path, so that file carries `projectKey` fields and composite
+ * indexes of its own. Left out of the walk they were neither rewritten nor
+ * reported — and after the SQL migration drops the columns, a schema still
+ * declaring them generates a client that queries them, while the next
+ * `db push` tries to put them back.
+ *
+ * Reported rather than rewritten, like every other declaration: a `.prisma`
+ * model is a schema, and which of its fields a consumer still needs is theirs.
+ */
+const CODEMOD_CONFIG_EXTENSIONS = /\.(yaml|yml|prisma)$/;
 /** Walked for the package renames alone; see `rewriteManifest`. */
 const CODEMOD_MANIFEST = 'package.json';
 
@@ -753,10 +766,12 @@ async function cmdCodemodV1ProjectKey(args) {
     console.log(`${undecided.length} occurrence(s) are yours to look at:`);
     for (const where of undecided) console.log(`  ${where}`);
     console.log('');
-    console.log('  An object literal and a type literal are the same tokens in TypeScript, so');
-    console.log('  this cannot tell a payload member from one of your own declarations without');
-    console.log('  parsing. It reports rather than guesses. docs/guides/upgrade-to-1.0.md has a');
-    console.log('  table of what each shape becomes.');
+    console.log('  Two kinds of file end up here. In TypeScript an object literal and a type');
+    console.log('  literal are the same tokens, so this cannot tell a payload member from one');
+    console.log('  of your own declarations without parsing. And a `.prisma` model is a schema:');
+    console.log("  which of its fields you still need is yours to say, not this tool's.");
+    console.log('  It reports rather than guesses — docs/guides/upgrade-to-1.0.md has a table');
+    console.log('  of what each shape becomes.');
 }
 
 /** A `saas.yaml`, whose top-level `projectKey:` needs no anchor. */

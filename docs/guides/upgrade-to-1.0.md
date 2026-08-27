@@ -621,6 +621,14 @@ installation, then run it again. It is a one-way door — the values are dropped
 running it twice is safe: a table whose column has already gone is skipped, so a second run does
 nothing rather than failing.
 
+It is also safe on a **partial** schema. The Prisma fragments are adopted à la carte, and each
+table's changes are made only where that table exists — an app that never took `bundles` migrates
+the tables it does have instead of rolling the whole thing back.
+
+One thing the migration adds rather than removes: a `CHECK` that keeps `marketing_settings` to a
+single row. It used to be a convention resting on a default, and a default does not apply to a
+caller that supplies the value.
+
 **In your code**, `v1-project-key` removes what it can decide:
 
 | before                                                          | after                                     |
@@ -635,6 +643,12 @@ nothing rather than failing.
 **It rewrites two of those and prints the rest.** The two it rewrites need no grammar to decide: a
 `?projectKey=` on a `/catalog/` URL — the prefix every endpoint that read it sat under — and the key
 in `config/saas.yaml`, a file whose schema this platform owns.
+
+**Your `schema.prisma` it prints too, and does not touch.** If you copied the platform's models
+into it — the documented path — it declares `projectKey` fields and `@@unique([projectKey, …])`
+indexes of its own. Those have to go, or the generated client queries columns the database no longer
+has and the next `db push` tries to put them back. Which fields your models still need is yours to
+say, so the codemod names the lines and leaves the edit to you.
 
 **Every object member it prints, by file and line.** Not because the shapes are unclear, but because
 telling one apart from a declaration of your own is not something a text scan can do: in TypeScript

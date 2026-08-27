@@ -270,8 +270,11 @@ model MarketingProjection {
 
 // -----------------------------------------------------------------------------
 // MarketingSettings — installation-wide, runtime-editable marketing config.
-// At most one row, which the constant primary key is what enforces: an insert
-// that leaves `id` to its default collides with the row already there.
+// At most one row. The constant default gets a caller that omits `id` onto the
+// right row, but it is not what holds the rule — a default does not apply to a
+// caller that supplies one, and a primary key accepts every distinct value. The
+// `CHECK` in sql/constraints.postgres.sql is what holds it; the Prisma DSL
+// cannot say it here.
 // Currently exactly one field: `activeLocales` — the subset of the
 // `availableLocales` pool activated in the marketing catalog (the pool comes
 // from the app config, SPEC_V2 §6.5). If the row is missing, the full pool

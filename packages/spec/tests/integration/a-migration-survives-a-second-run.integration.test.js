@@ -42,20 +42,6 @@ const SQL_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'sql')
 /** The schema every consumer starts from — the ground, not a step on it. */
 const GROUND = 'reference-schema.postgres.sql';
 
-/** Statements from a `.sql` file, comments stripped, blanks dropped. */
-function statementsOf(file) {
-    return readFileSync(file, 'utf8')
-        .split(/;\s*$/m)
-        .map((statement) =>
-            statement
-                .split('\n')
-                .filter((line) => !line.trim().startsWith('--'))
-                .join('\n')
-                .trim(),
-        )
-        .filter(Boolean);
-}
-
 /**
  * The files this test is about.
  *
@@ -113,9 +99,10 @@ async function freshGround() {
     await client.query('ROLLBACK').catch(() => {});
     await client.query('DROP SCHEMA IF EXISTS public CASCADE');
     await client.query('CREATE SCHEMA public');
-    for (const statement of statementsOf(join(SQL_DIR, GROUND))) {
-        await client.query(statement);
-    }
+    // Whole, not split on `;`. A splitter would cut through the `DO $$ … $$`
+    // block the constraints carry, and a hand-rolled SQL lexer is the last
+    // thing this test needs — the driver runs a multi-statement script.
+    await apply(GROUND);
 }
 
 /** Applies one file the way a consumer does: whole, in one go. */
