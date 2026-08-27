@@ -93,5 +93,6 @@ documents.
 
 ## Next
 
-- [Build the admin frontend](../../docs/guides/build-the-admin-frontend.md) — the admin side of the same stack
+- [Build the admin frontend](../../docs/guides/build-the-admin-frontend.md) — the admin side of the
+  same stack
 - [Design guide](../../docs/explanation/design-guide.md) — the tokens these components read

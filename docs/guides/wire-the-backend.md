@@ -490,16 +490,21 @@ export class AdminManifestConfigFactory {
 
 ## First-Run Setup (SuperAdmin Bootstrap via the Admin UI)
 
-On the very first start there is no SUPER_ADMIN yet — so there's also nobody who could log in or create an admin via CLI (chicken-and-egg). The `SetupModule` solves this with a **public, self-locking** bootstrap endpoint that the shared login page automatically shows as a wizard.
+On the very first start there is no SUPER_ADMIN yet — so there's also nobody who could log in or
+create an admin via CLI (chicken-and-egg). The `SetupModule` solves this with a **public,
+self-locking** bootstrap endpoint that the shared login page automatically shows as a wizard.
 
 **Security model (two barriers, both must be satisfied):**
 
-1. **Self-disable** — setup runs only while `provisioningPort.countSuperAdmins() === 0`. After the first SUPER_ADMIN is created, the endpoint permanently responds with `409 SETUP_ALREADY_DONE`.
-2. **Setup token** — a secret set by the operator (env var, default `SETUP_TOKEN`). Without the var set, setup is completely disabled (`403 SETUP_DISABLED`); the comparison is timing-safe.
+1. **Self-disable** — setup runs only while `provisioningPort.countSuperAdmins() === 0`. After the
+   first SUPER_ADMIN is created, the endpoint permanently responds with `409 SETUP_ALREADY_DONE`.
+2. **Setup token** — a secret set by the operator (env var, default `SETUP_TOKEN`). Without the var
+   set, setup is completely disabled (`403 SETUP_DISABLED`); the comparison is timing-safe.
 
 This way, even with a publicly reachable app, nobody can "guess/grab" the first admin.
 
-**You need exactly one app adapter** — the `SuperAdminProvisioningPort` (2 methods). A full `UserManagementPort` adapter (CLI) satisfies it too, so it can be shared:
+**You need exactly one app adapter** — the `SuperAdminProvisioningPort` (2 methods). A full
+`UserManagementPort` adapter (CLI) satisfies it too, so it can be shared:
 
 ```ts
 import { Injectable } from '@nestjs/common';
@@ -532,7 +537,8 @@ export class PrismaSuperAdminProvisioningAdapter implements SuperAdminProvisioni
 }
 ```
 
-**Wiring (`AppModule`)** — `SetupModule` MUST come **after** `AdminModule.forRoot` (it injects its global `MfaService` for MFA enrollment):
+**Wiring (`AppModule`)** — `SetupModule` MUST come **after** `AdminModule.forRoot` (it injects its
+global `MfaService` for MFA enrollment):
 
 ```ts
 SetupModule.forRoot({
@@ -559,9 +565,13 @@ early for `isSaaSiCatPublicRoute(reflector, context)`. SaaSiCat marks these
 setup endpoints itself; the setup token and automatic self-disable remain the
 protection for first-run provisioning.
 
-The **QR code is generated server-side** as a data URL (`qrDataUrl`) — the frontend only renders `<img>`, no QR dependency needed.
+The **QR code is generated server-side** as a data URL (`qrDataUrl`) — the frontend only renders
+`<img>`, no QR dependency needed.
 
 **Frontend:** Nothing to do if the app uses the shared `SuperAdminLoginPage` (see
-[app bootstrap](build-the-admin-frontend.md#app-bootstrap)). On mount it calls `setup/status` and, when `needsSetup`, renders the `SuperAdminSetupWizard` instead of the login form. Apps **without** `SetupModule` get `404` → the wizard stays off, normal login.
+[app bootstrap](build-the-admin-frontend.md#app-bootstrap)). On mount it calls `setup/status` and,
+when `needsSetup`, renders the `SuperAdminSetupWizard` instead of the login form. Apps **without**
+`SetupModule` get `404` → the wizard stays off, normal login.
 
-> **Prerequisite & order:** `AdminModule.forRoot` imported globally; global `ValidationPipe` active (for the setup DTOs); `apiBase` in the admin UI = mount prefix of the `SetupController`.
+> **Prerequisite & order:** `AdminModule.forRoot` imported globally; global `ValidationPipe` active
+> (for the setup DTOs); `apiBase` in the admin UI = mount prefix of the `SetupController`.

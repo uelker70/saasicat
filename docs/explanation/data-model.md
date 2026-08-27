@@ -12,6 +12,8 @@ related:
 This document is the **normative logical data model** of the platform. The
 artifact hierarchy:
 
+<!-- markdownlint-disable MD013 -- link paths, kept whole by Prettier -->
+
 1. **This document + [`sql/constraints.postgres.sql`](../../packages/spec/sql/constraints.postgres.sql)** —
    entities, invariants and the constraints no ORM DSL can express. Normative.
 2. **[`sql/reference-schema.postgres.sql`](../../packages/spec/sql/reference-schema.postgres.sql)** —
@@ -25,6 +27,8 @@ artifact hierarchy:
 4. **`@saasicat/persistence-testing`** — the executable arbiter: every
    persistence adapter must pass the contract suite against a real database
    built from (2).
+
+<!-- markdownlint-enable MD013 -->
 
 Wire formats (HTTP/YAML) are governed separately by the JSON Schemas and the
 OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.

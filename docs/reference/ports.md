@@ -142,7 +142,8 @@ Adapter to the project's own user schema.
 
 ### `SuperAdminProvisioningPort`
 
-Narrow port for the first-run setup (interface segregation): ONLY an existence check + creation of the first SUPER_ADMIN.
+Narrow port for the first-run setup (interface segregation): ONLY an existence check + creation of
+the first SUPER_ADMIN.
 
 | Member                                                                        | What it does                                                                     |
 | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |

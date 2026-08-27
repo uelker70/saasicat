@@ -172,7 +172,8 @@ two things that bite. Every other entry above is composed for you.
 
 ## Standard Pages from `@saasicat/ui-vue`
 
-Path: `node_modules/@saasicat/ui-vue/src/pages/` — with the shell in `src/layouts/`, the login screens in `src/auth/` and the primitives in `src/ui/`.
+Path: `node_modules/@saasicat/ui-vue/src/pages/` — with the shell in `src/layouts/`, the login
+screens in `src/auth/` and the primitives in `src/ui/`.
 
 | Page                                     | Purpose                                                    |
 | ---------------------------------------- | ---------------------------------------------------------- |

@@ -73,5 +73,6 @@ Everything else comes from `@saasicat/ui-vue`.
 
 ## Next
 
-- [Build the admin frontend](../../docs/guides/build-the-admin-frontend.md) — what the scaffolder wrote, explained
+- [Build the admin frontend](../../docs/guides/build-the-admin-frontend.md) — what the scaffolder
+  wrote, explained
 - [Design guide](../../docs/explanation/design-guide.md) — before you write a page of your own

@@ -81,4 +81,5 @@ scenarios gate off, visibly).
 ## Next
 
 - [Ports and adapters](../../docs/explanation/adr/0007-ports-and-adapters.md) — what a port promises
-- [Test coverage](../../docs/explanation/test-coverage.md) — what this contract reaches, and what it does not
+- [Test coverage](../../docs/explanation/test-coverage.md) — what this contract reaches, and what it
+  does not

@@ -74,5 +74,6 @@ Produces `dist/index.{js,cjs,d.ts,d.cts}` via `tsup`.
 ## Next
 
 - [The vocabulary](../../docs/explanation/concepts.md) — capability, feature, quota, plan, contract
-- [Codegen](../../docs/explanation/adr/0006-spec-to-types-codegen.md) — what is generated, and what is not
+- [Codegen](../../docs/explanation/adr/0006-spec-to-types-codegen.md) — what is generated, and what
+  is not
 - [`@saasicat/spec`](../spec/README.md) — the schemas these types come from

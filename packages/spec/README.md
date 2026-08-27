@@ -83,5 +83,6 @@ pnpm add @saasicat/spec
 ## Next
 
 - [Data model](../../docs/explanation/data-model.md) — the tables the fragments declare
-- [From capability to contract](../../docs/explanation/capability-to-contract.md) — what the schemas describe
+- [From capability to contract](../../docs/explanation/capability-to-contract.md) — what the schemas
+  describe
 - [Codegen](../../docs/explanation/adr/0006-spec-to-types-codegen.md) — how types are derived from them

@@ -112,7 +112,8 @@ equivalent. Code reached only through `dist/` is unaffected.
 
 `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles that closure at the floor
 and runs in CI; `pnpm --filter @saasicat/ui-vue-tenant test:shipped-source` does the same for
-the tenant package, which ships nothing but source. It is set the way a Vite consumer sets it rather than to a bare language level:
+the tenant package, which ships nothing but source. It is set the way a Vite consumer sets it rather
+than to a bare language level:
 `isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`, the last
 two of which this package's own base config would otherwise leave milder than its
 subject. It
@@ -255,7 +256,8 @@ request.
 `pnpm run coverage` is a ratchet: it fails when coverage drops, and has no
 threshold to reach. It rebuilds only the packages whose inputs changed since
 their last build (a stamp in `dist/`, see `scripts/build-stamp.mjs`), so it
-is cheap enough to run after every change. [`docs/explanation/test-coverage.md`](docs/explanation/test-coverage.md) says which
+is cheap enough to run after every change.
+[`docs/explanation/test-coverage.md`](docs/explanation/test-coverage.md) says which
 parts each suite exercises, names the adapters the persistence contract does not
 reach, and ranks the remaining gaps by what a failure would cost rather than by
 percentage. Read it before assuming a number means what it looks like — two
@@ -268,7 +270,8 @@ open source. Reading, running, changing and redistributing it are permitted, as 
 and selling your own SaaS on it. The restriction is one sentence, quoted rather than
 summarised:
 
-> Any purpose is a permitted purpose, except for providing any product that competes with the software or any product the licensor or any of its affiliates provides using the software.
+> Any purpose is a permitted purpose, except for providing any product that competes with the
+> software or any product the licensor or any of its affiliates provides using the software.
 
 That covers the applications the author builds with SaaSiCat, not only SaaSiCat itself. The
 reasoning is in [ADR 0001](docs/explanation/adr/0001-source-available-licensing.md).

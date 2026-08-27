@@ -278,7 +278,8 @@ customer had just paid for.
 `schedulePlanChange` take `expectedCanceledAt` and answer `claimed`; both must
 claim conditionally rather than update, or the race above stays open in that
 adapter. `SubscriptionRecord`, `SubscriptionUsageRecord`, `DuePendingPlanChange`
-and `RenewalSubInput` require `canceledAt` and `canceledEffectiveAt` — required rather than optional because
+and `RenewalSubInput` require `canceledAt` and `canceledEffectiveAt` — required rather than optional
+because
 an adapter that omits them cannot tell a subscription that ends next January
 from one that ended last January, and the silent answer is the wrong one.
 `TenantSubscriptionWritePort.cancelSubscription` now takes

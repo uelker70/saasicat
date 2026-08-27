@@ -10,7 +10,8 @@ Generated from `packages/ui-vue/src/ui/theme`. Do not edit by hand:
 
 ## Layer 1 — primitives
 
-The raw palette and the raw steps. Literals live here and nowhere else. Read these only when you are defining a role of your own.
+The raw palette and the raw steps. Literals live here and nowhere else. Read these only when you are
+defining a role of your own.
 
 | Token              | Value                                                 |
 | ------------------ | ----------------------------------------------------- |
@@ -81,7 +82,8 @@ The raw palette and the raw steps. Literals live here and nowhere else. Read the
 
 ## Layer 2 — scales
 
-Sizes, identical in every theme. Spacing, type, radii, shadows, z-index and motion. A component reads these directly.
+Sizes, identical in every theme. Spacing, type, radii, shadows, z-index and motion. A component
+reads these directly.
 
 | Token                  | Value               |
 | ---------------------- | ------------------- |

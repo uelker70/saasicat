@@ -13,7 +13,8 @@ HTTP stack.
 
 > **Status: 0.x — early.**
 > The API is **not yet stable** and may change between minor releases.
-> SaaSiCat was extracted from a production system powering two commercial SaaS products — the code is battle-tested, the public packaging is new.
+> SaaSiCat was extracted from a production system powering two commercial SaaS products — the code
+> is battle-tested, the public packaging is new.
 
 ## The product loop
 
@@ -150,7 +151,9 @@ what changed.
 
 ## Contributing
 
-Issues and pull requests are welcome at [github.com/uelker70/saasicat](https://github.com/uelker70/saasicat). Packages are published under the [@saasicat](https://www.npmjs.com/org/saasicat) scope on npm.
+Issues and pull requests are welcome at
+[github.com/uelker70/saasicat](https://github.com/uelker70/saasicat). Packages are published under
+the [@saasicat](https://www.npmjs.com/org/saasicat) scope on npm.
 
 ## License
 
@@ -160,7 +163,8 @@ Reading, running, changing and redistributing it are all permitted, as is buildi
 selling your own SaaS on top of it. The restriction is one sentence, and it is quoted
 here rather than summarised so that nothing is lost on the way:
 
-> Any purpose is a permitted purpose, except for providing any product that competes with the software or any product the licensor or any of its affiliates provides using the software.
+> Any purpose is a permitted purpose, except for providing any product that competes with the
+> software or any product the licensor or any of its affiliates provides using the software.
 
 Note the second half: it covers the applications the author builds with SaaSiCat, not
 only SaaSiCat itself.
