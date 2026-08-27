@@ -538,6 +538,45 @@ price is enough, and the gate accepts it.
 `CreateSubscriptionBundleData` accepts them. They are optional, and an adapter that omits them
 leaves every booking on the pre-1.0 reading.
 
+### A notice period belongs to a rhythm, not to a platform
+
+`cancellationNoticeDays` was one number for every subscription. It is now one per
+rhythm:
+
+```ts
+// before
+TenantBillingModule.forRoot({ cancellationNoticeDays: 30 });
+// after — the same behaviour, said twice
+TenantBillingModule.forRoot({ cancellationNoticeDays: { monthly: 30, yearly: 30 } });
+```
+
+Both halves default to `0`, so an installation that never set the option is unaffected, and one
+that did keeps exactly what it had by naming the same number twice.
+
+One number could not be right for both. A fortnight of notice on a yearly contract is unusual;
+three months on a monthly one is void against a consumer under §309 Nr. 9 BGB. **No ceiling is
+enforced** — the platform does not know whether an installation serves consumers or businesses, so
+the number is yours to choose and this paragraph is what says what it costs.
+
+The rhythm that decides is the **subscription's**, not the plan's: a customer on a yearly
+subscription is owed the yearly notice even where the same plan is also sold monthly. A rhythm you
+do not configure is owed nothing rather than inheriting the other one — a configuration that names
+only `yearly` has left `monthly` at zero deliberately.
+
+**A notice longer than the period is now served rather than approximated.** It used to be neither
+reachable nor honoured: the deadline it computed had always passed, so every declaration was
+classified as late, and the remedy was exactly one period — which for 60 days of notice on a
+monthly cycle gave the customer between 31 and 60 days depending on the day they happened to
+declare. A cancellation now lands on the first period end that actually serves the notice, so a
+misconfiguration costs a longer wait instead of a promise the software cannot keep.
+
+**An add-on has no notice period at all.** Cancelling one takes effect at the end of the booking's
+own period, or at its minimum term where that runs longer, or at the plan's end where that comes
+first — whenever it is declared, including on the last day. That was already the behaviour and is
+now the decision: an add-on hangs off the plan that pays for it, its commitment is the minimum
+term, and a second waiting period on top is one nobody could explain to a customer. A test refuses
+any reference to the notice machinery from the bundle path, so the rule cannot drift back in.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

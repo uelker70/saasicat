@@ -1,6 +1,6 @@
 import type { BillingCycle } from '@saasicat/core';
 
-import { advanceOneCycle } from './billing-period.js';
+import { advanceOneCycle, billingAnchorDay } from './billing-period.js';
 
 // When a cancellation lands.
 //
@@ -96,12 +96,73 @@ export function decideCancellation(input: CancellationInput): CancellationDecisi
         return { effectiveAt: termEndsAt, termEndsAt, afterNoticeDeadline: false, noticeDeadline };
     }
 
-    return {
-        effectiveAt: advanceOneCycle(termEndsAt, billingCycle, anchorDay),
-        termEndsAt,
-        afterNoticeDeadline: true,
-        noticeDeadline,
-    };
+    // Far enough that the notice is actually served, not exactly one period on.
+    //
+    // One step is right whenever the notice is shorter than the period, which
+    // is the case an installation should configure. Where it is not — 60 days
+    // of notice on a monthly cycle — one step gives the customer between 31 and
+    // 60 days depending on the day they happened to declare, and the operator
+    // has promised 60. Stepping until the notice is served degrades honestly
+    // instead: a misconfiguration then costs the customer a longer wait rather
+    // than costing the operator a promise they cannot keep.
+    // Resolved once, before any stepping.
+    //
+    // Without an anchor each step reads its day from the step before it, and
+    // the step before it has already been through a clamp — so one February
+    // eats the day and never gives it back. Over a single step that was
+    // invisible; over several it compounds: from a term ending 31 January with
+    // 60 days of notice, the walk went 28 February, 28 March (57 days, still
+    // short), 28 April, holding the customer a month longer than the notice
+    // asked for. With the anchor kept it is 28 February, 31 March, and it
+    // stops.
+    //
+    // Reading the fallback from `termEndsAt` inherits whatever clamp that date
+    // already carries — a port that omits `billingAnchorDay` cannot be rescued
+    // here. What this removes is the compounding, not the original loss.
+    const steppingAnchor = anchorDay ?? billingAnchorDay(termEndsAt);
+    let effectiveAt = advanceOneCycle(termEndsAt, billingCycle, steppingAnchor);
+    while (effectiveAt.getTime() - now.getTime() < noticePeriodDays * DAY_MS) {
+        effectiveAt = advanceOneCycle(effectiveAt, billingCycle, steppingAnchor);
+    }
+    return { effectiveAt, termEndsAt, afterNoticeDeadline: true, noticeDeadline };
+}
+
+/**
+ * Notice periods, one per rhythm.
+ *
+ * One number for both was the shape until 2026-08-27, and it could not be right
+ * for both: a yearly contract with a fortnight of notice is unusual, and a
+ * monthly contract with three months of notice is void against a consumer. The
+ * two are configured apart because real contracts set them apart.
+ *
+ * Both default to zero — no notice at all — which is the reading a customer
+ * expects and the one that generates no disputes.
+ *
+ * **No ceiling is enforced.** §309 Nr. 9 BGB limits the notice period in German
+ * consumer contracts to one month, and an installation serving businesses is
+ * not bound by it. The platform cannot know which it is, so the number is the
+ * consumer app's to choose and this is the sentence that says what it costs.
+ */
+export interface CancellationNoticePeriods {
+    /** Days of notice for a monthly subscription. */
+    monthly?: number;
+    /** Days of notice for a yearly subscription. */
+    yearly?: number;
+}
+
+/**
+ * The notice a subscription on `billingCycle` is owed.
+ *
+ * Absent means none. The two rhythms are read apart rather than one falling
+ * back to the other: a configuration that names only one has deliberately left
+ * the other at zero, and inferring it would be inventing a term.
+ */
+export function noticeDaysFor(
+    periods: CancellationNoticePeriods | undefined,
+    billingCycle: string,
+): number {
+    if (!periods) return 0;
+    return (billingCycle === 'YEARLY' ? periods.yearly : periods.monthly) ?? 0;
 }
 
 /**

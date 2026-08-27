@@ -62,7 +62,10 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                     // after the window lands one full period later. With a
                     // yearly cycle that is a year, which is why the wizard
                     // states the date before the customer confirms.
-                    cancellationNoticeDays: 0,
+                    // Two rhythms, two numbers. Both zero here: the example does
+                    // not model a notice period, and zero is the reading a
+                    // customer expects.
+                    cancellationNoticeDays: { monthly: 0, yearly: 0 },
                 },
                 subscriptionBundles: true,
                 adminResources: true,

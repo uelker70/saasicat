@@ -20,6 +20,7 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
+import type { CancellationNoticePeriods } from './cancellation.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
@@ -139,12 +140,21 @@ export interface TenantBillingModuleOptions {
     selfServiceBlockedPlans?: SelfServiceBlockedPlans;
 
     /**
-     * Days of notice before a term ends. Default 0 — no notice period.
+     * Days of notice before a term ends, one per rhythm. Both default to 0 —
+     * no notice period.
      *
      * A cancellation declared after the window has closed takes effect at the
-     * end of the FOLLOWING period. See `CANCELLATION_NOTICE_DAYS_TOKEN`.
+     * first period end that actually serves the notice. See
+     * `CANCELLATION_NOTICE_DAYS_TOKEN`.
+     *
+     * Two numbers rather than one because a monthly and a yearly contract
+     * cannot share a notice period: a fortnight is unusual on a year, and three
+     * months is void against a consumer on a month. **No ceiling is enforced** —
+     * §309 Nr. 9 BGB limits it to one month in German consumer contracts, and an
+     * installation serving businesses is not bound by that, so the number is
+     * yours to choose.
      */
-    cancellationNoticeDays?: number;
+    cancellationNoticeDays?: CancellationNoticePeriods;
 
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
@@ -194,7 +204,7 @@ export class TenantBillingModule {
             PlanChangePreviewService,
         ];
 
-        if (typeof options.cancellationNoticeDays === 'number') {
+        if (options.cancellationNoticeDays) {
             providers.push({
                 provide: CANCELLATION_NOTICE_DAYS_TOKEN,
                 useValue: options.cancellationNoticeDays,
