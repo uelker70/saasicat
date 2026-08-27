@@ -95,6 +95,7 @@
                     :booked="bookedBundles"
                     :available="availableBundles"
                     :plan-features="activeFeatures"
+                    :plan-cycle="planCycle"
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
                     :feature-label="featureLabelResolved"
@@ -453,6 +454,18 @@ const hasBundleStore = computed(
 
 // Feature-scope matrix (#18): all features with registry translation.
 const featureRegistry = computed(() => catalog.featureRegistry.value);
+/**
+ * The rhythm the plan is billed in, as the bundle store's control needs it.
+ *
+ * Narrowed here rather than in the template: a union in a template type
+ * assertion parses as a Vue filter, which `vue/no-deprecated-filter` rejects.
+ * `MONTHLY` before the subscription has loaded is the safe reading — it offers
+ * no choice rather than one the plan may not permit.
+ */
+const planCycle = computed<'MONTHLY' | 'YEARLY'>(() =>
+    usage.value?.billingCycle === 'YEARLY' ? 'YEARLY' : 'MONTHLY',
+);
+
 const activeFeatures = computed<string[]>(() => usage.value?.limits.features ?? []);
 const hasFeatureOverview = computed(
     () => Object.keys(featureRegistry.value ?? {}).length > 0 || activeFeatures.value.length > 0,

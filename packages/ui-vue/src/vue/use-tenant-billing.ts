@@ -169,6 +169,15 @@ export interface SubscriptionBundleShape {
     bundleKey?: string | null;
     label?: string | null;
     monthlyNet?: string | null;
+    /**
+     * The rhythm this booking is billed in, which need not be the plan's: a
+     * yearly plan may carry monthly add-ons.
+     *
+     * Optional because an adapter predating the column answers without it; a
+     * reader without an answer falls back to the plan's rhythm, which is what
+     * the booking would have taken by default.
+     */
+    billingCycle?: string | null;
     startedAt: string;
     minimumTermEndsAt: string | null;
     canceledAt: string | null;

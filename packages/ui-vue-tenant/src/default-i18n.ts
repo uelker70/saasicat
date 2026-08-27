@@ -59,6 +59,11 @@ export interface TenantPlanSectionI18n {
     bundlesAvailableTitle: string;
     bundlesAvailableEmpty: string;
     bundlesPerMonth: string;
+    bundlesPerYear: string;
+    /** Legend for the rhythm choice above the bundle cards. */
+    bundleCycleLegend: string;
+    /** Badge on a bundle that carries no price in the chosen rhythm. */
+    bundleNotPricedForCycle: string;
     bundleBookAction: string;
     bundleBookInProgress: string;
     bundleCancelAction: string;
@@ -251,6 +256,9 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     bundlesAvailableTitle: 'Verfügbare Bundles',
     bundlesAvailableEmpty: 'Aktuell sind keine zusätzlichen Bundles verfügbar.',
     bundlesPerMonth: 'netto/Monat',
+    bundlesPerYear: 'netto/Jahr',
+    bundleCycleLegend: 'Abrechnung der Zusatzpakete',
+    bundleNotPricedForCycle: 'In diesem Rhythmus nicht erhältlich',
     bundleBookAction: 'Bundle buchen',
     bundleBookInProgress: 'Buchung läuft …',
     bundleCancelAction: 'Kündigen',
@@ -443,6 +451,9 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     bundlesAvailableTitle: 'Available bundles',
     bundlesAvailableEmpty: 'There are currently no additional bundles available.',
     bundlesPerMonth: 'net/month',
+    bundlesPerYear: 'net/year',
+    bundleCycleLegend: 'Billing for add-ons',
+    bundleNotPricedForCycle: 'Not available in this rhythm',
     bundleBookAction: 'Book bundle',
     bundleBookInProgress: 'Booking …',
     bundleCancelAction: 'Cancel',
