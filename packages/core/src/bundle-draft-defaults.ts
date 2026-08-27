@@ -112,3 +112,27 @@ export function toBundleStemRow(row: StoredBundleStem): BundleRow {
         deletedAt: row.deletedAt?.toISOString() ?? null,
     };
 }
+
+/**
+ * The fields a caller actually gave, as a patch.
+ *
+ * The update DTOs in this codebase mean three different things by three
+ * different values: a value changes the column, an explicit `null` clears it,
+ * and an **omitted** field leaves it alone. Only the last one needs care, and
+ * it was written out as `...(data.x !== undefined ? { x: data.x } : {})` more
+ * than fifty times across five repositories — one decision, fifty
+ * opportunities to spell it differently, and the duplication ratchet is what
+ * finally pointed at it.
+ *
+ * `null` is deliberately kept: it is a value a caller chose, not an absence.
+ */
+export function definedFields<T extends object, K extends keyof T>(
+    data: T,
+    keys: readonly K[],
+): Partial<Pick<T, K>> {
+    const patch: Partial<Pick<T, K>> = {};
+    for (const key of keys) {
+        if (data[key] !== undefined) patch[key] = data[key];
+    }
+    return patch;
+}

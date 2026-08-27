@@ -1,7 +1,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { bundleDraftDefaults, bundleStemDefaults, toBundleStemRow } from '../dist/index.js';
+import {
+    bundleDraftDefaults,
+    bundleStemDefaults,
+    definedFields,
+    toBundleStemRow,
+} from '../dist/index.js';
 
 // The defaulting rules every bundle adapter applies.
 //
@@ -139,5 +144,50 @@ describe('reading a stored stem back', () => {
         for (const junk of [null, undefined, [], 'text', 42]) {
             assert.deepEqual(toBundleStemRow({ ...stored, i18n: junk }).i18n, {}, String(junk));
         }
+    });
+});
+
+describe('the fields a caller actually gave', () => {
+    // Update DTOs mean three different things by three different values: a
+    // value changes the column, an explicit `null` clears it, and an omitted
+    // field leaves it alone. Only the third needs care, and it was written out
+    // as `...(data.x !== undefined ? { x: data.x } : {})` more than fifty times
+    // across five repositories before this.
+
+    test('an omitted field is not in the patch at all', () => {
+        // Not `{ label: undefined }`: a key that is present with an undefined
+        // value is a column some drivers will happily set to NULL.
+        const patch = definedFields({ label: 'New' }, ['label', 'description', 'icon']);
+        assert.deepEqual(Object.keys(patch), ['label']);
+        assert.equal('description' in patch, false);
+    });
+
+    test('an explicit null is kept, because somebody chose it', () => {
+        const patch = definedFields({ description: null }, ['description']);
+        assert.equal('description' in patch, true);
+        assert.equal(patch.description, null);
+    });
+
+    test('falsy values are values', () => {
+        // Zero, an empty string and false are the three that a naive truthiness
+        // check would drop, and all three are legitimate column values.
+        const patch = definedFields({ sortOrder: 0, label: '', marketed: false }, [
+            'sortOrder',
+            'label',
+            'marketed',
+        ]);
+        assert.deepEqual(patch, { sortOrder: 0, label: '', marketed: false });
+    });
+
+    test('a key that was not asked for is not in the patch', () => {
+        // The key list is the allow-list: a DTO that has grown a field the
+        // repository does not write must not start writing it by accident.
+        const patch = definedFields({ label: 'New', secret: 'x' }, ['label']);
+        assert.deepEqual(patch, { label: 'New' });
+    });
+
+    test('an empty patch is empty, not undefined', () => {
+        assert.deepEqual(definedFields({}, ['label']), {});
+        assert.deepEqual(definedFields({ label: 'x' }, []), {});
     });
 });

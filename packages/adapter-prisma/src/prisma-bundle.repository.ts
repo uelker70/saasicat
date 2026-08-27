@@ -3,6 +3,7 @@ import {
     buildActiveVersionWhere,
     bundleDraftDefaults,
     bundleStemDefaults,
+    definedFields,
     toBundleStemRow,
     type BundleCompatibility,
     type BundleListFilter,
@@ -215,13 +216,7 @@ export class PrismaBundleRepository implements BundleRepository {
     async update(bundleId: string, data: UpdateBundleData): Promise<BundleRow> {
         const updated = await this.db().bundle.update({
             where: { id: bundleId },
-            data: {
-                ...(data.label !== undefined ? { label: data.label } : {}),
-                ...(data.description !== undefined ? { description: data.description } : {}),
-                ...(data.icon !== undefined ? { icon: data.icon } : {}),
-                ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
-                ...(data.i18n !== undefined ? { i18n: data.i18n } : {}),
-            },
+            data: definedFields(data, ['label', 'description', 'icon', 'sortOrder', 'i18n']),
         });
         return toBundleStemRow(updated);
     }

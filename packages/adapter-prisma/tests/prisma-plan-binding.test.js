@@ -425,8 +425,15 @@ describe('PrismaPlanRepository normalized lifecycle', () => {
         assert.equal(data.planId, 'BASIC');
         assert.equal('validFrom' in data, false);
         assert.equal(draft.validFrom, null);
-        await assert.rejects(repo.findActivePlanVersion('BASIC'), /requires/);
-        await assert.rejects(repo.terminate(draft.id, new Date()), /requires/);
+        // Not offered rather than offered-and-throwing. Every caller guards the
+        // way the port invites — `findActivePlanVersion?.(…) ?? findLatestLive…`,
+        // and `typeof repo.terminate !== 'function'` in `PlanVersionsService` —
+        // and both of those test presence, not willingness. Defining the methods
+        // and throwing inside them made those guards useless: the tenant bundle
+        // preview answered 500 on a 0.6-schema consumer instead of falling back,
+        // and an operator hit a raw 500 where the service had a sentence ready.
+        assert.equal(repo.findActivePlanVersion, undefined);
+        assert.equal(repo.terminate, undefined);
     });
 
     test('latest live lookup excludes a version whose explicit endsAt elapsed', async () => {
