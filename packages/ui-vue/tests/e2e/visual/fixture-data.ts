@@ -763,6 +763,10 @@ const TENANT_CATALOG_BUNDLES = [
     },
 ];
 
+const TENANT_RESOLVED_BUNDLE_PRICES = {
+    'bv-1': { monthlyNet: 19, yearlyNet: 190 },
+};
+
 /**
  * What the plan-change wizard shows in its confirm step.
  *
@@ -1026,6 +1030,12 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/billing/plans', TENANT_CATALOG_PLANS],
     ['/api/billing/feature-registry', { features: {}, quotas: {} }],
     ['/api/billing/bundles', TENANT_CATALOG_BUNDLES],
+    // Prices resolved for the tenant's plan. The public catalogue above cannot
+    // answer this — it has no plan to resolve an override against — so the
+    // section asks separately and overlays what comes back. Matching the
+    // catalogue's own figures here keeps the baseline's wording; the case where
+    // they differ is a component test, not a screenshot.
+    ['/api/billing/subscription-bundles/prices', TENANT_RESOLVED_BUNDLE_PRICES],
 ];
 
 /**
