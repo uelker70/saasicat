@@ -2,7 +2,7 @@
 // plan line item from the catalog, bundle line items from the source port,
 // entitlementSnapshot from computeLimits, previous contract is superseded.
 
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SubscriptionContractFreezeService } from '../dist/billing/index.js';
 
@@ -146,4 +146,82 @@ test('appends consumer bundle line items + version ids', async () => {
     assert.deepEqual(contract.originalBundleVersionIds, ['bv-1']);
     // Subtotal = plan 49 + bundle 20 = 69.
     assert.equal(contract.priceSnapshot.subtotalNet, 69);
+});
+
+// A contract that mixes rhythms.
+//
+// A bundle's term may not outlast the plan it hangs on, so a yearly add-on
+// beside a monthly plan is refused — but the other way round is legal, and a
+// tenant on a yearly plan may hold monthly add-ons. Both rhythms then sit in
+// one contract, and its total states one period of the contract's own rhythm.
+// Adding the figures as they stand would put a single month of an add-on into
+// a year's total, which the contract is then evidence of.
+
+const monthlyAddOn = (priceNet) => ({
+    kind: 'bundle',
+    sourceKey: 'ANALYTICS',
+    sourceVersionId: 'bv-1',
+    titleSnapshot: 'Analytics',
+    descriptionSnapshot: null,
+    quantity: 1,
+    unit: null,
+    priceNet,
+    priceGross: priceNet,
+    billingCycle: 'monthly',
+    minimumTermUntil: null,
+    featuresSnapshot: [],
+    quotaEffectsSnapshot: {},
+    metadata: null,
+});
+
+describe('a yearly contract holding a monthly add-on', () => {
+    test('counts the add-on as often as it falls due', async () => {
+        const { calls, service } = makeService({
+            bundles: { lineItems: [monthlyAddOn(10)], bundleVersionIds: ['bv-1'] },
+        });
+        await service.freezeOnPlanChange(
+            't1',
+            'STANDARD',
+            'YEARLY',
+            new Date('2026-06-09T00:00:00.000Z'),
+        );
+        const { priceSnapshot, lineItems } = calls.created[0];
+        // 490 for the year, plus twelve months of a ten-a-month add-on.
+        assert.equal(priceSnapshot.totalNet, 610);
+        assert.equal(priceSnapshot.billingCycle, 'yearly');
+        // The line keeps what it actually is, so the contract still says the
+        // add-on is billed monthly at ten.
+        const addOn = lineItems.find((li) => li.kind === 'bundle');
+        assert.equal(addOn.billingCycle, 'monthly');
+        assert.equal(addOn.priceNet, 10);
+    });
+
+    test('a yearly add-on beside a yearly plan is counted once', async () => {
+        const { calls, service } = makeService({
+            bundles: {
+                lineItems: [{ ...monthlyAddOn(100), billingCycle: 'yearly' }],
+                bundleVersionIds: ['bv-1'],
+            },
+        });
+        await service.freezeOnPlanChange(
+            't1',
+            'STANDARD',
+            'YEARLY',
+            new Date('2026-06-09T00:00:00.000Z'),
+        );
+        assert.equal(calls.created[0].priceSnapshot.totalNet, 590);
+    });
+
+    test('a monthly contract adds a monthly add-on as it stands', async () => {
+        const { calls, service } = makeService({
+            bundles: { lineItems: [monthlyAddOn(10)], bundleVersionIds: ['bv-1'] },
+        });
+        await service.freezeOnPlanChange(
+            't1',
+            'STANDARD',
+            'MONTHLY',
+            new Date('2026-06-09T00:00:00.000Z'),
+        );
+        assert.equal(calls.created[0].priceSnapshot.totalNet, 59);
+    });
 });

@@ -19,8 +19,8 @@
                         </span>
                     </div>
                     <div class="sp-bundle-store__booked-actions">
-                        <span class="sp-plan-section__item-price">
-                            {{ formatCurrency(row.monthlyNet) }} {{ i18n.bundlesPerMonth }}
+                        <span v-if="row.priceNet !== null" class="sp-plan-section__item-price">
+                            {{ formatCurrency(row.priceNet) }} {{ unitFor(row.billingCycle) }}
                         </span>
                         <TenantButton
                             v-if="!row.canceledAt"
@@ -48,6 +48,18 @@
         <!-- Available bundles -->
         <div class="sp-bundle-store__available">
             <div class="sp-bundle-store__subtitle">{{ i18n.bundlesAvailableTitle }}</div>
+
+            <!-- Only where there is something to choose. A monthly plan sells
+                 monthly add-ons and nothing else, so a control with one option
+                 would be a question with one answer. -->
+            <div v-if="offersCycleChoice" class="sp-bundle-store__cycle">
+                <span class="sp-bundle-store__cycle-legend">{{ i18n.bundleCycleLegend }}</span>
+                <PlanCycleToggle
+                    :model-value="selectedCycle"
+                    :i18n="cycleI18n"
+                    @update:model-value="chooseCycle"
+                />
+            </div>
             <div v-if="availableRows.length === 0" class="sp-bundle-store__empty">
                 {{ i18n.bundlesAvailableEmpty }}
             </div>
@@ -60,9 +72,9 @@
                 >
                     <div class="sp-bundle-store__card-head">
                         <span class="sp-bundle-store__card-name">{{ row.bundle.label }}</span>
-                        <span class="sp-bundle-store__card-price">
-                            {{ formatCurrency(row.bundle.monthlyNet ?? 0) }}
-                            <small>{{ i18n.bundlesPerMonth }}</small>
+                        <span v-if="row.priceNet !== null" class="sp-bundle-store__card-price">
+                            {{ formatCurrency(row.priceNet) }}
+                            <small>{{ unitFor(selectedCycle) }}</small>
                         </span>
                     </div>
 
@@ -77,6 +89,12 @@
                         class="sp-badge sp-badge--neutral sp-bundle-store__card-badge"
                     >
                         {{ i18n.bundleIncompatible }}
+                    </span>
+                    <span
+                        v-else-if="row.state === 'not-priced-for-cycle'"
+                        class="sp-badge sp-badge--neutral sp-bundle-store__card-badge"
+                    >
+                        {{ i18n.bundleNotPricedForCycle }}
                     </span>
                     <span
                         v-else-if="row.state === 'missing-requires'"
@@ -104,7 +122,7 @@
                         class="sp-bundle-store__card-action"
                         :loading="buyingId === row.bundle.bundleVersionId"
                         :disabled="buyingId !== null"
-                        @click="emit('buy', row.bundle.bundleVersionId)"
+                        @click="emit('buy', row.bundle.bundleVersionId, selectedCycle)"
                     >
                         {{
                             buyingId === row.bundle.bundleVersionId
@@ -121,14 +139,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
 import TenantButton from '../ui/TenantButton.vue';
 import TenantCard from '../ui/TenantCard.vue';
 import TenantCardSection from '../ui/TenantCardSection.vue';
 import '../ui/tenant-ui.css';
 import { missingRequiresFor } from '@saasicat/core';
-import type { CatalogBundle } from '@saasicat/ui-vue';
+import type { BillingCycleStr, CatalogBundle } from '@saasicat/ui-vue';
+import PlanCycleToggle from '../plan/PlanCycleToggle.vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
 
 // TenantBundleStore — bundle sales on "Paket & Verbrauch" (#15):
@@ -146,6 +165,15 @@ const props = defineProps<{
     available: CatalogBundle[];
     /** Features of the current plan — for the compatibility check (#22). */
     planFeatures: string[];
+    /**
+     * The rhythm the plan itself is billed in.
+     *
+     * It decides two things: which rhythms an add-on may be sold in at all — a
+     * bundle may never outlast the plan it hangs on, so a yearly add-on beside
+     * a monthly plan is refused — and which one is preselected, so a tenant who
+     * touches nothing gets what they got before this control existed.
+     */
+    planCycle: BillingCycleStr;
     formatCurrency: (n: number) => string;
     formatDate: (iso: string) => string;
     featureLabel: (key: string) => string;
@@ -159,13 +187,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    /**
-     * The second argument is the rhythm to bill the bundle in. Omitted means
-     * the plan's, which is what this grid asks for — a rhythm the tenant chose
-     * would come from a control that does not exist yet, and inventing a
-     * default here would change what somebody pays without asking them.
-     */
-    buy: [bundleVersionId: string, billingCycle?: 'MONTHLY' | 'YEARLY'];
+    /** The second argument is the rhythm the tenant chose to be billed in. */
+    buy: [bundleVersionId: string, billingCycle?: BillingCycleStr];
     cancel: [subscriptionBundleId: string];
     reactivate: [subscriptionBundleId: string];
 }>();
@@ -178,7 +201,13 @@ interface BookedRow {
     id: string;
     bundleVersionId: string;
     label: string;
-    monthlyNet: number;
+    /**
+     * List price in the rhythm this booking is billed in, or `null` where none
+     * resolves — which is a statement, not a missing value, and is shown as
+     * nothing rather than as a figure from somewhere else.
+     */
+    priceNet: number | null;
+    billingCycle: string | null;
     minimumTermEndsAt: string | null;
     canceledAt: string | null;
     canceledEffectiveAt: string | null;
@@ -192,7 +221,23 @@ const bookedRows = computed<BookedRow[]>(() =>
             bundleVersionId: b.bundleVersionId,
             // Server label takes precedence; catalog join only as fallback; UUID as last resort.
             label: b.label ?? cat?.label ?? b.bundleVersionId,
-            monthlyNet: b.monthlyNet != null ? Number(b.monthlyNet) : (cat?.monthlyNet ?? 0),
+            // The server resolves the price for the rhythm the booking is in,
+            // including the plan's override. The catalogue join is the fallback
+            // and has to pick the same rhythm — and for a booking from before
+            // the column existed, that rhythm is the plan's.
+            //
+            // `undefined` and `null` are different answers, and only the first
+            // one may fall back. An adapter that does not send the field leaves
+            // it `undefined`; a server that resolved it and found no price for
+            // this plan and rhythm sends `null`, and answering that with the
+            // catalogue's base figure states a price the tenant is not charged.
+            priceNet:
+                b.priceNet !== undefined
+                    ? b.priceNet
+                    : (((b.billingCycle ?? props.planCycle) === 'YEARLY'
+                          ? cat?.yearlyNet
+                          : cat?.monthlyNet) ?? null),
+            billingCycle: b.billingCycle ?? null,
             minimumTermEndsAt: b.minimumTermEndsAt,
             canceledAt: b.canceledAt,
             canceledEffectiveAt: b.canceledEffectiveAt,
@@ -206,11 +251,88 @@ const activeBookedVersionIds = computed(
 
 const planFeatureSet = computed(() => new Set(props.planFeatures));
 
-type BundleState = 'bookable' | 'booked' | 'incompatible' | 'missing-requires';
+type BundleState =
+    'bookable' | 'booked' | 'incompatible' | 'missing-requires' | 'not-priced-for-cycle';
 
 interface AvailableRow {
     bundle: CatalogBundle;
     state: BundleState;
+    /** List price in the selected rhythm; null when none is maintained. */
+    priceNet: number | null;
+}
+
+/**
+ * A bundle's term may not outlast the plan's, so a yearly add-on beside a
+ * monthly plan is refused — by `bundleCycleFitsPlan` on the server, and here so
+ * the tenant is not offered something that would be rejected.
+ */
+const cyclesFor = (planCycle: BillingCycleStr): BillingCycleStr[] =>
+    planCycle === 'YEARLY' ? ['MONTHLY', 'YEARLY'] : ['MONTHLY'];
+
+const selectedCycle = ref<BillingCycleStr>(props.planCycle);
+/**
+ * Whether the tenant has said anything about the rhythm.
+ *
+ * Without it there is no telling "monthly, because the plan was monthly" from
+ * "monthly, because I chose it" — and the two want opposite things when the
+ * plan turns yearly: the first should follow, the second should stay. The
+ * distinction is not derivable from the selection, so it needs its own word.
+ */
+const cycleChosen = ref(false);
+
+function chooseCycle(cycle: BillingCycleStr): void {
+    cycleChosen.value = true;
+    selectedCycle.value = cycle;
+}
+
+// The plan's rhythm can change under the section (a plan change lands, the
+// usage reloads). An untouched control follows it, so "do nothing and get the
+// plan's rhythm" keeps holding after an upgrade; a chosen one is left alone
+// unless the new plan no longer offers it.
+watch(
+    () => props.planCycle,
+    (cycle) => {
+        if (cyclesFor(cycle).includes(selectedCycle.value) && cycleChosen.value) return;
+        // Either nothing was chosen, or what was chosen is no longer on offer.
+        // The second case replaces the selection, and a replacement is not a
+        // choice: leaving the marker set would let a forced monthly survive a
+        // later return to a yearly plan as though the tenant had asked for it,
+        // when their last actual answer was yearly.
+        cycleChosen.value = false;
+        selectedCycle.value = cycle;
+    },
+);
+
+const offersCycleChoice = computed(() => cyclesFor(props.planCycle).length > 1);
+
+const cycleI18n = computed(() => ({
+    ariaLabel: i18n.value.bundleCycleLegend,
+    monthly: i18n.value.cycleMonthly,
+    yearly: i18n.value.cycleYearly,
+}));
+
+/**
+ * The unit for a rhythm, with the plan's as the fallback.
+ *
+ * A booking made before the rhythm was recorded took the plan's, because that
+ * was the only thing it could take — so on a yearly plan such a row is yearly,
+ * and reading it as monthly misstates what the tenant pays.
+ */
+const unitFor = (cycle: string | null | undefined): string =>
+    (cycle ?? props.planCycle) === 'YEARLY'
+        ? i18n.value.bundlesPerYear
+        : i18n.value.bundlesPerMonth;
+
+/**
+ * What the bundle costs in a rhythm, or null when no price is maintained for
+ * that combination.
+ *
+ * Null is not free: `resolveBundlePriceNet` on the server answers the same way
+ * and the booking is refused with `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`. Offering
+ * the card anyway would put a button in front of a tenant that cannot work.
+ */
+function priceFor(bundle: CatalogBundle, cycle: BillingCycleStr): number | null {
+    return cycle === 'YEARLY' ? bundle.yearlyNet : bundle.monthlyNet;
 }
 
 // requires coverage (#35): plan features ∪ features of the actively booked
@@ -237,15 +359,21 @@ function missingRequiresOf(b: CatalogBundle): string[] {
 // Incompatible = intersection of the bundle features with the plan features ≠ ∅
 // (the bundle would sell already-included features twice). Quotas don't
 // count — they act additively.
-function resolveState(b: CatalogBundle): BundleState {
+function resolveState(b: CatalogBundle, priceNet: number | null): BundleState {
     if (activeBookedVersionIds.value.has(b.bundleVersionId)) return 'booked';
     if (b.features.some((f) => planFeatureSet.value.has(f))) return 'incompatible';
     if (missingRequiresOf(b).length > 0) return 'missing-requires';
+    // Last, so a bundle that is already booked or incompatible keeps the
+    // reason that actually explains it.
+    if (priceNet === null) return 'not-priced-for-cycle';
     return 'bookable';
 }
 
 const availableRows = computed<AvailableRow[]>(() =>
-    props.available.map((b) => ({ bundle: b, state: resolveState(b) })),
+    props.available.map((b) => {
+        const priceNet = priceFor(b, selectedCycle.value);
+        return { bundle: b, state: resolveState(b, priceNet), priceNet };
+    }),
 );
 </script>
 
@@ -258,6 +386,17 @@ const availableRows = computed<AvailableRow[]>(() =>
 }
 .sp-bundle-store__available {
     margin-top: var(--sa-space-5);
+}
+.sp-bundle-store__cycle {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sa-space-3);
+    margin-bottom: var(--sa-space-4);
+}
+.sp-bundle-store__cycle-legend {
+    font-size: var(--sa-text-sm);
+    color: var(--sp-text-muted, var(--sa-color-fg-muted));
 }
 .sp-bundle-store__booked-actions {
     display: flex;

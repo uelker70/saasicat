@@ -130,7 +130,7 @@ export interface VersionedEntityBase {
  *   own migration).
  * - `startedAt` is the contract start of this booking.
  * - `minimumTermEndsAt` = end of the minimum term; `null` = no minimum term
- *   (platform default = 12 months, set service-side).
+ *   (platform default = no commitment, set service-side).
  * - `canceledAt` / `canceledEffectiveAt`: cancellation anchor vs. effective
  *   date. Before the minimum term ends, `canceledEffectiveAt =
  *   minimumTermEndsAt`, otherwise the subscription's period end.
@@ -173,14 +173,23 @@ export interface SubscriptionBundleRecord {
 export interface SubscriptionBundleView extends SubscriptionBundleRecord {
     bundleKey: string | null;
     label: string | null;
-    monthlyNet: string | null;
+    /**
+     * What this booking is billed at, in the rhythm it was booked in and with
+     * the plan's pricing override applied.
+     *
+     * It was `monthlyNet` until 2026-08-27 and carried the bundle's base
+     * monthly price whatever the booking was — so a yearly booking of a bundle
+     * priced 10 monthly and 100 yearly reported 10. The name was half the
+     * defect: a field called `monthlyNet` on a yearly booking cannot be right.
+     */
+    priceNet: number | null;
 }
 
 export interface CreateSubscriptionBundleData {
     subscriptionId: string;
     bundleVersionId: string;
     startedAt: Date;
-    /** Default = startedAt + 12 months, unless set. */
+    /** Null unless a commitment was configured or asked for. */
     minimumTermEndsAt?: Date | null;
     /** The rhythm and window worked out above this port. */
     billingCycle?: string | null;

@@ -95,6 +95,7 @@
                     :booked="bookedBundles"
                     :available="availableBundles"
                     :plan-features="activeFeatures"
+                    :plan-cycle="planCycle"
                     :format-currency="formatCurrency"
                     :format-date="formatDate"
                     :feature-label="featureLabelResolved"
@@ -252,7 +253,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { provideTenantI18n } from './tenant-i18n.js';
 import PackageSnapshotPanel from './PackageSnapshotPanel.vue';
 import PendingVersionBanner from './PendingVersionBanner.vue';
@@ -273,12 +274,18 @@ import TenantCard from './ui/TenantCard.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
 import { useSubscriptionHasEnded } from './use-subscription-ended.js';
+import { latestAnswerWins } from './latest-answer-wins.js';
 import {
     useTenantBilling,
     type BundlePreviewShape,
     type SubscriptionBundleShape,
 } from '@saasicat/ui-vue';
-import { useTenantBillingCatalog, type CatalogBundle, type CatalogPlan } from '@saasicat/ui-vue';
+import {
+    useTenantBillingCatalog,
+    type CatalogBundle,
+    type CatalogPlan,
+    type ResolvedBundlePrice,
+} from '@saasicat/ui-vue';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 import type { HttpClient } from '@saasicat/ui-vue';
 
@@ -433,7 +440,72 @@ const catalogQuotaKeys = computed(() => {
 const bookablePlans = computed<CatalogPlan[]>(() => catalog.plans.value ?? []);
 
 // Bundle store (#15): available catalog bundles + booked bundles.
-const availableBundles = computed<CatalogBundle[]>(() => catalog.bundles.value ?? []);
+/**
+ * Prices resolved for this tenant's plan, by bundle version.
+ *
+ * The public catalogue has no tenant and therefore no plan, so it serves base
+ * prices and reads a bundle priced only through a `BundlePricingOverride` as
+ * having no price at all. Empty where the endpoint is absent, in which case the
+ * catalogue's own figures stand — which is what every consumer had before.
+ */
+const resolvedBundlePrices = ref<Record<string, ResolvedBundlePrice>>({});
+
+/**
+ * A price is resolved against a plan, so an answer for a plan the tenant has
+ * since left is not merely stale — it is about a different question.
+ */
+const commitBundlePrices = latestAnswerWins(
+    async (ids: string[]) => {
+        try {
+            return { prices: await billing.loadBundlePrices(ids), failed: false };
+        } catch (err) {
+            // Cleared rather than kept: prices belong to a plan, and holding
+            // the previous plan's figures would be wrong in a way nobody can
+            // see. Cleared *and* announced, because the cards then show the
+            // catalogue's own numbers, which are not necessarily the ones being
+            // charged.
+            return {
+                prices: {},
+                failed: true,
+                message: err instanceof Error ? err.message : String(err),
+            };
+        }
+    },
+    ({ prices, failed, message }) => {
+        resolvedBundlePrices.value = prices;
+        // Assigned either way: a retry that succeeded leaves the cards holding
+        // fresh prices, and an error still on screen above them describes a
+        // state that no longer exists.
+        bundleError.value = failed ? (message ?? null) : null;
+    },
+);
+
+const availableBundles = computed<CatalogBundle[]>(() =>
+    (catalog.bundles.value ?? []).map((bundle) => {
+        const resolved = resolvedBundlePrices.value[bundle.bundleVersionId];
+        return resolved ? { ...bundle, ...resolved } : bundle;
+    }),
+);
+
+// The plan is part of the question, not just the bundles: a price is resolved
+// against it, so an in-place plan change that leaves the catalogue untouched
+// still invalidates every figure here. Watching only the bundle ids left the
+// previous plan's overrides on the cards — a bundle priced only on the new plan
+// stayed disabled, and one priced only on the old plan stayed bookable at a
+// number nobody would be charged.
+watch(
+    () =>
+        `${usage.value?.plan ?? ''}|${(catalog.bundles.value ?? []).map((b) => b.bundleVersionId).join(',')}`,
+    async (key) => {
+        const [plan, ids] = key.split('|');
+        if (!plan || !ids) {
+            resolvedBundlePrices.value = {};
+            return;
+        }
+        await commitBundlePrices(ids.split(','));
+    },
+    { immediate: true },
+);
 // A canceled bundle stays active until the end of the already-paid period
 // (canceledEffectiveAt lies in the future) and is still shown under
 // "Gebuchte Bundles" — the feature is paid for the period. Only once
@@ -453,6 +525,18 @@ const hasBundleStore = computed(
 
 // Feature-scope matrix (#18): all features with registry translation.
 const featureRegistry = computed(() => catalog.featureRegistry.value);
+/**
+ * The rhythm the plan is billed in, as the bundle store's control needs it.
+ *
+ * Narrowed here rather than in the template: a union in a template type
+ * assertion parses as a Vue filter, which `vue/no-deprecated-filter` rejects.
+ * `MONTHLY` before the subscription has loaded is the safe reading — it offers
+ * no choice rather than one the plan may not permit.
+ */
+const planCycle = computed<'MONTHLY' | 'YEARLY'>(() =>
+    usage.value?.billingCycle === 'YEARLY' ? 'YEARLY' : 'MONTHLY',
+);
+
 const activeFeatures = computed<string[]>(() => usage.value?.limits.features ?? []);
 const hasFeatureOverview = computed(
     () => Object.keys(featureRegistry.value ?? {}).length > 0 || activeFeatures.value.length > 0,

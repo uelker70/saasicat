@@ -5,7 +5,7 @@
 //   1. `addBundleToSubscription`: checks bundle existence + publication
 //      status + plan compatibility (`bundle.compatibility.planIds`) + idempotency
 //      (no duplicate active bookings of the same BundleVersion); sets the
-//      minimum-term default (12 months, configurable via token).
+//      minimum-term default (none, configurable via token).
 //   2. `cancelBundleFromSubscription`: computes
 //      `canceledEffectiveAt = max(currentPeriodEnd, minimumTermEndsAt)`
 //      — the booking thus stays active until the later of the two limits.
@@ -30,7 +30,11 @@ import type {
     SubscriptionBundleView,
 } from '@saasicat/core';
 
-import { bundleCycleFitsPlan, bundleFirstPeriodEnd } from './bundle-period.js';
+import {
+    bundleCycleFitsPlan,
+    bundleFirstPeriodEnd,
+    DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS,
+} from './bundle-period.js';
 import { resolveBundlePriceNet } from './bundle-price.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/core';
@@ -44,7 +48,11 @@ import {
 } from './subscription-bundles.tokens.js';
 
 export interface SubscriptionBundleConfig {
-    /** Default minimum term in months on `add`. Default = 12. */
+    /**
+     * Default minimum term in months on `add`. Default = 0 — no commitment,
+     * so an add-on can be cancelled to its own period end. An operator who
+     * wants one configures it.
+     */
     defaultMinimumTermMonths?: number;
 }
 
@@ -131,11 +139,26 @@ export class SubscriptionBundlesService {
         @Inject(SELF_SERVICE_BLOCKED_BUNDLES_TOKEN)
         private readonly blockedBundles: SelfServiceBlockedBundles | null = null,
     ) {
-        this.defaultMinTermMonths = config.defaultMinimumTermMonths ?? 12;
+        this.defaultMinTermMonths =
+            config.defaultMinimumTermMonths ?? DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS;
     }
 
     /** All bundle bookings of a subscription (for the "My Bundles" page). */
-    async listForSubscription(subscriptionId: string): Promise<SubscriptionBundleView[]> {
+    /**
+     * The tenant's bookings, with the price each one is actually billed at.
+     *
+     * `planKey` is required because a price is not a property of a bundle
+     * alone: a `BundlePricingOverride` can set a different one per plan, and
+     * the rhythm decides which of the two figures applies. Returning the base
+     * monthly price regardless — which this did until 2026-08-27 — puts a
+     * number on the tenant's screen that nobody is charged, and on a yearly
+     * booking it was out by whatever the yearly price is.
+     */
+    async listForSubscription(
+        subscriptionId: string,
+        planKey: string,
+        planCycle: string,
+    ): Promise<SubscriptionBundleView[]> {
         const records = await this.repo.listBySubscription(subscriptionId);
         // Resolve label/key/price from the booked BundleVersion so the UI
         // displays booked bundles without a catalog join (otherwise UUID fallback, because
@@ -143,14 +166,59 @@ export class SubscriptionBundlesService {
         return Promise.all(
             records.map(async (r) => {
                 const bv = await this.bundles.findVersionById(r.bundleVersionId);
+                // A booking made before the column existed took the plan's
+                // rhythm, because that was the only thing it could take.
+                const cycle = r.billingCycle ?? planCycle;
                 return {
                     ...r,
                     bundleKey: bv?.bundleKey ?? null,
                     label: bv?.label ?? null,
-                    monthlyNet: bv?.monthlyNet ?? null,
+                    priceNet: bv ? resolveBundlePriceNet(bv, planKey, cycle) : null,
                 };
             }),
         );
+    }
+
+    /**
+     * List prices for the given bundle versions, in both rhythms, resolved for
+     * one plan.
+     *
+     * The public catalogue cannot answer this: it has no tenant and therefore
+     * no plan, so it serves the base prices and a bundle priced only through an
+     * override reads as having no price at all. A tenant UI that treated those
+     * fields as final hid such a bundle behind "not available in this rhythm"
+     * while the booking would have gone through.
+     */
+    async resolvePricesFor(
+        planKey: string,
+        bundleVersionIds: string[],
+    ): Promise<Record<string, { monthlyNet: number | null; yearlyNet: number | null }>> {
+        const entries = await Promise.all(
+            bundleVersionIds.map(async (id) => {
+                const bv = await this.bundles.findVersionById(id);
+                // Only what the tenant could have been shown. The caller names
+                // ids, and an authenticated tenant can name one that never
+                // appeared in their catalogue — a draft, a version somebody
+                // superseded, or one whose bundle has been retired — and would
+                // then be told its plan-specific pricing.
+                //
+                // The version's own lifecycle is not enough: retiring a bundle
+                // soft-deletes the stem and leaves its live version untouched,
+                // so a check that looks only at the version says yes to
+                // something the catalogue stopped serving.
+                if (!bv || !isLive(bv)) return null;
+                const stem = await this.bundles.findById(bv.bundleId);
+                if (!stem || stem.deletedAt !== null) return null;
+                return [
+                    id,
+                    {
+                        monthlyNet: resolveBundlePriceNet(bv, planKey, 'MONTHLY'),
+                        yearlyNet: resolveBundlePriceNet(bv, planKey, 'YEARLY'),
+                    },
+                ] as const;
+            }),
+        );
+        return Object.fromEntries(entries.filter((entry) => entry !== null));
     }
 
     async addBundleToSubscription(
@@ -391,6 +459,11 @@ export function addMonths(date: Date, months: number): Date {
  * ended, which is the opposite of what a zero-month term is for, and possibly
  * a whole further period away.
  */
+/** Published and not superseded — what a tenant's catalogue can contain. */
+function isLive(version: { publishedAt: string | null; supersededAt: string | null }): boolean {
+    return version.publishedAt !== null && version.supersededAt === null;
+}
+
 export function clampToParent(ownTermEndsAt: Date | null, parentEndsAt: Date | null): Date | null {
     if (ownTermEndsAt === null || parentEndsAt === null) return ownTermEndsAt;
     return ownTermEndsAt < parentEndsAt ? ownTermEndsAt : parentEndsAt;

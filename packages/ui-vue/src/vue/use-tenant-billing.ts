@@ -10,6 +10,7 @@
 // Do **NOT** set `apiPrefix='/api/billing'` when the HTTP adapter already
 // has `/api` as its baseURL — the result would be `/api/api/billing/...` (404).
 
+import { BUNDLE_PRICE_LOOKUP_LIMIT } from '@saasicat/core';
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import { trimTrailingSlashes } from '../client/http-json.js';
@@ -160,6 +161,22 @@ export interface PlanSnapshotShape {
  * catalog (`GET /billing/bundles`) — the record itself carries only the
  * version reference.
  */
+/**
+ * A bundle's list price in both rhythms, resolved for one tenant's plan —
+ * `null` where no price is maintained for that combination, which the booking
+ * refuses with `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`.
+ */
+/** 404/501: the consumer has not wired this route. Anything else is a failure. */
+function isEndpointAbsent(err: unknown): boolean {
+    const status = (err as { status?: number } | null)?.status;
+    return status === 404 || status === 501;
+}
+
+export interface ResolvedBundlePrice {
+    monthlyNet: number | null;
+    yearlyNet: number | null;
+}
+
 export interface SubscriptionBundleShape {
     id: string;
     subscriptionId: string;
@@ -168,7 +185,23 @@ export interface SubscriptionBundleShape {
      *  key/price, so that booked bundles can be shown without a catalog join. */
     bundleKey?: string | null;
     label?: string | null;
-    monthlyNet?: string | null;
+    /**
+     * What this booking is billed at: the price for the rhythm it was booked
+     * in, with the plan's pricing override applied.
+     *
+     * It was `monthlyNet` and always carried the bundle's base monthly figure,
+     * so a yearly booking reported a number nobody is charged.
+     */
+    priceNet?: number | null;
+    /**
+     * The rhythm this booking is billed in, which need not be the plan's: a
+     * yearly plan may carry monthly add-ons.
+     *
+     * Optional because an adapter predating the column answers without it; a
+     * reader without an answer falls back to the plan's rhythm, which is what
+     * the booking would have taken by default.
+     */
+    billingCycle?: string | null;
     startedAt: string;
     minimumTermEndsAt: string | null;
     canceledAt: string | null;
@@ -364,6 +397,12 @@ export interface UseTenantBillingResult {
      * setting the main `error` — the page degrades gracefully.
      */
     subscriptionBundles: Ref<SubscriptionBundleShape[]>;
+    /**
+     * List prices for the given bundle versions, resolved for this tenant's
+     * plan. Returns `{}` where the endpoint is absent, so a consumer without it
+     * keeps the public catalogue's own figures.
+     */
+    loadBundlePrices(bundleVersionIds: string[]): Promise<Record<string, ResolvedBundlePrice>>;
     /** Reloads only the booked bundles (non-fatal). */
     loadBundles: () => Promise<void>;
     /** Books a bundle via `bundleVersionId` + reloads the list. */
@@ -449,6 +488,57 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
                 (await fetchOrThrow<SubscriptionBundleShape[]>('/subscription-bundles')) ?? [];
         } catch {
             subscriptionBundles.value = [];
+        }
+    }
+
+    /**
+     * List prices for the bundles a store is about to show, resolved for this
+     * tenant's plan.
+     *
+     * The public catalogue serves base prices and has no plan to resolve a
+     * `BundlePricingOverride` against, so a bundle priced only through an
+     * override reads there as having no price at all.
+     *
+     * Answers `{}` where the consumer has not wired the route, which leaves the
+     * catalogue's own figures standing — what every consumer had before. Any
+     * other failure **throws**: prices that could not be loaded and prices that
+     * do not exist are different states, and answering both with an empty map
+     * puts the public catalogue's numbers on screen with nothing to say they
+     * are not the ones being charged.
+     */
+    async function loadBundlePrices(
+        bundleVersionIds: string[],
+    ): Promise<Record<string, ResolvedBundlePrice>> {
+        if (bundleVersionIds.length === 0) return {};
+        // In batches, because the endpoint caps a request at BUNDLE_PRICE_LOOKUP_LIMIT
+        // ids and a catalogue larger than that would otherwise be rejected
+        // whole. The failure would be silent — the catch below turns it into an
+        // empty map — and every card would quietly fall back to the public
+        // catalogue's base prices, which is exactly what this call exists to
+        // stop.
+        const batches: string[][] = [];
+        for (let from = 0; from < bundleVersionIds.length; from += BUNDLE_PRICE_LOOKUP_LIMIT) {
+            batches.push(bundleVersionIds.slice(from, from + BUNDLE_PRICE_LOOKUP_LIMIT));
+        }
+        try {
+            const answers = await Promise.all(
+                batches.map((ids) =>
+                    fetchOrThrow<Record<string, ResolvedBundlePrice>>(
+                        '/subscription-bundles/prices',
+                        { method: 'POST', body: { bundleVersionIds: ids } },
+                    ),
+                ),
+            );
+            return Object.assign({}, ...answers.map((answer) => answer ?? {}));
+        } catch (err) {
+            // An absent endpoint is a consumer that has not wired this route,
+            // and falling back to the catalogue's own figures is the right,
+            // permanent answer for them. Anything else — a 500, a dropped
+            // connection — is a failure to load prices, and answering it the
+            // same way prices every card from the public catalogue with nothing
+            // on screen to say so.
+            if (isEndpointAbsent(err)) return {};
+            throw err;
         }
     }
 
@@ -553,6 +643,7 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         subscriptionBundles,
         loadBundles,
         addBundle,
+        loadBundlePrices,
         cancelBundle,
         reactivateBundle,
         previewAddBundle,

@@ -32,7 +32,7 @@ export class CompleteOnboardingSubscriptionDto {
     /**
      * Optional — UUIDs of the BundleVersions that should be booked
      * together with the plan (P11.7.3). Per bundle, the platform
-     * default minimum term (12 months) is set. Bundles are added
+     * default minimum term (none) is set. Bundles are added
      * best-effort **after** the plan change — an error on an individual
      * bundle (e.g. incompatible with the chosen plan) lands as a
      * warning in the response, without rolling back the plan change.

@@ -55,6 +55,7 @@ import {
     bundleFirstPeriodEnd,
     bundleFirstPeriodStart,
     resolvePlanAnchorDay,
+    DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS,
 } from './bundle-period.js';
 import { computeProration, type ProrationDto } from './proration.js';
 import {
@@ -206,7 +207,8 @@ export class SubscriptionBundlePreviewService {
         @Inject(SUBSCRIPTION_BUNDLE_CONFIG_TOKEN)
         config: SubscriptionBundleConfig = {},
     ) {
-        this.defaultMinTermMonths = config.defaultMinimumTermMonths ?? 12;
+        this.defaultMinTermMonths =
+            config.defaultMinimumTermMonths ?? DEFAULT_BUNDLE_MINIMUM_TERM_MONTHS;
     }
 
     async previewAdd(

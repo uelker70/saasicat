@@ -10,7 +10,7 @@
 //     inject: [PrismaSubscriptionBundleRepository],
 //   },
 //   bundleRepository: { useExisting: BUNDLE_REPOSITORY_TOKEN },
-//   defaultMinimumTermMonths: 12,
+//   defaultMinimumTermMonths: 12,   // opt in; 0 (no commitment) is the default
 //   imports: [PrismaModule, CatalogModule],
 // })
 // ```
@@ -81,7 +81,10 @@ export interface SubscriptionBundleModuleOptions {
      * `CatalogModule`).
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
-    /** Default minimum term (months). Default = 12. */
+    /**
+     * Default minimum term (months). Default = **0** — no commitment, so an
+     * add-on can be cancelled to its own period end. Set one to bind.
+     */
     defaultMinimumTermMonths?: number;
     /**
      * Self-service policy (#37): bundles that are only bookable via sales.
@@ -115,8 +118,14 @@ export class SubscriptionBundleModule {
                 : []),
             {
                 provide: SUBSCRIPTION_BUNDLE_CONFIG_TOKEN,
+                // Handed over, not decided. The default belongs to the
+                // services, because a consumer can construct those directly and
+                // both paths have to answer the same — and a module filling the
+                // value in makes their default unreachable, which is what kept
+                // every add-on committed for twelve months after the default
+                // had already been changed to none.
                 useValue: {
-                    defaultMinimumTermMonths: options.defaultMinimumTermMonths ?? 12,
+                    defaultMinimumTermMonths: options.defaultMinimumTermMonths,
                 } satisfies SubscriptionBundleConfig,
             },
             ...(options.selfServiceBlockedBundles

@@ -688,7 +688,11 @@ const TENANT_BUNDLES: SubscriptionBundleShape[] = [
         bundleVersionId: 'bv-1',
         bundleKey: 'ANALYTICS',
         label: 'Analytics',
-        monthlyNet: '19.00',
+        // The resolved price for the rhythm this booking is in, as the server
+        // now sends it. Monthly here so the baseline keeps its wording; the
+        // yearly row is exercised by the component suite.
+        priceNet: 19,
+        billingCycle: 'MONTHLY',
         startedAt: '2026-01-02T00:00:00.000Z',
         minimumTermEndsAt: '2026-07-02T00:00:00.000Z',
         canceledAt: null,
@@ -702,7 +706,8 @@ const TENANT_BUNDLES: SubscriptionBundleShape[] = [
         bundleVersionId: 'bv-2',
         bundleKey: 'SUPPORT',
         label: 'Priority support',
-        monthlyNet: '49.00',
+        priceNet: 49,
+        billingCycle: 'MONTHLY',
         startedAt: '2025-11-02T00:00:00.000Z',
         minimumTermEndsAt: null,
         canceledAt: '2026-01-10T00:00:00.000Z',
@@ -757,6 +762,10 @@ const TENANT_CATALOG_BUNDLES = [
         priceTag: null,
     },
 ];
+
+const TENANT_RESOLVED_BUNDLE_PRICES = {
+    'bv-1': { monthlyNet: 19, yearlyNet: 190 },
+};
 
 /**
  * What the plan-change wizard shows in its confirm step.
@@ -1021,6 +1030,12 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/billing/plans', TENANT_CATALOG_PLANS],
     ['/api/billing/feature-registry', { features: {}, quotas: {} }],
     ['/api/billing/bundles', TENANT_CATALOG_BUNDLES],
+    // Prices resolved for the tenant's plan. The public catalogue above cannot
+    // answer this — it has no plan to resolve an override against — so the
+    // section asks separately and overlays what comes back. Matching the
+    // catalogue's own figures here keeps the baseline's wording; the case where
+    // they differ is a component test, not a screenshot.
+    ['/api/billing/subscription-bundles/prices', TENANT_RESOLVED_BUNDLE_PRICES],
 ];
 
 /**
