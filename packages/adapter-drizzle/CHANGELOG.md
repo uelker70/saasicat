@@ -1,5 +1,159 @@
 # @saasicat/adapter-drizzle
 
+## 1.0.0-rc.7
+
+### Major Changes
+
+- 89eed2b: **`projectKey` leaves the data model.** One installation serves one application,
+  so a plan key, a bundle key, a feature key and a quota key are unique for the
+  whole installation — and nothing carries a project above them any more.
+
+    The column never had a second value to hold. `config/saas.yaml` named one
+    project, the module resolved it once at boot, and there was no per-request
+    switch; `subscriptions.tenantId` is unique installation-wide, so a customer of
+    two applications in one database could not exist. What it did do was contradict
+    the schema beside it: `plan_versions.planId` holds the plan **key** and no
+    project, so two plans sharing a key shared one version lineage, and
+    `plan_versions_draft_per_plan` then stopped the second one from opening a draft
+    at all.
+
+    **Ten tables lose the column** — `plans`, `bundles`,
+    `capability_/feature_/quota_catalog_entries`, `marketing_projections`,
+    `marketing_settings`, `promotions`, `checkout_offers`,
+    `subscription_contracts` — and every `(projectKey, <key>)` unique index becomes
+    `(<key>)`. `marketing_settings` becomes a singleton, capped by a constant
+    primary key rather than by its project.
+
+    **Run one SQL file against an existing database:**
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.postgres.sql
+    ```
+
+    It starts with a guard. Where the catalogue holds rows under more than one
+    project key — in one table or spread across several — it stops and names which
+    table held which, rather than merging rows that would then collide on the new
+    unique index. It is a one-way door, and safe to run again: a table whose column
+    has already gone is skipped.
+
+    Each table's changes are made only where that table exists, so an app that
+    adopted a subset of the Prisma fragments migrates what it has. The file also
+    adds a `CHECK` keeping `marketing_settings` to one row — that was a convention
+    resting on a column default, and a default does not apply to a caller that
+    supplies the value.
+
+    If your dev setup uses `prisma db push`, run the file **before** it. `db push`
+    refuses to drop a column that still holds data, and adding `--accept-data-loss`
+    would arm every future change to discard data unasked.
+
+    The codemod reads your `schema.prisma` as well and reports what it finds there:
+    a schema you copied the platform's models into still declares the columns, and
+    a client generated from it would query them.
+
+    **For your code**, `saasicat codemod v1` gained a third pass —
+    `v1-project-key`. It removes the `?projectKey=` query part from a `/catalog/`
+    URL and the key from `config/saas.yaml`, and it _reports_ every object member
+    by file and line rather than removing it: in TypeScript an object literal and a
+    type literal are the same tokens, so a scan that rewrote members would sometimes
+    delete one of your own declarations. The upgrade guide's table says what each
+    reported shape becomes.
+
+    **What changes at the surface:**
+
+    - `app.name` is **required** in `config/saas.yaml`; it is the one place the
+      application names itself, and what the manifest and login page display.
+      `dbCatalog` takes `{ app, currency, vatRate }`.
+    - `SuperAdminEndpoints`, every catalogue composable and every admin resource
+      drop the field; the catalogue endpoints no longer read `?projectKey=`.
+    - `PlanRow`, `BundleRow`, `PromotionRow`, the catalog-entry rows,
+      `MarketingProjectionRow`, `MarketingSettingsRow`, `CheckoutOfferRow`,
+      `SubscriptionContractRecord` and their create/filter DTOs lose it;
+      `findByKey`, `retireMissing`, `findFeature`/`findQuota`, the review, i18n and
+      base setters, `countActiveByPlanKey` and `loadSnapshot` lose their first
+      argument. `PromotionFilter` and `unambiguousPlanKeys` are gone.
+    - Four error messages drop the phrase — `Plan 'STANDARD' already exists` — and
+      the `params` entry with it. Nothing read that parameter.
+    - `saasicat init --project-key` and `pnpm create saasicat-admin --project-key`
+      are `--app-key`: the slug of the application, which is what they always were.
+
+    **Three new guards, because a removal leaves no trace.** The persistence
+    contract now proves a key is taken once for the installation, and that retiring
+    a plan does not free it — a rule `adapter-drizzle` did not follow, and now does.
+    `tests/a-key-belongs-to-the-installation.test.js` fails on the identifier coming
+    back anywhere in the repository. And the migration refuses ambiguous data rather
+    than merging it.
+
+    Migration guide: [`docs/guides/upgrade-to-1.0.md`](https://github.com/uelker70/saasicat/blob/main/docs/guides/upgrade-to-1.0.md).
+
+### Minor Changes
+
+- 9b5ca2f: Close the last gaps in `@saasicat/adapter-drizzle`: it now serves the plan
+  catalogue, the tenant's own subscription writes, and subscription contracts, so
+  the persistence contract runs against it with no scenario skipped.
+
+    `drizzlePersistence()` now returns the `catalog` and `tenantBilling` slices, so
+    `SaaSiCatModule.forRoot` can discover the plan catalogue, the tenant's billing
+    page and the writes behind its buttons without a consumer wiring any of it by
+    hand. Four classes are new: `DrizzlePlanRepository`,
+    `DrizzleTenantSubscriptionWrite`, `DrizzleSubscriptionContractRepository` and
+    `DrizzleSubscriptionUsageAdapter`. The `subscriptions` query map was also
+    missing nineteen canonical columns, including `currentPeriodEnd`,
+    `billingAnchorDay`, `minimumTermUntil` and `trialEndsAt`; a new derived test
+    compares every `pgTable` against the reference schema and fails on an omitted or
+    invented column.
+
+    The persistence contract's contract-lifecycle scenario was a placeholder that
+    failed if an adapter provided the repository at all. It is now two real
+    scenarios — what a contract stores and what ending one does, and how a successor
+    takes over — and both adapters plus the in-memory reference implementation pass
+    them.
+
+    `@saasicat/core` gains the pieces both adapters were spelling out separately:
+    `toPlanRow`, `toPlanVersionRow`, `toSubscriptionContractRecord` and
+    `toContractLineItemRecord` map canonical rows to records in one place,
+    `previousUtcDay` and `ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES` are the window and
+    status rules the adapters share, and
+    `CancelSubscriptionInput`/`CancelSubscriptionResult` name a shape that was
+    written out three times. `cancelSubscription` keeps the same structural
+    signature.
+
+    Two read-then-write windows in the tenant's own writes are closed in **both**
+    adapters: an ordinary cancellation no longer restates the status it read a
+    moment earlier — a trial going live in between came back as `TRIAL`,
+    entitlements and all — and an immediate plan change now locks the row its
+    decisions come from.
+
+    One reading changes as a consequence: a `publishedChanges` column holding
+    something other than an array now reads as `null` in the plan-catalogue
+    projections rather than being cast, which is what the other mappers already did.
+
+- 2e98fae: Drizzle learns about bundles
+
+    `@saasicat/adapter-drizzle` had no bundle persistence at all — not three missing
+    columns, but zero bundle tables and zero bundle repositories. A consumer on
+    Drizzle could not sell an add-on, and the persistence contract skipped both
+    bundle scenarios by capability rather than failing them, so the gap was visible
+    but never closed.
+
+    Both halves are now implemented. `DrizzleBundleRepository` is the catalogue —
+    what may be sold, in which versions, and from when — with the same opt-in
+    validity windows `adapter-prisma` has: with them on, publishing closes the
+    predecessor's window the day before the successor opens, and
+    `findActiveBundleVersion` answers which version is bookable at a moment; with
+    them off the method is not offered rather than answering from columns the
+    adapter does not maintain. `DrizzleSubscriptionBundleRepository` is the booking
+    junction, carrying the rhythm and the window a bundle is billed for.
+
+    Both are registered in the persistence bundle, and the two contract scenarios
+    that used to skip now run against real PostgreSQL for this adapter as well.
+
+### Patch Changes
+
+- Updated dependencies [d492281]
+- Updated dependencies [89eed2b]
+- Updated dependencies [9b5ca2f]
+    - @saasicat/core@1.0.0-rc.7
+
 ## 1.0.0-rc.6
 
 ### Minor Changes

@@ -1,5 +1,222 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.7
+
+### Major Changes
+
+- 89eed2b: **`projectKey` leaves the data model.** One installation serves one application,
+  so a plan key, a bundle key, a feature key and a quota key are unique for the
+  whole installation — and nothing carries a project above them any more.
+
+    The column never had a second value to hold. `config/saas.yaml` named one
+    project, the module resolved it once at boot, and there was no per-request
+    switch; `subscriptions.tenantId` is unique installation-wide, so a customer of
+    two applications in one database could not exist. What it did do was contradict
+    the schema beside it: `plan_versions.planId` holds the plan **key** and no
+    project, so two plans sharing a key shared one version lineage, and
+    `plan_versions_draft_per_plan` then stopped the second one from opening a draft
+    at all.
+
+    **Ten tables lose the column** — `plans`, `bundles`,
+    `capability_/feature_/quota_catalog_entries`, `marketing_projections`,
+    `marketing_settings`, `promotions`, `checkout_offers`,
+    `subscription_contracts` — and every `(projectKey, <key>)` unique index becomes
+    `(<key>)`. `marketing_settings` becomes a singleton, capped by a constant
+    primary key rather than by its project.
+
+    **Run one SQL file against an existing database:**
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-remove-project-key.postgres.sql
+    ```
+
+    It starts with a guard. Where the catalogue holds rows under more than one
+    project key — in one table or spread across several — it stops and names which
+    table held which, rather than merging rows that would then collide on the new
+    unique index. It is a one-way door, and safe to run again: a table whose column
+    has already gone is skipped.
+
+    Each table's changes are made only where that table exists, so an app that
+    adopted a subset of the Prisma fragments migrates what it has. The file also
+    adds a `CHECK` keeping `marketing_settings` to one row — that was a convention
+    resting on a column default, and a default does not apply to a caller that
+    supplies the value.
+
+    If your dev setup uses `prisma db push`, run the file **before** it. `db push`
+    refuses to drop a column that still holds data, and adding `--accept-data-loss`
+    would arm every future change to discard data unasked.
+
+    The codemod reads your `schema.prisma` as well and reports what it finds there:
+    a schema you copied the platform's models into still declares the columns, and
+    a client generated from it would query them.
+
+    **For your code**, `saasicat codemod v1` gained a third pass —
+    `v1-project-key`. It removes the `?projectKey=` query part from a `/catalog/`
+    URL and the key from `config/saas.yaml`, and it _reports_ every object member
+    by file and line rather than removing it: in TypeScript an object literal and a
+    type literal are the same tokens, so a scan that rewrote members would sometimes
+    delete one of your own declarations. The upgrade guide's table says what each
+    reported shape becomes.
+
+    **What changes at the surface:**
+
+    - `app.name` is **required** in `config/saas.yaml`; it is the one place the
+      application names itself, and what the manifest and login page display.
+      `dbCatalog` takes `{ app, currency, vatRate }`.
+    - `SuperAdminEndpoints`, every catalogue composable and every admin resource
+      drop the field; the catalogue endpoints no longer read `?projectKey=`.
+    - `PlanRow`, `BundleRow`, `PromotionRow`, the catalog-entry rows,
+      `MarketingProjectionRow`, `MarketingSettingsRow`, `CheckoutOfferRow`,
+      `SubscriptionContractRecord` and their create/filter DTOs lose it;
+      `findByKey`, `retireMissing`, `findFeature`/`findQuota`, the review, i18n and
+      base setters, `countActiveByPlanKey` and `loadSnapshot` lose their first
+      argument. `PromotionFilter` and `unambiguousPlanKeys` are gone.
+    - Four error messages drop the phrase — `Plan 'STANDARD' already exists` — and
+      the `params` entry with it. Nothing read that parameter.
+    - `saasicat init --project-key` and `pnpm create saasicat-admin --project-key`
+      are `--app-key`: the slug of the application, which is what they always were.
+
+    **Three new guards, because a removal leaves no trace.** The persistence
+    contract now proves a key is taken once for the installation, and that retiring
+    a plan does not free it — a rule `adapter-drizzle` did not follow, and now does.
+    `tests/a-key-belongs-to-the-installation.test.js` fails on the identifier coming
+    back anywhere in the repository. And the migration refuses ambiguous data rather
+    than merging it.
+
+    Migration guide: [`docs/guides/upgrade-to-1.0.md`](https://github.com/uelker70/saasicat/blob/main/docs/guides/upgrade-to-1.0.md).
+
+### Minor Changes
+
+- d492281: A bundle runs in step with the plan that pays for it
+
+    A booked bundle had no period of its own. It was billed alongside the plan by
+    convention, which held only for as long as every bundle was billed in the plan's
+    rhythm. `subscription_bundles` now carries `billingCycle`, `currentPeriodStart`
+    and `currentPeriodEnd`, and one rule governs them: a bundle's periods end on the
+    day the plan's do. The first is short, from the booking to the next occurrence of
+    that day, and is charged pro rata for exactly that stretch; every one after it
+    runs anchor to anchor, and the last lands on the day the plan ends. Aligning at
+    booking means a bundle never has to be trimmed at the end, which is the case
+    where somebody was committed to more than they received.
+
+    A bundle may run in a shorter rhythm than its plan and never a longer one, so a
+    yearly bundle beside a monthly plan is refused with `BUNDLE_CYCLE_EXCEEDS_PLAN`
+    rather than modelled. The tenant preview now accepts the same `billingCycle` the
+    booking has always accepted — without it, asking for a monthly bundle beside a
+    yearly plan was quoted the yearly price, prorated across the plan's year, and
+    then charged the monthly one. It also prorates against the bundle's own cycle
+    rather than the plan's, and states what the booking commits to before it is
+    confirmed: the first period's end, the plan's end where there is one, and that a
+    period cut short by the plan ending is not refunded.
+
+    A bundle version can no longer be published without a price, and the gate asks
+    two questions rather than one. `BUNDLE_VERSION_NO_PRICE` refuses a version from
+    which nothing resolves at all. `BUNDLE_VERSION_NOT_PRICED_FOR_PLAN` refuses one
+    that a plan it is offered to could not buy — the plans come from the version's
+    own compatibility, the cycles from the prices each plan version carries, so a
+    bundle priced monthly only and offered to a plan sold yearly is caught at the
+    operator's desk instead of a tenant's checkout. A booking whose plan and rhythm
+    resolve no price is blocked with `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`, in the
+    preview and in the route, instead of handing the features over for nothing.
+
+    `computeNextBundlePeriod` is the decision half a renewal job calls, mirroring
+    `computeNextPeriod` for the plan. It both rolls a period that is over and opens
+    the first one for a bundle booked while its plan had no period — during a trial,
+    or before sales finished — which would otherwise keep granting its features
+    without ever acquiring a window to bill them in. It declines for a booking
+    billed with the plan, one whose plan has no paid period yet, one still running,
+    one whose cancellation has landed, and one whose plan has ended.
+
+    The window it returns stops at whichever ends the booking first — the plan's end
+    or the booking's own declared cancellation — and advances to the first boundary
+    after `now` rather than by one cycle, so a job that missed several months
+    catches up in a single write.
+
+    A plan change is blocked with `BUNDLE_CYCLE_EXCEEDS_PLAN` while an active
+    booking's rhythm would not fit the target cycle. The rule was previously
+    enforced only where a bundle is booked, so a yearly add-on survived a move from
+    a yearly plan to a monthly one and sat in a state the model calls impossible.
+
+    Cancelling a booking now takes effect at the end of the booking's own period
+    rather than the plan's. For a monthly bundle beside a yearly plan those are up
+    to eleven months apart, and reading the plan's boundary kept a cancelled booking
+    committed and billed until the annual renewal.
+
+    `addBundle` and `previewAddBundle` now take `{ minimumTermMonths?, billingCycle? }`
+    where they took a bare `minimumTermMonths`, and `useTenantSubscriptionBundles().add()`
+    accepts the same rhythm. Until they did, no shipped client sent one, so a bundle
+    priced monthly only read as unpriced to every tenant on a yearly plan and the
+    case this alignment exists for could not be completed at all.
+
+    Existing bookings need a backfill; `docs/guides/upgrade-to-1.0.md` carries the
+    statement, the one call to add to the renewal job, and says which rows to leave
+    alone.
+
+- 855f023: Let a tenant on a yearly plan choose whether an add-on is billed monthly or
+  yearly, and stop quoting a price that is not the one being charged.
+
+    A bundle's term may not outlast the plan it hangs on, so a yearly add-on beside
+    a monthly plan is refused — which leaves a real choice only on a yearly plan.
+    There the tenant used to get the plan's rhythm silently, with no way to ask for
+    the other one, while every card read "net/month". On a yearly plan that figure
+    was the monthly price and the booking was created yearly, so the number the
+    tenant compared bundles by was not the number they were charged. The
+    confirmation dialog did show the real amount before anyone agreed, so nobody was
+    billed unannounced.
+
+    `TenantBundleStore` now offers the rhythm above the cards, preselected to the
+    plan's — a tenant who touches nothing gets exactly what they got before. The
+    card's price and unit follow the selection, the booking carries it, and a bundle
+    that carries no price in the selected rhythm is shown as unavailable in it
+    rather than as a button the server would refuse. A booked bundle states the
+    rhythm it was actually booked in, and the price it is actually billed at.
+
+    Two prices were wrong before, and both are fixed at the source rather than in
+    the view. `GET /billing/subscription-bundles` answered with the bundle's base
+    **monthly** price whatever the booking was, so a bundle at 9.90 monthly and
+    99.00 yearly reported 9.90 once booked yearly; it now returns `priceNet`,
+    resolved for the booking's own rhythm with the plan's `BundlePricingOverride`
+    applied. And the public catalogue has no tenant and therefore no plan, so it
+    serves base prices and reads a bundle priced only through an override as having
+    no price at all — a new `POST /billing/subscription-bundles/prices` resolves
+    them for the tenant's plan, and the store prices from that.
+
+    `SubscriptionBundleView.monthlyNet` is therefore now `priceNet: number | null`,
+    and `SubscriptionBundleShape` gains `priceNet` and `billingCycle`. A consumer
+    without the new prices endpoint keeps the catalogue's own figures, which is what
+    every consumer had before.
+
+    Mixed rhythms in one contract are new, and the contract snapshot accounts for
+    them: each line keeps the rhythm it is billed in, and the total states one
+    period of the contract's own rhythm, so a monthly add-on beside a yearly plan
+    counts as often as it falls due rather than once. `ContractFreezeSourcePort`
+    now says what its `cycle` argument means — the plan's, not the bookings'.
+
+    The price lookup answers only about versions a tenant could have been shown:
+    published and not superseded. A caller naming an unpublished id would otherwise
+    be told its plan-specific pricing.
+
+    A booking no longer commits the tenant to anything by default. It used to write
+    a twelve-month minimum term on every add-on without an operator doing anything,
+    which made the cancellation rule impossible to keep: a cancellation lands at
+    `max(currentPeriodEnd, minimumTermEndsAt)`, so a monthly add-on could not be
+    cancelled to its next period, and on a yearly plan the term outlasted the
+    bundle's own last period. An add-on can now be cancelled at any time up to the
+    moment its next period begins, effective at the end of the period it is in — so
+    nothing ever has to be refunded. `defaultMinimumTermMonths` still configures a
+    commitment for an operator who wants one, and it is still capped at the plan's
+    end.
+
+    On a monthly plan nothing changes and no control appears: a question with one
+    answer is not a question.
+
+### Patch Changes
+
+- Updated dependencies [d492281]
+- Updated dependencies [89eed2b]
+- Updated dependencies [9b5ca2f]
+    - @saasicat/core@1.0.0-rc.7
+
 ## 1.0.0-rc.6
 
 ### Minor Changes

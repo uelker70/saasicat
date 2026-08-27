@@ -1,5 +1,141 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.7
+
+### Minor Changes
+
+- d492281: A bundle runs in step with the plan that pays for it
+
+    A booked bundle had no period of its own. It was billed alongside the plan by
+    convention, which held only for as long as every bundle was billed in the plan's
+    rhythm. `subscription_bundles` now carries `billingCycle`, `currentPeriodStart`
+    and `currentPeriodEnd`, and one rule governs them: a bundle's periods end on the
+    day the plan's do. The first is short, from the booking to the next occurrence of
+    that day, and is charged pro rata for exactly that stretch; every one after it
+    runs anchor to anchor, and the last lands on the day the plan ends. Aligning at
+    booking means a bundle never has to be trimmed at the end, which is the case
+    where somebody was committed to more than they received.
+
+    A bundle may run in a shorter rhythm than its plan and never a longer one, so a
+    yearly bundle beside a monthly plan is refused with `BUNDLE_CYCLE_EXCEEDS_PLAN`
+    rather than modelled. The tenant preview now accepts the same `billingCycle` the
+    booking has always accepted — without it, asking for a monthly bundle beside a
+    yearly plan was quoted the yearly price, prorated across the plan's year, and
+    then charged the monthly one. It also prorates against the bundle's own cycle
+    rather than the plan's, and states what the booking commits to before it is
+    confirmed: the first period's end, the plan's end where there is one, and that a
+    period cut short by the plan ending is not refunded.
+
+    A bundle version can no longer be published without a price, and the gate asks
+    two questions rather than one. `BUNDLE_VERSION_NO_PRICE` refuses a version from
+    which nothing resolves at all. `BUNDLE_VERSION_NOT_PRICED_FOR_PLAN` refuses one
+    that a plan it is offered to could not buy — the plans come from the version's
+    own compatibility, the cycles from the prices each plan version carries, so a
+    bundle priced monthly only and offered to a plan sold yearly is caught at the
+    operator's desk instead of a tenant's checkout. A booking whose plan and rhythm
+    resolve no price is blocked with `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`, in the
+    preview and in the route, instead of handing the features over for nothing.
+
+    `computeNextBundlePeriod` is the decision half a renewal job calls, mirroring
+    `computeNextPeriod` for the plan. It both rolls a period that is over and opens
+    the first one for a bundle booked while its plan had no period — during a trial,
+    or before sales finished — which would otherwise keep granting its features
+    without ever acquiring a window to bill them in. It declines for a booking
+    billed with the plan, one whose plan has no paid period yet, one still running,
+    one whose cancellation has landed, and one whose plan has ended.
+
+    The window it returns stops at whichever ends the booking first — the plan's end
+    or the booking's own declared cancellation — and advances to the first boundary
+    after `now` rather than by one cycle, so a job that missed several months
+    catches up in a single write.
+
+    A plan change is blocked with `BUNDLE_CYCLE_EXCEEDS_PLAN` while an active
+    booking's rhythm would not fit the target cycle. The rule was previously
+    enforced only where a bundle is booked, so a yearly add-on survived a move from
+    a yearly plan to a monthly one and sat in a state the model calls impossible.
+
+    Cancelling a booking now takes effect at the end of the booking's own period
+    rather than the plan's. For a monthly bundle beside a yearly plan those are up
+    to eleven months apart, and reading the plan's boundary kept a cancelled booking
+    committed and billed until the annual renewal.
+
+    `addBundle` and `previewAddBundle` now take `{ minimumTermMonths?, billingCycle? }`
+    where they took a bare `minimumTermMonths`, and `useTenantSubscriptionBundles().add()`
+    accepts the same rhythm. Until they did, no shipped client sent one, so a bundle
+    priced monthly only read as unpriced to every tenant on a yearly plan and the
+    case this alignment exists for could not be completed at all.
+
+    Existing bookings need a backfill; `docs/guides/upgrade-to-1.0.md` carries the
+    statement, the one call to add to the renewal job, and says which rows to leave
+    alone.
+
+- 855f023: Let a tenant on a yearly plan choose whether an add-on is billed monthly or
+  yearly, and stop quoting a price that is not the one being charged.
+
+    A bundle's term may not outlast the plan it hangs on, so a yearly add-on beside
+    a monthly plan is refused — which leaves a real choice only on a yearly plan.
+    There the tenant used to get the plan's rhythm silently, with no way to ask for
+    the other one, while every card read "net/month". On a yearly plan that figure
+    was the monthly price and the booking was created yearly, so the number the
+    tenant compared bundles by was not the number they were charged. The
+    confirmation dialog did show the real amount before anyone agreed, so nobody was
+    billed unannounced.
+
+    `TenantBundleStore` now offers the rhythm above the cards, preselected to the
+    plan's — a tenant who touches nothing gets exactly what they got before. The
+    card's price and unit follow the selection, the booking carries it, and a bundle
+    that carries no price in the selected rhythm is shown as unavailable in it
+    rather than as a button the server would refuse. A booked bundle states the
+    rhythm it was actually booked in, and the price it is actually billed at.
+
+    Two prices were wrong before, and both are fixed at the source rather than in
+    the view. `GET /billing/subscription-bundles` answered with the bundle's base
+    **monthly** price whatever the booking was, so a bundle at 9.90 monthly and
+    99.00 yearly reported 9.90 once booked yearly; it now returns `priceNet`,
+    resolved for the booking's own rhythm with the plan's `BundlePricingOverride`
+    applied. And the public catalogue has no tenant and therefore no plan, so it
+    serves base prices and reads a bundle priced only through an override as having
+    no price at all — a new `POST /billing/subscription-bundles/prices` resolves
+    them for the tenant's plan, and the store prices from that.
+
+    `SubscriptionBundleView.monthlyNet` is therefore now `priceNet: number | null`,
+    and `SubscriptionBundleShape` gains `priceNet` and `billingCycle`. A consumer
+    without the new prices endpoint keeps the catalogue's own figures, which is what
+    every consumer had before.
+
+    Mixed rhythms in one contract are new, and the contract snapshot accounts for
+    them: each line keeps the rhythm it is billed in, and the total states one
+    period of the contract's own rhythm, so a monthly add-on beside a yearly plan
+    counts as often as it falls due rather than once. `ContractFreezeSourcePort`
+    now says what its `cycle` argument means — the plan's, not the bookings'.
+
+    The price lookup answers only about versions a tenant could have been shown:
+    published and not superseded. A caller naming an unpublished id would otherwise
+    be told its plan-specific pricing.
+
+    A booking no longer commits the tenant to anything by default. It used to write
+    a twelve-month minimum term on every add-on without an operator doing anything,
+    which made the cancellation rule impossible to keep: a cancellation lands at
+    `max(currentPeriodEnd, minimumTermEndsAt)`, so a monthly add-on could not be
+    cancelled to its next period, and on a yearly plan the term outlasted the
+    bundle's own last period. An add-on can now be cancelled at any time up to the
+    moment its next period begins, effective at the end of the period it is in — so
+    nothing ever has to be refunded. `defaultMinimumTermMonths` still configures a
+    commitment for an operator who wants one, and it is still capped at the plan's
+    end.
+
+    On a monthly plan nothing changes and no control appears: a question with one
+    answer is not a question.
+
+### Patch Changes
+
+- Updated dependencies [d492281]
+- Updated dependencies [89eed2b]
+- Updated dependencies [855f023]
+- Updated dependencies [9b5ca2f]
+    - @saasicat/core@1.0.0-rc.7
+    - @saasicat/ui-vue@1.0.0-rc.7
+
 ## 1.0.0-rc.6
 
 ### Minor Changes
