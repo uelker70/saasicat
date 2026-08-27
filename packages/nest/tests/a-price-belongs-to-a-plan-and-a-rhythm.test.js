@@ -216,3 +216,18 @@ describe('which bundles a tenant may ask the price of', () => {
         assert.deepEqual(Object.keys(prices), [live.id]);
     });
 });
+
+describe('a bundle the operator retired', () => {
+    test('is not priced, though its version is still live', async () => {
+        // Retiring soft-deletes the stem and leaves the published version
+        // exactly as it was, so a check that reads only the version says yes to
+        // something the catalogue has stopped serving.
+        const live = await publishBundle({ key: 'RETIRED' });
+        assert.ok(
+            (await service.resolvePricesFor(STARTER, [live.id]))[live.id],
+            'priced while it is on sale',
+        );
+        await bundleRepo.softDelete(live.bundleId);
+        assert.deepEqual(await service.resolvePricesFor(STARTER, [live.id]), {});
+    });
+});

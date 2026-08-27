@@ -5,7 +5,7 @@
 //   1. `addBundleToSubscription`: checks bundle existence + publication
 //      status + plan compatibility (`bundle.compatibility.planIds`) + idempotency
 //      (no duplicate active bookings of the same BundleVersion); sets the
-//      minimum-term default (12 months, configurable via token).
+//      minimum-term default (none, configurable via token).
 //   2. `cancelBundleFromSubscription`: computes
 //      `canceledEffectiveAt = max(currentPeriodEnd, minimumTermEndsAt)`
 //      — the booking thus stays active until the later of the two limits.
@@ -198,11 +198,17 @@ export class SubscriptionBundlesService {
                 const bv = await this.bundles.findVersionById(id);
                 // Only what the tenant could have been shown. The caller names
                 // ids, and an authenticated tenant can name one that never
-                // appeared in their catalogue — a draft, or a version somebody
-                // superseded — and would then be told its plan-specific
-                // pricing. The public catalogue serves live versions only, and
-                // this answers about the same set.
+                // appeared in their catalogue — a draft, a version somebody
+                // superseded, or one whose bundle has been retired — and would
+                // then be told its plan-specific pricing.
+                //
+                // The version's own lifecycle is not enough: retiring a bundle
+                // soft-deletes the stem and leaves its live version untouched,
+                // so a check that looks only at the version says yes to
+                // something the catalogue stopped serving.
                 if (!bv || !isLive(bv)) return null;
+                const stem = await this.bundles.findById(bv.bundleId);
+                if (!stem || stem.deletedAt !== null) return null;
                 return [
                     id,
                     {

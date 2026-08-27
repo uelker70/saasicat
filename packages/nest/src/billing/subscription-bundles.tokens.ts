@@ -6,7 +6,7 @@ export const SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN = Symbol.for(
     'saasicat/nest/SubscriptionBundleRepository',
 );
 
-/** Optional config token; default = 12 months minimum term. */
+/** Optional config token; without it a booking commits the tenant to nothing. */
 export const SUBSCRIPTION_BUNDLE_CONFIG_TOKEN = Symbol.for(
     'saasicat/nest/SubscriptionBundleConfig',
 );

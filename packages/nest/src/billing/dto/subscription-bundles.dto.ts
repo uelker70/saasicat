@@ -24,7 +24,7 @@ export class AddSubscriptionBundleDto {
     /**
      * Optional — override for the minimum term (months). `0` = no
      * minimum term. Default comes from the `SubscriptionBundleConfig`
-     * (platform = 12 months).
+     * (platform = no commitment).
      */
     @IsOptional()
     @IsInt()

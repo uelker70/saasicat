@@ -81,7 +81,10 @@ export interface SubscriptionBundleModuleOptions {
      * `CatalogModule`).
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
-    /** Default minimum term (months). Default = 12. */
+    /**
+     * Default minimum term (months). Default = **0** — no commitment, so an
+     * add-on can be cancelled to its own period end. Set one to bind.
+     */
     defaultMinimumTermMonths?: number;
     /**
      * Self-service policy (#37): bundles that are only bookable via sales.
