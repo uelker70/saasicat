@@ -16,8 +16,10 @@
 // enums and models — into a fresh schema, but does not update blocks that
 // already exist — verify with `pnpm exec saasicat schema check` after a package
 // upgrade, which reports every field this schema is missing.
-// PostgreSQL constraints the Prisma DSL cannot express live in
-// prisma/constraints.sql (applied by docker-entrypoint.sh after db push).
+// PostgreSQL constraints the Prisma DSL cannot express are shipped, not copied:
+// docker-entrypoint.sh applies @saasicat/spec/sql/constraints.postgres.sql
+// after db push. A project using Prisma Migrate instead gets the same file
+// appended to its migration by `saasicat schema migrate`.
 
 generator client {
     provider = "prisma-client-js"

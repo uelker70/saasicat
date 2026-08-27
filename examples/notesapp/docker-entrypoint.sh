@@ -22,7 +22,18 @@ pnpm exec prisma db execute \
 
 echo "notesapp: applying prisma schema…"
 pnpm exec prisma db push --skip-generate
-pnpm exec prisma db execute --file prisma/constraints.sql --schema prisma/schema.prisma || true
+
+# After the push, because `db push` is what creates the tables these constrain,
+# and from the shipped file rather than a copy. The copy that used to live in
+# `prisma/` held the two draft indexes and nothing else: the singleton `CHECK`
+# added for 1.0 never reached a fresh notesapp database, and nothing would have
+# said so. A file the platform owns cannot drift from itself.
+#
+# Not `|| true`: these are normative, and a database missing them is not a
+# database this example should serve from.
+pnpm exec prisma db execute \
+    --file node_modules/@saasicat/spec/sql/constraints.postgres.sql \
+    --schema prisma/schema.prisma
 
 if [ "${SEED_ON_START:-true}" = "true" ]; then
     echo "notesapp: seeding demo data…"
