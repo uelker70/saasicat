@@ -44,23 +44,41 @@ describe('a query parameter the admin API no longer reads', () => {
         assert.equal(result.text, 'const u = `/catalog/plans?locale=de`;');
     });
 
-    test('and so does one holding a nested object', () => {
-        // Every `{` counts, not only the one that opens the interpolation. The
-        // scan used to close its depth on the nested object's own brace and read
-        // the following space as the end of the value, emitting
-        // `/catalog/plans : a && b}&locale=de` and calling it a rewrite.
+    test('a call expression is simple enough to keep', () => {
+        // The form the real consumers write. If this stopped being rewritten
+        // the rule below would be too narrow to be worth having.
         const result = removeProjectKey(
-            'const u = `/catalog/plans?projectKey=${flag ? { x: 1 } : a && b}&locale=de`;',
+            'const u = `${b}/catalog/plans?projectKey=${encodeURIComponent(pk)}`;',
         );
-        assert.equal(result.text, 'const u = `/catalog/plans?locale=de`;');
+        assert.equal(result.text, 'const u = `${b}/catalog/plans`;');
         assert.equal(result.rewritten, 1);
     });
+});
 
-    test('an interpolation that never closes is reported, not cut', () => {
-        const source = 'const u = `/catalog/plans?projectKey=${oops';
+describe('a value the scanner would have to lex is left alone', () => {
+    // Finding the end of `${flag ? { x: "}" } : a && b}` means lexing
+    // JavaScript: a brace inside a string, a comment or a regular expression is
+    // text, not structure. Three rounds of hand-rolled brace matching each met
+    // a new counter-example. Requiring that there is nothing to match removes
+    // the question rather than answering it, and costs nothing real — every
+    // value in both consumer repositories is a literal or a plain `${…}`.
+
+    const leftAlone = (source) => {
         const result = removeProjectKey(source);
         assert.equal(result.text, source);
         assert.equal(result.rewritten, 0);
+    };
+
+    test('a nested object inside the interpolation', () => {
+        leftAlone('const u = `/catalog/plans?projectKey=${flag ? { x: 1 } : b}&locale=de`;');
+    });
+
+    test('a brace inside a string inside the interpolation', () => {
+        leftAlone('const u = `/catalog/plans?projectKey=${flag ? { x: "}" } : b}&locale=de`;');
+    });
+
+    test('an interpolation that never closes', () => {
+        leftAlone('const u = `/catalog/plans?projectKey=${oops');
     });
 
     test("somebody else's endpoint keeps its parameter, and is reported", () => {
@@ -73,6 +91,16 @@ describe('a query parameter the admin API no longer reads', () => {
         assert.equal(result.text, source);
         assert.equal(result.rewritten, 0);
         assert.deepEqual(result.undecided, [1], 'one line, one entry to look at');
+    });
+
+    test('and the word in one of its query values does not make it ours', () => {
+        // The path decides, not the URL. `/api/reports?next=/catalog/plans` is
+        // the consumer's endpoint carrying the word in a value, and the
+        // substring test read the whole string.
+        const source = 'fetch(`/api/reports?next=/catalog/plans&projectKey=x`);';
+        const result = removeProjectKey(source);
+        assert.equal(result.text, source);
+        assert.equal(result.rewritten, 0);
     });
 
     test('an occurrence at the very start does not end the scan', () => {

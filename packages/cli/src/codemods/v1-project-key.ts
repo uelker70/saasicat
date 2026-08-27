@@ -9,7 +9,7 @@
 // data loss the codemod cannot see afterwards.
 //
 // So this rewrites two forms and REPORTS everything else. The line between them
-// took four attempts and three review rounds, and the reason it moved is worth
+// took five attempts and four review rounds, and the reason it moved is worth
 // writing down rather than repeating:
 //
 //   attempt            counter-example
@@ -62,21 +62,31 @@ export interface ProjectKeyResult {
 /**
  * The `?projectKey=…` and `&projectKey=…` parts of every URL in a text.
  *
- * Scanned rather than matched: `\?projectKey=[^&'"`]*` is fine on its own, but
- * the surrounding cleanup (a `?` left with nothing after it, a `&` that has to
- * become the new `?`) is easier to get right forwards than with a second
- * pattern over the result.
+ * Two things are asked of each one, and both are asked so they can be answered
+ * without lexing the file:
+ *
+ *   - **Whose endpoint is it.** The PATH, meaning the text from the start of
+ *     the string to its first `?`, has to name `/catalog/` — the prefix every
+ *     admin route that read the parameter sat under. Asking of the whole URL
+ *     was wrong: `/api/reports?next=/catalog/plans&projectKey=x` is the
+ *     consumer's own endpoint with the word in a query VALUE.
+ *   - **Is the value simple.** A bare literal, or one `${…}` holding nothing
+ *     but an identifier, a member access or a call. Anything richer is
+ *     reported, not cut.
+ *
+ * The second rule is where four rounds of this scanner ended up. Finding the
+ * end of `${flag ? { x: "}" } : a && b}` means lexing JavaScript — braces
+ * inside strings, comments and regular expressions all count as text — and a
+ * hand-rolled matcher met a new counter-example every round. Requiring that
+ * there is nothing to match removes the question instead of answering it, and
+ * costs nothing real: across both consumer repositories every value is
+ * `vereinsfux`, `${PROJECT_KEY}` or `${encodeURIComponent(pk)}`.
  */
-function stripQueryParameter(text: string): {
-    text: string;
-    removed: number;
-    skipped: number[];
-} {
+function stripQueryParameter(text: string): { text: string; removed: number } {
     const NEEDLE = 'projectKey=';
     let out = '';
     let index = 0;
     let removed = 0;
-    const skipped: number[] = [];
     for (;;) {
         const at = text.indexOf(NEEDLE, index);
         if (at < 0) break;
@@ -85,70 +95,82 @@ function stripQueryParameter(text: string): {
         // rather than end the scan, or a later occurrence in the same file
         // would go unrewritten.
         const separator = at === 0 ? '' : text[at - 1];
-        if (separator !== '?' && separator !== '&') {
-            out += text.slice(index, at + NEEDLE.length);
-            index = at + NEEDLE.length;
-            continue;
-        }
-        // The value runs to the next parameter separator or to whatever ends
-        // the string the URL is written in.
-        //
-        // Every `{` counts, not only the one that opens an interpolation. The
-        // scan used to increment on `${` and decrement on any `}`, so a nested
-        // object inside the expression — `${flag ? { x: 1 } : b}` — closed the
-        // depth on its own brace and the following space was read as the end of
-        // the value. What came out was `/catalog/plans : b}&locale=de`, counted
-        // as a rewrite.
-        let end = at + NEEDLE.length;
-        let depth = 0;
-        while (end < text.length) {
-            const ch = text[end];
-            if (ch === '$' && text[end + 1] === '{') {
-                depth += 1;
-                end += 1;
-            } else if (ch === '{' && depth > 0) depth += 1;
-            else if (ch === '}' && depth > 0) depth -= 1;
-            else if (depth === 0 && (ch === '&' || ch === "'" || ch === '"' || ch === '`')) break;
-            else if (depth === 0 && (ch === '\n' || ch === ' ')) break;
-            end += 1;
-        }
-        // An interpolation that never closed means the scan ran past the end of
-        // the string it was reading. Nothing sound can be cut from that.
-        if (depth > 0) {
-            skipped.push(lineAt(text, at));
-            out += text.slice(index, at + NEEDLE.length);
-            index = at + NEEDLE.length;
-            continue;
-        }
-        // Whose endpoint is this? Every admin route that read the parameter sat
-        // under `/catalog/`; a consumer's own `/api/reports?projectKey=` is
-        // their business, and rewriting it would silently change a request the
-        // platform never served.
-        if (!servesTheCatalogue(text, at)) {
-            skipped.push(lineAt(text, at));
+        const value =
+            separator === '?' || separator === '&'
+                ? simpleValueEnd(text, at + NEEDLE.length)
+                : null;
+        if (value === null || !servesTheCatalogue(text, at)) {
+            // Copied through unchanged. The member scan reports the line.
             out += text.slice(index, at + NEEDLE.length);
             index = at + NEEDLE.length;
             continue;
         }
         out += text.slice(index, at - 1);
-        if (separator === '?' && text[end] === '&') {
+        if (separator === '?' && text[value] === '&') {
             // It was the first of several: the next one takes over the `?`.
             out += '?';
-            index = end + 1;
+            index = value + 1;
         } else {
-            index = end;
+            index = value;
         }
         removed += 1;
     }
-    return { text: out + text.slice(index), removed, skipped };
+    return { text: out + text.slice(index), removed };
 }
 
 /**
- * Whether the URL a query part sits in is one the platform served it on.
+ * What may NOT stand inside a `${…}` for the value to count as simple.
  *
- * Read backwards from the parameter to whatever opened the string, and ask
- * whether `/catalog/` is in it. Frozen on purpose rather than derived: this
- * describes the endpoints as they were before 1.0, and the past does not move.
+ * Stated as a rejection rather than an allow-list, because the property that
+ * matters is narrow and nameable: nothing that can hide the closing brace. A
+ * quote opens a string, a slash opens a comment or a regular expression, and a
+ * brace nests — each can carry a `}` that is text rather than the end. Ordinary
+ * operators cannot, so `${a && b}` and `${n > 0 ? a : b}` stay simple.
+ *
+ * One negated class and no quantifier at all: nothing here can match the same
+ * input two ways.
+ */
+const HIDES_A_BRACE = /[`'"{}/\\]/;
+
+/**
+ * Where a simple query value ends, or `null` where it is not simple.
+ *
+ * Simple means: no `${` at all, or exactly one that closes at the first `}`
+ * with nothing structural inside it. That is deliberately narrow — see
+ * `stripQueryParameter`. A value this refuses is left alone and reported.
+ */
+function simpleValueEnd(text: string, from: number): number | null {
+    let i = from;
+    while (i < text.length) {
+        const ch = text[i];
+        if (ch === '&' || ch === "'" || ch === '"' || ch === '`' || ch === '\n' || ch === ' ') {
+            return i;
+        }
+        if (ch !== '$' || text[i + 1] !== '{') {
+            // A lone `{` or `}` outside an interpolation is not something a URL
+            // holds, and not something worth guessing about.
+            if (ch === '{' || ch === '}') return null;
+            i += 1;
+            continue;
+        }
+        const close = text.indexOf('}', i + 2);
+        if (close < 0) return null;
+        if (HIDES_A_BRACE.test(text.slice(i + 2, close))) return null;
+        i = close + 1;
+    }
+    // Ran off the end of the file without meeting anything that closes a URL.
+    return null;
+}
+
+/**
+ * Whether the PATH of the URL a query part sits in is one the platform served
+ * it on.
+ *
+ * The path, not the whole URL: `/api/reports?next=/catalog/plans&projectKey=x`
+ * is somebody else's endpoint that happens to carry the word in a query value,
+ * and rewriting it would change a request that still works. Frozen rather than
+ * derived — this describes the endpoints as they were before 1.0, and the past
+ * does not move.
  */
 function servesTheCatalogue(text: string, at: number): boolean {
     let start = at;
@@ -157,7 +179,9 @@ function servesTheCatalogue(text: string, at: number): boolean {
         if (ch === '`' || ch === "'" || ch === '"' || ch === '\n') break;
         start -= 1;
     }
-    return text.slice(start, at).includes('/catalog/');
+    const url = text.slice(start, at);
+    const query = url.indexOf('?');
+    return (query < 0 ? url : url.slice(0, query)).includes('/catalog/');
 }
 
 /** Whether an identifier character sits next to an offset — a longer name. */
@@ -185,7 +209,7 @@ export function removeProjectKey(
     if (kind === 'yaml') return removeFromYaml(text);
 
     const query = stripQueryParameter(text);
-    const reported = new Set<number>(query.skipped);
+    const reported = new Set<number>();
 
     // Everything the query pass did not take is reported, whatever shape it is
     // in. A member, a shorthand, a type declaration, a string in a comment: the
