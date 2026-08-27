@@ -1,13 +1,13 @@
 ---
-'@saasicat/spec': minor
-'@saasicat/core': minor
-'@saasicat/nest': minor
-'@saasicat/adapter-prisma': minor
-'@saasicat/adapter-drizzle': minor
-'@saasicat/persistence-testing': minor
-'@saasicat/ui-vue': minor
-'@saasicat/cli': minor
-'create-saasicat-admin': minor
+'@saasicat/spec': major
+'@saasicat/core': major
+'@saasicat/nest': major
+'@saasicat/adapter-prisma': major
+'@saasicat/adapter-drizzle': major
+'@saasicat/persistence-testing': major
+'@saasicat/ui-vue': major
+'@saasicat/cli': major
+'create-saasicat-admin': major
 ---
 
 **`projectKey` leaves the data model.** One installation serves one application,
