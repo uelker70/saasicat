@@ -63,7 +63,7 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
                 tx as unknown as TransactionContext,
             );
             const pendingMovedAway = await this.pendingVersionBelongsToAnotherPlan(
-                db,
+                tx as unknown as TransactionContext,
                 current.pendingPlanVersionId,
                 input.planId,
             );
@@ -290,14 +290,19 @@ export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePo
         return active.id;
     }
 
+    /**
+     * On the caller's transaction, not beside it. The change already holds a
+     * connection for its whole length; asking for a second one waits for the
+     * connection this transaction is holding, and a one-connection pool then
+     * never gets past here.
+     */
     private async pendingVersionBelongsToAnotherPlan(
-        db: DrizzleClient,
+        tx: TransactionContext,
         pendingPlanVersionId: string | null,
         targetPlanKey: string,
     ): Promise<boolean> {
         if (!pendingPlanVersionId) return false;
-        const pending = await this.plans.findVersionById(pendingPlanVersionId);
-        void db;
+        const pending = await this.plans.findVersionById(pendingPlanVersionId, tx);
         return !pending || pending.planId !== targetPlanKey;
     }
 }

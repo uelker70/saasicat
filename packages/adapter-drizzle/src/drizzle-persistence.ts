@@ -17,6 +17,7 @@ import { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redem
 import { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 import { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
+import { DrizzleSubscriptionContractRepository } from './drizzle-subscription-contract.repository.js';
 import { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';
 import { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-validation-log.repository.js';
 import { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';
@@ -116,6 +117,12 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             // than the tenant paid for.
             subscriptionBundleRepository: provide(
                 (client) => new DrizzleSubscriptionBundleRepository(client),
+            ),
+            // What the tenant actually agreed to, frozen at signing. Entitlement
+            // prefers it over the live catalogue where it exists, which is what
+            // makes a price change stop at the contracts already signed.
+            subscriptionContractRepository: provide(
+                (client) => new DrizzleSubscriptionContractRepository(client),
             ),
             // The catalogue behind those bookings: entitlement resolves a
             // booking's features by reading the pinned version.

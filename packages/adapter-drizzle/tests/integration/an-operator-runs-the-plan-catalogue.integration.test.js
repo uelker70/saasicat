@@ -117,6 +117,36 @@ describe('the plans an operator has on sale', () => {
         );
     });
 
+    test('onlyPublished does not let another project vouch for this one', async () => {
+        // `plan_versions.planId` holds the plan KEY and no project, while
+        // `plans` is unique per (projectKey, planKey) — so two projects may use
+        // the same key and their versions are indistinguishable from the
+        // version table alone. Treating either project's published version as
+        // evidence puts one tenant's draft into another's catalogue.
+        //
+        // The two plans share one version lineage, and the schema says so:
+        // `plan_versions_draft_per_plan` is unique on the key alone, so the
+        // second project cannot even open a draft while the first one's is
+        // open. Publishing theirs first is the only order that reaches the
+        // state, and it is the state a real catalogue lands in.
+        const SHARED_KEY = `SHARED_${randomUUID().slice(0, 8)}`;
+        await plans.create({
+            projectKey: OTHER_PROJECT,
+            planKey: SHARED_KEY,
+            label: 'Theirs, published',
+        });
+        const theirs = await draftFor(SHARED_KEY);
+        await publish(theirs.id, new Date('2026-01-01T00:00:00.000Z'));
+        await plans.create({ projectKey: PROJECT, planKey: SHARED_KEY, label: 'Ours, a draft' });
+        await draftFor(SHARED_KEY);
+
+        assert.deepEqual(
+            await plans.list({ projectKey: PROJECT, onlyPublished: true }),
+            [],
+            "an ambiguous key fails closed rather than borrowing the other project's publication",
+        );
+    });
+
     test('renaming a plan touches what was named and nothing else', async () => {
         const plan = await createPlan({ description: 'Original', icon: 'star' });
         const renamed = await plans.update(plan.id, { label: 'Renamed' });
@@ -345,6 +375,58 @@ describe("a tenant's own writes", () => {
             }),
             /No active PlanVersion/,
         );
+    });
+
+    test('an immediate change stays on its own connection when a version is pending', async () => {
+        // The change runs in a transaction, so it holds a connection for its
+        // whole length. Any lookup it makes on the way — here: does the pending
+        // version still belong to the plan being moved to — has to run on that
+        // same connection. Drawing a second one waits for a connection the
+        // transaction itself is holding, and on a one-connection pool that wait
+        // never ends.
+        //
+        // A pool of exactly one makes the deadlock certain rather than likely,
+        // which is the difference between a test and a coin toss.
+        const { pool: singlePool, db: singleDb } = await openDisposableDatabase({
+            max: 1,
+            rebuild: false,
+            // Fail fast rather than wait forever: an unbounded wait would hang
+            // the run and take the cleanup with it.
+            connectionTimeoutMillis: 2000,
+        });
+        try {
+            const { version } = await livePlan('PEND_A');
+            const other = await livePlan('PEND_B');
+            await seedSubscription('PEND_A', version.id, {
+                // Pending, and belonging to a different plan than the one being
+                // moved to — the branch that makes the lookup happen at all.
+                pendingPlanVersionId: other.version.id,
+                pendingPlanVersionEffectiveAt: new Date('2026-05-01T00:00:00.000Z'),
+            });
+
+            const writer = new DrizzleTenantSubscriptionWrite(singleDb);
+            const changed = await writer.changePlanImmediate(TENANT, {
+                planId: 'PEND_A',
+                cycle: 'MONTHLY',
+                periodStart: null,
+                periodEnd: null,
+                nextStatus: null,
+                expectedCanceledAt: null,
+            });
+            assert.equal(changed.claimed, true);
+
+            const [row] = await db
+                .select()
+                .from(saasicatSchema.subscriptions)
+                .where(eq(saasicatSchema.subscriptions.tenantId, TENANT));
+            assert.equal(
+                row.pendingPlanVersionId,
+                null,
+                'a pending version belonging to another plan is cleared by the move',
+            );
+        } finally {
+            await singlePool.end();
+        }
     });
 
     test('accepting a pending version is idempotent, and reports the second call as such', async () => {

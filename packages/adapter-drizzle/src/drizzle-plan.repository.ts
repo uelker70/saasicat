@@ -13,7 +13,13 @@ import type {
     UpdatePlanVersionDraftData,
     VersionChange,
 } from '@saasicat/core';
-import { previousUtcDay, startOfUtcDay, toPlanRow, toPlanVersionRow } from '@saasicat/core';
+import {
+    previousUtcDay,
+    startOfUtcDay,
+    toPlanRow,
+    toPlanVersionRow,
+    unambiguousPlanKeys,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { plans, planVersions } from './schema.js';
 
@@ -85,6 +91,19 @@ export class DrizzlePlanRepository implements PlanRepository {
         if (!filter.onlyPublished) return stems.map(toPlanRow);
         if (stems.length === 0) return [];
 
+        // A version carries the plan key and no project, so a key two projects
+        // share cannot be attributed from the version table. Keys that are not
+        // unique across projects are dropped rather than guessed — see
+        // `unambiguousPlanKeys`.
+        const candidateKeys = [...new Set(stems.map((stem) => stem.planKey))];
+        const sameKeyAnywhere = await this.db
+            .select({ projectKey: plans.projectKey, planKey: plans.planKey })
+            .from(plans)
+            .where(inArray(plans.planKey, candidateKeys));
+        const decidable = unambiguousPlanKeys(sameKeyAnywhere);
+        const askable = candidateKeys.filter((planKey) => decidable.has(planKey));
+        if (askable.length === 0) return [];
+
         // One query for all of them rather than one per plan: `onlyPublished`
         // is the marketing catalogue's filter and runs on every page load.
         const live = await this.db
@@ -92,10 +111,7 @@ export class DrizzlePlanRepository implements PlanRepository {
             .from(planVersions)
             .where(
                 and(
-                    inArray(
-                        planVersions.planId,
-                        stems.map((stem) => stem.planKey),
-                    ),
+                    inArray(planVersions.planId, askable),
                     sql`${planVersions.publishedAt} IS NOT NULL`,
                     isNull(planVersions.supersededAt),
                 ),
@@ -183,8 +199,17 @@ export class DrizzlePlanRepository implements PlanRepository {
         return rows.map((row) => this.versionRow(row));
     }
 
-    async findVersionById(versionId: string): Promise<PlanVersionRow | null> {
-        const rows = await this.db
+    /**
+     * `tx` is beyond what the port asks for, and is what keeps a caller already
+     * inside a transaction on its own connection: drawing a second one waits
+     * for a connection that transaction is itself holding, which on a
+     * one-connection pool never returns.
+     */
+    async findVersionById(
+        versionId: string,
+        tx?: TransactionContext,
+    ): Promise<PlanVersionRow | null> {
+        const rows = await resolveDb(this.db, tx)
             .select()
             .from(planVersions)
             .where(eq(planVersions.id, versionId))
