@@ -241,16 +241,34 @@ describe('what a booked bundle says it costs', () => {
         expect(bookedPrice(wrapper)).toContain('77.00 EUR');
     });
 
+    /** A row from an adapter that predates the field: absent, not null. */
+    const legacyBooking = (billingCycle: string | null) => {
+        const row = booking(billingCycle, null);
+        delete (row as { priceNet?: number | null }).priceNet;
+        return row;
+    };
+
     test("a booking from before the rhythm was recorded takes the plan's", () => {
         // Absent is not monthly: such a booking took the plan's rhythm, because
         // that was the only rhythm it could take.
-        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking(null, null)] });
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [legacyBooking(null)] });
         expect(bookedPrice(wrapper)).toContain('net/year');
         expect(bookedPrice(wrapper)).toContain('100.00 EUR');
     });
 
     test("a price the server did not send is joined from the catalogue in the booking's rhythm", () => {
-        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('MONTHLY', null)] });
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [legacyBooking('MONTHLY')] });
         expect(bookedPrice(wrapper)).toContain('10.00 EUR');
+    });
+
+    test('a price the server resolved to nothing is shown as nothing', () => {
+        // `null` is an answer, not a gap: this plan and this rhythm carry no
+        // price for this bundle, which an override can bring about. Falling
+        // back to the catalogue would state a figure the tenant is not charged
+        // — the defect this whole branch exists to remove.
+        const wrapper = mountStore({ planCycle: 'YEARLY', booked: [booking('YEARLY', null)] });
+        expect(wrapper.find('.sp-plan-section__item-price').exists()).toBe(false);
+        // The booking is still listed; only its price does not resolve.
+        expect(wrapper.text()).toContain('Analytics');
     });
 });

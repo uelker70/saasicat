@@ -274,6 +274,7 @@ import TenantCard from './ui/TenantCard.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
 import { useSubscriptionHasEnded } from './use-subscription-ended.js';
+import { latestAnswerWins } from './latest-answer-wins.js';
 import {
     useTenantBilling,
     type BundlePreviewShape,
@@ -449,6 +450,17 @@ const bookablePlans = computed<CatalogPlan[]>(() => catalog.plans.value ?? []);
  */
 const resolvedBundlePrices = ref<Record<string, ResolvedBundlePrice>>({});
 
+/**
+ * A price is resolved against a plan, so an answer for a plan the tenant has
+ * since left is not merely stale — it is about a different question.
+ */
+const commitBundlePrices = latestAnswerWins(
+    (ids: string[]) => billing.loadBundlePrices(ids),
+    (prices) => {
+        resolvedBundlePrices.value = prices;
+    },
+);
+
 const availableBundles = computed<CatalogBundle[]>(() =>
     (catalog.bundles.value ?? []).map((bundle) => {
         const resolved = resolvedBundlePrices.value[bundle.bundleVersionId];
@@ -467,8 +479,11 @@ watch(
         `${usage.value?.plan ?? ''}|${(catalog.bundles.value ?? []).map((b) => b.bundleVersionId).join(',')}`,
     async (key) => {
         const [plan, ids] = key.split('|');
-        resolvedBundlePrices.value =
-            plan && ids ? await billing.loadBundlePrices(ids.split(',')) : {};
+        if (!plan || !ids) {
+            resolvedBundlePrices.value = {};
+            return;
+        }
+        await commitBundlePrices(ids.split(','));
     },
     { immediate: true },
 );

@@ -19,7 +19,7 @@
                         </span>
                     </div>
                     <div class="sp-bundle-store__booked-actions">
-                        <span class="sp-plan-section__item-price">
+                        <span v-if="row.priceNet !== null" class="sp-plan-section__item-price">
                             {{ formatCurrency(row.priceNet) }} {{ unitFor(row.billingCycle) }}
                         </span>
                         <TenantButton
@@ -201,8 +201,12 @@ interface BookedRow {
     id: string;
     bundleVersionId: string;
     label: string;
-    /** List price in the rhythm this booking is billed in. */
-    priceNet: number;
+    /**
+     * List price in the rhythm this booking is billed in, or `null` where none
+     * resolves — which is a statement, not a missing value, and is shown as
+     * nothing rather than as a figure from somewhere else.
+     */
+    priceNet: number | null;
     billingCycle: string | null;
     minimumTermEndsAt: string | null;
     canceledAt: string | null;
@@ -221,12 +225,18 @@ const bookedRows = computed<BookedRow[]>(() =>
             // including the plan's override. The catalogue join is the fallback
             // and has to pick the same rhythm — and for a booking from before
             // the column existed, that rhythm is the plan's.
+            //
+            // `undefined` and `null` are different answers, and only the first
+            // one may fall back. An adapter that does not send the field leaves
+            // it `undefined`; a server that resolved it and found no price for
+            // this plan and rhythm sends `null`, and answering that with the
+            // catalogue's base figure states a price the tenant is not charged.
             priceNet:
-                b.priceNet != null
+                b.priceNet !== undefined
                     ? b.priceNet
                     : (((b.billingCycle ?? props.planCycle) === 'YEARLY'
                           ? cat?.yearlyNet
-                          : cat?.monthlyNet) ?? 0),
+                          : cat?.monthlyNet) ?? null),
             billingCycle: b.billingCycle ?? null,
             minimumTermEndsAt: b.minimumTermEndsAt,
             canceledAt: b.canceledAt,
