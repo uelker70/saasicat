@@ -71,7 +71,23 @@ export interface LimitsCheckRow {
 
 export interface PlanChangePreviewIssue {
     code: string;
+    /**
+     * English display text, and the last rung of the ladder rather than the
+     * first: `resolveErrorMessage` prefers the reader's catalogue and reaches
+     * this only for a code nobody has translated. It stays on the wire because
+     * a blocker that renders as an empty line leaves someone with a disabled
+     * button and no reason.
+     */
     message: string;
+    /**
+     * The values the sentence needs, beside it rather than inside it.
+     *
+     * Without these a client holding the code still cannot rebuild the
+     * sentence — it would have to parse English prose for the numbers. Every
+     * template in the shipped catalogues names only what appears here, and
+     * `preview-issues-are-translatable.test.js` holds that.
+     */
+    params?: Record<string, string | number>;
 }
 
 export interface PlanChangePreviewDto {
@@ -301,12 +317,12 @@ export class PlanChangePreviewService {
         const landsAt = ctx.canceledEffectiveAt ?? ctx.canceledAt;
         if (landsAt !== null && landsAt <= now) {
             blockers.push({
-                code: 'SUBSCRIPTION_ENDED',
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_ENDED,
                 message: 'This subscription has ended. Its plan can no longer be changed.',
             });
         } else if (landsAt !== null && cycleDirection !== 'SAME') {
             blockers.push({
-                code: 'CANCELLATION_LOCKS_THE_CYCLE',
+                code: BILLING_ERROR_CODES.CANCELLATION_LOCKS_THE_CYCLE,
                 message:
                     'This subscription is cancelled, so its billing cycle cannot change. ' +
                     'The plan can.',
@@ -318,14 +334,16 @@ export class PlanChangePreviewService {
 
         if (blockedTargets.includes(targetPlan)) {
             blockers.push({
-                code: `${targetPlan}_NOT_SELF_SERVICE`,
+                code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,
                 message: `${targetSnap.name} is only activated via a special contract. Please contact the contract manager.`,
+                params: { planName: targetSnap.name, planKey: targetPlan },
             });
         }
         if (blockedSources.includes(sub.plan)) {
             blockers.push({
-                code: `${sub.plan}_LOCKED`,
+                code: BILLING_ERROR_CODES.PLAN_LOCKED,
                 message: `Active ${currentSnap.name} special contract — please contact the contract manager to change plans.`,
+                params: { planName: currentSnap.name, planKey: sub.plan },
             });
         }
 
@@ -334,21 +352,36 @@ export class PlanChangePreviewService {
             if (!row.exceeded) continue;
             const usedDisplay = isFloatQuota(key) ? row.used.toFixed(1) : row.used.toString();
             blockers.push({
-                code: `${key.toUpperCase()}_OVER_TARGET`,
+                code: BILLING_ERROR_CODES.QUOTA_OVER_TARGET,
                 message: `Current usage ${usedDisplay} exceeds the target limit ${row.targetMax} (${key}) in the ${targetSnap.name} plan. Please reduce usage first.`,
+                params: {
+                    used: usedDisplay,
+                    targetMax: row.targetMax,
+                    quotaKey: key,
+                    planName: targetSnap.name,
+                },
             });
         }
 
         if (featuresLost.length > 0) {
+            // Two codes rather than a number in the sentence. A template
+            // interpolates, it does not inflect: putting a count into a plural
+            // no language has formed yields "1 features" in English and
+            // "1 Funktionen" in German. Which language inflects how is known
+            // only to its own entry, so the singular gets an entry of its own.
             warnings.push({
-                code: 'FEATURES_LOST',
+                code:
+                    featuresLost.length === 1
+                        ? BILLING_ERROR_CODES.FEATURE_LOST
+                        : BILLING_ERROR_CODES.FEATURES_LOST,
                 message: `Switching means losing access to ${featuresLost.length} feature${featuresLost.length === 1 ? '' : 's'}. Existing data is retained and never deleted — upgrading again unlocks it.`,
+                params: { count: featuresLost.length },
             });
         }
 
         if (changeType === 'NOOP') {
             warnings.push({
-                code: 'NO_CHANGE',
+                code: BILLING_ERROR_CODES.NO_CHANGE,
                 message: 'Target plan and billing cycle already match the current state.',
             });
         }
@@ -360,8 +393,13 @@ export class PlanChangePreviewService {
         // saying so before they confirm is the whole point of a preview.
         if (planDirection === 'UP' && cycleDirection === 'SHORTER') {
             warnings.push({
-                code: 'CYCLE_SHORTENS_AT_TERM_END',
+                code: BILLING_ERROR_CODES.CYCLE_SHORTENS_AT_TERM_END,
                 message: `A ${targetCycle.toLowerCase()} ${targetSnap.name} cannot start inside the ${sub.billingCycle.toLowerCase()} term you are in. The upgrade takes effect when that term ends; to have it today, keep the ${sub.billingCycle.toLowerCase()} cycle.`,
+                params: {
+                    targetCycle: targetCycle.toLowerCase(),
+                    currentCycle: sub.billingCycle.toLowerCase(),
+                    planName: targetSnap.name,
+                },
             });
         }
 
@@ -385,12 +423,26 @@ export class PlanChangePreviewService {
         // to make.
         const changeLandsAt = effectiveAt ?? now;
         for (const booking of await this.bookingsOutlastingCycle(sub, targetCycle, changeLandsAt)) {
+            // Not `BUNDLE_CYCLE_EXCEEDS_PLAN`: that code states the same rule
+            // for a booking nobody has made yet, and its catalogue sentence
+            // says so. This one is about a booking the tenant already holds,
+            // so it can name the day the obstacle lifts and say to cancel it
+            // — advice that is wrong for someone who is only about to book.
+            //
+            // The two cycle words are baked into each locale's sentence rather
+            // than interpolated, because the direction is determined:
+            // `bundleCycleFitsPlan` refuses only a yearly bundle beside a
+            // monthly plan. They stay in `params` as data, not as prose.
             blockers.push({
-                code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
+                code: BILLING_ERROR_CODES.BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE,
                 message:
-                    `A yearly add-on is booked until ${booking.until}. A ` +
-                    `${targetCycle.toLowerCase()} plan cannot carry it — cancel the add-on ` +
-                    'first, or keep the yearly cycle.',
+                    `A yearly bundle is booked until ${booking.until}. A monthly plan ` +
+                    'cannot carry it — cancel the bundle first, or keep the yearly cycle.',
+                params: {
+                    billingCycle: 'yearly',
+                    planCycle: targetCycle.toLowerCase(),
+                    until: booking.until,
+                },
             });
         }
 

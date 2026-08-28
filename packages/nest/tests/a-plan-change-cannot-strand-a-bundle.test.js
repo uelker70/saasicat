@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { PlanChangePreviewService } from '../dist/billing/index.js';
+import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
 
 // A rule enforced only where a thing is created is a rule with a back door.
 //
@@ -102,7 +103,8 @@ const YEARLY_BOOKING = {
     minimumTermEndsAt: null,
 };
 
-const hasCycleBlocker = (dto) => dto.blockers.some((b) => b.code === 'BUNDLE_CYCLE_EXCEEDS_PLAN');
+const hasCycleBlocker = (dto) =>
+    dto.blockers.some((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
 
 describe('moving to a shorter cycle with a longer add-on booked', () => {
     test('a yearly add-on blocks the move to a monthly plan', async () => {
@@ -112,9 +114,48 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
 
     test('the blocker names the date the add-on runs to, so the tenant can act', async () => {
         const dto = await preview('MONTHLY', [YEARLY_BOOKING]);
-        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_CYCLE_EXCEEDS_PLAN');
+        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
         assert.match(blocker.message, /2027-01-01/);
-        assert.match(blocker.message, /cancel the add-on/);
+        assert.match(blocker.message, /cancel the bundle/);
+    });
+
+    // The date and the instruction are the whole value of this blocker, and a
+    // tenant reads it in their own language — so they have to survive the trip
+    // through the catalogue, not just sit in the English `message`.
+    //
+    // Its own code for that reason. `BUNDLE_CYCLE_EXCEEDS_PLAN` states the same
+    // rule for a booking nobody has made yet: it can name no date, and "cancel
+    // the bundle first" is advice its reader cannot act on. Sharing one code
+    // meant sharing one sentence, and the sentence that fits both says neither.
+    test('and says both in either language, not only in the English message', async () => {
+        const dto = await preview('MONTHLY', [YEARLY_BOOKING]);
+        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
+
+        assert.equal(
+            resolveErrorMessage(blocker, {}, ERROR_MESSAGES_EN),
+            'A yearly bundle is booked until 2027-01-01. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.',
+        );
+        assert.equal(
+            resolveErrorMessage(blocker, {}, ERROR_MESSAGES_DE),
+            'Ein jährlich abgerechnetes Bundle ist bis 2027-01-01 gebucht. Ein monatlich abgerechnetes Paket kann es nicht tragen — kündigen Sie das Bundle zuerst, oder behalten Sie den jährlichen Rhythmus.',
+        );
+    });
+
+    // The cycle words are part of each locale's sentence rather than values
+    // filled into it, because the direction is determined — `bundleCycleFitsPlan`
+    // refuses only a yearly bundle beside a monthly plan. A German template
+    // interpolating them would read "Ein monthly Paket".
+    test('the German sentence carries no English cycle word', async () => {
+        const dto = await preview('MONTHLY', [YEARLY_BOOKING]);
+        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
+        const german = resolveErrorMessage(blocker, {}, ERROR_MESSAGES_DE);
+
+        for (const word of ['monthly', 'yearly', 'MONTHLY', 'YEARLY']) {
+            assert.ok(!german.includes(word), `"${word}" leaked into: ${german}`);
+        }
+        // The values still travel, as data rather than as prose.
+        assert.equal(blocker.params.billingCycle, 'yearly');
+        assert.equal(blocker.params.planCycle, 'monthly');
     });
 
     test('staying on the yearly cycle is not blocked', async () => {
@@ -189,7 +230,7 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
                 minimumTermEndsAt: new Date('2026-12-01'),
             },
         ]);
-        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_CYCLE_EXCEEDS_PLAN');
+        const blocker = dto.blockers.find((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE');
         assert.match(blocker.message, /2026-12-01/);
     });
 });

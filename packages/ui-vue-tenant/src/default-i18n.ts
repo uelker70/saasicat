@@ -4,6 +4,7 @@
 // picked from the active SuperAdmin locale via
 // `defaultTenantPlanSectionI18n()`.
 
+import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN } from '@saasicat/core';
 import type { SaLocale } from '@saasicat/ui-vue';
 
 export interface TenantPlanSectionI18n {
@@ -195,6 +196,18 @@ export interface TenantPlanSectionI18n {
     myBundlesBundleVersionIdPlaceholder: string;
     myBundlesMinimumTermLabel: string;
     myBundlesMinimumTermPlaceholder: string;
+    /**
+     * Texts for the coded blockers and warnings a plan-change preview returns,
+     * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
+     * own so that an app translating this map translates its blockers in the
+     * same breath: labels and blockers can no longer come from two different
+     * languages, because they come from one object.
+     *
+     * A partial map is enough — `resolveErrorMessage` falls back through the
+     * shipped English catalogue to the `message` the backend sent, so an
+     * untranslated code renders English prose rather than a blank line.
+     */
+    issueMessages: Partial<Record<string, string>>;
 }
 
 /** German default strings — apps can override them selectively. */
@@ -391,6 +404,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     myBundlesBundleVersionIdPlaceholder: 'UUID der gewünschten Bundle-Version',
     myBundlesMinimumTermLabel: 'Mindestlaufzeit (Monate, optional)',
     myBundlesMinimumTermPlaceholder: 'Default: 12',
+    issueMessages: ERROR_MESSAGES_DE,
 };
 
 /** English default strings — mirror of {@link DEFAULT_I18N_DE}. */
@@ -586,6 +600,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     myBundlesBundleVersionIdPlaceholder: 'UUID of the desired bundle version',
     myBundlesMinimumTermLabel: 'Minimum term (months, optional)',
     myBundlesMinimumTermPlaceholder: 'Default: 12',
+    issueMessages: ERROR_MESSAGES_EN,
 };
 
 /** Default map for the given UI locale — fallback layer under the `i18n` prop. */
@@ -658,6 +673,8 @@ export interface PlanChangeWizardI18n {
     changeTypeDowngrade: string;
     changeTypeCycle: string;
     changeTypeNoop: string;
+    /** See `TenantPlanSectionI18n.issueMessages`. */
+    issueMessages: Partial<Record<string, string>>;
 }
 
 /**
@@ -727,5 +744,6 @@ export function planChangeWizardI18n(i18n: TenantPlanSectionI18n): PlanChangeWiz
         changeTypeDowngrade: i18n.wizardChangeTypeDowngrade,
         changeTypeCycle: i18n.wizardChangeTypeCycle,
         changeTypeNoop: i18n.wizardChangeTypeNoop,
+        issueMessages: i18n.issueMessages,
     };
 }

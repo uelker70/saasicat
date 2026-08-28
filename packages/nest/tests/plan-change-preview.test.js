@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PlanChangePreviewService } from '../dist/billing/index.js';
+import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
 
 const CATALOG = {
     schemaVersion: 1,
@@ -120,12 +121,26 @@ test('preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage
     assert.equal(dto.isImmediate, false);
     assert.equal(dto.featuresLost.length, 1);
     assert.equal(dto.featuresLost[0], 'WHATSAPP');
-    const usersBlocker = dto.blockers.find((b) => b.code === 'USERS_OVER_TARGET');
+    // The code is fixed now and the quota travels in `params`. It used to be
+    // built from the key — `USERS_OVER_TARGET` — which made the set grow with
+    // every quota an installation defines, so no catalogue could be complete
+    // against it and no guard could check one.
+    const usersBlocker = dto.blockers.find(
+        (b) => b.code === 'QUOTA_OVER_TARGET' && b.params?.quotaKey === 'users',
+    );
     assert.ok(usersBlocker);
     assert.ok(
         usersBlocker.message.includes('reduce usage'),
         'blocker message asks for usage reduction',
     );
+    // Every value the sentence names is beside it, so a client can rebuild it
+    // in another language without parsing the English.
+    assert.deepEqual(Object.keys(usersBlocker.params).sort(), [
+        'planName',
+        'quotaKey',
+        'targetMax',
+        'used',
+    ]);
     assert.deepEqual(dto.featuresGained, []);
 });
 
@@ -138,7 +153,42 @@ test('preview blocks ENTERPRISE as a self-service target', async () => {
         { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] },
     );
     const dto = await svc.preview('t1', 'ENTERPRISE', 'MONTHLY', new Date('2026-05-15'));
-    assert.ok(dto.blockers.some((b) => b.code === 'ENTERPRISE_NOT_SELF_SERVICE'));
+    assert.ok(
+        dto.blockers.some(
+            (b) => b.code === 'PLAN_NOT_SELF_SERVICE' && b.params?.planKey === 'ENTERPRISE',
+        ),
+    );
+});
+
+// A blocker is read by a tenant, and `ENTERPRISE` is a key an installation
+// chose — it names nothing the reader has ever seen. The catalogue plan does
+// have a name, and the template asks for it.
+//
+// Asserted as whole sentences, in both shipped languages: a substring check
+// would hold just as well if the rest of the sentence disappeared, and this
+// blocker lost the reason and the instruction once already, when the code it
+// shares with the booking route began to displace its `message`.
+test('the self-service refusal names the plan and says what to do about it', async () => {
+    const svc = new PlanChangePreviewService(
+        CATALOG,
+        buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
+        buildSubPort(),
+        { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.1 }) },
+        { asTarget: ['ENTERPRISE'], asSource: [] },
+    );
+    const dto = await svc.preview('t1', 'ENTERPRISE', 'MONTHLY', new Date('2026-05-15'));
+    const blocker = dto.blockers.find((b) => b.code === 'PLAN_NOT_SELF_SERVICE');
+
+    assert.equal(
+        resolveErrorMessage(blocker, {}, ERROR_MESSAGES_EN),
+        'Enterprise is only activated via a special contract. Please contact the contract manager.',
+    );
+    assert.equal(
+        resolveErrorMessage(blocker, {}, ERROR_MESSAGES_DE),
+        'Enterprise wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.',
+    );
+    // The catalogue name, not the key it is spelled from.
+    assert.equal(blocker.params.planName, 'Enterprise');
 });
 
 test('preview NOOP when plan and cycle are identical', async () => {

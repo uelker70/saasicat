@@ -134,7 +134,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wende dich an die Vertragsverwaltung.",
     BUNDLE_CYCLE_EXCEEDS_PLAN:
-        'Ein {billingCycle} abgerechnetes Bundle passt nicht zu einem {planCycle} abgerechneten Plan: es wäre an jedem Tag gebunden, an dem der Plan enden kann.',
+        'Ein jährlich abgerechnetes Bundle passt nicht zu einem monatlich abgerechneten Plan: es wäre an jedem Tag gebunden, an dem der Plan enden kann.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
         'Für dieses Bundle ist im Plan {planKey} kein {billingCycle} Preis hinterlegt, es kann hier deshalb nicht gebucht werden.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
@@ -150,8 +150,26 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     NO_ACTIVE_PLAN_VERSION:
         'Zum {asOf} ist keine Planversion für {planId} aktiv — weder ist das validFrom-Fenster erfüllt, noch steht eine jüngste Live-Version bereit.',
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" steht nicht im Katalog',
-    PLAN_NOT_SELF_SERVICE: '{planKey} wird nicht per Self-Service freigeschaltet.',
+    PLAN_NOT_SELF_SERVICE:
+        '{planName} wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.',
     PLAN_CHANGE_BLOCKED: 'Während des Onboardings ist ein Planwechsel gesperrt.',
+    SUBSCRIPTION_ENDED:
+        'Dieses Abonnement ist beendet. Sein Paket kann nicht mehr gewechselt werden.',
+    PLAN_LOCKED:
+        'Aktiver Sondervertrag {planName} — für einen Paketwechsel wenden Sie sich bitte an die Vertragsverwaltung.',
+    QUOTA_OVER_TARGET:
+        'Aktuelle Nutzung {used} überschreitet das Ziel-Limit {targetMax} ({quotaKey}) im Paket {planName}. Bitte zuerst die Nutzung reduzieren.',
+    FEATURE_LOST:
+        'Beim Wechsel verlieren Sie den Zugriff auf eine Funktion. Vorhandene Daten bleiben erhalten und werden nie gelöscht — ein späteres Upgrade schaltet sie wieder frei.',
+    FEATURES_LOST:
+        'Beim Wechsel verlieren Sie den Zugriff auf {count} Funktionen. Vorhandene Daten bleiben erhalten und werden nie gelöscht — ein späteres Upgrade schaltet sie wieder frei.',
+    NO_CHANGE: 'Zielpaket und Abrechnungsrhythmus entsprechen bereits dem aktuellen Stand.',
+    CANCELLATION_LOCKS_THE_CYCLE:
+        'Dieses Abonnement ist gekündigt, sein Abrechnungsrhythmus kann daher nicht wechseln. Das Paket schon — behalten Sie den aktuellen Rhythmus, um es heute zu wechseln.',
+    CYCLE_SHORTENS_AT_TERM_END:
+        'Ein monatlich abgerechnetes {planName} kann nicht innerhalb der laufenden Jahreslaufzeit beginnen. Das Upgrade greift zum Ende dieser Laufzeit; wer es sofort möchte, behält den jährlichen Rhythmus.',
+    BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
+        'Ein jährlich abgerechnetes Bundle ist bis {until} gebucht. Ein monatlich abgerechnetes Paket kann es nicht tragen — kündigen Sie das Bundle zuerst, oder behalten Sie den jährlichen Rhythmus.',
     NO_PENDING_PLAN_VERSION: 'Es wartet keine Planversion auf eine Bestätigung.',
     ONBOARDING_CREATE_FAILED:
         'Das Konto konnte nicht angelegt werden. Bitte versuche es noch einmal.',

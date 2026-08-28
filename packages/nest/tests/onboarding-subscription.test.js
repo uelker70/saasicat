@@ -252,14 +252,27 @@ test('onboarding throws ForbiddenException for blocked self-service plans', asyn
         blockedPlans: { asTarget: ['ENTERPRISE'], asSource: [] },
     });
 
-    await assert.rejects(
-        () =>
-            ctrl.completeOnboardingSubscription(
-                { user: { tenantId: 't1', sub: 'u1' } },
-                { plan: 'ENTERPRISE', billingCycle: 'YEARLY' },
-            ),
-        /ENTERPRISE is not activated via self-service/,
+    const err = await ctrl
+        .completeOnboardingSubscription(
+            { user: { tenantId: 't1', sub: 'u1' } },
+            { plan: 'ENTERPRISE', billingCycle: 'YEARLY' },
+        )
+        .then(
+            () => null,
+            (e) => e,
+        );
+    assert.ok(err, 'expected the blocked plan to be refused');
+
+    // The refusal says what the shipped catalogue says, and carries the value
+    // that catalogue names. Without `planName` the template renders the brace.
+    const body = err.getResponse();
+    assert.equal(body.code, 'PLAN_NOT_SELF_SERVICE');
+    assert.equal(
+        body.message,
+        'ENTERPRISE is only activated via a special contract. Please contact the contract manager.',
     );
+    assert.equal(body.params.planName, 'ENTERPRISE');
+    assert.equal(body.params.planKey, 'ENTERPRISE');
 });
 
 test('onboarding throws BadRequestException when plan-change blockers are active', async () => {

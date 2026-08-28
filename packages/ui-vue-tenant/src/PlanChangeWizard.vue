@@ -142,13 +142,17 @@
                     <div v-if="preview.blockers.length > 0" class="sp-wizard__blockers">
                         <h4>{{ i18n.blockersTitle }}</h4>
                         <ul>
-                            <li v-for="b in preview.blockers" :key="b.code">{{ b.message }}</li>
+                            <li v-for="(b, i) in preview.blockers" :key="issueKey(b, i)">
+                                {{ issueText(b) }}
+                            </li>
                         </ul>
                     </div>
 
                     <div v-if="preview.warnings.length > 0" class="sp-wizard__warnings">
                         <ul>
-                            <li v-for="w in preview.warnings" :key="w.code">{{ w.message }}</li>
+                            <li v-for="(w, i) in preview.warnings" :key="issueKey(w, i)">
+                                {{ issueText(w) }}
+                            </li>
                         </ul>
                     </div>
                 </template>
@@ -291,8 +295,13 @@ import PlanGrid from './plan/PlanGrid.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
+import { resolveErrorMessage } from '@saasicat/core';
 import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
-import type { BillingCycleStr, PlanChangePreviewShape } from '@saasicat/ui-vue';
+import type {
+    BillingCycleStr,
+    PlanChangePreviewIssueShape,
+    PlanChangePreviewShape,
+} from '@saasicat/ui-vue';
 import type { CatalogPlan } from '@saasicat/ui-vue';
 import type { PlanChangeWizardI18n } from './default-i18n.js';
 
@@ -693,6 +702,35 @@ watch(
         }
     },
 );
+
+// A code alone is no longer a key. Since several quotas each raise their own
+// `QUOTA_OVER_TARGET` blocker, two entries would share one key — and Vue may
+// then reuse the wrong `<li>` on the next preview, showing one quota's
+// explanation under another quota's name.
+function issueKey(issue: PlanChangePreviewIssueShape, index: number): string {
+    return `${issue.code}:${index}`;
+}
+
+// An issue is text a person reads, so it goes through the same ladder as every
+// other coded failure: the app's catalogue, then the shipped English one, then
+// the English `message` the backend sent. Until 1.0.0-rc.8 these two lists
+// rendered `message` directly, so a tenant read them in English whatever
+// language they had chosen — the values were baked into the sentence and no
+// client could rebuild it. They travel in `params` now.
+//
+// The catalogue comes from `i18n`, which is where every other string in this
+// component comes from, rather than from a `locale === 'de'` branch here. That
+// branch knew only the two languages the platform ships: an app that adds one
+// through `additionalLocales`, or hands over its own `i18n` map, got its own
+// wording for the controls and German or English for the blocker underneath
+// them, with nowhere to say otherwise. Now both come out of one object, so
+// they cannot disagree.
+function issueText(issue: PlanChangePreviewIssueShape): string {
+    return resolveErrorMessage(
+        { code: issue.code, message: issue.message, params: issue.params },
+        props.i18n.issueMessages,
+    );
+}
 </script>
 
 <style scoped>
@@ -862,7 +900,7 @@ watch(
     margin: var(--sa-space-4) 0;
     padding: var(--sa-space-4);
     border: 1px solid var(--sa-color-warning-border);
-    border-radius: var(--sa-radius-md);
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-warning-surface);
 }
 .sp-wizard__deferred-lead {

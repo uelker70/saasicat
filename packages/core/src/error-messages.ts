@@ -136,7 +136,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.",
     BUNDLE_CYCLE_EXCEEDS_PLAN:
-        'A {billingCycle} bundle cannot run beside a {planCycle} plan: it would still be committed on every day the plan could end.',
+        'A yearly bundle cannot run beside a monthly plan: it would still be committed on every day the plan could end.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
         'This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
@@ -152,8 +152,25 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     NO_ACTIVE_PLAN_VERSION:
         'No plan version for {planId} active as of {asOf} — neither the validFrom window is satisfied nor is a latest-live version available.',
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" is not in the catalog',
-    PLAN_NOT_SELF_SERVICE: '{planKey} is not activated via self-service.',
+    PLAN_NOT_SELF_SERVICE:
+        '{planName} is only activated via a special contract. Please contact the contract manager.',
     PLAN_CHANGE_BLOCKED: 'Plan change during onboarding is blocked.',
+    SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
+    PLAN_LOCKED:
+        'Active {planName} special contract — please contact the contract manager to change plans.',
+    QUOTA_OVER_TARGET:
+        'Current usage {used} exceeds the target limit {targetMax} ({quotaKey}) in the {planName} plan. Please reduce usage first.',
+    FEATURE_LOST:
+        'Switching means losing access to one feature. Existing data is retained and never deleted — upgrading again unlocks it.',
+    FEATURES_LOST:
+        'Switching means losing access to {count} features. Existing data is retained and never deleted — upgrading again unlocks it.',
+    NO_CHANGE: 'Target plan and billing cycle already match the current state.',
+    CANCELLATION_LOCKS_THE_CYCLE:
+        'This subscription is cancelled, so its billing cycle cannot change. The plan can — keep the current cycle to change it today.',
+    CYCLE_SHORTENS_AT_TERM_END:
+        'A monthly {planName} cannot start inside the yearly term you are in. The upgrade takes effect when that term ends; to have it today, keep the yearly cycle.',
+    BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
+        'A yearly bundle is booked until {until}. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.',
     NO_PENDING_PLAN_VERSION: 'There is no pending plan version awaiting confirmation.',
     ONBOARDING_CREATE_FAILED: 'The account could not be created. Please try again.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:
@@ -244,6 +261,23 @@ export function formatErrorMessage(template: string, params: ErrorMessageParams 
 }
 
 /**
+ * An error body this function can read.
+ *
+ * `code` is widened past `PlatformErrorCode` on purpose. The function checks
+ * `typeof body.code === 'string'` and resolves whatever it finds, and the
+ * `overrides` parameter exists so a consumer can bring its own codes — one
+ * consumer carries 98 of them against the platform's 135, overlapping in five.
+ * A closed union here would reject exactly the case the parameter is for, and
+ * the cast that works around it is one a reader has to be told is deliberate.
+ *
+ * `PlatformErrorBody` stays closed: a body the *platform* produces really does
+ * carry a platform code. It is the reader that has to accept more. The same
+ * shape appears in `SaLocale` next door, for the same reason.
+ */
+export type ResolvableErrorBody = Omit<Partial<PlatformErrorBody>, 'code'> &
+    Record<string, unknown> & { code?: PlatformErrorCode | (string & {}) };
+
+/**
  * Turns an error body into display text.
  *
  * Falls back in this order: the consumer's own catalogue, the shipped default,
@@ -257,7 +291,7 @@ export function formatErrorMessage(template: string, params: ErrorMessageParams 
  * the wire.
  */
 export function resolveErrorMessage(
-    body: Partial<PlatformErrorBody> & Record<string, unknown>,
+    body: ResolvableErrorBody,
     overrides: Partial<Record<string, string>> = {},
     defaults: Partial<Record<string, string>> = ERROR_MESSAGES_EN,
 ): string {

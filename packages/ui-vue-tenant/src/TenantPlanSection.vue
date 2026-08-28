@@ -886,7 +886,7 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY') {
 .sp-plan-section__warn {
     margin: 0 0 var(--sa-space-3);
     padding: var(--sa-space-3);
-    border-radius: var(--sa-radius-md);
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     font-size: var(--sa-text-sm);
