@@ -82,13 +82,17 @@ than three days in.
 
 _Source:_ `docs/guides/self-registration.md`
 
-### SC-SCOPE-007 — The backend is a NestJS application
+### SC-SCOPE-007 — The platform is a NestJS application, and a foreign backend mounts it
 
-A developer whose backend is built on another Node framework cannot adopt SaaSiCat without moving
-frameworks first. That is a known limitation of who the product is for today, recorded as an open
-question rather than an oversight.
+The modules SaaSiCat ships are NestJS modules, so an installation runs one whether or not its own
+backend is built that way. A developer on another Node framework does not have to move frameworks:
+they run the platform standalone and mount it behind what they already have, which is what the
+guide on doing so describes and recommends.
 
-_Source:_ #175
+What is not offered is a version of the platform without NestJS underneath. Whether that should
+exist is an open question, not an oversight.
+
+_Source:_ #175 · [Mounting behind Express](guides/mount-behind-express.md)
 
 ### SC-SCOPE-008 — Anything may be built on SaaSiCat except a competitor to it
 
@@ -237,8 +241,8 @@ _Source:_ `docs/reference/error-codes.md`
 
 A plan is the thing a customer chooses; a version of it is the offer they actually bought. Almost
 every requirement here exists to protect one promise: what a customer was sold does not change
-underneath them. That is why published versions are frozen, why a version somebody is bound to
-cannot be edited, and why nothing published is ever deleted.
+underneath them. That is why a published version freezes once it applies, why a version somebody is
+bound to cannot be edited, and why nothing published is ever deleted.
 
 ### SC-PLAN-001 — A plan is an identity; a version carries what it costs and includes
 
@@ -261,10 +265,12 @@ which two versions of one plan are both current and a purchase could land on eit
 
 _Source:_ `docs/explanation/data-model.md`
 
-### SC-PLAN-004 — A published version is never rewritten and never deleted
+### SC-PLAN-004 — A published version is never deleted
 
 A customer bound to a retired version keeps being served and billed by it. That is the whole
-reason versions exist, and it is why removing one is not an option even when it is old.
+reason versions exist, and it is why removing one is not an option even when it is old. Discarding
+is refused the moment a version is published — unlike rewriting it, which SC-PLAN-005 leaves open
+in one narrow case.
 
 _Source:_ `docs/explanation/data-model.md`
 
@@ -284,10 +290,12 @@ _Source:_ `docs/reference/error-codes.md`
 
 ### SC-PLAN-007 — Publishing says what changed
 
-A version is published with a note describing the change, and an empty note is refused. It is what
-an operator reads a year later when a customer asks why their price moved.
+A version is published with a note describing the change, and an empty note is refused, because the
+note is what an operator reads a year later when a customer asks why their price moved. Today the
+note is optional in the publish interface and a version carrying none publishes.
+_(Decided, not yet delivered.)_
 
-_Source:_ `docs/reference/error-codes.md`
+_Source:_ current practice
 
 ### SC-PLAN-008 — A price of exactly zero has to be meant
 
@@ -298,8 +306,9 @@ _Source:_ `docs/reference/error-codes.md`
 
 ### SC-PLAN-009 — Publishing something that takes away has to be confirmed
 
-A version that removes a feature, lowers a limit or raises a price is a change existing customers
-feel. It publishes only on an explicit confirmation, so it is never the outcome of a mis-click.
+A version that removes a feature, raises a price or lowers one of the three quotas SC-PLAN-025
+names is a change existing customers feel. It publishes only on an explicit confirmation, so it is
+never the outcome of a mis-click.
 
 _Source:_ `docs/reference/error-codes.md`
 
@@ -309,6 +318,15 @@ A version that improves nine things and lowers one is treated as a change custom
 one of them will.
 
 _Source:_ `docs/reference/error-codes.md`
+
+### SC-PLAN-025 — Every quota a version carries counts as a limit that can be lowered
+
+A plan version is compared on `users`, `vehicles` and `storageGb` alone, so a quota an installation
+defines for itself — NotesApp's `notesMax`, for instance — can be lowered and published without the
+confirmation SC-PLAN-009 asks for. Add-on versions are already compared on every quota they carry.
+_(Decided, not yet delivered.)_
+
+_Source:_ current practice
 
 ### SC-PLAN-011 — A published version says which day it applies from
 
@@ -2301,11 +2319,17 @@ is remembered and outranks whatever the installation configured.
 
 _Source:_ #45 · #47 · release 0.16.0
 
-### SC-LANG-002 — English is what an installation gets unless it says otherwise
+### SC-LANG-002 — The admin interface falls back to English, the backend to German
 
-It is also what dates and amounts are formatted by when nothing else is named.
+Two answers to one question, and knowing which applies where matters: the shipped interface uses
+English when nothing else is named, while several backend routes — registration and the public
+price list among them — default to German. An installation that names its language everywhere
+never meets the difference; one that relies on the default meets it as a screen in two languages.
 
-_Source:_ `docs/guides/upgrade-to-1.0.md`
+_(Documented as it stands. One default for both belongs in a breaking change, because moving
+either of them changes what an existing installation renders.)_
+
+_Source:_ `docs/guides/upgrade-to-1.0.md` · current practice
 
 ### SC-LANG-003 — Which languages an application offers is the application's decision
 

@@ -30,7 +30,7 @@ A developer making their own software SaaS-capable can read one complete applica
 how each part of the integration is done, instead of assembling the answer from separate
 chapters. Whatever the example shows is what strangers will build.
 
-_Source:_ `CLAUDE.md`
+_Source:_ `README.md`
 
 ### NAP-ROLE-002 — Reading the example is a full alternative to reading the documentation
 
@@ -405,7 +405,7 @@ _Source:_ internal engineering guidelines
 Code, comments, messages, configuration and prose are in one language, because the audience is
 an international developer community rather than the team that wrote it.
 
-_Source:_ `CLAUDE.md`
+_Source:_ #150
 
 ### NAP-CLARITY-003 — A statement in the example is part of what it teaches
 
@@ -504,7 +504,7 @@ pressure in a release.
 Anything an integrator copies — the data model, the wiring, the tooling, the guidance — is not
 done while the example still shows the previous shape of it.
 
-_Source:_ `CLAUDE.md`
+_Source:_ current practice
 
 ### NAP-CURRENT-002 — The example's data model never falls behind the shipped one
 
@@ -512,7 +512,7 @@ Of every part of the platform's data model the example has adopted, it carries t
 complete version. Leaving a part out entirely is a decision a reader can make too; carrying
 half of one is not.
 
-_Source:_ `CLAUDE.md`
+_Source:_ `.github/workflows/ci.yml`
 
 ### NAP-CURRENT-003 — A guided path and the example can never disagree
 
