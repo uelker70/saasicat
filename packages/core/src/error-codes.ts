@@ -159,6 +159,7 @@ export const BILLING_ERROR_CODES = {
     /** Current usage of one quota exceeds what the target plan allows. */
     QUOTA_OVER_TARGET: 'QUOTA_OVER_TARGET',
     /** The change drops features the tenant has today. */
+    FEATURE_LOST: 'FEATURE_LOST',
     FEATURES_LOST: 'FEATURES_LOST',
     /** Target plan and cycle already match what is in place. */
     NO_CHANGE: 'NO_CHANGE',

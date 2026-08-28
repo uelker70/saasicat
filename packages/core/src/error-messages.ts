@@ -136,7 +136,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.",
     BUNDLE_CYCLE_EXCEEDS_PLAN:
-        'A {billingCycle} bundle cannot run beside a {planCycle} plan: it would still be committed on every day the plan could end.',
+        'A yearly bundle cannot run beside a monthly plan: it would still be committed on every day the plan could end.',
     BUNDLE_NOT_PRICED_FOR_THIS_PLAN:
         'This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.',
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
@@ -159,13 +159,15 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'Active {planName} special contract — please contact the contract manager to change plans.',
     QUOTA_OVER_TARGET:
         'Current usage {used} exceeds the target limit {targetMax} ({quotaKey}) in the {planName} plan. Please reduce usage first.',
+    FEATURE_LOST:
+        'Switching means losing access to one feature. Existing data is retained and never deleted — upgrading again unlocks it.',
     FEATURES_LOST:
         'Switching means losing access to {count} features. Existing data is retained and never deleted — upgrading again unlocks it.',
     NO_CHANGE: 'Target plan and billing cycle already match the current state.',
     CANCELLATION_LOCKS_THE_CYCLE:
-        'This subscription is cancelled, so its billing cycle cannot change. Reactivate it first, or let it end.',
+        'This subscription is cancelled, so its billing cycle cannot change. The plan can — keep the current cycle to change it today.',
     CYCLE_SHORTENS_AT_TERM_END:
-        'A {targetCycle} {planName} cannot start inside the {currentCycle} term you are in. The upgrade takes effect when that term ends; to have it today, keep the {currentCycle} cycle.',
+        'A monthly {planName} cannot start inside the yearly term you are in. The upgrade takes effect when that term ends; to have it today, keep the yearly cycle.',
     NO_PENDING_PLAN_VERSION: 'There is no pending plan version awaiting confirmation.',
     ONBOARDING_CREATE_FAILED: 'The account could not be created. Please try again.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:

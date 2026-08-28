@@ -364,8 +364,16 @@ export class PlanChangePreviewService {
         }
 
         if (featuresLost.length > 0) {
+            // Zwei Codes statt einer Zahl im Satz. Der Katalog interpoliert, er
+            // beugt nicht — „1 features" auf Englisch und „1 Funktionen" auf
+            // Deutsch sind das Ergebnis, wenn eine Sprache eine Zahl in einen
+            // Plural einsetzt, den sie nicht gebildet hat. Welche Sprache wie
+            // beugt, weiß nur ihr eigener Eintrag.
             warnings.push({
-                code: BILLING_ERROR_CODES.FEATURES_LOST,
+                code:
+                    featuresLost.length === 1
+                        ? BILLING_ERROR_CODES.FEATURE_LOST
+                        : BILLING_ERROR_CODES.FEATURES_LOST,
                 message: `Switching means losing access to ${featuresLost.length} feature${featuresLost.length === 1 ? '' : 's'}. Existing data is retained and never deleted — upgrading again unlocks it.`,
                 params: { count: featuresLost.length },
             });

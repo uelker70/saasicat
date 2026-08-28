@@ -142,13 +142,17 @@
                     <div v-if="preview.blockers.length > 0" class="sp-wizard__blockers">
                         <h4>{{ i18n.blockersTitle }}</h4>
                         <ul>
-                            <li v-for="b in preview.blockers" :key="b.code">{{ issueText(b) }}</li>
+                            <li v-for="(b, i) in preview.blockers" :key="issueKey(b, i)">
+                                {{ issueText(b) }}
+                            </li>
                         </ul>
                     </div>
 
                     <div v-if="preview.warnings.length > 0" class="sp-wizard__warnings">
                         <ul>
-                            <li v-for="w in preview.warnings" :key="w.code">{{ issueText(w) }}</li>
+                            <li v-for="(w, i) in preview.warnings" :key="issueKey(w, i)">
+                                {{ issueText(w) }}
+                            </li>
                         </ul>
                     </div>
                 </template>
@@ -705,6 +709,15 @@ watch(
 // two lists rendered `message` directly, so a tenant read them in English
 // whatever language they had chosen — the values were baked into the sentence
 // and no client could rebuild it. They travel in `params` now.
+// Ein Code allein ist kein Schlüssel mehr. Seit mehrere Quotas je einen eigenen
+// Blocker unter `QUOTA_OVER_TARGET` erzeugen, kämen zwei Einträge mit demselben
+// Schlüssel vor — Vue verwendet dann beim nächsten Laden der Vorschau
+// möglicherweise das falsche `<li>` wieder, und der Leser sieht eine
+// Erklärung, die zu einer anderen Quota gehört.
+function issueKey(issue: PlanChangePreviewIssueShape, index: number): string {
+    return `${issue.code}:${index}`;
+}
+
 function issueText(issue: PlanChangePreviewIssueShape): string {
     const catalogue = locale.value === 'de' ? ERROR_MESSAGES_DE : ERROR_MESSAGES_EN;
     return resolveErrorMessage(
