@@ -137,6 +137,7 @@ import { useQuasar } from 'quasar';
 import FeatureGate from '@saasicat/ui-vue/ui/entitlement/FeatureGate.vue';
 import { useInjectedEntitlement } from '@saasicat/ui-vue';
 import { FEATURE_NOTES_EXPORT, QUOTA_NOTES_MAX } from '../labels';
+import { errorText } from '../services/platform-errors';
 import {
     QuotaExceededError,
     createNote,
@@ -230,8 +231,10 @@ function formatDate(iso: string): string {
     return new Date(iso).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+// A coded platform error becomes text in the reader's language; anything else
+// keeps its own message. The ladder lives in `services/platform-errors.ts`.
 function messageOf(err: unknown): string {
-    return err instanceof Error ? err.message : String(err);
+    return errorText(err);
 }
 
 onMounted(refresh);

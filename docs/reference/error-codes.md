@@ -7,6 +7,25 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
+It falls back in four steps, and the order is the point: your catalogue,
+the shipped one for the active locale, the English `message` the backend
+sent, and only then the bare code. The third step is why `message` stays on
+the wire — a code you have not translated yet shows English prose, never an
+empty line. For a blocker that matters: an empty one leaves someone with a
+disabled button and no reason.
+
+```ts
+import { ERROR_MESSAGES_DE, resolveErrorMessage } from '@saasicat/core';
+
+// `body` is the JSON the platform returned; `OWN_MESSAGES` is yours.
+resolveErrorMessage(body, OWN_MESSAGES, ERROR_MESSAGES_DE);
+```
+
+Put that in one place rather than at each `catch`:
+[`examples/notesapp/web/src/services/platform-errors.ts`](../../examples/notesapp/web/src/services/platform-errors.ts)
+is the whole seam, and the two call sites next to it show what a component
+then asks for — text, not a body to take apart.
+
 Generated from `@saasicat/core` — 136 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 

@@ -7,6 +7,7 @@
 
 import axios from 'axios';
 import { api } from './http';
+import { errorText } from './platform-errors';
 
 export interface Note {
     id: string;
@@ -58,11 +59,9 @@ export async function createNote(input: CreateNoteInput): Promise<Note> {
     } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 402) {
             const body = (err.response.data ?? {}) as LimitExceededBody;
-            throw new QuotaExceededError(
-                body.used ?? 0,
-                body.max ?? 0,
-                body.message ?? 'Note quota reached.',
-            );
+            // The text comes from the catalogue, not from the wire: `message`
+            // is the platform's English and only the last rung of the ladder.
+            throw new QuotaExceededError(body.used ?? 0, body.max ?? 0, errorText(err));
         }
         throw err;
     }
