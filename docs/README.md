@@ -15,6 +15,13 @@ In a hurry: the [quickstart](quickstart.md) is the shortest path from an
 existing NestJS backend to a discovered, packaged and enforced feature — six
 actions, no explanation.
 
+Beside those four, and answering a different question again:
+[what the product does](requirements.md). Numbered requirements written from the
+side of the people it does it to — a tenant, an operator, a developer
+integrating it. Not a page to read through; a page to look a decision up in when
+the question is "is it supposed to work like that, and why". Each requirement
+carries a stable id, and where its reason is not obvious the reason is in it.
+
 ## Tutorial
 
 Four parts, each about twenty minutes, each ending in something you can check.
