@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/ui-vue-tenant",
-    "version": "1.0.0-rc.7",
+    "version": "1.0.0-rc.8",
     "description": "Vue 3 components for the tenant-facing side of SaaSiCat: the plan section, the plan-change wizard, the onboarding configurator and the bundle store. Rendered inside the customer's own application, under the customer's branding and in the customer's language — with Vue and CSS custom properties, and no UI framework.",
     "type": "module",
     "exports": {
