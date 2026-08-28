@@ -295,7 +295,7 @@ import PlanGrid from './plan/PlanGrid.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
-import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
+import { resolveErrorMessage } from '@saasicat/core';
 import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
 import type {
     BillingCycleStr,
@@ -356,7 +356,7 @@ const emit = defineEmits<{
     submitted: [];
 }>();
 
-const { intlLocale, locale } = useSuperAdminI18n();
+const { intlLocale } = useSuperAdminI18n();
 
 const model = computed({
     get: () => props.modelValue,
@@ -703,27 +703,32 @@ watch(
     },
 );
 
-// An issue is text a person reads, so it goes through the same ladder as every
-// other coded failure: the consumer's catalogue, the shipped one for the active
-// locale, then the English `message` the backend sent. Until 1.0.0-rc.8 these
-// two lists rendered `message` directly, so a tenant read them in English
-// whatever language they had chosen — the values were baked into the sentence
-// and no client could rebuild it. They travel in `params` now.
-// Ein Code allein ist kein Schlüssel mehr. Seit mehrere Quotas je einen eigenen
-// Blocker unter `QUOTA_OVER_TARGET` erzeugen, kämen zwei Einträge mit demselben
-// Schlüssel vor — Vue verwendet dann beim nächsten Laden der Vorschau
-// möglicherweise das falsche `<li>` wieder, und der Leser sieht eine
-// Erklärung, die zu einer anderen Quota gehört.
+// A code alone is no longer a key. Since several quotas each raise their own
+// `QUOTA_OVER_TARGET` blocker, two entries would share one key — and Vue may
+// then reuse the wrong `<li>` on the next preview, showing one quota's
+// explanation under another quota's name.
 function issueKey(issue: PlanChangePreviewIssueShape, index: number): string {
     return `${issue.code}:${index}`;
 }
 
+// An issue is text a person reads, so it goes through the same ladder as every
+// other coded failure: the app's catalogue, then the shipped English one, then
+// the English `message` the backend sent. Until 1.0.0-rc.8 these two lists
+// rendered `message` directly, so a tenant read them in English whatever
+// language they had chosen — the values were baked into the sentence and no
+// client could rebuild it. They travel in `params` now.
+//
+// The catalogue comes from `i18n`, which is where every other string in this
+// component comes from, rather than from a `locale === 'de'` branch here. That
+// branch knew only the two languages the platform ships: an app that adds one
+// through `additionalLocales`, or hands over its own `i18n` map, got its own
+// wording for the controls and German or English for the blocker underneath
+// them, with nowhere to say otherwise. Now both come out of one object, so
+// they cannot disagree.
 function issueText(issue: PlanChangePreviewIssueShape): string {
-    const catalogue = locale.value === 'de' ? ERROR_MESSAGES_DE : ERROR_MESSAGES_EN;
     return resolveErrorMessage(
         { code: issue.code, message: issue.message, params: issue.params },
-        {},
-        catalogue,
+        props.i18n.issueMessages,
     );
 }
 </script>

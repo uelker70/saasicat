@@ -192,7 +192,7 @@ describe('the plan-change rule reaches the bookings in a real container', () => 
 
         const dto = await preview.preview('t1', 'PRO', 'MONTHLY', new Date('2026-06-15'));
         assert.ok(
-            dto.blockers.some((b) => b.code === 'BUNDLE_CYCLE_EXCEEDS_PLAN'),
+            dto.blockers.some((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE'),
             `the rule did not reach the bookings: ${JSON.stringify(dto.blockers)}`,
         );
         assert.ok(repo.askedAt.length > 0, 'the repository was never asked');
@@ -210,7 +210,7 @@ describe('the plan-change rule reaches the bookings in a real container', () => 
 
         const dto = await preview.preview('t1', 'PRO', 'MONTHLY', new Date('2026-06-15'));
         assert.deepEqual(
-            dto.blockers.filter((b) => b.code === 'BUNDLE_CYCLE_EXCEEDS_PLAN'),
+            dto.blockers.filter((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE'),
             [],
             'a booking that ends before the change lands must not block it',
         );
@@ -228,7 +228,7 @@ describe('the plan-change rule reaches the bookings in a real container', () => 
 
         const dto = await preview.preview('t1', 'PRO', 'MONTHLY', new Date('2026-06-15'));
         assert.deepEqual(
-            dto.blockers.filter((b) => b.code === 'BUNDLE_CYCLE_EXCEEDS_PLAN'),
+            dto.blockers.filter((b) => b.code === 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE'),
             [],
         );
         await moduleRef.close();

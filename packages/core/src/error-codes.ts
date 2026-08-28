@@ -167,6 +167,16 @@ export const BILLING_ERROR_CODES = {
     CYCLE_SHORTENS_AT_TERM_END: 'CYCLE_SHORTENS_AT_TERM_END',
     /** A cancelled subscription cannot change its billing cycle. */
     CANCELLATION_LOCKS_THE_CYCLE: 'CANCELLATION_LOCKS_THE_CYCLE',
+    /**
+     * A bundle the tenant already holds runs past the cycle they are moving to.
+     *
+     * Its own code rather than `BUNDLE_CYCLE_EXCEEDS_PLAN`, which states the
+     * same rule about a booking that has not been made yet. The two need
+     * different sentences: this one can name the day the obstacle lifts and
+     * tell the reader to cancel the booking, and that advice is wrong for
+     * someone who is only about to book. One template cannot serve both.
+     */
+    BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE: 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE',
     NO_PENDING_PLAN_VERSION: 'NO_PENDING_PLAN_VERSION',
     ONBOARDING_CREATE_FAILED: 'ONBOARDING_CREATE_FAILED',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS: 'BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS',

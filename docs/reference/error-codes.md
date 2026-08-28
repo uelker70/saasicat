@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 144 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 145 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -127,6 +127,7 @@ Subscriptions, plan changes, entitlements.
 | Code                                         | Shipped English text                                                                                                                                        |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BUNDLE_ALREADY_SUBSCRIBED`                  | Subscription '{subscriptionId}' has already actively booked this bundle.                                                                                    |
+| `BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE`       | A yearly bundle is booked until {until}. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.                                |
 | `BUNDLE_CYCLE_EXCEEDS_PLAN`                  | A yearly bundle cannot run beside a monthly plan: it would still be committed on every day the plan could end.                                              |
 | `BUNDLE_INCOMPATIBLE_WITH_PLAN`              | BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].                                                    |
 | `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`            | This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.                                                           |
@@ -145,7 +146,7 @@ Subscriptions, plan changes, entitlements.
 | `PLAN_CHANGE_BLOCKED`                        | Plan change during onboarding is blocked.                                                                                                                   |
 | `PLAN_LOCKED`                                | Active {planName} special contract — please contact the contract manager to change plans.                                                                   |
 | `PLAN_NOT_IN_CATALOG`                        | Plan "{planKey}" is not in the catalog                                                                                                                      |
-| `PLAN_NOT_SELF_SERVICE`                      | {planKey} is not activated via self-service.                                                                                                                |
+| `PLAN_NOT_SELF_SERVICE`                      | {planName} is only activated via a special contract. Please contact the contract manager.                                                                   |
 | `QUOTA_DIMENSION_UNKNOWN`                    | Unknown quota dimension "{dimension}".                                                                                                                      |
 | `QUOTA_OVER_TARGET`                          | Current usage {used} exceeds the target limit {targetMax} ({quotaKey}) in the {planName} plan. Please reduce usage first.                                   |
 | `SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED`      | SubscriptionBundle '{subscriptionBundleId}' is already cancelled.                                                                                           |

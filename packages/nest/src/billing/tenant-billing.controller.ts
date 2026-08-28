@@ -303,8 +303,18 @@ export class TenantBillingController {
         if (blockedTargets.includes(dto.plan)) {
             throw new ForbiddenException({
                 code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,
-                message: `${dto.plan} is not activated via self-service.`,
-                params: { planKey: dto.plan },
+                // Says what the shipped catalogue says, so an app that has not
+                // translated this code and one that has do not refuse in two
+                // different sentences.
+                message: `${dto.plan} is only activated via a special contract. Please contact the contract manager.`,
+                // `planName` is the key here, and that is the best label this
+                // check has: it decides before any catalogue is read, from
+                // nothing but the key the request sent. The plan-change
+                // preview does have a catalogue and passes the real name,
+                // which is the one a tenant recognises. Either way the
+                // template's `{planName}` resolves to a word rather than a
+                // brace — `error-params-contract.test.js` holds that.
+                params: { planName: dto.plan, planKey: dto.plan },
             });
         }
 
@@ -501,8 +511,9 @@ export class TenantBillingController {
         if (blockedTargets.includes(dto.plan)) {
             throw new ForbiddenException({
                 code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,
-                message: `${dto.plan} is not activated via self-service.`,
-                params: { planKey: dto.plan },
+                message: `${dto.plan} is only activated via a special contract. Please contact the contract manager.`,
+                // The key as the label — see the note on the plan-change route.
+                params: { planName: dto.plan, planKey: dto.plan },
             });
         }
 

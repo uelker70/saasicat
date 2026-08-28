@@ -364,11 +364,11 @@ export class PlanChangePreviewService {
         }
 
         if (featuresLost.length > 0) {
-            // Zwei Codes statt einer Zahl im Satz. Der Katalog interpoliert, er
-            // beugt nicht — „1 features" auf Englisch und „1 Funktionen" auf
-            // Deutsch sind das Ergebnis, wenn eine Sprache eine Zahl in einen
-            // Plural einsetzt, den sie nicht gebildet hat. Welche Sprache wie
-            // beugt, weiß nur ihr eigener Eintrag.
+            // Two codes rather than a number in the sentence. A template
+            // interpolates, it does not inflect: putting a count into a plural
+            // no language has formed yields "1 features" in English and
+            // "1 Funktionen" in German. Which language inflects how is known
+            // only to its own entry, so the singular gets an entry of its own.
             warnings.push({
                 code:
                     featuresLost.length === 1
@@ -423,12 +423,21 @@ export class PlanChangePreviewService {
         // to make.
         const changeLandsAt = effectiveAt ?? now;
         for (const booking of await this.bookingsOutlastingCycle(sub, targetCycle, changeLandsAt)) {
+            // Not `BUNDLE_CYCLE_EXCEEDS_PLAN`: that code states the same rule
+            // for a booking nobody has made yet, and its catalogue sentence
+            // says so. This one is about a booking the tenant already holds,
+            // so it can name the day the obstacle lifts and say to cancel it
+            // — advice that is wrong for someone who is only about to book.
+            //
+            // The two cycle words are baked into each locale's sentence rather
+            // than interpolated, because the direction is determined:
+            // `bundleCycleFitsPlan` refuses only a yearly bundle beside a
+            // monthly plan. They stay in `params` as data, not as prose.
             blockers.push({
-                code: BILLING_ERROR_CODES.BUNDLE_CYCLE_EXCEEDS_PLAN,
+                code: BILLING_ERROR_CODES.BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE,
                 message:
-                    `A yearly add-on is booked until ${booking.until}. A ` +
-                    `${targetCycle.toLowerCase()} plan cannot carry it — cancel the add-on ` +
-                    'first, or keep the yearly cycle.',
+                    `A yearly bundle is booked until ${booking.until}. A monthly plan ` +
+                    'cannot carry it — cancel the bundle first, or keep the yearly cycle.',
                 params: {
                     billingCycle: 'yearly',
                     planCycle: targetCycle.toLowerCase(),

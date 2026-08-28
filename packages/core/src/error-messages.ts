@@ -152,7 +152,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     NO_ACTIVE_PLAN_VERSION:
         'No plan version for {planId} active as of {asOf} — neither the validFrom window is satisfied nor is a latest-live version available.',
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" is not in the catalog',
-    PLAN_NOT_SELF_SERVICE: '{planKey} is not activated via self-service.',
+    PLAN_NOT_SELF_SERVICE:
+        '{planName} is only activated via a special contract. Please contact the contract manager.',
     PLAN_CHANGE_BLOCKED: 'Plan change during onboarding is blocked.',
     SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
     PLAN_LOCKED:
@@ -168,6 +169,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'This subscription is cancelled, so its billing cycle cannot change. The plan can — keep the current cycle to change it today.',
     CYCLE_SHORTENS_AT_TERM_END:
         'A monthly {planName} cannot start inside the yearly term you are in. The upgrade takes effect when that term ends; to have it today, keep the yearly cycle.',
+    BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
+        'A yearly bundle is booked until {until}. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.',
     NO_PENDING_PLAN_VERSION: 'There is no pending plan version awaiting confirmation.',
     ONBOARDING_CREATE_FAILED: 'The account could not be created. Please try again.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:
