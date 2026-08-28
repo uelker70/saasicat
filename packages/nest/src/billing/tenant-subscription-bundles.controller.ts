@@ -54,6 +54,7 @@ import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
 import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
+import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import {
     AddSubscriptionBundleDto,
@@ -77,10 +78,26 @@ interface RequestLike {
     user?: { tenantId?: string | null } | null;
 }
 
+// Auth stack, the same shape `tenant-billing.controller.ts` uses:
+//   - `ComposedTenantAuthGuard` (always): the consumer's own auth guards.
+//   - `TenantAdminGuard` (the three routes that cost money): additionally
+//     requires the TENANT_ADMIN/SUPER_ADMIN role.
+// Reads and previews stay open to every authenticated tenant user.
+//
+// Booking an add-on, cancelling one and reactivating one change what a tenant
+// pays. Until this was added the class carried `ComposedTenantAuthGuard` alone
+// and the factory's `extraGuards` defaulted to none, so an installation that
+// did not think to pass a role guard let every signed-in user of the tenant
+// buy and cancel add-ons — while the neighbouring controller named
+// `TenantAdminGuard` on seven routes for the same class of action. None of the
+// three applications built on this passed one.
+//
+// The guard sits on the routes rather than on the class so that a tenant can
+// still see and price what they have.
+
 /**
  * Factory analogous to `buildBundlesController` etc. — the consumer can pass
- * additional guards (e.g. RoleGuard) in addition to the platform default
- * `ComposedTenantAuthGuard`.
+ * additional guards (e.g. RoleGuard) in addition to the platform defaults.
  */
 export function buildTenantSubscriptionBundlesController(
     extraGuards: Array<Type<CanActivate>> = [],
@@ -137,6 +154,7 @@ export function buildTenantSubscriptionBundlesController(
         }
 
         @Post()
+        @UseGuards(TenantAdminGuard)
         async add(@Req() req: RequestLike, @Body() dto: AddSubscriptionBundleDto) {
             const tenantId = this.requireTenantId(req);
             const sub = await this.requireRunningSubscription(tenantId);
@@ -208,6 +226,7 @@ export function buildTenantSubscriptionBundlesController(
         }
 
         @Delete(':id')
+        @UseGuards(TenantAdminGuard)
         @HttpCode(HttpStatus.OK)
         async cancel(
             @Req() req: RequestLike,
@@ -229,6 +248,7 @@ export function buildTenantSubscriptionBundlesController(
         }
 
         @Post(':id/reactivate')
+        @UseGuards(TenantAdminGuard)
         @HttpCode(HttpStatus.OK)
         async reactivate(
             @Req() req: RequestLike,

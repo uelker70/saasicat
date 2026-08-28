@@ -8,11 +8,16 @@
 // localStorage session for its own token store — nothing else changes.
 //
 // The role is not optional here, and that was a defect for as long as this file
-// sent only the tenant. `TenantAdminGuard` protects the five cost-relevant
-// routes — plan preview, plan change, initial subscription, accepting a pending
-// version, cancelling — and reads `platformRole`. Without the header it is
-// `undefined`, so every one of them answered 403 `TENANT_ADMIN_REQUIRED` and the
-// whole "Change plan" flow was unreachable in this example.
+// sent only the tenant. `TenantAdminGuard` protects every route that changes
+// what a tenant pays — changing the plan, subscribing, accepting a pending
+// version, cancelling, and booking, cancelling or reactivating an add-on — and
+// reads `platformRole`. Without the header it is `undefined`, so every one of
+// them answers 403 `TENANT_ADMIN_REQUIRED` and the whole "Change plan" flow is
+// unreachable in this example.
+//
+// Deliberately without a count: the set grows, and a number here would be wrong
+// the first time it does. `tests/the-example-sends-the-role-its-guards-require.
+// test.js` reads the actual set from the controllers.
 //
 // `TENANT_ADMIN` rather than a picker: the person managing their own
 // subscription IS their tenant's admin. A real app takes this from the token.
