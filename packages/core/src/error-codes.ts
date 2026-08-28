@@ -139,6 +139,33 @@ export const BILLING_ERROR_CODES = {
     PLAN_NOT_SELF_SERVICE: 'PLAN_NOT_SELF_SERVICE',
     /** Plan change refused. Carries `blockers[]` with their own codes. */
     PLAN_CHANGE_BLOCKED: 'PLAN_CHANGE_BLOCKED',
+
+    // ── the plan-change preview's own blockers and warnings ──
+    //
+    // These travel inside a 200 response, in `blockers[]` and `warnings[]`, not
+    // as thrown errors — but they are read by a person and so belong in the same
+    // catalogue. Each carries `params` with the values its sentence names.
+    //
+    // Three of them used to construct their code from the subject:
+    // `VEHICLES_OVER_TARGET`, `ENTERPRISE_LOCKED`, `PRO_NOT_SELF_SERVICE`. That
+    // made the set grow with every quota and plan an installation defines, so no
+    // catalogue could be complete against it and no guard could check one. The
+    // subject is a parameter now.
+
+    /** The subscription has ended; its plan can no longer be changed. */
+    SUBSCRIPTION_ENDED: 'SUBSCRIPTION_ENDED',
+    /** An active special contract blocks self-service plan changes. */
+    PLAN_LOCKED: 'PLAN_LOCKED',
+    /** Current usage of one quota exceeds what the target plan allows. */
+    QUOTA_OVER_TARGET: 'QUOTA_OVER_TARGET',
+    /** The change drops features the tenant has today. */
+    FEATURES_LOST: 'FEATURES_LOST',
+    /** Target plan and cycle already match what is in place. */
+    NO_CHANGE: 'NO_CHANGE',
+    /** A shorter cycle cannot start inside the term already running. */
+    CYCLE_SHORTENS_AT_TERM_END: 'CYCLE_SHORTENS_AT_TERM_END',
+    /** A cancelled subscription cannot change its billing cycle. */
+    CANCELLATION_LOCKS_THE_CYCLE: 'CANCELLATION_LOCKS_THE_CYCLE',
     NO_PENDING_PLAN_VERSION: 'NO_PENDING_PLAN_VERSION',
     ONBOARDING_CREATE_FAILED: 'ONBOARDING_CREATE_FAILED',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS: 'BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS',

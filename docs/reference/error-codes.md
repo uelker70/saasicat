@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 136 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 143 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -124,31 +124,38 @@ Plans, versions, bundles, marketing entries.
 
 Subscriptions, plan changes, entitlements.
 
-| Code                                         | Shipped English text                                                                                                                        |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BUNDLE_ALREADY_SUBSCRIBED`                  | Subscription '{subscriptionId}' has already actively booked this bundle.                                                                    |
-| `BUNDLE_CYCLE_EXCEEDS_PLAN`                  | A {billingCycle} bundle cannot run beside a {planCycle} plan: it would still be committed on every day the plan could end.                  |
-| `BUNDLE_INCOMPATIBLE_WITH_PLAN`              | BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].                                    |
-| `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`            | This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.                                           |
-| `BUNDLE_NOT_SELF_SERVICE`                    | Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.                                         |
-| `BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS`          | Exactly one of bundleVersionId (add preview) or subscriptionBundleId (cancel preview) must be given.                                        |
-| `FEATURE_NOT_LICENSED`                       | Feature {featureKeys} is not included in the current plan.                                                                                  |
-| `LIMIT_EXCEEDED`                             | The limit for {dimension} has been reached: {used} of {max}.                                                                                |
-| `NO_ACTIVE_PLAN_VERSION`                     | No plan version for {planId} active as of {asOf} — neither the validFrom window is satisfied nor is a latest-live version available.        |
-| `NO_PENDING_PLAN_VERSION`                    | There is no pending plan version awaiting confirmation.                                                                                     |
-| `ONBOARDING_CREATE_FAILED`                   | The account could not be created. Please try again.                                                                                         |
-| `PLAN_CHANGE_BLOCKED`                        | Plan change during onboarding is blocked.                                                                                                   |
-| `PLAN_NOT_IN_CATALOG`                        | Plan "{planKey}" is not in the catalog                                                                                                      |
-| `PLAN_NOT_SELF_SERVICE`                      | {planKey} is not activated via self-service.                                                                                                |
-| `QUOTA_DIMENSION_UNKNOWN`                    | Unknown quota dimension "{dimension}".                                                                                                      |
-| `SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED`      | SubscriptionBundle '{subscriptionBundleId}' is already cancelled.                                                                           |
-| `SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE` | Cancellation already in effect — book the bundle again.                                                                                     |
-| `SUBSCRIPTION_BUNDLE_NOT_CANCELLED`          | SubscriptionBundle '{subscriptionBundleId}' is not cancelled.                                                                               |
-| `SUBSCRIPTION_BUNDLE_NOT_FOUND`              | SubscriptionBundle '{subscriptionBundleId}' not found                                                                                       |
-| `SUBSCRIPTION_NOT_FOUND`                     | No subscription for tenant {tenantId}                                                                                                       |
-| `SUBSCRIPTION_PK_MISSING`                    | The adapter returned a subscription usage record without an id. Pass the subscription primary key through (see SubscriptionUsageRecord.id). |
-| `SUBSCRIPTION_TENANT_MISMATCH`               | Subscription does not belong to the tenant                                                                                                  |
-| `TENANT_NOT_FOUND`                           | Tenant {slug} not found                                                                                                                     |
+| Code                                         | Shipped English text                                                                                                                                                              |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BUNDLE_ALREADY_SUBSCRIBED`                  | Subscription '{subscriptionId}' has already actively booked this bundle.                                                                                                          |
+| `BUNDLE_CYCLE_EXCEEDS_PLAN`                  | A {billingCycle} bundle cannot run beside a {planCycle} plan: it would still be committed on every day the plan could end.                                                        |
+| `BUNDLE_INCOMPATIBLE_WITH_PLAN`              | BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].                                                                          |
+| `BUNDLE_NOT_PRICED_FOR_THIS_PLAN`            | This bundle has no {billingCycle} price for the {planKey} plan, so it cannot be booked from here.                                                                                 |
+| `BUNDLE_NOT_SELF_SERVICE`                    | Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.                                                                               |
+| `BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS`          | Exactly one of bundleVersionId (add preview) or subscriptionBundleId (cancel preview) must be given.                                                                              |
+| `CANCELLATION_LOCKS_THE_CYCLE`               | This subscription is cancelled, so its billing cycle cannot change. Reactivate it first, or let it end.                                                                           |
+| `CYCLE_SHORTENS_AT_TERM_END`                 | A {targetCycle} {planName} cannot start inside the {currentCycle} term you are in. The upgrade takes effect when that term ends; to have it today, keep the {currentCycle} cycle. |
+| `FEATURES_LOST`                              | Switching means losing access to {count} features. Existing data is retained and never deleted — upgrading again unlocks it.                                                      |
+| `FEATURE_NOT_LICENSED`                       | Feature {featureKeys} is not included in the current plan.                                                                                                                        |
+| `LIMIT_EXCEEDED`                             | The limit for {dimension} has been reached: {used} of {max}.                                                                                                                      |
+| `NO_ACTIVE_PLAN_VERSION`                     | No plan version for {planId} active as of {asOf} — neither the validFrom window is satisfied nor is a latest-live version available.                                              |
+| `NO_CHANGE`                                  | Target plan and billing cycle already match the current state.                                                                                                                    |
+| `NO_PENDING_PLAN_VERSION`                    | There is no pending plan version awaiting confirmation.                                                                                                                           |
+| `ONBOARDING_CREATE_FAILED`                   | The account could not be created. Please try again.                                                                                                                               |
+| `PLAN_CHANGE_BLOCKED`                        | Plan change during onboarding is blocked.                                                                                                                                         |
+| `PLAN_LOCKED`                                | Active {planName} special contract — please contact the contract manager to change plans.                                                                                         |
+| `PLAN_NOT_IN_CATALOG`                        | Plan "{planKey}" is not in the catalog                                                                                                                                            |
+| `PLAN_NOT_SELF_SERVICE`                      | {planKey} is not activated via self-service.                                                                                                                                      |
+| `QUOTA_DIMENSION_UNKNOWN`                    | Unknown quota dimension "{dimension}".                                                                                                                                            |
+| `QUOTA_OVER_TARGET`                          | Current usage {used} exceeds the target limit {targetMax} ({quotaKey}) in the {planName} plan. Please reduce usage first.                                                         |
+| `SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED`      | SubscriptionBundle '{subscriptionBundleId}' is already cancelled.                                                                                                                 |
+| `SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE` | Cancellation already in effect — book the bundle again.                                                                                                                           |
+| `SUBSCRIPTION_BUNDLE_NOT_CANCELLED`          | SubscriptionBundle '{subscriptionBundleId}' is not cancelled.                                                                                                                     |
+| `SUBSCRIPTION_BUNDLE_NOT_FOUND`              | SubscriptionBundle '{subscriptionBundleId}' not found                                                                                                                             |
+| `SUBSCRIPTION_ENDED`                         | This subscription has ended. Its plan can no longer be changed.                                                                                                                   |
+| `SUBSCRIPTION_NOT_FOUND`                     | No subscription for tenant {tenantId}                                                                                                                                             |
+| `SUBSCRIPTION_PK_MISSING`                    | The adapter returned a subscription usage record without an id. Pass the subscription primary key through (see SubscriptionUsageRecord.id).                                       |
+| `SUBSCRIPTION_TENANT_MISMATCH`               | Subscription does not belong to the tenant                                                                                                                                        |
+| `TENANT_NOT_FOUND`                           | Tenant {slug} not found                                                                                                                                                           |
 
 ## Contracts
 

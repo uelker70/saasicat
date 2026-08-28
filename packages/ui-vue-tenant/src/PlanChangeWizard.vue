@@ -142,13 +142,13 @@
                     <div v-if="preview.blockers.length > 0" class="sp-wizard__blockers">
                         <h4>{{ i18n.blockersTitle }}</h4>
                         <ul>
-                            <li v-for="b in preview.blockers" :key="b.code">{{ b.message }}</li>
+                            <li v-for="b in preview.blockers" :key="b.code">{{ issueText(b) }}</li>
                         </ul>
                     </div>
 
                     <div v-if="preview.warnings.length > 0" class="sp-wizard__warnings">
                         <ul>
-                            <li v-for="w in preview.warnings" :key="w.code">{{ w.message }}</li>
+                            <li v-for="w in preview.warnings" :key="w.code">{{ issueText(w) }}</li>
                         </ul>
                     </div>
                 </template>
@@ -291,8 +291,13 @@ import PlanGrid from './plan/PlanGrid.vue';
 import TenantButton from './ui/TenantButton.vue';
 import TenantDialog from './ui/TenantDialog.vue';
 import './ui/tenant-ui.css';
+import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
 import { useSteps, useSuperAdminI18n } from '@saasicat/ui-vue';
-import type { BillingCycleStr, PlanChangePreviewShape } from '@saasicat/ui-vue';
+import type {
+    BillingCycleStr,
+    PlanChangePreviewIssueShape,
+    PlanChangePreviewShape,
+} from '@saasicat/ui-vue';
 import type { CatalogPlan } from '@saasicat/ui-vue';
 import type { PlanChangeWizardI18n } from './default-i18n.js';
 
@@ -347,7 +352,7 @@ const emit = defineEmits<{
     submitted: [];
 }>();
 
-const { intlLocale } = useSuperAdminI18n();
+const { intlLocale, locale } = useSuperAdminI18n();
 
 const model = computed({
     get: () => props.modelValue,
@@ -693,6 +698,21 @@ watch(
         }
     },
 );
+
+// An issue is text a person reads, so it goes through the same ladder as every
+// other coded failure: the consumer's catalogue, the shipped one for the active
+// locale, then the English `message` the backend sent. Until 1.0.0-rc.8 these
+// two lists rendered `message` directly, so a tenant read them in English
+// whatever language they had chosen — the values were baked into the sentence
+// and no client could rebuild it. They travel in `params` now.
+function issueText(issue: PlanChangePreviewIssueShape): string {
+    const catalogue = locale.value === 'de' ? ERROR_MESSAGES_DE : ERROR_MESSAGES_EN;
+    return resolveErrorMessage(
+        { code: issue.code, message: issue.message, params: issue.params },
+        {},
+        catalogue,
+    );
+}
 </script>
 
 <style scoped>

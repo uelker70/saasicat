@@ -154,6 +154,18 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" is not in the catalog',
     PLAN_NOT_SELF_SERVICE: '{planKey} is not activated via self-service.',
     PLAN_CHANGE_BLOCKED: 'Plan change during onboarding is blocked.',
+    SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
+    PLAN_LOCKED:
+        'Active {planName} special contract — please contact the contract manager to change plans.',
+    QUOTA_OVER_TARGET:
+        'Current usage {used} exceeds the target limit {targetMax} ({quotaKey}) in the {planName} plan. Please reduce usage first.',
+    FEATURES_LOST:
+        'Switching means losing access to {count} features. Existing data is retained and never deleted — upgrading again unlocks it.',
+    NO_CHANGE: 'Target plan and billing cycle already match the current state.',
+    CANCELLATION_LOCKS_THE_CYCLE:
+        'This subscription is cancelled, so its billing cycle cannot change. Reactivate it first, or let it end.',
+    CYCLE_SHORTENS_AT_TERM_END:
+        'A {targetCycle} {planName} cannot start inside the {currentCycle} term you are in. The upgrade takes effect when that term ends; to have it today, keep the {currentCycle} cycle.',
     NO_PENDING_PLAN_VERSION: 'There is no pending plan version awaiting confirmation.',
     ONBOARDING_CREATE_FAILED: 'The account could not be created. Please try again.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:
@@ -244,6 +256,23 @@ export function formatErrorMessage(template: string, params: ErrorMessageParams 
 }
 
 /**
+ * An error body this function can read.
+ *
+ * `code` is widened past `PlatformErrorCode` on purpose. The function checks
+ * `typeof body.code === 'string'` and resolves whatever it finds, and the
+ * `overrides` parameter exists so a consumer can bring its own codes — one
+ * consumer carries 98 of them against the platform's 135, overlapping in five.
+ * A closed union here would reject exactly the case the parameter is for, and
+ * the cast that works around it is one a reader has to be told is deliberate.
+ *
+ * `PlatformErrorBody` stays closed: a body the *platform* produces really does
+ * carry a platform code. It is the reader that has to accept more. The same
+ * shape appears in `SaLocale` next door, for the same reason.
+ */
+export type ResolvableErrorBody = Omit<Partial<PlatformErrorBody>, 'code'> &
+    Record<string, unknown> & { code?: PlatformErrorCode | (string & {}) };
+
+/**
  * Turns an error body into display text.
  *
  * Falls back in this order: the consumer's own catalogue, the shipped default,
@@ -257,7 +286,7 @@ export function formatErrorMessage(template: string, params: ErrorMessageParams 
  * the wire.
  */
 export function resolveErrorMessage(
-    body: Partial<PlatformErrorBody> & Record<string, unknown>,
+    body: ResolvableErrorBody,
     overrides: Partial<Record<string, string>> = {},
     defaults: Partial<Record<string, string>> = ERROR_MESSAGES_EN,
 ): string {

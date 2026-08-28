@@ -152,6 +152,19 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" steht nicht im Katalog',
     PLAN_NOT_SELF_SERVICE: '{planKey} wird nicht per Self-Service freigeschaltet.',
     PLAN_CHANGE_BLOCKED: 'Während des Onboardings ist ein Planwechsel gesperrt.',
+    SUBSCRIPTION_ENDED:
+        'Dieses Abonnement ist beendet. Sein Paket kann nicht mehr gewechselt werden.',
+    PLAN_LOCKED:
+        'Aktiver Sondervertrag {planName} — für einen Paketwechsel wenden Sie sich bitte an die Vertragsverwaltung.',
+    QUOTA_OVER_TARGET:
+        'Aktuelle Nutzung {used} überschreitet das Ziel-Limit {targetMax} ({quotaKey}) im Paket {planName}. Bitte zuerst die Nutzung reduzieren.',
+    FEATURES_LOST:
+        'Beim Wechsel verlieren Sie den Zugriff auf {count} Funktionen. Vorhandene Daten bleiben erhalten und werden nie gelöscht — ein späteres Upgrade schaltet sie wieder frei.',
+    NO_CHANGE: 'Zielpaket und Abrechnungsrhythmus entsprechen bereits dem aktuellen Stand.',
+    CANCELLATION_LOCKS_THE_CYCLE:
+        'Dieses Abonnement ist gekündigt, sein Abrechnungsrhythmus kann daher nicht wechseln. Reaktivieren Sie es zuerst, oder lassen Sie es auslaufen.',
+    CYCLE_SHORTENS_AT_TERM_END:
+        'Ein {targetCycle} {planName} kann nicht innerhalb der laufenden {currentCycle} Laufzeit beginnen. Das Upgrade greift zum Ende dieser Laufzeit; wer es sofort möchte, behält den Rhythmus {currentCycle}.',
     NO_PENDING_PLAN_VERSION: 'Es wartet keine Planversion auf eine Bestätigung.',
     ONBOARDING_CREATE_FAILED:
         'Das Konto konnte nicht angelegt werden. Bitte versuche es noch einmal.',

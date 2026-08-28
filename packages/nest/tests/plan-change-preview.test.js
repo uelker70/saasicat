@@ -120,12 +120,26 @@ test('preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage
     assert.equal(dto.isImmediate, false);
     assert.equal(dto.featuresLost.length, 1);
     assert.equal(dto.featuresLost[0], 'WHATSAPP');
-    const usersBlocker = dto.blockers.find((b) => b.code === 'USERS_OVER_TARGET');
+    // The code is fixed now and the quota travels in `params`. It used to be
+    // built from the key — `USERS_OVER_TARGET` — which made the set grow with
+    // every quota an installation defines, so no catalogue could be complete
+    // against it and no guard could check one.
+    const usersBlocker = dto.blockers.find(
+        (b) => b.code === 'QUOTA_OVER_TARGET' && b.params?.quotaKey === 'users',
+    );
     assert.ok(usersBlocker);
     assert.ok(
         usersBlocker.message.includes('reduce usage'),
         'blocker message asks for usage reduction',
     );
+    // Every value the sentence names is beside it, so a client can rebuild it
+    // in another language without parsing the English.
+    assert.deepEqual(Object.keys(usersBlocker.params).sort(), [
+        'planName',
+        'quotaKey',
+        'targetMax',
+        'used',
+    ]);
     assert.deepEqual(dto.featuresGained, []);
 });
 
@@ -138,7 +152,11 @@ test('preview blocks ENTERPRISE as a self-service target', async () => {
         { asTarget: ['ENTERPRISE'], asSource: ['ENTERPRISE'] },
     );
     const dto = await svc.preview('t1', 'ENTERPRISE', 'MONTHLY', new Date('2026-05-15'));
-    assert.ok(dto.blockers.some((b) => b.code === 'ENTERPRISE_NOT_SELF_SERVICE'));
+    assert.ok(
+        dto.blockers.some(
+            (b) => b.code === 'PLAN_NOT_SELF_SERVICE' && b.params?.planKey === 'ENTERPRISE',
+        ),
+    );
 });
 
 test('preview NOOP when plan and cycle are identical', async () => {

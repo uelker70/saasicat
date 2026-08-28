@@ -105,6 +105,21 @@ export interface PackageSnapshotShape {
     [key: string]: unknown;
 }
 
+/**
+ * One blocker or warning of a plan-change preview.
+ *
+ * `message` is the platform's English and the last rung: a reader's language
+ * comes from `code` plus `params`, resolved through `resolveErrorMessage`. It
+ * stays because a code nobody has translated must still say something — an
+ * empty blocker leaves someone with a disabled button and no reason.
+ */
+export interface PlanChangePreviewIssueShape {
+    code: string;
+    message: string;
+    /** The values the sentence names, beside it rather than inside it. */
+    params?: Record<string, string | number>;
+}
+
 export interface PlanChangePreviewShape {
     changeType: 'UPGRADE' | 'DOWNGRADE' | 'CYCLE_CHANGE' | 'NOOP';
     /**
@@ -141,8 +156,8 @@ export interface PlanChangePreviewShape {
     >;
     featuresLost: string[];
     featuresGained: string[];
-    blockers: Array<{ code: string; message: string }>;
-    warnings: Array<{ code: string; message: string }>;
+    blockers: PlanChangePreviewIssueShape[];
+    warnings: PlanChangePreviewIssueShape[];
 }
 
 export interface PlanSnapshotShape {
