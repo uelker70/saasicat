@@ -1,11 +1,14 @@
 // The example's own client sends what the example's own guards demand.
 //
 // `examples/notesapp/web` sent `x-demo-tenant` and nothing else, while
-// `TenantAdminGuard` reads `platformRole` on five cost-relevant tenant routes —
-// plan preview, plan change, initial subscription, accepting a pending version,
-// cancelling. Every one of them answered 403 `TENANT_ADMIN_REQUIRED`, so the
-// whole "Change plan" flow was unreachable in the application consumers copy
-// from. Nothing caught it: the schema check compares models, the page suites
+// `TenantAdminGuard` reads `platformRole` on every tenant route that changes
+// what the tenant pays. Every one of them answered 403 `TENANT_ADMIN_REQUIRED`,
+// so the whole "Change plan" flow was unreachable in the application consumers
+// copy from.
+//
+// The set is deliberately not counted here. It was five when this was written
+// and is eight since booking, cancelling and reactivating an add-on joined it —
+// a number in a comment is wrong the first time the thing it counts grows. Nothing caught it: the schema check compares models, the page suites
 // mount components against stubs, and no test drives the tenant surface against
 // the running backend.
 //
