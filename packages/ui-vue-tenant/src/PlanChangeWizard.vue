@@ -882,7 +882,7 @@ function issueText(issue: PlanChangePreviewIssueShape): string {
     margin: var(--sa-space-4) 0;
     padding: var(--sa-space-4);
     border: 1px solid var(--sa-color-warning-border);
-    border-radius: var(--sa-radius-md);
+    border-radius: var(--sa-radius-badge);
     background: var(--sa-color-warning-surface);
 }
 .sp-wizard__deferred-lead {
