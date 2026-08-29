@@ -1,5 +1,12 @@
 # @saasicat/persistence-testing
 
+## 1.0.0-rc.8
+
+### Patch Changes
+
+- Updated dependencies [1e9b842]
+    - @saasicat/core@1.0.0-rc.8
+
 ## 1.0.0-rc.7
 
 ### Major Changes
