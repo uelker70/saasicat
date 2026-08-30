@@ -326,13 +326,17 @@ export function judge(steps) {
  * which was judged on its own pull request; blaming this branch for it would
  * report changes nobody here made.
  */
-export function guard(root, base) {
-    const merged = git(root, 'merge-base', base, 'HEAD').trim();
-    let previous = catalogueAt(root, merged);
-    if (!previous) return { baseline: merged, problems: [], entries: 0, unproven: 0 };
+export function guard(root, base, head) {
+    const tip = head ?? 'HEAD';
+    const merged = git(root, 'merge-base', base, tip).trim();
+    const baseline = catalogueAt(root, merged);
+    if (!baseline) return { baseline: merged, problems: [], entries: 0, unproven: 0 };
 
+    // `previous` walks the range; `baseline` stays where it starts, because the
+    // ratchet measures the whole range rather than its last step.
+    let previous = baseline;
     const steps = [];
-    const revisions = git(root, 'rev-list', '--reverse', '--first-parent', `${merged}..HEAD`)
+    const revisions = git(root, 'rev-list', '--reverse', '--first-parent', `${merged}..${tip}`)
         .split('\n')
         .filter(Boolean);
 
@@ -349,35 +353,45 @@ export function guard(root, base) {
         previous = current;
     }
 
-    // The working tree is the last step, and it has no commit to speak for it.
-    // Anything uncommitted is therefore judged with no claim available, which
-    // is what putting the trailer in a commit means.
-    const after = readCatalogue(root);
-    steps.push({ before: previous.entries, after: after.entries, editorial: new Set() });
+    // A named head judges exactly that revision. Without one the working tree is
+    // the last step, and it has no commit to speak for it — anything
+    // uncommitted is judged with no claim available, which is what putting the
+    // trailer in a commit means.
+    const after = head ? catalogueAt(root, head) : readCatalogue(root);
+    if (!head) {
+        steps.push({ before: previous.entries, after: after.entries, editorial: new Set() });
+    }
 
-    const problems = judge(steps);
-
-    const owed = unproven(after.entries, scanTests(root));
-    const beforeDebt = unproven(catalogueAt(root, merged).entries, namedAt(root, merged));
-    problems.push(
-        ...ratchet(
-            { debt: beforeDebt, standing: standing(catalogueAt(root, merged).entries) },
-            { debt: owed, standing: standing(after.entries) },
-        ),
-    );
-
+    const owed = unproven(after.entries, head ? namedAt(root, head) : scanTests(root));
     return {
         baseline: merged,
         entries: after.entries.length,
         unproven: owed.length,
-        problems,
+        problems: [
+            ...nothingJudged(revisions, steps),
+            ...judge(steps),
+            ...ratchet(
+                {
+                    debt: unproven(baseline.entries, namedAt(root, merged)),
+                    standing: standing(baseline.entries),
+                },
+                { debt: owed, standing: standing(after.entries) },
+            ),
+        ],
     };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-    const at = process.argv.indexOf('--base');
-    const base = at === -1 ? defaultBase(ROOT) : process.argv[at + 1];
-    const { baseline, entries, unproven: owed, problems } = guard(ROOT, base);
+    const flag = (name, fallback) => {
+        const at = process.argv.indexOf(name);
+        return at === -1 ? fallback : process.argv[at + 1];
+    };
+    const base = flag('--base', defaultBase(ROOT));
+    // CI names the head it means. On a pull request the checkout is the merge
+    // commit GitHub synthesises, and judging that against itself is how a check
+    // comes to prove nothing.
+    const head = flag('--head', undefined);
+    const { baseline, entries, unproven: owed, problems } = guard(ROOT, base, head);
 
     if (entries === 0) {
         process.stdout.write(`no catalogue at ${base} — nothing to compare against\n`);
