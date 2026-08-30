@@ -148,6 +148,28 @@ describe('retiring an entry preserves what it said', () => {
         assert.match(problem, /changed its wording while being superseded/);
     });
 
+    test('delivering a promise is not rewriting it', () => {
+        // The edit that removes the marker when one of the ten is built. Left
+        // in the fingerprint it read as a rewrite, and the author's only ways
+        // past that were a false editorial claim or superseding something that
+        // never changed.
+        const pending = one(`${promise} 🟡 _(Decided, not yet delivered.)_`);
+        assert.deepEqual(problems(pending, one(promise)), []);
+    });
+
+    test('filing a delivered promise as an intention is refused', () => {
+        // The other direction takes a promise the product kept and files it as
+        // something it means to do, and the entry stops being owed a proof.
+        const pending = one(`${promise} 🟡 _(Decided, not yet delivered.)_`);
+        const [problem] = problems(before, pending);
+        assert.match(problem, /stood as delivered and now says it is not/);
+    });
+
+    test('correcting a record that was wrong is accepted when it is claimed', () => {
+        const pending = one(`${promise} 🟡 _(Decided, not yet delivered.)_`);
+        assert.deepEqual(problems(before, pending, new Set(['SC-A-001'])), []);
+    });
+
     test('demoting a promise to a draft is refused', () => {
         // Prepending the marker leaves the wording untouched, so no comparison
         // of the prose would ever notice — and the promise would quietly stop

@@ -79,9 +79,12 @@ entry wears it: a dot on three hundred and eighty-nine ordinary entries would hi
 not.
 
 A promise moves between states in one direction only: a draft is decided or dropped, a promise that
-stands is superseded or withdrawn, and nothing comes back. **A promise is never demoted to a
-draft** — prepending the marker leaves the wording untouched, so it reads as tidying while quietly
-taking the promise back and stopping anything from asking for a test of it.
+stands is superseded or withdrawn, and nothing comes back. Delivering one costs nothing — removing
+`🟡 _(Decided, not yet delivered.)_` is not a rewrite — but **adding** that marker to a promise the
+product kept files it as an intention and stops it being owed a proof, so it has to be claimed.
+**A promise is never demoted to a draft** — prepending the marker leaves the wording untouched, so
+it reads as tidying while quietly taking the promise back and stopping anything from asking for a
+test of it.
 
 A current entry that is not true yet says `🟡 _(Decided, not yet delivered.)_` at the end of its
 prose. No other state may: a draft is not decided, and a retired one has nothing left to deliver.
@@ -105,7 +108,8 @@ when that moves. In the requirement it would be a second list to keep in step wi
 Nothing was backfilled — 389 promises stand today with nothing naming them. `requirements:guard`
 freezes that debt: **a new promise brings its test, or a promise already owed one gains a test.**
 Retiring an unproven promise makes the debt smaller and buys nothing, because retiring proves
-nothing about it.
+nothing about it. And a promise that had a proof may not lose it: that is not a debt being paid,
+it is a proof being moved.
 
 Only a current, delivered promise is owed a proof. A draft is not a promise yet, a retired one is
 not one any more, and one decided but not delivered has nothing to prove until it is built.

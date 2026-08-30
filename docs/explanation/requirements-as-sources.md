@@ -88,7 +88,12 @@ A promise that is dropped rather than replaced is withdrawn instead, with no suc
 link has to learn in the first few words that it does not apply.
 
 A promise moves between states in one direction: a draft is decided or dropped, a promise that
-stands is superseded or withdrawn, and nothing comes back. The move deliberately missing from that
+stands is superseded or withdrawn, and nothing comes back. Delivery moves the same way. The marker
+is stripped before the promise is fingerprinted, so building one of the ten costs nothing —
+implementing a promise is not rewriting it, and leaving the marker in would have left the author
+with only a false editorial claim or a supersession of something that never changed. Adding the
+marker to a promise the product kept is the move that has to be claimed: it files a kept promise as
+an intention, and the entry stops being owed a proof. The move deliberately missing from that
 list is current to draft. It reads as tidying and it is a promise being demoted to a proposal — and
 because prepending the marker leaves the wording untouched, no comparison of the prose would notice,
 while the entry silently stops being owed a proof.

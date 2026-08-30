@@ -130,6 +130,20 @@ export function compare(before, after, editorial = new Set()) {
 
         if (!ALLOWED[was.status].has(is.status)) problems.push(transition(was, is));
 
+        // The delivery marker is stripped before fingerprinting, so removing it
+        // costs nothing — implementing a promise is not rewriting it. Adding
+        // one is the move that needs saying out loud: it takes a promise the
+        // product kept and files it as an intention, and the entry stops being
+        // owed a proof.
+        if (was.delivered && !is.delivered && !editorial.has(was.id)) {
+            problems.push(
+                `${was.id} stood as delivered and now says it is not. If the product stopped ` +
+                    'keeping it, that is a defect and belongs in an issue; if the promise itself ' +
+                    'was wrong, supersede or withdraw it. If the old entry was simply mistaken, ' +
+                    `say so: Editorial: ${was.id}`,
+            );
+        }
+
         if (!changed || editorial.has(was.id)) continue;
 
         if (isRetired) {
@@ -190,13 +204,14 @@ function namedAt(root, ref) {
 }
 
 /**
- * A new promise brings a proof, or a promise already owed one gains a test.
+ * Coverage moves one way: a new promise brings a proof, or one owed gains one.
  *
- * Counting the debt and refusing a rise is not the same rule, and the gap
- * between them is a hole: superseding an unproven promise drops it out of the
- * count while its untested successor arrives, both sides total the same, and a
- * new promise passes having proved nothing. Retiring something proves nothing
- * about it, so only a test earns credit.
+ * Three populations, because collapsing them into one count hides two failures.
+ * A promise that had a proof and lost it is refused outright — nothing arrived
+ * to pay for, and net-zero bookkeeping would let a proof be moved from one
+ * promise to another and call it even. A promise that did not stand before must
+ * be paid for by a promise that did and now has a test; retiring one proves
+ * nothing about it and earns no credit.
  *
  * Backfilling 389 entries would have been a week of work for a number nobody
  * would trust afterwards, so nothing is backfilled and the debt is frozen. What
@@ -204,21 +219,35 @@ function namedAt(root, ref) {
  * worth writing can still be added by settling one already owed, rather than
  * through an exemption somebody has to judge.
  */
-export function ratchet(before, after, stillStanding) {
-    const added = after.filter((id) => !before.includes(id));
-    // Owed before, still a promise now, and no longer owed: a test arrived.
-    const settled = before.filter((id) => stillStanding.includes(id) && !after.includes(id));
-    if (added.length <= settled.length) return [];
+export function ratchet(before, after) {
+    const stood = new Set(before.standing);
+    const owed = new Set(before.debt);
+    const owedNow = new Set(after.debt);
 
-    return [
-        `${added.length} promise(s) arrived with nothing proving them, and ` +
-            `${settled.length} already owed a proof gained one.\n` +
-            `    Not named by any test: ${added.slice(0, 5).join(', ')}` +
-            `${added.length > 5 ? `, and ${added.length - 5} more` : ''}\n` +
-            '    Name it from the test that proves it:\n' +
-            `      /** @requirement ${added[0]} */\n` +
-            '    or annotate a test for a promise already owed.',
-    ];
+    const lost = after.debt.filter((id) => stood.has(id) && !owed.has(id));
+    const arrived = after.debt.filter((id) => !stood.has(id));
+    const settled = before.debt.filter((id) => after.standing.includes(id) && !owedNow.has(id));
+
+    const problems = [];
+    if (lost.length > 0) {
+        problems.push(
+            `${lost.length} promise(s) had a proof and no longer do: ${lost.join(', ')}.\n` +
+                '    A test that named one of them is gone or no longer names it. Name it again,\n' +
+                '    or retire the promise if it no longer holds.',
+        );
+    }
+    if (arrived.length > settled.length) {
+        problems.push(
+            `${arrived.length} promise(s) arrived with nothing proving them, and ` +
+                `${settled.length} already owed a proof gained one.\n` +
+                `    Not named by any test: ${arrived.slice(0, 5).join(', ')}` +
+                `${arrived.length > 5 ? `, and ${arrived.length - 5} more` : ''}\n` +
+                '    Name it from the test that proves it:\n' +
+                `      /** @requirement ${arrived[0]} */\n` +
+                '    or annotate a test for a promise already owed.',
+        );
+    }
+    return problems;
 }
 
 /** The identifiers the commits on this branch claim were edited editorially. */
@@ -268,9 +297,11 @@ export function guard(root, base) {
         problems: [
             ...compare(before.entries, after.entries, editorial),
             ...ratchet(
-                unproven(before.entries, namedAt(root, merged)),
-                owed,
-                standing(after.entries),
+                {
+                    debt: unproven(before.entries, namedAt(root, merged)),
+                    standing: standing(before.entries),
+                },
+                { debt: owed, standing: standing(after.entries) },
             ),
         ],
     };

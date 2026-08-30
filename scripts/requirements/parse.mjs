@@ -204,7 +204,12 @@ function finishEntry(entry) {
         [, icon] = draft;
         text = text.slice(draft[0].length);
     }
+    // Stripped, not just detected. Delivering a promise is not a change to the
+    // promise: leaving the marker in the text would make the edit that removes
+    // it read as a rewrite, and the author's only ways past that would be a
+    // false editorial claim or a supersession of something that never changed.
     const pending = PENDING.exec(text);
+    if (pending) text = text.replace(PENDING, '').trim();
 
     return {
         ...entry,
