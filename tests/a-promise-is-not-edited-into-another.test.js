@@ -64,7 +64,16 @@ describe('the fingerprint is the promise, not the prose around it', () => {
         );
         const after = entries('### SC-A-001 — A key may be named anywhere\n\n_Source:_ #1');
         const [problem] = problems(before, after);
-        assert.match(problem, /SC-A-001 promises something different/);
+        assert.match(problem.message, /SC-A-001 promises something different/);
+    });
+
+    test('an underscore inside a name is not emphasis', () => {
+        // Underscores were dropped with the other emphasis markers, so
+        // `tenant_id` and `tenantid` were the same promise and a configuration
+        // key could be renamed inside a requirement with nothing to say about
+        // it. Asterisks and backticks are never part of a name; an underscore
+        // is.
+        assert.notEqual(fingerprint('the tenant_id key'), fingerprint('the tenantid key'));
     });
 
     test('a different word is a change', () => {
@@ -86,8 +95,8 @@ describe('an entry that already exists may not quietly become another', () => {
 
     test('a rewritten promise is refused', () => {
         const [problem] = problems(before, one('The name may be changed at any time.'));
-        assert.match(problem, /SC-A-001 promises something different/);
-        assert.match(problem, /Superseded on YYYY-MM-DD/);
+        assert.match(problem.message, /SC-A-001 promises something different/);
+        assert.match(problem.message, /Superseded on YYYY-MM-DD/);
     });
 
     test('a rewritten promise the commit calls editorial is accepted', () => {
@@ -111,7 +120,7 @@ describe('an entry that already exists may not quietly become another', () => {
         // frees its number, and the next requirement written in that chapter
         // inherits a meaning somebody else wrote down.
         const [problem] = problems(before, entries(entry('SC-A-002', 'Something else.')));
-        assert.match(problem, /SC-A-001 is gone/);
+        assert.match(problem.message, /SC-A-001 is gone/);
     });
 
     test('a new entry beside the old one is accepted', () => {
@@ -151,7 +160,7 @@ describe('retiring an entry preserves what it said', () => {
             entry('SC-A-002', 'The new wording.'),
         );
         const [problem] = problems(before, after);
-        assert.match(problem, /changed its wording while being superseded/);
+        assert.match(problem.message, /changed its wording while being superseded/);
     });
 
     test('delivering a promise is not rewriting it', () => {
@@ -168,7 +177,7 @@ describe('retiring an entry preserves what it said', () => {
         // something it means to do, and the entry stops being owed a proof.
         const pending = one(`${promise} 🟡 _(Decided, not yet delivered.)_`);
         const [problem] = problems(before, pending);
-        assert.match(problem, /stood as delivered and now says it is not/);
+        assert.match(problem.message, /stood as delivered and now says it is not/);
     });
 
     test('correcting a record that was wrong is accepted when it is claimed', () => {
@@ -183,7 +192,7 @@ describe('retiring an entry preserves what it said', () => {
         // applies is withdrawn or superseded.
         const draft = one(`⚪ _(Draft since 2026-09-01.)_ ${promise}`);
         const [problem] = problems(before, draft);
-        assert.match(problem, /stood as a promise and is now a draft/);
+        assert.match(problem.message, /stood as a promise and is now a draft/);
     });
 
     test('deciding a draft is accepted', () => {
@@ -200,7 +209,7 @@ describe('retiring an entry preserves what it said', () => {
     test('a withdrawn promise coming back is refused', () => {
         const withdrawn = one(`🔴 _(Withdrawn on 2026-09-01.)_ ${promise}`);
         const [problem] = problems(withdrawn, one(promise));
-        assert.match(problem, /was withdrawn and is now current/);
+        assert.match(problem.message, /was withdrawn and is now current/);
     });
 });
 
@@ -212,8 +221,8 @@ describe('a walk that judged nothing is reported, not passed', () => {
     // compared against itself.
 
     test('revisions with no step judged is a problem', () => {
-        const [problem] = nothingJudged(['abc123'], []);
-        assert.match(problem, /every one of them a merge/);
+        const [message] = nothingJudged(['abc123'], []);
+        assert.match(message, /every one of them a merge/);
     });
 
     test('a range with nothing in it is not', () => {
@@ -231,8 +240,72 @@ describe('a walk that judged nothing is reported, not passed', () => {
         // had the working-tree step to show for itself, so counting steps
         // rather than judged revisions stayed silent — and CI went on comparing
         // the merge result against itself.
-        const [problem] = nothingJudged(['abc123'], [{ before: [], after: [] }]);
-        assert.match(problem, /every one of them a merge/);
+        const [message] = nothingJudged(['abc123'], [{ before: [], after: [] }]);
+        assert.match(message, /every one of them a merge/);
+    });
+});
+
+describe('a merge answers for its resolution and nothing else', () => {
+    // Skipping a merge whole was right about its parents' work and wrong about
+    // its own: resolving a conflict can rewrite or delete a requirement, and
+    // that edit belongs to nobody else. What separates the two is agreement —
+    // the resolution's own work matches neither parent.
+    const promise = 'The name stays the same across price changes.';
+    const fromMain = 'The name stays the same across price changes, always.';
+    const rewritten = 'The name may be changed at any time.';
+
+    test('a rewrite in the resolution is reported', () => {
+        const [problem] = judge([
+            {
+                revision: 'merge',
+                parents: [one(promise), one(fromMain)],
+                after: one(rewritten),
+                editorial: new Set(),
+            },
+        ]);
+        assert.match(problem.message, /SC-A-001 promises something different/);
+    });
+
+    test('what came in from the other branch is not', () => {
+        // It matches that parent, and one silence is enough to acquit — the
+        // other branch's own pull request judged it.
+        assert.deepEqual(
+            judge([
+                {
+                    revision: 'merge',
+                    parents: [one(promise), one(fromMain)],
+                    after: one(fromMain),
+                    editorial: new Set(),
+                },
+            ]),
+            [],
+        );
+    });
+
+    test('what this branch had already done is not', () => {
+        assert.deepEqual(
+            judge([
+                {
+                    revision: 'merge',
+                    parents: [one(promise), one(fromMain)],
+                    after: one(promise),
+                    editorial: new Set(),
+                },
+            ]),
+            [],
+        );
+    });
+
+    test('a deletion in the resolution is reported', () => {
+        const [problem] = judge([
+            {
+                revision: 'merge',
+                parents: [one(promise), one(fromMain)],
+                after: entries(entry('SC-A-002', 'Something else.')),
+                editorial: new Set(),
+            },
+        ]);
+        assert.match(problem.message, /SC-A-001 is gone/);
     });
 });
 
@@ -257,7 +330,7 @@ describe('a claim excuses the edit that made it, and no other', () => {
             { before: one(promise), after: one(typo), editorial: new Set(['SC-A-001']) },
             { before: one(typo), after: one(rewritten), editorial: new Set() },
         ]);
-        assert.match(problem, /SC-A-001 promises something different/);
+        assert.match(problem.message, /SC-A-001 promises something different/);
     });
 
     test('the same two edits pooled into one step would pass', () => {

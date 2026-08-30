@@ -68,14 +68,19 @@ const TRAILER = /^Editorial:(.*)$/gm;
  * bolding a phrase is typography; line breaks, because these files are wrapped
  * by hand at a hundred columns and one added word reflows the paragraph.
  *
+ * Underscores stay. They were dropped with the other emphasis markers, which
+ * made `tenant_id` and `tenantid` the same promise — so a configuration key
+ * could be renamed inside a requirement with nothing to say about it. Asterisks
+ * and backticks are never part of a name; an underscore is.
+ *
  * The heading is part of it. Nineteen entries state their whole promise
  * there and carry no prose at all, so comparing the prose alone compared
  * two empty strings and accepted any rewrite of what they say.
  */
 export function fingerprint(promise) {
     return promise
-        .replace(/\bSC-[A-Z0-9]+-\d{3}(?![0-9-])/g, '«ref»')
-        .replace(/[*_`]/g, '')
+        .replace(/\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g, '«ref»')
+        .replace(/[*`]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -118,17 +123,21 @@ export function compare(before, after, editorial = new Set()) {
             // The one failure this whole scheme exists to prevent. Deleting an
             // entry frees its number, and the next requirement written in that
             // chapter silently inherits a meaning somebody else wrote down.
-            problems.push(
-                `${was.id} is gone. An identifier is never withdrawn by deletion — ` +
+            problems.push({
+                id: was.id,
+                message:
+                    `${was.id} is gone. An identifier is never withdrawn by deletion — ` +
                     'mark it `_(Withdrawn on YYYY-MM-DD.)_` and leave it where it is.',
-            );
+            });
             continue;
         }
 
         const changed = promiseOf(was) !== promiseOf(is);
         const isRetired = RETIRED.has(is.status);
 
-        if (!ALLOWED[was.status].has(is.status)) problems.push(transition(was, is));
+        const flag = (message) => problems.push({ id: was.id, message });
+
+        if (!ALLOWED[was.status].has(is.status)) flag(transition(was, is));
 
         // The delivery marker is stripped before fingerprinting, so removing it
         // costs nothing — implementing a promise is not rewriting it. Adding
@@ -136,7 +145,7 @@ export function compare(before, after, editorial = new Set()) {
         // product kept and files it as an intention, and the entry stops being
         // owed a proof.
         if (was.delivered && !is.delivered && !editorial.has(was.id)) {
-            problems.push(
+            flag(
                 `${was.id} stood as delivered and now says it is not. If the product stopped ` +
                     'keeping it, that is a defect and belongs in an issue; if the promise itself ' +
                     'was wrong, supersede or withdraw it. If the old entry was simply mistaken, ' +
@@ -150,14 +159,14 @@ export function compare(before, after, editorial = new Set()) {
             // The entry stays so that a reader arriving from an old reference
             // finds what was promised. Rewriting it while retiring it leaves
             // them reading something nobody was ever told.
-            problems.push(
+            flag(
                 `${was.id} changed its wording while being ${is.status}. ` +
                     'Retiring an entry preserves what it said; the new wording belongs in the successor.',
             );
             continue;
         }
 
-        problems.push(
+        flag(
             `${was.id} promises something different than it did.\n` +
                 '    If the promise changed: mark this entry\n' +
                 '      _(Superseded on YYYY-MM-DD by `SC-…`.)_\n' +
@@ -312,7 +321,33 @@ export function nothingJudged(revisions, steps) {
 }
 
 export function judge(steps) {
-    return steps.flatMap((step) => compare(step.before, step.after, step.editorial));
+    return steps.flatMap((step) =>
+        step.parents
+            ? onlyTheResolution(
+                  step.parents.map((before) => compare(before, step.after, step.editorial)),
+              )
+            : compare(step.before, step.after, step.editorial),
+    );
+}
+
+/**
+ * Of a merge, only what the resolution itself did.
+ *
+ * A merge was skipped whole, which was right about its parents' work and wrong
+ * about its own: resolving a conflict can rewrite or delete a requirement, and
+ * that edit belongs to nobody else. Judged against one parent it would drown in
+ * everything the other branch did.
+ *
+ * What separates them is agreement. An entry the resolution rewrote matches
+ * neither parent, so every comparison complains about it. An entry that arrived
+ * from the other branch matches that parent, so one comparison stays silent —
+ * and one silence is enough to acquit.
+ */
+function onlyTheResolution(perParent) {
+    const [first = [], ...rest] = perParent;
+    return first.filter((problem) =>
+        rest.every((others) => others.some((other) => other.id === problem.id)),
+    );
 }
 
 /**
@@ -325,9 +360,9 @@ export function judge(steps) {
  * commit rewriting it into a different promise. The claim is read from the
  * commit that makes the change, which is the only place it means anything.
  *
- * A merge is skipped rather than judged. Its diff carries somebody else's work,
- * which was judged on its own pull request; blaming this branch for it would
- * report changes nobody here made.
+ * A merge is judged for its resolution alone. Its diff carries somebody else's
+ * work, which was judged on its own pull request — but resolving a conflict can
+ * rewrite or delete a requirement, and that edit belongs to nobody else.
  */
 export function guard(root, base, head) {
     const tip = head ?? 'HEAD';
@@ -344,16 +379,22 @@ export function guard(root, base, head) {
         .filter(Boolean);
 
     for (const revision of revisions) {
-        const parents = git(root, 'rev-list', '--parents', '-n', '1', revision).trim().split(' ');
+        const parents = git(root, 'rev-list', '--parents', '-n', '1', revision)
+            .trim()
+            .split(' ')
+            .slice(1);
         const current = catalogueAt(root, revision);
-        if (parents.length <= 2) {
-            steps.push({
-                revision,
-                before: previous.entries,
-                after: current.entries,
-                editorial: editorialIn(git(root, 'log', '--format=%B', '-n', '1', revision)),
-            });
-        }
+        const editorial = editorialIn(git(root, 'log', '--format=%B', '-n', '1', revision));
+        steps.push(
+            parents.length > 1
+                ? {
+                      revision,
+                      parents: parents.map((parent) => catalogueAt(root, parent).entries),
+                      after: current.entries,
+                      editorial,
+                  }
+                : { revision, before: previous.entries, after: current.entries, editorial },
+        );
         previous = current;
     }
 
@@ -373,7 +414,7 @@ export function guard(root, base, head) {
         unproven: owed.length,
         problems: [
             ...nothingJudged(revisions, steps),
-            ...judge(steps),
+            ...judge(steps).map((problem) => problem.message),
             ...ratchet(
                 {
                     debt: unproven(baseline.entries, namedAt(root, merged)),

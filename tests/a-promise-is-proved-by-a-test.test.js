@@ -49,6 +49,8 @@ describe('a test says which promise it proves', () => {
         // not happened.
         assert.deepEqual(annotationsIn('// @requirement SC-A-0019'), []);
         assert.deepEqual(annotationsIn('// @requirement SC-A-001-extra'), []);
+        assert.deepEqual(annotationsIn('// @requirement SC-A-001x'), []);
+        assert.deepEqual(annotationsIn('// @requirement SC-A-001_extra'), []);
     });
 
     test('punctuation after an identifier still ends it', () => {

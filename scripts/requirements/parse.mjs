@@ -98,7 +98,7 @@ export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
 export const PENDING = / ?(?:([⚪🔵🔴🟡]) )?_\(Decided, not yet delivered\.\)_/u;
 
 /** Every identifier mentioned in a piece of prose. */
-export const REFERENCES = /\bSC-[A-Z0-9]+-\d{3}(?![0-9-])/g;
+export const REFERENCES = /\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g;
 
 const FENCE = '---';
 const FRONT_MATTER_KEY = /^([a-z][a-zA-Z]*): ?(.*)$/;

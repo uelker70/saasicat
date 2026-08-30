@@ -33,11 +33,12 @@ import { join } from 'node:path';
 // whitespace runs around it could each claim the same spaces — the exchange
 // `regexp/no-super-linear-backtracking` refuses — and an annotation is in a
 // comment anyway.
-// The identifier ends where it ends. Without the lookahead, `SC-PLAN-0049` and
-// `SC-PLAN-004-extra` both read as `SC-PLAN-004`, so a mistyped identifier would
-// settle a debt owed by a promise nobody had named.
+// The identifier ends where it ends, and nothing that could continue a name may
+// follow it. `SC-PLAN-0049`, `SC-PLAN-004-extra`, `SC-PLAN-004x` and
+// `SC-PLAN-004_extra` all read as `SC-PLAN-004` under a narrower boundary, so a
+// mistyped identifier would settle a debt owed by a promise nobody had named.
 const ANNOTATION =
-    /^[ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+(SC-[A-Z0-9]+-\d{3})(?![0-9-])/gm;
+    /^[ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+(SC-[A-Z0-9]+-\d{3})(?![\w-])/gm;
 
 const SKIP = new Set(['node_modules', 'dist', '.git', 'coverage', '.worktrees', 'var']);
 const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
