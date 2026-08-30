@@ -60,6 +60,10 @@ export const MARKER_LIKE = /^_[^_]*:_/;
 export const SOURCE = /^_Source:_ (.+)$/;
 export const SUPERSEDED = /^_\(Superseded on (\d{4}-\d{2}-\d{2}) by `(SC-[A-Z0-9]+-\d{3})`\.\)_ ?/;
 export const WITHDRAWN = /^_\(Withdrawn on (\d{4}-\d{2}-\d{2})\.\)_ ?/;
+// Dated like the others, because the risk a draft carries is staleness: an
+// entry proposed a year ago and never decided reads exactly like one proposed
+// last week, and only one of the two is still somebody's intention.
+export const DRAFT = /^_\(Draft since (\d{4}-\d{2}-\d{2})\.\)_ ?/;
 export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
 
 /** Every identifier mentioned in a piece of prose. */
@@ -146,19 +150,25 @@ function finishEntry(entry) {
 
     let text = trim(body).join('\n');
     let status = 'current';
-    let retiredOn;
     let supersededBy;
 
+    // The dates are matched and not kept. Their job is to be mandatory: a
+    // marker without one does not match, so `_(Draft.)_` stays prose and the
+    // check for a near-miss state catches it. Nothing reads the value, and a
+    // field nobody reads is a field that stops being true unnoticed.
     const superseded = SUPERSEDED.exec(text);
     const withdrawn = WITHDRAWN.exec(text);
+    const draft = DRAFT.exec(text);
     if (superseded) {
         status = 'superseded';
-        [, retiredOn, supersededBy] = superseded;
+        supersededBy = superseded[2];
         text = text.slice(superseded[0].length);
     } else if (withdrawn) {
         status = 'withdrawn';
-        [, retiredOn] = withdrawn;
         text = text.slice(withdrawn[0].length);
+    } else if (draft) {
+        status = 'draft';
+        text = text.slice(draft[0].length);
     }
 
     return {
@@ -168,7 +178,6 @@ function finishEntry(entry) {
         source: sources[0],
         text,
         status,
-        retiredOn,
         supersededBy,
         delivered: !lines.some((line) => line.includes(NOT_DELIVERED)),
         // Derived, never written down: the prose is the only place a

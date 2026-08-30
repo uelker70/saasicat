@@ -92,6 +92,45 @@ somebody can rely on changes:
 Without that last pair the rule would eat itself: every superseded entry would force its neighbours
 to be superseded too, and one reworded sentence would walk through the chapter.
 
+The rule is checked rather than remembered. `pnpm run requirements:guard` compares this branch's
+promises against `main` and refuses four things: a promise rewritten in place, an entry deleted
+rather than withdrawn, an entry rewritten while being retired, and a retired promise brought back to
+life. It compares the promise and not the file — identifiers inside the prose are blanked, emphasis
+is dropped and whitespace is collapsed first — so following somebody else's supersession, bolding a
+phrase and rewrapping a hand-wrapped paragraph all cost nothing.
+
+An edit that changes the words without changing the promise is claimed in the commit that makes it,
+as `Editorial: SC-PLAN-004`. The claim covers exactly the identifiers it names, and it lives in the
+commit rather than in the entry for two reasons: it is about one edit rather than about the
+requirement, and a reviewer can hold it against the diff sitting right beside it. A marker in the
+entry would outlive the typo it excused by years.
+
+## What proves a requirement
+
+A test names the promise it proves, as `@requirement SC-PLAN-004` in a comment. The link goes that
+way round on purpose: in the test it sits beside the thing it describes and moves when that moves,
+while in the requirement it would be a second list of test identifiers to keep in step with the
+first, and the two would drift the first time a file was renamed.
+
+When the catalogue was written, no test anywhere named a requirement. Backfilling 389 of them would
+have been a week of work for a number nobody would trust afterwards, so nothing was backfilled and
+the debt is frozen instead: `requirements:guard` counts the promises that stand with nothing naming
+them and fails when that count rises. A new promise brings its test, or pays for itself by proving
+one that was already owed — which is what makes the rule liveable, because a promise with no test
+worth writing can still be added without an exemption somebody has to judge.
+
+Only a current, delivered promise is counted. A draft is not a promise yet, a retired one is not one
+any more, and one decided but not delivered has nothing to prove until it is built. Counting those
+would ask for tests of things that are not true, and the number would stop meaning anything the
+moment somebody wrote one.
+
+**What is not enforced, and is written here as prose because it is prose:** the intended rule is
+that every standing requirement has at least one test of its correctness, and beyond that the
+positive and negative cases that its own boundaries imply — a refusal with its code, the value
+either side of a limit, the missing and empty input, the state the model forbids. One naming test
+per requirement is what a machine can count. Whether the cases beneath it are the ones a user can
+actually reach is a judgement, and it belongs in the pull request that makes the promise.
+
 ## What is enforced, and what is not
 
 `node scripts/requirements/index.mjs` refuses a catalogue where an identifier is used twice, a

@@ -33,17 +33,25 @@ export async function renderCatalogue(root = ROOT) {
     const options = await resolveConfig(join(root, TARGET));
     const markdown = (text) => format(text, { ...options, parser: 'markdown' });
 
-    // The chapter table is part of a source file, so it is settled before the
-    // document is assembled: the page is what the sources say, and a stale
-    // table would otherwise reach the page and the drift report at once,
-    // leaving a reader to guess which of the two to believe.
+    // The chapter table is part of a source file, so it is settled *before* the
+    // document is assembled, and the document is then assembled from the
+    // settled text. Rendering the page from what was on disk instead leaves one
+    // run producing two outputs that disagree, and `--write` needing a second
+    // run to converge — which somebody eventually does not do.
     const files = [];
+    const preamble = [];
     for (const file of catalogue.preamble) {
         const spliced = withChapterTable(file.text, catalogue.chapters);
-        if (spliced !== null) files.push({ where: file.where, text: await markdown(spliced) });
+        if (spliced === null) {
+            preamble.push(file);
+            continue;
+        }
+        const text = (await markdown(spliced)).trimEnd();
+        files.push({ where: file.where, text: `${text}\n` });
+        preamble.push({ ...file, text });
     }
 
-    return { catalogue, files, text: await markdown(render(catalogue)) };
+    return { catalogue, files, text: await markdown(render({ ...catalogue, preamble })) };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

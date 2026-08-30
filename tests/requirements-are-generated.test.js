@@ -67,6 +67,17 @@ describe('the requirements document is generated, not maintained', () => {
         assert.match(text, /\|\s+3\s+\|\s+Plans and their versions\s+\|/);
     });
 
+    test('the page and the source it was spliced into say the same thing', async () => {
+        // They are produced in one run from one catalogue, and used to
+        // disagree: the region was written from the fresh chapters and the page
+        // from what had been on disk before it. `--write` then needed a second
+        // run to converge, which somebody eventually does not do.
+        const { files, text } = await rendered();
+        const summary = /^Of \d+ entries: .*$/m;
+        assert.match(files[0].text, summary);
+        assert.equal(summary.exec(files[0].text)[0], summary.exec(text)[0]);
+    });
+
     test('the generated region inside the sources is current too', async () => {
         // The chapter table is written into a source file, so it can go stale
         // where the document cannot: a chapter added, renamed or renumbered
@@ -115,6 +126,22 @@ describe('the parser reads the entry, not the prose around it', () => {
         assert.deepEqual(chapter.entries[0].references, ['SC-A-002']);
     });
 
+    test('a draft is read from its own first words', () => {
+        const chapter = parse(
+            '### SC-A-001 — T\n\n_(Draft since 2026-09-01.)_ Proposed wording.\n\n_Source:_ #1',
+        );
+        assert.equal(chapter.entries[0].status, 'draft');
+        assert.equal(chapter.entries[0].text, 'Proposed wording.');
+    });
+
+    test('an entry with no marker is current and delivered', () => {
+        // The default is silence, so the ordinary entry carries no marker at
+        // all. Requiring one would put 389 of them into a document people read.
+        const [entry] = parse('### SC-A-001 — T\n\nProse.\n\n_Source:_ #1').entries;
+        assert.equal(entry.status, 'current');
+        assert.equal(entry.delivered, true);
+    });
+
     test('a retired entry is read from its own first words', () => {
         const chapter = parse(
             '### SC-A-001 — T\n\n_(Superseded on 2026-09-01 by `SC-A-002`.)_ Old wording.\n\n' +
@@ -123,7 +150,6 @@ describe('the parser reads the entry, not the prose around it', () => {
         const [first] = chapter.entries;
         assert.equal(first.status, 'superseded');
         assert.equal(first.supersededBy, 'SC-A-002');
-        assert.equal(first.retiredOn, '2026-09-01');
         assert.equal(first.text, 'Old wording.');
     });
 });
@@ -273,6 +299,45 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                 ]),
             ),
             [],
+        );
+    });
+
+    test('a draft that also claims to be decided but not delivered', () => {
+        // It would be decided and not decided at once. The document renders
+        // both markers happily and leaves a reader to pick.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n_(Draft since 2026-09-01.)_ Prose. ` +
+                        '_(Decided, not yet delivered.)_\n\n_Source:_ #1',
+                ],
+            ],
+            'also marked as decided-but-not-delivered',
+        );
+    });
+
+    test('a state marker that nearly matches', () => {
+        // `_(Draft since.)_` has no date, so it is not a draft — it is prose,
+        // and the entry counts as a promise that stands. It reads as a draft to
+        // everyone who opens the file. The date is not optional because the
+        // risk a draft runs is time: one opened a year ago reads exactly like
+        // one opened last week, and only one is still somebody's intention.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n_(Draft since.)_ Prose.\n\n_Source:_ #1`,
+                ],
+            ],
+            'opens with something shaped like a state',
+        );
+    });
+
+    test('a state word nobody defined', () => {
+        complains(
+            [['01_a', `${head()}\n### SC-A-001 — Title\n\n_(Obsolete.)_ Prose.\n\n_Source:_ #1`]],
+            'opens with something shaped like a state',
         );
     });
 

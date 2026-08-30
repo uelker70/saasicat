@@ -25,6 +25,7 @@ import { BEGIN, END } from './render.mjs';
 
 const CHAPTER_KEYS = new Set(['title']);
 const RETIRED = new Set(['superseded', 'withdrawn']);
+const STATES = new Set(['draft', 'current', 'superseded', 'withdrawn']);
 
 export function check(catalogue) {
     const problems = [];
@@ -153,7 +154,41 @@ function checkEntry(entry, chapter, byId, say) {
     // a reason only "where a requirement has a reason that is not obvious from
     // the requirement itself". Nineteen entries state the whole promise in
     // their heading and would only repeat it below.
+    checkState(entry, say);
     if (RETIRED.has(entry.status)) checkRetired(entry, byId, say);
+}
+
+/**
+ * Which claims a state is allowed to make alongside itself.
+ *
+ * Each combination refused below is one that says two things at once. A draft
+ * that is "decided, not yet delivered" is decided and not decided; a retired
+ * entry with a delivery claim describes the present tense of something that no
+ * longer holds. Nothing else would notice: the document renders every one of
+ * them, and a reader would be left working out which half to believe.
+ */
+function checkState(entry, say) {
+    const { where, status } = entry;
+    if (!STATES.has(status)) {
+        say(where, `'${entry.id}' has an unknown state '${status}'`);
+        return;
+    }
+    if (status !== 'current' && !entry.delivered) {
+        say(
+            where,
+            `'${entry.id}' is ${status} and also marked as decided-but-not-delivered. ` +
+                'That claim belongs to a promise that stands.',
+        );
+    }
+    // A state marker that nearly matches is the dangerous one. `_(Draft.)_`
+    // with no date, `_(Obsolete.)_`, a supersession missing its successor —
+    // each reads as a state to a person and as ordinary prose to the parser, so
+    // the entry counts as a promise that stands. Same failure as `_Sources:_`,
+    // one line further down.
+    if (entry.text.startsWith('_(')) {
+        const shown = entry.text.slice(0, entry.text.indexOf(')_') + 2) || entry.text.slice(0, 40);
+        say(where, `'${entry.id}' opens with something shaped like a state — ${shown}`);
+    }
 }
 
 function checkRetired(entry, byId, say) {

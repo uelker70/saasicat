@@ -41,22 +41,41 @@ in this repository, or the release the behaviour arrived in. Where the promise i
 heading, there is nothing between the two, and where its reason is not obvious that reason is the
 most valuable part of the entry.
 
+## What state an entry is in
+
+An entry says one of four things, and which one it says decides what a reader may do with it. The
+question behind the table is always the same: **may somebody rely on this?**
+
+| State      | Written as                                  | May somebody rely on it?                |
+| ---------- | ------------------------------------------- | --------------------------------------- |
+| Current    | nothing — this is the ordinary entry        | Yes                                     |
+| Draft      | `_(Draft since YYYY-MM-DD.)_`               | No — not decided, and it may not happen |
+| Superseded | ``_(Superseded on YYYY-MM-DD by `SC-…`.)_`` | No — follow the successor it names      |
+| Withdrawn  | `_(Withdrawn on YYYY-MM-DD.)_`              | No, and nothing replaces it             |
+
+Superseded and withdrawn look alike to whoever writes them and not at all alike to whoever reads
+them: one hands a reader arriving from an old reference somewhere to go, the other tells them there
+is nowhere. That is why they are two states and not one.
+
+A state carries a date because the risk each one runs is time. A draft opened a year ago and never
+decided reads exactly like one opened last week, and only one of the two is still somebody's
+intention.
+
+Beside its state, an entry that stands may say it is not true yet:
+
+- `_(Decided, not yet delivered.)_` — the decision is settled and recorded, the implementation is
+  not there yet. Only a current entry may say this: a draft is not decided, and a retired one has
+  nothing left to deliver. Such entries are listed because a decision nobody can find is a decision
+  that gets taken twice.
+
 **Identifiers are permanent and a number is never reused.** Somebody outside this repository may
 have written one down, and it must never come to mean something other than it did. So a promise is
-not edited into a different promise. The entry stays where it is, opens with what became of it, and
-the new promise is a new entry:
+not edited into a different promise: the entry stays where it is, opens with what became of it, and
+the new wording becomes a new entry with the next free number in its chapter.
 
-- `_(Superseded on YYYY-MM-DD by \`SC-…\`.)_` — the promise now holds differently, and the
-  successor says how.
-- `_(Withdrawn on YYYY-MM-DD.)_` — the promise is gone and nothing replaces it.
-
-A correction that leaves the promise intact — a typo, a clearer sentence, a reference following a
-supersession — is made in the entry itself. What decides between the two is whether what somebody
-can rely on changes.
-
-A few entries are marked _(Decided, not yet delivered.)_ — the decision is settled and recorded,
-the implementation is not there yet. They are listed because a decision nobody can find is a
-decision that gets taken twice.
+A correction that leaves the promise intact — a typo, a clearer sentence, a reference following
+somebody else's supersession — is made in the entry itself. What decides between the two is whether
+what somebody can rely on changes.
 
 Chapters 1 to 16 are functional: what the product does. Chapters 17 to 24 are non-functional: the
 properties it has while doing it.
@@ -89,6 +108,8 @@ properties it has while doing it.
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
+
+Of 399 entries: 389 stand today, 10 decided but not yet delivered, 0 drafts, 0 superseded, 0 withdrawn.
 
 Generated from `requirements/` — 399 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.

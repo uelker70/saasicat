@@ -54,6 +54,43 @@ the reason for a promise is not obvious, that reason is the most valuable part o
 Dependencies are not written down: an identifier mentioned anywhere in the prose is a reference,
 and every one of them is resolved by the checker.
 
+## What state it is in
+
+An ordinary entry carries no marker: it stands, and the product keeps it. The other states open the
+entry, because a reader arriving from an old link has to learn in the first few words that it does
+not apply.
+
+| State                                 | Written as                                  |
+| ------------------------------------- | ------------------------------------------- |
+| Current                               | nothing                                     |
+| Draft — proposed, not decided         | `_(Draft since YYYY-MM-DD.)_`               |
+| Superseded — replaced, follow the id  | ``_(Superseded on YYYY-MM-DD by `SC-…`.)_`` |
+| Withdrawn — gone, nothing replaces it | `_(Withdrawn on YYYY-MM-DD.)_`              |
+
+A current entry that is not true yet says `_(Decided, not yet delivered.)_` at the end of its
+prose. No other state may: a draft is not decided, and a retired one has nothing left to deliver.
+
+`00_preamble/02_structure.md` carries the same table for readers of the published page, and the
+line under the chapter table says how many entries are in each state today.
+
+## What proves it
+
+A test names the promise it proves:
+
+```js
+/** @requirement SC-PLAN-004 */
+```
+
+The link goes this way round because in the test it sits beside the thing it describes and moves
+when that moves. In the requirement it would be a second list to keep in step with the first.
+
+Nothing was backfilled — 389 promises stand today with nothing naming them. `requirements:guard`
+freezes that number instead: it may fall and may not rise. A new promise brings its test, or pays
+for itself by proving one that was already owed.
+
+Only a current, delivered promise is owed a proof. A draft is not a promise yet, a retired one is
+not one any more, and one decided but not delivered has nothing to prove until it is built.
+
 ## Changing one
 
 **An identifier is permanent, and a promise is not edited into a different promise.** Somebody
@@ -70,6 +107,23 @@ Not every edit is a change of the promise, and the difference matters: without i
 sentence would walk through the chapter superseding everything that mentions it. A typo, a clearer
 sentence, or a reference following a supersession is edited in place. The question that decides it
 is whether **what somebody can rely on** changes.
+
+None of this is left to memory. `pnpm run requirements:guard` compares the promises on this branch
+against the ones on `main` and refuses a promise that was rewritten in place, an entry that was
+deleted, an entry rewritten while being retired, and a retired promise brought back. What is
+compared is the promise and not the file: rewrapping a paragraph, bolding a phrase and following
+somebody else's supersession all change the text and none of them change what was promised.
+
+Where the words did change but the promise did not — a typo, a clearer sentence — say so in the
+commit that makes the change:
+
+```text
+Editorial: SC-PLAN-004
+```
+
+It belongs there rather than in the entry because the claim is about one edit, not about the
+requirement, and a reviewer can hold it against the diff sitting beside it. A marker in the entry
+would outlive the typo it excused by years.
 
 [`docs/explanation/requirements-as-sources.md`](../docs/explanation/requirements-as-sources.md) has
 the long form, including every rule the checker enforces and the ones it cannot.

@@ -45,8 +45,30 @@ export function renderChapters(chapters) {
                 `\`SC-${chapter.prefix.toUpperCase()}-…\` | ${chapter.entries.length} |`,
         ),
         '',
+        standing(chapters.flatMap((chapter) => chapter.entries)),
+        '',
         END,
     ].join('\n');
+}
+
+/**
+ * One line of where the catalogue stands, rather than a column of zeroes.
+ *
+ * A per-chapter count of what is not yet delivered would be `0` in twenty of
+ * twenty-four rows and would say less than this sentence does. The zeroes are
+ * kept here on purpose: "none withdrawn" is a fact about a catalogue this
+ * young, and it stops being true the day it stops being true.
+ */
+function standing(entries) {
+    const count = (predicate) => entries.filter(predicate).length;
+    const parts = [
+        `${count((entry) => entry.status === 'current' && entry.delivered)} stand today`,
+        `${count((entry) => entry.status === 'current' && !entry.delivered)} decided but not yet delivered`,
+        `${count((entry) => entry.status === 'draft')} drafts`,
+        `${count((entry) => entry.status === 'superseded')} superseded`,
+        `${count((entry) => entry.status === 'withdrawn')} withdrawn`,
+    ];
+    return `Of ${entries.length} entries: ${parts.join(', ')}.`;
 }
 
 /**

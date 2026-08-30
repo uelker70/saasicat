@@ -162,6 +162,16 @@ free number in its chapter. A promise dropped with nothing in its place is
 `_(Withdrawn on YYYY-MM-DD.)_`. A typo, a clearer sentence, or a reference following somebody
 else's supersession is edited in place — the question is whether what somebody can rely on changes.
 
+`pnpm run requirements:guard` enforces this against `main`, and CI runs it on every pull request. It
+refuses a promise rewritten in place, an entry deleted rather than withdrawn, an entry rewritten
+while being retired, and a retired promise brought back. Where the words changed but the promise did
+not, say so in the commit that makes the change — `Editorial: SC-PLAN-004`, naming each identifier
+it covers.
+
+A test names the promise it proves, as `@requirement SC-PLAN-004` in a comment. Nothing was
+backfilled; the guard freezes the count of promises nothing names, so it may fall and may not rise.
+A new requirement brings its test, or pays for itself by proving one that was already owed.
+
 [`requirements/README.md`](requirements/README.md) is the short form for whoever is editing;
 [`docs/explanation/requirements-as-sources.md`](docs/explanation/requirements-as-sources.md) is the
 long one, including every rule the checker enforces and the ones no checker can.
