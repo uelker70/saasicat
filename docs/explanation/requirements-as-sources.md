@@ -58,6 +58,14 @@ identifier mentioned in the text of an entry is a reference to it, and the check
 one. Writing them a second time in a field would be a copy, and a copy goes stale. The release a
 requirement arrived in comes from git for the same reason.
 
+A reference belongs where the promise cannot be checked without the other one: where the entry
+restates a rule another owns, or leans on a word another defines. `SC-MKT-016` requires every add-on
+in an offer to still be _bookable_, and what bookable means is `SC-BUN-023`'s to say — change that
+and this promise silently means something else, which is precisely what a reference makes visible.
+Two entries merely being about the same subject is not that. Every reference is an edge somebody
+has to follow when the other end is superseded, so one added out of tidiness costs that and buys
+nothing; if the link does not read as part of the sentence, it is probably not a dependency.
+
 ## Changing a requirement
 
 An identifier is permanent. Somebody outside this repository may have written it down, and it must
@@ -78,6 +86,12 @@ _Source:_ #133 · ADR 0009
 A promise that is dropped rather than replaced is withdrawn instead, with no successor:
 `🔴 _(Withdrawn on 2026-09-01.)_`. Both markers open the entry, because a reader arriving from an old
 link has to learn in the first few words that it does not apply.
+
+A promise moves between states in one direction: a draft is decided or dropped, a promise that
+stands is superseded or withdrawn, and nothing comes back. The move deliberately missing from that
+list is current to draft. It reads as tidying and it is a promise being demoted to a proposal — and
+because prepending the marker leaves the wording untouched, no comparison of the prose would notice,
+while the entry silently stops being owed a proof.
 
 Each state carries a colour — ⚪ draft, 🔵 superseded, 🔴 withdrawn, 🟡 decided but not yet
 delivered — and the checker refuses one that disagrees with the words beside it, because a colour is
@@ -122,10 +136,14 @@ first, and the two would drift the first time a file was renamed.
 
 When the catalogue was written, no test anywhere named a requirement. Backfilling 389 of them would
 have been a week of work for a number nobody would trust afterwards, so nothing was backfilled and
-the debt is frozen instead: `requirements:guard` counts the promises that stand with nothing naming
-them and fails when that count rises. A new promise brings its test, or pays for itself by proving
-one that was already owed — which is what makes the rule liveable, because a promise with no test
-worth writing can still be added without an exemption somebody has to judge.
+the debt is frozen instead: **a new promise brings its test, or a promise already owed one gains a
+test.** That is what makes the rule liveable — a promise with no test worth writing can still be
+added by settling a debt, rather than through an exemption somebody has to judge.
+
+Refusing a _rise in the count_ would not be the same rule, and the difference is a hole: superseding
+an unproven promise drops it out of the count while its untested successor arrives, both sides total
+the same, and a new promise passes having proved nothing. Retiring something proves nothing about
+it, so only a test earns credit.
 
 Only a current, delivered promise is counted. A draft is not a promise yet, a retired one is not one
 any more, and one decided but not delivered has nothing to prove until it is built. Counting those

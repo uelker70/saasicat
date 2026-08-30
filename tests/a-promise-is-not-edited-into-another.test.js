@@ -49,6 +49,18 @@ describe('the fingerprint is the promise, not the prose around it', () => {
         assert.equal(fingerprint('as SC-A-002 says'), fingerprint('as SC-A-099 says'));
     });
 
+    test('the heading is part of the promise', () => {
+        // Nineteen entries state their whole promise in the heading and carry
+        // no prose. Comparing the prose alone compared two empty strings, so
+        // rewriting what such an entry says was accepted without a word.
+        const before = entries(
+            '### SC-A-001 — A key is named in exactly one place\n\n_Source:_ #1',
+        );
+        const after = entries('### SC-A-001 — A key may be named anywhere\n\n_Source:_ #1');
+        const [problem] = problems(before, after);
+        assert.match(problem, /SC-A-001 promises something different/);
+    });
+
     test('a different word is a change', () => {
         // The counter-proof: without it, every case above would hold against a
         // fingerprint that returns the empty string.
@@ -136,10 +148,31 @@ describe('retiring an entry preserves what it said', () => {
         assert.match(problem, /changed its wording while being superseded/);
     });
 
+    test('demoting a promise to a draft is refused', () => {
+        // Prepending the marker leaves the wording untouched, so no comparison
+        // of the prose would ever notice — and the promise would quietly stop
+        // being one, and stop being owed a test. A promise that no longer
+        // applies is withdrawn or superseded.
+        const draft = one(`⚪ _(Draft since 2026-09-01.)_ ${promise}`);
+        const [problem] = problems(before, draft);
+        assert.match(problem, /stood as a promise and is now a draft/);
+    });
+
+    test('deciding a draft is accepted', () => {
+        // The move in the other direction is what a draft is for.
+        const draft = one(`⚪ _(Draft since 2026-09-01.)_ ${promise}`);
+        assert.deepEqual(problems(draft, one(promise)), []);
+    });
+
+    test('dropping a draft is accepted', () => {
+        const draft = one(`⚪ _(Draft since 2026-09-01.)_ ${promise}`);
+        assert.deepEqual(problems(draft, one(`🔴 _(Withdrawn on 2026-09-01.)_ ${promise}`)), []);
+    });
+
     test('a withdrawn promise coming back is refused', () => {
         const withdrawn = one(`🔴 _(Withdrawn on 2026-09-01.)_ ${promise}`);
         const [problem] = problems(withdrawn, one(promise));
-        assert.match(problem, /was withdrawn and is current again/);
+        assert.match(problem, /was withdrawn and is now current/);
     });
 });
 

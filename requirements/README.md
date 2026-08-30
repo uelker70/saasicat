@@ -51,8 +51,14 @@ The `_Source:_` line is required, and there is exactly one. The prose beneath th
 nineteen entries say everything in their heading, and repeating it below would be padding. Where
 the reason for a promise is not obvious, that reason is the most valuable part of the entry.
 
-Dependencies are not written down: an identifier mentioned anywhere in the prose is a reference,
-and every one of them is resolved by the checker.
+Dependencies are not written down separately: an identifier mentioned anywhere in the prose is a
+reference, and every one of them is resolved by the checker.
+
+**A reference belongs where the promise cannot be checked without the other one** — where this
+entry restates a rule another owns, or leans on a word another defines. Not where two entries are
+merely about the same subject: every reference is an edge somebody has to follow when the other end
+is superseded, and one added out of tidiness costs that for nothing. If the link does not read as
+part of the sentence, it is probably not a dependency.
 
 ## What state it is in
 
@@ -71,6 +77,11 @@ The colour is not the state — the words are — and it is checked against them
 disagrees is read faster than the words and misleads whoever trusts it. Green has a colour and no
 entry wears it: a dot on three hundred and eighty-nine ordinary entries would hide the ten that are
 not.
+
+A promise moves between states in one direction only: a draft is decided or dropped, a promise that
+stands is superseded or withdrawn, and nothing comes back. **A promise is never demoted to a
+draft** — prepending the marker leaves the wording untouched, so it reads as tidying while quietly
+taking the promise back and stopping anything from asking for a test of it.
 
 A current entry that is not true yet says `🟡 _(Decided, not yet delivered.)_` at the end of its
 prose. No other state may: a draft is not decided, and a retired one has nothing left to deliver.
@@ -92,8 +103,9 @@ The link goes this way round because in the test it sits beside the thing it des
 when that moves. In the requirement it would be a second list to keep in step with the first.
 
 Nothing was backfilled — 389 promises stand today with nothing naming them. `requirements:guard`
-freezes that number instead: it may fall and may not rise. A new promise brings its test, or pays
-for itself by proving one that was already owed.
+freezes that debt: **a new promise brings its test, or a promise already owed one gains a test.**
+Retiring an unproven promise makes the debt smaller and buys nothing, because retiring proves
+nothing about it.
 
 Only a current, delivered promise is owed a proof. A draft is not a promise yet, a retired one is
 not one any more, and one decided but not delivered has nothing to prove until it is built.

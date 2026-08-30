@@ -34,10 +34,26 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { readCatalogue } from './parse.mjs';
-import { annotationsIn, isTestPath, scanTests, unproven } from './proof.mjs';
+import { annotationsIn, isTestPath, scanTests, standing, unproven } from './proof.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const RETIRED = new Set(['superseded', 'withdrawn']);
+
+/**
+ * Which state an entry may move to, once it exists.
+ *
+ * A proposal may be decided or dropped, a promise that stands may be replaced
+ * or taken back, and nothing comes back. The transition missing from the table
+ * on purpose is `current` to `draft`: it reads as tidying and it is a promise
+ * being demoted to a proposal, and because prepending the marker leaves the
+ * wording untouched, no comparison of the prose would ever notice.
+ */
+const ALLOWED = {
+    draft: new Set(['draft', 'current', 'withdrawn']),
+    current: new Set(['current', 'superseded', 'withdrawn']),
+    superseded: new Set(['superseded']),
+    withdrawn: new Set(['withdrawn']),
+};
 // One quantifier, not two that can trade characters: `[ \t]*(.+)` lets the
 // same spaces belong to either half, which is polynomial backtracking on a long
 // line and what `regexp/no-super-linear-backtracking` refuses. The splitting is
@@ -51,6 +67,10 @@ const TRAILER = /^Editorial:(.*)$/gm;
  * identifiers, because a reference follows a supersession; emphasis, because
  * bolding a phrase is typography; line breaks, because these files are wrapped
  * by hand at a hundred columns and one added word reflows the paragraph.
+ *
+ * The heading is part of it. Nineteen entries state their whole promise
+ * there and carry no prose at all, so comparing the prose alone compared
+ * two empty strings and accepted any rewrite of what they say.
  */
 export function fingerprint(promise) {
     return promise
@@ -58,6 +78,27 @@ export function fingerprint(promise) {
         .replace(/[*_`]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
+}
+
+/** Title and prose together: nineteen entries keep their whole promise in the title. */
+const promiseOf = (entry) => fingerprint(`${entry.title} — ${entry.text}`);
+
+/** Why a move between two states is refused, in the words of the move itself. */
+function transition(was, is) {
+    if (was.status === 'current' && is.status === 'draft') {
+        return (
+            `${was.id} stood as a promise and is now a draft. A promise that no longer ` +
+            'applies is withdrawn or superseded; demoting it to a proposal takes it back ' +
+            'without saying so, and stops anything asking for a test of it.'
+        );
+    }
+    if (RETIRED.has(was.status)) {
+        return (
+            `${was.id} was ${was.status} and is now ${is.status}. ` +
+            'A promise that holds again is a new requirement, not an old one revived.'
+        );
+    }
+    return `${was.id} moved from ${was.status} to ${is.status}, which is not a move it has.`;
 }
 
 /**
@@ -84,19 +125,10 @@ export function compare(before, after, editorial = new Set()) {
             continue;
         }
 
-        const changed = fingerprint(was.text) !== fingerprint(is.text);
-        const wasRetired = RETIRED.has(was.status);
+        const changed = promiseOf(was) !== promiseOf(is);
         const isRetired = RETIRED.has(is.status);
 
-        if (wasRetired && !isRetired) {
-            // A promise that was taken back does not quietly come back. If it
-            // holds again it holds for a reason, and the reason deserves an
-            // entry of its own that says so.
-            problems.push(
-                `${was.id} was ${was.status} and is current again. ` +
-                    'A promise that holds again is a new requirement, not an old one revived.',
-            );
-        }
+        if (!ALLOWED[was.status].has(is.status)) problems.push(transition(was, is));
 
         if (!changed || editorial.has(was.id)) continue;
 
@@ -158,24 +190,34 @@ function namedAt(root, ref) {
 }
 
 /**
- * A promise that stands and nothing proves may not become more common.
+ * A new promise brings a proof, or a promise already owed one gains a test.
  *
- * Backfilling 389 entries would be a week of work, so nothing is backfilled and
- * the debt is frozen instead: a new promise brings its test, or pays for itself
- * by proving one that was already owed. A fixed target would have been the
- * worse instrument — every number anybody could name here is either met today
- * and toothless, or unreachable and routed around.
+ * Counting the debt and refusing a rise is not the same rule, and the gap
+ * between them is a hole: superseding an unproven promise drops it out of the
+ * count while its untested successor arrives, both sides total the same, and a
+ * new promise passes having proved nothing. Retiring something proves nothing
+ * about it, so only a test earns credit.
+ *
+ * Backfilling 389 entries would have been a week of work for a number nobody
+ * would trust afterwards, so nothing is backfilled and the debt is frozen. What
+ * makes that liveable is that the credit is fungible: a promise with no test
+ * worth writing can still be added by settling one already owed, rather than
+ * through an exemption somebody has to judge.
  */
-export function ratchet(before, after) {
-    if (after.length <= before.length) return [];
+export function ratchet(before, after, stillStanding) {
     const added = after.filter((id) => !before.includes(id));
+    // Owed before, still a promise now, and no longer owed: a test arrived.
+    const settled = before.filter((id) => stillStanding.includes(id) && !after.includes(id));
+    if (added.length <= settled.length) return [];
+
     return [
-        `${after.length} promises stand with nothing proving them, up from ${before.length}.\n` +
+        `${added.length} promise(s) arrived with nothing proving them, and ` +
+            `${settled.length} already owed a proof gained one.\n` +
             `    Not named by any test: ${added.slice(0, 5).join(', ')}` +
             `${added.length > 5 ? `, and ${added.length - 5} more` : ''}\n` +
             '    Name it from the test that proves it:\n' +
-            `      /** @requirement ${added[0] ?? 'SC-…'} */\n` +
-            '    or annotate an existing test to pay for it.',
+            `      /** @requirement ${added[0]} */\n` +
+            '    or annotate a test for a promise already owed.',
     ];
 }
 
@@ -225,7 +267,11 @@ export function guard(root, base) {
         unproven: owed.length,
         problems: [
             ...compare(before.entries, after.entries, editorial),
-            ...ratchet(unproven(before.entries, namedAt(root, merged)), owed),
+            ...ratchet(
+                unproven(before.entries, namedAt(root, merged)),
+                owed,
+                standing(after.entries),
+            ),
         ],
     };
 }

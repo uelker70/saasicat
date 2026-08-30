@@ -106,8 +106,12 @@ export function scanTests(root, groups = GROUPS) {
  * the number would stop meaning anything the moment somebody wrote one.
  */
 export function unproven(entries, named) {
+    return standing(entries).filter((id) => !named.has(id));
+}
+
+/** Every promise the product claims to keep today, proved or not. */
+export function standing(entries) {
     return entries
         .filter((entry) => entry.status === 'current' && entry.delivered)
-        .filter((entry) => !named.has(entry.id))
         .map((entry) => entry.id);
 }

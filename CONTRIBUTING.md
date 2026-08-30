@@ -169,8 +169,8 @@ not, say so in the commit that makes the change — `Editorial: SC-PLAN-004`, na
 it covers.
 
 A test names the promise it proves, as `@requirement SC-PLAN-004` in a comment. Nothing was
-backfilled; the guard freezes the count of promises nothing names, so it may fall and may not rise.
-A new requirement brings its test, or pays for itself by proving one that was already owed.
+backfilled; the guard freezes the debt instead — a new promise brings its test, or a promise already
+owed one gains a test. Retiring an unproven promise makes the debt smaller and buys nothing.
 
 [`requirements/README.md`](requirements/README.md) is the short form for whoever is editing;
 [`docs/explanation/requirements-as-sources.md`](docs/explanation/requirements-as-sources.md) is the

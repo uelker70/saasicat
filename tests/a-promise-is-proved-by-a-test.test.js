@@ -116,26 +116,52 @@ describe('only a promise that stands is owed a proof', () => {
     });
 });
 
-describe('the debt may shrink and may not grow', () => {
+describe('a new promise brings a proof, or settles one already owed', () => {
     test('an unchanged debt passes', () => {
-        assert.deepEqual(ratchet(['SC-A-001'], ['SC-A-001']), []);
+        assert.deepEqual(ratchet(['SC-A-001'], ['SC-A-001'], ['SC-A-001']), []);
     });
 
-    test('a smaller debt passes', () => {
-        assert.deepEqual(ratchet(['SC-A-001', 'SC-A-002'], ['SC-A-001']), []);
+    test('a debt settled by a test passes', () => {
+        // SC-A-002 is still a promise and is no longer owed: something named it.
+        assert.deepEqual(
+            ratchet(['SC-A-001', 'SC-A-002'], ['SC-A-001'], ['SC-A-001', 'SC-A-002']),
+            [],
+        );
     });
 
     test('a new promise with nothing proving it is refused', () => {
-        const [problem] = ratchet(['SC-A-001'], ['SC-A-001', 'SC-A-002']);
-        assert.match(problem, /up from 1/);
+        const [problem] = ratchet(['SC-A-001'], ['SC-A-001', 'SC-A-002'], ['SC-A-001', 'SC-A-002']);
+        assert.match(problem, /1 promise\(s\) arrived with nothing proving them/);
         assert.match(problem, /SC-A-002/);
         assert.match(problem, /@requirement SC-A-002/);
     });
 
-    test('a new promise paid for by proving an old one passes', () => {
-        // The property that makes this liveable. A promise that genuinely has
-        // no test worth writing can still be added — by settling a debt that
-        // was already owed, rather than by an exemption somebody has to judge.
-        assert.deepEqual(ratchet(['SC-A-001'], ['SC-A-002']), []);
+    test('a new promise paid for by proving one already owed passes', () => {
+        // What makes the rule liveable: a promise with no test worth writing
+        // can still be added by settling a debt, rather than through an
+        // exemption somebody has to judge.
+        assert.deepEqual(
+            ratchet(
+                ['SC-A-001', 'SC-A-002'],
+                ['SC-A-001', 'SC-A-003'],
+                ['SC-A-001', 'SC-A-002', 'SC-A-003'],
+            ),
+            [],
+        );
+    });
+
+    test('retiring an unproven promise does not pay for a new one', () => {
+        // The hole this file used to record as intended behaviour. Superseding
+        // an unproven promise drops it out of the count while its untested
+        // successor arrives; both sides total the same, and a new promise
+        // passed having proved nothing. Retiring proves nothing about it.
+        const [problem] = ratchet(['SC-A-001'], ['SC-A-002'], ['SC-A-002']);
+        assert.match(problem, /0 already owed a proof gained one/);
+    });
+
+    test('retiring an unproven promise on its own passes', () => {
+        // Nothing arrived, so nothing is owed. Withdrawing a promise is allowed
+        // to make the debt smaller — it just does not buy anything.
+        assert.deepEqual(ratchet(['SC-A-001'], [], []), []);
     });
 });
