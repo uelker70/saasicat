@@ -4,7 +4,7 @@
     "title": "PlanCatalog",
     "description": "Language-neutral definition of a plan catalog + app identity for a SaaS app. Maintained by the consumer as a YAML/JSON file (`config/saas.yaml`) and mirrored into platform tables at backend boot.",
     "type": "object",
-    "required": ["schemaVersion", "app", "currency", "vatRate"],
+    "required": ["schemaVersion", "app", "currency", "vatRate", "tenantBilling"],
     "additionalProperties": false,
     "properties": {
         "schemaVersion": {
@@ -54,6 +54,54 @@
             "maximum": 100,
             "description": "VAT rate in percent. Required (even when 0)."
         },
+        "tenantBilling": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Commercial settings for the tenant-facing self-service routes. Required, and required member by member: every one of these has a money or a legal consequence, and a value left out is still a decision — just an invisible one. The file is read at boot, so a change lands on the next restart.",
+            "required": ["cancellationNoticeDays", "selfServiceBlockedPlans"],
+            "properties": {
+                "cancellationNoticeDays": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Days of notice before a term ends, one number per rhythm. A cancellation declared after the window has closed takes effect at the first period end that actually serves the notice. Two numbers rather than one because a monthly and a yearly contract cannot share a notice period: a fortnight is unusual on a year, and three months is void against a consumer on a month. No ceiling is enforced — §309 Nr. 9 BGB caps it at one month in German consumer contracts, and an installation serving businesses is not bound by that.",
+                    "required": ["monthly", "yearly"],
+                    "properties": {
+                        "monthly": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Notice days on a monthly rhythm. 0 means there is no door to be shut out of: a cancellation on the last day still lands at the term end."
+                        },
+                        "yearly": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Notice days on a yearly rhythm. Raise it and the cut is hard — a declaration made after the window lands one full year later."
+                        }
+                    }
+                },
+                "selfServiceBlockedPlans": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Plans a tenant may not move to or away from without talking to sales. Both lists are required and may be empty; an empty list is the explicit statement that self-service reaches every plan.",
+                    "required": ["asTarget", "asSource"],
+                    "properties": {
+                        "asTarget": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Plan IDs that may not be selected via self-service — typically ENTERPRISE, which only a special contract activates."
+                        },
+                        "asSource": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Plan IDs that may not be left via self-service — typically an active special contract, whose change goes through sales."
+                        }
+                    }
+                }
+            }
+        },
         "marketing": {
             "type": "object",
             "additionalProperties": false,
@@ -62,7 +110,10 @@
             "properties": {
                 "availableLocales": {
                     "type": "array",
-                    "items": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+                    },
                     "minItems": 1,
                     "uniqueItems": true,
                     "description": "Allowed language pool the app may market. First = default locale. From it the SuperAdmin activates a subset in the marketing catalog (LocaleManager)."
@@ -71,16 +122,19 @@
         },
         "features": {
             "type": "array",
-            "items": { "$ref": "#/$defs/FeatureDef" },
+            "items": {
+                "$ref": "#/$defs/FeatureDef"
+            },
             "description": "Master list of all feature flags of the project. Plans may only reference keys declared here."
         },
         "plans": {
             "type": "array",
-            "items": { "$ref": "#/$defs/PlanDef" },
+            "items": {
+                "$ref": "#/$defs/PlanDef"
+            },
             "description": "Optional. When omitted, plans come exclusively from the AdminUI / DB."
         }
     },
-
     "$defs": {
         "FeatureDef": {
             "type": "object",
@@ -92,8 +146,13 @@
                     "pattern": "^[A-Z][A-Z0-9_]+$",
                     "description": "SCREAMING_SNAKE_CASE; unique per catalog."
                 },
-                "label": { "type": "string", "minLength": 1 },
-                "icon": { "type": "string" },
+                "label": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "icon": {
+                    "type": "string"
+                },
                 "tier": {
                     "type": "string",
                     "description": "Optional logical group. Convention: CORE / ADVANCED / PRO / BUSINESS / ENTERPRISE_ONLY."
@@ -105,7 +164,6 @@
                 }
             }
         },
-
         "PlanDef": {
             "type": "object",
             "required": ["id", "quotas", "features"],
@@ -116,8 +174,13 @@
                     "pattern": "^[A-Z][A-Z0-9_]+$",
                     "description": "Plan ID. Freely chosen by the consumer (BASIC, STANDARD, ...). Ends up as a string in Subscription.plan."
                 },
-                "name": { "type": "string", "minLength": 1 },
-                "tagline": { "type": "string" },
+                "name": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "tagline": {
+                    "type": "string"
+                },
                 "marketed": {
                     "type": "boolean",
                     "default": true,
@@ -151,7 +214,10 @@
                 },
                 "features": {
                     "type": "array",
-                    "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Z0-9_]+$"
+                    },
                     "uniqueItems": true,
                     "description": "List of included feature keys; all must exist in features[].key."
                 }

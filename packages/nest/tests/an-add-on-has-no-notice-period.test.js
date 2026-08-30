@@ -21,6 +21,28 @@ const iso = (d) => d.toISOString().slice(0, 10);
 
 const src = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
+const EXPORT_KEYWORDS = new Set(['interface', 'function', 'const', 'type']);
+
+/**
+ * Every name a module exports, read line by line.
+ *
+ * One `split` on one character class rather than a pattern with `\s+ \{? \s*`
+ * in it: two whitespace quantifiers with an optional group between them can
+ * divide the same run of spaces in more than one way, which is the shape that
+ * backtracks. This file is scanning our own source, so nothing hostile reaches
+ * it — but the rule lives in the linter, and a ratchet that is stepped around
+ * once is a ratchet.
+ */
+function exportedNames(text) {
+    const names = [];
+    for (const line of text.split('\n')) {
+        if (!line.startsWith('export ')) continue;
+        const words = line.split(/[^\w$]+/).filter(Boolean);
+        if (words.length >= 3 && EXPORT_KEYWORDS.has(words[1])) names.push(words[2]);
+    }
+    return names;
+}
+
 describe('the bundle path does not consult a notice period', () => {
     test('no source file on that path names anything that carries one', () => {
         // Structural on purpose: what has to stay true is that the concept
@@ -34,14 +56,17 @@ describe('the bundle path does not consult a notice period', () => {
         // failed on a comment saying "no notice is needed", which is the
         // opposite of a violation: what is forbidden is reaching for the
         // machinery, not mentioning the idea.
+        //
+        // Every exported name is read and then filtered by the concept, rather
+        // than matched by a shape: `CancellationNoticePeriods` is re-exported
+        // (`export type { … }`) since the type moved to `@saasicat/core`, and a
+        // pattern keyed to `export interface` stopped seeing it — the guard
+        // went quiet on the day the surface changed, which is the day it was
+        // most needed.
         const carriers = [
-            ...src('../src/billing/cancellation.ts').matchAll(
-                /export (?:interface|function|const) (\w*[Nn]otice\w*)/g,
-            ),
-            ...src('../src/billing/tenant-billing.tokens.ts').matchAll(
-                /export const (\w*NOTICE\w*)/g,
-            ),
-        ].map((match) => match[1]);
+            ...exportedNames(src('../src/billing/cancellation.ts')),
+            ...exportedNames(src('../src/billing/tenant-billing.tokens.ts')),
+        ].filter((name) => /notice/i.test(name));
         assert.ok(carriers.length >= 3, `expected the notice machinery, found ${carriers}`);
 
         for (const file of [

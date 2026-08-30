@@ -20,6 +20,26 @@ export interface AjvErrorLike {
     instancePath?: string;
     message?: string;
     schemaPath?: string;
+    params?: { missingProperty?: string };
+}
+
+/**
+ * Where in the document the violation is, as the editor of the document sees it.
+ *
+ * Ajv answers a missing property by pointing at its *parent* and naming the
+ * child in `params`, so `/: must have required property 'tenantBilling'` is
+ * what an integrator gets for a field two levels down. Joining the two gives
+ * `tenantBilling.cancellationNoticeDays` — the thing to go and type.
+ *
+ * This is not decoration. Making `tenantBilling` required breaks every existing
+ * config/saas.yaml on upgrade, so this message is the first thing every
+ * integrator meets.
+ */
+function locate(error: AjvErrorLike): string {
+    const segments = (error.instancePath ?? '').split('/').filter(Boolean);
+    const missing = error.params?.missingProperty;
+    if (missing) segments.push(missing);
+    return segments.length > 0 ? segments.join('.') : '(document root)';
 }
 
 /**
@@ -36,9 +56,7 @@ export class PlanCatalogValidationError extends Error {
         public readonly source: string,
         public readonly errors: AjvErrorLike[],
     ) {
-        const messages = errors
-            .map((e) => `${e.instancePath || '/'}: ${e.message ?? 'unknown'}`)
-            .join('\n  ');
+        const messages = errors.map((e) => `${locate(e)}: ${e.message ?? 'unknown'}`).join('\n  ');
         super(`Plan catalog validation failed for ${source}:\n  ${messages}`);
         this.name = 'PlanCatalogValidationError';
     }

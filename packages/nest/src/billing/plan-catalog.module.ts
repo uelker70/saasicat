@@ -43,6 +43,12 @@ export interface PlanCatalogModuleOptions {
     currency: string;
     vatRate: number;
     /**
+     * Commercial self-service settings from `config/saas.yaml#tenantBilling`.
+     * The read sink loads plans and features; settings are never in the
+     * database, so they can only come from the file.
+     */
+    tenantBilling: PlanCatalog['tenantBilling'];
+    /**
      * App-wide marketing configuration — including the
      * `availableLocales` pool. Flows into `PLAN_CATALOG_TOKEN.marketing`
      * and from there into the admin manifest (`project.availableLocales`).
@@ -76,6 +82,7 @@ export class PlanCatalogModule {
                                 app: options.app,
                                 currency: options.currency,
                                 vatRate: options.vatRate,
+                                tenantBilling: options.tenantBilling,
                                 marketing: options.marketing,
                             },
                             snapshot,

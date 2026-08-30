@@ -53,19 +53,10 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                 },
                 tenantBilling: {
                     authGuards: [DemoAuthGuard],
-                    // How many days before the term ends a cancellation is
-                    // still in time. Zero — the default, spelled out here
-                    // because it is a commercial decision rather than a
-                    // technical one — means there is no door to be shut out of:
-                    // a cancellation on the last day still lands at the term
-                    // end. Raise it and the cut is hard, so a declaration made
-                    // after the window lands one full period later. With a
-                    // yearly cycle that is a year, which is why the wizard
-                    // states the date before the customer confirms.
-                    // Two rhythms, two numbers. Both zero here: the example does
-                    // not model a notice period, and zero is the reading a
-                    // customer expects.
-                    cancellationNoticeDays: { monthly: 0, yearly: 0 },
+                    // The notice period and the blocked plans are not here:
+                    // they live in `config/saas.yaml` under `tenantBilling:`,
+                    // which is the one place they live. Passing either one
+                    // here refuses the boot rather than being ignored.
                 },
                 subscriptionBundles: true,
                 adminResources: true,

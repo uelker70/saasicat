@@ -939,22 +939,26 @@ backwards.
 
 _Source:_ release 1.0.0-rc.6
 
-### SC-CANC-005 — Out of the box there is no notice period
+### SC-CANC-005 — There is no notice period until an installation names one
 
-A cancellation declared on the last day of a period still takes effect at the end of that period.
-Most installations should leave it there: it is the reading a customer expects and the one that
-generates no disputes.
+Every installation states both numbers in `config/saas.yaml`, and one that states neither does not
+start. Zero is what most should write: a cancellation declared on the last day of a period then
+still takes effect at the end of that period, which is the reading a customer expects and the one
+that generates no disputes. It is written down rather than defaulted, because a notice period is a
+commercial decision and an unwritten one is a decision nobody made.
 
-_Source:_ #212
+_Source:_ #212 · #217
 
 ### SC-CANC-006 — A notice period belongs to a rhythm, not to an installation
 
 One number could not be right for both. A fortnight of notice on a yearly contract is unusual;
 three months on a monthly one is void against a consumer in Germany. Each rhythm is configured
-separately, and a rhythm nobody configured owes no notice rather than inheriting the other one —
-inferring it would be inventing a term.
+separately, and neither inherits the other — inferring one from the other would be inventing a
+term. A configuration naming only one of them is therefore refused rather than read as zero for
+the other; see
+[SC-CFG-017](#sc-cfg-017--a-required-setting-is-required-member-by-member-not-as-a-block).
 
-_Source:_ #230 · `docs/guides/upgrade-to-1.0.md`
+_Source:_ #230 · #217 · `docs/guides/upgrade-to-1.0.md`
 
 ### SC-CANC-007 — The rhythm that decides the notice is the subscription's, not the plan's
 
@@ -2124,7 +2128,42 @@ _Source:_ #217
 
 Where a change goes through review and a deployment. For a value changed twice a year the
 deployment is not friction — it is the review, and version control answers "who changed the notice
-period, when, and why" better than an audit table does. _(Decided, not yet delivered.)_
+period, when, and why" better than an audit table does. Delivered for the notice period and the
+self-service plan blocks; the settings still passed in code move in later steps.
+
+_Source:_ #217
+
+### SC-CFG-016 — A setting that moved out of code is removed, not deprecated
+
+An installation that still passes it in code does not start, and is told which file it belongs in.
+Accepting it as a fallback would leave two homes, and ignoring it silently is worse still: the
+value an operator set is the one they believe is running, so the application would not fail — it
+would work, differently, until a customer's cancellation landed a period late.
+
+_Source:_ #217
+
+### SC-CFG-017 — A required setting is required member by member, not as a block
+
+A block naming only one of two rhythms is refused rather than read as zero for the other. The rule
+that a silent default is an invisible decision does not stop at the outermost level of the
+document.
+
+_Source:_ #217
+
+### SC-CFG-018 — An empty list and a zero are values an operator wrote, not omissions
+
+"No plan is blocked from self-service" and "there is no notice period" are commercial statements,
+and the file says them out loud rather than by leaving a line out.
+
+_Source:_ #217
+
+### SC-CFG-019 — A migration tool reports a setting that moved; it does not delete it
+
+The value is a term somebody agreed. Removing it from the code without writing it into the file
+would leave the installation running on whatever the file happens to say — the failure the move
+exists to prevent, committed by the tool meant to perform it. What makes reporting safe rather
+than lax is [SC-CFG-016](#sc-cfg-016--a-setting-that-moved-out-of-code-is-removed-not-deprecated):
+the boot refusal means the report cannot be acted on halfway.
 
 _Source:_ #217
 

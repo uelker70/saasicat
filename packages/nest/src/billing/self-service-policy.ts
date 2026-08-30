@@ -1,14 +1,11 @@
 // Self-service block policy for plan changes and bundle bookings.
 //
-// `asTarget`: plans that may not be selected via self-service
-// (typically: ENTERPRISE — only activatable via a special contract).
-// `asSource`: plans that may not be left via self-service
-// (typically: an active ENTERPRISE special contract → plan change via sales).
+// `SelfServiceBlockedPlans` is defined by the catalogue, not here: it is a
+// section of `config/saas.yaml` and the platform only reads it. Re-exported so
+// the billing entry point stays the one import for everything a plan change
+// needs.
 
-export interface SelfServiceBlockedPlans {
-    asTarget?: string[];
-    asSource?: string[];
-}
+export type { SelfServiceBlockedPlans } from '@saasicat/core';
 
 export const SELF_SERVICE_BLOCKED_PLANS_TOKEN = Symbol.for('saasicat/nest/SelfServiceBlockedPlans');
 

@@ -88,13 +88,13 @@ the first thing to check.
 Go through your `app.module.ts` option by option. Most map directly. The ones
 that surprised us:
 
-| Your wiring                                                      | Standard stack                                  | Note                                                                                                |
-| ---------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `PlanCatalogModule.forRoot({app, currency, vatRate, marketing})` | `dbCatalog: {...}`                              | identity only; plans come from the read sink                                                        |
-| `EntitlementModule.forRoot({...repos, resolutionConfig})`        | `entitlement: { resolutionConfig }`             | repos come from the bundle                                                                          |
-| `PublicCatalogModule.forRoot(...)`                               | `catalog: { publicCatalog: true }`              | on by default                                                                                       |
-| `PromoCodesModule.forRoot({includePublicController: true})`      | `promoCodes: { includePublicController: true }` | **default flips to `false`** — set it explicitly or you silently lose `POST /billing/promo/preview` |
-| `CatalogModule.forRoot({strictModeCheckMode})`                   | `catalog: { strictModeCheckMode }`              | **platform default is `blocking`** — pass yours verbatim                                            |
+| Your wiring                                                                     | Standard stack                                  | Note                                                                                                |
+| ------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `PlanCatalogModule.forRoot({app, currency, vatRate, tenantBilling, marketing})` | `dbCatalog: {...}`                              | identity + settings; plans come from the read sink                                                  |
+| `EntitlementModule.forRoot({...repos, resolutionConfig})`                       | `entitlement: { resolutionConfig }`             | repos come from the bundle                                                                          |
+| `PublicCatalogModule.forRoot(...)`                                              | `catalog: { publicCatalog: true }`              | on by default                                                                                       |
+| `PromoCodesModule.forRoot({includePublicController: true})`                     | `promoCodes: { includePublicController: true }` | **default flips to `false`** — set it explicitly or you silently lose `POST /billing/promo/preview` |
+| `CatalogModule.forRoot({strictModeCheckMode})`                                  | `catalog: { strictModeCheckMode }`              | **platform default is `blocking`** — pass yours verbatim                                            |
 
 Two defaults are inverted relative to the fine-grained modules. Both fail
 quietly. Diff your route list before and after.

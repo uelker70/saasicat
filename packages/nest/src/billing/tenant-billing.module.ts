@@ -6,8 +6,11 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
+import { planCatalogSchema } from '@saasicat/spec';
+
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
+    PlanCatalog,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
@@ -20,7 +23,7 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
-import type { CancellationNoticePeriods } from './cancellation.js';
+import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
@@ -29,10 +32,7 @@ import {
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
     type ContractFreezeSourcePort,
 } from './contract-freeze.tokens.js';
-import {
-    SELF_SERVICE_BLOCKED_PLANS_TOKEN,
-    type SelfServiceBlockedPlans,
-} from './self-service-policy.js';
+import { SELF_SERVICE_BLOCKED_PLANS_TOKEN } from './self-service-policy.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
     PENDING_PLAN_QUERY_PORT_TOKEN,
@@ -65,6 +65,87 @@ import {
 //     `PlanChangePreviewService` (registered internally in TenantBillingModule)
 //     injects `EntitlementService` via constructor. Without global visibility
 //     the app bootstrap breaks with UndefinedDependencyException.
+
+/**
+ * One commercial setting out of the catalogue, or a sentence saying where it
+ * should have come from.
+ *
+ * The loader refuses a `config/saas.yaml` without `tenantBilling`, so a
+ * catalogue arriving here without one was assembled in code — the `dbCatalog`
+ * block, which forwards the section from the same file, or an object handed
+ * straight to `planCatalog`. Without this the failure is
+ * `Cannot read properties of undefined`, thrown from a Nest factory, which
+ * names neither the file nor the field.
+ */
+function settingFromCatalog<K extends keyof PlanCatalog['tenantBilling']>(
+    catalog: PlanCatalog,
+    key: K,
+): PlanCatalog['tenantBilling'][K] {
+    const settings = catalog.tenantBilling as PlanCatalog['tenantBilling'] | undefined;
+    const value = settings?.[key];
+    if (value === undefined) {
+        throw new Error(
+            `The plan catalogue carries no tenantBilling.${key}. It is a required ` +
+                'section of config/saas.yaml and the loader refuses a file without it, ' +
+                'so a catalogue that reaches here without one was built in code: check ' +
+                'the `dbCatalog` block, which forwards `tenantBilling` from that same ' +
+                'file, or the object passed to `planCatalog`.',
+        );
+    }
+    return value;
+}
+
+/**
+ * Everything `config/saas.yaml#tenantBilling` defines, read off the schema that
+ * defines it.
+ *
+ * Not a list here. The day a third setting moves into that block, this refusal
+ * covers it without anybody remembering to extend it — and a list beside the
+ * schema is the same defect one level up: a second place the answer lives.
+ */
+const MOVED_TO_THE_FILE: readonly string[] = Object.keys(
+    (
+        planCatalogSchema as {
+            properties?: { tenantBilling?: { properties?: Record<string, unknown> } };
+        }
+    ).properties?.tenantBilling?.properties ??
+        // Refuses to guess rather than falling back to an empty list: an empty
+        // one would turn this guard off without saying so.
+        (() => {
+            throw new Error(
+                'plan-catalog.schema.json declares no tenantBilling properties — ' +
+                    '@saasicat/spec and @saasicat/nest are out of step.',
+            );
+        })(),
+);
+
+/**
+ * Refuses the boot when an app still passes a setting that moved.
+ *
+ * Silently ignoring it is the worst outcome available: the value the operator
+ * set is the one they believe is running, and nothing would say otherwise until
+ * a customer's cancellation landed a period late. Starting with a sentence is
+ * louder, and it catches the upgrade path a codemod missed.
+ *
+ * Kept for one minor release, then removed.
+ */
+function assertNoMovedOptions(options: TenantBillingModuleOptions): void {
+    // A value, not a key. `{ ...base, cancellationNoticeDays: undefined }` sets
+    // nothing and loses nothing, and refusing it would be a false alarm on an
+    // app that builds its options with a spread — where the key being present
+    // says nothing about whether anybody chose a value.
+    const given = options as unknown as Record<string, unknown>;
+    const passed = MOVED_TO_THE_FILE.filter((key) => given[key] !== undefined);
+    if (passed.length === 0) return;
+    throw new Error(
+        `TenantBillingModule.forRoot() no longer accepts ${passed.join(' and ')} — ` +
+            'this moved to config/saas.yaml under `tenantBilling:`. Move the value there ' +
+            '(both members of each setting are required) and delete it here. ' +
+            'The file is the one place these live, so a fallback here would be the ' +
+            'second home that change exists to close. ' +
+            'See docs/guides/upgrade-to-1.0.md.',
+    );
+}
 
 export interface TenantBillingModuleOptions {
     /**
@@ -131,29 +212,6 @@ export interface TenantBillingModuleOptions {
         subscriptionContractRepository: ProviderSpec<SubscriptionContractRepository>;
     };
 
-    /**
-     * Plans that are not accepted as target/source via self-service
-     * (typically ENTERPRISE → special contract). `null`/undefined = no blocks.
-     */
-    selfServiceBlockedPlans?: SelfServiceBlockedPlans;
-
-    /**
-     * Days of notice before a term ends, one per rhythm. Both default to 0 —
-     * no notice period.
-     *
-     * A cancellation declared after the window has closed takes effect at the
-     * first period end that actually serves the notice. See
-     * `CANCELLATION_NOTICE_DAYS_TOKEN`.
-     *
-     * Two numbers rather than one because a monthly and a yearly contract
-     * cannot share a notice period: a fortnight is unusual on a year, and three
-     * months is void against a consumer on a month. **No ceiling is enforced** —
-     * §309 Nr. 9 BGB limits it to one month in German consumer contracts, and an
-     * installation serving businesses is not bound by that, so the number is
-     * yours to choose.
-     */
-    cancellationNoticeDays?: CancellationNoticePeriods;
-
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
     /** Optional user ID resolver. Default: `req.user.sub ?? req.user.id`. */
@@ -202,18 +260,26 @@ export class TenantBillingModule {
             PlanChangePreviewService,
         ];
 
-        if (options.cancellationNoticeDays) {
-            providers.push({
+        assertNoMovedOptions(options);
+
+        // Both come from `config/saas.yaml`, which the catalogue carries, and
+        // from nowhere else. A `useValue` here would be the second home this
+        // wiring exists to close: an operator reading the file would have no
+        // way to tell whether the value they see is the value that runs.
+        providers.push(
+            {
                 provide: CANCELLATION_NOTICE_DAYS_TOKEN,
-                useValue: options.cancellationNoticeDays,
-            });
-        }
-        if (options.selfServiceBlockedPlans) {
-            providers.push({
+                useFactory: (catalog: PlanCatalog) =>
+                    settingFromCatalog(catalog, 'cancellationNoticeDays'),
+                inject: [PLAN_CATALOG_TOKEN],
+            },
+            {
                 provide: SELF_SERVICE_BLOCKED_PLANS_TOKEN,
-                useValue: options.selfServiceBlockedPlans,
-            });
-        }
+                useFactory: (catalog: PlanCatalog) =>
+                    settingFromCatalog(catalog, 'selfServiceBlockedPlans'),
+                inject: [PLAN_CATALOG_TOKEN],
+            },
+        );
         if (options.subscriptionBundleRepository) {
             providers.push(
                 asProvider(

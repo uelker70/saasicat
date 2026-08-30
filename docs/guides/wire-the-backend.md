@@ -244,6 +244,7 @@ dbCatalog: {
     app: SAAS_CONFIG.app,
     currency: SAAS_CONFIG.currency,
     vatRate: SAAS_CONFIG.vatRate,
+    tenantBilling: SAAS_CONFIG.tenantBilling,
     marketing: SAAS_CONFIG.marketing,
 }
 ```

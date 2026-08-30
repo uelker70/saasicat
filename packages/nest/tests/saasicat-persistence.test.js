@@ -21,6 +21,10 @@ const planCatalog = {
     app: { name: 'NotesApp' },
     currency: 'EUR',
     vatRate: 19,
+    tenantBilling: {
+        cancellationNoticeDays: { monthly: 0, yearly: 0 },
+        selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+    },
     plans: [],
 };
 

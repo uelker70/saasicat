@@ -54,7 +54,7 @@ Options:
 
 The bundle also ships `planCatalogReadSink` for DB hydration. To use it,
 omit `planCatalog` and pass the identity the database cannot provide:
-`SaaSiCatModule.forRoot({ persistence, dbCatalog: { app, currency, vatRate } })`
+`SaaSiCatModule.forRoot({ persistence, dbCatalog: { app, currency, vatRate, tenantBilling } })`
 — without `dbCatalog` the module refuses to boot, because branding, currency
 and VAT cannot come from the database.
 

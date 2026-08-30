@@ -155,8 +155,8 @@ const RULE_SPECS: readonly RuleSpec[] = [
         message:
             'no plan catalogue is reachable. Either set `planCatalog` (the quickstart YAML ' +
             'path) or, for DB hydration, BOTH a `planCatalogReadSink` (via `adapters` or ' +
-            '`persistence`) AND `dbCatalog` ({ app, currency, vatRate }). Without the ' +
-            'identity the app boots with a silently empty catalogue.',
+            '`persistence`) AND `dbCatalog` ({ app, currency, vatRate, tenantBilling }). ' +
+            'Without the identity the app boots with a silently empty catalogue.',
     },
     {
         id: 'catalog.app-is-named',

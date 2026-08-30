@@ -543,20 +543,67 @@ price is enough, and the gate accepts it.
 `CreateSubscriptionBundleData` accepts them. They are optional, and an adapter that omits them
 leaves every booking on the pre-1.0 reading.
 
-### A notice period belongs to a rhythm, not to a platform
+### The settings that cost money live in `config/saas.yaml`
 
-`cancellationNoticeDays` was one number for every subscription. It is now one per
-rhythm:
+Two module options are **gone**, and they are gone rather than deprecated:
+`cancellationNoticeDays` and `selfServiceBlockedPlans` are now required sections of
+`config/saas.yaml`. Passing either one to `TenantBillingModule.forRoot()` refuses the boot with a
+sentence saying where it went.
 
 ```ts
 // before
-TenantBillingModule.forRoot({ cancellationNoticeDays: 30 });
-// after — the same behaviour, said twice
-TenantBillingModule.forRoot({ cancellationNoticeDays: { monthly: 30, yearly: 30 } });
+TenantBillingModule.forRoot({
+    cancellationNoticeDays: 30,
+    selfServiceBlockedPlans: { asTarget: ['ENTERPRISE'] },
+});
+// after — nothing here
+TenantBillingModule.forRoot({/* … the rest of your wiring … */});
 ```
 
-Both halves default to `0`, so an installation that never set the option is unaffected, and one
-that did keeps exactly what it had by naming the same number twice.
+```yaml
+# config/saas.yaml — after
+tenantBilling:
+    cancellationNoticeDays:
+        monthly: 30
+        yearly: 30
+    selfServiceBlockedPlans:
+        asTarget: [ENTERPRISE]
+        asSource: []
+```
+
+**Every existing `config/saas.yaml` stops loading until you add the block**, and the loader names
+the field it is missing — `tenantBilling.cancellationNoticeDays`, not a schema path. That break is
+the point. A fallback would be a second place the value can come from, and an operator reading the
+file has to be reading the value that is running, with no "unless somebody passed it in code"
+attached.
+
+**Both members of each are required**, and there is no default. A silent `0` is a commercial
+decision too, just an invisible one; the same is true of a missing `asTarget`, which would quietly
+say that self-service reaches every plan. Write `0` and `[]` where that is what you mean — spelled
+out, they are a decision rather than an omission.
+
+Two things follow for the wiring:
+
+- On the **static path** (`planCatalog: loadPlanCatalogFromFile(…)`) there is nothing to do beyond
+  editing the file.
+- On the **database path** the settings are not in the database and never will be, so `dbCatalog`
+  forwards them from the same file it already forwards `currency` from:
+  `tenantBilling: SAAS_CONFIG.tenantBilling`.
+
+`saasicat codemod v1` names every place a moved option is still passed, with its file and line. It
+does **not** remove them: the value is a term somebody agreed, and deleting it from the code
+without writing it into the file would leave the application running on whatever the file happens
+to say — the very failure this move exists to prevent. The boot refusal makes sure the report
+cannot be acted on halfway.
+
+`saasicat init` writes the block with defaults and prints what it wrote, with the values and the
+path, so a new integrator learns where their settings live on the first run rather than from a
+boot failure six weeks later.
+
+### A notice period belongs to a rhythm, not to a platform
+
+`cancellationNoticeDays` was also one number for every subscription. It is now one per rhythm,
+`monthly` and `yearly`, both required.
 
 One number could not be right for both. A fortnight of notice on a yearly contract is unusual;
 three months on a monthly one is void against a consumer under §309 Nr. 9 BGB. **No ceiling is
@@ -564,9 +611,9 @@ enforced** — the platform does not know whether an installation serves consume
 the number is yours to choose and this paragraph is what says what it costs.
 
 The rhythm that decides is the **subscription's**, not the plan's: a customer on a yearly
-subscription is owed the yearly notice even where the same plan is also sold monthly. A rhythm you
-do not configure is owed nothing rather than inheriting the other one — a configuration that names
-only `yearly` has left `monthly` at zero deliberately.
+subscription is owed the yearly notice even where the same plan is also sold monthly. Neither
+inherits the other, which is why both are required: a file naming only `yearly` is refused rather
+than read as `monthly: 0`.
 
 **A notice longer than the period is now served rather than approximated.** It used to be neither
 reachable nor honoured: the deadline it computed had always passed, so every declaration was

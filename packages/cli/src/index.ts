@@ -19,10 +19,12 @@
 //   - fk-pointers:         enabling the FK relations to the app's own models
 //   - init/plan:           what `saasicat init` writes, as data
 //   - init/catalog-keys:   the key rules — two read off the catalogue schema
+//   - init/settings-written: what the generated catalogue says, for the report
 //   - codemods/v1-imports: rewriting ui-vue imports to the 1.0 export map
 //   - codemods/v1-rename:  rewriting the names 1.0 changed (stems, keys, tokens)
 //   - codemods/v1-project-key: taking `projectKey` out, where that is decidable
 //     (project-key-history: the command's name is the retired identifier)
+//   - codemods/v1-moved-settings: naming the options that moved into the file
 //   - init/patch-app-module: adding the platform to an existing AppModule
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
@@ -43,9 +45,11 @@ export * from './fk-pointers.js';
 export * from './init/plan.js';
 export * from './init/module-resolution.js';
 export * from './init/catalog-keys.js';
+export * from './init/settings-written.js';
 export * from './codemods/v1-imports.js';
 export * from './codemods/v1-rename.js';
 export * from './codemods/v1-project-key.js';
+export * from './codemods/v1-moved-settings.js';
 export * from './init/patch-app-module.js';
 export * from './cli-context.module.js';
 export * from './manifest.command.js';

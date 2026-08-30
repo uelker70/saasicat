@@ -174,19 +174,15 @@ describe('which of the two numbers applies', () => {
         assert.equal(noticeDaysFor(periods, 'YEARLY'), 90);
     });
 
-    test('a rhythm nobody configured is owed nothing', () => {
-        // Not the other one: a configuration that names only one has left the
-        // other at zero deliberately, and inferring it would invent a term.
-        assert.equal(noticeDaysFor({ yearly: 90 }, 'MONTHLY'), 0);
-        assert.equal(noticeDaysFor({ monthly: 14 }, 'YEARLY'), 0);
-    });
-
-    test('no configuration at all is no notice', () => {
-        assert.equal(noticeDaysFor(undefined, 'MONTHLY'), 0);
-        assert.equal(noticeDaysFor({}, 'YEARLY'), 0);
-    });
-
+    // Two cases used to live here: a configuration naming only one rhythm,
+    // and none at all. Both read as zero, and both are now unreachable —
+    // `config/saas.yaml` requires `tenantBilling.cancellationNoticeDays` with
+    // both members, so an application that leaves one out does not start. The
+    // rule moved from "infer zero when reading" to "refuse when loading",
+    // which is the stronger of the two, and it is checked where it now lives:
+    // `plan-catalog-loader.test.js`, "a rhythm nobody named is refused".
     test('an explicit zero is a zero, not an absence', () => {
         assert.equal(noticeDaysFor({ monthly: 0, yearly: 90 }, 'MONTHLY'), 0);
+        assert.equal(noticeDaysFor({ monthly: 0, yearly: 0 }, 'YEARLY'), 0);
     });
 });
