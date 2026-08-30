@@ -74,7 +74,7 @@ const TRAILER = /^Editorial:(.*)$/gm;
  */
 export function fingerprint(promise) {
     return promise
-        .replace(/\bSC-[A-Z0-9]+-\d{3}\b/g, '«ref»')
+        .replace(/\bSC-[A-Z0-9]+-\d{3}(?![0-9-])/g, '«ref»')
         .replace(/[*_`]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
@@ -291,6 +291,23 @@ function catalogueAt(root, ref) {
  * `SC-A-001` would also excuse a later commit rewriting it into a different
  * promise — the claim would outlive the edit it was made for.
  */
+/**
+ * A walk that judged nothing is reported, not passed.
+ *
+ * This check spent its first day proving nothing and staying green, which is
+ * worse than not existing: a check that cannot fail is trusted. On a pull
+ * request `HEAD` is the merge commit GitHub synthesises, the only step was that
+ * merge, merges are skipped, and what remained was the merge result compared
+ * against itself.
+ */
+export function nothingJudged(revisions, steps) {
+    if (revisions.length === 0 || steps.length > 0) return [];
+    return [
+        `${revisions.length} revision(s) to judge and every one of them a merge. ` +
+            'Nothing was compared, so nothing could fail. Name the head you mean with --head.',
+    ];
+}
+
 export function judge(steps) {
     return steps.flatMap((step) => compare(step.before, step.after, step.editorial));
 }

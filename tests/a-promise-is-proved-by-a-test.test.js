@@ -42,6 +42,21 @@ describe('a test says which promise it proves', () => {
         assert.deepEqual(annotationsIn('see SC-A-001, and the SC-A-002 case'), []);
     });
 
+    test('an identifier ends where it ends', () => {
+        // `SC-PLAN-0049` and `SC-PLAN-004-extra` both used to read as
+        // `SC-PLAN-004`, so a mistyped identifier settled a debt owed by a
+        // promise nobody had named — and the ratchet reported progress that had
+        // not happened.
+        assert.deepEqual(annotationsIn('// @requirement SC-A-0019'), []);
+        assert.deepEqual(annotationsIn('// @requirement SC-A-001-extra'), []);
+    });
+
+    test('punctuation after an identifier still ends it', () => {
+        // The counter-proof: the rule must not reject the ordinary forms.
+        assert.deepEqual(annotationsIn('/** @requirement SC-A-001 */'), ['SC-A-001']);
+        assert.deepEqual(annotationsIn('// @requirement SC-A-001.'), ['SC-A-001']);
+    });
+
     test('the tag inside a sentence is not a claim either', () => {
         // The case that was wrong, and the file that documents the mechanism is
         // the one most likely to contain it. This sentence used to prove

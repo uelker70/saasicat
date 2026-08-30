@@ -18,7 +18,13 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
-import { compare, editorialIn, fingerprint, judge } from '../scripts/requirements/guard.mjs';
+import {
+    compare,
+    editorialIn,
+    fingerprint,
+    judge,
+    nothingJudged,
+} from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
 const entry = (id, text) => `### ${id} — Title\n\n${text}\n\n_Source:_ #1`;
@@ -195,6 +201,29 @@ describe('retiring an entry preserves what it said', () => {
         const withdrawn = one(`🔴 _(Withdrawn on 2026-09-01.)_ ${promise}`);
         const [problem] = problems(withdrawn, one(promise));
         assert.match(problem, /was withdrawn and is now current/);
+    });
+});
+
+describe('a walk that judged nothing is reported, not passed', () => {
+    // This check spent its first day green and proving nothing, which is worse
+    // than not existing: a check that cannot fail is trusted. On a pull request
+    // the checkout is the merge commit GitHub synthesises, the only step was
+    // that merge, merges are skipped, and what remained was the merge result
+    // compared against itself.
+
+    test('revisions with no step judged is a problem', () => {
+        const [problem] = nothingJudged(['abc123'], []);
+        assert.match(problem, /every one of them a merge/);
+    });
+
+    test('a range with nothing in it is not', () => {
+        // Pushing to the base branch has nothing to compare and must stay
+        // silent, or the check would fail on every push to main.
+        assert.deepEqual(nothingJudged([], []), []);
+    });
+
+    test('a walk that judged something is not', () => {
+        assert.deepEqual(nothingJudged(['abc123'], [{}]), []);
     });
 });
 
