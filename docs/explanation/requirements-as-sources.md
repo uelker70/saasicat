@@ -132,6 +132,12 @@ commit rather than in the entry for two reasons: it is about one edit rather tha
 requirement, and a reviewer can hold it against the diff sitting right beside it. A marker in the
 entry would outlive the typo it excused by years.
 
+It covers exactly the commit that carries it, which is why the branch is judged commit by commit
+rather than as one diff. Pooled, a trailer would outlive its edit: a commit legitimately excusing a
+typo in an entry would also excuse a later commit rewriting that entry into a different promise. A
+merge commit is skipped instead of judged — its diff carries work that was judged on its own pull
+request. Anything still uncommitted is judged with no claim available.
+
 ## What proves a requirement
 
 A test names the promise it proves, as `@requirement SC-PLAN-004` in a comment. The link goes that

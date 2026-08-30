@@ -166,7 +166,7 @@ else's supersession is edited in place — the question is whether what somebody
 refuses a promise rewritten in place, an entry deleted rather than withdrawn, an entry rewritten
 while being retired, and a retired promise brought back. Where the words changed but the promise did
 not, say so in the commit that makes the change — `Editorial: SC-PLAN-004`, naming each identifier
-it covers.
+it covers. The branch is judged commit by commit, so the claim covers that commit and no other.
 
 A test names the promise it proves, as `@requirement SC-PLAN-004` in a comment. Nothing was
 backfilled; the guard freezes the debt instead — a new promise brings its test, or a promise already

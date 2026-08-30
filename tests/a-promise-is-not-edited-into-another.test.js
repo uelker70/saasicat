@@ -18,7 +18,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
-import { compare, editorialIn, fingerprint } from '../scripts/requirements/guard.mjs';
+import { compare, editorialIn, fingerprint, judge } from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
 const entry = (id, text) => `### ${id} — Title\n\n${text}\n\n_Source:_ #1`;
@@ -195,6 +195,42 @@ describe('retiring an entry preserves what it said', () => {
         const withdrawn = one(`🔴 _(Withdrawn on 2026-09-01.)_ ${promise}`);
         const [problem] = problems(withdrawn, one(promise));
         assert.match(problem, /was withdrawn and is now current/);
+    });
+});
+
+describe('a claim excuses the edit that made it, and no other', () => {
+    // The branch is judged step by step rather than as one diff. Pooling every
+    // trailer between the merge base and HEAD let a claim outlive its edit: a
+    // commit legitimately excusing a typo would also excuse a later commit
+    // rewriting the same entry into a different promise.
+    const promise = 'The name stays the same across price changes.';
+    const typo = 'The name stayes the same across price changes.';
+    const rewritten = 'The name may be changed at any time.';
+
+    test('a claim covers the step that carries it', () => {
+        assert.deepEqual(
+            judge([{ before: one(promise), after: one(typo), editorial: new Set(['SC-A-001']) }]),
+            [],
+        );
+    });
+
+    test('and does not reach the step after it', () => {
+        const [problem] = judge([
+            { before: one(promise), after: one(typo), editorial: new Set(['SC-A-001']) },
+            { before: one(typo), after: one(rewritten), editorial: new Set() },
+        ]);
+        assert.match(problem, /SC-A-001 promises something different/);
+    });
+
+    test('the same two edits pooled into one step would pass', () => {
+        // The counter-proof, and the reason the walk exists: as one diff with
+        // the claim pooled, this is exactly what used to be accepted.
+        assert.deepEqual(
+            judge([
+                { before: one(promise), after: one(rewritten), editorial: new Set(['SC-A-001']) },
+            ]),
+            [],
+        );
     });
 });
 

@@ -283,27 +283,77 @@ function catalogueAt(root, ref) {
     }
 }
 
+/**
+ * Each step judged with the claims of the step that made it, and no others.
+ *
+ * This is the whole of what "per commit" buys. Judged as one diff with every
+ * trailer on the branch pooled, a commit legitimately excusing a typo in
+ * `SC-A-001` would also excuse a later commit rewriting it into a different
+ * promise — the claim would outlive the edit it was made for.
+ */
+export function judge(steps) {
+    return steps.flatMap((step) => compare(step.before, step.after, step.editorial));
+}
+
+/**
+ * Every step this branch took, judged on its own.
+ *
+ * Not the branch as one diff. An `Editorial:` trailer says that *this* edit left
+ * the promise intact, and gathering every trailer between the merge base and
+ * `HEAD` into one set lets the claim outlive the edit it was made for: a commit
+ * legitimately excusing a typo in `SC-A-001` would then also excuse a later
+ * commit rewriting it into a different promise. The claim is read from the
+ * commit that makes the change, which is the only place it means anything.
+ *
+ * A merge is skipped rather than judged. Its diff carries somebody else's work,
+ * which was judged on its own pull request; blaming this branch for it would
+ * report changes nobody here made.
+ */
 export function guard(root, base) {
     const merged = git(root, 'merge-base', base, 'HEAD').trim();
-    const before = catalogueAt(root, merged);
-    if (!before) return { baseline: merged, problems: [], entries: 0 };
+    let previous = catalogueAt(root, merged);
+    if (!previous) return { baseline: merged, problems: [], entries: 0, unproven: 0 };
+
+    const steps = [];
+    const revisions = git(root, 'rev-list', '--reverse', '--first-parent', `${merged}..HEAD`)
+        .split('\n')
+        .filter(Boolean);
+
+    for (const revision of revisions) {
+        const parents = git(root, 'rev-list', '--parents', '-n', '1', revision).trim().split(' ');
+        const current = catalogueAt(root, revision);
+        if (parents.length <= 2) {
+            steps.push({
+                before: previous.entries,
+                after: current.entries,
+                editorial: editorialIn(git(root, 'log', '--format=%B', '-n', '1', revision)),
+            });
+        }
+        previous = current;
+    }
+
+    // The working tree is the last step, and it has no commit to speak for it.
+    // Anything uncommitted is therefore judged with no claim available, which
+    // is what putting the trailer in a commit means.
     const after = readCatalogue(root);
-    const editorial = editorialIn(git(root, 'log', '--format=%B', `${merged}..HEAD`));
+    steps.push({ before: previous.entries, after: after.entries, editorial: new Set() });
+
+    const problems = judge(steps);
+
     const owed = unproven(after.entries, scanTests(root));
+    const beforeDebt = unproven(catalogueAt(root, merged).entries, namedAt(root, merged));
+    problems.push(
+        ...ratchet(
+            { debt: beforeDebt, standing: standing(catalogueAt(root, merged).entries) },
+            { debt: owed, standing: standing(after.entries) },
+        ),
+    );
+
     return {
         baseline: merged,
-        entries: before.entries.length,
+        entries: after.entries.length,
         unproven: owed.length,
-        problems: [
-            ...compare(before.entries, after.entries, editorial),
-            ...ratchet(
-                {
-                    debt: unproven(before.entries, namedAt(root, merged)),
-                    standing: standing(before.entries),
-                },
-                { debt: owed, standing: standing(after.entries) },
-            ),
-        ],
+        problems,
     };
 }
 

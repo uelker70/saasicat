@@ -66,7 +66,7 @@ guide on doing so describes and recommends.
 What is not offered is a version of the platform without NestJS underneath. Whether that should
 exist is an open question, not an oversight.
 
-_Source:_ #175 · [Mounting behind Express](guides/mount-behind-express.md)
+_Source:_ #175 · `docs/guides/mount-behind-express.md`
 
 ### SC-SCOPE-008 — Anything may be built on SaaSiCat except a competitor to it
 

@@ -148,5 +148,10 @@ It belongs there rather than in the entry because the claim is about one edit, n
 requirement, and a reviewer can hold it against the diff sitting beside it. A marker in the entry
 would outlive the typo it excused by years.
 
+The claim covers the commit that carries it and nothing else: the branch is judged step by step, so
+a commit excusing a typo cannot also excuse a later one that rewrites the same promise. Anything
+still uncommitted is judged with no claim available, which is what putting the trailer in a commit
+means — commit the fix, and the commit speaks for it.
+
 [`docs/explanation/requirements-as-sources.md`](../docs/explanation/requirements-as-sources.md) has
 the long form, including every rule the checker enforces and the ones it cannot.

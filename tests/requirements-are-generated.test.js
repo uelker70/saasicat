@@ -392,6 +392,55 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
+    test('a state marker wearing a colour no state has', () => {
+        // `🟢` belongs to no state, so the state patterns miss it — and a check
+        // for text beginning `_(` misses it too, because the colour is in the
+        // way. The entry then counts as an ordinary delivered promise.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n🟢 _(Draft since 2026-09-01.)_ Prose.\n\n` +
+                        '_Source:_ #1',
+                ],
+            ],
+            'opens with something shaped like a state',
+        );
+    });
+
+    test('a link into the repository', () => {
+        // A relative link is right in exactly one of the two places this text
+        // is read: written to resolve from the published page it is broken in
+        // the file somebody edits, and the other way round. The catalogue names
+        // a document as a code-formatted path 174 times and as a link twice.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\nSee [that](guides/x.md).\n\n_Source:_ #1`,
+                ],
+            ],
+            "links to 'guides/x.md'",
+        );
+    });
+
+    test('an anchor inside the document is still a link', () => {
+        // The counter-proof: the rule must not eat the two cross-chapter
+        // anchors the catalogue actually uses.
+        assert.deepEqual(
+            check(
+                catalogueOf([
+                    [
+                        '01_a',
+                        `${head()}\n### SC-A-001 — Title\n\nSee [that](#sc-a-002--title).\n\n` +
+                            '_Source:_ #1\n\n### SC-A-002 — Title\n\nProse.\n\n_Source:_ #2',
+                    ],
+                ]),
+            ),
+            [],
+        );
+    });
+
     test('a state word nobody defined', () => {
         complains(
             [['01_a', `${head()}\n### SC-A-001 — Title\n\n_(Obsolete.)_ Prose.\n\n_Source:_ #1`]],

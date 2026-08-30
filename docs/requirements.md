@@ -5,7 +5,7 @@ not how it is built. Where a requirement has a reason that is not obvious from t
 itself, that reason is written beside it — it is usually the part that would otherwise stay in a
 closed issue.
 
-Three documents divide the work between them. [`CONTRIBUTING.md`](../CONTRIBUTING.md) is the
+Three documents divide the work between them. `CONTRIBUTING.md` is the
 working agreement: how to build, test, version and release. The architecture decision records
 under `docs/explanation/adr/` record structural decisions with their alternatives and
 consequences. This document is the product one: what SaaSiCat does, what it refuses to do, and
@@ -199,7 +199,7 @@ guide on doing so describes and recommends.
 What is not offered is a version of the platform without NestJS underneath. Whether that should
 exist is an open question, not an oversight.
 
-_Source:_ #175 · [Mounting behind Express](guides/mount-behind-express.md)
+_Source:_ #175 · `docs/guides/mount-behind-express.md`
 
 ### SC-SCOPE-008 — Anything may be built on SaaSiCat except a competitor to it
 

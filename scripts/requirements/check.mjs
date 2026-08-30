@@ -27,6 +27,12 @@ const CHAPTER_KEYS = new Set(['title']);
 const RETIRED = new Set(['superseded', 'withdrawn']);
 const STATES = new Set(['draft', 'current', 'superseded', 'withdrawn']);
 
+/** A state marker, or something wearing enough of one to be meant as one. */
+const NEARLY_A_STATE = /^(?:\p{Extended_Pictographic}\uFE0F? )?_\(/u;
+
+/** A link into the repository, which resolves differently here and on the page. */
+const REPO_LINK = /\]\((?!#|https?:)([^)]+)\)/g;
+
 export function check(catalogue) {
     const problems = [];
     const say = (where, message) => problems.push(`${where}: ${message}`);
@@ -148,6 +154,14 @@ function checkEntry(entry, chapter, byId, say) {
         if (MARKER_LIKE.test(line) && !SOURCE.test(line)) {
             say(where, `'${entry.id}' carries an unknown marker line — ${line}`);
         }
+        // A relative link is right in exactly one of the two places this text
+        // is read. Written to resolve from the published page it is broken in
+        // the file somebody edits, and the other way round. The catalogue names
+        // a document as a code-formatted path 174 times and as a link twice;
+        // the path is right in both places and misleads in neither.
+        for (const [, target] of line.matchAll(REPO_LINK)) {
+            say(where, `'${entry.id}' links to '${target}' — name the file as \`path\` instead`);
+        }
     }
 
     // The promise text is optional, and deliberately so: the preamble asks for
@@ -203,7 +217,11 @@ function checkState(entry, say) {
     // each reads as a state to a person and as ordinary prose to the parser, so
     // the entry counts as a promise that stands. Same failure as `_Sources:_`,
     // one line further down.
-    if (entry.text.startsWith('_(')) {
+    //
+    // The colour is part of what nearly matches. `🟢 _(Draft since …)_` uses a
+    // colour no state has, so the state patterns miss it — and a check for text
+    // beginning `_(` misses it too, because the colour is in the way.
+    if (NEARLY_A_STATE.test(entry.text)) {
         const shown = entry.text.slice(0, entry.text.indexOf(')_') + 2) || entry.text.slice(0, 40);
         say(where, `'${entry.id}' opens with something shaped like a state — ${shown}`);
     }
