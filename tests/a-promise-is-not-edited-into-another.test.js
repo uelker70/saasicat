@@ -53,11 +53,26 @@ describe('the fingerprint is the promise, not the prose around it', () => {
         assert.notEqual(fingerprint('the **name** stays'), fingerprint('the name stays'));
     });
 
-    test('a different identifier is not a change', () => {
-        // The whole rule turns on this. Following somebody else's supersession
-        // has to be free, or every entry mentioning a retired one would have to
-        // be retired too and a single edit would walk through the chapter.
-        assert.equal(fingerprint('as SC-A-002 says'), fingerprint('as SC-A-099 says'));
+    test('an identifier is read as where its chain ends', () => {
+        // Following somebody else's supersession has to be free, or every entry
+        // mentioning a retired one would have to be retired too and a single
+        // edit would walk through the chapter. Blanking them all made that free
+        // — and made swapping one dependency for an unrelated one free with it.
+        const follow = (id) => (id === 'SC-A-002' ? 'SC-A-003' : id);
+        assert.equal(
+            fingerprint('as SC-A-002 says', follow),
+            fingerprint('as SC-A-003 says', follow),
+        );
+    });
+
+    test('and swapping in an unrelated one is a change', () => {
+        // The counter-proof. Both targets stand, neither was superseded into
+        // the other, and the promise now leans on a different contract.
+        const follow = (id) => id;
+        assert.notEqual(
+            fingerprint('as SC-A-002 says', follow),
+            fingerprint('as SC-A-003 says', follow),
+        );
     });
 
     test('the heading is part of the promise', () => {

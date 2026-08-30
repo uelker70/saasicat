@@ -68,6 +68,13 @@ const TRAILER = /^Editorial:(.*)$/gm;
  * bolding a phrase is typography; line breaks, because these files are wrapped
  * by hand at a hundred columns and one added word reflows the paragraph.
  *
+ * An identifier is replaced by where its supersession chain ends, not by one
+ * token for all of them. Blanking them equally made following a supersession
+ * free, which it should be — and made swapping one dependency for an unrelated
+ * one free too, which it should not: the promise then leans on a different
+ * contract and says so nowhere. Resolved, the two are told apart, because only
+ * a reference that was superseded into the new one lands on the same answer.
+ *
  * Only backticks are dropped, because only a backtick is never part of what it
  * wraps. An underscore belongs to `tenant_id` and an asterisk to `*.json`, and
  * dropping them made those the same promise as `tenantid` and `.json` — a key
@@ -79,16 +86,37 @@ const TRAILER = /^Editorial:(.*)$/gm;
  * there and carry no prose at all, so comparing the prose alone compared
  * two empty strings and accepted any rewrite of what they say.
  */
-export function fingerprint(promise) {
+export function fingerprint(promise, follow = () => '«ref»') {
     return promise
-        .replace(/\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g, '«ref»')
+        .replace(/\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g, follow)
         .replace(/`/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 }
 
 /** Title and prose together: nineteen entries keep their whole promise in the title. */
-const promiseOf = (entry) => fingerprint(`${entry.title} — ${entry.text}`);
+const promiseOf = (entry, follow) => fingerprint(`${entry.title} — ${entry.text}`, follow);
+
+/**
+ * Where a reference ends up, following supersessions to the end of the chain.
+ *
+ * Read from the state a change arrives at, because that is the state that knows
+ * what has been superseded into what. A reference to something retired resolves
+ * to its successor, so the text that still names the old one and the text that
+ * names the new one say the same thing.
+ */
+function follower(entries) {
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+    return (id) => {
+        const seen = new Set();
+        let at = byId.get(id);
+        while (at?.status === 'superseded' && at.supersededBy && !seen.has(at.id)) {
+            seen.add(at.id);
+            at = byId.get(at.supersededBy) ?? at;
+        }
+        return at?.id ?? id;
+    };
+}
 
 /** Why a move between two states is refused, in the words of the move itself. */
 function transition(was, is) {
@@ -116,6 +144,7 @@ function transition(was, is) {
  * chapter moving are all changes to the entry rather than to the promise.
  */
 export function compare(before, after, editorial = new Set()) {
+    const follow = follower(after);
     const problems = [];
     const now = new Map(after.map((entry) => [entry.id, entry]));
 
@@ -134,7 +163,7 @@ export function compare(before, after, editorial = new Set()) {
             continue;
         }
 
-        const changed = promiseOf(was) !== promiseOf(is);
+        const changed = promiseOf(was, follow) !== promiseOf(is, follow);
         const isRetired = RETIRED.has(is.status);
 
         const flag = (message) => problems.push({ id: was.id, message });
