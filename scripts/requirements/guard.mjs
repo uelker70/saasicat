@@ -353,6 +353,12 @@ export function guard(root, base, head) {
         previous = current;
     }
 
+    // Asked before the working tree is appended, because that step would
+    // otherwise answer for the commits: a range whose every revision was
+    // skipped still had one step to judge, and the walk that judged no history
+    // at all reported nothing wrong.
+    const blind = nothingJudged(revisions, steps);
+
     // A named head judges exactly that revision. Without one the working tree is
     // the last step, and it has no commit to speak for it — anything
     // uncommitted is judged with no claim available, which is what putting the
@@ -368,7 +374,7 @@ export function guard(root, base, head) {
         entries: after.entries.length,
         unproven: owed.length,
         problems: [
-            ...nothingJudged(revisions, steps),
+            ...blind,
             ...judge(steps),
             ...ratchet(
                 {
