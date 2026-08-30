@@ -1,8 +1,8 @@
 // Finds the settings that moved out of `TenantBillingModule.forRoot()` and
 // into `config/saas.yaml`.
 //
-// Reports them. Does not remove them, and the difference matters more here than
-// it did for `projectKey`.
+// Reports them. Does not remove them, and the line sits differently here than
+// in the codemod next door — the one that takes a retired identifier out.
 //
 // A removal there lost a redundant word. A removal here would lose a commercial
 // decision: `cancellationNoticeDays: { monthly: 30, yearly: 90 }` is a term
