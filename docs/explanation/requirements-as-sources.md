@@ -123,8 +123,10 @@ The rule is checked rather than remembered. `pnpm run requirements:guard` compar
 promises against `main` and refuses four things: a promise rewritten in place, an entry deleted
 rather than withdrawn, an entry rewritten while being retired, and a retired promise brought back to
 life. It compares the promise and not the file — identifiers inside the prose are blanked, code
-formatting is dropped and whitespace is collapsed first — so following somebody else's supersession, bolding a
-phrase and rewrapping a hand-wrapped paragraph all cost nothing.
+formatting is dropped and whitespace is collapsed first — so following somebody else's supersession,
+marking a word as a literal and rewrapping a hand-wrapped paragraph all cost nothing. Asterisks and
+underscores are left alone: they belong to `*.json` and `tenant_id` as much as they belong to
+emphasis, and telling the two apart needs a Markdown parser.
 
 An edit that changes the words without changing the promise is claimed in the commit that makes it,
 as `Editorial: SC-PLAN-004`. The claim covers exactly the identifiers it names, and it lives in the
