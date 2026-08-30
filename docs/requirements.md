@@ -116,7 +116,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 399 entries: 🟢 389 stand today, 🟡 10 decided but not yet delivered, ⚪ 0 drafts,
+Of 399 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
 🔵 0 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -124,7 +124,9 @@ Of 399 entries: 🟢 389 stand today, 🟡 10 decided but not yet delivered, ⚪
 [SC-PRIC-015](#sc-pric-015--an-amount-records-the-currency-it-was-booked-in),
 [SC-PRIC-017](#sc-pric-017--the-tax-rate-and-the-tax-amount-are-recorded-not-re-derived),
 [SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),
+[SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
+[SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-CFG-008](#sc-cfg-008--an-operator-can-see-when-the-running-configuration-was-applied-and-from-where),
 [SC-CFG-009](#sc-cfg-009--a-configuration-change-is-noticed-and-reported),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
@@ -1362,8 +1364,8 @@ _Source:_ #214
 ### SC-PRIC-019 — A tenant can see their own account
 
 Balance, what is open, and the history. An open balance a customer cannot see is a surprise at the
-moment it becomes a problem; one they can see is something they can act on. _(Decided, not yet
-delivered.)_
+moment it becomes a problem; one they can see is something they can act on.
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -1377,8 +1379,8 @@ _Source:_ #214
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 
 Invoice numbering is sequential, gapless and legally constrained per country, and an identifier a
-customer has already seen on a screen cannot become one later without confusion. _(Decided, not
-yet delivered.)_
+customer has already seen on a screen cannot become one later without confusion.
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 

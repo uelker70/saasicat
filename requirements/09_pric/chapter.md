@@ -131,8 +131,8 @@ _Source:_ #214
 ### SC-PRIC-019 — A tenant can see their own account
 
 Balance, what is open, and the history. An open balance a customer cannot see is a surprise at the
-moment it becomes a problem; one they can see is something they can act on. _(Decided, not yet
-delivered.)_
+moment it becomes a problem; one they can see is something they can act on.
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -146,7 +146,7 @@ _Source:_ #214
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 
 Invoice numbering is sequential, gapless and legally constrained per country, and an identifier a
-customer has already seen on a screen cannot become one later without confusion. _(Decided, not
-yet delivered.)_
+customer has already seen on a screen cannot become one later without confusion.
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214

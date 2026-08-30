@@ -149,6 +149,20 @@ describe('the parser reads the entry, not the prose around it', () => {
         assert.equal(chapter.entries[0].text, 'Proposed wording.');
     });
 
+    test('a marker wrapped across a line still counts', () => {
+        // These files are wrapped by hand at a hundred columns, and two
+        // committed entries wrapped this marker across the break. They read as
+        // delivered, vanished from the index of what is not built yet, and
+        // nothing asked why they carried no colour — the colour check could not
+        // see a marker the parser had not found.
+        const [entry] = parse(
+            '### SC-A-001 — T\n\nProse that runs on. 🟡 _(Decided, not\nyet delivered.)_\n\n' +
+                '_Source:_ #1',
+        ).entries;
+        assert.equal(entry.delivered, false);
+        assert.equal(entry.text, 'Prose that runs on.');
+    });
+
     test('an entry with no marker is current and delivered', () => {
         // The default is silence, so the ordinary entry carries no marker at
         // all. Requiring one would put 389 of them into a document people read.
