@@ -45,6 +45,9 @@ app:
   name: Demo App
 currency: EUR
 vatRate: 19.0
+tenantBilling:
+  cancellationNoticeDays: { monthly: 0, yearly: 0 }
+  selfServiceBlockedPlans: { asTarget: [], asSource: [] }
 features:
   - { key: CORE_IDENTITY, label: Mitglieder, tier: CORE }
   - { key: WHATSAPP, label: WhatsApp, tier: ADVANCED }
@@ -116,6 +119,9 @@ app:
   name: Demo App
 currency: EUR
 vatRate: 19.0
+tenantBilling:
+  cancellationNoticeDays: { monthly: 0, yearly: 0 }
+  selfServiceBlockedPlans: { asTarget: [], asSource: [] }
 plans:
   - id: ENTERPRISE
     name: Enterprise
@@ -140,6 +146,9 @@ app:
   name: Demo App
 currency: EUR
 vatRate: 19.0
+tenantBilling:
+  cancellationNoticeDays: { monthly: 0, yearly: 0 }
+  selfServiceBlockedPlans: { asTarget: [], asSource: [] }
 plans:
   - id: SIMPLE
     monthlyNet: 5.50

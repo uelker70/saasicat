@@ -44,6 +44,37 @@ export interface PlanCatalog {
      */
     vatRate: number;
     /**
+     * Commercial settings for the tenant-facing self-service routes. Required, and required member by member: every one of these has a money or a legal consequence, and a value left out is still a decision — just an invisible one. The file is read at boot, so a change lands on the next restart.
+     */
+    tenantBilling: {
+        /**
+         * Days of notice before a term ends, one number per rhythm. A cancellation declared after the window has closed takes effect at the first period end that actually serves the notice. Two numbers rather than one because a monthly and a yearly contract cannot share a notice period: a fortnight is unusual on a year, and three months is void against a consumer on a month. No ceiling is enforced — §309 Nr. 9 BGB caps it at one month in German consumer contracts, and an installation serving businesses is not bound by that.
+         */
+        cancellationNoticeDays: {
+            /**
+             * Notice days on a monthly rhythm. 0 means there is no door to be shut out of: a cancellation on the last day still lands at the term end.
+             */
+            monthly: number;
+            /**
+             * Notice days on a yearly rhythm. Raise it and the cut is hard — a declaration made after the window lands one full year later.
+             */
+            yearly: number;
+        };
+        /**
+         * Plans a tenant may not move to or away from without talking to sales. Both lists are required and may be empty; an empty list is the explicit statement that self-service reaches every plan.
+         */
+        selfServiceBlockedPlans: {
+            /**
+             * Plan IDs that may not be selected via self-service — typically ENTERPRISE, which only a special contract activates.
+             */
+            asTarget: string[];
+            /**
+             * Plan IDs that may not be left via self-service — typically an active special contract, whose change goes through sales.
+             */
+            asSource: string[];
+        };
+    };
+    /**
      * App-wide marketing configuration..
      */
     marketing?: {

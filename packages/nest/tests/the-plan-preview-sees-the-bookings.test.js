@@ -32,6 +32,10 @@ const CATALOG = {
     app: { name: 'TestApp', version: '0.0.1' },
     currency: 'EUR',
     vatRate: 19.0,
+    tenantBilling: {
+        cancellationNoticeDays: { monthly: 0, yearly: 0 },
+        selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+    },
     plans: [
         {
             id: 'PRO',

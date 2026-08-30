@@ -1,4 +1,4 @@
-import type { BillingCycle } from '@saasicat/core';
+import type { BillingCycle, CancellationNoticePeriods } from '@saasicat/core';
 
 import { advanceOneCycle, billingAnchorDay } from './billing-period.js';
 
@@ -127,42 +127,31 @@ export function decideCancellation(input: CancellationInput): CancellationDecisi
     return { effectiveAt, termEndsAt, afterNoticeDeadline: true, noticeDeadline };
 }
 
+export type { CancellationNoticePeriods };
+
 /**
- * Notice periods, one per rhythm.
+ * No notice at all, named so it is not a bare `{}` at a call site.
  *
- * One number for both was the shape until 2026-08-27, and it could not be right
- * for both: a yearly contract with a fortnight of notice is unusual, and a
- * monthly contract with three months of notice is void against a consumer. The
- * two are configured apart because real contracts set them apart.
- *
- * Both default to zero — no notice at all — which is the reading a customer
- * expects and the one that generates no disputes.
- *
- * **No ceiling is enforced.** §309 Nr. 9 BGB limits the notice period in German
- * consumer contracts to one month, and an installation serving businesses is
- * not bound by it. The platform cannot know which it is, so the number is the
- * consumer app's to choose and this is the sentence that says what it costs.
+ * Not a configuration default: `config/saas.yaml` requires both rhythms and an
+ * application that omits them does not boot. This is what lets a class be
+ * constructed directly — in a test that does not exercise a notice period —
+ * without restating a term. `TenantBillingModule` always provides the real one.
  */
-export interface CancellationNoticePeriods {
-    /** Days of notice for a monthly subscription. */
-    monthly?: number;
-    /** Days of notice for a yearly subscription. */
-    yearly?: number;
-}
+export const NO_NOTICE_PERIOD: CancellationNoticePeriods = { monthly: 0, yearly: 0 };
 
 /**
  * The notice a subscription on `billingCycle` is owed.
  *
- * Absent means none. The two rhythms are read apart rather than one falling
- * back to the other: a configuration that names only one has deliberately left
- * the other at zero, and inferring it would be inventing a term.
+ * The two rhythms are read apart rather than one falling back to the other:
+ * they are separate numbers because real contracts set them apart, and
+ * inferring one from the other would be inventing a term.
+ *
+ * `config/saas.yaml` requires both, so there is nothing to default here. A
+ * number that is not written down is not a zero — it is a question the operator
+ * has to answer before the application starts.
  */
-export function noticeDaysFor(
-    periods: CancellationNoticePeriods | undefined,
-    billingCycle: string,
-): number {
-    if (!periods) return 0;
-    return (billingCycle === 'YEARLY' ? periods.yearly : periods.monthly) ?? 0;
+export function noticeDaysFor(periods: CancellationNoticePeriods, billingCycle: string): number {
+    return billingCycle === 'YEARLY' ? periods.yearly : periods.monthly;
 }
 
 /**

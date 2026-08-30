@@ -264,6 +264,13 @@ export interface SaaSiCatModuleOptions {
         currency: string;
         vatRate: number;
         app: PlanCatalog['app'];
+        /**
+         * Forwarded from the same `config/saas.yaml` the other three come from
+         * — `loadPlanCatalogFromFile(...).tenantBilling`. The read sink loads
+         * plans and features; these are not in the database and never will be,
+         * so the file is the only place they can come from.
+         */
+        tenantBilling: PlanCatalog['tenantBilling'];
         marketing?: PlanCatalog['marketing'];
     };
     /**

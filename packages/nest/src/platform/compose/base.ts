@@ -66,6 +66,7 @@ export function composePlanCatalog(
         app: dbCatalog.app,
         currency: dbCatalog.currency,
         vatRate: dbCatalog.vatRate,
+        tenantBilling: dbCatalog.tenantBilling,
         marketing: dbCatalog.marketing,
         sink: sink as ProviderSpec<PlanCatalogReadSink>,
         imports: options.imports,

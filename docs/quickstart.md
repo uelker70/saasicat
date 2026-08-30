@@ -194,7 +194,7 @@ dashboard. The **Discovery page** shows `notes.create` as "discovered", the
 Add these in this order:
 
 1. **Switch the runtime catalog to the database:** replace `planCatalog` with
-   `dbCatalog: { app, currency, vatRate, marketing }`. The
+   `dbCatalog: { app, currency, vatRate, tenantBilling, marketing }`. The
    persistence bundle already supplies the read sink and catalog repositories.
 
 2. **Manifest contributions** for your own SuperAdmin KPI cards, tenant

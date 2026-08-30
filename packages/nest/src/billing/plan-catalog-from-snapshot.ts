@@ -26,6 +26,12 @@ export interface PlanCatalogBuildSettings {
     app: PlanCatalog['app'];
     currency: string;
     vatRate: number;
+    /**
+     * Commercial self-service settings from `config/saas.yaml#tenantBilling`.
+     * Required, like the two above: the database carries plans and features,
+     * never the settings, so this can only come from the file.
+     */
+    tenantBilling: PlanCatalog['tenantBilling'];
     /** App-wide marketing configuration. Optional. */
     marketing?: PlanCatalog['marketing'];
 }
@@ -87,6 +93,7 @@ export function buildPlanCatalogFromSnapshot(
         app: settings.app,
         currency: settings.currency,
         vatRate: settings.vatRate,
+        tenantBilling: settings.tenantBilling,
         ...(settings.marketing ? { marketing: settings.marketing } : {}),
         features,
         plans,

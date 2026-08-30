@@ -335,6 +335,23 @@ port that must be free, a step whose order matters — is written down where the
 
 _Source:_ current practice
 
+### NAP-LEARN-008 — A commercial setting is shown in the file, not in the wiring
+
+The notice period and the self-service plan blocks appear in `config/saas.yaml`, with the comment
+that says what the value costs, and `app.module.ts` says they are not there. A reader copying the
+wiring copies the shape the platform requires rather than a second home the platform refuses.
+
+_Source:_ #217
+
+### NAP-LEARN-009 — Where the example writes zero, it says that zero is a choice
+
+`cancellationNoticeDays: { monthly: 0, yearly: 0 }` and two empty block lists are what this example
+sells under, and the file says so rather than leaving the reader to infer that nothing was decided.
+The reader is copying a decision either way; the comment is what makes it one they can make
+differently.
+
+_Source:_ #217
+
 ## 6. Where the demonstration stops
 
 An example that pretends to be production is more dangerous than one that admits what it is

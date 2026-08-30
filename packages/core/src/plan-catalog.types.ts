@@ -61,6 +61,58 @@ export interface PlanCatalogApp {
     logoUrl?: string;
 }
 
+/**
+ * Notice periods, one per rhythm.
+ *
+ * One number for both was the shape until 2026-08-27, and it could not be right
+ * for both: a yearly contract with a fortnight of notice is unusual, and a
+ * monthly contract with three months of notice is void against a consumer. The
+ * two are configured apart because real contracts set them apart.
+ *
+ * Both members are required. A missing rhythm would read as zero, and a silent
+ * zero is a commercial decision nobody made — the same defect one level below
+ * the one that moved these settings into the file.
+ *
+ * **No ceiling is enforced.** §309 Nr. 9 BGB limits the notice period in German
+ * consumer contracts to one month, and an installation serving businesses is
+ * not bound by it. The platform cannot know which it is, so the number is the
+ * consumer app's to choose and this is the sentence that says what it costs.
+ */
+export interface CancellationNoticePeriods {
+    /** Days of notice for a monthly subscription. */
+    monthly: number;
+    /** Days of notice for a yearly subscription. */
+    yearly: number;
+}
+
+/**
+ * Plans a tenant may not reach or leave without talking to sales.
+ *
+ * `asTarget`: may not be selected via self-service — typically ENTERPRISE,
+ * which only a special contract activates. `asSource`: may not be left via
+ * self-service — typically an active special contract.
+ *
+ * Both lists are required and may be empty. An empty list says out loud that
+ * self-service reaches every plan, which is a decision rather than an omission.
+ */
+export interface SelfServiceBlockedPlans {
+    asTarget: string[];
+    asSource: string[];
+}
+
+/**
+ * Commercial settings for the tenant-facing self-service routes.
+ *
+ * They live in `config/saas.yaml` and nowhere else: an operator reading the
+ * file has to be reading the values that are running, with no "unless somebody
+ * passed it in code" attached. The file is read at boot, so an edit lands on
+ * the next restart.
+ */
+export interface PlanCatalogTenantBilling {
+    cancellationNoticeDays: CancellationNoticePeriods;
+    selfServiceBlockedPlans: SelfServiceBlockedPlans;
+}
+
 export interface PlanCatalog {
     schemaVersion: 1;
     /** App identity (branding + version), see PlanCatalogApp. */
@@ -69,6 +121,8 @@ export interface PlanCatalog {
     currency: string;
     /** VAT rate in percent. */
     vatRate: number;
+    /** Commercial settings for the tenant self-service routes. */
+    tenantBilling: PlanCatalogTenantBilling;
     /** App-wide marketing configuration. Optional. */
     marketing?: PlanCatalogMarketing;
     features?: FeatureDef[];

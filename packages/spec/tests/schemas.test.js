@@ -51,6 +51,10 @@ test('planCatalog accepts minimal valid catalog', () => {
         app: { name: 'Demo App' },
         currency: 'EUR',
         vatRate: 19,
+        tenantBilling: {
+            cancellationNoticeDays: { monthly: 0, yearly: 0 },
+            selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+        },
         plans: [
             {
                 id: 'BASIC',

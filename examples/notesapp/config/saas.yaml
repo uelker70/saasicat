@@ -7,6 +7,30 @@ app:
 currency: EUR
 vatRate: 19.0
 
+# What the tenant self-service routes are allowed to do, and on what terms.
+# These live here and nowhere else: an operator reading this file has to be
+# reading the values that are running. The file is read at boot, so an edit
+# lands on the next restart.
+tenantBilling:
+    # How many days before the term ends a cancellation is still in time.
+    # Zero means there is no door to be shut out of: a cancellation on the last
+    # day still lands at the term end. Raise it and the cut is hard — a
+    # declaration made after the window lands one full period later, which on a
+    # yearly cycle is a year.
+    #
+    # Two rhythms, two numbers, and both are required. A month and a year
+    # cannot share a notice period, and a rhythm left out would read as zero:
+    # a commercial decision nobody made.
+    cancellationNoticeDays:
+        monthly: 0
+        yearly: 0
+    # Plans a tenant may not reach or leave on its own. Empty here, and empty
+    # on purpose rather than by omission: this example sells every plan through
+    # self-service.
+    selfServiceBlockedPlans:
+        asTarget: []
+        asSource: []
+
 marketing:
     availableLocales: [en]
 

@@ -21,7 +21,8 @@
 //   codemod v1-imports [--dir=X] [--dry-run]
 //   codemod v1-rename  [--dir=X] [--dry-run]
 //   codemod v1-project-key [--dir=X] [--dry-run]
-//   codemod v1         [--dir=X] [--dry-run]   — all three, in that order
+//   codemod v1-moved-settings [--dir=X]
+//   codemod v1         [--dir=X] [--dry-run]   — all four, in that order
 //        [--skip-hasher] [--dry-run] [--dir=.]
 //       Writes the platform wiring — config, persistence, manifest
 //       contribution, admin module, one provider per quota — and adds
@@ -61,6 +62,9 @@ import {
     patchAppModule,
     patchOptionsFor,
     planInit,
+    settingsWrittenTo,
+    findMovedSettings,
+    WHERE_IT_GOES,
 } from '../dist/index.js';
 
 const require_ = createRequire(import.meta.url);
@@ -736,6 +740,47 @@ async function walkSources(root, visit, extra = null) {
  * TypeScript, so removing one would sometimes delete a member of the consumer's
  * own type. The migration guide's table says what each shape becomes.
  */
+/**
+ * Names the module options that moved into `config/saas.yaml`.
+ *
+ * Read-only on purpose — see `codemods/v1-moved-settings.ts` for why removing
+ * them would lose the decision instead of moving it. `--dry-run` is accepted
+ * and does nothing, so `codemod v1 --dry-run` behaves the same throughout.
+ */
+async function cmdCodemodV1MovedSettings(args) {
+    const root = resolve(args.dir ?? '.');
+    const found = [];
+
+    await walkSources(root, async (full, source) => {
+        for (const { setting, line } of findMovedSettings(source).occurrences) {
+            found.push({ where: `${relative(root, full)}:${line}`, setting });
+        }
+    });
+
+    if (found.length === 0) {
+        console.log('No module option that moved into config/saas.yaml is still passed.');
+        return;
+    }
+
+    console.log(`${found.length} occurrence(s) of a setting that moved:`);
+    const width = Math.max(...found.map((f) => f.where.length));
+    for (const { where, setting } of found) {
+        console.log(`  ${where.padEnd(width)}  ${setting}`);
+    }
+    console.log('');
+    console.log('  Not removed, and that is the point: the value is a term somebody agreed,');
+    console.log('  and deleting it here without writing it into the file would leave the');
+    console.log('  application running on whatever the file happens to say. Move each one:');
+    console.log('');
+    for (const setting of new Set(found.map((f) => f.setting))) {
+        console.log(`  ${setting}`);
+        console.log(`      ${WHERE_IT_GOES[setting]}`);
+    }
+    console.log('');
+    console.log('  TenantBillingModule.forRoot() refuses to boot while either is still');
+    console.log('  passed, so this cannot be half-done quietly.');
+}
+
 async function cmdCodemodV1ProjectKey(args) {
     const root = resolve(args.dir ?? '.');
     const dryRun = args['dry-run'] === true;
@@ -874,6 +919,8 @@ async function cmdInit(args, argv) {
         for (const w of writes) console.log(`    ${w.path}`);
     }
 
+    reportSettings(writes, root);
+
     await patchAppModuleFile(root, plan, args);
 
     console.log('');
@@ -893,6 +940,33 @@ async function cmdInit(args, argv) {
     } else {
         console.log('  3. saasicat schema migrate --name=add_saasicat');
     }
+}
+
+/**
+ * Says which settings the catalogue now carries, with their values and its path.
+ *
+ * These are required fields without defaults, and there is no second place they
+ * can come from. Somebody who has just run `init` should not have to find that
+ * out from a boot failure six weeks later — so the command names the file it
+ * put them in while they are still looking at the output.
+ *
+ * Derived in `init/settings-written.ts`, where it can be tested: this file is
+ * not.
+ */
+function reportSettings(writes, root) {
+    const catalog = writes.find((w) => w.path === 'config/saas.yaml');
+    if (!catalog) return;
+    const settings = settingsWrittenTo(catalog.content, catalog.path);
+    if (settings.length === 0) return;
+
+    const width = Math.max(...settings.map((s) => s.key.length));
+    console.log('');
+    console.log(`Settings written to ${join(root, catalog.path)}:`);
+    for (const { key, value } of settings) {
+        console.log(`    ${key.padEnd(width)}  ${value}`);
+    }
+    console.log('  This file is where they live. Editing it is how they change, and the');
+    console.log('  change lands on the next restart — the platform reads it at boot.');
 }
 
 /**
@@ -965,12 +1039,16 @@ async function main() {
     if (cmd === 'codemod' && sub === 'v1-project-key') {
         return cmdCodemodV1ProjectKey(parseArgs(rest));
     }
+    if (cmd === 'codemod' && sub === 'v1-moved-settings') {
+        return cmdCodemodV1MovedSettings(parseArgs(rest));
+    }
     if (cmd === 'codemod' && sub === 'v1') {
         // Imports first: the rename table keys its per-entry tokens by the
         // specifier they are imported from, which the import rewrite settles.
         await cmdCodemodV1Imports(parseArgs(rest));
         await cmdCodemodV1Rename(parseArgs(rest));
-        return cmdCodemodV1ProjectKey(parseArgs(rest));
+        await cmdCodemodV1ProjectKey(parseArgs(rest));
+        return cmdCodemodV1MovedSettings(parseArgs(rest));
     }
     if (cmd === 'init') {
         return cmdInit(parseArgs([sub, ...rest].filter(Boolean)), process.argv.slice(3));
@@ -1005,12 +1083,17 @@ async function main() {
         console.log('  init --app-key=myapp --quota=notes:Note --quota=seats:Seat');
         console.log('');
         console.log('  codemod v1 [--dir=.] [--dry-run]');
-        console.log('          the whole 1.0 migration: imports, names, then projectKey');
+        console.log('          the whole 1.0 migration: imports, names, projectKey, then the');
+        console.log('          settings that moved into config/saas.yaml');
         console.log('  codemod v1-imports [--dir=.] [--dry-run]');
         console.log('          rewrite @saasicat/ui-vue imports to the 1.0 export map');
         console.log('  codemod v1-rename [--dir=.] [--dry-run]');
         console.log('          rewrite the names 1.0 changed: SaasPlatform*, Symbol.for keys,');
         console.log('          FEATURE_UI_REGISTRY_TOKEN, @saasicat/ui-vue/testing-e2e/*');
+        console.log('  codemod v1-moved-settings [--dir=.]');
+        console.log('          name the module options that moved into config/saas.yaml.');
+        console.log('          Reports only — the value is a commercial decision, and this');
+        console.log('          would delete it without writing it anywhere.');
         console.log('');
         console.log('Optional --prisma-schema=PATH (default prisma/schema.prisma).');
         console.log('Optional --tenant-model=X --user-model=Y for apply/migrate — enables');

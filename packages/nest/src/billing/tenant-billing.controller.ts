@@ -55,7 +55,7 @@ import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { decideCancellationFor, type CancellationDecision } from './cancellation.js';
 import { cancellationHasLanded } from '../entitlement/landed-cancellation.js';
-import { noticeDaysFor, type CancellationNoticePeriods } from './cancellation.js';
+import { NO_NOTICE_PERIOD, noticeDaysFor, type CancellationNoticePeriods } from './cancellation.js';
 import { CancelSubscriptionDto } from './dto/tenant-billing.dto.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
@@ -193,9 +193,14 @@ export class TenantBillingController {
         // argument after it. Doing that here moved `promoCodes` into this slot
         // and broke eleven tests in ways that read as unrelated logic errors,
         // because nothing type-checks a boolean landing where a service was.
+        // `TenantBillingModule` always registers this, read from
+        // `config/saas.yaml#tenantBilling`. `NO_NOTICE_PERIOD` is not a
+        // configuration default — an application that omits the setting does
+        // not boot — it is what lets this controller be built directly in a
+        // test that does not exercise a notice period.
         @Optional()
         @Inject(CANCELLATION_NOTICE_DAYS_TOKEN)
-        private readonly cancellationNoticeDays: CancellationNoticePeriods = {},
+        private readonly cancellationNoticeDays: CancellationNoticePeriods = NO_NOTICE_PERIOD,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);

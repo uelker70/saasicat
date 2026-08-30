@@ -46,6 +46,14 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
             app: { name: 'MyApp' },
             currency: 'EUR',
             vatRate: 19,
+            // Spelled out here like the three above it. In an application
+            // these come from `loadPlanCatalogFromFile('config/saas.yaml')` —
+            // the settings are never in the database, so the file is the only
+            // place they can come from.
+            tenantBilling: {
+                cancellationNoticeDays: { monthly: 0, yearly: 0 },
+                selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+            },
             // The catalogue is read from the database, not from a file — the
             // CLI's `plan-catalog import` puts it there.
             sink: {
