@@ -11,6 +11,8 @@
 // faithfully, and the only honest way to have no such gap is to have no
 // transformation.
 
+import { anchor, ICONS } from './parse.mjs';
+
 export const BEGIN =
     '<!-- BEGIN chapters — generated, do not edit: node scripts/requirements/index.mjs --write -->';
 export const END = '<!-- END chapters -->';
@@ -45,38 +47,94 @@ export function renderChapters(chapters) {
                 `\`SC-${chapter.prefix.toUpperCase()}-…\` | ${chapter.entries.length} |`,
         ),
         '',
-        standing(chapters.flatMap((chapter) => chapter.entries)),
+        ...standing(chapters.flatMap((chapter) => chapter.entries)),
         '',
         END,
     ].join('\n');
 }
 
 /**
- * One line of where the catalogue stands, rather than a column of zeroes.
+ * Where the catalogue stands, and which entries are not ordinary.
  *
- * A per-chapter count of what is not yet delivered would be `0` in twenty of
- * twenty-four rows and would say less than this sentence does. The zeroes are
- * kept here on purpose: "none withdrawn" is a fact about a catalogue this
+ * A per-chapter column of what is not yet delivered would read `0` in twenty of
+ * twenty-four rows and say less than one sentence does. The zeroes are kept in
+ * the sentence on purpose: "none withdrawn" is a fact about a catalogue this
  * young, and it stops being true the day it stops being true.
+ *
+ * The lists under it are the reason this exists at all. Ten entries in three
+ * thousand lines are visible once you reach them and unfindable before that,
+ * and "what has this product promised and not yet built" is a question somebody
+ * asks before they buy rather than while they scroll.
  */
 function standing(entries) {
-    const count = (predicate) => entries.filter(predicate).length;
-    const parts = [
-        `${count((entry) => entry.status === 'current' && entry.delivered)} stand today`,
-        `${count((entry) => entry.status === 'current' && !entry.delivered)} decided but not yet delivered`,
-        `${count((entry) => entry.status === 'draft')} drafts`,
-        `${count((entry) => entry.status === 'superseded')} superseded`,
-        `${count((entry) => entry.status === 'withdrawn')} withdrawn`,
+    const of = (predicate) => entries.filter(predicate);
+    const counted = [
+        [ICONS.current, of((e) => e.status === 'current' && e.delivered).length, 'stand today'],
+        [
+            ICONS.pending,
+            of((e) => e.status === 'current' && !e.delivered).length,
+            'decided but not yet delivered',
+        ],
+        [ICONS.draft, of((e) => e.status === 'draft').length, 'drafts'],
+        [ICONS.superseded, of((e) => e.status === 'superseded').length, 'superseded'],
+        [ICONS.withdrawn, of((e) => e.status === 'withdrawn').length, 'withdrawn'],
     ];
-    return `Of ${entries.length} entries: ${parts.join(', ')}.`;
+
+    const listed = [
+        [
+            ICONS.pending,
+            'Decided, not yet delivered',
+            of((e) => e.status === 'current' && !e.delivered),
+        ],
+        [ICONS.draft, 'Drafts', of((e) => e.status === 'draft')],
+        [ICONS.superseded, 'Superseded', of((e) => e.status === 'superseded')],
+        [ICONS.withdrawn, 'Withdrawn', of((e) => e.status === 'withdrawn')],
+    ].filter(([, , found]) => found.length > 0);
+
+    // Wrapped like the lists below it: Prettier leaves prose as it finds it, so
+    // an unbroken sentence with five counts in it would fail the line-length
+    // rule the rest of the repository keeps.
+    const summary = wrap(
+        `Of ${entries.length} entries: `,
+        counted.map(([icon, count, what]) => `${icon} ${count} ${what}`),
+    );
+
+    return [
+        ...summary.slice(0, -1),
+        `${summary.at(-1)}.`,
+        ...listed.flatMap(([icon, title, found]) => [
+            '',
+            ...wrap(
+                `${icon} **${title}** — `,
+                found.map((e) => `[${e.id}](#${anchor(e.heading)})`),
+            ),
+        ]),
+    ];
 }
 
 /**
- * Replaces the generated region of a front-matter file with a fresh table.
+ * One paragraph of links, broken before the hundredth column.
  *
- * The file is found by carrying the marker rather than by name, so renaming or
- * renumbering it moves the table with it and needs no second edit here.
+ * Prettier leaves prose exactly as it is found (`proseWrap: preserve`), so
+ * whatever this writes is what ships — and an unbroken line of forty links
+ * would fail the Markdown line-length rule the rest of the repository keeps.
  */
+function wrap(prefix, items, width = 100) {
+    const lines = [];
+    let line = prefix;
+    for (const [index, item] of items.entries()) {
+        const piece = index === items.length - 1 ? item : `${item},`;
+        if (line !== prefix && `${line} ${piece}`.length > width) {
+            lines.push(line);
+            line = piece;
+        } else {
+            line = line === prefix ? prefix + piece : `${line} ${piece}`;
+        }
+    }
+    lines.push(line);
+    return lines;
+}
+
 export function withChapterTable(text, chapters) {
     const from = text.indexOf(BEGIN);
     const to = text.indexOf(END);

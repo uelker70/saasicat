@@ -58,13 +58,44 @@ export const HEADING_LIKE = /^### .*$/;
 export const MARKER_LIKE = /^_[^_]*:_/;
 
 export const SOURCE = /^_Source:_ (.+)$/;
-export const SUPERSEDED = /^_\(Superseded on (\d{4}-\d{2}-\d{2}) by `(SC-[A-Z0-9]+-\d{3})`\.\)_ ?/;
-export const WITHDRAWN = /^_\(Withdrawn on (\d{4}-\d{2}-\d{2})\.\)_ ?/;
+/**
+ * One colour per state, in the entry and in the index that lists them.
+ *
+ * The colour is not decoration and it is not the state either — the words are.
+ * It is there so that scrolling a three-thousand-line page shows where the
+ * ordinary entries stop, which reading the words one at a time does not. Since
+ * a colour that disagrees with its words is worse than no colour, the checker
+ * insists the two match.
+ *
+ * `current` has a colour and no entry wears it. Marking the ordinary case would
+ * put a green dot on three hundred and eighty-nine entries and hide the ten
+ * that are not ordinary among them — the opposite of what the colours are for.
+ * It appears once, in the line under the chapter table, so that the vocabulary
+ * is complete where somebody looks it up.
+ */
+export const ICONS = {
+    current: '🟢',
+    draft: '⚪',
+    superseded: '🔵',
+    withdrawn: '🔴',
+    pending: '🟡',
+};
+
+// Written out rather than built from ICONS above: a regex assembled from a
+// template is opaque to `eslint-plugin-regexp`, and the backtracking rule this
+// repository runs is exactly the kind that has to read the pattern to work. The
+// `u` flag is not optional either — three of the four icons are outside the
+// basic plane, and without it a character class matches half a surrogate pair.
+
+export const SUPERSEDED =
+    /^(?:([⚪🔵🔴🟡]) )?_\(Superseded on (\d{4}-\d{2}-\d{2}) by `(SC-[A-Z0-9]+-\d{3})`\.\)_ ?/u;
+export const WITHDRAWN = /^(?:([⚪🔵🔴🟡]) )?_\(Withdrawn on (\d{4}-\d{2}-\d{2})\.\)_ ?/u;
 // Dated like the others, because the risk a draft carries is staleness: an
 // entry proposed a year ago and never decided reads exactly like one proposed
 // last week, and only one of the two is still somebody's intention.
-export const DRAFT = /^_\(Draft since (\d{4}-\d{2}-\d{2})\.\)_ ?/;
+export const DRAFT = /^(?:([⚪🔵🔴🟡]) )?_\(Draft since (\d{4}-\d{2}-\d{2})\.\)_ ?/u;
 export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
+export const PENDING = / ?(?:([⚪🔵🔴🟡]) )?_\(Decided, not yet delivered\.\)_/u;
 
 /** Every identifier mentioned in a piece of prose. */
 export const REFERENCES = /\bSC-[A-Z0-9]+-\d{3}\b/g;
@@ -156,20 +187,24 @@ function finishEntry(entry) {
     // marker without one does not match, so `_(Draft.)_` stays prose and the
     // check for a near-miss state catches it. Nothing reads the value, and a
     // field nobody reads is a field that stops being true unnoticed.
+    let icon;
     const superseded = SUPERSEDED.exec(text);
     const withdrawn = WITHDRAWN.exec(text);
     const draft = DRAFT.exec(text);
     if (superseded) {
         status = 'superseded';
-        supersededBy = superseded[2];
+        [, icon, , supersededBy] = superseded;
         text = text.slice(superseded[0].length);
     } else if (withdrawn) {
         status = 'withdrawn';
+        [, icon] = withdrawn;
         text = text.slice(withdrawn[0].length);
     } else if (draft) {
         status = 'draft';
+        [, icon] = draft;
         text = text.slice(draft[0].length);
     }
+    const pending = PENDING.exec(text);
 
     return {
         ...entry,
@@ -178,8 +213,10 @@ function finishEntry(entry) {
         source: sources[0],
         text,
         status,
+        icon,
+        pendingIcon: pending?.[1],
         supersededBy,
-        delivered: !lines.some((line) => line.includes(NOT_DELIVERED)),
+        delivered: !pending,
         // Derived, never written down: the prose is the only place a
         // relationship is stated, so it is the only place it can go stale.
         references: [...new Set(text.match(REFERENCES) ?? [])].filter((id) => id !== entry.id),
@@ -250,4 +287,19 @@ export function readCatalogue(root) {
         );
 
     return { preamble, chapters, entries: chapters.flatMap((chapter) => chapter.entries) };
+}
+
+/**
+ * GitHub's heading anchor: lower case, punctuation dropped, spaces to hyphens.
+ *
+ * The em dash between an identifier and its title is punctuation, so it leaves
+ * the two spaces around it behind and the anchor carries a double hyphen. That
+ * is not a quirk to tidy up — it is what the rendered page actually links to.
+ */
+export function anchor(heading) {
+    return heading
+        .replace(/^#+ /, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N} -]/gu, '')
+        .replace(/ /g, '-');
 }

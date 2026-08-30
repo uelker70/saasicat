@@ -34,7 +34,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { readCatalogue } from './parse.mjs';
-import { annotationsIn, scanTests, unproven } from './proof.mjs';
+import { annotationsIn, isTestPath, scanTests, unproven } from './proof.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const RETIRED = new Set(['superseded', 'withdrawn']);
@@ -135,11 +135,26 @@ function git(root, ...args) {
  * before the first annotation is the ordinary case rather than a failure.
  */
 function namedAt(root, ref) {
+    let matched;
     try {
-        return new Set(annotationsIn(git(root, 'grep', '-h', '-F', '@requirement', ref)));
+        matched = git(root, 'grep', '-F', '@requirement', ref);
     } catch {
+        // `git grep` exits 1 when a pattern matches nothing, which at the
+        // revision before the first annotation is ordinary rather than a
+        // failure.
         return new Set();
     }
+    // `ref:path:line`. The path is filtered through the same predicate the
+    // working tree is walked with, because a ratchet whose two sides count
+    // different populations reports changes nobody made.
+    const named = new Set();
+    for (const line of matched.split('\n')) {
+        const at = line.indexOf(':', ref.length + 1);
+        if (at === -1) continue;
+        if (!isTestPath(line.slice(ref.length + 1, at))) continue;
+        for (const id of annotationsIn(line.slice(at + 1))) named.add(id);
+    }
+    return named;
 }
 
 /**

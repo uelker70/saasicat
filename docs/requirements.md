@@ -46,12 +46,18 @@ most valuable part of the entry.
 An entry says one of four things, and which one it says decides what a reader may do with it. The
 question behind the table is always the same: **may somebody rely on this?**
 
-| State      | Written as                                  | May somebody rely on it?                |
-| ---------- | ------------------------------------------- | --------------------------------------- |
-| Current    | nothing — this is the ordinary entry        | Yes                                     |
-| Draft      | `_(Draft since YYYY-MM-DD.)_`               | No — not decided, and it may not happen |
-| Superseded | ``_(Superseded on YYYY-MM-DD by `SC-…`.)_`` | No — follow the successor it names      |
-| Withdrawn  | `_(Withdrawn on YYYY-MM-DD.)_`              | No, and nothing replaces it             |
+| State         | Written as                                     | May somebody rely on it?                |
+| ------------- | ---------------------------------------------- | --------------------------------------- |
+| 🟢 Current    | nothing — this is the ordinary entry           | Yes                                     |
+| ⚪ Draft      | `⚪ _(Draft since YYYY-MM-DD.)_`               | No — not decided, and it may not happen |
+| 🔵 Superseded | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` | No — follow the successor it names      |
+| 🔴 Withdrawn  | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              | No, and nothing replaces it             |
+
+The colour is not the state — the words are. It is there so that scrolling this page shows where
+the ordinary entries stop, which reading the words one at a time does not. Green has a colour and
+no entry wears it: marking the ordinary case would put a dot on three hundred and eighty-nine
+entries and hide the ten that are not ordinary among them. It appears once, in the line under the
+chapter table, where somebody looks the vocabulary up.
 
 Superseded and withdrawn look alike to whoever writes them and not at all alike to whoever reads
 them: one hands a reader arriving from an old reference somewhere to go, the other tells them there
@@ -63,10 +69,11 @@ intention.
 
 Beside its state, an entry that stands may say it is not true yet:
 
-- `_(Decided, not yet delivered.)_` — the decision is settled and recorded, the implementation is
+- `🟡 _(Decided, not yet delivered.)_` — the decision is settled and recorded, the implementation is
   not there yet. Only a current entry may say this: a draft is not decided, and a retired one has
-  nothing left to deliver. Such entries are listed because a decision nobody can find is a decision
-  that gets taken twice.
+  nothing left to deliver. Such entries are listed under the chapter table, because a decision
+  nobody can find is a decision that gets taken twice — and because what a product has promised and
+  not yet built is a question asked before somebody buys, not while they scroll.
 
 **Identifiers are permanent and a number is never reused.** Somebody outside this repository may
 have written one down, and it must never come to mean something other than it did. So a promise is
@@ -109,7 +116,19 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 399 entries: 389 stand today, 10 decided but not yet delivered, 0 drafts, 0 superseded, 0 withdrawn.
+Of 399 entries: 🟢 389 stand today, 🟡 10 decided but not yet delivered, ⚪ 0 drafts,
+🔵 0 superseded, 🔴 0 withdrawn.
+
+🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
+[SC-PLAN-025](#sc-plan-025--every-quota-a-version-carries-counts-as-a-limit-that-can-be-lowered),
+[SC-PRIC-015](#sc-pric-015--an-amount-records-the-currency-it-was-booked-in),
+[SC-PRIC-017](#sc-pric-017--the-tax-rate-and-the-tax-amount-are-recorded-not-re-derived),
+[SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),
+[SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
+[SC-CFG-008](#sc-cfg-008--an-operator-can-see-when-the-running-configuration-was-applied-and-from-where),
+[SC-CFG-009](#sc-cfg-009--a-configuration-change-is-noticed-and-reported),
+[SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
+[SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
 
 Generated from `requirements/` — 399 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
@@ -381,7 +400,7 @@ _Source:_ `docs/reference/error-codes.md`
 A version is published with a note describing the change, and an empty note is refused, because the
 note is what an operator reads a year later when a customer asks why their price moved. Today the
 note is optional in the publish interface and a version carrying none publishes.
-_(Decided, not yet delivered.)_
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ current practice
 
@@ -412,7 +431,7 @@ _Source:_ `docs/reference/error-codes.md`
 A plan version is compared on `users`, `vehicles` and `storageGb` alone, so a quota an installation
 defines for itself — NotesApp's `notesMax`, for instance — can be lowered and published without the
 confirmation SC-PLAN-009 asks for. Add-on versions are already compared on every quota they carry.
-_(Decided, not yet delivered.)_
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ current practice
 
@@ -1316,7 +1335,7 @@ _Source:_ #105
 ### SC-PRIC-015 — An amount records the currency it was booked in
 
 Even though only one is configured at a time. The record is not for selling in two currencies; it
-is so that a row written in 2026 still means what it meant. _(Decided, not yet delivered.)_
+is so that a row written in 2026 still means what it meant. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -1330,13 +1349,13 @@ _Source:_ #217 · #214
 
 Storing net and gross leaves the rate living in the ratio between them, and a ratio cannot be
 reproduced for a rounded gross, cannot express an exempt or reverse-charge line, and does not
-survive a rate change. _(Decided, not yet delivered.)_
+survive a rate change. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
-The written figure is the truth from then on. _(Decided, not yet delivered.)_
+The written figure is the truth from then on. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -1351,7 +1370,7 @@ _Source:_ #214
 ### SC-PRIC-020 — A charge, once written, is never edited
 
 A correction is a counter-entry. A record that can be rewritten answers what somebody thinks
-today, not what happened. _(Decided, not yet delivered.)_
+today, not what happened. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -2290,7 +2309,7 @@ _Source:_ ADR 0007
 ### SC-CFG-008 — An operator can see when the running configuration was applied, and from where
 
 Somebody who edited the file an hour ago otherwise has no way to tell whether it has landed. The
-timestamp is the requirement, not decoration. _(Decided, not yet delivered.)_
+timestamp is the requirement, not decoration. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #217
 
@@ -2298,7 +2317,7 @@ _Source:_ #217
 
 The record inside the application is unconditional; notifying people by mail is an addition, never
 a substitute. An address list that silently swallowed the notification because nobody wired mail
-would be worse than having neither. _(Decided, not yet delivered.)_
+would be worse than having neither. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #217
 
@@ -2757,14 +2776,14 @@ _Source:_ `docs/explanation/data-model.md`
 ### SC-AUD-010 — A charge names where it came from and which agreement line it belongs to
 
 Activation, renewal, a prorated plan change, an add-on booking, a credit — so an account can be
-walked back to what was agreed. _(Decided, not yet delivered.)_
+walked back to what was agreed. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-AUD-011 — A charge carries the period it belongs to
 
 Which charges belong on one invoice has to be derivable, and a set of individually booked amounts
-with no grouping leaves that to guesswork. _(Decided, not yet delivered.)_
+with no grouping leaves that to guesswork. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 

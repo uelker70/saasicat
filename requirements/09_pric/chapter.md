@@ -104,7 +104,7 @@ _Source:_ #105
 ### SC-PRIC-015 — An amount records the currency it was booked in
 
 Even though only one is configured at a time. The record is not for selling in two currencies; it
-is so that a row written in 2026 still means what it meant. _(Decided, not yet delivered.)_
+is so that a row written in 2026 still means what it meant. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -118,13 +118,13 @@ _Source:_ #217 · #214
 
 Storing net and gross leaves the rate living in the ratio between them, and a ratio cannot be
 reproduced for a rounded gross, cannot express an exempt or reverse-charge line, and does not
-survive a rate change. _(Decided, not yet delivered.)_
+survive a rate change. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
-The written figure is the truth from then on. _(Decided, not yet delivered.)_
+The written figure is the truth from then on. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -139,7 +139,7 @@ _Source:_ #214
 ### SC-PRIC-020 — A charge, once written, is never edited
 
 A correction is a counter-entry. A record that can be rewritten answers what somebody thinks
-today, not what happened. _(Decided, not yet delivered.)_
+today, not what happened. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 

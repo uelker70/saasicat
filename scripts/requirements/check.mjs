@@ -20,7 +20,7 @@
 // whether its source is the real reason. Those stay prose and are named as
 // prose in `docs/explanation/requirements-as-sources.md`.
 
-import { DIRECTORY, HEADING, MARKER_LIKE, SOURCE } from './parse.mjs';
+import { anchor, DIRECTORY, HEADING, ICONS, MARKER_LIKE, SOURCE } from './parse.mjs';
 import { BEGIN, END } from './render.mjs';
 
 const CHAPTER_KEYS = new Set(['title']);
@@ -180,6 +180,24 @@ function checkState(entry, say) {
                 'That claim belongs to a promise that stands.',
         );
     }
+    // A colour that disagrees with its words is worse than no colour: it is
+    // read faster than the words are, so the reader who trusts it is the one
+    // who is misled. Missing is refused for the same reason — a retired entry
+    // with no colour reads as ordinary in a scan.
+    if (status !== 'current' && entry.icon !== ICONS[status]) {
+        say(
+            where,
+            `'${entry.id}' is ${status} but opens with ${entry.icon ?? 'no colour'}, not ${ICONS[status]}`,
+        );
+    }
+    if (!entry.delivered && entry.pendingIcon !== ICONS.pending) {
+        say(
+            where,
+            `'${entry.id}' is not yet delivered but marks it with ` +
+                `${entry.pendingIcon ?? 'no colour'}, not ${ICONS.pending}`,
+        );
+    }
+
     // A state marker that nearly matches is the dangerous one. `_(Draft.)_`
     // with no date, `_(Obsolete.)_`, a supersession missing its successor —
     // each reads as a state to a person and as ordinary prose to the parser, so
@@ -242,21 +260,6 @@ function checkNumbering(chapter, say) {
         say(chapter.where, `numbering skips from ${sorted[i - 1] ?? 0} to ${sorted[i]}`);
         return;
     }
-}
-
-/**
- * GitHub's heading anchor: lower case, punctuation dropped, spaces to hyphens.
- *
- * The em dash between an identifier and its title is punctuation, so it leaves
- * the two spaces around it behind and the anchor carries a double hyphen. That
- * is not a quirk to tidy up — it is what the rendered page actually links to.
- */
-function anchor(heading) {
-    return heading
-        .replace(/^#+ /, '')
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N} -]/gu, '')
-        .replace(/ /g, '-');
 }
 
 /**

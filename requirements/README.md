@@ -60,18 +60,25 @@ An ordinary entry carries no marker: it stands, and the product keeps it. The ot
 entry, because a reader arriving from an old link has to learn in the first few words that it does
 not apply.
 
-| State                                 | Written as                                  |
-| ------------------------------------- | ------------------------------------------- |
-| Current                               | nothing                                     |
-| Draft — proposed, not decided         | `_(Draft since YYYY-MM-DD.)_`               |
-| Superseded — replaced, follow the id  | ``_(Superseded on YYYY-MM-DD by `SC-…`.)_`` |
-| Withdrawn — gone, nothing replaces it | `_(Withdrawn on YYYY-MM-DD.)_`              |
+| State                                    | Written as                                     |
+| ---------------------------------------- | ---------------------------------------------- |
+| 🟢 Current                               | nothing                                        |
+| ⚪ Draft — proposed, not decided         | `⚪ _(Draft since YYYY-MM-DD.)_`               |
+| 🔵 Superseded — replaced, follow the id  | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` |
+| 🔴 Withdrawn — gone, nothing replaces it | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              |
 
-A current entry that is not true yet says `_(Decided, not yet delivered.)_` at the end of its
+The colour is not the state — the words are — and it is checked against them, because a colour that
+disagrees is read faster than the words and misleads whoever trusts it. Green has a colour and no
+entry wears it: a dot on three hundred and eighty-nine ordinary entries would hide the ten that are
+not.
+
+A current entry that is not true yet says `🟡 _(Decided, not yet delivered.)_` at the end of its
 prose. No other state may: a draft is not decided, and a retired one has nothing left to deliver.
 
-`00_preamble/02_structure.md` carries the same table for readers of the published page, and the
-line under the chapter table says how many entries are in each state today.
+`00_preamble/02_structure.md` carries the same table for readers of the published page. Under the
+chapter table, a generated line counts each state and lists every entry that is not ordinary, with a
+link to it — ten entries in three thousand lines are visible once you reach them and unfindable
+before that.
 
 ## What proves it
 

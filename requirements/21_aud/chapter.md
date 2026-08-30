@@ -68,13 +68,13 @@ _Source:_ `docs/explanation/data-model.md`
 ### SC-AUD-010 — A charge names where it came from and which agreement line it belongs to
 
 Activation, renewal, a prorated plan change, an add-on booking, a credit — so an account can be
-walked back to what was agreed. _(Decided, not yet delivered.)_
+walked back to what was agreed. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-AUD-011 — A charge carries the period it belongs to
 
 Which charges belong on one invoice has to be derivable, and a set of individually booked amounts
-with no grouping leaves that to guesswork. _(Decided, not yet delivered.)_
+with no grouping leaves that to guesswork. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214

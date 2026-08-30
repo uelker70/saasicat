@@ -76,8 +76,16 @@ _Source:_ #133 · ADR 0009
 ```
 
 A promise that is dropped rather than replaced is withdrawn instead, with no successor:
-`_(Withdrawn on 2026-09-01.)_`. Both markers open the entry, because a reader arriving from an old
+`🔴 _(Withdrawn on 2026-09-01.)_`. Both markers open the entry, because a reader arriving from an old
 link has to learn in the first few words that it does not apply.
+
+Each state carries a colour — ⚪ draft, 🔵 superseded, 🔴 withdrawn, 🟡 decided but not yet
+delivered — and the checker refuses one that disagrees with the words beside it, because a colour is
+read faster than a sentence and a wrong one misleads whoever trusts it. Current is 🟢 and no entry
+wears it: a dot on three hundred and eighty-nine ordinary entries would hide the ten that are not
+ordinary among them. It appears once, in the generated line under the chapter table, which counts
+every state and links each entry that is not current — a question asked before somebody buys rather
+than while they scroll.
 
 **Not every edit is a change of the promise.** The question that decides it is whether what
 somebody can rely on changes:

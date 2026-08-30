@@ -56,7 +56,7 @@ _Source:_ `docs/reference/error-codes.md`
 A version is published with a note describing the change, and an empty note is refused, because the
 note is what an operator reads a year later when a customer asks why their price moved. Today the
 note is optional in the publish interface and a version carrying none publishes.
-_(Decided, not yet delivered.)_
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ current practice
 
@@ -87,7 +87,7 @@ _Source:_ `docs/reference/error-codes.md`
 A plan version is compared on `users`, `vehicles` and `storageGb` alone, so a quota an installation
 defines for itself — NotesApp's `notesMax`, for instance — can be lowered and published without the
 confirmation SC-PLAN-009 asks for. Add-on versions are already compared on every quota they carry.
-_(Decided, not yet delivered.)_
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ current practice
 

@@ -34,14 +34,32 @@ export function annotationsIn(text) {
     return [...text.matchAll(ANNOTATION)].map(([, , id]) => id);
 }
 
+export const GROUPS = ['packages', 'examples', 'tests'];
+
 /**
- * The identifiers named across the tests, mapped to the files naming them.
+ * Whether a repository-relative path is somewhere a proof may live.
+ *
+ * Exported because the ratchet measures two revisions and they have to count
+ * the same population. They cannot walk the same way — one has a working tree,
+ * the other has a revision — so they share this instead. When they did not, the
+ * older side searched every file in the repository and found the example
+ * `@requirement SC-PLAN-004` in a comment; the newer side searched the tests
+ * and did not. The debt then read one lower on the side it was compared
+ * against, and the ratchet reported a rise that nobody had caused.
  *
  * A directory called `tests` counts whole, because the suites here keep
  * fixtures and helpers beside the files that run — and a helper asserting a
- * rule is proving it just as much as the case that calls the helper.
+ * rule proves it as much as the case that calls the helper.
  */
-export function scanTests(root, groups = ['packages', 'examples', 'tests']) {
+export function isTestPath(path) {
+    const parts = path.split('/');
+    if (!GROUPS.includes(parts[0])) return false;
+    if (parts.some((part) => SKIP.has(part))) return false;
+    return parts.includes('tests') || IS_TEST.test(parts.at(-1));
+}
+
+/** The identifiers named across the tests, mapped to the files naming them. */
+export function scanTests(root, groups = GROUPS) {
     const found = new Map();
     const visit = (dir, insideTests) => {
         for (const name of readdirSync(dir)) {

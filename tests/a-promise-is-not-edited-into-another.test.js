@@ -116,7 +116,7 @@ describe('retiring an entry preserves what it said', () => {
 
     test('superseding without touching the wording is accepted', () => {
         const after = entries(
-            entry('SC-A-001', `_(Superseded on 2026-09-01 by \`SC-A-002\`.)_ ${promise}`),
+            entry('SC-A-001', `🔵 _(Superseded on 2026-09-01 by \`SC-A-002\`.)_ ${promise}`),
             entry('SC-A-002', 'The new wording.'),
         );
         assert.deepEqual(problems(before, after), []);
@@ -128,7 +128,7 @@ describe('retiring an entry preserves what it said', () => {
         const after = entries(
             entry(
                 'SC-A-001',
-                '_(Superseded on 2026-09-01 by `SC-A-002`.)_ Something nobody promised.',
+                '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ Something nobody promised.',
             ),
             entry('SC-A-002', 'The new wording.'),
         );
@@ -137,7 +137,7 @@ describe('retiring an entry preserves what it said', () => {
     });
 
     test('a withdrawn promise coming back is refused', () => {
-        const withdrawn = one(`_(Withdrawn on 2026-09-01.)_ ${promise}`);
+        const withdrawn = one(`🔴 _(Withdrawn on 2026-09-01.)_ ${promise}`);
         const [problem] = problems(withdrawn, one(promise));
         assert.match(problem, /was withdrawn and is current again/);
     });

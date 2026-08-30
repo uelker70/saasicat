@@ -54,6 +54,21 @@ describe('the requirements document is generated, not maintained', () => {
         );
     });
 
+    test('the index names every entry that is not ordinary', async () => {
+        // Ten entries in three thousand lines are visible once you reach them
+        // and unfindable before that. Without the list, "what has this product
+        // promised and not yet built" is answered by scrolling.
+        const { catalogue, text } = await rendered();
+        const pending = catalogue.entries.filter((e) => e.status === 'current' && !e.delivered);
+        assert.ok(pending.length > 0, 'no undelivered entries to index');
+        for (const entry of pending) {
+            assert.ok(text.includes(`[${entry.id}](#`), `${entry.id} is not in the index`);
+        }
+        // The counter-proof: the ordinary ones are not listed, or the index
+        // would be the catalogue again.
+        assert.ok(!text.includes(`[${catalogue.entries.find((e) => e.delivered).id}](#`));
+    });
+
     test('the region markers stay in the sources', async () => {
         // They tell whoever opens the source that the table is rewritten by a
         // command. The published page has no region to delimit and is read by
@@ -128,7 +143,7 @@ describe('the parser reads the entry, not the prose around it', () => {
 
     test('a draft is read from its own first words', () => {
         const chapter = parse(
-            '### SC-A-001 — T\n\n_(Draft since 2026-09-01.)_ Proposed wording.\n\n_Source:_ #1',
+            '### SC-A-001 — T\n\n⚪ _(Draft since 2026-09-01.)_ Proposed wording.\n\n_Source:_ #1',
         );
         assert.equal(chapter.entries[0].status, 'draft');
         assert.equal(chapter.entries[0].text, 'Proposed wording.');
@@ -144,7 +159,7 @@ describe('the parser reads the entry, not the prose around it', () => {
 
     test('a retired entry is read from its own first words', () => {
         const chapter = parse(
-            '### SC-A-001 — T\n\n_(Superseded on 2026-09-01 by `SC-A-002`.)_ Old wording.\n\n' +
+            '### SC-A-001 — T\n\n🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ Old wording.\n\n' +
                 '_Source:_ #1\n\n### SC-A-002 — T\n\nNew wording.\n\n_Source:_ #2',
         );
         const [first] = chapter.entries;
@@ -218,7 +233,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                 [
                     'a',
                     `${head()}\n### SC-A-001 — Title\n\n` +
-                        '_(Superseded on 2026-09-01 by `SC-A-002`.)_ Old.\n\n_Source:_ #1\n\n' +
+                        '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ Old.\n\n_Source:_ #1\n\n' +
                         '### SC-A-002 — Title\n\nNew.\n\n_Source:_ #2\n\n' +
                         '### SC-A-003 — Title\n\nRests on SC-A-001.\n\n_Source:_ #3',
                 ],
@@ -233,7 +248,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                 [
                     'a',
                     `${head()}\n### SC-A-001 — Title\n\n` +
-                        '_(Superseded on 2026-09-01 by `SC-A-404`.)_ Old.\n\n_Source:_ #1',
+                        '🔵 _(Superseded on 2026-09-01 by `SC-A-404`.)_ Old.\n\n_Source:_ #1',
                 ],
             ],
             'which does not exist',
@@ -248,9 +263,9 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                 [
                     'a',
                     `${head()}\n### SC-A-001 — Title\n\n` +
-                        '_(Superseded on 2026-09-01 by `SC-A-002`.)_ One.\n\n_Source:_ #1\n\n' +
+                        '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ One.\n\n_Source:_ #1\n\n' +
                         '### SC-A-002 — Title\n\n' +
-                        '_(Superseded on 2026-09-02 by `SC-A-001`.)_ Two.\n\n_Source:_ #2',
+                        '🔵 _(Superseded on 2026-09-02 by `SC-A-001`.)_ Two.\n\n_Source:_ #2',
                 ],
             ],
             'loops at',
@@ -309,11 +324,54 @@ describe('the checks refuse what the conventions used to leave to care', () => {
             [
                 [
                     '01_a',
-                    `${head()}\n### SC-A-001 — Title\n\n_(Draft since 2026-09-01.)_ Prose. ` +
+                    `${head()}\n### SC-A-001 — Title\n\n⚪ _(Draft since 2026-09-01.)_ Prose. ` +
                         '_(Decided, not yet delivered.)_\n\n_Source:_ #1',
                 ],
             ],
             'also marked as decided-but-not-delivered',
+        );
+    });
+
+    test('a colour that disagrees with its words', () => {
+        // The colour is read faster than the words are, so a reader who trusts
+        // it is the one who is misled. A wrong one is worse than none.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n🔴 _(Draft since 2026-09-01.)_ Prose.\n\n` +
+                        '_Source:_ #1',
+                ],
+            ],
+            'opens with 🔴, not ⚪',
+        );
+    });
+
+    test('a retired entry with no colour at all', () => {
+        // It reads as ordinary in a scan, which is the one thing a retired
+        // entry must never do.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n_(Withdrawn on 2026-09-01.)_ Prose.\n\n` +
+                        '_Source:_ #1',
+                ],
+            ],
+            'opens with no colour, not 🔴',
+        );
+    });
+
+    test('an undelivered promise with no colour', () => {
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\nProse. _(Decided, not yet delivered.)_\n\n` +
+                        '_Source:_ #1',
+                ],
+            ],
+            'marks it with no colour',
         );
     });
 

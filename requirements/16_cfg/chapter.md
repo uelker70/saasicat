@@ -91,7 +91,7 @@ _Source:_ ADR 0007
 ### SC-CFG-008 — An operator can see when the running configuration was applied, and from where
 
 Somebody who edited the file an hour ago otherwise has no way to tell whether it has landed. The
-timestamp is the requirement, not decoration. _(Decided, not yet delivered.)_
+timestamp is the requirement, not decoration. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #217
 
@@ -99,7 +99,7 @@ _Source:_ #217
 
 The record inside the application is unconditional; notifying people by mail is an addition, never
 a substitute. An address list that silently swallowed the notification because nobody wired mail
-would be worse than having neither. _(Decided, not yet delivered.)_
+would be worse than having neither. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #217
 

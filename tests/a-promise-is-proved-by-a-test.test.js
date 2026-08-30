@@ -14,7 +14,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
-import { annotationsIn, unproven } from '../scripts/requirements/proof.mjs';
+import { annotationsIn, isTestPath, unproven } from '../scripts/requirements/proof.mjs';
 import { ratchet } from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
@@ -43,6 +43,42 @@ describe('a test says which promise it proves', () => {
     });
 });
 
+describe('both revisions count the same places', () => {
+    // The ratchet measures two revisions, and they cannot walk the same way:
+    // one has a working tree, the other has a revision and is read with
+    // `git grep`. When they did not share this predicate, the older side
+    // searched every file in the repository and found the example
+    // `@requirement SC-PLAN-004` in a comment, while the newer side searched
+    // the tests and did not. The debt read one lower on the side it was
+    // compared against, and the ratchet reported a rise nobody had caused.
+
+    test('a test file counts, wherever it sits', () => {
+        assert.ok(isTestPath('tests/a-thing.test.js'));
+        assert.ok(isTestPath('packages/nest/src/thing.spec.ts'));
+    });
+
+    test('a helper beside the tests counts', () => {
+        // A helper asserting a rule proves it as much as the case calling it.
+        assert.ok(isTestPath('packages/nest/tests/fixtures/tenant.ts'));
+    });
+
+    test('a comment in the tooling does not', () => {
+        // The file that documents the annotation names one, and it is not a
+        // proof of anything. This is the case that was wrong.
+        assert.ok(!isTestPath('scripts/requirements/proof.mjs'));
+        assert.ok(!isTestPath('docs/explanation/requirements-as-sources.md'));
+        assert.ok(!isTestPath('CONTRIBUTING.md'));
+    });
+
+    test('production source does not', () => {
+        assert.ok(!isTestPath('packages/nest/src/thing.ts'));
+    });
+
+    test('an installed dependency does not', () => {
+        assert.ok(!isTestPath('packages/nest/node_modules/x/tests/y.test.js'));
+    });
+});
+
 describe('only a promise that stands is owed a proof', () => {
     const named = new Set(['SC-A-002']);
 
@@ -57,17 +93,17 @@ describe('only a promise that stands is owed a proof', () => {
     test('a draft is not owed a proof', () => {
         // It is not a promise yet. Asking for a test would ask for a test of
         // something nobody has decided to do.
-        const draft = entries(entry('SC-A-001', '_(Draft since 2026-09-01.)_ Proposed.'));
+        const draft = entries(entry('SC-A-001', '⚪ _(Draft since 2026-09-01.)_ Proposed.'));
         assert.deepEqual(unproven(draft, named), []);
     });
 
     test('a promise decided but not delivered is not owed one', () => {
-        const later = entries(entry('SC-A-001', 'Prose. _(Decided, not yet delivered.)_'));
+        const later = entries(entry('SC-A-001', 'Prose. 🟡 _(Decided, not yet delivered.)_'));
         assert.deepEqual(unproven(later, named), []);
     });
 
     test('a retired promise is not owed one', () => {
-        const retired = entries(entry('SC-A-001', '_(Withdrawn on 2026-09-01.)_ Prose.'));
+        const retired = entries(entry('SC-A-001', '🔴 _(Withdrawn on 2026-09-01.)_ Prose.'));
         assert.deepEqual(unproven(retired, named), []);
     });
 });
