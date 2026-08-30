@@ -136,16 +136,27 @@ entry would outlive the typo it excused by years.
 
 It covers exactly the commit that carries it, which is why the branch is judged commit by commit
 rather than as one diff. Pooled, a trailer would outlive its edit: a commit legitimately excusing a
-typo in an entry would also excuse a later commit rewriting that entry into a different promise. A
-merge commit is skipped instead of judged — its diff carries work that was judged on its own pull
-request. Anything still uncommitted is judged with no claim available.
+typo in an entry would also excuse a later commit rewriting that entry into a different promise.
+Anything still uncommitted is judged with no claim available.
 
-That skip is also how the check spent its first day proving nothing. On a `pull_request` event the
-checkout is the merge commit GitHub synthesises, so the only revision in the range was that merge,
-the merge was skipped, and what remained was the merge result compared against itself: green, and
-blind. CI now names the head it means, the checkout stays on the merge result because that is what
-every other step should be testing, and a walk that judges no step at all is reported rather than
-passed. A check that cannot fail is worse than no check, because it is trusted.
+**Every revision is judged, and each one against its own parents.** A parent acquits an entry when
+it has that entry and finds nothing wrong with it — whoever wrote that version answered for it
+where they wrote it. What none of the parents acquits is this revision's own doing.
+
+One rule covers a commit and a merge, because they differ in nothing but how many parents they
+have. A merge is not skipped: resolving a conflict can rewrite or delete a requirement, and that
+edit belongs to nobody else. What arrived along one parent matches that parent and costs nothing;
+what the resolution wrote matches none of them and is reported. A parent that never carried the
+identifier acquits nothing, because that silence is absence rather than agreement.
+
+Every earlier version of this walk was an assumption about the shape of history — skip merges,
+follow the first parent, compare against where the walk had reached — and each was wrong for a
+shape git allows: a merged local topic branch, a feature branch that merges a newer `main`, and
+the merge commit GitHub synthesises for a `pull_request` checkout, which for a while left the
+check comparing that merge result against itself: green, and blind. The rule above is derived from
+what a commit is rather than from a branch anybody had in mind, which is why it needs no case for
+any of them. CI still names the head it means, because judging the merge GitHub invents says
+nothing about the branch.
 
 ## What proves a requirement
 

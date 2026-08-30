@@ -88,18 +88,18 @@ export const ICONS = {
 // basic plane, and without it a character class matches half a surrogate pair.
 
 export const SUPERSEDED =
-    /^(?:([⚪🔵🔴🟡])\s)?_\(Superseded\son\s(\d{4}-\d{2}-\d{2})\sby\s`(SC-[A-Z0-9]+-\d{3})`\.\)_\s?/u;
-export const WITHDRAWN = /^(?:([⚪🔵🔴🟡])\s)?_\(Withdrawn\son\s(\d{4}-\d{2}-\d{2})\.\)_\s?/u;
+    /^(?:([⚪🔵🔴🟡])\s+)?_\(Superseded\s+on\s+(\d{4}-\d{2}-\d{2})\s+by\s+`(SC-[A-Z0-9]+-\d{3})`\.\)_\s?/u;
+export const WITHDRAWN = /^(?:([⚪🔵🔴🟡])\s+)?_\(Withdrawn\s+on\s+(\d{4}-\d{2}-\d{2})\.\)_\s?/u;
 // Dated like the others, because the risk a draft carries is staleness: an
 // entry proposed a year ago and never decided reads exactly like one proposed
 // last week, and only one of the two is still somebody's intention.
-export const DRAFT = /^(?:([⚪🔵🔴🟡])\s)?_\(Draft\ssince\s(\d{4}-\d{2}-\d{2})\.\)_\s?/u;
+export const DRAFT = /^(?:([⚪🔵🔴🟡])\s+)?_\(Draft\s+since\s+(\d{4}-\d{2}-\d{2})\.\)_\s?/u;
 export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
 // Every gap is `\s`, not a space. These files are wrapped by hand at a hundred
 // columns, and two committed entries wrap this marker across the break — so
 // they read as delivered, vanished from the index of what is not built yet, and
 // nothing asked why they had no colour.
-export const PENDING = /\s?(?:([⚪🔵🔴🟡])\s)?_\(Decided,\snot\syet\sdelivered\.\)_/u;
+export const PENDING = /\s?(?:([⚪🔵🔴🟡])\s+)?_\(Decided,\s+not\s+yet\s+delivered\.\)_/u;
 
 /** Every identifier mentioned in a piece of prose. */
 export const REFERENCES = /\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g;

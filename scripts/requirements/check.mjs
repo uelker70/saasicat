@@ -28,7 +28,12 @@ const RETIRED = new Set(['superseded', 'withdrawn']);
 const STATES = new Set(['draft', 'current', 'superseded', 'withdrawn']);
 
 /** A state marker, or something wearing enough of one to be meant as one. */
-const NEARLY_A_STATE = /^(?:\p{Extended_Pictographic}\uFE0F? )?_\(/u;
+// `\s*`, not one space: a colour with no separator or with two reads as a state
+// to a person and matches none of the state patterns, so the entry counts as an
+// ordinary delivered promise. The parsers ask for at least one space, and this
+// asks for none, which is what makes the malformed form visible instead of
+// silently ignored.
+const NEARLY_A_STATE = /^(?:\p{Extended_Pictographic}\uFE0F?\s*)?_\(/u;
 
 /** A link into the repository, which resolves differently here and on the page. */
 const REPO_LINK = /\]\((?!#|https?:)([^)]+)\)/g;

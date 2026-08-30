@@ -445,6 +445,32 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
+    test('a colour with no space before its marker', () => {
+        // `🔴_(Withdrawn …)_` matches no state pattern, because those ask for a
+        // separator — and a near-miss check hard-coding one space missed it for
+        // the same reason. The entry counted as an ordinary delivered promise
+        // in the index and in the proof ratchet both.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n🔴_(Withdrawn on 2026-09-01.)_ Gone.\n\n` +
+                        '_Source:_ #1',
+                ],
+            ],
+            'opens with something shaped like a state',
+        );
+    });
+
+    test('a colour with two spaces before its marker still parses', () => {
+        // The counter-proof: separators are whitespace, and asking for exactly
+        // one is what created the case above.
+        const [entry] = parse(
+            '### SC-A-001 — T\n\n🔴  _(Withdrawn on 2026-09-01.)_ Gone.\n\n_Source:_ #1',
+        ).entries;
+        assert.equal(entry.status, 'withdrawn');
+    });
+
     test('a state marker that nearly matches', () => {
         // `_(Draft since.)_` has no date, so it is not a draft — it is prose,
         // and the entry counts as a promise that stands. It reads as a draft to
