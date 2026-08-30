@@ -68,10 +68,12 @@ const TRAILER = /^Editorial:(.*)$/gm;
  * bolding a phrase is typography; line breaks, because these files are wrapped
  * by hand at a hundred columns and one added word reflows the paragraph.
  *
- * Underscores stay. They were dropped with the other emphasis markers, which
- * made `tenant_id` and `tenantid` the same promise — so a configuration key
- * could be renamed inside a requirement with nothing to say about it. Asterisks
- * and backticks are never part of a name; an underscore is.
+ * Only backticks are dropped, because only a backtick is never part of what it
+ * wraps. An underscore belongs to `tenant_id` and an asterisk to `*.json`, and
+ * dropping them made those the same promise as `tenantid` and `.json` — a key
+ * or a pattern could be changed inside a requirement with nothing to say about
+ * it. The catalogue uses neither for emphasis today, so nothing is lost by
+ * keeping them and a whole class of silent rewrites is closed.
  *
  * The heading is part of it. Nineteen entries state their whole promise
  * there and carry no prose at all, so comparing the prose alone compared
@@ -80,7 +82,7 @@ const TRAILER = /^Editorial:(.*)$/gm;
 export function fingerprint(promise) {
     return promise
         .replace(/\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g, '«ref»')
-        .replace(/[*`]/g, '')
+        .replace(/`/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 }

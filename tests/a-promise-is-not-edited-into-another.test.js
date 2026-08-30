@@ -44,8 +44,19 @@ describe('the fingerprint is the promise, not the prose around it', () => {
         );
     });
 
-    test('emphasis is not a change', () => {
-        assert.equal(fingerprint('the **name** stays'), fingerprint('the name stays'));
+    test('code formatting is not a change', () => {
+        // A backtick is the one markup character that is never part of what it
+        // wraps, so marking a word as a literal is typography and nothing else.
+        assert.equal(fingerprint('the `name` stays'), fingerprint('the name stays'));
+    });
+
+    test('but emphasis is, because it cannot be told from a literal', () => {
+        // Asterisks and underscores used to go with the backticks, which made
+        // `*.json` and `.json`, and `tenant_id` and `tenantid`, the same
+        // promise. Telling emphasis from a literal needs a Markdown parser; the
+        // catalogue uses neither character for emphasis, so the cheap and safe
+        // reading is that both belong to the words.
+        assert.notEqual(fingerprint('the **name** stays'), fingerprint('the name stays'));
     });
 
     test('a different identifier is not a change', () => {
@@ -74,6 +85,14 @@ describe('the fingerprint is the promise, not the prose around it', () => {
         // it. Asterisks and backticks are never part of a name; an underscore
         // is.
         assert.notEqual(fingerprint('the tenant_id key'), fingerprint('the tenantid key'));
+    });
+
+    test('an asterisk inside a pattern is not emphasis', () => {
+        // Same reason as the underscore: `*.json` and `.json` are different
+        // contracts, and dropping every asterisk made them one promise. The
+        // catalogue uses neither character for emphasis, so keeping both costs
+        // nothing.
+        assert.notEqual(fingerprint('Accept `*.json` files'), fingerprint('Accept `.json` files'));
     });
 
     test('a different word is a change', () => {

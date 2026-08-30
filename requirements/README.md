@@ -71,6 +71,10 @@ code: you do not edit the promise, you retire the entry and write a new one.
 
 The question that decides between rows one and three: **does what somebody can rely on change?**
 
+Superseding points at a promise that stands. If nothing replaces it, withdraw it instead — a
+supersession that ends at a draft or at something withdrawn removes a promise and reads to whoever
+follows the trail as though there were something to follow it to.
+
 To retire an entry, leave it exactly where it is and open it with a marker:
 
 ```markdown
@@ -160,8 +164,8 @@ Three groups of checks, by what they look at:
    person and matches no pattern, so the entry would drop out of every other check as well.
 2. **What this branch changed** — a promise rewritten in place, an entry deleted rather than
    withdrawn, an entry rewritten while being retired, a state that moved the wrong way. Compared is
-   the promise, not the file: rewrapping a paragraph, adding emphasis and following somebody else's
-   supersession all change the text and none of them change what was promised.
+   the promise, not the file: rewrapping a paragraph, marking a word as code and following somebody
+   else's supersession all change the text and none of them change what was promised.
 3. **What is proved** — the debt above.
 
 ## What none of it checks

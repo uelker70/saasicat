@@ -255,6 +255,62 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
+    test('a promise superseded by a draft', () => {
+        // A promise replaced by something nobody has decided is a promise
+        // removed with nothing in its place — a withdrawal wearing a redirect,
+        // and it reads to whoever follows the trail as though there were
+        // something to follow it to.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n` +
+                        '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ Old.\n\n_Source:_ #1\n\n' +
+                        '### SC-A-002 — Title\n\n⚪ _(Draft since 2026-09-01.)_ Proposed.\n\n' +
+                        '_Source:_ #2',
+                ],
+            ],
+            'which is draft',
+        );
+    });
+
+    test('a chain that ends where nothing stands', () => {
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\n` +
+                        '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ One.\n\n_Source:_ #1\n\n' +
+                        '### SC-A-002 — Title\n\n' +
+                        '🔵 _(Superseded on 2026-09-02 by `SC-A-003`.)_ Two.\n\n_Source:_ #2\n\n' +
+                        '### SC-A-003 — Title\n\n🔴 _(Withdrawn on 2026-09-03.)_ Three.\n\n' +
+                        '_Source:_ #3',
+                ],
+            ],
+            'which is withdrawn',
+        );
+    });
+
+    test('a chain that arrives at a promise that stands is accepted', () => {
+        // The counter-proof: superseding twice is legitimate, and the rule must
+        // not refuse a chain that ends somewhere real.
+        assert.deepEqual(
+            check(
+                catalogueOf([
+                    [
+                        '01_a',
+                        `${head()}\n### SC-A-001 — Title\n\n` +
+                            '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ One.\n\n_Source:_ #1\n\n' +
+                            '### SC-A-002 — Title\n\n' +
+                            '🔵 _(Superseded on 2026-09-02 by `SC-A-003`.)_ Two.\n\n_Source:_ #2\n\n' +
+                            '### SC-A-003 — Title\n\nThree.\n\n_Source:_ #3',
+                    ],
+                ]),
+            ),
+            [],
+        );
+    });
+
     test('a supersession chain that loops', () => {
         // Two entries pointing at each other: a reader following the trail
         // never arrives, and a walker without this guard never returns.

@@ -243,21 +243,30 @@ function checkRetired(entry, byId, say) {
         say(where, `'${entry.id}' names successor '${entry.supersededBy}', which does not exist`);
         return;
     }
-    if (successor.status === 'withdrawn') {
-        say(where, `'${entry.id}' names successor '${successor.id}', which is withdrawn`);
-        return;
-    }
+
     // A chain is legitimate — a promise can be reworded twice — but it has to
     // end. A cycle would send a reader in circles and a walker into a loop.
     const seen = new Set([entry.id]);
-    let current = successor;
-    while (current?.status === 'superseded') {
-        if (seen.has(current.id)) {
-            say(where, `'${entry.id}' starts a supersession chain that loops at '${current.id}'`);
+    let last = successor;
+    while (last?.status === 'superseded') {
+        if (seen.has(last.id)) {
+            say(where, `'${entry.id}' starts a supersession chain that loops at '${last.id}'`);
             return;
         }
-        seen.add(current.id);
-        current = byId.get(current.supersededBy);
+        seen.add(last.id);
+        last = byId.get(last.supersededBy);
+    }
+
+    // The chain has to arrive at a promise that stands. Superseding by a draft
+    // or by something withdrawn removes a promise and puts nothing in its
+    // place, which is a withdrawal wearing a redirect — and it reads to whoever
+    // follows the trail as though there were something to follow it to.
+    if (last && last.status !== 'current') {
+        say(
+            where,
+            `'${entry.id}' is superseded by a chain ending at '${last.id}', which is ` +
+                `${last.status}. A promise replaced by nothing that stands is withdrawn instead.`,
+        );
     }
 }
 

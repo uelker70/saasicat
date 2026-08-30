@@ -122,8 +122,8 @@ to be superseded too, and one reworded sentence would walk through the chapter.
 The rule is checked rather than remembered. `pnpm run requirements:guard` compares this branch's
 promises against `main` and refuses four things: a promise rewritten in place, an entry deleted
 rather than withdrawn, an entry rewritten while being retired, and a retired promise brought back to
-life. It compares the promise and not the file — identifiers inside the prose are blanked, emphasis
-is dropped and whitespace is collapsed first — so following somebody else's supersession, bolding a
+life. It compares the promise and not the file — identifiers inside the prose are blanked, code
+formatting is dropped and whitespace is collapsed first — so following somebody else's supersession, bolding a
 phrase and rewrapping a hand-wrapped paragraph all cost nothing.
 
 An edit that changes the words without changing the promise is claimed in the commit that makes it,
