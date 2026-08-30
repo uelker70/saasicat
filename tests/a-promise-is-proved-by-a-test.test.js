@@ -29,7 +29,7 @@ describe('a test says which promise it proves', () => {
     });
 
     test('several in one file each count', () => {
-        assert.deepEqual(annotationsIn('@requirement SC-A-001\n@requirement SC-A-002'), [
+        assert.deepEqual(annotationsIn('// @requirement SC-A-001\n// @requirement SC-A-002'), [
             'SC-A-001',
             'SC-A-002',
         ]);
@@ -40,6 +40,14 @@ describe('a test says which promise it proves', () => {
         // own guard tests are full of them. Counting those would report a
         // coverage that no test performs.
         assert.deepEqual(annotationsIn('see SC-A-001, and the SC-A-002 case'), []);
+    });
+
+    test('the tag inside a sentence is not a claim either', () => {
+        // The case that was wrong, and the file that documents the mechanism is
+        // the one most likely to contain it. This sentence used to prove
+        // SC-PLAN-004.
+        assert.deepEqual(annotationsIn('// the `@requirement SC-A-001` tag names it'), []);
+        assert.deepEqual(annotationsIn('// as @requirement SC-A-001 shows'), []);
     });
 });
 

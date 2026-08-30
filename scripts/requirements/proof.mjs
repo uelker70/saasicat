@@ -22,16 +22,25 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-// One quantifier between the tag and the identifier, so no two parts of the
-// pattern can claim the same whitespace.
-const ANNOTATION = /@requirement\s(\s*)(SC-[A-Z0-9]+-\d{3})/g;
+// A tag opening a comment line, not a mention inside one.
+//
+// Matching the bare word counted prose: the test that documents this predicate
+// names `@requirement SC-PLAN-004` in a sentence about it, and that sentence
+// proved SC-PLAN-004. A file explaining the mechanism is the one file most
+// likely to mention it, so the failure lands where it is least expected.
+//
+// The comment marker is required rather than optional. Optional, the two
+// whitespace runs around it could each claim the same spaces — the exchange
+// `regexp/no-super-linear-backtracking` refuses — and an annotation is in a
+// comment anyway.
+const ANNOTATION = /^[ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+(SC-[A-Z0-9]+-\d{3})/gm;
 
 const SKIP = new Set(['node_modules', 'dist', '.git', 'coverage', '.worktrees', 'var']);
 const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
 
 /** Every requirement a piece of source claims to prove. */
 export function annotationsIn(text) {
-    return [...text.matchAll(ANNOTATION)].map(([, , id]) => id);
+    return [...text.matchAll(ANNOTATION)].map(([, id]) => id);
 }
 
 export const GROUPS = ['packages', 'examples', 'tests'];
