@@ -320,7 +320,12 @@ function readCatalogueAt(root, ref) {
  */
 export function judge(steps) {
     return steps.flatMap((step) =>
-        ownWork(step.parents.map((before) => compare(before, step.after, step.editorial))),
+        ownWork(
+            step.parents.map((before) => ({
+                ids: new Set(before.map((entry) => entry.id)),
+                problems: compare(before, step.after, step.editorial),
+            })),
+        ),
     );
 }
 
@@ -328,20 +333,33 @@ export function judge(steps) {
  * Of a revision, what it did itself rather than inherited.
  *
  * One rule for every revision, because a commit and a merge differ only in how
- * many parents they have. Compared against each parent, an entry this revision
- * rewrote matches none of them, so every comparison reports it. An entry that
- * arrived along one parent matches that parent, and one silence is enough to
- * acquit — whoever wrote it answered for it where they wrote it.
+ * many parents they have. A parent acquits an entry when it **has** that entry
+ * and finds nothing wrong with it: whoever wrote that version answered for it
+ * where they wrote it.
  *
- * That is what makes it safe to walk every revision rather than the first-parent
- * chain, which is what the rule needs: a branch merging a local topic branch
- * imports commits nobody reviewed, and off the chain they were never seen.
+ * Having it is the half that is easy to forget. A parent that never carried the
+ * identifier is silent about it too, and that silence means absence, not
+ * agreement — so merging a topic branch older than a requirement and rewriting
+ * that requirement in the resolution used to pass, because the old branch had
+ * nothing to say and was read as saying nothing was wrong.
+ *
+ * Every parent's findings are considered, not the first one's. The parent that
+ * notices a change need not be the parent listed first.
  */
 function ownWork(perParent) {
-    const [first = [], ...rest] = perParent;
-    return first.filter((problem) =>
-        rest.every((others) => others.some((other) => other.id === problem.id)),
-    );
+    const acquitted = (id) =>
+        perParent.some(
+            ({ ids, problems }) => ids.has(id) && !problems.some((problem) => problem.id === id),
+        );
+
+    const seen = new Set();
+    return perParent
+        .flatMap(({ problems }) => problems)
+        .filter((problem) => {
+            if (seen.has(problem.id) || acquitted(problem.id)) return false;
+            seen.add(problem.id);
+            return true;
+        });
 }
 
 /**

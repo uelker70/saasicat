@@ -226,6 +226,65 @@ describe('retiring an entry preserves what it said', () => {
     });
 });
 
+describe('a revision answers for what it did, not what it inherited', () => {
+    // One rule for every revision: a commit and a merge differ only in how many
+    // parents they have. A parent acquits an entry when it has that entry and
+    // finds nothing wrong with it — whoever wrote that version answered for it
+    // where they wrote it.
+    const promise = 'The name stays the same across price changes.';
+    const fromMain = 'The name stays the same across price changes, always.';
+    const rewritten = 'The name may be changed at any time.';
+    const merge = (parents, after) => ({ revision: 'merge', parents, after, editorial: new Set() });
+
+    test('a rewrite in the resolution is reported', () => {
+        const [problem] = judge([merge([one(promise), one(fromMain)], one(rewritten))]);
+        assert.match(problem.message, /SC-A-001 promises something different/);
+    });
+
+    test('a deletion in the resolution is reported', () => {
+        const [problem] = judge([
+            merge([one(promise), one(fromMain)], entries(entry('SC-A-002', 'Something else.'))),
+        ]);
+        assert.match(problem.message, /SC-A-001 is gone/);
+    });
+
+    test('what came in from the other branch is not', () => {
+        // It matches that parent, and that parent's own pull request judged it.
+        assert.deepEqual(judge([merge([one(promise), one(fromMain)], one(fromMain))]), []);
+    });
+
+    test('what this branch had already done is not', () => {
+        assert.deepEqual(judge([merge([one(promise), one(fromMain)], one(promise))]), []);
+    });
+
+    // A branch cut before `SC-A-001` existed carries only what came before it.
+    const kept = entry('SC-A-002', 'An entry both sides have.');
+    const older = entries(kept);
+    const withBoth = (text) => entries(entry('SC-A-001', text), kept);
+
+    test('a parent that never had the entry does not acquit it', () => {
+        // Silence from a parent that never carried the identifier means
+        // absence, not agreement. Merging a topic branch older than a
+        // requirement and rewriting that requirement in the resolution passed,
+        // because the old branch had nothing to say about it.
+        const [problem] = judge([merge([withBoth(promise), older], withBoth(rewritten))]);
+        assert.match(problem.message, /SC-A-001 promises something different/);
+    });
+
+    test('the parent that notices need not be the first', () => {
+        // Reading only the first parent's findings loses a change that the
+        // other parent is the only one able to see.
+        const [problem] = judge([merge([older, withBoth(promise)], withBoth(rewritten))]);
+        assert.match(problem.message, /SC-A-001 promises something different/);
+    });
+
+    test('an entry that only arrived with one parent is left alone', () => {
+        // The counter-proof: an addition is not this revision's doing to answer
+        // for, and the rule must not turn every merge into a complaint.
+        assert.deepEqual(judge([merge([withBoth(promise), older], withBoth(promise))]), []);
+    });
+});
+
 describe('a claim excuses the edit that made it, and no other', () => {
     // The branch is judged step by step rather than as one diff. Pooling every
     // trailer between the merge base and HEAD let a claim outlive its edit: a
