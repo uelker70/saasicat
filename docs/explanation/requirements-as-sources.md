@@ -138,6 +138,13 @@ typo in an entry would also excuse a later commit rewriting that entry into a di
 merge commit is skipped instead of judged — its diff carries work that was judged on its own pull
 request. Anything still uncommitted is judged with no claim available.
 
+That skip is also how the check spent its first day proving nothing. On a `pull_request` event the
+checkout is the merge commit GitHub synthesises, so the only revision in the range was that merge,
+the merge was skipped, and what remained was the merge result compared against itself: green, and
+blind. CI now names the head it means, the checkout stays on the merge result because that is what
+every other step should be testing, and a walk that judges no step at all is reported rather than
+passed. A check that cannot fail is worse than no check, because it is trusted.
+
 ## What proves a requirement
 
 A test names the promise it proves, as `@requirement SC-PLAN-004` in a comment. The link goes that
