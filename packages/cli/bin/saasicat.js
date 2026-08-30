@@ -64,6 +64,7 @@ import {
     planInit,
     settingsWrittenTo,
     findMovedSettings,
+    SCANNED_FOR_MOVED_SETTINGS,
     WHERE_IT_GOES,
 } from '../dist/index.js';
 
@@ -752,6 +753,10 @@ async function cmdCodemodV1MovedSettings(args) {
     const found = [];
 
     await walkSources(root, async (full, source) => {
+        // Code only. The walk includes Markdown, and a documentation file that
+        // mentions a setting is not a file that passes one — see
+        // `SCANNED_FOR_MOVED_SETTINGS`.
+        if (!SCANNED_FOR_MOVED_SETTINGS.test(full)) return;
         for (const { setting, line } of findMovedSettings(source).occurrences) {
             found.push({ where: `${relative(root, full)}:${line}`, setting });
         }

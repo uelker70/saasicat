@@ -68,11 +68,31 @@ function lineAt(text: string, index: number): number {
 }
 
 /**
+ * Files a moved setting can actually be passed in.
+ *
+ * The codemod walk includes Markdown, and both consumers keep large
+ * documentation folders — an upgrade note that mentions `cancellationNoticeDays`
+ * would land in the report beside the line somebody has to change, and a report
+ * that mixes the two is one nobody reads twice. Prose cannot pass a module
+ * option, so prose is not scanned.
+ */
+export const SCANNED_FOR_MOVED_SETTINGS = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue)$/;
+
+/**
  * Every occurrence of a moved setting in one source file.
  *
- * Matched as a whole identifier followed by a colon, so a string in a log line
- * or a longer name that ends in it is not reported — the report is only worth
- * reading if every line in it is one somebody has to act on.
+ * Matched on word boundaries alone: a longer name that contains it
+ * (`cancellationNoticeDaysV2`) is not reported, and everything else is —
+ * including a mention in a comment or a string.
+ *
+ * That last part is deliberate, and it is the opposite trade from the one this
+ * comment used to claim. Requiring a colon would read as "only a property",
+ * and it would then miss `{ cancellationNoticeDays }` and
+ * `const { cancellationNoticeDays } = options` — two ordinary ways to pass the
+ * same option. Telling a comment from code needs the grammar, which this does
+ * not have. So it over-reports inside code, where the cost is a glance, rather
+ * than under-reporting, where the cost is somebody not learning that their
+ * value is about to stop being read.
  *
  * A property access (`config.cancellationNoticeDays`) is reported too: reading
  * the value back from module options is the same migration, one step further

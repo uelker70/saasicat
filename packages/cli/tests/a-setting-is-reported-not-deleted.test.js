@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
     applyTokens,
     findMovedSettings,
+    SCANNED_FOR_MOVED_SETTINGS,
     planInit,
     settingsWrittenTo,
     SETTINGS_THAT_MOVED,
@@ -157,6 +158,50 @@ export const CONFIG = defineSaaSiCat({
             'export const CONFIG = defineSaaSiCat({ tenantBilling: { authGuards: [G] } });\n',
         );
         assert.deepEqual(occurrences, []);
+    });
+
+    // Codex found this on #249: the walk includes Markdown, both consumers keep
+    // large documentation folders, and an upgrade note mentioning the setting
+    // would land in the report beside the line somebody has to change.
+    test('prose is not scanned — it cannot pass a module option', () => {
+        for (const file of ['docs/upgrade.md', 'CHANGELOG.md', 'README.md']) {
+            assert.equal(SCANNED_FOR_MOVED_SETTINGS.test(file), false, file);
+        }
+    });
+
+    test('code is', () => {
+        for (const file of [
+            'src/saasicat.config.ts',
+            'src/app.module.js',
+            'src/config.mts',
+            'src/config.cjs',
+            'src/Billing.vue',
+        ]) {
+            assert.equal(SCANNED_FOR_MOVED_SETTINGS.test(file), true, file);
+        }
+    });
+
+    // The other half of the trade the matching makes. Requiring a colon would
+    // read as "only a property" and would miss both of these, which are
+    // ordinary ways to pass the same option.
+    test('a shorthand property is reported', () => {
+        const { occurrences } = findMovedSettings(
+            'const opts = { authGuards, cancellationNoticeDays };\n',
+        );
+        assert.deepEqual(occurrences, [{ setting: 'cancellationNoticeDays', line: 1 }]);
+    });
+
+    test('a destructured read is reported', () => {
+        const { occurrences } = findMovedSettings('const { selfServiceBlockedPlans } = options;\n');
+        assert.deepEqual(occurrences, [{ setting: 'selfServiceBlockedPlans', line: 1 }]);
+    });
+
+    test('a mention in a comment is reported, and that is the chosen trade', () => {
+        // Over-reporting inside code costs a glance; under-reporting costs
+        // somebody not learning that their value stops being read. Telling a
+        // comment from code needs the grammar this does not have.
+        const { occurrences } = findMovedSettings('// cancellationNoticeDays used to live here\n');
+        assert.deepEqual(occurrences, [{ setting: 'cancellationNoticeDays', line: 1 }]);
     });
 
     test('several occurrences of one setting are all named, in file order', () => {
