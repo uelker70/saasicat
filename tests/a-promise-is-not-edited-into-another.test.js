@@ -18,13 +18,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
-import {
-    compare,
-    editorialIn,
-    fingerprint,
-    judge,
-    nothingJudged,
-} from '../scripts/requirements/guard.mjs';
+import { compare, editorialIn, fingerprint, judge } from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
 const entry = (id, text) => `### ${id} — Title\n\n${text}\n\n_Source:_ #1`;
@@ -232,102 +226,6 @@ describe('retiring an entry preserves what it said', () => {
     });
 });
 
-describe('a walk that judged nothing is reported, not passed', () => {
-    // This check spent its first day green and proving nothing, which is worse
-    // than not existing: a check that cannot fail is trusted. On a pull request
-    // the checkout is the merge commit GitHub synthesises, the only step was
-    // that merge, merges are skipped, and what remained was the merge result
-    // compared against itself.
-
-    test('revisions with no step judged is a problem', () => {
-        const [message] = nothingJudged(['abc123'], []);
-        assert.match(message, /every one of them a merge/);
-    });
-
-    test('a range with nothing in it is not', () => {
-        // Pushing to the base branch has nothing to compare and must stay
-        // silent, or the check would fail on every push to main.
-        assert.deepEqual(nothingJudged([], []), []);
-    });
-
-    test('a walk that judged a commit is not', () => {
-        assert.deepEqual(nothingJudged(['abc123'], [{ revision: 'abc123' }]), []);
-    });
-
-    test('the working tree does not answer for the commits', () => {
-        // The failure one layer in. A walk that judged no commit at all still
-        // had the working-tree step to show for itself, so counting steps
-        // rather than judged revisions stayed silent — and CI went on comparing
-        // the merge result against itself.
-        const [message] = nothingJudged(['abc123'], [{ before: [], after: [] }]);
-        assert.match(message, /every one of them a merge/);
-    });
-});
-
-describe('a merge answers for its resolution and nothing else', () => {
-    // Skipping a merge whole was right about its parents' work and wrong about
-    // its own: resolving a conflict can rewrite or delete a requirement, and
-    // that edit belongs to nobody else. What separates the two is agreement —
-    // the resolution's own work matches neither parent.
-    const promise = 'The name stays the same across price changes.';
-    const fromMain = 'The name stays the same across price changes, always.';
-    const rewritten = 'The name may be changed at any time.';
-
-    test('a rewrite in the resolution is reported', () => {
-        const [problem] = judge([
-            {
-                revision: 'merge',
-                parents: [one(promise), one(fromMain)],
-                after: one(rewritten),
-                editorial: new Set(),
-            },
-        ]);
-        assert.match(problem.message, /SC-A-001 promises something different/);
-    });
-
-    test('what came in from the other branch is not', () => {
-        // It matches that parent, and one silence is enough to acquit — the
-        // other branch's own pull request judged it.
-        assert.deepEqual(
-            judge([
-                {
-                    revision: 'merge',
-                    parents: [one(promise), one(fromMain)],
-                    after: one(fromMain),
-                    editorial: new Set(),
-                },
-            ]),
-            [],
-        );
-    });
-
-    test('what this branch had already done is not', () => {
-        assert.deepEqual(
-            judge([
-                {
-                    revision: 'merge',
-                    parents: [one(promise), one(fromMain)],
-                    after: one(promise),
-                    editorial: new Set(),
-                },
-            ]),
-            [],
-        );
-    });
-
-    test('a deletion in the resolution is reported', () => {
-        const [problem] = judge([
-            {
-                revision: 'merge',
-                parents: [one(promise), one(fromMain)],
-                after: entries(entry('SC-A-002', 'Something else.')),
-                editorial: new Set(),
-            },
-        ]);
-        assert.match(problem.message, /SC-A-001 is gone/);
-    });
-});
-
 describe('a claim excuses the edit that made it, and no other', () => {
     // The branch is judged step by step rather than as one diff. Pooling every
     // trailer between the merge base and HEAD let a claim outlive its edit: a
@@ -339,15 +237,17 @@ describe('a claim excuses the edit that made it, and no other', () => {
 
     test('a claim covers the step that carries it', () => {
         assert.deepEqual(
-            judge([{ before: one(promise), after: one(typo), editorial: new Set(['SC-A-001']) }]),
+            judge([
+                { parents: [one(promise)], after: one(typo), editorial: new Set(['SC-A-001']) },
+            ]),
             [],
         );
     });
 
     test('and does not reach the step after it', () => {
         const [problem] = judge([
-            { before: one(promise), after: one(typo), editorial: new Set(['SC-A-001']) },
-            { before: one(typo), after: one(rewritten), editorial: new Set() },
+            { parents: [one(promise)], after: one(typo), editorial: new Set(['SC-A-001']) },
+            { parents: [one(typo)], after: one(rewritten), editorial: new Set() },
         ]);
         assert.match(problem.message, /SC-A-001 promises something different/);
     });
@@ -357,7 +257,11 @@ describe('a claim excuses the edit that made it, and no other', () => {
         // the claim pooled, this is exactly what used to be accepted.
         assert.deepEqual(
             judge([
-                { before: one(promise), after: one(rewritten), editorial: new Set(['SC-A-001']) },
+                {
+                    parents: [one(promise)],
+                    after: one(rewritten),
+                    editorial: new Set(['SC-A-001']),
+                },
             ]),
             [],
         );

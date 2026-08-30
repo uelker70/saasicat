@@ -181,6 +181,11 @@ export function compare(before, after, editorial = new Set()) {
     return problems;
 }
 
+/** The parents of a revision, oldest first. */
+function parentsOf(root, revision) {
+    return git(root, 'rev-list', '--parents', '-n', '1', revision).trim().split(' ').slice(1);
+}
+
 function git(root, ...args) {
     return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 }
@@ -277,7 +282,18 @@ export function editorialIn(log) {
  * the thing that changed; `git archive` hands over the tree the ref actually
  * had, including chapters that have since been renamed or removed.
  */
+const cached = new Map();
+
 function catalogueAt(root, ref) {
+    // Every revision is now read twice — once as itself and once as its
+    // successor's parent — and a merge adds one more. Reading a tree is
+    // twenty-five `git show` calls, so the same revision is read once.
+    const key = `${root}@${ref}`;
+    if (!cached.has(key)) cached.set(key, readCatalogueAt(root, ref));
+    return cached.get(key);
+}
+
+function readCatalogueAt(root, ref) {
     const scratch = mkdtempSync(join(tmpdir(), 'saasicat-requirements-'));
     try {
         const listing = git(root, 'ls-tree', '-r', '--name-only', ref, 'requirements/');
@@ -302,50 +318,26 @@ function catalogueAt(root, ref) {
  * `SC-A-001` would also excuse a later commit rewriting it into a different
  * promise — the claim would outlive the edit it was made for.
  */
-/**
- * A walk that judged nothing is reported, not passed.
- *
- * This check spent its first day proving nothing and staying green, which is
- * worse than not existing: a check that cannot fail is trusted. On a pull
- * request `HEAD` is the merge commit GitHub synthesises, the only step was that
- * merge, merges are skipped, and what remained was the merge result compared
- * against itself.
- */
-export function nothingJudged(revisions, steps) {
-    // Only a step that names a revision answers for the history. The working
-    // tree is a step too, and counting it hid this exact failure one layer in:
-    // a walk that judged no commit at all still had that step to show.
-    if (revisions.length === 0 || steps.some((step) => step.revision)) return [];
-    return [
-        `${revisions.length} revision(s) to judge and every one of them a merge. ` +
-            'Nothing was compared, so nothing could fail. Name the head you mean with --head.',
-    ];
-}
-
 export function judge(steps) {
     return steps.flatMap((step) =>
-        step.parents
-            ? onlyTheResolution(
-                  step.parents.map((before) => compare(before, step.after, step.editorial)),
-              )
-            : compare(step.before, step.after, step.editorial),
+        ownWork(step.parents.map((before) => compare(before, step.after, step.editorial))),
     );
 }
 
 /**
- * Of a merge, only what the resolution itself did.
+ * Of a revision, what it did itself rather than inherited.
  *
- * A merge was skipped whole, which was right about its parents' work and wrong
- * about its own: resolving a conflict can rewrite or delete a requirement, and
- * that edit belongs to nobody else. Judged against one parent it would drown in
- * everything the other branch did.
+ * One rule for every revision, because a commit and a merge differ only in how
+ * many parents they have. Compared against each parent, an entry this revision
+ * rewrote matches none of them, so every comparison reports it. An entry that
+ * arrived along one parent matches that parent, and one silence is enough to
+ * acquit — whoever wrote it answered for it where they wrote it.
  *
- * What separates them is agreement. An entry the resolution rewrote matches
- * neither parent, so every comparison complains about it. An entry that arrived
- * from the other branch matches that parent, so one comparison stays silent —
- * and one silence is enough to acquit.
+ * That is what makes it safe to walk every revision rather than the first-parent
+ * chain, which is what the rule needs: a branch merging a local topic branch
+ * imports commits nobody reviewed, and off the chain they were never seen.
  */
-function onlyTheResolution(perParent) {
+function ownWork(perParent) {
     const [first = [], ...rest] = perParent;
     return first.filter((problem) =>
         rest.every((others) => others.some((other) => other.id === problem.id)),
@@ -369,36 +361,26 @@ function onlyTheResolution(perParent) {
 export function guard(root, base, head) {
     const tip = head ?? 'HEAD';
     const merged = git(root, 'merge-base', base, tip).trim();
-    const baseline = catalogueAt(root, merged);
-    if (!baseline) return { baseline: merged, problems: [], entries: 0, unproven: 0 };
+    if (!catalogueAt(root, merged)) {
+        return { baseline: merged, problems: [], entries: 0, unproven: 0, judged: 0 };
+    }
 
-    // `previous` walks the range; `baseline` stays where it starts, because the
-    // ratchet measures the whole range rather than its last step.
-    let previous = baseline;
-    const steps = [];
-    const revisions = git(root, 'rev-list', '--reverse', '--first-parent', `${merged}..${tip}`)
+    // Every revision in the range, not the first-parent chain. A merge from
+    // `main` brings work judged on its own pull request, and skipping the chain
+    // it came from was right about that — but a branch that merges a local
+    // topic branch imports commits nobody reviewed, and those were never
+    // walked. The merge then acquitted them, because the entry matches the
+    // parent they arrived on.
+    const revisions = git(root, 'rev-list', '--reverse', `${merged}..${tip}`)
         .split('\n')
         .filter(Boolean);
 
-    for (const revision of revisions) {
-        const parents = git(root, 'rev-list', '--parents', '-n', '1', revision)
-            .trim()
-            .split(' ')
-            .slice(1);
-        const current = catalogueAt(root, revision);
-        const editorial = editorialIn(git(root, 'log', '--format=%B', '-n', '1', revision));
-        steps.push(
-            parents.length > 1
-                ? {
-                      revision,
-                      parents: parents.map((parent) => catalogueAt(root, parent).entries),
-                      after: current.entries,
-                      editorial,
-                  }
-                : { revision, before: previous.entries, after: current.entries, editorial },
-        );
-        previous = current;
-    }
+    const steps = revisions.map((revision) => ({
+        revision,
+        parents: parentsOf(root, revision).map((parent) => catalogueAt(root, parent).entries),
+        after: catalogueAt(root, revision).entries,
+        editorial: editorialIn(git(root, 'log', '--format=%B', '-n', '1', revision)),
+    }));
 
     // A named head judges exactly that revision. Without one the working tree is
     // the last step, and it has no commit to speak for it — anything
@@ -406,16 +388,21 @@ export function guard(root, base, head) {
     // trailer in a commit means.
     const after = head ? catalogueAt(root, head) : readCatalogue(root);
     if (!head) {
-        steps.push({ before: previous.entries, after: after.entries, editorial: new Set() });
+        steps.push({
+            parents: [catalogueAt(root, tip).entries],
+            after: after.entries,
+            editorial: new Set(),
+        });
     }
 
     const owed = unproven(after.entries, head ? namedAt(root, head) : scanTests(root));
+    const baseline = catalogueAt(root, merged);
     return {
         baseline: merged,
         entries: after.entries.length,
         unproven: owed.length,
+        judged: revisions.length,
         problems: [
-            ...nothingJudged(revisions, steps),
             ...judge(steps).map((problem) => problem.message),
             ...ratchet(
                 {
