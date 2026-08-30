@@ -146,6 +146,26 @@ Workflow for type changes: edit the schema in `@saasicat/spec`, run `gen:types`,
 commit **both** the schema and the regenerated output. Hand-editing generated files
 is never correct — the drift gate will reject it.
 
+## The requirements catalogue is generated
+
+[`docs/requirements.md`](docs/requirements.md) is assembled from one file per chapter under
+`requirements/`; the page is those files concatenated, and editing it by hand lasts until the next
+run. `pnpm run requirements` checks the sources and says whether the page would change,
+`pnpm run requirements:update` writes it, and `tests/requirements-are-generated.test.js` fails when
+the two have drifted.
+
+The rule that costs something to follow: **an identifier is permanent, and a promise is not edited
+into a different promise.** Somebody outside this repository may have written the identifier down.
+A promise that now holds differently is superseded — the entry stays, opens with
+``_(Superseded on YYYY-MM-DD by `SC-…`.)_``, and the new wording becomes a new entry with the next
+free number in its chapter. A promise dropped with nothing in its place is
+`_(Withdrawn on YYYY-MM-DD.)_`. A typo, a clearer sentence, or a reference following somebody
+else's supersession is edited in place — the question is whether what somebody can rely on changes.
+
+[`requirements/README.md`](requirements/README.md) is the short form for whoever is editing;
+[`docs/explanation/requirements-as-sources.md`](docs/explanation/requirements-as-sources.md) is the
+long one, including every rule the checker enforces and the ones no checker can.
+
 ## Versioning and releases: Changesets (fixed group)
 
 All packages are versioned in **lockstep** via a Changesets _fixed group_ — one

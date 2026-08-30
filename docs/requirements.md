@@ -1,11 +1,9 @@
 # SaaSiCat Stakeholder Requirements
 
-This document collects what SaaSiCat promises the people who meet it: the **tenant** who books,
-cancels and pays; the **operator** who maintains plans, sets prices and publishes them; and the
-**integrating developer** who builds SaaSiCat into their own application and relies on it behaving
-a certain way. Each entry says what holds, not how it is built. Where a requirement has a reason
-that is not obvious from the requirement itself, that reason is written beside it — it is usually
-the part that would otherwise stay in a closed issue.
+This document collects what SaaSiCat promises the people who meet it. Each entry says what holds,
+not how it is built. Where a requirement has a reason that is not obvious from the requirement
+itself, that reason is written beside it — it is usually the part that would otherwise stay in a
+closed issue.
 
 Three documents divide the work between them. [`CONTRIBUTING.md`](../CONTRIBUTING.md) is the
 working agreement: how to build, test, version and release. The architecture decision records
@@ -15,16 +13,85 @@ which properties it holds itself to while doing it. Where it and `CONTRIBUTING.m
 `CONTRIBUTING.md` governs how the work is done and this document governs what the result has to
 be.
 
-Every requirement carries an identifier of the form `SC-<CHAPTER>-<NNN>`. **Identifiers are
-stable.** A number is never reused: a requirement that is withdrawn keeps its identifier and is
-marked `Withdrawn`, so a reference written down elsewhere never quietly comes to mean something
-else. The `*Source:*` line names where the decision came from — an issue number, an architecture
-decision record, a document in this repository, or the release the behaviour arrived in.
+## Who this is written for
 
-Chapters 1 to 16 are functional: what the product does. Chapters 17 to 24 are non-functional:
-the properties it has while doing it. A few requirements are marked _(Decided, not yet
-delivered.)_ — the decision is settled and recorded, the implementation is not there yet. They are
-listed because a decision nobody can find is a decision that gets taken twice.
+Three roles run through every chapter, and a requirement is written from the side of whichever one
+it happens to. Naming them here is not decoration: the same behaviour looks like a promise to one
+of them and like an obligation to another, and an entry that does not say which it means has not
+said anything.
+
+- **The tenant** — a customer of the application SaaSiCat is built into. They choose a plan, book
+  and cancel add-ons, are charged, and live with what they agreed to. They never see SaaSiCat by
+  name. Where a chapter is written from the selling side, the same party is called the **customer**;
+  it is one role seen from two directions, not two roles.
+- **The operator** — whoever runs the installation. They maintain plans, set prices, publish
+  versions, issue promotional codes and answer for all of it afterwards, sometimes long afterwards.
+  In the administration surface they hold the platform administrator's account.
+- **The integrating developer** — whoever builds SaaSiCat into their own application. They keep
+  their own database, their own authentication and their own HTTP stack, and they rely on this
+  behaving a particular way. Requirements addressed to them are the ones whose breach shows up in
+  somebody else's product.
+
+## How an entry is built
+
+Every requirement carries an identifier of the form `SC-<CHAPTER>-<NNN>`, numbered from `001`
+within its chapter. Under the heading stands the promise, and under that the `_Source:_` line
+naming where the decision came from — an issue number, an architecture decision record, a document
+in this repository, or the release the behaviour arrived in. Where the promise is complete in its
+heading, there is nothing between the two, and where its reason is not obvious that reason is the
+most valuable part of the entry.
+
+**Identifiers are permanent and a number is never reused.** Somebody outside this repository may
+have written one down, and it must never come to mean something other than it did. So a promise is
+not edited into a different promise. The entry stays where it is, opens with what became of it, and
+the new promise is a new entry:
+
+- `_(Superseded on YYYY-MM-DD by \`SC-…\`.)_` — the promise now holds differently, and the
+  successor says how.
+- `_(Withdrawn on YYYY-MM-DD.)_` — the promise is gone and nothing replaces it.
+
+A correction that leaves the promise intact — a typo, a clearer sentence, a reference following a
+supersession — is made in the entry itself. What decides between the two is whether what somebody
+can rely on changes.
+
+A few entries are marked _(Decided, not yet delivered.)_ — the decision is settled and recorded,
+the implementation is not there yet. They are listed because a decision nobody can find is a
+decision that gets taken twice.
+
+Chapters 1 to 16 are functional: what the product does. Chapters 17 to 24 are non-functional: the
+properties it has while doing it.
+
+## Chapters and identifiers
+
+| #   | Chapter                                      | Identifiers  | Entries |
+| --- | -------------------------------------------- | ------------ | ------- |
+| 1   | The product and its boundary                 | `SC-SCOPE-…` | 10      |
+| 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
+| 3   | Plans and their versions                     | `SC-PLAN-…`  | 25      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 15      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 18      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 19      |
+| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 21      |
+| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 20      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
+| 12  | Self-registration                            | `SC-REG-…`   | 20      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 21      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 21      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 19      |
+| 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
+| 18  | Language and wording                         | `SC-LANG-…`  | 13      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 10      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 11      |
+| 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
+| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
+| 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
+
+Generated from `requirements/` — 399 requirements. Do not edit by hand:
+`node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
 

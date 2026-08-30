@@ -1,0 +1,12 @@
+// Link fragments are resolved in the document these files become, not in the
+// file they are written in: a chapter may point at an entry three chapters
+// away, and in `docs/requirements.md` that anchor is right there. MD051 sees
+// one chapter at a time and calls every such link broken.
+//
+// The check is not dropped, it moves. `scripts/requirements/check.mjs` resolves
+// every fragment against the headings of the whole catalogue, which is more
+// than MD051 could do here even if it agreed with the split.
+{
+    "extends": "../.markdownlint.jsonc",
+    "MD051": false,
+}

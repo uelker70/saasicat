@@ -1,0 +1,118 @@
+# The requirements catalogue and how to change it
+
+[`docs/requirements.md`](../requirements.md) is generated. The sources are one Markdown file per
+chapter under `requirements/`, and the published document is those files concatenated under the
+preamble. **No requirement text is transformed on the way** — a source file can be read exactly as
+it will be published, and there is no gap between the two for a mistake to live in. The generator
+adds only what a chapter cannot say about itself: its numbered heading, the note saying where the
+page comes from, and the removal of the two comment markers that delimit the generated table in the
+source and have nothing to delimit here.
+
+```text
+requirements/
+    README.md                          how to edit these files — not part of the page
+    00_preamble/00_introduction.md     what the catalogue is, and which document governs what
+    00_preamble/01_roles.md            the three roles every entry is written from the side of
+    00_preamble/02_structure.md        how an entry is built and retired, and the chapter table
+    01_scope/chapter.md                chapter 1 — title, introduction, its requirements
+    03_plan/chapter.md                 chapter 3
+    …
+```
+
+`requirements/` holds one sequence of numbered directories and nothing else: `00_preamble/` for the
+opening prose, then one per chapter. A chapter directory is its position and then the identifier
+prefix it owns, so `SC-PLAN-004` lives in `03_plan/`. The number is in the name and nowhere else —
+renumbering is a rename git follows rather than an edit to a field that has to agree with something,
+and `ls` reads in document order. Two sequences side by side were tried first and abandoned: they
+put `01_roles.md` next to `01_scope/` and undid the reason for numbering anything.
+
+The table of chapters at the end of `00_preamble/02_structure.md` is generated between markers, so
+it names every chapter, its prefix and how many entries it holds without anybody keeping it current.
+It sits in the sources rather than only in the published page because that is where the question
+gets asked — which chapter owns `SC-PROMO-…`, and where is the weight — and answering it should not
+mean opening twenty-four files.
+
+```bash
+pnpm run requirements          # check the sources, say whether the document would change
+pnpm run requirements:update   # check, then write docs/requirements.md
+```
+
+## What a requirement is made of
+
+An entry is a heading, its promise, and where the promise came from:
+
+```markdown
+### SC-PLAN-004 — A published version freezes once it applies
+
+Editing it would change what a customer already agreed to.
+
+_Source:_ #133 · ADR 0009
+```
+
+The promise text is optional: nineteen entries state everything they have to say in the heading,
+and repeating it below would be padding. The `_Source:_` line is not optional, and there is exactly
+one of it.
+
+Almost nothing else is written down, on purpose. **Dependencies are read from the prose** — an
+identifier mentioned in the text of an entry is a reference to it, and the checker resolves every
+one. Writing them a second time in a field would be a copy, and a copy goes stale. The release a
+requirement arrived in comes from git for the same reason.
+
+## Changing a requirement
+
+An identifier is permanent. Somebody outside this repository may have written it down, and it must
+never come to mean something else than it did when they did.
+
+So a requirement is not edited into a different promise. The old entry stays and says it is
+retired, and the new promise is a new entry with the next free number in its chapter:
+
+```markdown
+### SC-PLAN-004 — A published version freezes once it applies
+
+_(Superseded on 2026-09-01 by `SC-PLAN-026`.)_ Editing it would change what a customer already
+agreed to.
+
+_Source:_ #133 · ADR 0009
+```
+
+A promise that is dropped rather than replaced is withdrawn instead, with no successor:
+`_(Withdrawn on 2026-09-01.)_`. Both markers open the entry, because a reader arriving from an old
+link has to learn in the first few words that it does not apply.
+
+**Not every edit is a change of the promise.** The question that decides it is whether what
+somebody can rely on changes:
+
+| The edit                                                            | What to do              |
+| ------------------------------------------------------------------- | ----------------------- |
+| The promise now holds differently, or more widely, or more narrowly | Supersede it            |
+| The promise is gone and nothing replaces it                         | Withdraw it             |
+| A typo, a clearer sentence, the same promise                        | Edit the entry in place |
+| A referenced identifier was superseded and the link follows on      | Edit the entry in place |
+
+Without that last pair the rule would eat itself: every superseded entry would force its neighbours
+to be superseded too, and one reworded sentence would walk through the chapter.
+
+## What is enforced, and what is not
+
+`node scripts/requirements/index.mjs` refuses a catalogue where an identifier is used twice, a
+heading does not parse, numbering inside a chapter skips, an entry has no source or two, a marker
+line is misspelled, an entry sits under the wrong chapter, a reference names something that does
+not exist, a current promise leans on a retired one, a successor is missing or loops, an in-document
+link lands on no heading, a chapter is empty, a directory does not say where it belongs, or the
+chapter table has no home or two. `tests/requirements-are-generated.test.js` runs the same checks
+and compares both the published document and the generated table against their sources.
+
+Link fragments are the one rule that moved rather than being added. A chapter file is a fragment of
+one page, so an anchor into another chapter is unresolvable where it is written and correct where it
+lands — markdownlint's MD051 sees one file at a time and calls every such link broken. It is off for
+`requirements/`, and the checker resolves fragments against the headings of the whole catalogue
+instead, which is more than MD051 could do here even if it agreed with the split.
+
+Two of those checks exist for what nearly matches rather than what clearly does not. A heading with
+an ordinary hyphen where the document uses an em dash, or a `_Sources:_` line with one letter too
+many, reads correctly to a person and matches nothing — so without them the entry would fall out of
+every other check as well, including the one that notices entries going missing.
+
+What no check can reach stays prose and is named as prose: whether a promise is true, whether it is
+one statement rather than three, whether the source given is the real reason it exists. Those are
+read by a person or not at all.

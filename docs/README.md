@@ -77,6 +77,7 @@ implementation status.
 | [Data model](explanation/data-model.md)                                | Which tables and constraints, and who owns them?           |
 | [Design guide](explanation/design-guide.md)                            | Why do the admin pages look alike?                         |
 | [Test coverage](explanation/test-coverage.md)                          | What is tested, and what is not?                           |
+| [The requirements catalogue](explanation/requirements-as-sources.md)   | Where does this page come from, and how is one changed?    |
 | [Decisions (ADRs)](explanation/adr/0001-source-available-licensing.md) | Why was it built this way, and what breaks if you undo it? |
 
 ## What `status: normative` means
