@@ -222,8 +222,17 @@ describe('a walk that judged nothing is reported, not passed', () => {
         assert.deepEqual(nothingJudged([], []), []);
     });
 
-    test('a walk that judged something is not', () => {
-        assert.deepEqual(nothingJudged(['abc123'], [{}]), []);
+    test('a walk that judged a commit is not', () => {
+        assert.deepEqual(nothingJudged(['abc123'], [{ revision: 'abc123' }]), []);
+    });
+
+    test('the working tree does not answer for the commits', () => {
+        // The failure one layer in. A walk that judged no commit at all still
+        // had the working-tree step to show for itself, so counting steps
+        // rather than judged revisions stayed silent — and CI went on comparing
+        // the merge result against itself.
+        const [problem] = nothingJudged(['abc123'], [{ before: [], after: [] }]);
+        assert.match(problem, /every one of them a merge/);
     });
 });
 

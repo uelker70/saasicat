@@ -301,7 +301,10 @@ function catalogueAt(root, ref) {
  * against itself.
  */
 export function nothingJudged(revisions, steps) {
-    if (revisions.length === 0 || steps.length > 0) return [];
+    // Only a step that names a revision answers for the history. The working
+    // tree is a step too, and counting it hid this exact failure one layer in:
+    // a walk that judged no commit at all still had that step to show.
+    if (revisions.length === 0 || steps.some((step) => step.revision)) return [];
     return [
         `${revisions.length} revision(s) to judge and every one of them a merge. ` +
             'Nothing was compared, so nothing could fail. Name the head you mean with --head.',
@@ -345,6 +348,7 @@ export function guard(root, base, head) {
         const current = catalogueAt(root, revision);
         if (parents.length <= 2) {
             steps.push({
+                revision,
                 before: previous.entries,
                 after: current.entries,
                 editorial: editorialIn(git(root, 'log', '--format=%B', '-n', '1', revision)),
@@ -352,12 +356,6 @@ export function guard(root, base, head) {
         }
         previous = current;
     }
-
-    // Asked before the working tree is appended, because that step would
-    // otherwise answer for the commits: a range whose every revision was
-    // skipped still had one step to judge, and the walk that judged no history
-    // at all reported nothing wrong.
-    const blind = nothingJudged(revisions, steps);
 
     // A named head judges exactly that revision. Without one the working tree is
     // the last step, and it has no commit to speak for it — anything
@@ -374,7 +372,7 @@ export function guard(root, base, head) {
         entries: after.entries.length,
         unproven: owed.length,
         problems: [
-            ...blind,
+            ...nothingJudged(revisions, steps),
             ...judge(steps),
             ...ratchet(
                 {
