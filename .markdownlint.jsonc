@@ -1,0 +1,29 @@
+// The markdownlint rules for this repository. Kept apart from
+// `.markdownlint-cli2.jsonc`, which says which files are linted, so that a
+// directory needing one rule turned off can extend these rather than restate
+// them — a copied rule list is the same defect one level up.
+//
+// The repository had none, so every run measured against defaults nobody here
+// chose — 4638 findings on 2026-08-27, of which 4607 were the defaults arguing
+// with Prettier rather than anything a person should fix.
+//
+// Every setting below exists to stop that argument. Prettier owns the
+// formatting of `README.md`, `CONTRIBUTING.md` and `docs/` at `printWidth: 100`
+// (see CONTRIBUTING, "Linters, formatters and Markdown"), and it indents nested
+// lists by four. A linter demanding 80 columns and two spaces would ask for
+// edits Prettier undoes on the next save.
+{
+    // Prettier's `printWidth`. Code blocks and tables are exempt: neither
+    // can be wrapped without changing what they mean.
+    "MD013": { "line_length": 100, "code_blocks": false, "tables": false },
+    // Prettier's list indent.
+    "MD007": { "indent": 4 },
+    // A changelog repeats a version heading under every package, and a
+    // reference page repeats "Parameters" under every symbol. Duplicates
+    // are only suspicious among siblings.
+    "MD024": { "siblings_only": true },
+    // A changeset is frontmatter followed by prose, and an H1 in one would
+    // be wrong — every changeset this repository has ever written violates
+    // the default.
+    "MD041": false,
+}

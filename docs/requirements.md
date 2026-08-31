@@ -1,13 +1,11 @@
 # SaaSiCat Stakeholder Requirements
 
-This document collects what SaaSiCat promises the people who meet it: the **tenant** who books,
-cancels and pays; the **operator** who maintains plans, sets prices and publishes them; and the
-**integrating developer** who builds SaaSiCat into their own application and relies on it behaving
-a certain way. Each entry says what holds, not how it is built. Where a requirement has a reason
-that is not obvious from the requirement itself, that reason is written beside it — it is usually
-the part that would otherwise stay in a closed issue.
+This document collects what SaaSiCat promises the people who meet it. Each entry says what holds,
+not how it is built. Where a requirement has a reason that is not obvious from the requirement
+itself, that reason is written beside it — it is usually the part that would otherwise stay in a
+closed issue.
 
-Three documents divide the work between them. [`CONTRIBUTING.md`](../CONTRIBUTING.md) is the
+Three documents divide the work between them. `CONTRIBUTING.md` is the
 working agreement: how to build, test, version and release. The architecture decision records
 under `docs/explanation/adr/` record structural decisions with their alternatives and
 consequences. This document is the product one: what SaaSiCat does, what it refuses to do, and
@@ -15,16 +13,127 @@ which properties it holds itself to while doing it. Where it and `CONTRIBUTING.m
 `CONTRIBUTING.md` governs how the work is done and this document governs what the result has to
 be.
 
-Every requirement carries an identifier of the form `SC-<CHAPTER>-<NNN>`. **Identifiers are
-stable.** A number is never reused: a requirement that is withdrawn keeps its identifier and is
-marked `Withdrawn`, so a reference written down elsewhere never quietly comes to mean something
-else. The `*Source:*` line names where the decision came from — an issue number, an architecture
-decision record, a document in this repository, or the release the behaviour arrived in.
+## Who this is written for
 
-Chapters 1 to 16 are functional: what the product does. Chapters 17 to 24 are non-functional:
-the properties it has while doing it. A few requirements are marked _(Decided, not yet
-delivered.)_ — the decision is settled and recorded, the implementation is not there yet. They are
-listed because a decision nobody can find is a decision that gets taken twice.
+Three roles run through every chapter, and a requirement is written from the side of whichever one
+it happens to. Naming them here is not decoration: the same behaviour looks like a promise to one
+of them and like an obligation to another, and an entry that does not say which it means has not
+said anything.
+
+- **The tenant** — a customer of the application SaaSiCat is built into. They choose a plan, book
+  and cancel add-ons, are charged, and live with what they agreed to. They never see SaaSiCat by
+  name. Where a chapter is written from the selling side, the same party is called the **customer**;
+  it is one role seen from two directions, not two roles.
+- **The operator** — whoever runs the installation. They maintain plans, set prices, publish
+  versions, issue promotional codes and answer for all of it afterwards, sometimes long afterwards.
+  In the administration surface they hold the platform administrator's account.
+- **The integrating developer** — whoever builds SaaSiCat into their own application. They keep
+  their own database, their own authentication and their own HTTP stack, and they rely on this
+  behaving a particular way. Requirements addressed to them are the ones whose breach shows up in
+  somebody else's product.
+
+## How an entry is built
+
+Every requirement carries an identifier of the form `SC-<CHAPTER>-<NNN>`, numbered from `001`
+within its chapter. Under the heading stands the promise, and under that the `_Source:_` line
+naming where the decision came from — an issue number, an architecture decision record, a document
+in this repository, or the release the behaviour arrived in. Where the promise is complete in its
+heading, there is nothing between the two, and where its reason is not obvious that reason is the
+most valuable part of the entry.
+
+## What state an entry is in
+
+An entry says one of four things, and which one it says decides what a reader may do with it. The
+question behind the table is always the same: **may somebody rely on this?**
+
+| State         | Written as                                     | May somebody rely on it?                |
+| ------------- | ---------------------------------------------- | --------------------------------------- |
+| 🟢 Current    | nothing — this is the ordinary entry           | Yes                                     |
+| ⚪ Draft      | `⚪ _(Draft since YYYY-MM-DD.)_`               | No — not decided, and it may not happen |
+| 🔵 Superseded | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` | No — follow the successor it names      |
+| 🔴 Withdrawn  | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              | No, and nothing replaces it             |
+
+The colour is not the state — the words are. It is there so that scrolling this page shows where
+the ordinary entries stop, which reading the words one at a time does not. Green has a colour and
+no entry wears it: marking the ordinary case would put a dot on three hundred and eighty-nine
+entries and hide the ten that are not ordinary among them. It appears once, in the line under the
+chapter table, where somebody looks the vocabulary up.
+
+Superseded and withdrawn look alike to whoever writes them and not at all alike to whoever reads
+them: one hands a reader arriving from an old reference somewhere to go, the other tells them there
+is nowhere. That is why they are two states and not one.
+
+A state carries a date because the risk each one runs is time. A draft opened a year ago and never
+decided reads exactly like one opened last week, and only one of the two is still somebody's
+intention.
+
+Beside its state, an entry that stands may say it is not true yet:
+
+- `🟡 _(Decided, not yet delivered.)_` — the decision is settled and recorded, the implementation is
+  not there yet. Only a current entry may say this: a draft is not decided, and a retired one has
+  nothing left to deliver. Such entries are listed under the chapter table, because a decision
+  nobody can find is a decision that gets taken twice — and because what a product has promised and
+  not yet built is a question asked before somebody buys, not while they scroll.
+
+**Identifiers are permanent and a number is never reused.** Somebody outside this repository may
+have written one down, and it must never come to mean something other than it did. So a promise is
+not edited into a different promise: the entry stays where it is, opens with what became of it, and
+the new wording becomes a new entry with the next free number in its chapter.
+
+A correction that leaves the promise intact — a typo, a clearer sentence, a reference following
+somebody else's supersession — is made in the entry itself. What decides between the two is whether
+what somebody can rely on changes.
+
+Chapters 1 to 16 are functional: what the product does. Chapters 17 to 24 are non-functional: the
+properties it has while doing it.
+
+## Chapters and identifiers
+
+| #   | Chapter                                      | Identifiers  | Entries |
+| --- | -------------------------------------------- | ------------ | ------- |
+| 1   | The product and its boundary                 | `SC-SCOPE-…` | 10      |
+| 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
+| 3   | Plans and their versions                     | `SC-PLAN-…`  | 25      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 15      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 18      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 19      |
+| 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 21      |
+| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 20      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
+| 12  | Self-registration                            | `SC-REG-…`   | 20      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 21      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 21      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 19      |
+| 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
+| 18  | Language and wording                         | `SC-LANG-…`  | 13      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 10      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 11      |
+| 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
+| 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
+| 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
+
+Of 399 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
+🔵 0 superseded, 🔴 0 withdrawn.
+
+🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
+[SC-PLAN-025](#sc-plan-025--every-quota-a-version-carries-counts-as-a-limit-that-can-be-lowered),
+[SC-PRIC-015](#sc-pric-015--an-amount-records-the-currency-it-was-booked-in),
+[SC-PRIC-017](#sc-pric-017--the-tax-rate-and-the-tax-amount-are-recorded-not-re-derived),
+[SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),
+[SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
+[SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
+[SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
+[SC-CFG-008](#sc-cfg-008--an-operator-can-see-when-the-running-configuration-was-applied-and-from-where),
+[SC-CFG-009](#sc-cfg-009--a-configuration-change-is-noticed-and-reported),
+[SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
+[SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
+
+Generated from `requirements/` — 399 requirements. Do not edit by hand:
+`node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
 
@@ -92,7 +201,7 @@ guide on doing so describes and recommends.
 What is not offered is a version of the platform without NestJS underneath. Whether that should
 exist is an open question, not an oversight.
 
-_Source:_ #175 · [Mounting behind Express](guides/mount-behind-express.md)
+_Source:_ #175 · `docs/guides/mount-behind-express.md`
 
 ### SC-SCOPE-008 — Anything may be built on SaaSiCat except a competitor to it
 
@@ -293,7 +402,7 @@ _Source:_ `docs/reference/error-codes.md`
 A version is published with a note describing the change, and an empty note is refused, because the
 note is what an operator reads a year later when a customer asks why their price moved. Today the
 note is optional in the publish interface and a version carrying none publishes.
-_(Decided, not yet delivered.)_
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ current practice
 
@@ -324,7 +433,7 @@ _Source:_ `docs/reference/error-codes.md`
 A plan version is compared on `users`, `vehicles` and `storageGb` alone, so a quota an installation
 defines for itself — NotesApp's `notesMax`, for instance — can be lowered and published without the
 confirmation SC-PLAN-009 asks for. Add-on versions are already compared on every quota they carry.
-_(Decided, not yet delivered.)_
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ current practice
 
@@ -1228,7 +1337,7 @@ _Source:_ #105
 ### SC-PRIC-015 — An amount records the currency it was booked in
 
 Even though only one is configured at a time. The record is not for selling in two currencies; it
-is so that a row written in 2026 still means what it meant. _(Decided, not yet delivered.)_
+is so that a row written in 2026 still means what it meant. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -1242,36 +1351,36 @@ _Source:_ #217 · #214
 
 Storing net and gross leaves the rate living in the ratio between them, and a ratio cannot be
 reproduced for a rounded gross, cannot express an exempt or reverse-charge line, and does not
-survive a rate change. _(Decided, not yet delivered.)_
+survive a rate change. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
-The written figure is the truth from then on. _(Decided, not yet delivered.)_
+The written figure is the truth from then on. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-PRIC-019 — A tenant can see their own account
 
 Balance, what is open, and the history. An open balance a customer cannot see is a surprise at the
-moment it becomes a problem; one they can see is something they can act on. _(Decided, not yet
-delivered.)_
+moment it becomes a problem; one they can see is something they can act on.
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-PRIC-020 — A charge, once written, is never edited
 
 A correction is a counter-entry. A record that can be rewritten answers what somebody thinks
-today, not what happened. _(Decided, not yet delivered.)_
+today, not what happened. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 
 Invoice numbering is sequential, gapless and legally constrained per country, and an identifier a
-customer has already seen on a screen cannot become one later without confusion. _(Decided, not
-yet delivered.)_
+customer has already seen on a screen cannot become one later without confusion.
+🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
@@ -2202,7 +2311,7 @@ _Source:_ ADR 0007
 ### SC-CFG-008 — An operator can see when the running configuration was applied, and from where
 
 Somebody who edited the file an hour ago otherwise has no way to tell whether it has landed. The
-timestamp is the requirement, not decoration. _(Decided, not yet delivered.)_
+timestamp is the requirement, not decoration. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #217
 
@@ -2210,7 +2319,7 @@ _Source:_ #217
 
 The record inside the application is unconditional; notifying people by mail is an addition, never
 a substitute. An address list that silently swallowed the notification because nobody wired mail
-would be worse than having neither. _(Decided, not yet delivered.)_
+would be worse than having neither. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #217
 
@@ -2669,14 +2778,14 @@ _Source:_ `docs/explanation/data-model.md`
 ### SC-AUD-010 — A charge names where it came from and which agreement line it belongs to
 
 Activation, renewal, a prorated plan change, an add-on booking, a credit — so an account can be
-walked back to what was agreed. _(Decided, not yet delivered.)_
+walked back to what was agreed. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 
 ### SC-AUD-011 — A charge carries the period it belongs to
 
 Which charges belong on one invoice has to be derivable, and a set of individually booked amounts
-with no grouping leaves that to guesswork. _(Decided, not yet delivered.)_
+with no grouping leaves that to guesswork. 🟡 _(Decided, not yet delivered.)_
 
 _Source:_ #214
 

@@ -73,6 +73,12 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v5
+              with:
+                  # The requirements guard compares this branch's promises
+                  # against the ones on `main`. A shallow clone has no `main` to
+                  # compare against, and the guard would pass by having nothing
+                  # to say.
+                  fetch-depth: 0
             # pnpm from its own action, not from `corepack enable` — see the
             # duplication job for why.
             - name: Setup pnpm
@@ -113,6 +119,19 @@ jobs:
             # checkout.
             - name: Run repo-wide checks
               run: pnpm run test:repo
+            # Separate from `test:repo` because it is the only check here that
+            # asks what changed rather than what is true: a promise may not be
+            # edited into a different promise, and an identifier may not be
+            # deleted. Both are properties of a diff, not of a tree.
+            #
+            # The head is named rather than assumed. On a pull request the
+            # checkout is the merge commit GitHub synthesises, and the guard
+            # skips merges — so its only step was skipped and what remained was
+            # the merge result compared against itself. The step ran, passed,
+            # and proved nothing. The checkout stays on the merge result,
+            # because that is what every other step here should be testing.
+            - name: Guard the requirements against main
+              run: pnpm run requirements:guard -- --head ${{ github.event.pull_request.head.sha || github.sha }}
             # SFC templates are invisible to the unit tests, which run against the
             # built dist/. This covers the decisions components make while rendering.
             - name: Run component tests

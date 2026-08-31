@@ -21,6 +21,9 @@
         "release:version": "changeset version && node scripts/stamp-spec-version.mjs",
         "coverage": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs",
         "coverage:update": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs --update",
+        "requirements": "node scripts/requirements/index.mjs",
+        "requirements:update": "node scripts/requirements/index.mjs --write",
+        "requirements:guard": "node scripts/requirements/guard.mjs",
         "tokens": "node scripts/token-audit.mjs",
         "tokens:update": "node packages/ui-vue/tests/design-token-budget.test.js --update"
     },
