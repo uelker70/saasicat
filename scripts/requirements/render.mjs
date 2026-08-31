@@ -136,10 +136,36 @@ function wrap(prefix, items, width = 100) {
 }
 
 export function withChapterTable(text, chapters) {
-    const from = text.indexOf(BEGIN);
-    const to = text.indexOf(END);
-    if (from === -1 || to === -1) return null;
-    return text.slice(0, from) + renderChapters(chapters) + text.slice(to + END.length);
+    // One opening, one closing, in that order. Reversed, the two slices overlap
+    // and the prose between them is written twice; doubled, they choose a
+    // region nobody meant. Both leave the file looking as though it carries the
+    // markers, which is all the checker was asking.
+    const opens = occurrences(text, BEGIN);
+    const closes = occurrences(text, END);
+    if (opens.length !== 1 || closes.length !== 1 || opens[0] > closes[0]) return null;
+    return text.slice(0, opens[0]) + renderChapters(chapters) + text.slice(closes[0] + END.length);
+}
+
+/**
+ * Whether a file carries the generated region, asked once for both readers.
+ *
+ * The checker counted files containing both markers and the renderer required
+ * an ordered pair, so a reversed or doubled pair read as a carrier to one and
+ * not to the other: the check passed, the splice was declined, and the table
+ * went stale in silence.
+ */
+export function carriesChapterTable(text) {
+    const opens = occurrences(text, BEGIN);
+    const closes = occurrences(text, END);
+    return opens.length === 1 && closes.length === 1 && opens[0] < closes[0];
+}
+
+function occurrences(text, marker) {
+    const found = [];
+    for (let at = text.indexOf(marker); at !== -1; at = text.indexOf(marker, at + 1)) {
+        found.push(at);
+    }
+    return found;
 }
 
 /**

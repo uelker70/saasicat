@@ -520,6 +520,21 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
+    test('an identifier with a digit missing', () => {
+        // `SC-PLAN-04` matches the exact form nowhere, so nothing resolved it
+        // and nothing complained — the broken identifier was published as
+        // prose, and a reader following it found nothing.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\nSee SC-PLAN-04 for this.\n\n_Source:_ #1`,
+                ],
+            ],
+            "names 'SC-PLAN-04', which is not an identifier",
+        );
+    });
+
     test('a link into the repository', () => {
         // A relative link is right in exactly one of the two places this text
         // is read: written to resolve from the published page it is broken in
@@ -576,6 +591,21 @@ describe('the checks refuse what the conventions used to leave to care', () => {
     test('two files carrying it', () => {
         const both = `# Front\n\n${BEGIN}\n${END}`;
         complains([['01_a', chapter(['SC-A-001'])]], 'expected exactly 1', [both, both]);
+    });
+
+    test('markers in the wrong order', () => {
+        // Both are present, so counting them accepted the file — while the
+        // splice declined it, the table was never written, and it went stale in
+        // silence. One question, asked by both readers.
+        complains([['01_a', chapter(['SC-A-001'])]], 'expected exactly 1', [
+            `# Front\n\n${END}\n${BEGIN}`,
+        ]);
+    });
+
+    test('a doubled pair of markers', () => {
+        complains([['01_a', chapter(['SC-A-001'])]], 'expected exactly 1', [
+            `# Front\n\n${BEGIN}\n${END}\n\n${BEGIN}\n${END}`,
+        ]);
     });
 
     test('Markdown that nothing reads', () => {

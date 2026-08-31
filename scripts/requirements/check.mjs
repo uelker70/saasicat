@@ -21,7 +21,7 @@
 // prose in `docs/explanation/requirements-as-sources.md`.
 
 import { anchor, DIRECTORY, HEADING, ICONS, MARKER_LIKE, SOURCE } from './parse.mjs';
-import { BEGIN, END } from './render.mjs';
+import { carriesChapterTable } from './render.mjs';
 
 const CHAPTER_KEYS = new Set(['title']);
 const RETIRED = new Set(['superseded', 'withdrawn']);
@@ -47,6 +47,17 @@ const STRAY_STATE = /_\((?:Draft|Superseded|Withdrawn|Decided)\b/;
 
 /** A link into the repository, which resolves differently here and on the page. */
 const REPO_LINK = /\]\((?!#|https?:)([^)]+)\)/g;
+
+/**
+ * Anything shaped like an identifier, so a mistyped one is seen.
+ *
+ * `SC-PLAN-04` and `SC-PLAN-004x` match the exact form nowhere, so nothing
+ * resolved them and nothing complained — the broken identifier was published as
+ * prose. The chapter table in the preamble writes prefixes like `SC-PLAN-…`,
+ * which is why this is asked of entries and not of the opening prose.
+ */
+const LOOKS_LIKE_AN_ID = /\bSC-[A-Za-z0-9][A-Za-z0-9-]*/g;
+const IS_AN_ID = /^SC-[A-Z0-9]+-\d{3}$/;
 
 export function check(catalogue) {
     const problems = [];
@@ -96,13 +107,12 @@ function checkPreamble(catalogue, say) {
     // tells a reader which chapter owns `SC-PROMO-…` would quietly stop
     // existing. Two, and a reader would find two tables and no rule saying
     // which is current.
-    const carriers = catalogue.preamble.filter(
-        (file) => file.text.includes(BEGIN) && file.text.includes(END),
-    );
+    const carriers = catalogue.preamble.filter((file) => carriesChapterTable(file.text));
     if (carriers.length !== 1) {
         say(
             'requirements/',
-            `${carriers.length} files carry the chapter-table markers, expected exactly 1`,
+            `${carriers.length} files carry one ordered pair of chapter-table markers, ` +
+                'expected exactly 1',
         );
     }
 
@@ -181,6 +191,11 @@ function checkEntry(entry, chapter, byId, say) {
         // the file somebody edits, and the other way round. The catalogue names
         // a document as a code-formatted path 174 times and as a link twice;
         // the path is right in both places and misleads in neither.
+        for (const token of line.match(LOOKS_LIKE_AN_ID) ?? []) {
+            if (!IS_AN_ID.test(token) && !line.startsWith('### ')) {
+                say(where, `'${entry.id}' names '${token}', which is not an identifier`);
+            }
+        }
         for (const [, target] of line.matchAll(REPO_LINK)) {
             say(where, `'${entry.id}' links to '${target}' — name the file as \`path\` instead`);
         }
