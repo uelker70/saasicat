@@ -98,6 +98,42 @@ export function fingerprint(promise, follow = () => '«ref»') {
 const promiseOf = (entry, follow) => fingerprint(`${entry.title} — ${entry.text}`, follow);
 
 /**
+ * What about an entry a reader can rely on, and what is bookkeeping.
+ *
+ * Every rule in `compare` refuses one named difference, so anything not named
+ * was allowed — and each field that arrived unguarded was found the same way,
+ * one at a time, after it had shipped: the heading, the delivery marker, the
+ * successor. A runtime catch-all is the wrong answer, because every one of
+ * these differences is legitimate on some path and the rules are what tell them
+ * apart.
+ *
+ * The gap is not in the comparison, it is in nobody noticing when the model
+ * grows. So the two lists are exported and a test holds them against what the
+ * parser actually produces: a field added to an entry belongs to one of them,
+ * decided on the day it is added rather than after somebody exploits it.
+ */
+export const COMPARED = ['title', 'text', 'status', 'supersededBy', 'delivered'];
+
+export const NOT_A_PROMISE = [
+    // Identity and position: checked by `check.mjs`, and a move is not a change
+    // to what was promised.
+    'id',
+    'prefix',
+    'number',
+    'where',
+    'heading',
+    'lines',
+    // Where the decision came from. Correcting it does not alter the promise.
+    'source',
+    'sources',
+    // Typography of the state, held against the words by `check.mjs`.
+    'icon',
+    'pendingIcon',
+    // Read out of `text`, so already covered by comparing it.
+    'references',
+];
+
+/**
  * Where a reference ends up, following supersessions to the end of the chain.
  *
  * Read from the state a change arrives at, because that is the state that knows
@@ -363,18 +399,41 @@ function readCatalogueAt(root, ref) {
  */
 export function newSuccessors(before, after) {
     const then = new Map(before.map((entry) => [entry.id, entry]));
-    return after
-        .filter((entry) => entry.status === 'superseded' && entry.supersededBy)
-        .filter((entry) => then.get(entry.id)?.status !== 'superseded')
-        .filter((entry) => then.has(entry.supersededBy))
-        .map(
-            (entry) =>
+    const problems = [];
+
+    for (const entry of after) {
+        if (entry.status !== 'superseded' || !entry.supersededBy) continue;
+        const was = then.get(entry.id);
+
+        // Retargeting. Skipping every entry already superseded at the baseline
+        // let the successor be swapped for another afterwards, and nothing else
+        // would see it: the marker is stripped before the promise is compared,
+        // so the entry reads as untouched while every old link now lands
+        // somewhere else.
+        if (was?.status === 'superseded') {
+            if (was.supersededBy !== entry.supersededBy) {
+                problems.push(
+                    `${entry.id} was superseded by '${was.supersededBy}' and now names ` +
+                        `'${entry.supersededBy}'. Where an old link lands is not an edit that can\n` +
+                        '    be made quietly; if the successor itself was replaced, supersede the\n' +
+                        '    successor and let the chain lead there.',
+                );
+            }
+            continue;
+        }
+
+        if (then.has(entry.supersededBy)) {
+            problems.push(
                 `${entry.id} is superseded by '${entry.supersededBy}', which already existed.\n` +
-                '    A supersession introduces the promise that replaces it, so that following the\n' +
-                '    trail arrives at the rewrite. Where another entry already covers this ground,\n' +
-                `    the promise is gone rather than rewritten: withdraw ${entry.id} and say in its\n` +
-                `    prose that '${entry.supersededBy}' covers it.`,
-        );
+                    '    A supersession introduces the promise that replaces it, so that following\n' +
+                    '    the trail arrives at the rewrite. Where another entry already covers this\n' +
+                    `    ground, the promise is gone rather than rewritten: withdraw ${entry.id} and\n` +
+                    `    say in its prose that '${entry.supersededBy}' covers it.`,
+            );
+        }
+    }
+
+    return problems;
 }
 
 export function judge(steps) {

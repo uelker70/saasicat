@@ -445,6 +445,22 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
+    test('a state marker appended after the prose', () => {
+        // The near-miss check was anchored to the opening, so a marker written
+        // at the end opened nothing and was never seen. The entry counted as
+        // current and delivered, in the generated index and in the ratchet.
+        complains(
+            [
+                [
+                    '01_a',
+                    `${head()}\n### SC-A-001 — Title\n\nOld promise. ` +
+                        '🔴 _(Withdrawn on 2026-09-01.)_\n\n_Source:_ #1',
+                ],
+            ],
+            'opens with something shaped like a state',
+        );
+    });
+
     test('a colour with no space before its marker', () => {
         // `🔴_(Withdrawn …)_` matches no state pattern, because those ask for a
         // separator — and a near-miss check hard-coding one space missed it for

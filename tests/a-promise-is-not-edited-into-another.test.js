@@ -19,6 +19,8 @@ import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
 import {
+    COMPARED,
+    NOT_A_PROMISE,
     compare,
     editorialIn,
     fingerprint,
@@ -306,6 +308,46 @@ describe('a revision answers for what it did, not what it inherited', () => {
     });
 });
 
+describe('every field an entry has is decided about', () => {
+    // The gap that produced this file's history. Each rule in `compare` refuses
+    // one named difference, so anything not named was allowed — and each field
+    // that arrived unguarded was found the same way, one at a time, after it
+    // had shipped: the heading carrying the promise, the delivery marker, the
+    // successor. None of them was a hard case; each was simply nobody's job.
+    //
+    // A runtime catch-all is the wrong answer, because every one of those
+    // differences is legitimate on some path and the rules are what tell them
+    // apart. What was missing is anyone noticing when the model grows, and that
+    // is what this is: the fields come from the parser, not from a list
+    // somebody keeps.
+
+    test('the parser produces exactly the fields the guard has decided about', () => {
+        const [parsed] = entries(entry('SC-A-001', 'A promise.'));
+        const decided = new Set([...COMPARED, ...NOT_A_PROMISE]);
+        const undecided = Object.keys(parsed).filter((field) => !decided.has(field));
+        assert.deepEqual(
+            undecided,
+            [],
+            `add each to COMPARED or NOT_A_PROMISE in guard.mjs: ${undecided.join(', ')}`,
+        );
+    });
+
+    test('nothing is in both lists', () => {
+        assert.deepEqual(
+            COMPARED.filter((field) => NOT_A_PROMISE.includes(field)),
+            [],
+        );
+    });
+
+    test('the sweep is looking at a real entry', () => {
+        // Vacuously true on an empty object, which is what a renamed model or a
+        // failed parse produces — and every assertion above would hold.
+        const [parsed] = entries(entry('SC-A-001', 'A promise.'));
+        assert.ok(Object.keys(parsed).length >= 10, `only ${Object.keys(parsed).length} fields`);
+        for (const field of COMPARED) assert.ok(field in parsed, `${field} is not on an entry`);
+    });
+});
+
 describe('a supersession introduces the promise that replaces it', () => {
     // Pointing at an entry that already stood accepts a promise being dropped
     // while the trail suggests it was rewritten, and no reading of two
@@ -332,6 +374,16 @@ describe('a supersession introduces the promise that replaces it', () => {
         // Only a supersession this change makes is judged, or every later
         // change would report the same entry again.
         assert.deepEqual(newSuccessors(pair(superseded), pair(superseded)), []);
+    });
+
+    test('but retargeting one that was already there is refused', () => {
+        // Leaving those entries alone let the successor be swapped afterwards,
+        // and nothing else would see it: the marker is stripped before the
+        // promise is compared, so the entry reads as untouched while every old
+        // link now lands somewhere else.
+        const elsewhere = '🔵 _(Superseded on 2026-09-01 by `SC-A-003`.)_ The old wording.';
+        const [problem] = newSuccessors(pair(superseded), pair(elsewhere));
+        assert.match(problem, /was superseded by 'SC-A-002' and now names 'SC-A-003'/);
     });
 
     test('a withdrawal naming where the ground is covered is accepted', () => {

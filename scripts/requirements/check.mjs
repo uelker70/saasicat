@@ -35,6 +35,16 @@ const STATES = new Set(['draft', 'current', 'superseded', 'withdrawn']);
 // silently ignored.
 const NEARLY_A_STATE = /^(?:\p{Extended_Pictographic}\uFE0F?\s*)?_\(/u;
 
+/**
+ * A state word inside an entry that has already given up its markers.
+ *
+ * The opening marker and the delivery marker are removed before this runs, so
+ * anything left saying `_(Withdrawn`, `_(Draft`, `_(Superseded` or `_(Decided`
+ * is one that opened nothing — appended after the prose, or spelled in a way no
+ * parser matched. Either way the entry counted as current and delivered.
+ */
+const STRAY_STATE = /_\((?:Draft|Superseded|Withdrawn|Decided)\b/;
+
 /** A link into the repository, which resolves differently here and on the page. */
 const REPO_LINK = /\]\((?!#|https?:)([^)]+)\)/g;
 
@@ -226,7 +236,10 @@ function checkState(entry, say) {
     // The colour is part of what nearly matches. `🟢 _(Draft since …)_` uses a
     // colour no state has, so the state patterns miss it — and a check for text
     // beginning `_(` misses it too, because the colour is in the way.
-    if (NEARLY_A_STATE.test(entry.text)) {
+    // Anywhere, not only at the front. A marker appended after the prose reads
+    // as a state to whoever wrote it and opens nothing, so the anchored pattern
+    // never saw it and the entry counted as current and delivered.
+    if (STRAY_STATE.test(entry.text) || NEARLY_A_STATE.test(entry.text)) {
         const shown = entry.text.slice(0, entry.text.indexOf(')_') + 2) || entry.text.slice(0, 40);
         say(where, `'${entry.id}' opens with something shaped like a state — ${shown}`);
     }
