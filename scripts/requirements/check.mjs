@@ -71,7 +71,7 @@ export function check(catalogue) {
     }
 
     checkPreamble(catalogue, say);
-    checkChapters(catalogue, say);
+    checkChapters(catalogue, byId, say);
     for (const chapter of catalogue.chapters) {
         for (const entry of chapter.entries) checkEntry(entry, chapter, byId, say);
         checkNumbering(chapter, say);
@@ -126,7 +126,7 @@ function checkPreamble(catalogue, say) {
     });
 }
 
-function checkChapters(catalogue, say) {
+function checkChapters(catalogue, byId, say) {
     const numbers = new Set();
     for (const chapter of catalogue.chapters) {
         for (const key of Object.keys(chapter.fields)) {
@@ -142,6 +142,13 @@ function checkChapters(catalogue, say) {
         numbers.add(chapter.number);
         if (!chapter.title) say(chapter.where, "'title' is missing");
         if (!chapter.intro) say(chapter.where, 'has no introduction');
+
+        // An introduction names requirements as readily as an entry does, and
+        // one of them does. Left out of both identifier checks, a mistyped or
+        // vanished reference there was published unread. The opening prose of
+        // the document stays out: its generated chapter table writes prefixes
+        // like `SC-PLAN-…` on purpose.
+        checkIdentifiersIn(chapter.intro, chapter.where, byId, say);
         // A chapter with no entries renders as a heading over nothing, which is
         // what a directory left behind after its last requirement moved looks
         // like. Silence there would publish the hole.
@@ -158,6 +165,22 @@ function checkChapters(catalogue, say) {
             'requirements/',
             `chapter numbers are ${actual.join(', ')}, expected 1..${actual.length}`,
         );
+    }
+}
+
+/**
+ * Identifiers in a piece of prose: shaped right, and naming something real.
+ *
+ * Asked of an entry and of a chapter introduction, because both are prose a
+ * reader follows and neither can afford a reference that leads nowhere.
+ */
+function checkIdentifiersIn(prose, where, byId, say) {
+    for (const token of prose.match(LOOKS_LIKE_AN_ID) ?? []) {
+        if (!ID.test(token)) {
+            say(where, `names '${token}', which is not an identifier`);
+        } else if (!byId.has(token)) {
+            say(where, `refers to '${token}', which does not exist`);
+        }
     }
 }
 

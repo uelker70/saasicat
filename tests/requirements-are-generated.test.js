@@ -535,6 +535,49 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
+    test('a mistyped identifier in a chapter introduction', () => {
+        // An introduction names requirements as readily as an entry does, and
+        // one of them does. Left out of both identifier checks, a reference
+        // there was published unread.
+        complains(
+            [
+                [
+                    '01_a',
+                    `---\ntitle: Title\n---\n\nSee SC-SCOPE-06 for this.\n\n${entry('SC-A-001')}`,
+                ],
+            ],
+            "names 'SC-SCOPE-06', which is not an identifier",
+        );
+    });
+
+    test('a vanished reference in a chapter introduction', () => {
+        complains(
+            [
+                [
+                    '01_a',
+                    `---\ntitle: Title\n---\n\nSee SC-SCOPE-999 for this.\n\n${entry('SC-A-001')}`,
+                ],
+            ],
+            "refers to 'SC-SCOPE-999', which does not exist",
+        );
+    });
+
+    test('a real reference in a chapter introduction is accepted', () => {
+        // The counter-proof: the catalogue has one, and a rule that refused it
+        // would be one nobody could satisfy.
+        assert.deepEqual(
+            check(
+                catalogueOf([
+                    [
+                        '01_a',
+                        `---\ntitle: Title\n---\n\nSee SC-A-001 for this.\n\n${entry('SC-A-001')}`,
+                    ],
+                ]),
+            ),
+            [],
+        );
+    });
+
     test('a mistyped identifier in the heading', () => {
         // The scan read the body and not the title, and nineteen entries carry
         // their whole promise in the title. A broken identifier there was
