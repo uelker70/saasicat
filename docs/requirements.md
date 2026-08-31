@@ -3300,12 +3300,15 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/version-renewal.test.js`
-    - decideRenewal
-        - SKIP when no pending version
-        - SKIP when EffectiveAt is in the future
-        - ROLL_FORWARD when nonRegressive=true
-        - ROLL_FORWARD when accepted=true (even if regressive)
-        - CLEAR_PENDING when regressive + not accepted (variant B)
+    - computeNextPeriod
+        - a declared cancellation does not stop the period from rolling
+        - a landed cancellation does
+        - the renewed period is also the renewed commitment
+        - null when currentPeriodEnd null (Trial)
+        - null when currentPeriodEnd is in the future
+        - rolls MONTHLY period +1 month (daily cron, periodEnd 1 day before now)
+        - rolls YEARLY period +1 year
+        - cron lag: with several missed periods, jumps to the next future period
 
 <!-- END proof -->
 
@@ -4091,6 +4094,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-notice-follows-the-contracts-rhythm.test.js`
+    - a notice follows the rhythm of the contract
+        - one plan, two contracts, two deadlines
+        - the yearly contract is owed the longer of the two
 - `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
     - which of the two numbers applies
         - a monthly subscription is owed the monthly notice
@@ -4822,7 +4829,6 @@ _Tested by:_
 
 - `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
     - PublicMarketingCatalogService — Plan priceTag (#47)
-        - the plan MarketingProjection priceTag lands in the payload
         - priceTag is null when the projection maintains none (backwards compatible)
 
 <!-- END proof -->
@@ -5152,13 +5158,9 @@ _Source:_ `docs/explanation/data-model.md` · `docs/reference/options.md`
 _Tested by:_
 
 - `packages/nest/tests/entitlement-service.test.js`
-    - EntitlementService.enforceLimit — transactional
-        - insert runs when under the limit
-        - LimitExceededError when insert would exceed the limit
-        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
-        - -1 (unlimited) never blocks
-        - NotFound when subscription is missing
-        - Error for unknown quota dimension
+    - the read that decides takes the row lock
+        - enforcing a limit reads the subscription locked, never plainly
+        - the count and the write happen while it is still held
     - EntitlementService.enforceLimit — forwards tx to lookup ports (#70)
         - contract, bundle and bundle-version lookups receive the runner tx
 
@@ -6840,12 +6842,9 @@ _Source:_ `docs/reference/error-codes.md` · `SECURITY.md`
 _Tested by:_
 
 - `packages/nest/tests/admin-guards.test.js`
-    - MfaService — TOTP setup + verify
-        - setup() generates secret + otpauth URI and persists via port
-        - verify() rejects when no secret exists
-        - verify() rejects an invalid code
-        - disable() deletes the secret
-        - isEnabled() reflects port state
+    - MfaGuard — RequireMfa decorator + header check
+        - MFA_NOT_SET_UP when port enabled=false
+        - MFA_REQUIRED when no X-Mfa-Code header
 
 <!-- END proof -->
 
@@ -6997,13 +6996,6 @@ _Tested by:_
 
 - `packages/nest/tests/admin-guards.test.js`
     - MfaGuard — RequireMfa decorator + header check
-        - SetMetadata decorator sets REQUIRE_MFA_KEY
-        - passes through when endpoint is not MFA-required
-        - NOT_AUTHENTICATED on missing user
-        - MFA_NOT_SET_UP when port enabled=false
-        - MFA_REQUIRED when no X-Mfa-Code header
-        - MFA_FAILED on invalid code
-        - accepts a valid code
         - bypass with SAAS_PLATFORM_SKIP_MFA=1 in non-prod
         - no bypass in production
 

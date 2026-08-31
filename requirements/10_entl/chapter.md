@@ -193,13 +193,9 @@ _Source:_ `docs/explanation/data-model.md` · `docs/reference/options.md`
 _Tested by:_
 
 - `packages/nest/tests/entitlement-service.test.js`
-    - EntitlementService.enforceLimit — transactional
-        - insert runs when under the limit
-        - LimitExceededError when insert would exceed the limit
-        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
-        - -1 (unlimited) never blocks
-        - NotFound when subscription is missing
-        - Error for unknown quota dimension
+    - the read that decides takes the row lock
+        - enforcing a limit reads the subscription locked, never plainly
+        - the count and the write happen while it is still held
     - EntitlementService.enforceLimit — forwards tx to lookup ports (#70)
         - contract, bundle and bundle-version lookups receive the runner tx
 

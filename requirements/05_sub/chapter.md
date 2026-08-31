@@ -51,12 +51,15 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/version-renewal.test.js`
-    - decideRenewal
-        - SKIP when no pending version
-        - SKIP when EffectiveAt is in the future
-        - ROLL_FORWARD when nonRegressive=true
-        - ROLL_FORWARD when accepted=true (even if regressive)
-        - CLEAR_PENDING when regressive + not accepted (variant B)
+    - computeNextPeriod
+        - a declared cancellation does not stop the period from rolling
+        - a landed cancellation does
+        - the renewed period is also the renewed commitment
+        - null when currentPeriodEnd null (Trial)
+        - null when currentPeriodEnd is in the future
+        - rolls MONTHLY period +1 month (daily cron, periodEnd 1 day before now)
+        - rolls YEARLY period +1 year
+        - cron lag: with several missed periods, jumps to the next future period
 
 <!-- END proof -->
 

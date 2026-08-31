@@ -187,7 +187,6 @@ _Tested by:_
 
 - `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
     - PublicMarketingCatalogService — Plan priceTag (#47)
-        - the plan MarketingProjection priceTag lands in the payload
         - priceTag is null when the projection maintains none (backwards compatible)
 
 <!-- END proof -->

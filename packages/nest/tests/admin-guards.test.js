@@ -40,7 +40,6 @@ describe('SuperAdminGuard', () => {
     });
 });
 
-// @requirement SC-ADM-003 — The administration requires a second factor
 // @requirement SC-ADM-004 — A one-time code is accepted across a small clock difference
 // @requirement SC-ADM-018 — A one-time code that was just accepted can currently be accepted again
 describe('MfaService — TOTP setup + verify', () => {
@@ -103,7 +102,6 @@ describe('MfaService — TOTP setup + verify', () => {
 });
 
 // @requirement SC-ADM-005 — Actions with lasting consequences need the second factor and an explicit confirmation
-// @requirement SC-ADM-012 — Test-only bypasses are ignored in production
 describe('MfaGuard — RequireMfa decorator + header check', () => {
     function buildReflector(required) {
         return { getAllAndOverride: () => required };
@@ -139,6 +137,7 @@ describe('MfaGuard — RequireMfa decorator + header check', () => {
         await expectReason(guard.canActivate(buildContext({})), 'NOT_AUTHENTICATED');
     });
 
+    // @requirement SC-ADM-003 — The administration requires a second factor
     test('MFA_NOT_SET_UP when port enabled=false', async () => {
         const guard = new MfaGuard(buildReflector(true), buildMfaService({ enabled: false }));
         await expectReason(
@@ -147,6 +146,7 @@ describe('MfaGuard — RequireMfa decorator + header check', () => {
         );
     });
 
+    // @requirement SC-ADM-003 — The administration requires a second factor
     test('MFA_REQUIRED when no X-Mfa-Code header', async () => {
         const guard = new MfaGuard(buildReflector(true), buildMfaService({ enabled: true }));
         await expectReason(guard.canActivate(buildContext({ user: { id: 'u1' } })), 'MFA_REQUIRED');
@@ -182,6 +182,7 @@ describe('MfaGuard — RequireMfa decorator + header check', () => {
         assert.equal(result, true);
     });
 
+    // @requirement SC-ADM-012 — Test-only bypasses are ignored in production
     test('bypass with SAAS_PLATFORM_SKIP_MFA=1 in non-prod', async () => {
         const oldSkip = process.env.SAAS_PLATFORM_SKIP_MFA;
         const oldEnv = process.env.NODE_ENV;
@@ -196,6 +197,7 @@ describe('MfaGuard — RequireMfa decorator + header check', () => {
         }
     });
 
+    // @requirement SC-ADM-012 — Test-only bypasses are ignored in production
     test('no bypass in production', async () => {
         const oldSkip = process.env.SAAS_PLATFORM_SKIP_MFA;
         const oldEnv = process.env.NODE_ENV;

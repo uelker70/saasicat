@@ -306,7 +306,107 @@ describe('EntitlementService — V3 ContractLineItems', () => {
     });
 });
 
-// @requirement SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
+describe('the read that decides takes the row lock', () => {
+    // The port offers two reads and only one of them is safe here. Deciding
+    // from the unlocked one lets two callers each see fourteen of fifteen used,
+    // each conclude there is room, and each insert — the limit an operator sold
+    // is then exceeded by the number of people who asked at once.
+    //
+    // The other half of the guarantee is already pinned below, where every
+    // lookup is shown to receive the runner's transaction: a lock taken and
+    // released before the write protects nothing.
+
+    function watchful() {
+        const { svc, subRepo, txRunner } = buildHarness();
+        const seen = [];
+        const locked = subRepo.findByTenantIdLocked.bind(subRepo);
+        const unlocked = subRepo.findByTenantId.bind(subRepo);
+        // The shipped fake emulates the lock by delegating to the plain read,
+        // so that delegation is not a read the service made. Counting it would
+        // report a defect nobody has — as it did on the first attempt here.
+        let inside = false;
+        subRepo.findByTenantIdLocked = async (...args) => {
+            seen.push('locked read');
+            inside = true;
+            try {
+                return await locked(...args);
+            } finally {
+                inside = false;
+            }
+        };
+        subRepo.findByTenantId = async (...args) => {
+            if (!inside) seen.push('unlocked read');
+            return unlocked(...args);
+        };
+        return { svc, subRepo, txRunner, seen };
+    }
+
+    // @requirement SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
+    test('enforcing a limit reads the subscription locked, never plainly', async () => {
+        const { svc, subRepo, seen } = watchful();
+        subRepo.set(buildSub());
+
+        await svc.enforceLimit({
+            tenantId: 't1',
+            dimension: 'vehicles',
+            currentUsage: async () => 10,
+            insert: async () => 'created-id',
+            now: NOW,
+        });
+
+        assert.deepEqual(seen, ['locked read'], 'the decision was taken on an unlocked read');
+    });
+
+    // @requirement SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
+    test('the count and the write happen while it is still held', async () => {
+        const { svc, subRepo, txRunner } = buildHarness();
+        subRepo.set(buildSub());
+        const order = [];
+        const run = txRunner.run.bind(txRunner);
+        txRunner.run = async (work) => {
+            order.push('transaction opened');
+            const result = await run(work);
+            order.push('transaction closed');
+            return result;
+        };
+
+        await svc.enforceLimit({
+            tenantId: 't1',
+            dimension: 'vehicles',
+            currentUsage: async () => {
+                order.push('counted');
+                return 10;
+            },
+            insert: async () => {
+                order.push('written');
+                return 'created-id';
+            },
+            now: NOW,
+        });
+
+        assert.deepEqual(order, ['transaction opened', 'counted', 'written', 'transaction closed']);
+    });
+
+    test('and a limit that bites is what the lock is protecting', async () => {
+        // The counter-check: both cases above would hold over a service that
+        // let everybody through, and there would be no last unit to contend for.
+        const { svc, subRepo } = watchful();
+        subRepo.set(buildSub()); // STANDARD: vehicles=15
+
+        await assert.rejects(
+            () =>
+                svc.enforceLimit({
+                    tenantId: 't1',
+                    dimension: 'vehicles',
+                    currentUsage: async () => 15,
+                    insert: async () => 'should-not-run',
+                    now: NOW,
+                }),
+            LimitExceededError,
+        );
+    });
+});
+
 // @requirement SC-ENTL-008 — A single large action can be refused by a limit it would cross in one go
 describe('EntitlementService.enforceLimit — transactional', () => {
     test('insert runs when under the limit', async () => {

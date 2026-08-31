@@ -193,6 +193,28 @@ Never edit that block; `pnpm run requirements:update` writes it, and an entry no
 none. It is a fact about the tests rather than part of the promise, so it is cut out again before a
 change is compared — annotating a test does not read as rewriting a requirement.
 
+### What the checks cannot tell you
+
+They verify that an annotation names a requirement that exists and still stands.
+They cannot verify that the test proves it — nothing can, short of reading both.
+
+That gap is not theoretical. Eleven annotations in this catalogue named a
+requirement they did not prove, and every one of them looked right from a
+distance: a date test claimed exact money, a drag-handle test claimed a
+promotional lifecycle, a dry run claimed a migration that stops. Each was the
+only proof its requirement had, so the coverage figure counted it and the
+ratchet treated the requirement as settled.
+
+Two habits keep it out:
+
+- **Annotate the narrowest thing that is true** — one case, or one `describe`,
+  and the whole file only where the whole file answers for the requirement. A
+  file-level annotation on a broad file is where a wrong claim hides.
+- **Read the requirement, then the case name, and ask whether one is evidence
+  for the other.** `pnpm run requirements:cases` prints them side by side for
+  exactly this. A requirement resting on a single file is where the question
+  matters most, because there is nothing else holding it up.
+
 Four ways to ask:
 
 ```bash

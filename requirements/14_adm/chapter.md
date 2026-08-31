@@ -82,12 +82,9 @@ _Source:_ `docs/reference/error-codes.md` · `SECURITY.md`
 _Tested by:_
 
 - `packages/nest/tests/admin-guards.test.js`
-    - MfaService — TOTP setup + verify
-        - setup() generates secret + otpauth URI and persists via port
-        - verify() rejects when no secret exists
-        - verify() rejects an invalid code
-        - disable() deletes the secret
-        - isEnabled() reflects port state
+    - MfaGuard — RequireMfa decorator + header check
+        - MFA_NOT_SET_UP when port enabled=false
+        - MFA_REQUIRED when no X-Mfa-Code header
 
 <!-- END proof -->
 
@@ -239,13 +236,6 @@ _Tested by:_
 
 - `packages/nest/tests/admin-guards.test.js`
     - MfaGuard — RequireMfa decorator + header check
-        - SetMetadata decorator sets REQUIRE_MFA_KEY
-        - passes through when endpoint is not MFA-required
-        - NOT_AUTHENTICATED on missing user
-        - MFA_NOT_SET_UP when port enabled=false
-        - MFA_REQUIRED when no X-Mfa-Code header
-        - MFA_FAILED on invalid code
-        - accepts a valid code
         - bypass with SAAS_PLATFORM_SKIP_MFA=1 in non-prod
         - no bypass in production
 

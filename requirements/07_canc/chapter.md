@@ -136,6 +136,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-notice-follows-the-contracts-rhythm.test.js`
+    - a notice follows the rhythm of the contract
+        - one plan, two contracts, two deadlines
+        - the yearly contract is owed the longer of the two
 - `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
     - which of the two numbers applies
         - a monthly subscription is owed the monthly notice

@@ -180,6 +180,10 @@ Write the identifier; `pnpm run requirements:update` writes the requirement's ti
 the list of covering cases into the requirement itself. Never type either by hand — a copy in
 hundreds of files goes stale the first time somebody rewords a requirement.
 
+The checks verify that the identifier exists and still stands. They cannot verify that your test
+proves what it names — that judgement is yours and your reviewer's, and eleven annotations here have
+already got it wrong. Annotating the narrowest thing that is true is what keeps it honest.
+
 That is what makes a change tractable: retiring a requirement names the tests that go stale with
 it, and `pnpm run requirements:gaps` names the promises nothing covers. Coverage is reported
 against what a breach would cost, not as one number.
