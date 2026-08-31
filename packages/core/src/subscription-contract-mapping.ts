@@ -12,6 +12,7 @@
 // Drizzle row carries a numeric string, and both are `unknown` here — the
 // numbers go through `Number()`, which is what each adapter did separately.
 
+import { readQuotaRecord } from './quota-value.js';
 import type {
     ContractLineItemKind,
     ContractLineItemRecord,
@@ -128,11 +129,14 @@ function toStringArray(value: unknown): string[] {
     return value.filter((entry): entry is string => typeof entry === 'string');
 }
 
+/**
+ * The quotas a contract line item grants.
+ *
+ * A number written as a string is that number: dropping `"50"` took an
+ * allowance somebody had bought out of their own contract. What cannot be read
+ * as a finite number is left out, because these are summed and written back
+ * into a snapshot that has to stay a JSON value.
+ */
 function toQuotaEffects(value: unknown): Record<string, number> {
-    if (!isPlainObject(value)) return {};
-    const effects: Record<string, number> = {};
-    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-        if (typeof entry === 'number') effects[key] = entry;
-    }
-    return effects;
+    return isPlainObject(value) ? readQuotaRecord(value) : {};
 }

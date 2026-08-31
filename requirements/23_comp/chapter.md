@@ -691,6 +691,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record
@@ -831,6 +833,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record

@@ -1327,6 +1327,15 @@ _Source:_ current practice
 
 _Tested by:_
 
+- `packages/core/tests/a-quota-is-read-one-way.test.js`
+    - a quota is read the same way everywhere
+        - a number is itself
+        - a number written as a string is that number
+        - anything that is not a finite number reads as nothing
+        - and so does a number too large to be one
+        - a record keeps what it can read and leaves out what it cannot
+        - and anything that is not a record reads as an empty one
+        - a key inherited from the prototype is not a quota
 - `packages/nest/tests/a-quota-arrives-as-a-number.test.js`
     - a quota arrives as a number or it does not arrive
         - integers are accepted, and so is -1 for unlimited
@@ -11946,6 +11955,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record
@@ -12086,6 +12097,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record

@@ -39,6 +39,22 @@ as a finite one counts as a regression, since not knowing is not evidence of an
 improvement — and `"1e999"` reads as `Infinity`, which would otherwise beat
 every allowance there is.
 
+**And the defence never saw a string, because three mappers disagreed.** The
+same decision — how a quota is read out of a JSON column — was written three
+times: `plan-mapping` dropped every non-number, so a legacy `{"users": "100"}`
+reached the version diff as _absent_ and replacing it with 50 read as 0 → 50, an
+improvement; the adapters' `toQuotaMap` cast the column straight through, so the
+same value reached enforcement as a string, and `"-1"` turned an unlimited quota
+into a limit that refused everything; `subscription-contract-mapping` dropped it
+too, taking an allowance somebody had bought out of their own contract.
+
+`readQuotaValue` and `readQuotaRecord` in `@saasicat/core` are that reading,
+once. A number written as a string is that number. What cannot be read as a
+finite number is left out everywhere that computes with a quota — a limit
+nothing can count blocks nobody, and a snapshot has to stay a JSON value — and
+kept in the catalogue row, because the diff has to tell "the plan did not have
+this quota" from "the plan had something nobody can read".
+
 The change record keeps the value as it stood rather than the reading.
 `publishedChanges` is persisted to a JSON column, and neither `NaN` nor
 `Infinity` is a JSON value: normalising into the record would have written

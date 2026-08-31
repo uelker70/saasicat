@@ -12,6 +12,7 @@
 // imported from `@saasicat/nest/billing` can keep doing so — the
 // re-export remains.
 
+import { readQuotaValue } from './quota-value.js';
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
 import type { VersionChange, VersionChangeDirection } from './subscription.types.js';
 
@@ -231,9 +232,7 @@ function appendQuotaChanges(
  * improvement, and neither may reach the change record — see `reportableQuota`.
  */
 function toQuotaNumber(value: unknown): number {
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string' && value.trim() !== '') return Number(value);
-    return Number.NaN;
+    return readQuotaValue(value) ?? Number.NaN;
 }
 
 /**
