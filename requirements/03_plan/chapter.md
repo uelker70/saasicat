@@ -91,6 +91,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -157,6 +160,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -227,6 +233,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -327,14 +336,22 @@ _Tested by:_
 
 - `packages/nest/tests/version-diff.test.js`
     - classifyPlanDiff — identical versions → no changes, nonRegressive=true
-    - classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true
-    - classifyPlanDiff — limit decrease → REGRESSION, nonRegressive=false
     - classifyPlanDiff — price increase → REGRESSION
     - classifyPlanDiff — price decrease → IMPROVEMENT
     - classifyPlanDiff — feature removed → REGRESSION
     - classifyPlanDiff — feature added → IMPROVEMENT
     - classifyPlanDiff — mixed: 1 improvement + 1 regression → nonRegressive=false
     - classifyPlanDiff — Decimal-like object with toNumber() accepted
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a finite number replaced by unlimited → IMPROVEMENT
 - `packages/nest/tests/version-publish.test.js`
     - assertDraftPublishable
         - accepts a fresh draft
@@ -357,25 +374,55 @@ _Tested by:_
 
 - `packages/nest/tests/version-diff.test.js`
     - classifyPlanDiff — identical versions → no changes, nonRegressive=true
-    - classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true
-    - classifyPlanDiff — limit decrease → REGRESSION, nonRegressive=false
     - classifyPlanDiff — price increase → REGRESSION
     - classifyPlanDiff — price decrease → IMPROVEMENT
     - classifyPlanDiff — feature removed → REGRESSION
     - classifyPlanDiff — feature added → IMPROVEMENT
     - classifyPlanDiff — mixed: 1 improvement + 1 regression → nonRegressive=false
     - classifyPlanDiff — Decimal-like object with toNumber() accepted
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->
 
 ### SC-PLAN-025 — Every quota a version carries counts as a limit that can be lowered
 
-🟡 _(Decided, not yet delivered.)_ A plan version is compared on `users`, `vehicles` and `storageGb`
-alone, so a quota an installation defines for itself — NotesApp's `notesMax`, for instance — can be
-lowered and published without the confirmation SC-PLAN-009 asks for. Add-on versions are already
-compared on every quota they carry.
+🟢 Not only the three keys the platform once knew by name: which quotas exist is the installation's
+decision, and one of its own being lowered is the same event to the customer it belongs to.
+Add-on versions are compared the same way.
 
 _Source:_ current practice
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - PlanVersionsService — Lifecycle
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
+- `packages/nest/tests/version-diff.test.js`
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a finite number replaced by unlimited → IMPROVEMENT
+
+<!-- END proof -->
 
 ### SC-PLAN-011 — A published version says which day it applies from
 

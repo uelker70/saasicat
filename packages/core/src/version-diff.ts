@@ -35,9 +35,16 @@ type DecimalLike = number | string | { toNumber(): number };
 
 export interface PlanVersionFields {
     features: FeatureKey[];
-    maxUsers: number;
-    maxVehicles: number;
-    maxStorageGb: number;
+    /**
+     * Quotas of the version. -1 = unlimited; missing key = 0.
+     *
+     * Every key either side carries is compared. Which keys exist is the
+     * installation's decision — they come from `@DefinesQuota` — so a fixed
+     * set here would have compared the three the platform happened to know by
+     * name and let every other one be lowered without the confirmation
+     * publishing a regression asks for.
+     */
+    quotas: Record<QuotaKey, number>;
     monthlyNet: DecimalLike;
     yearlyNet: DecimalLike;
 }
@@ -55,21 +62,7 @@ export function classifyPlanDiff(oldV: PlanVersionFields, newV: PlanVersionField
     const changes: VersionChange[] = [];
 
     appendFeatureChanges(changes, oldV.features, newV.features);
-    appendNumberChange(changes, 'maxUsers', oldV.maxUsers, newV.maxUsers, 'higherIsBetter');
-    appendNumberChange(
-        changes,
-        'maxVehicles',
-        oldV.maxVehicles,
-        newV.maxVehicles,
-        'higherIsBetter',
-    );
-    appendNumberChange(
-        changes,
-        'maxStorageGb',
-        oldV.maxStorageGb,
-        newV.maxStorageGb,
-        'higherIsBetter',
-    );
+    appendQuotaChanges(changes, oldV.quotas, newV.quotas);
     appendDecimalChange(changes, 'monthlyNet', oldV.monthlyNet, newV.monthlyNet, 'lowerIsBetter');
     appendDecimalChange(changes, 'yearlyNet', oldV.yearlyNet, newV.yearlyNet, 'lowerIsBetter');
 
@@ -79,8 +72,7 @@ export function classifyPlanDiff(oldV: PlanVersionFields, newV: PlanVersionField
 /**
  * Classification of a BundleVersion diff for contract protection.
  *
- * Quota comparison: `-1` (unlimited) is always better than any positive
- * number. Otherwise higher = better. Missing keys are treated as 0.
+ * Quotas are compared exactly as they are for a plan.
  *
  * Pricing can be `null` (the bundle only has override pricing); a switch
  * from value ↔ null is classified as REGRESSION (value dropped) or IMPROVEMENT
@@ -147,18 +139,6 @@ function appendFeatureChanges(
     }
 }
 
-function appendNumberChange(
-    out: VersionChange[],
-    field: string,
-    oldValue: number,
-    newValue: number,
-    polarity: Polarity,
-): void {
-    if (oldValue === newValue) return;
-    const direction = directionFromCmp(newValue - oldValue, polarity);
-    out.push({ field, oldValue, newValue, direction });
-}
-
 function appendDecimalChange(
     out: VersionChange[],
     field: string,
@@ -198,6 +178,13 @@ function buildResult(changes: VersionChange[]): DiffResult {
     return { nonRegressive, changes };
 }
 
+/**
+ * Every key either side carries, compared under one rule.
+ *
+ * `-1` (unlimited) beats any finite number in both directions; otherwise
+ * higher is better. A key missing from one side counts as 0, which is what
+ * makes dropping a quota a regression rather than a change nobody sees.
+ */
 function appendQuotaChanges(
     out: VersionChange[],
     oldQuotas: Record<string, number>,

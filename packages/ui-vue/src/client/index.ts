@@ -16,6 +16,7 @@
 //   - batch-column-fetcher: BatchColumnFetcher + BatchColumnDriftError
 //   - i18n:                 SaLocale, typed DE/EN catalogs, formatMessage
 //   - version:              ADMIN_UI_VERSION
+//   - version-change-fields: quotaKeyOfField — reads a diff field path back
 
 export * from './brand-bridge.js';
 export * from './version.js';
@@ -38,4 +39,5 @@ export * from './login-branding.js';
 export * from './reorder-priorities.js';
 export * from './resolve-plans.js';
 export * from './identity-accents.js';
+export * from './version-change-fields.js';
 export { looksLikeEmail, trimChar } from './text-shape.js';
