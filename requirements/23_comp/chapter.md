@@ -707,6 +707,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/saasicat-persistence.test.js`
     - SaaSiCatModule persistence bundle
         - forRoot wires from a bundle without individual adapters
@@ -849,6 +851,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/create-saasicat-test-module.test.js`
     - createSaaSiCatTestModule
         - returns a DynamicModule with a test host

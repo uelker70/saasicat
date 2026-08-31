@@ -339,10 +339,26 @@ describe('a line item row becomes a line item record', () => {
     });
 
     test('a features snapshot of mixed types keeps only the strings', () => {
-        const record = toContractLineItemRecord(
-            lineItemRow({ featuresSnapshot: ['CORE', 3], quotaEffectsSnapshot: { users: 'five' } }),
-        );
+        const record = toContractLineItemRecord(lineItemRow({ featuresSnapshot: ['CORE', 3] }));
         assert.deepEqual(record.featuresSnapshot, ['CORE']);
-        assert.deepEqual(record.quotaEffectsSnapshot, {});
+    });
+
+    test('a quota written as a string is the number it says', () => {
+        const record = toContractLineItemRecord(
+            lineItemRow({ quotaEffectsSnapshot: { users: '5', storageGb: '-1' } }),
+        );
+        assert.deepEqual(record.quotaEffectsSnapshot, { users: 5, storageGb: -1 });
+    });
+
+    test('and one nothing can read stays declared rather than vanishing', () => {
+        // It used to be dropped, which made the quota *absent* — and absent
+        // means undeclared, which `enforceLimit` answers with a 500. A corrupt
+        // line item would have refused the tenant every operation on that
+        // dimension. `SC-ENTL-010` says a limit nothing can count blocks
+        // nobody, and -1 is that, written as data.
+        const record = toContractLineItemRecord(
+            lineItemRow({ quotaEffectsSnapshot: { users: 'five' } }),
+        );
+        assert.deepEqual(record.quotaEffectsSnapshot, { users: -1 });
     });
 });

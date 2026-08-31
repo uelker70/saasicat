@@ -1333,7 +1333,9 @@ _Tested by:_
         - a number written as a string is that number
         - anything that is not a finite number reads as nothing
         - and so does a number too large to be one
-        - a record keeps what it can read and leaves out what it cannot
+        - a record reads what it can and keeps the rest as uncountable
+        - a declared quota stays declared, whatever it says
+        - and what it reads survives a round trip through a JSON column
         - and anything that is not a record reads as an empty one
         - a key inherited from the prototype is not a quota
 - `packages/nest/tests/a-quota-arrives-as-a-number.test.js`
@@ -5153,13 +5155,9 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/entitlement-service.test.js`
-    - EntitlementService.enforceLimit — transactional
-        - insert runs when under the limit
-        - LimitExceededError when insert would exceed the limit
-        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
-        - -1 (unlimited) never blocks
-        - NotFound when subscription is missing
-        - Error for unknown quota dimension
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 
 <!-- END proof -->
 
@@ -5193,6 +5191,10 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 - `packages/nest/tests/saasicat-module.test.js`
     - StaticEntitlementService (via StaticPlanResolver)
         - snapshot returns features+quotas from the plan catalog
@@ -5211,6 +5213,10 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — config hooks
         - tenantContextRunner wraps the computeLimits call (RLS consumers)
@@ -11971,6 +11977,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/saasicat-persistence.test.js`
     - SaaSiCatModule persistence bundle
         - forRoot wires from a bundle without individual adapters
@@ -12113,6 +12121,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/create-saasicat-test-module.test.js`
     - createSaaSiCatTestModule
         - returns a DynamicModule with a test host

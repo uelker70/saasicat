@@ -43,12 +43,31 @@ describe('a quota is read the same way everywhere', () => {
         assert.equal(readQuotaValue(Number.NaN), null);
     });
 
-    test('a record keeps what it can read and leaves out what it cannot', () => {
+    test('a record reads what it can and keeps the rest as uncountable', () => {
+        // Not dropped. Absent means *undeclared*, and `enforceLimit` answers an
+        // undeclared dimension with a 500 (`SC-ENTL-011`) — so dropping refused
+        // the tenant every operation on that quota. Declared-and-unreadable is
+        // the other requirement: `SC-ENTL-010`, it blocks nobody, and `-1` is
+        // the value every enforcement site short-circuits on.
         assert.deepEqual(readQuotaRecord({ a: 5, b: '10', c: 'many', d: '-1' }), {
             a: 5,
             b: 10,
+            c: -1,
             d: -1,
         });
+    });
+
+    test('a declared quota stays declared, whatever it says', () => {
+        for (const value of ['unbegrenzt', '1e999', '', null, {}, true]) {
+            const quotas = readQuotaRecord({ users: value });
+            assert.ok('users' in quotas, `key dropped for ${JSON.stringify(value) ?? value}`);
+            assert.equal(quotas.users, -1);
+        }
+    });
+
+    test('and what it reads survives a round trip through a JSON column', () => {
+        const quotas = readQuotaRecord({ a: 5, b: 'many', c: '1e999' });
+        assert.deepEqual(JSON.parse(JSON.stringify(quotas)), quotas);
     });
 
     test('and anything that is not a record reads as an empty one', () => {

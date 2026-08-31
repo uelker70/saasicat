@@ -50,10 +50,20 @@ too, taking an allowance somebody had bought out of their own contract.
 
 `readQuotaValue` and `readQuotaRecord` in `@saasicat/core` are that reading,
 once. A number written as a string is that number. What cannot be read as a
-finite number is left out everywhere that computes with a quota — a limit
-nothing can count blocks nobody, and a snapshot has to stay a JSON value — and
-kept in the catalogue row, because the diff has to tell "the plan did not have
-this quota" from "the plan had something nobody can read".
+finite number keeps its key: dropping it would make the quota _absent_, and
+absent means undeclared, which `enforceLimit` answers with a 500 — so a corrupt
+row would have refused the tenant every operation on that dimension. A quota
+that is declared and cannot be read is the other requirement, `SC-ENTL-010`:
+it blocks nobody. Wherever a quota is computed with it becomes `-1`, the value
+every enforcement site short-circuits on and one that survives the JSON column
+a contract snapshot lives in; in the catalogue row it stays `NaN`, because only
+the diff has to tell "the plan did not have this quota" from "the plan had
+something nobody can read", and it reports the value that was actually there.
+
+The cost is stated rather than hidden: a corrupt value reads as unlimited to
+anything that renders it. What `SC-ENTL-010` also asks for — the gap reported
+for review — is not done, because these functions are framework-free and have
+nowhere to log.
 
 The change record keeps the value as it stood rather than the reading.
 `publishedChanges` is persisted to a JSON column, and neither `NaN` nor

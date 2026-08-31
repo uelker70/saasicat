@@ -429,7 +429,9 @@ _Tested by:_
         - a number written as a string is that number
         - anything that is not a finite number reads as nothing
         - and so does a number too large to be one
-        - a record keeps what it can read and leaves out what it cannot
+        - a record reads what it can and keeps the rest as uncountable
+        - a declared quota stays declared, whatever it says
+        - and what it reads survives a round trip through a JSON column
         - and anything that is not a record reads as an empty one
         - a key inherited from the prototype is not a quota
 - `packages/nest/tests/a-quota-arrives-as-a-number.test.js`

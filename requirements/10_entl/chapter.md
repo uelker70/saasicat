@@ -202,13 +202,9 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/entitlement-service.test.js`
-    - EntitlementService.enforceLimit — transactional
-        - insert runs when under the limit
-        - LimitExceededError when insert would exceed the limit
-        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
-        - -1 (unlimited) never blocks
-        - NotFound when subscription is missing
-        - Error for unknown quota dimension
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 
 <!-- END proof -->
 
@@ -242,6 +238,10 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 - `packages/nest/tests/saasicat-module.test.js`
     - StaticEntitlementService (via StaticPlanResolver)
         - snapshot returns features+quotas from the plan catalog
@@ -260,6 +260,10 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — config hooks
         - tenantContextRunner wraps the computeLimits call (RLS consumers)
