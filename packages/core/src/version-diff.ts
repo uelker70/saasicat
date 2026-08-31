@@ -209,8 +209,12 @@ function appendQuotaChanges(
         const newValue = toQuotaNumber(newRaw);
         // `"100"` against `100` is the same allowance written twice.
         if (oldValue === newValue) continue;
-        const direction = directionFromQuotaCmp(oldValue, newValue);
-        out.push({ field: `quotas.${key}`, oldValue, newValue, direction });
+        out.push({
+            field: `quotas.${key}`,
+            oldValue: reportableQuota(oldRaw, oldValue),
+            newValue: reportableQuota(newRaw, newValue),
+            direction: directionFromQuotaCmp(oldValue, newValue),
+        });
     }
 }
 
@@ -222,8 +226,9 @@ function appendQuotaChanges(
  * DTO validated only the container. Compared as they stood, `"50"` against
  * `"100"` is a *string* comparison — `'5' > '1'` — so halving an allowance read
  * as an improvement and published with nothing asked. Everything that is not a
- * number is read as one here, and what cannot be is `NaN`, which the direction
- * below refuses to call an improvement.
+ * number is read as one here; what cannot be read is `NaN`, and `"1e999"` reads
+ * as `Infinity`. Neither is a number the direction below will call an
+ * improvement, and neither may reach the change record — see `reportableQuota`.
  */
 function toQuotaNumber(value: unknown): number {
     if (typeof value === 'number') return value;
@@ -231,10 +236,26 @@ function toQuotaNumber(value: unknown): number {
     return Number.NaN;
 }
 
+/**
+ * What the change record carries: the number, or the value as it stood.
+ *
+ * `publishedChanges` is persisted to a JSON column and read back by an
+ * operator asking what a version took away. `NaN` and `Infinity` are not JSON
+ * values — `JSON.stringify` turns both into `null` — so normalising into the
+ * record would have replaced the evidence with nothing, on exactly the rows
+ * where somebody needs to see what was really there. The reading is used for
+ * the direction; the record keeps the original.
+ */
+function reportableQuota(raw: unknown, asNumber: number): number | string {
+    return Number.isFinite(asNumber) ? asNumber : String(raw);
+}
+
 function directionFromQuotaCmp(oldValue: number, newValue: number): VersionChangeDirection {
-    // A value nothing can read is not evidence of an improvement, and the
-    // confirmation an operator has to give is the safe side of not knowing.
-    if (Number.isNaN(oldValue) || Number.isNaN(newValue)) return 'REGRESSION';
+    // A value that is not a finite number is not evidence of an improvement,
+    // and the confirmation an operator has to give is the safe side of not
+    // knowing. `Number.isFinite` rather than `!Number.isNaN`, because `"1e999"`
+    // reads as `Infinity` and would otherwise beat every allowance there is.
+    if (!Number.isFinite(oldValue) || !Number.isFinite(newValue)) return 'REGRESSION';
     if (oldValue === -1 && newValue !== -1) return 'REGRESSION';
     if (newValue === -1 && oldValue !== -1) return 'IMPROVEMENT';
     return newValue > oldValue ? 'IMPROVEMENT' : 'REGRESSION';

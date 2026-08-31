@@ -357,6 +357,9 @@ _Tested by:_
         - the same allowance written twice is not a change
         - "-1" is unlimited, and losing it is a regression
         - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
         - a finite number replaced by unlimited → IMPROVEMENT
 - `packages/nest/tests/version-publish.test.js`
     - assertDraftPublishable
@@ -401,6 +404,9 @@ _Tested by:_
         - the same allowance written twice is not a change
         - "-1" is unlimited, and losing it is a regression
         - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
         - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->
@@ -448,6 +454,9 @@ _Tested by:_
         - the same allowance written twice is not a change
         - "-1" is unlimited, and losing it is a regression
         - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
         - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->

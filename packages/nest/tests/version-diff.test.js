@@ -178,6 +178,35 @@ describe('classifyPlanDiff — quotas', () => {
         assert.equal(result.changes[0].direction, 'REGRESSION');
     });
 
+    test('and it reaches the record as what it was, not as nothing', () => {
+        // `publishedChanges` goes into a JSON column. `NaN` is not a JSON
+        // value, so normalising into the record would have replaced the
+        // evidence with `null` on exactly the rows somebody has to look at.
+        const oldV = { ...base, quotas: { notesMax: 'unbegrenzt' } };
+        const newV = { ...oldV, quotas: { notesMax: 10_000 } };
+        const { changes } = classifyPlanDiff(oldV, newV);
+        assert.equal(changes[0].oldValue, 'unbegrenzt');
+        assert.equal(changes[0].newValue, 10_000);
+    });
+
+    test('every change survives the round trip through a JSON column', () => {
+        const oldV = { ...base, quotas: { a: 'unbegrenzt', b: '1e999', c: 5, d: -1 } };
+        const newV = { ...base, quotas: { a: 10, b: 10, c: 1, d: 1 } };
+        const { changes } = classifyPlanDiff(oldV, newV);
+        assert.equal(changes.length, 4);
+        assert.deepEqual(JSON.parse(JSON.stringify(changes)), changes);
+    });
+
+    test('a number too large to be one is a regression, not the best offer ever', () => {
+        // `Number('1e999')` is `Infinity`, which beats every allowance there
+        // is — and is no more a JSON value than `NaN`.
+        const oldV = { ...base, quotas: { notesMax: 100 } };
+        const newV = { ...oldV, quotas: { notesMax: '1e999' } };
+        const result = classifyPlanDiff(oldV, newV);
+        assert.equal(result.nonRegressive, false);
+        assert.equal(result.changes[0].newValue, '1e999');
+    });
+
     test('a finite number replaced by unlimited → IMPROVEMENT', () => {
         const oldV = { ...base, quotas: { notesMax: 10_000 } };
         const newV = { ...oldV, quotas: { notesMax: -1 } };

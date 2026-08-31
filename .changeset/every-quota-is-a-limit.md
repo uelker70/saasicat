@@ -35,8 +35,14 @@ which is the shape `plan-catalog.schema.json` has always stated for the same
 field — the catalogue-import path was validated by that schema all along, and
 the admin route is catching up. The comparison reads both sides as numbers
 regardless, because rows written before this exist; a value that cannot be read
-as one counts as a regression, since not knowing is not evidence of an
-improvement.
+as a finite one counts as a regression, since not knowing is not evidence of an
+improvement — and `"1e999"` reads as `Infinity`, which would otherwise beat
+every allowance there is.
+
+The change record keeps the value as it stood rather than the reading.
+`publishedChanges` is persisted to a JSON column, and neither `NaN` nor
+`Infinity` is a JSON value: normalising into the record would have written
+`null` on exactly the rows where an operator has to see what was really there.
 
 **Breaking.** `PlanVersionFields` now takes `quotas: Record<QuotaKey, number>`
 in place of the three flat fields, and a quota change is reported as
