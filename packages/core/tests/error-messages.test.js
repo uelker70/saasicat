@@ -1,3 +1,6 @@
+// @requirement SC-LANG-008 — A refusal is identified by a stable code; only its wording may change
+// @requirement SC-LANG-013 — A message says what to do next, not only what went wrong
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

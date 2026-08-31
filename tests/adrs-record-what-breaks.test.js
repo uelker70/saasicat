@@ -9,6 +9,8 @@
 // has when they are about to break it: what happens then. This test holds the
 // shape, and derives the set from the directory rather than a list.
 
+// @requirement SC-READ-004 — An architectural decision records what breaks if it is ignored
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

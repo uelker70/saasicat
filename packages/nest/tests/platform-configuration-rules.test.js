@@ -50,6 +50,8 @@ function sound() {
     };
 }
 
+// @requirement SC-CFG-005 — A missing required setting stops the installation, naming the file and the field
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
 describe('the rule table', () => {
     test('a sound configuration violates nothing', () => {
         assert.deepEqual(findViolations(sound()), []);
@@ -78,6 +80,7 @@ describe('the rule table', () => {
     });
 });
 
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
 describe('all of them at once', () => {
     test('four independent mistakes are reported together', () => {
         const violations = findViolations({
@@ -140,6 +143,7 @@ describe('all of them at once', () => {
     });
 });
 
+// @requirement SC-CFG-005 — A missing required setting stops the installation, naming the file and the field
 describe('the typed errors that predate the table', () => {
     test('a lone capability failure still raises PersistenceCapabilityError', () => {
         // `code` is machine-readable and published; the table must not turn it
@@ -203,6 +207,7 @@ describe('the typed errors that predate the table', () => {
     });
 });
 
+// @requirement SC-CFG-010 — An installation that declares a protection and enforces nothing does not start
 describe('forRoot runs the table', () => {
     test('the same configuration fails through the module', () => {
         // The rules are only worth anything where they are actually consulted.
@@ -234,6 +239,7 @@ describe('forRoot runs the table', () => {
     });
 });
 
+// @requirement SC-CFG-005 — A missing required setting stops the installation, naming the file and the field
 describe('every rule can actually fail', () => {
     // A rule nothing can trigger is not a rule, and a table makes that easy to
     // acquire: `when` narrowed a little too far, and the entry sits there
@@ -337,6 +343,7 @@ describe('every rule can actually fail', () => {
     });
 });
 
+// @requirement SC-SCOPE-003 — An installation that does not name its application does not start
 describe('a catalogue that names no application', () => {
     // `app.name` is the one place an installation names itself, and it feeds
     // the manifest display name, the login-page brand and the discovery key.

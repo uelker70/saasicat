@@ -3,6 +3,9 @@
 // the whole card down on the next render, which only became visible when
 // switching the language forced one.
 
+// @requirement SC-UI-015 — One colour makes the administration look like the integrator's product
+// @requirement SC-SCOPE-003 — An installation that does not name its application does not start
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -1,3 +1,6 @@
+// @requirement SC-LANG-001 — A person reads the interface in the language they chose
+// @requirement SC-LANG-002 — The admin interface falls back to English, the backend to German
+
 import { describe, expect, test } from 'vitest';
 import { computed, defineComponent, h } from 'vue';
 

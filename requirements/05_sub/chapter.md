@@ -13,6 +13,23 @@ works. It is here because the one case where it did not work — a billing day q
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
+    - the no-options default preserves the 0.6 plan-only write
+    - opening a window records the day the subscription is billed on
+    - and a change that opens none leaves it alone
+    - normalized mode binds semantic plan and active version atomically with named delegates
+    - a pending version of the same target plan is retained
+    - a failing onboarding callback rolls plan and version back together
+    - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
+    - pending PlanVersion acceptance rejects a changed CAS target and a missing target
+    - invalid validity capability combinations fail at construction
+
+<!-- END proof -->
+
 ### SC-SUB-002 — The minimum term is the billing period that was chosen, and it starts at activation
 
 🟢 💰 Monthly or yearly. There is no third rhythm, and no commitment separate from the period unless
@@ -36,6 +53,20 @@ _Tested by:_
 🟢 💰 The commitment renews with the period, because the commitment is the period.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-renewal.test.js`
+    - decideRenewal
+        - SKIP when no pending version
+        - SKIP when EffectiveAt is in the future
+        - ROLL_FORWARD when nonRegressive=true
+        - ROLL_FORWARD when accepted=true (even if regressive)
+        - CLEAR_PENDING when regressive + not accepted (variant B)
+
+<!-- END proof -->
 
 ### SC-SUB-004 — A short month does not move the billing day
 
@@ -104,6 +135,16 @@ _Tested by:_
         - while a possible one is used
     - an impossible anchor handed to the iteration
         - is treated as absent for the whole walk, not for each step
+- `packages/nest/tests/version-renewal.test.js`
+    - computeNextPeriod
+        - a declared cancellation does not stop the period from rolling
+        - a landed cancellation does
+        - the renewed period is also the renewed commitment
+        - null when currentPeriodEnd null (Trial)
+        - null when currentPeriodEnd is in the future
+        - rolls MONTHLY period +1 month (daily cron, periodEnd 1 day before now)
+        - rolls YEARLY period +1 year
+        - cron lag: with several missed periods, jumps to the next future period
 
 <!-- END proof -->
 
@@ -126,7 +167,7 @@ _Tested by:_
     - periodEndAfter YEARLY — skips multiple years
     - periodEndAfter with null startedAt — iterate from now
     - periodEndWithMinLead YEARLY with ≥42d lead — directly currentPeriodEnd
-    - periodEndWithMinLead MONTHLY with <42d lead — skips period
+    - periodEndWithMinLead MONTHLY with &lt;42d lead — skips period
     - periodEndWithMinLead — minLeadDays configurable (14d, accepts exactly 14d)
     - periodEndWithMinLead — minLeadDays 15d on same date jumps to next period
 
@@ -137,6 +178,20 @@ _Tested by:_
 🟢 A trial, or a subscription still waiting on a negotiated contract, has nothing to roll forward.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-renewal.test.js`
+    - decideRenewal
+        - SKIP when no pending version
+        - SKIP when EffectiveAt is in the future
+        - ROLL_FORWARD when nonRegressive=true
+        - ROLL_FORWARD when accepted=true (even if regressive)
+        - CLEAR_PENDING when regressive + not accepted (variant B)
+
+<!-- END proof -->
 
 ### SC-SUB-008 — A declared cancellation does not stop the renewal until it lands
 
@@ -254,6 +309,9 @@ _Tested by:_
     - accepting a version after the subscription ended
         - is refused rather than recorded against a dead contract
         - while a running subscription accepts as before
+- `packages/nest/tests/version-renewal.test.js`
+    - clearPendingPlanVersionFields
+        - returns all pending fields as null/false
 
 <!-- END proof -->
 

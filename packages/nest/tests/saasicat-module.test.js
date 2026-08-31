@@ -77,6 +77,8 @@ Module({
     exports: [OPTIONAL_SERVICES_TOKEN],
 })(OptionalServicesConsumerModule);
 
+// @requirement SC-SCOPE-001 — SaaSiCat runs inside the integrator's application
+// @requirement SC-SCOPE-007 — The platform is a NestJS application, and a foreign backend mounts it
 describe('SaaSiCatModule.forRoot', () => {
     test('throws when neither planCatalog nor planCatalogReadSink is set', () => {
         assert.throws(
@@ -368,6 +370,8 @@ describe('SaaSiCatModule.forRoot', () => {
     });
 });
 
+// @requirement SC-ENTL-010 — A limit nothing can count does not block anybody
+// @requirement SC-CFG-011 — An application that declares nothing to enforce still starts
 describe('StaticEntitlementService (via StaticPlanResolver)', () => {
     test('snapshot returns features+quotas from the plan catalog', async () => {
         const catalog = {

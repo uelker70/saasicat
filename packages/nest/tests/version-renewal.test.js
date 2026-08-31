@@ -8,6 +8,8 @@ import {
 
 const NOW = new Date('2026-05-08T12:00:00Z');
 
+// @requirement SC-SUB-003 — A term renews by itself unless it was cancelled first
+// @requirement SC-SUB-007 — A subscription with no period does not renew
 describe('decideRenewal', () => {
     test('SKIP when no pending version', () => {
         assert.equal(
@@ -85,6 +87,7 @@ describe('decideRenewal', () => {
     });
 });
 
+// @requirement SC-SUB-014 — Accepting the same pending version twice changes nothing
 describe('clearPendingPlanVersionFields', () => {
     test('returns all pending fields as null/false', () => {
         const fields = clearPendingPlanVersionFields();
@@ -98,6 +101,7 @@ describe('clearPendingPlanVersionFields', () => {
     });
 });
 
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 describe('computeNextPeriod', () => {
     // A declared cancellation used to stop the renewal, and that was right while
     // `canceledAt` doubled as the effective date. It no longer does: a

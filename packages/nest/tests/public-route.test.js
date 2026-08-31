@@ -18,6 +18,8 @@ function contextFor(controller) {
     };
 }
 
+// @requirement SC-MKT-012 — The public catalogue answers even when something behind it is unavailable
+// @requirement SC-SEC-004 — Every decision that matters is made where the request is served
 describe('SaaSiCat public route metadata', () => {
     const publicControllers = [
         SetupController,

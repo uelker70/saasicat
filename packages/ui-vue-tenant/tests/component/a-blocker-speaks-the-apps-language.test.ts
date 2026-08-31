@@ -1,3 +1,6 @@
+// @requirement SC-LANG-009 — An integrator resolves their own refusals and SaaSiCat's through one mechanism
+// @requirement SC-LANG-006 — Text a customer reads carries its values beside its code, not inside a sentence
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';

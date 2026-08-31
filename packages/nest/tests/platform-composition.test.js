@@ -96,6 +96,7 @@ function everythingOn() {
     };
 }
 
+// @requirement SC-SCOPE-007 — The platform is a NestJS application, and a foreign backend mounts it
 describe('every module a composer mounts is also exported', () => {
     test('with every feature on', () => {
         const ctx = everythingOn();
@@ -150,6 +151,7 @@ describe('every module a composer mounts is also exported', () => {
     });
 });
 
+// @requirement SC-SCOPE-007 — The platform is a NestJS application, and a foreign backend mounts it
 describe('features are added as composers, not as edits to the assembler', () => {
     const ASSEMBLER = fileURLToPath(new URL('../src/platform/saasicat.module.ts', import.meta.url));
 
@@ -184,6 +186,7 @@ describe('the assembled module is the same one as before', () => {
     });
 });
 
+// @requirement SC-SCOPE-001 — SaaSiCat runs inside the integrator's application
 describe('the base modules', () => {
     test('the DB-hydration path builds the catalogue from the sink', () => {
         // The branch a consumer takes once operators manage plans in the UI.
@@ -250,6 +253,7 @@ describe('the catalogue composer', () => {
     });
 });
 
+// @requirement SC-COMP-001 — All packages carry one version number and move together
 describe('the seam is in the CJS build too', () => {
     // The package ships ESM and a separately built CommonJS bundle. What has to
     // hold is that the seam EXISTS there and names the same things.

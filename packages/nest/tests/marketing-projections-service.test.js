@@ -14,6 +14,9 @@ beforeEach(() => {
     service = new MarketingProjectionsService(repo);
 });
 
+// @requirement SC-MKT-004 — Marketing text belongs to one version and one language
+// @requirement SC-MKT-006 — Marketing edits take effect at once and are not versioned
+// @requirement SC-MKT-008 — An installation has exactly one set of marketing settings
 describe('MarketingProjectionsService — master data operations', () => {
     test('create creates a MarketingProjection (default locale=de)', async () => {
         const row = await service.create({

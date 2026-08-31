@@ -1,3 +1,6 @@
+// @requirement SC-CFG-013 — A generated application does not compile until the integrator names their access rules
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';

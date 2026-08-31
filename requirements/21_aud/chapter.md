@@ -13,6 +13,20 @@ the two it was.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - AdminAuditService
+        - actorTag formats source:email:context
+        - log() writes through and appends the actor tag to changes
+        - fromWebRequest builds AdminActor with source=web
+        - fromWebRequest falls back to
+        - fromCli builds AdminActor with source=cli + hostname
+
+<!-- END proof -->
+
 ### SC-AUD-002 — An action that belongs to no single tenant says so
 
 🟢 Platform-wide acts are distinguishable from acts on one tenant, rather than looking like an entry
@@ -21,11 +35,43 @@ distinguishable from one a person took.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/audit-tail-flow.test.js`
+    - empty filter → empty query object
+    - actor → actorTag
+    - action + entity
+    - since → from
+    - limit → pageSize
+    - maps fields + truncated entityId
+    - null-actorTag →
+    - short entityId not truncated
+
+<!-- END proof -->
+
 ### SC-AUD-003 — Every change to a subscription is recorded with what it was before and after
 
 🟢 Plan changes, scheduled changes, activations, accepted versions and cancellations.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/audit-tail-flow.test.js`
+    - empty filter → empty query object
+    - actor → actorTag
+    - action + entity
+    - since → from
+    - limit → pageSize
+    - maps fields + truncated entityId
+    - null-actorTag →
+    - short entityId not truncated
+
+<!-- END proof -->
 
 ### SC-AUD-004 — A failure to record something never blocks the act itself
 

@@ -29,6 +29,8 @@ function refusalOf(publishMeta, draft, previous, codes = BUNDLE_VERSION_WINDOW_C
 
 const CODES = BUNDLE_VERSION_WINDOW_CODES;
 
+// @requirement SC-PLAN-011 — A published version says which day it applies from
+// @requirement SC-PLAN-012 — There is no gap and no overlap between two versions of a plan
 describe('the window a version is published with', () => {
     test('the publish call wins over the draft for the start', () => {
         const { validFrom } = resolveValidityWindow(
@@ -74,6 +76,8 @@ describe('the window a version is published with', () => {
     });
 });
 
+// @requirement SC-PLAN-016 — A version can be given an end date, and it lies in the future
+// @requirement SC-PRIC-016 — A tax rate has a validity window
 describe('the window a version is refused for', () => {
     test('no start at all', () => {
         assert.equal(refusalOf({}, {}, null), CODES.validFromRequired);

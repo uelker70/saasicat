@@ -8,6 +8,8 @@
 //
 // Both of those have happened. This runs the compiler over every file instead.
 
+// @requirement SC-COMP-009 — Shipped source stays within a language level an integrator's toolchain can read
+
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 

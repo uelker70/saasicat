@@ -13,6 +13,8 @@
 // correct one does, and there is no way to tell the two apart by watching it
 // succeed.
 
+// @requirement SC-READ-003 — A statement about the software is part of it
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

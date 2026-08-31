@@ -63,6 +63,17 @@ records survives is not a decision a migration takes on its own.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-apply-dry-run.test.js`
+    - it names the lines, and leaves the file untouched
+    - and the real run writes exactly those lines
+    - past tense belongs to the run that did it
+
+<!-- END proof -->
+
 ### SC-PRIV-010 — History is not rewritten
 
 🟢 🔒 A period a tenant was already billed for is left as it stands, even by a correction that would

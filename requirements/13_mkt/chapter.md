@@ -18,11 +18,47 @@ _Source:_ `docs/explanation/architecture.md`
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/configurator-catalog-builder.test.js`
+    - ConfiguratorCatalogBuilder
+        - maps marketed live PlanVersions onto models (incl. quota normalization)
+        - plan without a marketing entry is hidden
+
+<!-- END proof -->
+
 ### SC-MKT-003 — A plan or add-on with no marketing entry, or one marked hidden, is not shown
 
 🟢 Publishing a version and advertising it are two acts.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/configurator-catalog-builder.test.js`
+    - ConfiguratorCatalogBuilder
+        - maps marketed live PlanVersions onto models (incl. quota normalization)
+        - plan without a marketing entry is hidden
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Bundles
+        - getCatalog returns empty bundles[] without a BundleRepository
+        - getCatalog returns published live bundles with compatiblePlanKeys
+        - requiresFeatures (#35): uncovered requires of the bundle features from the
+          FeatureCatalogEntries
+        - requiresFeatures without a CatalogEntryRepository: empty (graceful)
+        - getCatalog filters out non-marketed bundles
+        - getCatalog filters out bundles with MarketingProjection visible=false
+        - getCatalog ignores drafts (only live = published+not-superseded)
+        - i18n: MarketingProjection overrides label + fills description (matching locale)
+        - i18n: falls back to DE projection when locale is missing
+        - i18n: without a projection the bundle root label applies (description stays empty)
+        - bundle promotions are resolved with targetType=BUNDLE
+
+<!-- END proof -->
 
 ### SC-MKT-004 — Marketing text belongs to one version and one language
 
@@ -30,6 +66,24 @@ _Source:_ release 1.0.0-rc.6
 describe an offer that is no longer current. There is exactly one entry per version and language.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — master data operations
+        - create creates a MarketingProjection (default locale=de)
+        - create sets marketing defaults (visible, badge, trial)
+        - update changes top features, badge and trial
+        - create throws 409 on duplicate creation (same Target+Locale)
+        - create accepts multiple locales per target
+        - update changes required and marketing fields
+        - delete removes the row
+        - list filters by targetType + locale
+        - getById throws 404 for missing ID
+
+<!-- END proof -->
 
 ### SC-MKT-005 — Marketing text falls back to the default language rather than appearing empty
 
@@ -44,6 +98,24 @@ there is nothing for them to rewrite.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — master data operations
+        - create creates a MarketingProjection (default locale=de)
+        - create sets marketing defaults (visible, badge, trial)
+        - update changes top features, badge and trial
+        - create throws 409 on duplicate creation (same Target+Locale)
+        - create accepts multiple locales per target
+        - update changes required and marketing fields
+        - delete removes the row
+        - list filters by targetType + locale
+        - getById throws 404 for missing ID
+
+<!-- END proof -->
+
 ### SC-MKT-007 — Which languages the catalogue is published in is an operator's choice
 
 🟢 Made on the marketing screen, from the pool the installation declared, not in a deployment.
@@ -57,11 +129,39 @@ a constraint rather than a habit.
 
 _Source:_ `docs/explanation/data-model.md` · `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — master data operations
+        - create creates a MarketingProjection (default locale=de)
+        - create sets marketing defaults (visible, badge, trial)
+        - update changes top features, badge and trial
+        - create throws 409 on duplicate creation (same Target+Locale)
+        - create accepts multiple locales per target
+        - update changes required and marketing fields
+        - delete removes the row
+        - list filters by targetType + locale
+        - getById throws 404 for missing ID
+
+<!-- END proof -->
+
 ### SC-MKT-009 — At most one plan is marked as the recommended one
 
 🟢
 
 _Source:_ `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — comparison matrix (staircase sorting)
+        - feature rows: widest coverage first, on a tie the leading plan column
+
+<!-- END proof -->
 
 ### SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
 
@@ -70,6 +170,25 @@ shown as a public one. A promotion runs to the end of its last day, and never pu
 zero.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
+        - priceTag of the bundle MarketingProjection lands in the payload
+        - priceTag is null without a MarketingProjection (backward compatible)
+        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
+          FeatureCatalogEntries (incl. i18n)
+        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
+          (graceful)
+- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
+    - PublicMarketingCatalogService — Plan priceTag (#47)
+        - the plan MarketingProjection priceTag lands in the payload
+        - priceTag is null when the projection maintains none (backwards compatible)
+
+<!-- END proof -->
 
 ### SC-MKT-011 — The public catalogue shows base prices only
 
@@ -89,6 +208,20 @@ _Tested by:_
         - a bundle sold in one rhythm only says so for the other
         - an id nobody knows is left out rather than answered with nulls
         - asking for nothing costs nothing
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Bundles
+        - getCatalog returns empty bundles[] without a BundleRepository
+        - getCatalog returns published live bundles with compatiblePlanKeys
+        - requiresFeatures (#35): uncovered requires of the bundle features from the
+          FeatureCatalogEntries
+        - requiresFeatures without a CatalogEntryRepository: empty (graceful)
+        - getCatalog filters out non-marketed bundles
+        - getCatalog filters out bundles with MarketingProjection visible=false
+        - getCatalog ignores drafts (only live = published+not-superseded)
+        - i18n: MarketingProjection overrides label + fills description (matching locale)
+        - i18n: falls back to DE projection when locale is missing
+        - i18n: without a projection the bundle root label applies (description stays empty)
+        - bundle promotions are resolved with targetType=BUNDLE
 
 <!-- END proof -->
 
@@ -98,6 +231,17 @@ _Tested by:_
 customer meets first and it requires no account.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-route.test.js`
+    - SaaSiCat public route metadata
+        - ${controller.name} is recognized by global auth guards
+        - unmarked controllers stay protected
+
+<!-- END proof -->
 
 ### SC-MKT-013 — What a customer selected is frozen into an offer before it becomes a contract
 
@@ -202,6 +346,26 @@ _Tested by:_
         - update on an expired offer throws Conflict
         - double consume throws Conflict
         - getById throws for an unknown offer
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — V3 ContractLineItems
+        - reads entitlements from active contract snapshot without catalog join
+        - Contract entitlementSnapshot wins over line-item aggregation
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a yearly contract holding a monthly add-on
+        - counts the add-on as often as it falls due
+        - a yearly add-on beside a yearly plan is counted once
+        - a monthly contract adds a monthly add-on as it stands
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - createFromOffer creates immutable contract line items from a consumed offer
+        - createFromOffer blocks open offers
+        - replaceActiveContract closes the old contract and creates a new one
+        - create requires a plan line item
+        - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
+        - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
+          contract
+        - getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract
+        - getActiveInvoiceSnapshotForTenant throws without an active contract
 
 <!-- END proof -->
 
@@ -211,11 +375,47 @@ _Tested by:_
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - createFromOffer creates immutable contract line items from a consumed offer
+        - createFromOffer blocks open offers
+        - replaceActiveContract closes the old contract and creates a new one
+        - create requires a plan line item
+        - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
+        - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
+          contract
+        - getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract
+        - getActiveInvoiceSnapshotForTenant throws without an active contract
+
+<!-- END proof -->
+
 ### SC-MKT-019 — A contract that is already closed is not closed again
 
 🟢
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - createFromOffer creates immutable contract line items from a consumed offer
+        - createFromOffer blocks open offers
+        - replaceActiveContract closes the old contract and creates a new one
+        - create requires a plan line item
+        - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
+        - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
+          contract
+        - getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract
+        - getActiveInvoiceSnapshotForTenant throws without an active contract
+
+<!-- END proof -->
 
 ### SC-MKT-020 — A contract agreed after a cancellation ends when that cancellation does
 

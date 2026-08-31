@@ -144,6 +144,16 @@ function wrap(prefix, items, width = 100) {
  * what a reader opens, and named exactly as the test runner prints them so the
  * name is the way back to the case.
  */
+/**
+ * A case name as Markdown, with its angle brackets made safe.
+ *
+ * Test names quote the markup they are about — `renders no <main>` — and
+ * Markdown reads that as an HTML tag, which the linter refuses in prose. The
+ * escape renders to the same characters a reader sees, so the name still says
+ * what the test runner prints.
+ */
+const escaped = (name) => name.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
 export function proofBlock(cases) {
     if (cases.length === 0) return '';
 
@@ -170,8 +180,8 @@ export function proofBlock(cases) {
         lines.push(`- \`${file}\``);
         for (const [block, names] of blocks) {
             const indent = block ? '        ' : '    ';
-            if (block) lines.push(`    - ${block}`);
-            for (const name of names) lines.push(...wrapped(`${indent}- `, name));
+            if (block) lines.push(`    - ${escaped(block)}`);
+            for (const name of names) lines.push(...wrapped(`${indent}- `, escaped(name)));
         }
     }
     lines.push('', PROOF_END);

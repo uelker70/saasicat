@@ -1,3 +1,5 @@
+// @requirement SC-OPS-003 — An operator can list what a migration will touch before running it
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

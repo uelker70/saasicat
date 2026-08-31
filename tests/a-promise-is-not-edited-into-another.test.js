@@ -14,6 +14,9 @@
 // was promised. Without that, one retired entry would force every entry
 // mentioning it to be retired too, and the rule would eat the chapter.
 
+// @requirement SC-READ-003 — A statement about the software is part of it
+// @requirement SC-COMP-006 — An identifier a consumer may have written down is not renamed again
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

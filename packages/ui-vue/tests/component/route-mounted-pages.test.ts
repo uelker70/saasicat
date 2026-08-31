@@ -15,6 +15,8 @@
 // The instance is fixed. This test is here for the class: it mounts every
 // route-mounted page with **no props at all** and fails on any Vue warning.
 
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import { existsSync, readFileSync } from 'node:fs';

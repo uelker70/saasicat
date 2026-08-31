@@ -1,3 +1,5 @@
+// @requirement SC-COMP-011
+
 import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES } from '@saasicat/core';
 import { persistenceAdapterContract } from '../dist/index.js';
 

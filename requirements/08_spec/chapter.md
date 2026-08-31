@@ -17,6 +17,8 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/core/tests/codegen-drift.test.js`
+    - ${genFile} is in sync with ${file}
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it
         - the matrix asks more of a trial than of a term
@@ -77,11 +79,51 @@ _Source:_ release 1.0.0-rc.6
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-plan-resolution.test.js`
+    - resolveEntitlementPlan — Trial / Pilot / Pending
+        - Default: no override → subscription.plan
+        - Pilot: pilotEntitlementPlan overrides
+        - Pilot without config: falls back to subscription.plan
+        - TRIAL: subscription.trialEntitlementPlan wins
+        - TRIAL without trialEntitlementPlan: falls back to defaultTrialEntitlementPlan
+        - TRIAL with no config at all: falls back to subscription.plan
+        - PENDING_SALES: pendingSalesEntitlementPlan overrides
+        - Pending plan change: takes effect once pendingEffectiveAt is in the past
+        - Pending plan change: does NOT take effect while pendingEffectiveAt is in the future
+        - Pilot beats pending plan change: Pilot dominates
+        - TRIAL beats pending plan change: Trial dominates
+
+<!-- END proof -->
+
 ### SC-SPEC-006 — A pilot arrangement outranks every other way of resolving what a tenant may do
 
 🟢 Ahead of trial, ahead of a pending negotiation, ahead of a scheduled change.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-plan-resolution.test.js`
+    - resolveEntitlementPlan — Trial / Pilot / Pending
+        - Default: no override → subscription.plan
+        - Pilot: pilotEntitlementPlan overrides
+        - Pilot without config: falls back to subscription.plan
+        - TRIAL: subscription.trialEntitlementPlan wins
+        - TRIAL without trialEntitlementPlan: falls back to defaultTrialEntitlementPlan
+        - TRIAL with no config at all: falls back to subscription.plan
+        - PENDING_SALES: pendingSalesEntitlementPlan overrides
+        - Pending plan change: takes effect once pendingEffectiveAt is in the past
+        - Pending plan change: does NOT take effect while pendingEffectiveAt is in the future
+        - Pilot beats pending plan change: Pilot dominates
+        - TRIAL beats pending plan change: Trial dominates
+
+<!-- END proof -->
 
 ### SC-SPEC-007 — Granting, withdrawing or extending a pilot is a deliberate operator act
 
@@ -97,6 +139,19 @@ is an addition.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - applyCustomLimits
+        - null/undefined custom: no change
+        - quotas override overwrites field by field
+        - features override adds
+        - mutation of the input is forbidden (pure function)
+
+<!-- END proof -->
+
 ### SC-SPEC-009 — A subscription waiting on a negotiated contract falls back to a named interim plan
 
 🟢 It has no billing period, and cancelling it takes effect immediately, because there is nothing
@@ -108,6 +163,19 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-plan-resolution.test.js`
+    - resolveEntitlementPlan — Trial / Pilot / Pending
+        - Default: no override → subscription.plan
+        - Pilot: pilotEntitlementPlan overrides
+        - Pilot without config: falls back to subscription.plan
+        - TRIAL: subscription.trialEntitlementPlan wins
+        - TRIAL without trialEntitlementPlan: falls back to defaultTrialEntitlementPlan
+        - TRIAL with no config at all: falls back to subscription.plan
+        - PENDING_SALES: pendingSalesEntitlementPlan overrides
+        - Pending plan change: takes effect once pendingEffectiveAt is in the past
+        - Pending plan change: does NOT take effect while pendingEffectiveAt is in the future
+        - Pilot beats pending plan change: Pilot dominates
+        - TRIAL beats pending plan change: Trial dominates
 - `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
     - a tenant still waiting on sales
         - cancels immediately, because nothing was ever committed

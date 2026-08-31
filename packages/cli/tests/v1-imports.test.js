@@ -1,3 +1,6 @@
+// @requirement SC-COMP-003 — There is one deliberate break on the way to 1.0, and one guide for it
+// @requirement SC-COMP-006 — An identifier a consumer may have written down is not renamed again
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

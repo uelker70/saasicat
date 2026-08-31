@@ -1,3 +1,5 @@
+// @requirement SC-UI-012 — The interface works on desktop, tablet and phone
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 

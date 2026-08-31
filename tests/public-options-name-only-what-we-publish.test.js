@@ -12,6 +12,9 @@
 // built `quasar` entry's declaration. Naming `QTableColumn` here would keep
 // passing on the day a second type leaks in.
 
+// @requirement SC-READ-007 — Reference documentation is generated from the implementation
+// @requirement SC-COMP-008 — An implementation offers only what it can actually answer
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

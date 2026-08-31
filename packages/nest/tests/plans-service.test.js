@@ -12,6 +12,9 @@ function makeService() {
     return { service: new PlansService(repo), repo };
 }
 
+// @requirement SC-PLAN-001 — A plan is an identity; a version carries what it costs and includes
+// @requirement SC-PLAN-014 — A plan that has ever been published is kept
+// @requirement SC-PLAN-015 — A plan with an open draft is not removed
 describe('PlansService — root operations', () => {
     test('createPlan + listPlans + getPlan happy path', async () => {
         const { service } = makeService();

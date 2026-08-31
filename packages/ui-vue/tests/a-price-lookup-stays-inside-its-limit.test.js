@@ -6,6 +6,8 @@
 // prices — the figures this call exists to replace, because the catalogue has
 // no plan to resolve an override against.
 
+// @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

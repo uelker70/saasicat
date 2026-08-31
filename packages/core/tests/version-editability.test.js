@@ -1,3 +1,6 @@
+// @requirement SC-PLAN-005 — A version somebody has already bought cannot be edited
+// @requirement SC-PLAN-006 — Where it cannot be established that nobody is on a version, it stays frozen
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -111,6 +111,9 @@ function consumedOffer() {
     };
 }
 
+// @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
+// @requirement SC-MKT-018 — A contract has exactly one plan line and at least one line in total
+// @requirement SC-MKT-019 — A contract that is already closed is not closed again
 describe('SubscriptionContractService', () => {
     let repo;
     let service;

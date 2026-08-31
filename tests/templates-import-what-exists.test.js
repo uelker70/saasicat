@@ -1,3 +1,5 @@
+// @requirement SC-CFG-013 — A generated application does not compile until the integrator names their access rules
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';

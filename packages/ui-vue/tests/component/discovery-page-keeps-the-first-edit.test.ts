@@ -5,6 +5,9 @@
 // second save is assembled from the row as it was before the first — and sends
 // the first edit's absence, which the server takes as a deletion.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+// @requirement SC-CAT-010 — Labels an operator has written are never overwritten by the scan
+
 import { afterEach, describe, expect, test } from 'vitest';
 
 import DiscoveryPage from '../../src/pages/DiscoveryPage.vue';

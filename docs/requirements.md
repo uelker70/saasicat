@@ -166,6 +166,31 @@ application it sits in.
 
 _Source:_ ADR 0007 · `README.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-composition.test.js`
+    - the base modules
+        - the DB-hydration path builds the catalogue from the sink
+        - the app identity comes from the catalogue that is configured
+        - an explicit app identity wins over the catalogue
+- `packages/nest/tests/saasicat-module.test.js`
+    - SaaSiCatModule.forRoot
+        - throws when neither planCatalog nor planCatalogReadSink is set
+        - quickstart path: planCatalog + 3 adapters are enough
+        - Entitlement opt-in: enabled without repos -&gt; error
+        - Entitlement active with all repos -&gt; 5 sub-modules
+        - accepts empty guards: [] as an explicit choice
+        - composes setup, admin stats, checkout offer and subscription contract
+        - setup and subscription contract can derive their adapters from persistence
+        - the centrally composed optional services resolve in a real Nest container
+        - without defaultPlanId & without planResolver: no entitlement stack
+        - with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered
+        - with quotaProviders: classes become providers + aggregated in the registry token
+
+<!-- END proof -->
+
 ### SC-SCOPE-002 — One installation serves one application
 
 🟢 A plan key, a bundle key, a feature key and a quota key are unique for the whole installation.
@@ -175,6 +200,20 @@ tenant, installation-wide, has always required anyway.
 
 _Source:_ #236 · `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/a-key-belongs-to-the-installation.test.js`
+    - the scan reaches the repository
+    - the scan reads the shipped DDL, where the column actually lived
+    - no tracked file carries the retired identifier without declaring it
+    - the rule is not vacuous: it refuses each spelling
+    - and it does not refuse a word that merely contains one
+    - a declaration excuses the file it is in, and only in its head
+
+<!-- END proof -->
+
 ### SC-SCOPE-003 — An installation that does not name its application does not start
 
 🟢 The application's name is what a tenant reads on the sign-in page and what an operator sees in the
@@ -182,6 +221,29 @@ administration. An absent name is not a default to fill in: the installation wou
 by an empty string, and nobody would notice until a customer did.
 
 _Source:_ #236 · `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a catalogue that names no application
+        - is a violation of its own, named
+        - and so is a blank one, which is the same omission spelled differently
+        - a named one passes
+        - the DB-hydration path is held to it too
+        - and a configuration with no catalogue at all is the other finding, not both
+- `packages/ui-vue/tests/login-branding.test.js`
+    - a complete boot response is used as-is
+    - production is not shown as an environment badge
+    - ${name}: falls back instead of throwing
+    - without boot and without app branding the card still renders
+    - empty strings from boot do not blank the card
+    - true only for an explicit production environment
+    - a malformed payload is not treated as production
+    - other environments are not production
+
+<!-- END proof -->
 
 ### SC-SCOPE-004 — SaaSiCat does not take payments
 
@@ -219,6 +281,35 @@ exist is an open question, not an oversight.
 
 _Source:_ #175 · `docs/guides/mount-behind-express.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-composition.test.js`
+    - every module a composer mounts is also exported
+        - with every feature on
+        - every declared exception is actually mounted
+        - the probe actually mounts something
+        - a feature that is off is neither mounted nor exported
+    - features are added as composers, not as edits to the assembler
+        - the assembler imports no domain module of its own
+        - there are composers to speak for
+- `packages/nest/tests/saasicat-module.test.js`
+    - SaaSiCatModule.forRoot
+        - throws when neither planCatalog nor planCatalogReadSink is set
+        - quickstart path: planCatalog + 3 adapters are enough
+        - Entitlement opt-in: enabled without repos -&gt; error
+        - Entitlement active with all repos -&gt; 5 sub-modules
+        - accepts empty guards: [] as an explicit choice
+        - composes setup, admin stats, checkout offer and subscription contract
+        - setup and subscription contract can derive their adapters from persistence
+        - the centrally composed optional services resolve in a real Nest container
+        - without defaultPlanId & without planResolver: no entitlement stack
+        - with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered
+        - with quotaProviders: classes become providers + aggregated in the registry token
+
+<!-- END proof -->
+
 ### SC-SCOPE-008 — Anything may be built on SaaSiCat except a competitor to it
 
 🟢 Reading it, running it, changing it, redistributing it, and building and selling a SaaS product on
@@ -234,12 +325,40 @@ is a factual error about its licence, and it is the kind of error that gets repe
 
 _Source:_ ADR 0001
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/license-is-consistent.test.js`
+    - there are packages to check
+    - each one has a LICENSE file
+    - and it is byte-identical to the one at the root
+    - and the license field agrees with the file, everywhere
+    - ${file} quotes it verbatim
+    - the clause is not trivially short, so the check is not trivially true
+
+<!-- END proof -->
+
 ### SC-SCOPE-010 — A published version keeps the licence it was published under
 
 🟢 Rights already granted with a release cannot be withdrawn by a later one. Everything published up
 to and including 0.26.1 stays under the earlier permissive licence.
 
 _Source:_ ADR 0001 · release 0.27.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/license-is-consistent.test.js`
+    - there are packages to check
+    - each one has a LICENSE file
+    - and it is byte-identical to the one at the root
+    - and the license field agrees with the file, everywhere
+    - ${file} quotes it verbatim
+    - the clause is not trivially short, so the check is not trivially true
+
+<!-- END proof -->
 
 ## 2. Capabilities, features and quotas
 
@@ -282,12 +401,61 @@ names one is refused.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-strict-mode.test.js`
+    - validatePlanDraft (pure)
+        - all present → no warnings
+        - unknown feature → PLAN_FEATURE_UNKNOWN
+        - unknown quota key → QUOTA_MISSING
+        - multiple violations → multiple warnings, sorted by features[]/quotas{}
+        - PLAN_FEATURE_UNKNOWN is disjoint from BUNDLE_FEATURE_UNKNOWN
+    - PlanVersionsService — strict mode integration
+        - warn-only: createDraft with unknown feature → 201 + warnings[]
+        - blocking: createDraft with unknown feature → 422
+        - blocking: createDraft with unknown quota → 422 with QUOTA_MISSING
+        - blocking: all present → 201 + warnings=[]
+        - blocking without snapshot source → degrades to warn-only instead of crashing (#25)
+        - blocking: marketed-only feature → NO 422 (allowlist)
+        - blocking: NON-allowlisted unknown feature → still 422
+        - scanner fallback (#25): blocking without token but with DiscoveryScanner enforces
+          correctly
+        - warn-only without snapshot → no check, warnings=[]
+        - blocking: publishPlanVersion runs the strict check on publish too
+        - updatePlanDraft in blocking: drift is rejected
+- `packages/nest/tests/seed-gate.test.js`
+    - validateSeedAgainstSnapshot
+        - all seeded features discovered → overall ok
+        - plan with an undiscovered feature → PLAN_FEATURE_UNKNOWN + error
+        - bundle with an undiscovered feature → BUNDLE_FEATURE_UNKNOWN
+        - undiscovered quota → QUOTA_MISSING
+        - empty input → ok
+        - formatSeedGateReport shows entity + code
+
+<!-- END proof -->
+
 ### SC-CAT-004 — A plan may not reference something no code implements
 
 🟢 A feature no code declares and a limit nothing counts cannot be sold. Code is the source of truth
 for what exists.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-strict-mode.test.js`
+    - validatePlanDraft (pure)
+        - all present → no warnings
+        - unknown feature → PLAN_FEATURE_UNKNOWN
+        - unknown quota key → QUOTA_MISSING
+        - multiple violations → multiple warnings, sorted by features[]/quotas{}
+        - PLAN_FEATURE_UNKNOWN is disjoint from BUNDLE_FEATURE_UNKNOWN
+
+<!-- END proof -->
 
 ### SC-CAT-005 — A marketed non-code feature is the one narrow exception, and is configured explicitly
 
@@ -482,6 +650,8 @@ _Tested by:_
     - no-op when autoSyncDiscoveryAtBoot=false
     - no-op without an injected snapshot
     - swallows a sync error at boot (no boot crash)
+- `packages/ui-vue/tests/component/discovery-page-keeps-the-first-edit.test.ts`
+    - the second payload still holds the first edit
 
 <!-- END proof -->
 
@@ -549,6 +719,13 @@ _Tested by:_
         - no-op when autoSyncDiscoveryAtBoot=false
         - no-op without an injected snapshot
         - swallows a sync error at boot (no boot crash)
+- `packages/nest/tests/discovery-controller.test.js`
+    - DiscoveryController — GET /admin/discovery
+        - returns the discovery snapshot as the body
+        - sets the ETag header with snapshot.hash + scannedAt
+        - returns HTTP 304 + null body on an If-None-Match match
+        - returns the full snapshot when If-None-Match does not match
+        - ignores an empty If-None-Match header
 
 <!-- END proof -->
 
@@ -621,6 +798,34 @@ check runs before the first write of seeded data.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-strict-mode.test.js`
+    - PlanVersionsService — strict mode integration
+        - warn-only: createDraft with unknown feature → 201 + warnings[]
+        - blocking: createDraft with unknown feature → 422
+        - blocking: createDraft with unknown quota → 422 with QUOTA_MISSING
+        - blocking: all present → 201 + warnings=[]
+        - blocking without snapshot source → degrades to warn-only instead of crashing (#25)
+        - blocking: marketed-only feature → NO 422 (allowlist)
+        - blocking: NON-allowlisted unknown feature → still 422
+        - scanner fallback (#25): blocking without token but with DiscoveryScanner enforces
+          correctly
+        - warn-only without snapshot → no check, warnings=[]
+        - blocking: publishPlanVersion runs the strict check on publish too
+        - updatePlanDraft in blocking: drift is rejected
+- `packages/nest/tests/preflight.test.js`
+    - runPreflight
+        - empty catalog → overall=ok, total=0
+        - everything present → overall=ok
+        - plan with unknown feature → overall=error, kind=plan
+        - bundle with unknown feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN
+        - findings are deterministically sorted (kind, entityKey, version, code)
+
+<!-- END proof -->
+
 ## 3. Plans and their versions
 
 A plan is the thing a customer chooses; a version of it is the offer they actually bought. Almost
@@ -634,6 +839,33 @@ bound to cannot be edited, and why nothing published is ever deleted.
 get belongs to the version they bought.
 
 _Source:_ `docs/explanation/concepts.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plans-service.test.js`
+    - PlansService — root operations
+        - createPlan + listPlans + getPlan happy path
+        - createPlan: duplicate planKey → UnprocessableEntity
+        - createPlan: a plan key is taken once for the installation
+        - updatePlan changes label + sortOrder
+        - updatePlan: NotFound for unknown ID
+        - softDeletePlan without versions sets deletedAt + disappears from list
+        - softDeletePlan idempotent (second call without throw)
+        - softDeletePlan: NotFound for unknown ID
+        - softDeletePlan: live version → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - softDeletePlan: superseded version (no live anymore) → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - softDeletePlan: only draft (nothing published) → allowed
+        - hardDeletePlan: without versions → plan is gone from list
+        - hardDeletePlan: with draft → 422 PLAN_HAS_DRAFTS
+        - hardDeletePlan: with published version → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - hardDeletePlan: NotFound for unknown ID
+        - listPlans returns every plan of the installation
+        - listPlans onlyPublished: only plans with a live version
+        - listPlans onlyPublished: superseded version does not count as live
+
+<!-- END proof -->
 
 ### SC-PLAN-002 — A plan has at most one unpublished draft at a time
 
@@ -676,6 +908,12 @@ _Tested by:_
         - terminatePlanVersion: NotFound for unknown ID
         - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto
           succession)
+- `packages/nest/tests/version-publish.test.js`
+    - assertDraftPublishable
+        - accepts a fresh draft
+        - null draft → NOT_FOUND
+        - published draft → ALREADY_PUBLISHED
+        - draft without baseVersionId → NO_BASE_VERSION
 
 <!-- END proof -->
 
@@ -743,6 +981,12 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/core/tests/version-editability.test.js`
+    - drafts remain editable
+    - published-but-future is only editable when latest-in-chain without a subscription
+    - subscriptionCount undefined blocks fail-closed
+    - referenced versions remain frozen
+    - non-latest, superseded and already-active versions remain frozen
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
@@ -787,6 +1031,12 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/core/tests/version-editability.test.js`
+    - drafts remain editable
+    - published-but-future is only editable when latest-in-chain without a subscription
+    - subscriptionCount undefined blocks fail-closed
+    - referenced versions remain frozen
+    - non-latest, superseded and already-active versions remain frozen
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — published-but-future editing (Pack 2c)
         - updatePlanDraft allows published-but-future version (latest, 0 subs)
@@ -805,6 +1055,19 @@ why their price moved. Today the note is optional in the publish interface and a
 none publishes.
 
 _Source:_ current practice
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-publish.test.js`
+    - assertChangeNote
+        - accepts a non-empty note (trimmed)
+        - rejects an empty note
+        - rejects null/undefined
+        - rejects whitespace-only
+
+<!-- END proof -->
 
 ### SC-PLAN-008 — A price of exactly zero has to be meant
 
@@ -833,6 +1096,19 @@ never the outcome of a mis-click.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-publish.test.js`
+    - assertDraftPublishable
+        - accepts a fresh draft
+        - null draft → NOT_FOUND
+        - published draft → ALREADY_PUBLISHED
+        - draft without baseVersionId → NO_BASE_VERSION
+
+<!-- END proof -->
+
 ### SC-PLAN-010 — One regressive change makes the whole version regressive
 
 🟢 A version that improves nine things and lowers one is treated as a change customers feel, because
@@ -856,6 +1132,31 @@ answer to "what was on offer".
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/active-plan-version-query.test.js`
+    - requires publishedAt IS NOT NULL
+    - tolerates validFrom IS NULL (
+    - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
+    - startOfUtcDay normalizes to 00:00 UTC
+    - without withEndsAt: no endsAt clause (CatalogPlanVersion)
+    - withEndsAt: adds an endsAt clause (PlanVersion)
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Plans (validFrom tolerance)
+        - live plan version with validFrom=NULL appears in the catalog
+        - findActivePlanVersion returns the NULL-validFrom version when it is the only live one
+        - dated version wins over NULL-validFrom (fallback, not an override)
+- `packages/nest/tests/validity-window.test.js`
+    - the window a version is published with
+        - the publish call wins over the draft for the start
+        - the draft carries the start when the call does not
+        - an explicit null end means unbounded, not
+        - a silent call still takes the draft’s end
+
+<!-- END proof -->
+
 ### SC-PLAN-012 — There is no gap and no overlap between two versions of a plan
 
 🟢 Where a version states the last day it is valid, its successor starts the next day. A day on which
@@ -864,11 +1165,36 @@ it.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/validity-window.test.js`
+    - the window a version is published with
+        - the publish call wins over the draft for the start
+        - the draft carries the start when the call does not
+        - an explicit null end means unbounded, not
+        - a silent call still takes the draft’s end
+
+<!-- END proof -->
+
 ### SC-PLAN-013 — A version is still valid on its own last day
 
 🟢 Validity dates are inclusive, so an offer does not go dark on the day it is advertised until.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Plans (validUntil day-inclusive)
+        - single-day version (validFrom=validUntil=today) is active today
+        - validUntil = yesterday → dark today
+        - succession without a dead day: v1 (…–today) active today, v2 (tomorrow–) not yet
+
+<!-- END proof -->
 
 ### SC-PLAN-014 — A plan that has ever been published is kept
 
@@ -877,12 +1203,66 @@ and the record has to survive them.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plans-service.test.js`
+    - PlansService — root operations
+        - createPlan + listPlans + getPlan happy path
+        - createPlan: duplicate planKey → UnprocessableEntity
+        - createPlan: a plan key is taken once for the installation
+        - updatePlan changes label + sortOrder
+        - updatePlan: NotFound for unknown ID
+        - softDeletePlan without versions sets deletedAt + disappears from list
+        - softDeletePlan idempotent (second call without throw)
+        - softDeletePlan: NotFound for unknown ID
+        - softDeletePlan: live version → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - softDeletePlan: superseded version (no live anymore) → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - softDeletePlan: only draft (nothing published) → allowed
+        - hardDeletePlan: without versions → plan is gone from list
+        - hardDeletePlan: with draft → 422 PLAN_HAS_DRAFTS
+        - hardDeletePlan: with published version → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - hardDeletePlan: NotFound for unknown ID
+        - listPlans returns every plan of the installation
+        - listPlans onlyPublished: only plans with a live version
+        - listPlans onlyPublished: superseded version does not count as live
+
+<!-- END proof -->
+
 ### SC-PLAN-015 — A plan with an open draft is not removed
 
 🟢 The draft is published or discarded first, so no half-written offer disappears without anyone
 deciding what it was for.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plans-service.test.js`
+    - PlansService — root operations
+        - createPlan + listPlans + getPlan happy path
+        - createPlan: duplicate planKey → UnprocessableEntity
+        - createPlan: a plan key is taken once for the installation
+        - updatePlan changes label + sortOrder
+        - updatePlan: NotFound for unknown ID
+        - softDeletePlan without versions sets deletedAt + disappears from list
+        - softDeletePlan idempotent (second call without throw)
+        - softDeletePlan: NotFound for unknown ID
+        - softDeletePlan: live version → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - softDeletePlan: superseded version (no live anymore) → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - softDeletePlan: only draft (nothing published) → allowed
+        - hardDeletePlan: without versions → plan is gone from list
+        - hardDeletePlan: with draft → 422 PLAN_HAS_DRAFTS
+        - hardDeletePlan: with published version → 422 PLAN_HAS_PUBLISHED_VERSIONS
+        - hardDeletePlan: NotFound for unknown ID
+        - listPlans returns every plan of the installation
+        - listPlans onlyPublished: only plans with a live version
+        - listPlans onlyPublished: superseded version does not count as live
+
+<!-- END proof -->
 
 ### SC-PLAN-016 — A version can be given an end date, and it lies in the future
 
@@ -901,6 +1281,22 @@ _Tested by:_
         - updatePlanDraft blocks published version that is not latest-in-chain
         - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
         - updatePlanDraft fail-closed without SubscriptionRepository
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Plans (validUntil day-inclusive)
+        - single-day version (validFrom=validUntil=today) is active today
+        - validUntil = yesterday → dark today
+        - succession without a dead day: v1 (…–today) active today, v2 (tomorrow–) not yet
+- `packages/nest/tests/validity-window.test.js`
+    - the window a version is refused for
+        - no start at all
+        - a start that is not a date
+        - a start on or before the predecessor’s
+        - a start that leaves a gap after a predecessor that ends
+        - a predecessor without an end imposes no seam
+        - an end that is not a date
+        - an end on or before the start
+        - the codes come from the caller, so a plan refuses as a plan
+        - the gapless refusal says which day it wanted
 
 <!-- END proof -->
 
@@ -910,6 +1306,33 @@ _Tested by:_
 performs and is recorded as having performed.
 
 _Source:_ `docs/explanation/concepts.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-catalog-importer.test.js`
+    - PlanCatalogImporterService
+        - importFromYaml: first round → all created
+        - importFromYaml: second run → all skipped (idempotent)
+        - importFromYaml: plan without monthlyNet → warning + skip PlanVersion
+- `packages/nest/tests/seed-gate-runner.test.js`
+    - runSeedGateFromFile
+        - report-only without snapshot → null + warning, no exit
+        - blocking without snapshot → exit 4
+        - report-only with violations → report, seed continues
+        - blocking with violations → exit 4
+        - clean seed → report ok, no exit
+- `packages/nest/tests/seed-gate.test.js`
+    - validateSeedAgainstSnapshot
+        - all seeded features discovered → overall ok
+        - plan with an undiscovered feature → PLAN_FEATURE_UNKNOWN + error
+        - bundle with an undiscovered feature → BUNDLE_FEATURE_UNKNOWN
+        - undiscovered quota → QUOTA_MISSING
+        - empty input → ok
+        - formatSeedGateReport shows entity + code
+
+<!-- END proof -->
 
 ### SC-PLAN-018 — The version that applies is the one valid on the day of the purchase
 
@@ -921,12 +1344,42 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/adapter-prisma/tests/prisma-plan-binding.test.js`
+    - the omitted schema preserves every 0.6 plan default
+    - normalized mode resolves both directions
+    - catalog read uses the catalog delegate and exposes semantic planKey
+    - catalog import resolves planKey to UUID and writes only the catalog delegate
+    - entitlement and subscription adapters use their delegate and map UUID back
+    - active subscription counts use authoritative PlanVersions
+    - a subscription that has ended is not an active tenant
+    - all subscription operations honor tenantSubscription.delegate, including tx reads
+    - bundle booking count is opt-in and uses active cancellation semantics
+    - findActive is opt-in, day-inclusive and can include endsAt
+    - active lookups prefer a dated version over a legacy NULL validFrom
+    - draft fields, active lookup, atomic publish, succession and termination round-trip
+    - legacy constructor keeps planKey storage and drops unsupported fields
+    - latest live lookup excludes a version whose explicit endsAt elapsed
+    - legacy onlyPublished reads the live versions, and a key names one plan
+    - legacy onlyPublished omits a plan whose only version is a draft
+    - token factories receive normalized schema options
+- `packages/core/tests/active-plan-version-query.test.js`
+    - requires publishedAt IS NOT NULL
+    - tolerates validFrom IS NULL (
+    - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
+    - startOfUtcDay normalizes to 00:00 UTC
+    - without withEndsAt: no endsAt clause (CatalogPlanVersion)
+    - withEndsAt: adds an endsAt clause (PlanVersion)
 - `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
     - answers, using the newest live version for the redundancy hint
     - and the same answer as a schema that does offer the lookup
     - a bundle the plan does not cover gets no redundancy warning either way
     - with no plan repository at all it still answers
     - a repository that offers the lookup and throws inside it is the bug itself
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Plans (validFrom tolerance)
+        - live plan version with validFrom=NULL appears in the catalog
+        - findActivePlanVersion returns the NULL-validFrom version when it is the only live one
+        - dated version wins over NULL-validFrom (fallback, not an override)
 
 <!-- END proof -->
 
@@ -936,12 +1389,36 @@ _Tested by:_
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-publish.test.js`
+    - assertOptimisticLockHeld
+        - accepts exactly 1 update
+        - 0 updates → OPTIMISTIC_LOCK_CONFLICT
+        - multiple updates → OPTIMISTIC_LOCK_CONFLICT
+
+<!-- END proof -->
+
 ### SC-PLAN-020 — A draft built on a version that has since been retired has to be rebased
 
 🟢 Publishing it as it stands would put an offer live that was written against something no longer
 current.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-publish.test.js`
+    - assertBaseVersionFresh
+        - accepts a non-superseded base
+        - null base → BASE_NOT_FOUND
+        - superseded base → BASE_SUPERSEDED
+
+<!-- END proof -->
 
 ### SC-PLAN-021 — A plan that is not sold self-service says so and says who to ask
 
@@ -962,6 +1439,16 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/cli/tests/generated-catalog-loads.test.js`
+    - with a single quota
+    - with several, including a camel-cased key
+    - and with --skip-hasher, which does not touch the catalogue
+    - the check is not vacuous — a hand-broken catalogue is refused
+- `packages/nest/tests/plan-catalog-importer.test.js`
+    - PlanCatalogImporterService
+        - importFromYaml: first round → all created
+        - importFromYaml: second run → all skipped (idempotent)
+        - importFromYaml: plan without monthlyNet → warning + skip PlanVersion
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - loadPlanCatalogFromString accepts valid example
     - loadPlanCatalogFromString rejects schemaVersion != 1
@@ -995,6 +1482,11 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/cli/tests/generated-catalog-loads.test.js`
+    - with a single quota
+    - with several, including a camel-cased key
+    - and with --skip-hasher, which does not touch the catalogue
+    - the check is not vacuous — a hand-broken catalogue is refused
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - loadPlanCatalogFromString accepts valid example
     - loadPlanCatalogFromString rejects schemaVersion != 1
@@ -1024,6 +1516,16 @@ Gaps an operator deliberately left are preserved, and a plan with no live versio
 grab, because there is nothing to order.
 
 _Source:_ release 1.0.0-rc.4
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — comparison matrix (staircase sorting)
+        - feature rows: widest coverage first, on a tie the leading plan column
+
+<!-- END proof -->
 
 ## 4. Add-on bundles
 
@@ -1198,6 +1700,26 @@ _Tested by:_
         - a bundle with no price in the asked rhythm is refused, not given away
         - the preview names the day the plan takes the bundle down with it
         - a plan that runs on names no end at all
+- `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
+    - no control appears, because there is one legal answer
+    - the card quotes the monthly price with the monthly unit
+    - buying sends the rhythm rather than leaving it to be guessed
+    - the control appears, preselected to the plan — nobody is repriced by an upgrade
+    - switching moves the price and the unit together
+    - buying sends what was chosen, not what the plan is
+    - is not offered, and says why instead of showing a price
+    - becomes bookable again when the other rhythm is chosen
+    - keeps the reason that actually explains it when it is already booked
+    - an untouched control follows the plan when it turns yearly
+    - a rhythm the tenant chose survives a plan change that still offers it
+    - a choice the plan took away does not come back as a choice
+    - drops a selection the plan no longer offers
+    - a yearly booking states the yearly charge, not a monthly figure
+    - a monthly booking beside a yearly plan reads as monthly
+    - a price only an override supplies is shown, though no catalogue price exists
+    - a booking from before the rhythm was recorded takes the plan
+    - a price the server did not send is joined from the catalogue in the booking
+    - a price the server resolved to nothing is shown as nothing
 
 <!-- END proof -->
 
@@ -1260,6 +1782,27 @@ _Source:_ #239
 
 _Tested by:_
 
+- `packages/core/tests/bundle-defaults-are-decided-once.test.js`
+    - an omitted quota map is empty, not absent
+    - an omitted price is null, not zero
+    - an unstated bundle is marketed
+    - …and an explicit false stays false
+    - an omitted change note is empty, and lineage is null
+    - everything given is passed through untouched
+    - it says nothing about validity windows
+    - an omitted description or icon is null, not an empty string
+    - an unstated sort order is zero, and an explicit zero survives
+    - an omitted translation map is empty
+    - the identity fields are carried straight over
+    - dates become ISO strings, because that is what the row type says
+    - a retired stem carries its date rather than a flag
+    - an i18n map is passed through
+    - anything that is not a map becomes one
+    - an omitted field is not in the patch at all
+    - an explicit null is kept, because somebody chose it
+    - falsy values are values
+    - a key that was not asked for is not in the patch
+    - an empty patch is empty, not undefined
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -1440,6 +1983,27 @@ _Source:_ #222
 
 _Tested by:_
 
+- `packages/core/tests/bundle-defaults-are-decided-once.test.js`
+    - an omitted quota map is empty, not absent
+    - an omitted price is null, not zero
+    - an unstated bundle is marketed
+    - …and an explicit false stays false
+    - an omitted change note is empty, and lineage is null
+    - everything given is passed through untouched
+    - it says nothing about validity windows
+    - an omitted description or icon is null, not an empty string
+    - an unstated sort order is zero, and an explicit zero survives
+    - an omitted translation map is empty
+    - the identity fields are carried straight over
+    - dates become ISO strings, because that is what the row type says
+    - a retired stem carries its date rather than a flag
+    - an i18n map is passed through
+    - anything that is not a map becomes one
+    - an omitted field is not in the patch at all
+    - an explicit null is kept, because somebody chose it
+    - falsy values are values
+    - a key that was not asked for is not in the patch
+    - an empty patch is empty, not undefined
 - `packages/nest/tests/subscription-bundles-service.test.js`
     - SubscriptionBundlesService — addBundleToSubscription
         - a booking commits the tenant to nothing unless somebody says so
@@ -1517,6 +2081,13 @@ _Tested by:_
     - what the dialog promises before the booking
         - states the capped term, not the uncapped one
         - and the full term where nothing ends the parent
+- `packages/ui-vue-tenant/tests/component/a-booking-states-what-it-commits-to.test.ts`
+    - the date the first period runs to is on the screen
+    - a booking with no period to align to says nothing rather than nothing-as-a-date
+    - a plan that is already ending names the day
+    - a plan that runs on shows no end date
+    - the no-refund rule holds whether or not the plan is ending
+    - a cancellation preview does not repeat the booking terms
 
 <!-- END proof -->
 
@@ -1688,6 +2259,32 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/core/tests/bundle-availability.test.js`
+    - returns uncovered requires sorted + deduplicated
+    - empty when all requires are covered
+    - empty when the bundle has no requires
+    - bookable when requires covered and features are new
+    - missing-requires grays out bundle on uncovered prerequisite
+    - covered when all bundle features are already covered (already included)
+    - covered beats missing-requires (fully covered bundle never bookable)
+    - partial coverage stays bookable (not covered)
+    - bundle without features is never covered
+    - plan ∪ features of the other selected bundles, without the bundle itself
+    - excludes own features (otherwise every bundle would be trivially covered)
+    - Y is redundant when C is already covered by Z
+    - Z is not redundant — D is not covered elsewhere
+    - redundant when the plan already contains the features
+    - single selected bundle is not redundant (self-exclusion)
+    - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
+    - input order irrelevant — sorting determines the kept one (z remains)
+    - sortOrder controls which bundle is kept
+    - 3-cycle of identical bundles → exactly ONE remains
+    - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
+    - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
+    - bundles covered by the plan are discarded
+    - disjoint bundles are all kept
+    - empty selection → empty result
+    - does not mutate the input
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - which bundles a tenant may ask the price of
         - a draft is not priced, because it was never on offer
@@ -1763,6 +2360,32 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/core/tests/bundle-availability.test.js`
+    - returns uncovered requires sorted + deduplicated
+    - empty when all requires are covered
+    - empty when the bundle has no requires
+    - bookable when requires covered and features are new
+    - missing-requires grays out bundle on uncovered prerequisite
+    - covered when all bundle features are already covered (already included)
+    - covered beats missing-requires (fully covered bundle never bookable)
+    - partial coverage stays bookable (not covered)
+    - bundle without features is never covered
+    - plan ∪ features of the other selected bundles, without the bundle itself
+    - excludes own features (otherwise every bundle would be trivially covered)
+    - Y is redundant when C is already covered by Z
+    - Z is not redundant — D is not covered elsewhere
+    - redundant when the plan already contains the features
+    - single selected bundle is not redundant (self-exclusion)
+    - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
+    - input order irrelevant — sorting determines the kept one (z remains)
+    - sortOrder controls which bundle is kept
+    - 3-cycle of identical bundles → exactly ONE remains
+    - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
+    - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
+    - bundles covered by the plan are discarded
+    - disjoint bundles are all kept
+    - empty selection → empty result
+    - does not mutate the input
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - an operator publishes a bundle
         - a base price is enough
@@ -1830,6 +2453,19 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/adapter-prisma/tests/prisma-bundle.repository.test.js`
+    - legacy default never requires, writes or exposes validity columns
+    - enabled mode round-trips validity dates on create and update
+    - enabled mode resolves the active version with inclusive days and deterministic priority
+    - enabled publish is internally atomic and applies auto-succession
+    - enabled publish refuses a version somebody else published first
+    - enabled publish reuses a caller transaction instead of nesting one
+- `packages/nest/tests/subscription-bundle-repo.test.js`
+    - SubscriptionBundleRepository — lifecycle
+        - add + listBySubscription returns the new booking
+        - listActiveBySubscription filters canceled bookings with a past effective date
+        - cancel: second call throws
+        - countActiveByBundleVersionId counts only non-canceled (or future-effective) bookings
 - `packages/nest/tests/subscription-bundles-service.test.js`
     - SubscriptionBundlesService — addBundleToSubscription
         - a booking commits the tenant to nothing unless somebody says so
@@ -1859,6 +2495,12 @@ _Tested by:_
         - minimum term binds beyond period end → effectiveAt + warning
         - already canceled → blocker
         - foreign subscription → NotFound (no cross-tenant leak)
+- `packages/nest/tests/subscription-bundle-repo.test.js`
+    - SubscriptionBundleRepository — lifecycle
+        - add + listBySubscription returns the new booking
+        - listActiveBySubscription filters canceled bookings with a past effective date
+        - cancel: second call throws
+        - countActiveByBundleVersionId counts only non-canceled (or future-effective) bookings
 - `packages/nest/tests/subscription-bundles-service.test.js`
     - SubscriptionBundlesService — cancelBundleFromSubscription
         - canceledEffectiveAt = currentPeriodEnd when the minimum term has already elapsed
@@ -1906,6 +2548,11 @@ _Tested by:_
     - a consumer without the bundle module is not blocked by bookings it cannot have
     - moving to a LONGER cycle with a monthly add-on is fine
     - the date falls back to the minimum term where no period is stored
+- `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
+    - the plan-change rule reaches the bookings in a real container
+        - a yearly add-on blocks a move to monthly when the module is composed normally
+        - it asks as of the day the change lands, not today
+        - nothing booked, nothing blocked
 
 <!-- END proof -->
 
@@ -1997,6 +2644,20 @@ not configured that never happened — silently.
 
 _Source:_ release 0.14.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — bundles booked after the contract was signed
+        - adds features and quotas of a bundle missing from the contract
+        - does not count a bundle already frozen into the contract twice
+        - skips a bundle already covered by a contract line item
+        - does not grant a plannedOnly feature from a later bundle
+        - ignores a booking that is already canceled
+
+<!-- END proof -->
+
 ## 5. Subscriptions, terms and billing periods
 
 This chapter is about time: when a term starts, how long it runs, which day of the month a tenant
@@ -2009,6 +2670,23 @@ works. It is here because the one case where it did not work — a billing day q
 🟢
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
+    - the no-options default preserves the 0.6 plan-only write
+    - opening a window records the day the subscription is billed on
+    - and a change that opens none leaves it alone
+    - normalized mode binds semantic plan and active version atomically with named delegates
+    - a pending version of the same target plan is retained
+    - a failing onboarding callback rolls plan and version back together
+    - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
+    - pending PlanVersion acceptance rejects a changed CAS target and a missing target
+    - invalid validity capability combinations fail at construction
+
+<!-- END proof -->
 
 ### SC-SUB-002 — The minimum term is the billing period that was chosen, and it starts at activation
 
@@ -2033,6 +2711,20 @@ _Tested by:_
 🟢 💰 The commitment renews with the period, because the commitment is the period.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-renewal.test.js`
+    - decideRenewal
+        - SKIP when no pending version
+        - SKIP when EffectiveAt is in the future
+        - ROLL_FORWARD when nonRegressive=true
+        - ROLL_FORWARD when accepted=true (even if regressive)
+        - CLEAR_PENDING when regressive + not accepted (variant B)
+
+<!-- END proof -->
 
 ### SC-SUB-004 — A short month does not move the billing day
 
@@ -2101,6 +2793,16 @@ _Tested by:_
         - while a possible one is used
     - an impossible anchor handed to the iteration
         - is treated as absent for the whole walk, not for each step
+- `packages/nest/tests/version-renewal.test.js`
+    - computeNextPeriod
+        - a declared cancellation does not stop the period from rolling
+        - a landed cancellation does
+        - the renewed period is also the renewed commitment
+        - null when currentPeriodEnd null (Trial)
+        - null when currentPeriodEnd is in the future
+        - rolls MONTHLY period +1 month (daily cron, periodEnd 1 day before now)
+        - rolls YEARLY period +1 year
+        - cron lag: with several missed periods, jumps to the next future period
 
 <!-- END proof -->
 
@@ -2123,7 +2825,7 @@ _Tested by:_
     - periodEndAfter YEARLY — skips multiple years
     - periodEndAfter with null startedAt — iterate from now
     - periodEndWithMinLead YEARLY with ≥42d lead — directly currentPeriodEnd
-    - periodEndWithMinLead MONTHLY with <42d lead — skips period
+    - periodEndWithMinLead MONTHLY with &lt;42d lead — skips period
     - periodEndWithMinLead — minLeadDays configurable (14d, accepts exactly 14d)
     - periodEndWithMinLead — minLeadDays 15d on same date jumps to next period
 
@@ -2134,6 +2836,20 @@ _Tested by:_
 🟢 A trial, or a subscription still waiting on a negotiated contract, has nothing to roll forward.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/version-renewal.test.js`
+    - decideRenewal
+        - SKIP when no pending version
+        - SKIP when EffectiveAt is in the future
+        - ROLL_FORWARD when nonRegressive=true
+        - ROLL_FORWARD when accepted=true (even if regressive)
+        - CLEAR_PENDING when regressive + not accepted (variant B)
+
+<!-- END proof -->
 
 ### SC-SUB-008 — A declared cancellation does not stop the renewal until it lands
 
@@ -2251,6 +2967,9 @@ _Tested by:_
     - accepting a version after the subscription ended
         - is refused rather than recorded against a dead contract
         - while a running subscription accepts as before
+- `packages/nest/tests/version-renewal.test.js`
+    - clearPendingPlanVersionFields
+        - returns all pending fields as null/false
 
 <!-- END proof -->
 
@@ -2294,6 +3013,18 @@ the caller, and why the date a tenant saw is the date they get.
 was still inside. A wizard is not a guard.
 
 _Source:_ #212 · release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a plan change is timed by the rules, not by the request
+        - a caller asking for
+        - a caller asking for nothing on an immediate change still gets it today
+        - the scheduled date is the preview
+
+<!-- END proof -->
 
 ### SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
 
@@ -2415,6 +3146,31 @@ _Tested by:_
     - the deferred upgrade explains itself
         - a yearly customer choosing a monthly higher plan is told why it waits
         - the same upgrade on the same cycle happens now and says nothing
+- `packages/ui-vue-tenant/tests/component/a-later-change-is-acknowledged.test.ts`
+    - the block appears, led by what the customer does not get today
+    - it offers the alternative rather than only describing it
+    - the confirmation is locked until it is acknowledged
+    - an ordinary upgrade shows none of it
+    - a downgrade is a different sentence, not this one
+    - the heading counts the features and dates the loss
+    - every lost feature is listed, not just counted
+    - the confirmation is locked until it is acknowledged
+    - a downgrade that costs no feature says so instead of counting zero
+    - it says the rhythm changes later, and a new term starts then
+    - the confirmation is locked until it is acknowledged
+    - the effective date is set in bold, the rest is not
+    - the block disappears once the preview describes the new choice
+- `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
+    - no plan chosen: pressing next changes nothing
+    - choosing the plan the tenant is already on is not a change
+    - a different plan advances
+    - no plan chosen: the button is disabled
+    - the plan the tenant is already on: still disabled
+    - a different plan: enabled
+    - on the preview step it follows the blockers
+    - advancing moves focus to the new heading
+    - a refused move leaves focus alone
+    - exactly one step is marked current, and it carries a word
 
 <!-- END proof -->
 
@@ -2425,12 +3181,52 @@ applied. A wrong date here is a year of somebody's money, and the page can ask a
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-confirmed-date-is-the-one-that-applies.test.js`
+    - the confirmed date is the one that applies
+        - a matching expectation goes through
+        - a stale one is refused, and the answer carries the new date
+        - no expectation still works
+- `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
+    - no plan chosen: pressing next changes nothing
+    - choosing the plan the tenant is already on is not a change
+    - a different plan advances
+    - no plan chosen: the button is disabled
+    - the plan the tenant is already on: still disabled
+    - a different plan: enabled
+    - on the preview step it follows the blockers
+    - advancing moves focus to the new heading
+    - a refused move leaves focus alone
+    - exactly one step is marked current, and it carries a word
+
+<!-- END proof -->
+
 ### SC-CHG-010 — Every refusal the preview shows is also enforced where the change is made
 
 🟢 A caller that skips the preview meets the same answer. A refusal only the client honours is not
 enforcement.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
+    - the plan-change rule reaches the bookings in a real container
+        - a yearly add-on blocks a move to monthly when the module is composed normally
+        - it asks as of the day the change lands, not today
+        - nothing booked, nothing blocked
+- `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
+    - a plan change is timed by the rules, not by the request
+        - a caller asking for
+        - a caller asking for nothing on an immediate change still gets it today
+        - the scheduled date is the preview
+
+<!-- END proof -->
 
 ### SC-CHG-011 — A decision taken against one state is not written into another
 
@@ -2870,6 +3666,21 @@ _Tested by:_
     - confirming a cancellation that lands immediately
         - is not refused for having read the clock a moment earlier
         - but a date still in the future is refused
+- `packages/ui-vue-tenant/tests/component/an-ended-subscription-reads-as-ended.test.ts`
+    - says so, in the past tense
+    - and offers neither of the two acts it no longer has
+    - runs unchanged, and says that instead
+    - and the plan can still be changed
+    - says nothing about one and offers both acts
+    - is read from the only column it has
+    - follows the boundary instead of the last render
+    - reaches a boundary further away than one hop
+    - and asks for no delay the platform would truncate
+    - shows an ended subscription as cancelled, whatever its status column says
+    - and a running one keeps its badge and its billing date
+    - offers no pending version to accept once the contract is over
+    - while a running subscription is asked about it
+    - is measured from now, not from when the card was created
 
 <!-- END proof -->
 
@@ -2890,6 +3701,28 @@ _Tested by:_
         - the frozen contract is ended on the same date
         - and a cancellation already recorded repairs its contract too
         - and a consumer without contracts is unaffected
+- `packages/ui-vue-tenant/tests/component/a-cancelled-plan-still-runs.test.ts`
+    - the tenant is offered the act
+    - and told nothing about a cancellation
+    - the date is shown, not just the word
+    - and the subscription is described as unchanged until then
+    - the act is no longer offered
+    - changing plan still is
+- `packages/ui-vue-tenant/tests/component/an-ended-subscription-reads-as-ended.test.ts`
+    - says so, in the past tense
+    - and offers neither of the two acts it no longer has
+    - runs unchanged, and says that instead
+    - and the plan can still be changed
+    - says nothing about one and offers both acts
+    - is read from the only column it has
+    - follows the boundary instead of the last render
+    - reaches a boundary further away than one hop
+    - and asks for no delay the platform would truncate
+    - shows an ended subscription as cancelled, whatever its status column says
+    - and a running one keeps its badge and its billing date
+    - offers no pending version to accept once the contract is over
+    - while a running subscription is asked about it
+    - is measured from now, not from when the card was created
 
 <!-- END proof -->
 
@@ -2974,6 +3807,8 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/core/tests/codegen-drift.test.js`
+    - ${genFile} is in sync with ${file}
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it
         - the matrix asks more of a trial than of a term
@@ -3034,11 +3869,51 @@ _Source:_ release 1.0.0-rc.6
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-plan-resolution.test.js`
+    - resolveEntitlementPlan — Trial / Pilot / Pending
+        - Default: no override → subscription.plan
+        - Pilot: pilotEntitlementPlan overrides
+        - Pilot without config: falls back to subscription.plan
+        - TRIAL: subscription.trialEntitlementPlan wins
+        - TRIAL without trialEntitlementPlan: falls back to defaultTrialEntitlementPlan
+        - TRIAL with no config at all: falls back to subscription.plan
+        - PENDING_SALES: pendingSalesEntitlementPlan overrides
+        - Pending plan change: takes effect once pendingEffectiveAt is in the past
+        - Pending plan change: does NOT take effect while pendingEffectiveAt is in the future
+        - Pilot beats pending plan change: Pilot dominates
+        - TRIAL beats pending plan change: Trial dominates
+
+<!-- END proof -->
+
 ### SC-SPEC-006 — A pilot arrangement outranks every other way of resolving what a tenant may do
 
 🟢 Ahead of trial, ahead of a pending negotiation, ahead of a scheduled change.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-plan-resolution.test.js`
+    - resolveEntitlementPlan — Trial / Pilot / Pending
+        - Default: no override → subscription.plan
+        - Pilot: pilotEntitlementPlan overrides
+        - Pilot without config: falls back to subscription.plan
+        - TRIAL: subscription.trialEntitlementPlan wins
+        - TRIAL without trialEntitlementPlan: falls back to defaultTrialEntitlementPlan
+        - TRIAL with no config at all: falls back to subscription.plan
+        - PENDING_SALES: pendingSalesEntitlementPlan overrides
+        - Pending plan change: takes effect once pendingEffectiveAt is in the past
+        - Pending plan change: does NOT take effect while pendingEffectiveAt is in the future
+        - Pilot beats pending plan change: Pilot dominates
+        - TRIAL beats pending plan change: Trial dominates
+
+<!-- END proof -->
 
 ### SC-SPEC-007 — Granting, withdrawing or extending a pilot is a deliberate operator act
 
@@ -3054,6 +3929,19 @@ is an addition.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - applyCustomLimits
+        - null/undefined custom: no change
+        - quotas override overwrites field by field
+        - features override adds
+        - mutation of the input is forbidden (pure function)
+
+<!-- END proof -->
+
 ### SC-SPEC-009 — A subscription waiting on a negotiated contract falls back to a named interim plan
 
 🟢 It has no billing period, and cancelling it takes effect immediately, because there is nothing
@@ -3065,6 +3953,19 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-plan-resolution.test.js`
+    - resolveEntitlementPlan — Trial / Pilot / Pending
+        - Default: no override → subscription.plan
+        - Pilot: pilotEntitlementPlan overrides
+        - Pilot without config: falls back to subscription.plan
+        - TRIAL: subscription.trialEntitlementPlan wins
+        - TRIAL without trialEntitlementPlan: falls back to defaultTrialEntitlementPlan
+        - TRIAL with no config at all: falls back to subscription.plan
+        - PENDING_SALES: pendingSalesEntitlementPlan overrides
+        - Pending plan change: takes effect once pendingEffectiveAt is in the past
+        - Pending plan change: does NOT take effect while pendingEffectiveAt is in the future
+        - Pilot beats pending plan change: Pilot dominates
+        - TRIAL beats pending plan change: Trial dominates
 - `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
     - a tenant still waiting on sales
         - cancels immediately, because nothing was ever committed
@@ -3174,6 +4075,17 @@ _Source:_ release 1.0.0-rc.6
 
 _Source:_ #222
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
+    - the answer to the abandoned question is taken off the screen
+    - and the confirmation cannot be given
+    - the outdated one does not install itself
+
+<!-- END proof -->
+
 ### SC-PRIC-007 — An amount a tenant sees is the amount that is charged
 
 🟢 💰 Money is held to two decimal places and never as a floating-point number, and the same
@@ -3182,6 +4094,20 @@ Discounts, part periods and tax do not accumulate a difference between what a pa
 billed.
 
 _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/a-price-lookup-stays-inside-its-limit.test.js`
+    - asks for nothing when there is nothing to ask about
+    - sends one request while the catalogue fits
+    - splits a catalogue larger than the cap instead of being rejected whole
+    - merges what the batches answer
+    - a consumer without the endpoint keeps the catalogue rather than breaking
+    - a failed lookup is not the same answer as an absent one
+
+<!-- END proof -->
 
 ### SC-PRIC-008 — Gross, net and tax are one calculation, stated once
 
@@ -3204,11 +4130,37 @@ _Source:_ #217 · #214
 
 _Source:_ `docs/reference/options.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
+        - priceTag of the bundle MarketingProjection lands in the payload
+        - priceTag is null without a MarketingProjection (backward compatible)
+        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
+          FeatureCatalogEntries (incl. i18n)
+        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
+          (graceful)
+
+<!-- END proof -->
+
 ### SC-PRIC-011 — A plan that is not marketed has no list price
 
 🟢 💰 It is sold by negotiation, and no page invents a figure for it.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
+    - PublicMarketingCatalogService — Plan priceTag (#47)
+        - the plan MarketingProjection priceTag lands in the payload
+        - priceTag is null when the projection maintains none (backwards compatible)
+
+<!-- END proof -->
 
 ### SC-PRIC-012 — A contract mixing rhythms totals one period of its own rhythm
 
@@ -3217,11 +4169,32 @@ once.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a yearly contract holding a monthly add-on
+        - counts the add-on as often as it falls due
+        - a yearly add-on beside a yearly plan is counted once
+        - a monthly contract adds a monthly add-on as it stands
+
+<!-- END proof -->
+
 ### SC-PRIC-013 — Amounts of money cross the wire exactly, not as approximations
 
 🟢 💰 So that nothing is lost between the system that computed a figure and the one that shows it.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/every-wire-date-is-hydrated.test.js`
+    - ${subject.record} → ${subject.converterName}
+
+<!-- END proof -->
 
 ### SC-PRIC-014 — The number of decimal places follows the currency
 
@@ -3241,6 +4214,24 @@ _Source:_ #214
 🟢 💰 A contract concluded at 19 % is charged 19 % for its term, whatever the rate later becomes.
 
 _Source:_ #217 · #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/validity-window.test.js`
+    - the window a version is refused for
+        - no start at all
+        - a start that is not a date
+        - a start on or before the predecessor’s
+        - a start that leaves a gap after a predecessor that ends
+        - a predecessor without an end imposes no seam
+        - an end that is not a date
+        - an end on or before the start
+        - the codes come from the caller, so a plan refuses as a plan
+        - the gapless refusal says which day it wanted
+
+<!-- END proof -->
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 
@@ -3296,6 +4287,19 @@ _Source:_ `docs/explanation/concepts.md`
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - aggregateLimits — main aggregator
+        - plan default without bundles
+        - plan + bundle quotas sum additively
+        - bundle features add to the features set
+        - plannedOnly features are consistently hidden
+        - customLimits.quotas overrides plan + bundles
+        - canceled bundles (canceledEffectiveAt &lt; now) are not included
+        - bundle quota in a quota dimension the plan does not have is passed through
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — deriveLimits + Resolution
+        - TRIAL: uses trialEntitlementPlan via DB lookup
+        - Pilot with config: pilotEntitlementPlan overrides
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
     - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
     - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
@@ -3318,6 +4322,15 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - aggregateLimits — main aggregator
+        - plan default without bundles
+        - plan + bundle quotas sum additively
+        - bundle features add to the features set
+        - plannedOnly features are consistently hidden
+        - customLimits.quotas overrides plan + bundles
+        - canceled bundles (canceledEffectiveAt &lt; now) are not included
+        - bundle quota in a quota dimension the plan does not have is passed through
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
     - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
     - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
@@ -3336,11 +4349,40 @@ the catalogue and still not be handed over.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - filterPlannedOnlyFeatures
+        - plannedOnly features are filtered out
+        - unknown features (not in catalog) stay in
+
+<!-- END proof -->
+
 ### SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
 
 🟢 Catalogue edits do not reach a running contract.
 
 _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - toEffectiveLimitsSnapshot
+        - set becomes sorted array (deterministic)
+        - snapshot is independent of the original quota object (deep copy)
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — deriveLimits + Resolution
+        - TRIAL: uses trialEntitlementPlan via DB lookup
+        - Pilot with config: pilotEntitlementPlan overrides
+    - EntitlementService — V3 ContractLineItems
+        - reads entitlements from active contract snapshot without catalog join
+        - Contract entitlementSnapshot wins over line-item aggregation
+
+<!-- END proof -->
 
 ### SC-ENTL-005 — A request for something the contract does not include is refused
 
@@ -3354,6 +4396,11 @@ _Source:_ `README.md` · `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - hasFeature / hasAnyFeature
+        - hasFeature matches
+        - hasAnyFeature: at least one is enough
+        - hasAnyFeature: empty list → false
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — annotation evaluation
         - lets routes without @RequireFeature pass unchecked
@@ -3365,6 +4412,15 @@ _Tested by:_
         - Logical OR: none match → Forbidden with all keys in the message
         - Class-level annotation applies when the handler has none
         - Handler annotation overrides class annotation
+- `packages/ui-vue/tests/feature-gate.test.js`
+    - app.provide is called with the inject key
+    - route without meta.requiresFeature always passes
+    - no entitlement bound -&gt; pass
+    - feature present -&gt; pass
+    - feature missing + no redirectTo -&gt; next(false)
+    - feature missing + redirectTo -&gt; next(
+    - array requiresFeature -&gt; logical OR
+    - loading + null snapshot + allowWhileLoading default -&gt; pass
 
 <!-- END proof -->
 
@@ -3397,12 +4453,44 @@ that each fit both go through and the limit an operator sold is not the limit th
 
 _Source:_ `docs/explanation/data-model.md` · `docs/reference/options.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — transactional
+        - insert runs when under the limit
+        - LimitExceededError when insert would exceed the limit
+        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
+        - -1 (unlimited) never blocks
+        - NotFound when subscription is missing
+        - Error for unknown quota dimension
+    - EntitlementService.enforceLimit — forwards tx to lookup ports (#70)
+        - contract, bundle and bundle-version lookups receive the runner tx
+
+<!-- END proof -->
+
 ### SC-ENTL-008 — A single large action can be refused by a limit it would cross in one go
 
 🟢 The check is against what the action would consume, not against a single unit, so one ten-gigabyte
 file does not fit under a one-gigabyte allowance.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — transactional
+        - insert runs when under the limit
+        - LimitExceededError when insert would exceed the limit
+        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
+        - -1 (unlimited) never blocks
+        - NotFound when subscription is missing
+        - Error for unknown quota dimension
+
+<!-- END proof -->
 
 ### SC-ENTL-009 — The declarative check is a guard, not a guarantee
 
@@ -3429,6 +4517,18 @@ _Tested by:_
 because an installation has not finished wiring a counter.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/saasicat-module.test.js`
+    - StaticEntitlementService (via StaticPlanResolver)
+        - snapshot returns features+quotas from the plan catalog
+        - hasFeature + quotaLimit as convenience methods
+        - snapshot with an unresolved plan = empty set
+
+<!-- END proof -->
 
 ### SC-ENTL-011 — Enforcing a limit nobody declared is the installation's fault, not the tenant's
 
@@ -3488,6 +4588,13 @@ _Tested by:_
     - while a subscription is running
         - it is granted its plan
         - and a cancellation still to come changes nothing
+- `packages/ui-vue-tenant/tests/component/a-cancelled-plan-still-runs.test.ts`
+    - the tenant is offered the act
+    - and told nothing about a cancellation
+    - the date is shown, not just the word
+    - and the subscription is described as unchanged until then
+    - the act is no longer offered
+    - changing plan still is
 
 <!-- END proof -->
 
@@ -3557,6 +4664,14 @@ _Tested by:_
     - a cached answer at the cancellation boundary
         - is not served past the moment it ends
         - and is still served inside its ordinary lifetime
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — computeLimits + Cache
+        - returns plan default limits for STANDARD
+        - second call on the same tenant does NOT hit the DB
+        - NotFound for unknown tenant
+        - invalidateTenant forces a re-read
+        - TTL: reloads after &gt;60 s
+        - different tenants are cached separately
 
 <!-- END proof -->
 
@@ -3627,6 +4742,22 @@ constructs the request by hand gets the same answer.
 
 _Source:_ `docs/guides/build-the-admin-frontend.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/feature-gate.test.js`
+    - app.provide is called with the inject key
+    - route without meta.requiresFeature always passes
+    - no entitlement bound -&gt; pass
+    - feature present -&gt; pass
+    - feature missing + no redirectTo -&gt; next(false)
+    - feature missing + redirectTo -&gt; next(
+    - array requiresFeature -&gt; logical OR
+    - loading + null snapshot + allowWhileLoading default -&gt; pass
+
+<!-- END proof -->
+
 ## 11. Promotional codes
 
 A promotional code is a discount an operator can hand out without a developer. The requirements
@@ -3640,17 +4771,77 @@ half-applies is worse than none.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — validation
+        - accepts a valid code
+        - rejects a code with an invalid pattern
+        - PERCENT must be 0–100
+        - ABSOLUTE must be positive
+        - ONCE must not have a durationValue
+        - MONTHS / BILLING_CYCLES need 1–24 as durationValue
+        - rejects the nonRedeemablePlans whitelist (ENTERPRISE)
+        - rejects validUntil ≤ validFrom
+        - rejects ABSOLUTE ≥ lowest plan gross without allowZeroInvoice
+        - accepts an ABSOLUTE discount ≥ plan gross when allowZeroInvoice=true
+        - rejects a duplicate code
+
+<!-- END proof -->
+
 ### SC-PROMO-002 — A code with a redemption limit cannot be over-redeemed
 
 🟢 However many people try at the same moment. It closes itself once it is full.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — validation
+        - accepts a valid code
+        - rejects a code with an invalid pattern
+        - PERCENT must be 0–100
+        - ABSOLUTE must be positive
+        - ONCE must not have a durationValue
+        - MONTHS / BILLING_CYCLES need 1–24 as durationValue
+        - rejects the nonRedeemablePlans whitelist (ENTERPRISE)
+        - rejects validUntil ≤ validFrom
+        - rejects ABSOLUTE ≥ lowest plan gross without allowZeroInvoice
+        - accepts an ABSOLUTE discount ≥ plan gross when allowZeroInvoice=true
+        - rejects a duplicate code
+
+<!-- END proof -->
+
 ### SC-PROMO-003 — A redemption limit can be raised, never lowered
 
 🟢 Lowering it would retroactively invalidate redemptions that already happened.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — validation
+        - accepts a valid code
+        - rejects a code with an invalid pattern
+        - PERCENT must be 0–100
+        - ABSOLUTE must be positive
+        - ONCE must not have a durationValue
+        - MONTHS / BILLING_CYCLES need 1–24 as durationValue
+        - rejects the nonRedeemablePlans whitelist (ENTERPRISE)
+        - rejects validUntil ≤ validFrom
+        - rejects ABSOLUTE ≥ lowest plan gross without allowZeroInvoice
+        - accepts an ABSOLUTE discount ≥ plan gross when allowZeroInvoice=true
+        - rejects a duplicate code
+
+<!-- END proof -->
 
 ### SC-PROMO-004 — A code that has been redeemed is never deleted; it is paused
 
@@ -3670,12 +4861,40 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+
+<!-- END proof -->
+
 ### SC-PROMO-007 — A one-off discount carries no duration and applies to the first invoice only
 
 🟢 The regular price applies from the second period. The two forms are alternatives, and a code
 claiming both describes nothing.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+
+<!-- END proof -->
 
 ### SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
 
@@ -3684,11 +4903,37 @@ invoice of zero. Otherwise a code quietly makes a plan free.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+
+<!-- END proof -->
+
 ### SC-PROMO-009 — A plan may be marked as not discountable
 
 🟢 A code cannot be created for it and never validates against it.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.redeem — eligibility
+        - enforces firstTimeCustomersOnly also at the final redeem with email
+        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
+        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+
+<!-- END proof -->
 
 ### SC-PROMO-010 — A code is for first-time customers unless the operator says otherwise
 
@@ -3697,12 +4942,36 @@ round.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.redeem — eligibility
+        - enforces firstTimeCustomersOnly also at the final redeem with email
+        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
+        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+
+<!-- END proof -->
+
 ### SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
 
 🟢 💰 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they
 never received.
 
 _Source:_ `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.redeem — eligibility
+        - enforces firstTimeCustomersOnly also at the final redeem with email
+        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
+        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+
+<!-- END proof -->
 
 ### SC-PROMO-012 — A code only applies to a subscription belonging to the person redeeming it
 
@@ -3716,11 +4985,57 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/promotion-helpers.test.js`
+    - active within the window
+    - scheduled before validFrom
+    - expired after validTo
+    - highest priority wins on overlap
+    - onlyLocales filters
+    - billingCycle filters
+    - requiresCoupon promotions are not selected automatically
+    - non-matching plan → null
+    - targetType filters bundle promotions separately from plan promotions
+    - percent
+    - amount
+    - amount clamps at 0
+    - intro
+    - freeMonths
+    - null when promotion is missing
+
+<!-- END proof -->
+
 ### SC-PROMO-014 — A code is 4 to 32 characters of upper-case letters, digits, hyphen and underscore
 
 🟢
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/promotion-helpers.test.js`
+    - active within the window
+    - scheduled before validFrom
+    - expired after validTo
+    - highest priority wins on overlap
+    - onlyLocales filters
+    - billingCycle filters
+    - requiresCoupon promotions are not selected automatically
+    - non-matching plan → null
+    - targetType filters bundle promotions separately from plan promotions
+    - percent
+    - amount
+    - amount clamps at 0
+    - intro
+    - freeMonths
+    - null when promotion is missing
+
+<!-- END proof -->
 
 ### SC-PROMO-015 — What a code promised when it was redeemed stays with the redemption
 
@@ -3928,11 +5243,47 @@ _Source:_ `docs/explanation/architecture.md`
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/configurator-catalog-builder.test.js`
+    - ConfiguratorCatalogBuilder
+        - maps marketed live PlanVersions onto models (incl. quota normalization)
+        - plan without a marketing entry is hidden
+
+<!-- END proof -->
+
 ### SC-MKT-003 — A plan or add-on with no marketing entry, or one marked hidden, is not shown
 
 🟢 Publishing a version and advertising it are two acts.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/configurator-catalog-builder.test.js`
+    - ConfiguratorCatalogBuilder
+        - maps marketed live PlanVersions onto models (incl. quota normalization)
+        - plan without a marketing entry is hidden
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Bundles
+        - getCatalog returns empty bundles[] without a BundleRepository
+        - getCatalog returns published live bundles with compatiblePlanKeys
+        - requiresFeatures (#35): uncovered requires of the bundle features from the
+          FeatureCatalogEntries
+        - requiresFeatures without a CatalogEntryRepository: empty (graceful)
+        - getCatalog filters out non-marketed bundles
+        - getCatalog filters out bundles with MarketingProjection visible=false
+        - getCatalog ignores drafts (only live = published+not-superseded)
+        - i18n: MarketingProjection overrides label + fills description (matching locale)
+        - i18n: falls back to DE projection when locale is missing
+        - i18n: without a projection the bundle root label applies (description stays empty)
+        - bundle promotions are resolved with targetType=BUNDLE
+
+<!-- END proof -->
 
 ### SC-MKT-004 — Marketing text belongs to one version and one language
 
@@ -3940,6 +5291,24 @@ _Source:_ release 1.0.0-rc.6
 describe an offer that is no longer current. There is exactly one entry per version and language.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — master data operations
+        - create creates a MarketingProjection (default locale=de)
+        - create sets marketing defaults (visible, badge, trial)
+        - update changes top features, badge and trial
+        - create throws 409 on duplicate creation (same Target+Locale)
+        - create accepts multiple locales per target
+        - update changes required and marketing fields
+        - delete removes the row
+        - list filters by targetType + locale
+        - getById throws 404 for missing ID
+
+<!-- END proof -->
 
 ### SC-MKT-005 — Marketing text falls back to the default language rather than appearing empty
 
@@ -3954,6 +5323,24 @@ there is nothing for them to rewrite.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — master data operations
+        - create creates a MarketingProjection (default locale=de)
+        - create sets marketing defaults (visible, badge, trial)
+        - update changes top features, badge and trial
+        - create throws 409 on duplicate creation (same Target+Locale)
+        - create accepts multiple locales per target
+        - update changes required and marketing fields
+        - delete removes the row
+        - list filters by targetType + locale
+        - getById throws 404 for missing ID
+
+<!-- END proof -->
+
 ### SC-MKT-007 — Which languages the catalogue is published in is an operator's choice
 
 🟢 Made on the marketing screen, from the pool the installation declared, not in a deployment.
@@ -3967,11 +5354,39 @@ a constraint rather than a habit.
 
 _Source:_ `docs/explanation/data-model.md` · `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — master data operations
+        - create creates a MarketingProjection (default locale=de)
+        - create sets marketing defaults (visible, badge, trial)
+        - update changes top features, badge and trial
+        - create throws 409 on duplicate creation (same Target+Locale)
+        - create accepts multiple locales per target
+        - update changes required and marketing fields
+        - delete removes the row
+        - list filters by targetType + locale
+        - getById throws 404 for missing ID
+
+<!-- END proof -->
+
 ### SC-MKT-009 — At most one plan is marked as the recommended one
 
 🟢
 
 _Source:_ `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — comparison matrix (staircase sorting)
+        - feature rows: widest coverage first, on a tie the leading plan column
+
+<!-- END proof -->
 
 ### SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
 
@@ -3980,6 +5395,25 @@ shown as a public one. A promotion runs to the end of its last day, and never pu
 zero.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
+        - priceTag of the bundle MarketingProjection lands in the payload
+        - priceTag is null without a MarketingProjection (backward compatible)
+        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
+          FeatureCatalogEntries (incl. i18n)
+        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
+          (graceful)
+- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
+    - PublicMarketingCatalogService — Plan priceTag (#47)
+        - the plan MarketingProjection priceTag lands in the payload
+        - priceTag is null when the projection maintains none (backwards compatible)
+
+<!-- END proof -->
 
 ### SC-MKT-011 — The public catalogue shows base prices only
 
@@ -3999,6 +5433,20 @@ _Tested by:_
         - a bundle sold in one rhythm only says so for the other
         - an id nobody knows is left out rather than answered with nulls
         - asking for nothing costs nothing
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Bundles
+        - getCatalog returns empty bundles[] without a BundleRepository
+        - getCatalog returns published live bundles with compatiblePlanKeys
+        - requiresFeatures (#35): uncovered requires of the bundle features from the
+          FeatureCatalogEntries
+        - requiresFeatures without a CatalogEntryRepository: empty (graceful)
+        - getCatalog filters out non-marketed bundles
+        - getCatalog filters out bundles with MarketingProjection visible=false
+        - getCatalog ignores drafts (only live = published+not-superseded)
+        - i18n: MarketingProjection overrides label + fills description (matching locale)
+        - i18n: falls back to DE projection when locale is missing
+        - i18n: without a projection the bundle root label applies (description stays empty)
+        - bundle promotions are resolved with targetType=BUNDLE
 
 <!-- END proof -->
 
@@ -4008,6 +5456,17 @@ _Tested by:_
 customer meets first and it requires no account.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-route.test.js`
+    - SaaSiCat public route metadata
+        - ${controller.name} is recognized by global auth guards
+        - unmarked controllers stay protected
+
+<!-- END proof -->
 
 ### SC-MKT-013 — What a customer selected is frozen into an offer before it becomes a contract
 
@@ -4112,6 +5571,26 @@ _Tested by:_
         - update on an expired offer throws Conflict
         - double consume throws Conflict
         - getById throws for an unknown offer
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — V3 ContractLineItems
+        - reads entitlements from active contract snapshot without catalog join
+        - Contract entitlementSnapshot wins over line-item aggregation
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a yearly contract holding a monthly add-on
+        - counts the add-on as often as it falls due
+        - a yearly add-on beside a yearly plan is counted once
+        - a monthly contract adds a monthly add-on as it stands
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - createFromOffer creates immutable contract line items from a consumed offer
+        - createFromOffer blocks open offers
+        - replaceActiveContract closes the old contract and creates a new one
+        - create requires a plan line item
+        - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
+        - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
+          contract
+        - getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract
+        - getActiveInvoiceSnapshotForTenant throws without an active contract
 
 <!-- END proof -->
 
@@ -4121,11 +5600,47 @@ _Tested by:_
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - createFromOffer creates immutable contract line items from a consumed offer
+        - createFromOffer blocks open offers
+        - replaceActiveContract closes the old contract and creates a new one
+        - create requires a plan line item
+        - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
+        - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
+          contract
+        - getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract
+        - getActiveInvoiceSnapshotForTenant throws without an active contract
+
+<!-- END proof -->
+
 ### SC-MKT-019 — A contract that is already closed is not closed again
 
 🟢
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - createFromOffer creates immutable contract line items from a consumed offer
+        - createFromOffer blocks open offers
+        - replaceActiveContract closes the old contract and creates a new one
+        - create requires a plan line item
+        - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
+        - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
+          contract
+        - getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract
+        - getActiveInvoiceSnapshotForTenant throws without an active contract
+
+<!-- END proof -->
 
 ### SC-MKT-020 — A contract agreed after a cancellation ends when that cancellation does
 
@@ -4166,6 +5681,11 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/admin-guards.test.js`
+    - SuperAdminGuard
+        - accepts SUPER_ADMIN
+        - rejects TENANT_ADMIN
+        - rejects a missing user
 - `packages/nest/tests/admin-manifest-module.test.js`
     - throws when the controller should be registered and
     - accepts empty
@@ -4173,6 +5693,21 @@ _Tested by:_
     - accepts a configured
     - additionally accepts
     - throws on missing
+- `packages/nest/tests/discovery-controller.test.js`
+    - DiscoveryController — GET /admin/discovery
+        - returns the discovery snapshot as the body
+        - sets the ETag header with snapshot.hash + scannedAt
+        - returns HTTP 304 + null body on an If-None-Match match
+        - returns the full snapshot when If-None-Match does not match
+        - ignores an empty If-None-Match header
+- `packages/nest/tests/saasicat-module-escape-hatches.test.js`
+    - includeManifestController
+        - is passed through to AdminManifestModule
+        - defaults to mounting the manifest controller
+- `packages/ui-vue/tests/one-way-to-authenticate.test.js`
+    - there is a corpus to scan
+    - no option named
+    - nothing builds a Bearer header by hand
 
 <!-- END proof -->
 
@@ -4204,11 +5739,39 @@ diagnosed rather than leaving somebody staring at "code invalid".
 
 _Source:_ `docs/reference/error-codes.md` · `SECURITY.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - MfaService — TOTP setup + verify
+        - setup() generates secret + otpauth URI and persists via port
+        - verify() rejects when no secret exists
+        - verify() rejects an invalid code
+        - disable() deletes the secret
+        - isEnabled() reflects port state
+
+<!-- END proof -->
+
 ### SC-ADM-004 — A one-time code is accepted across a small clock difference
 
 🟢 Half a minute either way, so an administrator with a slightly wrong clock is not locked out.
 
 _Source:_ `SECURITY.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - MfaService — TOTP setup + verify
+        - setup() generates secret + otpauth URI and persists via port
+        - verify() rejects when no secret exists
+        - verify() rejects an invalid code
+        - disable() deletes the secret
+        - isEnabled() reflects port state
+
+<!-- END proof -->
 
 ### SC-ADM-005 — Actions with lasting consequences need the second factor and an explicit confirmation
 
@@ -4218,12 +5781,44 @@ type the tenant's name.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - MfaGuard — RequireMfa decorator + header check
+        - SetMetadata decorator sets REQUIRE_MFA_KEY
+        - passes through when endpoint is not MFA-required
+        - NOT_AUTHENTICATED on missing user
+        - MFA_NOT_SET_UP when port enabled=false
+        - MFA_REQUIRED when no X-Mfa-Code header
+        - MFA_FAILED on invalid code
+        - accepts a valid code
+        - bypass with SAAS_PLATFORM_SKIP_MFA=1 in non-prod
+        - no bypass in production
+
+<!-- END proof -->
+
 ### SC-ADM-006 — Two actions require a written reason before they run
 
 🟢 Resetting somebody's password and deactivating a user. The reason is part of the record, which is
 why a confirmation can carry a value rather than only a yes.
 
 _Source:_ release 0.26.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - AdminAuditService
+        - actorTag formats source:email:context
+        - log() writes through and appends the actor tag to changes
+        - fromWebRequest builds AdminActor with source=web
+        - fromWebRequest falls back to
+        - fromCli builds AdminActor with source=cli + hostname
+
+<!-- END proof -->
 
 ### SC-ADM-007 — There is no default confirmation that answers yes
 
@@ -4238,6 +5833,20 @@ _Source:_ release 0.26.0
 back.
 
 _Source:_ release 0.26.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/mfa-setup-flow.test.js`
+    - returns secret + otpauthUri for SUPER_ADMIN
+    - audit log contains issuer in changes
+    - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
+    - accepts re-setup with
+    - accepts re-setup with force=true without prompt
+    - returns multi-line instructions with secret + URI
+
+<!-- END proof -->
 
 ### SC-ADM-009 — First-run setup stops working the moment an administrator exists
 
@@ -4259,12 +5868,44 @@ _Source:_ `SECURITY.md`
 
 _Source:_ release 1.0.0-rc.4
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/mfa-setup-flow.test.js`
+    - returns secret + otpauthUri for SUPER_ADMIN
+    - audit log contains issuer in changes
+    - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
+    - accepts re-setup with
+    - accepts re-setup with force=true without prompt
+    - returns multi-line instructions with secret + URI
+
+<!-- END proof -->
+
 ### SC-ADM-012 — Test-only bypasses are ignored in production
 
 🟢 🔒 The switches that skip the second factor and the rate limits exist for continuous integration
 and are honoured only outside production. An integrator cannot add their own.
 
 _Source:_ `SECURITY.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - MfaGuard — RequireMfa decorator + header check
+        - SetMetadata decorator sets REQUIRE_MFA_KEY
+        - passes through when endpoint is not MFA-required
+        - NOT_AUTHENTICATED on missing user
+        - MFA_NOT_SET_UP when port enabled=false
+        - MFA_REQUIRED when no X-Mfa-Code header
+        - MFA_FAILED on invalid code
+        - accepts a valid code
+        - bypass with SAAS_PLATFORM_SKIP_MFA=1 in non-prod
+        - no bypass in production
+
+<!-- END proof -->
 
 ### SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
 
@@ -4282,6 +5923,17 @@ _Tested by:_
     - every writing route asks for the tenant administrator
     - the three that cost money are actually among them
     - reading and previewing stay open to every tenant user
+- `packages/nest/tests/tenant-manifest.test.js`
+    - buildTenantManifestController
+        - creates a controller class with the configured path
+- `packages/nest/tests/the-cost-routes-require-the-tenant-admin.test.js`
+    - the cost-relevant tenant routes
+        - the controller declares some, and each one is a real route
+        - a caller without a role is refused, with the code the client reads
+        - an unauthenticated caller is refused separately
+        - the tenant
+        - a platform operator is admitted too
+        - a plain member is refused
 
 <!-- END proof -->
 
@@ -4292,11 +5944,120 @@ not have to keep a second one.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/whoami-flow.test.js`
+    - SUPER_ADMIN with MFA → full diagnosis
+    - user not found → isSuperAdmin=false, no crash
+    - production is detected
+    - MFA skip visible in non-prod
+    - MFA skip NOT active in production
+    - shows SUPER_ADMIN checkmark + MFA status
+    - shows bypass warning when active
+- `packages/nest/tests/admin-guards.test.js`
+    - SuperAdminGuard
+        - accepts SUPER_ADMIN
+        - rejects TENANT_ADMIN
+        - rejects a missing user
+
+<!-- END proof -->
+
 ### SC-ADM-015 — The administration only offers what the application actually has
 
 🟢 A screen or an action for something the application never declared is not shown at all.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/admin-resources-mapping.test.js`
+    - defaults to exactly the names that used to be hardcoded
+    - a partial mapping leaves the rest at the defaults
+    - and names what the client does have
+    - and does not offer $connect as a candidate
+    - the adapter refuses to be built with it
+    - but an unmapped adapter is built even without those delegates
+    - the tenant list queries and reads the mapped names
+    - the detail route addresses the tenant by the mapped slug
+    - suspending writes the mapped flag
+    - the user list filters and reads the mapped names
+    - no mapping means the same queries as before
+    - the relation counter defaults to the mapped users relation
+    - an explicit tenantMetrics still wins
+    - the subscription list selects and reads the mapped tenant columns
+    - and an unmapped app still selects slug and name
+    - the tenant list reads the mapped subscription relation
+    - the detail route reads it as well
+    - the user list filters and reads the mapped tenant relation
+    - an unmapped app is unaffected in all three
+- `packages/adapter-prisma/tests/prisma-admin-resources.test.js`
+    - PrismaAdminResourcesAdapter serves every standard Admin resource
+- `packages/cli/tests/manifest-cli-flow.test.js`
+    - dump returns the manifest 1:1
+    - hash returns manifestHash
+    - hash throws when hash is missing
+    - validate ok for a clean manifest
+    - validate rejects wrong schemaVersion
+    - null for identical hash
+    - returns added/removed componentKeys
+    - clean manifest → overall=ok, all checks green
+    - wrong manifestHash pattern → error, exitCode=7
+    - per-tenant endpoint in TenantColumn → error
+    - non-/admin route → error
+    - unknown requiredCapability ref → error
+    - wrong Capability pattern → error
+    - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
+    - formatReport shows severity icons + paths
+- `packages/nest/tests/tenant-manifest.test.js`
+    - TenantManifestService
+        - returns a snapshot with filtered NavItems (feature gate)
+        - sorts NavItems by order ASC, default 100
+        - requiresFeature as an array = logical OR
+        - registerNavItem is idempotent (same id overwrites)
+    - SaaSiCatModule + tenantManifest
+        - tenantManifest without defaultPlanId/resolver throws
+        - tenantManifest + defaultPlanId registers controller + service
+- `packages/ui-vue/tests/manifest-loader.test.js`
+    - GET without If-None-Match, persists body + ETag
+    - the client
+    - storageKeyPrefix isolates caches
+    - sends If-None-Match + returns cached body on 304
+    - a 304 whose cached body is gone is repaired, not reported
+    - a cached body that no longer parses is repaired the same way
+    - a 304 to a request that carried no ETag is a server fault, and is reported
+    - a server answering 304 unconditionally is reported after one repair, not looped on
+    - 200 overwrites cache with new body + ETag
+    - deletes body + ETag from storage
+    - returns null on empty cache
+    - returns {etag, body} after a successful load
+    - a token acquired after construction reaches the next request
+    - a token that changes between requests is not cached
+- `packages/ui-vue/tests/nav-builder.test.js`
+    - lists enabled StandardPages with Capability=true
+    - rejects disabled pages
+    - rejects pages without Capability
+    - default routes from DEFAULT_STANDARD_PAGE_ROUTES
+    - does not expose the removed planVersions standard page
+    - ignores standard pages unsupported by this UI build
+    - standardPageRoutes override
+    - isStandard=true for StandardPages
+    - lists a ProjectPage without requiredCapability
+    - rejects a ProjectPage with a missing Capability
+    - lists a ProjectPage with a satisfied Capability
+    - navSection is passed through
+    - availableExtensions filters out ProjectPages with an unknown componentKey
+    - availableExtensions keeps ProjectPages with a known componentKey
+    - sectionOrder wins, the rest alphabetical
+    - sectionOrder override via second parameter
+    - items within a section without mutation
+    - returns the registered component
+    - null for an unknown key
+
+<!-- END proof -->
 
 ### SC-ADM-016 — Signing out ends the session
 
@@ -4304,11 +6065,53 @@ _Source:_ release 1.0.0-rc.6
 
 _Source:_ release 0.22.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/sign-out-ends-the-session.test.ts`
+    - calls the login adapter’s logout before leaving for /login
+    - says so loudly when the app supplied no way to end the session
+    - an explicit onLogout prop still wins over the default
+    - ends the session when no @logout listener is attached
+    - defers to the app when one is
+    - also defers when the listener was attached with @logout.once
+    - discards the manifest, and does so even when logout rejects
+
+<!-- END proof -->
+
 ### SC-ADM-017 — An expired session offers a fresh sign-in once, not in a loop
 
 🟢 Repeating it forever is how a rejected session becomes an unbreakable login loop.
 
 _Source:_ release 0.22.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/navigation-guard.test.js`
+    - returns null when neither authGuard nor manifestGuard is set
+    - redirects to onUnauthenticated() when isAuthenticated is false
+    - lets public routes bypass the auth guard
+    - redirects to onUnauthenticated when isSuperAdmin is false
+    - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
+    - avoids redirect loop: when the current route is already errorRoute, returns true
+    - falls back to render-allow + console.error when NO errorRoute is set
+    - lets the render through when ensureLoaded resolves successfully
+    - 401 from the manifest load routes to login, not to the error page
+    - 403 is treated the same way
+    - a genuine manifest failure still fails closed to the error page
+    - an error without a status stays on the fail-closed path
+    - without an authGuard a 401 still reaches the error page
+    - first 401 offers a re-login, the second stops the circle
+    - a successful load re-arms the redirect for a later expiry
+    - concurrent navigations on one rejection share the login redirect
+    - the second attempt fails closed once the operator has seen login
+    - a cached error instance does not resurrect the login loop
+    - a later, different rejection still fails closed
+
+<!-- END proof -->
 
 ### SC-ADM-018 — A one-time code that was just accepted can currently be accepted again
 
@@ -4316,6 +6119,20 @@ _Source:_ release 0.22.0
 and the ordering of the checks plus transport encryption are the current mitigations.
 
 _Source:_ `SECURITY.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - MfaService — TOTP setup + verify
+        - setup() generates secret + otpauth URI and persists via port
+        - verify() rejects when no secret exists
+        - verify() rejects an invalid code
+        - disable() deletes the secret
+        - isEnabled() reflects port state
+
+<!-- END proof -->
 
 ## 15. Working in the interface
 
@@ -4331,6 +6148,51 @@ without looking like a guest, and a person who has learned one screen has learne
 
 _Source:_ ADR 0008 · `docs/explanation/design-guide.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/admin-page-shell.test.ts`
+    - renders the title as the page heading
+    - omits the subtitle and the actions bar when neither is supplied
+    - renders a markup subtitle through the slot
+    - names the section by pointing aria-labelledby at its own heading
+    - gives sibling sections distinct heading ids
+    - renders no heading level above h2
+    - the source sweep actually finds the pages it claims to check
+    - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
+    - no content page renders its own &lt;main&gt; or a QPage
+    - no content page hand-writes the hero markup instead of using AdminHero
+    - AdminHero renders the only &lt;h1&gt; in the package
+    - no view renders its hero inside the page body
+    - no view hand-writes the reload button instead of using AdminRefreshBtn
+    - no view writes its own table instead of using AdminTable
+    - a component whose only job is to emit is never used without a listener
+    - the actions column is filled through row-actions, not body-cell-actions
+    - no page declares its own statistic tile styling
+    - an unscoped page style reaches only its own sub-components
+    - no page block titles itself with a heading-shaped &lt;div&gt;
+    - no view writes its own disclosure instead of using AdminAccordion
+    - the sweep reaches the pages it claims to check
+    - no page reaches for Quasar directly
+    - no page redeclares the frame the theme draws
+    - a page imports only from the layers below it
+    - no primitive hard-codes a user-visible string
+    - no file grows past the budget for its layer
+- `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
+    - the guard reads every page in
+    - no prop in
+    - the one exception says why, in its own source
+    - an inline callback prop
+    - a callback hidden behind a type alias — what a pattern cannot see
+    - a sixth prop
+    - an exception tag with no real reason
+    - a declared exception passes
+- `tests/baselines-record-a-page-at-rest.test.js`
+    - none of them recorded a node that was leaving
+
+<!-- END proof -->
+
 ### SC-UI-002 — Mounting a shipped screen costs no wiring
 
 🟢 An application that needs one operation to behave differently replaces that one operation and
@@ -4338,6 +6200,43 @@ keeps the other nine. Before this, mounting one screen cost between 8 and 145 li
 no rule saying which.
 
 _Source:_ ADR 0008
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/create-saasicat-admin/tests/scaffold.test.js`
+    - positionals + flags + tokens are separated
+    - replaces only tokens, passes other **X** strings through
+    - finds all .tpl files under templates/
+    - writes all templates into target + replaces tokens
+    - dryRun writes nothing
+    - runs through a bin symlink, as npm create / npx invoke it
+- `packages/ui-vue/tests/component/route-mounted-pages.test.ts`
+    - ${name} declares no required props
+    - ${name} mounts with no props and without Vue warnings
+    - the roster covers every page create-admin-routes mounts directly
+    - boots into a guarded route rather than reloading the public error route
+    - discards the cached manifest before booting, not after
+    - its buttons are wired to handlers, never to a possibly-undefined prop
+- `packages/ui-vue/tests/pages-barrel-is-complete.test.js`
+    - there are pages to compare
+    - every page on disk is in the barrel
+    - every entry in the barrel is a page on disk
+    - each name matches the file it loads
+    - there are routes to check
+    - each names a page the barrel maps
+    - no two routes answer the same path
+    - the error page is not among them
+- `packages/ui-vue/tests/pages-read-the-params-their-routes-declare.test.js`
+    - the table was read at all
+    - every parameterised route is answered by a page that reads it
+    - a mismatched read is reported
+    - a read written across lines counts
+    - a bracketed read counts
+    - the path parser finds the parameter
+
+<!-- END proof -->
 
 ### SC-UI-003 — Replacing one operation that does not exist is refused at start-up
 
@@ -4353,6 +6252,31 @@ actually succeeded — a rejected save used to look exactly like a successful on
 
 _Source:_ release 1.0.0-rc.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/bundles-page-owns-what-it-saves.test.ts`
+    - each plan maps to its live version
+    - an edited label shows in the row the page owns
+    - a saved version reaches the aggregate map the KPIs read
+- `packages/ui-vue/tests/component/clearable-fields.test.ts`
+    - the sweep finds the fields it claims to check
+    - no clearable model has a string method called on it unguarded
+- `packages/ui-vue/tests/component/discovery-page-keeps-the-first-edit.test.ts`
+    - the second payload still holds the first edit
+- `packages/ui-vue/tests/component/plan-wizard-keeps-its-draft.test.ts`
+    - the editor writes what was typed into the wizard, not into the page
+    - the review renders the unsaved values, not the published version
+    - the draft outlives the navigation between the two steps
+    - cancelling clears the draft rather than leaving it for the next plan
+    - a refused save keeps the draft and stays on the step
+    - a save that succeeds clears the draft
+    - publish carries the form and the checklist flags
+    - a publish that does not go through keeps the draft
+
+<!-- END proof -->
+
 ### SC-UI-005 — A failure appears where the person was looking
 
 🟢 A page that could not load says so under its title; an action that failed inside an open dialog
@@ -4361,6 +6285,78 @@ Never a notification for a failed load, and never one for something already visi
 
 _Source:_ `docs/explanation/design-guide.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/admin-error.test.js`
+    - defaults to status 0 — a request that never produced one
+    - the diagnostic message names the request, the status and the code
+    - the diagnostic carries the detail when there is one
+    - an explicit message overrides the derived one
+    - cause is preserved
+    - recognises an instance
+    - rejects a plain error, a look-alike object, and nothing at all
+    - recognises what a throw site marked, and nothing else
+    - the marker is not enumerable, so it does not leak into a log line
+    - recognises what a client marked, and nothing else
+    - marking a non-object is a no-op rather than a second failure
+    - the marker is not enumerable, so it does not leak into a log line
+    - passes an AdminError through untouched
+    - reads an axios rejection: status, code, body, url and method
+    - a status-bearing error with an unreadable body has no detail at all
+    - joins a NestJS ValidationPipe message array instead of stringifying it
+    - reads one of the package’s own API errors, which carry status and body
+    - an answer that was empty is not a connection problem
+    - a consumer client rejecting with status 0 is not an empty response
+    - a manifest 304 that survives to be thrown is a diagnostic like any other
+    - a real HTTP failure is not an empty response
+    - a declared transport failure keeps its diagnostic off detail, so the catalog answers
+    - an axios failure with no response is transport too
+    - but an interceptor’s own error is not, however much of axios it carries
+    - but an error from app code keeps its message — that IS what was said
+    - wraps a thrown string
+    - survives a thrown nothing
+    - a null dereference is not a connection problem
+    - a real fetch failure still says
+    - a malformed URL is a transport failure too, not an unknown one
+    - the client passes a response through untouched
+    - a consumer error carrying a status keeps its message
+    - a consumer error merely NAMED like ours is still a consumer error
+    - a mutation the server answered without a body is an empty response
+    - a boot GET a client resolved as status 0 never reached the server
+    - a manifest GET a client resolved as status 0 never reached the server
+    - nor did a mutation a client resolved as status 0 — on any of the surfaces
+    - a discovery load a client resolved as status 0 never reached the server
+    - a plain object keeps the message it carries
+    - an Error from another realm is such an object
+    - an object with nothing readable falls through to the generic wording
+    - a non-string message is not a message
+    - what the failing side said outranks anything the platform could guess
+    - maps the statuses that have their own wording
+    - any other status falls through to the generic template, with the number in it
+    - a failure nothing knows anything about says so, rather than blaming the network
+    - a seam that declares the request never went out gets the network wording
+    - converts before formatting, so an axios rejection needs no pre-processing
+    - German is a complete alternative, not a fallback to English
+    - the two names are one class, so an existing instanceof check keeps working
+    - a non-2xx carries status, code, detail, url and method
+    - postJson reports its own method
+    - an error body that is not JSON does not become a second failure
+    - a validation rejection keeps its constraints — the array is joined here too
+    - a 2xx still returns the parsed body
+    - an AdminError carries it at
+    - an axios rejection carries it at
+    - anything else has none
+- `packages/ui-vue/tests/component/error-state-outranks-the-accent.test.ts`
+    - the stylesheet the theme has to outrank really parsed
+    - a focused valid field still gets the accent label
+    - a focused invalid field keeps its negative label
+    - an invalid field that was never focused keeps it too
+    - a list item has no error state for the sibling rule to trample
+
+<!-- END proof -->
+
 ### SC-UI-006 — What a person is shown after a failure is what the failing side said
 
 🟢 Not the diagnostic that helps a developer find it. The two are kept apart deliberately, so a
@@ -4368,11 +6364,102 @@ stack-shaped message never reaches a screen.
 
 _Source:_ release 0.26.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/admin-error.test.js`
+    - defaults to status 0 — a request that never produced one
+    - the diagnostic message names the request, the status and the code
+    - the diagnostic carries the detail when there is one
+    - an explicit message overrides the derived one
+    - cause is preserved
+    - recognises an instance
+    - rejects a plain error, a look-alike object, and nothing at all
+    - recognises what a throw site marked, and nothing else
+    - the marker is not enumerable, so it does not leak into a log line
+    - recognises what a client marked, and nothing else
+    - marking a non-object is a no-op rather than a second failure
+    - the marker is not enumerable, so it does not leak into a log line
+    - passes an AdminError through untouched
+    - reads an axios rejection: status, code, body, url and method
+    - a status-bearing error with an unreadable body has no detail at all
+    - joins a NestJS ValidationPipe message array instead of stringifying it
+    - reads one of the package’s own API errors, which carry status and body
+    - an answer that was empty is not a connection problem
+    - a consumer client rejecting with status 0 is not an empty response
+    - a manifest 304 that survives to be thrown is a diagnostic like any other
+    - a real HTTP failure is not an empty response
+    - a declared transport failure keeps its diagnostic off detail, so the catalog answers
+    - an axios failure with no response is transport too
+    - but an interceptor’s own error is not, however much of axios it carries
+    - but an error from app code keeps its message — that IS what was said
+    - wraps a thrown string
+    - survives a thrown nothing
+    - a null dereference is not a connection problem
+    - a real fetch failure still says
+    - a malformed URL is a transport failure too, not an unknown one
+    - the client passes a response through untouched
+    - a consumer error carrying a status keeps its message
+    - a consumer error merely NAMED like ours is still a consumer error
+    - a mutation the server answered without a body is an empty response
+    - a boot GET a client resolved as status 0 never reached the server
+    - a manifest GET a client resolved as status 0 never reached the server
+    - nor did a mutation a client resolved as status 0 — on any of the surfaces
+    - a discovery load a client resolved as status 0 never reached the server
+    - a plain object keeps the message it carries
+    - an Error from another realm is such an object
+    - an object with nothing readable falls through to the generic wording
+    - a non-string message is not a message
+    - what the failing side said outranks anything the platform could guess
+    - maps the statuses that have their own wording
+    - any other status falls through to the generic template, with the number in it
+    - a failure nothing knows anything about says so, rather than blaming the network
+    - a seam that declares the request never went out gets the network wording
+    - converts before formatting, so an axios rejection needs no pre-processing
+    - German is a complete alternative, not a fallback to English
+    - the two names are one class, so an existing instanceof check keeps working
+    - a non-2xx carries status, code, detail, url and method
+    - postJson reports its own method
+    - an error body that is not JSON does not become a second failure
+    - a validation rejection keeps its constraints — the array is joined here too
+    - a 2xx still returns the parsed body
+    - an AdminError carries it at
+    - an axios rejection carries it at
+    - anything else has none
+
+<!-- END proof -->
+
 ### SC-UI-007 — Loading, empty and error are handled deliberately on every screen
 
 🟢 Through the same shared elements rather than a variant per page.
 
 _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/list-resource.test.js`
+    - the three spellings of
+    - the falsy values that are answers are not
+    - always states its page, first and in order
+    - appends to an endpoint that already carries a query
+    - serialises the filter after the pagination, in insertion order
+    - omits the empty values and keeps the falsy ones
+    - encodes with URLSearchParams — a space is a plus, not %20
+    - is empty when nothing survives the rule
+    - leads with a question mark when something does
+    - a bare array reports the rows it sent
+    - an envelope is read field by field
+    - what the answer did not state stays absent
+    - a body that is neither is an empty page, not a crash
+    - an
+    - a page below the first is the first
+    - a fractional page is the one it is on
+    - a page size stays inside 1..max
+
+<!-- END proof -->
 
 ### SC-UI-008 — Equivalent actions behave the same everywhere
 
@@ -4381,11 +6468,45 @@ work the same way on every screen unless there is a stated reason not to.
 
 _Source:_ internal engineering guidelines
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
+    - the guard reads every page in
+    - no prop in
+    - the one exception says why, in its own source
+    - an inline callback prop
+    - a callback hidden behind a type alias — what a pattern cannot see
+    - a sixth prop
+    - an exception tag with no real reason
+    - a declared exception passes
+
+<!-- END proof -->
+
 ### SC-UI-009 — A destructive action says what it will destroy, by name
 
 🟢 Not "Are you sure?" but "Delete API key 'Production Integration'? This action cannot be undone."
 
 _Source:_ internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
+    - carries the wording the page wrote, not a generic
+    - a destructive action is coloured as one
+    - tone defaults to primary — only the caller may call something destructive
+    - both buttons are labelled, so neither reads
+    - no prompt means no input — a plain confirm stays plain
+    - a prompt carries its initial value and type
+    - a prompt with no initial value starts empty and takes text
+    - an app-provided port is the one that gets asked
+    - without one, the Quasar implementation is the fallback — which still asks
+    - a context from an older package version still resolves, because the key is Symbol.for
+
+<!-- END proof -->
 
 ### SC-UI-010 — An action sits with the object it acts on
 
@@ -4394,11 +6515,60 @@ One releases a draft; the other destroys the thing.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/bundle-actions-belong-to-their-object.test.ts`
+    - save and publish share one bar
+    - discard stays with the draft state that offers it
+    - nothing spans both columns any more
+    - soft-delete is not among the version actions
+    - it sits in the card header, named for a reader who cannot see icons
+    - it is not a button inside a button
+    - deleting does not also expand the row it removes
+    - the confirm port decides, and window.confirm is never called
+    - a pristine form offers nothing to save
+    - an edit shows the marker and enables the button
+- `packages/ui-vue/tests/component/one-dialog-per-page-not-per-row.test.ts`
+    - the fixture renders several rows — without that this proves nothing
+    - one instance exists, however many rows there are
+
+<!-- END proof -->
+
 ### SC-UI-011 — A list says how many rows there are, or says it is showing what it received
 
 🟢 It does not present the number of rows in hand as a total it cannot know.
 
 _Source:_ release 0.26.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/typed-lists-carry-their-row-type.test.ts`
+    - hands a page its rows already typed, with no assertion at the call site
+    - refuses the resources and operations that cannot answer with a page
+- `packages/ui-vue/tests/list-resource.test.js`
+    - the three spellings of
+    - the falsy values that are answers are not
+    - always states its page, first and in order
+    - appends to an endpoint that already carries a query
+    - serialises the filter after the pagination, in insertion order
+    - omits the empty values and keeps the falsy ones
+    - encodes with URLSearchParams — a space is a plus, not %20
+    - is empty when nothing survives the rule
+    - leads with a question mark when something does
+    - a bare array reports the rows it sent
+    - an envelope is read field by field
+    - what the answer did not state stays absent
+    - a body that is neither is an empty page, not a crash
+    - an
+    - a page below the first is the first
+    - a fractional page is the one it is on
+    - a page size stays inside 1..max
+
+<!-- END proof -->
 
 ### SC-UI-012 — The interface works on desktop, tablet and phone
 
@@ -4409,6 +6579,50 @@ component such as a wide table.
 
 _Source:_ internal engineering guidelines · release 0.26.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/roster-primitives.test.ts`
+    - each tone brings its own icon, so the shape differs before the hue does
+    - an explicit
+    - the close button is only there when the caller asked for it
+    - a null error renders nothing at all — no empty box above the body
+    - a rejection becomes a sentence, not
+    - retry is offered only when there is something to retry
+    - a failed submit keeps the dialog open and shows the reason
+    - a successful submit closes it and says so once
+    - typing the wrong name leaves the confirming button unusable
+    - the typed answer does not survive a reopen
+    - a hidden action is not rendered — a row shows what it is eligible for
+    - a disabled action stays visible, so the row does not change shape
+    - the error is announced, and it replaces the hint rather than joining it
+    - the slot is handed the id to point
+    - the end group is pushed away from the start one, not centred
+    - with no end content there is no empty end group to space against
+    - sticky is opt-in — a toolbar that follows the scroll is a decision
+    - the column count reaches the DOM, because the layout is CSS
+    - a field carries its span, so one wide input can sit in a narrow grid
+    - the title is the message; description and actions are optional
+    - inline and block are different treatments, not the same one twice
+    - the tone is a class, so the theme decides what it looks like
+    - the label is always there — colour never carries the status alone
+- `tests/px-to-scale.test.js`
+    - an exact value takes its own token
+    - a midpoint rounds down
+    - a value nearer one rung takes it, up or down
+    - radii use their names, not their numbers
+    - a negative keeps its sign in a calc
+    - tracking is converted rather than snapped
+    - a property no scale answers for
+    - a declaration that already reads a token
+    - a token definition
+    - every value in a shorthand moves together
+    - a zero stays a zero
+    - touches declarations and nothing else
+
+<!-- END proof -->
+
 ### SC-UI-013 — A tenant-facing section can be embedded without adopting a UI framework
 
 🟢 The plan section, the upgrade wizard and the add-on store render inside the integrator's own
@@ -4417,6 +6631,33 @@ item on the decision — it is the end of it. A component that is a guest in som
 does not bring a framework with it.
 
 _Source:_ ADR 0010 · #206
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
+    - No composable/loader has
+    - useTenants() WITHOUT the endpoint option throws with a clear error message
+- `packages/ui-vue-tenant/tests/component/tenant-primitives.test.ts`
+    - it renders a native button that does not submit
+    - an accessible name from the call site lands on the button itself
+    - a click listener from the call site reaches the button
+    - the two axes are independent
+    - loading disables the button and marks it busy
+    - the ring is added beside the label, not instead of it
+    - a disabled button is not a busy one
+    - the default animation turns
+    - a reduce block replaces the turn for the spinner
+- `tests/the-tenant-package-needs-no-quasar.test.js`
+    - there is a source tree to judge
+    - no dependency field names it
+    - the keywords do not advertise it
+    - nothing in the source imports it
+    - no template writes a Quasar component
+    - no template writes a class Quasar defines
+
+<!-- END proof -->
 
 ### SC-UI-014 — The administration brings its own UI framework
 
@@ -4427,6 +6668,26 @@ could no longer decline it.
 
 _Source:_ ADR 0011 · #207
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/a-generated-admin-imports-every-stylesheet.test.js`
+    - the export map still publishes stylesheets
+    - ${label} imports all of them
+    - ${label} loads the theme after Quasar
+    - ${label} takes them from this package, not from Quasar
+- `tests/quasar-colours-resolve-to-the-theme.test.js`
+    - the sources actually paint Quasar colours
+    - no page paints a Quasar palette rung the theme cannot move
+    - every painted colour is one the platform decides
+    - the neutral greys do not grow
+    - every linked tone is a role the theme declares
+    - the guides show some overrides
+    - every role the bridge links is one a guide tells you to override
+
+<!-- END proof -->
+
 ### SC-UI-015 — One colour makes the administration look like the integrator's product
 
 🟢 The brand colour is a single value passed at start-up and it moves everything that follows from
@@ -4435,12 +6696,214 @@ warning colour once sat at 2.15:1 beside a platform role painting 4.8:1.
 
 _Source:_ ADR 0011 · `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/brand-colour-reaches-both-namespaces.test.ts`
+    - it lands on the document element, not the body
+    - an app that names no colour leaves the variable alone
+    - the colour is also handed to the components as part of the brand
+    - a shell that set a colour removes it again
+    - a host value marked !important keeps its priority
+    - our own writes claim no priority of their own
+    - a value the host set itself is put back, not deleted
+    - a shell that named no colour touches nothing on the way out
+    - the accent role reads Quasar’s variable
+    - the shell writes no status colour of its own
+    - the theme hands Quasar the filled role, in both schemes
+- `packages/ui-vue/tests/design-token-budget.test.js`
+    - the audit reaches the source tree
+    - the inline-style sweep reads a fixture it cannot miss
+    - a CSS-wide keyword is not a typographic value
+    - a palette prop counts on a Quasar component and nowhere else
+    - ${metric} does not grow (floor ${floor} — ${why})
+    - ${metric} baseline has not overshot its floor
+- `packages/ui-vue/tests/identity-accents-match-theme.test.js`
+    - the resolver reaches a hex at all
+    - both halves are the same length
+    - every stored value is what its role resolves to in the light theme
+    - the neutral matches too
+    - every hex in the file is one of the ramp values
+    - ${label} is concrete, not a token reference
+    - ${label} fits the promotion column
+- `packages/ui-vue/tests/login-branding.test.js`
+    - a complete boot response is used as-is
+    - production is not shown as an environment badge
+    - ${name}: falls back instead of throwing
+    - without boot and without app branding the card still renders
+    - empty strings from boot do not blank the card
+    - true only for an explicit production environment
+    - a malformed payload is not treated as production
+    - other environments are not production
+- `tests/quasar-colours-resolve-to-the-theme.test.js`
+    - the sources actually paint Quasar colours
+    - no page paints a Quasar palette rung the theme cannot move
+    - every painted colour is one the platform decides
+    - the neutral greys do not grow
+    - every linked tone is a role the theme declares
+    - the guides show some overrides
+    - every role the bridge links is one a guide tells you to override
+- `tests/token-audit-template-scan.test.js`
+    - a static style attribute
+    - a bound style with a literal fallback
+    - an SVG paint attribute
+    - a functional notation with literal channels
+    - a named colour is a literal too
+    - a named colour BARE in an SVG paint attribute
+    - a named colour as a string inside a bound paint attribute
+    - the two halves do not report the same colour twice
+    - the namespace, not the tag name — a bare &lt;g&gt; is not SVG
+    - every CSS named colour, not the obvious eighteen
+    - a longer keyword is not read as the shorter one inside it
+    - several literals in one binding
+    - a literal nested deep in the tree
+    - a literal AFTER a nested &lt;template&gt;
+    - a hex in template TEXT is content, not paint
+    - a pull-request number in an HTML comment
+    - a slot shorthand that happens to spell a colour
+    - an input mask
+    - an anchor href
+    - a Quasar
+    - a var() is the goal, not a finding
+    - a functional notation with a var() channel is a token in use
+    - a binding that carries data rather than a literal
+    - the SVG keywords that are not colours
+    - a paint-server reference is an address, not a colour
+    - a CSS function name is case-insensitive
+    - a comment in a style attribute is prose, not paint
+    - a colour beside a comment is still found
+    - a modern colour function is a literal too
+    - a named colour in any property that paints
+    - a colour WORD where the property names something
+    - a custom property holding a literal is NOT excused
+    - an asset URL that spells a colour is an address
+    - a hyphenated identifier that begins with a colour name
+    - a colour function written in capitals
+    - a real colour beside a paint-server reference is still found
+    - a word that merely contains a colour name is not one
+    - a dynamic directive argument does not throw
+    - a &lt;style&gt; block is not a template finding
+    - a &lt;script&gt; block is not a template finding
+    - a file that is not an SFC is null, not empty
+    - an SFC with no template at all is null
+    - an SFC the parser cannot read is null, not empty
+    - a template that parses and holds nothing is empty, not null
+    - a literal on the third line of the template
+    - a binding spread over several lines points at the literal
+    - the text keeps its length, so every offset still points where it did
+    - a comparison between two literals is left alone
+    - a path it cannot cross is kept, because it cannot tell
+    - but a name inside another string is not a use of it
+    - a name is bounded by the alphabet it is written in
+    - a trailing ! ends the name, and only
+    - and the literal survives, because the class is rendered
+    - a size, a weight or a leading in it is a literal
+    - a tokenized shorthand is not
+    - a number in the family name is a name, not a size
+    - a static style attribute is a fragment
+    - several attributes, in template order
+    - a bound :style is NOT a fragment
+    - an attribute that is not
+    - null and empty still mean different things
+    - a bound style that is one string literal is inline CSS too
+    - the line is the line the attribute value starts on
+    - a static class list
+    - a bound class list holds its literals as strings
+    - a brand or status name, not only a palette hue
+    - a two-word hue is read whole
+    - a string the list COMPARES is not a class it renders
+    - a name compared twice is still only compared
+    - an optionally chained name is one name, not its last segment
+    - and a name carrying a dollar sign is still one name
+    - but a literal the comparison can render is kept
+    - and grouping around the operand does not save it
+    - the branch a comparison SELECTS is still a class
+    - a class that merely ends in a palette word is not one
+    - a rule ABOUT the class is not a use of it
+    - blanking a compared string does not move the line after it
+    - null and empty still mean different things
+    - a static prop
+    - the two halves a component paints
+    - a brand or status name, not only a hue
+    - a bound prop holds its literals as strings
+    - a string the binding COMPARES is not a palette name it emits
+    - a binding that names nothing is not a finding
+    - a nested object is configuration, not props
+    - every prop that ends in -color on a Quasar component is one
+    - the object form of v-bind is read like the arg form
+    - a value outside the palette is not a palette finding
+    - a two-word hue is read whole, with its shade
+    - a value that merely begins with a palette word is not one
+    - an attribute that is not a colour prop is not read
+    - the class form belongs to the class category
+    - a comment in a binding is prose, not a palette
+    - null and empty still mean different things
+    - the line is the line the value sits on
+    - a prop in palette shape but not in the palette is not counted
+    - a rejected quoted word does not swallow the accepted one after it
+    - named colours are ASCII case-insensitive, as CSS keywords are
+
+<!-- END proof -->
+
 ### SC-UI-016 — Light and dark are both shipped, and a person can pick
 
 🟢 Or follow whatever their system says. Two installations sharing one address do not inherit each
 other's pick.
 
 _Source:_ #137 · ADR 0009
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
+    - Quasar
+    - an explicit scheme still outranks what Quasar was set to
+    - Quasar
+    - the machine still decides when Quasar says
+    - Quasar
+    - with no dark configuration at all, the theme is left on system
+    - Quasar
+    - the two directions do not chase each other
+    - a
+    - Quasar
+    - a hard pick that agrees with the machine is still a pick
+    - dispose() stops the bridge writing to the document
+- `packages/ui-vue/tests/component/theme-switcher.test.ts`
+    - renders when the shell provides a theme
+    - renders nothing when the app opted out
+    - a context from an older package version still shows it
+    - a catalog from an older package version renders instead of throwing
+    - the button names the active scheme
+    - an unknown active scheme falls back to its value instead of blanking
+    - the accessible label comes from the catalog
+    - all three schemes become menu entries
+    - picking an entry writes the shared scheme
+    - picking
+    - only the active entry carries the check mark
+- `packages/ui-vue/tests/identity-accents-match-theme.test.js`
+    - the resolver reaches a hex at all
+    - both halves are the same length
+    - every stored value is what its role resolves to in the light theme
+    - the neutral matches too
+    - every hex in the file is one of the ramp values
+    - ${label} is concrete, not a token reference
+    - ${label} fits the promotion column
+- `tests/a-role-that-is-read-is-defined.test.js`
+    - both sides of the comparison were actually read
+    - the definitions reach the scale, not only the colours
+    - the reads reach the two files the defect shipped in
+    - no role is read that the theme leaves undefined
+    - the rule is not vacuous: an undefined role is reported, with its line
+    - and a role the theme defines is not reported
+    - a fallback answers for the role it stands in for
+    - a nested read is a read of its own
+    - a role named in a comment is not a read
+    - a comment above a read does not move its line
+    - the import graph is followed, not guessed
+
+<!-- END proof -->
 
 ### SC-UI-017 — A confirmation shows the answer to the question actually being asked
 
@@ -4450,6 +6913,24 @@ screen and the invoice would describe different events.
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
+    - carries the wording the page wrote, not a generic
+    - a destructive action is coloured as one
+    - tone defaults to primary — only the caller may call something destructive
+    - both buttons are labelled, so neither reads
+    - no prompt means no input — a plain confirm stays plain
+    - a prompt carries its initial value and type
+    - a prompt with no initial value starts empty and takes text
+    - an app-provided port is the one that gets asked
+    - without one, the Quasar implementation is the fallback — which still asks
+    - a context from an older package version still resolves, because the key is Symbol.for
+
+<!-- END proof -->
+
 ### SC-UI-018 — Where two answers are outstanding, the current question's answer wins
 
 🟢 Not the one that happens to arrive last. A slower response is not necessarily the older one, and
@@ -4458,6 +6939,33 @@ different question.
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
+    - carries the wording the page wrote, not a generic
+    - a destructive action is coloured as one
+    - tone defaults to primary — only the caller may call something destructive
+    - both buttons are labelled, so neither reads
+    - no prompt means no input — a plain confirm stays plain
+    - a prompt carries its initial value and type
+    - a prompt with no initial value starts empty and takes text
+    - an app-provided port is the one that gets asked
+    - without one, the Quasar implementation is the fallback — which still asks
+    - a context from an older package version still resolves, because the key is Symbol.for
+- `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
+    - the answer to the abandoned question is taken off the screen
+    - and the confirmation cannot be given
+    - the outdated one does not install itself
+- `packages/ui-vue-tenant/tests/component/the-latest-question-wins.test.ts`
+    - a slower earlier answer does not overwrite a faster later one
+    - answers in order still commit only the last
+    - a single question commits, so the guard does not swallow the normal case
+    - a superseded call resolves rather than hanging
+
+<!-- END proof -->
+
 ### SC-UI-019 — A row that opens is a control
 
 🟢 Operable from the keyboard, announced as expandable, and controls inside its header do not toggle
@@ -4465,6 +6973,36 @@ it on the way past. The page decides which row is open, so opening one can close
 what it needs.
 
 _Source:_ #133 · `docs/explanation/design-guide.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/disclosures-open-what-they-say.test.ts`
+    - the row is a button that says whether it is open
+    - clicking one row opens that row, and only that one
+    - clicking the open row closes it again
+    - the timeline bar that opens the same row is a control too
+    - the toggle is a button that says whether it is open
+    - the backend-only fields appear once it is open
+    - the toggle asks its owner rather than deciding
+    - an edit in the open editor reaches the update handler
+    - the plan cell is the keyboard path, and says what it controls
+    - a click on a cell that holds no control opens the row
+    - a click on a field in the row does not
+    - the handle moves the row with the arrow keys
+    - the arrow keys stop at the ends of the list
+    - a drag from the first row to the second reports that move
+    - a drag downwards lands where the pointer is, not one row further
+    - a twitch inside the dragged row is not a move
+    - a drag upwards lands where the pointer is
+    - a drag released where it started reports nothing
+    - a row that cannot be written is not part of the order
+    - a row without a live version has no handle
+    - a focusable ancestor does not silence the row
+    - the plan cell opens the row exactly once
+
+<!-- END proof -->
 
 ### SC-UI-020 — A page never takes the whole screen down because data arrived in a shape it did not expect
 
@@ -4477,6 +7015,17 @@ _Source:_ release 0.24.1
 🟢 A fully redeemed promotional code is shown as spent, not in the colour reserved for errors.
 
 _Source:_ release 1.0.0-rc.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/promo-code-tiles.test.ts`
+    - count every row the tenant has
+    - keep their counts when a tile narrows the table
+    - keep their counts while the search narrows the table
+
+<!-- END proof -->
 
 ## 16. Configuring and running an installation
 
@@ -4584,6 +7133,25 @@ _Source:_ #217
 
 _Tested by:_
 
+- `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
+    - every member is reported, flattened to the path it has in the file
+    - an empty list reads as one, rather than as nothing at all
+    - the report is read off the document, so it follows what the template writes
+    - a catalogue the platform would refuse fails here, not at the first boot
+    - names both, with the line each is on
+    - the set is read off the schema, not written out beside it
+    - every setting the schema names has a sentence saying where it goes
+    - says where each one goes, separately
+    - leaves the source untouched — there is nothing to write back
+    - a longer identifier that merely contains the name is not reported
+    - reads the value back as well as writing it — the same migration, later
+    - a file that passes nothing produces no report at all
+    - prose is not scanned — it cannot pass a module option
+    - code is
+    - a shorthand property is reported
+    - a destructured read is reported
+    - a mention in a comment is reported, and that is the chosen trade
+    - several occurrences of one setting are all named, in file order
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - an option that moved refuses the boot
         - ${option} is refused, and the message says where it went
@@ -4620,6 +7188,22 @@ _Tested by:_
         - the option, when the option is what unbound the guard
         - and the entitlement path, when the app never set it
         - both name the way out of what the check cannot see
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - the rule table
+        - a sound configuration violates nothing
+        - every rule has a distinct id, a message and a docs link
+        - a rule that does not apply stays silent
+    - the typed errors that predate the table
+        - a lone capability failure still raises PersistenceCapabilityError
+        - the same failure alongside another is reported as one of two
+    - every rule can actually fail
+        - every rule fails in at least one probe
+        - ${rule.id} renders a message a reader can act on
+        - the capability rule names both capabilities it is missing
+- `packages/nest/tests/preflight.test.js`
+    - formatPreflightReport
+        - OK report contains OK checkmark
+        - error report lists findings with codes
 
 <!-- END proof -->
 
@@ -4633,11 +7217,45 @@ _Source:_ `docs/reference/options.md`
 
 _Tested by:_
 
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - error when no plans
+    - ok with plans + details contain planIds
+    - warning when snapshot empty
+    - ok with content
+    - ok when findByEmail does not throw
+    - error when findByEmail throws
+    - ok with standardPages count
+    - error when getManifest throws
+    - contains exactly 4 provider classes
+- `packages/cli/tests/doctor-flow.test.js`
+    - all checks ok → overall=ok, exitCode=0
+    - one warning + ok → overall=warning, exitCode=0
+    - one error → overall=error, exitCode=4
+    - exception in check → severity=error with exception message
+    - empty check list → overall=ok
+    - shows icons per severity
 - `packages/nest/tests/enforcement-chain-check.test.js`
     - the message names the true cause
         - the option, when the option is what unbound the guard
         - and the entitlement path, when the app never set it
         - both name the way out of what the check cannot see
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - the rule table
+        - a sound configuration violates nothing
+        - every rule has a distinct id, a message and a docs link
+        - a rule that does not apply stays silent
+    - all of them at once
+        - four independent mistakes are reported together
+        - the error names every one of them, numbered, each with its link
+        - one problem is still phrased as one
+        - a message names which of a set is missing, not that some are
+- `packages/nest/tests/preflight.test.js`
+    - runPreflight
+        - empty catalog → overall=ok, total=0
+        - everything present → overall=ok
+        - plan with unknown feature → overall=error, kind=plan
+        - bundle with unknown feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN
+        - findings are deterministically sorted (kind, entityKey, version, code)
 
 <!-- END proof -->
 
@@ -4717,6 +7335,10 @@ _Tested by:_
     - a quota route boots once something can resolve a plan
     - enforcementChainCheck: false is a way out that works
     - …and it turns off only that check
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - forRoot runs the table
+        - the same configuration fails through the module
+        - tenantManifest without plan resolution fails before anything is assembled
 
 <!-- END proof -->
 
@@ -4744,6 +7366,17 @@ _Tested by:_
     - registers the coverage check instead of warning on the option alone
     - stays silent on the default path with the guard bound
     - the inert branch registers the check too, with the state that says so
+- `packages/nest/tests/saasicat-module-escape-hatches.test.js`
+    - globalFeatureGuard
+        - defaults to binding StaticFeatureGuard as APP_GUARD
+        - false removes the global APP_GUARD binding
+        - false keeps the guard class available as a provider to bind manually
+        - false does not disable the quota interceptor
+- `packages/nest/tests/saasicat-module.test.js`
+    - StaticEntitlementService (via StaticPlanResolver)
+        - snapshot returns features+quotas from the plan catalog
+        - hasFeature + quotaLimit as convenience methods
+        - snapshot with an unresolved plan = empty set
 
 <!-- END proof -->
 
@@ -4760,6 +7393,71 @@ the discovery and manifest endpoints answering to anybody.
 
 _Source:_ release 0.27.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/init.test.js`
+    - the minimum is seven files, one of them a quota provider
+    - each quota adds one provider, named after its key
+    - --skip-hasher drops the hasher and keeps the persistence bundle
+    - with a hasher the bundle wires it
+    - no file goes out with an unsubstituted token
+    - every template is reachable through some plan
+    - a multi-word key still produces valid identifiers
+    - the quota model becomes the Prisma delegate, not the model name
+    - a quota without a model counts a delegate named after the key
+    - the case helpers round-trip the shapes the plan relies on
+    - quotas land under both plans, at different limits
+    - there is no such thing as a plan without quotas
+    - nothing has a trailing space
+    - the admin module is registered, not merely imported
+    - nothing is imported that the inserted code does not use
+    - every symbol the block uses is imported
+    - what was already in the array keeps its own line
+    - the imports go after the last existing one
+    - running it twice does nothing the second time
+    - a file it cannot edit is declined, with the block to paste
+    - a one-line decorator is declined, and the reason names the shape it wants
+    - the limit filter is printed, not inserted
+    - without persistence it comments the line instead of importing nothing
+    - a generated persistence bundle is an imported one
+    - the admin module import path matches the file the plan writes
+    - each quota provider import path matches its file
+    - the block names one, so the file does not compile without it
+    - the block names the modules the platform resolves from, for the same reason
+    - and says why, where the reader is
+    - is refused before anything is planned
+    - and a valid one still plans
+    - the message carries the pattern rather than a paraphrase of it
+    - the quota key pattern is the schema
+    - the minimum number of quotas is the schema
+    - the classes get identifiers, the catalogue keeps the words
+    - and the file names follow the identifier, not the label
+    - every generated class name is a valid identifier
+    - for a camel-cased key, where the two used to disagree
+    - and for every spelling the schema allows
+    - stays intact, and the new imports go after it
+    - and a side-effect import is an import too, so nothing lands above it
+- `packages/create-saasicat-admin/tests/scaffold.test.js`
+    - positionals + flags + tokens are separated
+    - replaces only tokens, passes other **X** strings through
+    - finds all .tpl files under templates/
+    - writes all templates into target + replaces tokens
+    - dryRun writes nothing
+    - runs through a bin symlink, as npm create / npx invoke it
+- `tests/a-generated-admin-imports-every-stylesheet.test.js`
+    - the export map still publishes stylesheets
+    - ${label} imports all of them
+    - ${label} loads the theme after Quasar
+    - ${label} takes them from this package, not from Quasar
+- `tests/templates-import-what-exists.test.js`
+    - the templates name some subpaths
+    - each one resolves through the export map
+    - and the file behind it is really there
+
+<!-- END proof -->
+
 ### SC-CFG-014 — An installation whose own tables are named differently keeps its administration
 
 🟢 The mapping is configuration, not a reason to turn the administration off wholesale.
@@ -4772,6 +7470,88 @@ _Source:_ release 0.27.0
 it when one is wrong.
 
 _Source:_ #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/cli-commands.test.js`
+    - names every command
+    - and every
+    - an unknown command exits 1 rather than doing nothing
+    - a model the app never adopted is reported, and is not an error
+    - a field removed from an adopted model is drift, and exits 1
+    - and says nothing is missing once the fragments are applied
+    - a schema that does not exist is an error, not a stack trace
+    - appends the selected fragments and says which
+    - the enums a fragment declares arrive with its models
+    - running it twice appends nothing the second time
+    - a fragment selector that matches nothing is refused
+    - without --name it says so instead of guessing one
+    - --dry-run stops before Prisma, and says that it did
+    - scaffolds the wiring, patches the module, and names the next steps
+    - refuses to overwrite what is already there
+    - a tsconfig on the old moduleResolution is refused before any write
+    - a moduleResolution inherited through extends is refused too
+    - a key the generated files would refuse is refused here, before any write
+    - without a key it says which flag is missing
+    - --dry-run lists the files and writes none of them
+    - rewrites what moved and leaves the rest alone
+    - names what no longer has a home rather than guessing one
+    - --dry-run reports without writing
+    - it does not walk into node_modules or dist
+    - takes the key out of saas.yaml and the query, and reports the schema
+    - is idempotent, like the other two
+    - rewrites the four kinds of name and leaves the rest alone
+    - reports the token it cannot decide, and leaves it
+    - --dry-run reports and writes nothing
+    - the package rename reaches package.json, under its own indentation
+    - a second run has nothing left to do
+    - runs the import rewrite and the rename, in that order
+- `packages/cli/tests/init.test.js`
+    - the minimum is seven files, one of them a quota provider
+    - each quota adds one provider, named after its key
+    - --skip-hasher drops the hasher and keeps the persistence bundle
+    - with a hasher the bundle wires it
+    - no file goes out with an unsubstituted token
+    - every template is reachable through some plan
+    - a multi-word key still produces valid identifiers
+    - the quota model becomes the Prisma delegate, not the model name
+    - a quota without a model counts a delegate named after the key
+    - the case helpers round-trip the shapes the plan relies on
+    - quotas land under both plans, at different limits
+    - there is no such thing as a plan without quotas
+    - nothing has a trailing space
+    - the admin module is registered, not merely imported
+    - nothing is imported that the inserted code does not use
+    - every symbol the block uses is imported
+    - what was already in the array keeps its own line
+    - the imports go after the last existing one
+    - running it twice does nothing the second time
+    - a file it cannot edit is declined, with the block to paste
+    - a one-line decorator is declined, and the reason names the shape it wants
+    - the limit filter is printed, not inserted
+    - without persistence it comments the line instead of importing nothing
+    - a generated persistence bundle is an imported one
+    - the admin module import path matches the file the plan writes
+    - each quota provider import path matches its file
+    - the block names one, so the file does not compile without it
+    - the block names the modules the platform resolves from, for the same reason
+    - and says why, where the reader is
+    - is refused before anything is planned
+    - and a valid one still plans
+    - the message carries the pattern rather than a paraphrase of it
+    - the quota key pattern is the schema
+    - the minimum number of quotas is the schema
+    - the classes get identifiers, the catalogue keeps the words
+    - and the file names follow the identifier, not the label
+    - every generated class name is a valid identifier
+    - for a camel-cased key, where the two used to disagree
+    - and for every spelling the schema allows
+    - stays intact, and the new imports go after it
+    - and a side-effect import is an import too, so nothing lands above it
+
+<!-- END proof -->
 
 ## 17. Accessibility
 
@@ -4788,12 +7568,63 @@ is the line below which text is not hard to read but gone.
 
 _Source:_ `docs/explanation/design-guide.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
+    - Quasar
+    - an explicit scheme still outranks what Quasar was set to
+    - Quasar
+    - the machine still decides when Quasar says
+    - Quasar
+    - with no dark configuration at all, the theme is left on system
+    - Quasar
+    - the two directions do not chase each other
+    - a
+    - Quasar
+    - a hard pick that agrees with the machine is still a pick
+    - dispose() stops the bridge writing to the document
+- `tests/a-role-that-is-read-is-defined.test.js`
+    - both sides of the comparison were actually read
+    - the definitions reach the scale, not only the colours
+    - the reads reach the two files the defect shipped in
+    - no role is read that the theme leaves undefined
+    - the rule is not vacuous: an undefined role is reported, with its line
+    - and a role the theme defines is not reported
+    - a fallback answers for the role it stands in for
+    - a nested read is a read of its own
+    - a role named in a comment is not a read
+    - a comment above a read does not move its line
+    - the import graph is followed, not guessed
+- `tests/filled-status-carries-white-text.test.js`
+    - the base layer declares some
+    - each resolves to a literal colour rather than another variable
+    - white on each clears the floor
+    - both themes declare them, with the same value
+    - each theme hands the same four to Quasar, in its own block
+
+<!-- END proof -->
+
 ### SC-A11Y-002 — Meaningful visuals stand out from what is next to them
 
 🟢 Icons, control edges, status marks and chart elements are distinguishable from their surroundings
 at no less than 3:1, and body text at no less than 4.5:1.
 
 _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/filled-status-carries-white-text.test.js`
+    - the base layer declares some
+    - each resolves to a literal colour rather than another variable
+    - white on each clears the floor
+    - both themes declare them, with the same value
+    - each theme hands the same four to Quasar, in its own block
+
+<!-- END proof -->
 
 ### SC-A11Y-003 — A colour used as a fill is not the same colour used as text
 
@@ -4803,6 +7634,20 @@ and text on a filled surface stays legible in both themes.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/design-token-budget.test.js`
+    - the audit reaches the source tree
+    - the inline-style sweep reads a fixture it cannot miss
+    - a CSS-wide keyword is not a typographic value
+    - a palette prop counts on a Quasar component and nowhere else
+    - ${metric} does not grow (floor ${floor} — ${why})
+    - ${metric} baseline has not overshot its floor
+
+<!-- END proof -->
+
 ### SC-A11Y-004 — Every control can be reached and operated from the keyboard
 
 🟢 A row that opens is a button, not an area that happens to respond to a click. Four of the eight
@@ -4810,6 +7655,36 @@ expandable surfaces this replaced could not be reached or announced at all, and 
 attribute that announces them returned nothing.
 
 _Source:_ #133 · `docs/explanation/design-guide.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/disclosures-open-what-they-say.test.ts`
+    - the row is a button that says whether it is open
+    - clicking one row opens that row, and only that one
+    - clicking the open row closes it again
+    - the timeline bar that opens the same row is a control too
+    - the toggle is a button that says whether it is open
+    - the backend-only fields appear once it is open
+    - the toggle asks its owner rather than deciding
+    - an edit in the open editor reaches the update handler
+    - the plan cell is the keyboard path, and says what it controls
+    - a click on a cell that holds no control opens the row
+    - a click on a field in the row does not
+    - the handle moves the row with the arrow keys
+    - the arrow keys stop at the ends of the list
+    - a drag from the first row to the second reports that move
+    - a drag downwards lands where the pointer is, not one row further
+    - a twitch inside the dragged row is not a move
+    - a drag upwards lands where the pointer is
+    - a drag released where it started reports nothing
+    - a row that cannot be written is not part of the order
+    - a row without a live version has no handle
+    - a focusable ancestor does not silence the row
+    - the plan cell opens the row exactly once
+
+<!-- END proof -->
 
 ### SC-A11Y-005 — Focus stays visible
 
@@ -4822,6 +7697,19 @@ _Source:_ `docs/explanation/design-guide.md`
 🟢 A state signalled by colour is also signalled by an icon, a label or a description.
 
 _Source:_ internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/error-state-outranks-the-accent.test.ts`
+    - the stylesheet the theme has to outrank really parsed
+    - a focused valid field still gets the accent label
+    - a focused invalid field keeps its negative label
+    - an invalid field that was never focused keeps it too
+    - a list item has no error state for the sibling rule to trample
+
+<!-- END proof -->
 
 ### SC-A11Y-007 — An icon that carries meaning has a name that can be announced
 
@@ -4836,6 +7724,40 @@ landmark is worse than none.
 
 _Source:_ `docs/explanation/design-guide.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/admin-page-shell.test.ts`
+    - renders the title as the page heading
+    - omits the subtitle and the actions bar when neither is supplied
+    - renders a markup subtitle through the slot
+    - names the section by pointing aria-labelledby at its own heading
+    - gives sibling sections distinct heading ids
+    - renders no heading level above h2
+    - the source sweep actually finds the pages it claims to check
+    - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
+    - no content page renders its own &lt;main&gt; or a QPage
+    - no content page hand-writes the hero markup instead of using AdminHero
+    - AdminHero renders the only &lt;h1&gt; in the package
+    - no view renders its hero inside the page body
+    - no view hand-writes the reload button instead of using AdminRefreshBtn
+    - no view writes its own table instead of using AdminTable
+    - a component whose only job is to emit is never used without a listener
+    - the actions column is filled through row-actions, not body-cell-actions
+    - no page declares its own statistic tile styling
+    - an unscoped page style reaches only its own sub-components
+    - no page block titles itself with a heading-shaped &lt;div&gt;
+    - no view writes its own disclosure instead of using AdminAccordion
+    - the sweep reaches the pages it claims to check
+    - no page reaches for Quasar directly
+    - no page redeclares the frame the theme draws
+    - a page imports only from the layers below it
+    - no primitive hard-codes a user-visible string
+    - no file grows past the budget for its layer
+
+<!-- END proof -->
+
 ### SC-A11Y-009 — Motion respects a person who has asked for less of it
 
 🟢 Including the animations SaaSiCat draws itself rather than borrows.
@@ -4848,12 +7770,42 @@ _Source:_ #206
 
 _Source:_ release 0.24.2
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/px-to-scale.test.js`
+    - an exact value takes its own token
+    - a midpoint rounds down
+    - a value nearer one rung takes it, up or down
+    - radii use their names, not their numbers
+    - a negative keeps its sign in a calc
+    - tracking is converted rather than snapped
+    - a property no scale answers for
+    - a declaration that already reads a token
+    - a token definition
+    - every value in a shorthand moves together
+    - a zero stays a zero
+    - touches declarations and nothing else
+
+<!-- END proof -->
+
 ### SC-A11Y-011 — A dialog does not stack on top of itself
 
 🟢 One overlay per screen, not one per row, so focus is never trapped behind something a person
 cannot see.
 
 _Source:_ release 1.0.0-rc.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/one-dialog-per-page-not-per-row.test.ts`
+    - the fixture renders several rows — without that this proves nothing
+    - one instance exists, however many rows there are
+
+<!-- END proof -->
 
 ### SC-A11Y-012 — Where a screen cannot meet the floor, the exception is named with its reason
 
@@ -4875,6 +7827,88 @@ is remembered and outranks whatever the installation configured.
 
 _Source:_ #45 · #47 · release 0.16.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/locale-switcher.test.ts`
+    - renders when the app offers several languages
+    - renders nothing when the app opted out
+    - a context from an older package version still shows it
+    - the button shows the active language by its own name
+    - an app-supplied language is labelled from availableLocales
+    - an unknown active locale falls back to its code instead of blanking
+    - the accessible label comes from the catalog
+    - every offered language becomes a menu entry
+    - picking an entry writes the shared locale
+    - only the active entry carries the check mark
+- `packages/ui-vue/tests/i18n.test.js`
+    - German is the default locale
+    - every locale has a catalog, an Intl tag and a switcher label
+    - isSaBuiltinLocale accepts shipped locales and rejects anything else
+    - defaults to the platform locale
+    - switching the locale swaps the catalog and the Intl tag
+    - the picked locale is written to storage
+    - a stored pick outranks the app default
+    - a corrupt stored value falls back to the app default
+    - persist: false does not read the stored pick
+    - persist: false does not write the picked locale
+    - an app-supplied Ref is used as-is and outranks the stored pick
+    - an app-supplied Ref is not persisted by the platform
+    - enabled by default
+    - switcher: false turns it off
+    - a writable Ref keeps it on
+    - a writable computed keeps it on
+    - a readonly computed turns it off — writes would be swallowed
+    - English mirrors the German key structure exactly
+    - no message is left empty in either locale
+    - placeholders match between German and English
+    - replaces named placeholders
+    - leaves unknown placeholders verbatim
+    - replaces every occurrence of the same placeholder
+    - German uses a decimal comma and dot grouping
+    - English uses a decimal point and comma grouping
+    - defaults to the platform locale
+    - numeric strings are accepted
+    - null, undefined and non-numeric input render as an em dash
+    - zero is a real amount, not an empty value
+    - overrides replace only the given leaves
+    - keys absent from the base catalog are ignored
+    - merging does not mutate the shared catalog
+    - without overrides the shared catalog instance is returned
+    - English labels and sections are the default
+    - German locale switches labels and sections
+    - explicit label overrides still win over the locale defaults
+    - defaultSectionOrder matches the drawer order per locale
+    - English sidebar groups under the English section order
+    - ships German and English by default
+    - an app can offer a single language
+    - the offered order is the order given
+    - a locale without a catalog is dropped instead of rendering blank
+    - an empty selection falls back to everything available
+    - an app-supplied language joins the switcher with its own name
+    - a partial translation renders, filling gaps from basedOn
+    - basedOn defaults to English rather than the reference locale
+    - overrides apply to app-supplied languages too
+    - has() answers for built-ins and app languages alike
+    - resolution is cached — the same object comes back
+    - a single offered language hides the switcher
+    - an app language can be selected and formats with its own tag
+    - a stored pick the app no longer offers is ignored
+    - an unknown active locale renders the default instead of blanking
+    - storageKeyPrefix separates apps sharing one origin
+    - discovery status labels follow an app language
+    - relative-date wording follows an app language
+    - bundle status labels follow an app language
+    - untranslated keys in those namespaces fall back, not blank
+    - overrides reach the same namespaces
+- `packages/ui-vue-tenant/tests/component/tenant-i18n-provider.test.ts`
+    - an ancestor that provides is read by a grandchild
+    - without a provider the shipped catalog fills in, so nothing renders blank
+    - the provided catalog wins over the shipped one
+
+<!-- END proof -->
+
 ### SC-LANG-002 — The admin interface falls back to English, the backend to German
 
 🟢 Two answers to one question, and knowing which applies where matters: the shipped interface uses
@@ -4887,6 +7921,17 @@ either of them changes what an existing installation renders.)_
 
 _Source:_ `docs/guides/upgrade-to-1.0.md` · current practice
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/tenant-i18n-provider.test.ts`
+    - an ancestor that provides is read by a grandchild
+    - without a provider the shipped catalog fills in, so nothing renders blank
+    - the provided catalog wins over the shipped one
+
+<!-- END proof -->
+
 ### SC-LANG-003 — Which languages an application offers is the application's decision
 
 🟢 SaaSiCat ships two complete ones and lets an installation narrow that set or add its own. A
@@ -4895,6 +7940,24 @@ for the rest.
 
 _Source:_ release 0.17.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/locale-switcher.test.ts`
+    - renders when the app offers several languages
+    - renders nothing when the app opted out
+    - a context from an older package version still shows it
+    - the button shows the active language by its own name
+    - an app-supplied language is labelled from availableLocales
+    - an unknown active locale falls back to its code instead of blanking
+    - the accessible label comes from the catalog
+    - every offered language becomes a menu entry
+    - picking an entry writes the shared locale
+    - only the active entry carries the check mark
+
+<!-- END proof -->
+
 ### SC-LANG-004 — A missing translation is never an empty line
 
 🟢 Text a reader's own catalogue does not know falls back to the shipped English rather than
@@ -4902,12 +7965,146 @@ disappearing, and never to a bare internal code.
 
 _Source:_ #243 · release 0.19.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/i18n.test.js`
+    - German is the default locale
+    - every locale has a catalog, an Intl tag and a switcher label
+    - isSaBuiltinLocale accepts shipped locales and rejects anything else
+    - defaults to the platform locale
+    - switching the locale swaps the catalog and the Intl tag
+    - the picked locale is written to storage
+    - a stored pick outranks the app default
+    - a corrupt stored value falls back to the app default
+    - persist: false does not read the stored pick
+    - persist: false does not write the picked locale
+    - an app-supplied Ref is used as-is and outranks the stored pick
+    - an app-supplied Ref is not persisted by the platform
+    - enabled by default
+    - switcher: false turns it off
+    - a writable Ref keeps it on
+    - a writable computed keeps it on
+    - a readonly computed turns it off — writes would be swallowed
+    - English mirrors the German key structure exactly
+    - no message is left empty in either locale
+    - placeholders match between German and English
+    - replaces named placeholders
+    - leaves unknown placeholders verbatim
+    - replaces every occurrence of the same placeholder
+    - German uses a decimal comma and dot grouping
+    - English uses a decimal point and comma grouping
+    - defaults to the platform locale
+    - numeric strings are accepted
+    - null, undefined and non-numeric input render as an em dash
+    - zero is a real amount, not an empty value
+    - overrides replace only the given leaves
+    - keys absent from the base catalog are ignored
+    - merging does not mutate the shared catalog
+    - without overrides the shared catalog instance is returned
+    - English labels and sections are the default
+    - German locale switches labels and sections
+    - explicit label overrides still win over the locale defaults
+    - defaultSectionOrder matches the drawer order per locale
+    - English sidebar groups under the English section order
+    - ships German and English by default
+    - an app can offer a single language
+    - the offered order is the order given
+    - a locale without a catalog is dropped instead of rendering blank
+    - an empty selection falls back to everything available
+    - an app-supplied language joins the switcher with its own name
+    - a partial translation renders, filling gaps from basedOn
+    - basedOn defaults to English rather than the reference locale
+    - overrides apply to app-supplied languages too
+    - has() answers for built-ins and app languages alike
+    - resolution is cached — the same object comes back
+    - a single offered language hides the switcher
+    - an app language can be selected and formats with its own tag
+    - a stored pick the app no longer offers is ignored
+    - an unknown active locale renders the default instead of blanking
+    - storageKeyPrefix separates apps sharing one origin
+    - discovery status labels follow an app language
+    - relative-date wording follows an app language
+    - bundle status labels follow an app language
+    - untranslated keys in those namespaces fall back, not blank
+    - overrides reach the same namespaces
+
+<!-- END proof -->
+
 ### SC-LANG-005 — Every string on a screen follows the language that was chosen
 
 🟢 Including the ones assembled from parts. An installation that added a third language got a shell
 in that language with thirty-four sentences stranded in another.
 
 _Source:_ release 0.18.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/i18n.test.js`
+    - German is the default locale
+    - every locale has a catalog, an Intl tag and a switcher label
+    - isSaBuiltinLocale accepts shipped locales and rejects anything else
+    - defaults to the platform locale
+    - switching the locale swaps the catalog and the Intl tag
+    - the picked locale is written to storage
+    - a stored pick outranks the app default
+    - a corrupt stored value falls back to the app default
+    - persist: false does not read the stored pick
+    - persist: false does not write the picked locale
+    - an app-supplied Ref is used as-is and outranks the stored pick
+    - an app-supplied Ref is not persisted by the platform
+    - enabled by default
+    - switcher: false turns it off
+    - a writable Ref keeps it on
+    - a writable computed keeps it on
+    - a readonly computed turns it off — writes would be swallowed
+    - English mirrors the German key structure exactly
+    - no message is left empty in either locale
+    - placeholders match between German and English
+    - replaces named placeholders
+    - leaves unknown placeholders verbatim
+    - replaces every occurrence of the same placeholder
+    - German uses a decimal comma and dot grouping
+    - English uses a decimal point and comma grouping
+    - defaults to the platform locale
+    - numeric strings are accepted
+    - null, undefined and non-numeric input render as an em dash
+    - zero is a real amount, not an empty value
+    - overrides replace only the given leaves
+    - keys absent from the base catalog are ignored
+    - merging does not mutate the shared catalog
+    - without overrides the shared catalog instance is returned
+    - English labels and sections are the default
+    - German locale switches labels and sections
+    - explicit label overrides still win over the locale defaults
+    - defaultSectionOrder matches the drawer order per locale
+    - English sidebar groups under the English section order
+    - ships German and English by default
+    - an app can offer a single language
+    - the offered order is the order given
+    - a locale without a catalog is dropped instead of rendering blank
+    - an empty selection falls back to everything available
+    - an app-supplied language joins the switcher with its own name
+    - a partial translation renders, filling gaps from basedOn
+    - basedOn defaults to English rather than the reference locale
+    - overrides apply to app-supplied languages too
+    - has() answers for built-ins and app languages alike
+    - resolution is cached — the same object comes back
+    - a single offered language hides the switcher
+    - an app language can be selected and formats with its own tag
+    - a stored pick the app no longer offers is ignored
+    - an unknown active locale renders the default instead of blanking
+    - storageKeyPrefix separates apps sharing one origin
+    - discovery status labels follow an app language
+    - relative-date wording follows an app language
+    - bundle status labels follow an app language
+    - untranslated keys in those namespaces fall back, not blank
+    - overrides reach the same namespaces
+
+<!-- END proof -->
 
 ### SC-LANG-006 — Text a customer reads carries its values beside its code, not inside a sentence
 
@@ -4925,6 +8122,33 @@ _Tested by:_
     - the sources contain coded throw sites at all
     - every throw site supplies the placeholders its message template names
     - all throw sites for one code agree on their params key names
+- `packages/nest/tests/preview-issues-are-translatable.test.js`
+    - a preview issue can be read in the reader’s language
+        - the scan finds the codes at all
+        - ${locale} has a text for every code the preview emits
+        - every template names only values the issue carries
+- `packages/ui-vue/tests/error-facts-are-declared.test.js`
+    - there are error classes to look at — otherwise nothing below looks at anything
+    - each status-carrying class calls markPlatformError(this)
+    - the brands are counted independently, against a floor that moves with the sources
+    - every status-0 platform error is marked as one
+    - nothing else claims to be one
+    - the helpers are discoverable
+    - each one calls requireServerAnswer before it reads a body
+    - every file that raises the sentinel also runs the guard
+- `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
+    - the shipped German catalogue renders the German sentence
+    - the shipped English catalogue renders the English sentence
+    - an app
+    - a code the app left untranslated still reads, from the shipped text
+    - a code nobody has a text for falls back to the message the backend sent
+- `packages/ui-vue-tenant/tests/component/message-parts.test.ts`
+    - the substituted date is the emphasised one
+    - other values are substituted without emphasis
+    - a placeholder nobody supplied stays visible
+    - an unclosed brace is left alone rather than eating the rest
+    - a message without placeholders is one part
+    - two dates are both emphasised
 
 <!-- END proof -->
 
@@ -4935,6 +8159,22 @@ about made the set of codes grow with every quota an installation defines, so no
 translations could ever be complete.
 
 _Source:_ #243
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/error-facts-are-declared.test.js`
+    - there are error classes to look at — otherwise nothing below looks at anything
+    - each status-carrying class calls markPlatformError(this)
+    - the brands are counted independently, against a floor that moves with the sources
+    - every status-0 platform error is marked as one
+    - nothing else claims to be one
+    - the helpers are discoverable
+    - each one calls requireServerAnswer before it reads a body
+    - every file that raises the sentinel also runs the guard
+
+<!-- END proof -->
 
 ### SC-LANG-008 — A refusal is identified by a stable code; only its wording may change
 
@@ -4947,6 +8187,20 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/core/tests/error-messages.test.js`
+    - the code map carries the one code declared in another file
+    - ${locale} has a text for every error code
+    - ${locale} has no text for an unknown code
+    - every locale interpolates the same placeholders per code
+    - substitutes named values
+    - leaves an unknown placeholder visible rather than dropping it
+    - treats null like a missing value
+    - prefers the consumer override
+    - falls back to the shipped default
+    - falls back to the message when the code has no text
+    - falls back to the code only when there is no message either
+    - reads top-level body fields when a placeholder is not in params
+    - params win over a top-level field of the same name
 - `packages/nest/tests/error-params-contract.test.js`
     - the sources contain coded throw sites at all
     - every throw site supplies the placeholders its message template names
@@ -4954,6 +8208,17 @@ _Tested by:_
 - `packages/nest/tests/feature-guard.test.js`
     - StaticFeatureGuard — FEATURE_NOT_LICENSED body
         - emits the full FeatureNotLicensedBody with empty offers
+- `packages/nest/tests/version-publish.test.js`
+    - PublishValidationError
+        - has name + code
+- `tests/error-identity-across-entries.test.js`
+    - the two entries really do hand out separate classes
+    - instanceof does not survive the split
+    - the brand does, and the error keeps everything it carried
+    - a foreign error is still wrapped, so the brand is not a blanket pass
+    - a transport failure marked through one entry is read back through the other
+    - an empty response marked through one entry is read back through the other
+    - an unmarked error is not mistaken for either
 
 <!-- END proof -->
 
@@ -4964,6 +8229,24 @@ resolving both through one path is the reason the mechanism exists.
 
 _Source:_ #244
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/preview-issues-are-translatable.test.js`
+    - a preview issue can be read in the reader’s language
+        - the scan finds the codes at all
+        - ${locale} has a text for every code the preview emits
+        - every template names only values the issue carries
+- `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
+    - the shipped German catalogue renders the German sentence
+    - the shipped English catalogue renders the English sentence
+    - an app
+    - a code the app left untranslated still reads, from the shipped text
+    - a code nobody has a text for falls back to the message the backend sent
+
+<!-- END proof -->
+
 ### SC-LANG-010 — Diagnostics an integrator reads are English and are not translated
 
 🟢 Boot failures, log lines and console messages are read by the person integrating SaaSiCat, and one
@@ -4971,6 +8254,19 @@ language is what makes them searchable. Translating them once put the platform's
 on a tenant's screen instead of the catalogue's.
 
 _Source:_ #150 · release 0.19.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/diagnostics-are-not-translated.test.js`
+    - the error classes are discoverable — otherwise nothing below looks at anything
+    - no construction of one takes its message from the catalog
+- `packages/ui-vue/tests/diagnostics-survive-the-locale.test.js`
+    - ${name} says the same thing in German and in English
+    - ${name} shows the operator the catalog
+
+<!-- END proof -->
 
 ### SC-LANG-011 — Everything that ships is written in English
 
@@ -4984,12 +8280,102 @@ _Source:_ #150 · release 0.22.0
 
 _Source:_ release 0.17.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
+    - No composable/loader has
+    - useTenants() WITHOUT the endpoint option throws with a clear error message
+
+<!-- END proof -->
+
 ### SC-LANG-013 — A message says what to do next, not only what went wrong
 
 🟢 A locked verification says to request a new code; a missing setting names the file and the field;
 a refused booking names the plan and the rhythm it could not price.
 
 _Source:_ `docs/reference/error-codes.md` · `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/error-messages.test.js`
+    - the code map carries the one code declared in another file
+    - ${locale} has a text for every error code
+    - ${locale} has no text for an unknown code
+    - every locale interpolates the same placeholders per code
+    - substitutes named values
+    - leaves an unknown placeholder visible rather than dropping it
+    - treats null like a missing value
+    - prefers the consumer override
+    - falls back to the shipped default
+    - falls back to the message when the code has no text
+    - falls back to the code only when there is no message either
+    - reads top-level body fields when a placeholder is not in params
+    - params win over a top-level field of the same name
+- `packages/ui-vue/tests/admin-error.test.js`
+    - defaults to status 0 — a request that never produced one
+    - the diagnostic message names the request, the status and the code
+    - the diagnostic carries the detail when there is one
+    - an explicit message overrides the derived one
+    - cause is preserved
+    - recognises an instance
+    - rejects a plain error, a look-alike object, and nothing at all
+    - recognises what a throw site marked, and nothing else
+    - the marker is not enumerable, so it does not leak into a log line
+    - recognises what a client marked, and nothing else
+    - marking a non-object is a no-op rather than a second failure
+    - the marker is not enumerable, so it does not leak into a log line
+    - passes an AdminError through untouched
+    - reads an axios rejection: status, code, body, url and method
+    - a status-bearing error with an unreadable body has no detail at all
+    - joins a NestJS ValidationPipe message array instead of stringifying it
+    - reads one of the package’s own API errors, which carry status and body
+    - an answer that was empty is not a connection problem
+    - a consumer client rejecting with status 0 is not an empty response
+    - a manifest 304 that survives to be thrown is a diagnostic like any other
+    - a real HTTP failure is not an empty response
+    - a declared transport failure keeps its diagnostic off detail, so the catalog answers
+    - an axios failure with no response is transport too
+    - but an interceptor’s own error is not, however much of axios it carries
+    - but an error from app code keeps its message — that IS what was said
+    - wraps a thrown string
+    - survives a thrown nothing
+    - a null dereference is not a connection problem
+    - a real fetch failure still says
+    - a malformed URL is a transport failure too, not an unknown one
+    - the client passes a response through untouched
+    - a consumer error carrying a status keeps its message
+    - a consumer error merely NAMED like ours is still a consumer error
+    - a mutation the server answered without a body is an empty response
+    - a boot GET a client resolved as status 0 never reached the server
+    - a manifest GET a client resolved as status 0 never reached the server
+    - nor did a mutation a client resolved as status 0 — on any of the surfaces
+    - a discovery load a client resolved as status 0 never reached the server
+    - a plain object keeps the message it carries
+    - an Error from another realm is such an object
+    - an object with nothing readable falls through to the generic wording
+    - a non-string message is not a message
+    - what the failing side said outranks anything the platform could guess
+    - maps the statuses that have their own wording
+    - any other status falls through to the generic template, with the number in it
+    - a failure nothing knows anything about says so, rather than blaming the network
+    - a seam that declares the request never went out gets the network wording
+    - converts before formatting, so an axios rejection needs no pre-processing
+    - German is a complete alternative, not a fallback to English
+    - the two names are one class, so an existing instanceof check keeps working
+    - a non-2xx carries status, code, detail, url and method
+    - postJson reports its own method
+    - an error body that is not JSON does not become a second failure
+    - a validation rejection keeps its constraints — the array is joined here too
+    - a 2xx still returns the parsed body
+    - an AdminError carries it at
+    - an axios rejection carries it at
+    - anything else has none
+
+<!-- END proof -->
 
 ## 19. Security and keeping tenants apart
 
@@ -5004,11 +8390,62 @@ property until the deployment provides it.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
+    - the no-options default preserves the 0.6 plan-only write
+    - opening a window records the day the subscription is billed on
+    - and a change that opens none leaves it alone
+    - normalized mode binds semantic plan and active version atomically with named delegates
+    - a pending version of the same target plan is retained
+    - a failing onboarding callback rolls plan and version back together
+    - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
+    - pending PlanVersion acceptance rejects a changed CAS target and a missing target
+    - invalid validity capability combinations fail at construction
+
+<!-- END proof -->
+
 ### SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
 
 🟢 🔒 Never from a value the caller supplied.
 
 _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/cli-context.test.js`
+    - accepts --as flag
+    - falls back to env var
+    - throws NO_IDENTITY with exit code 2 when nothing is set
+    - --as overrides env var
+    - accepts SUPER_ADMIN user
+    - rejects non-existent user (USER_NOT_FOUND, exit 2)
+    - rejects deactivated user
+    - rejects non-SUPER_ADMIN (NOT_SUPER_ADMIN)
+    - Bypass: SKIP=1 + non-prod
+    - bypass NOT in production
+    - MFA_NOT_SET_UP when platform MfaService isEnabled=false
+    - MFA_FAILED on invalid code
+    - accepts valid code
+    - skips automatically in non-prod
+    - skips with yes=true in prod
+    - accepts
+    - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
+    - writes through platform AdminAuditService with cli actor
+    - has code, message and exitCode
+- `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
+    - every request carries the client
+    - the page adds no header of its own to an unauthenticated client
+- `packages/ui-vue/tests/one-way-to-authenticate.test.js`
+    - there is a corpus to scan
+    - no option named
+    - nothing builds a Bearer header by hand
+
+<!-- END proof -->
 
 ### SC-SEC-003 — Reads that legitimately cross tenants are named as the exceptions they are
 
@@ -5024,12 +8461,84 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Source:_ `docs/guides/build-the-admin-frontend.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-route.test.js`
+    - SaaSiCat public route metadata
+        - ${controller.name} is recognized by global auth guards
+        - unmarked controllers stay protected
+- `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
+    - every request carries the client
+    - the page adds no header of its own to an unauthenticated client
+- `packages/ui-vue/tests/navigation-guard.test.js`
+    - returns null when neither authGuard nor manifestGuard is set
+    - redirects to onUnauthenticated() when isAuthenticated is false
+    - lets public routes bypass the auth guard
+    - redirects to onUnauthenticated when isSuperAdmin is false
+    - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
+    - avoids redirect loop: when the current route is already errorRoute, returns true
+    - falls back to render-allow + console.error when NO errorRoute is set
+    - lets the render through when ensureLoaded resolves successfully
+    - 401 from the manifest load routes to login, not to the error page
+    - 403 is treated the same way
+    - a genuine manifest failure still fails closed to the error page
+    - an error without a status stays on the fail-closed path
+    - without an authGuard a 401 still reaches the error page
+    - first 401 offers a re-login, the second stops the circle
+    - a successful load re-arms the redirect for a later expiry
+    - concurrent navigations on one rejection share the login redirect
+    - the second attempt fails closed once the operator has seen login
+    - a cached error instance does not resurrect the login loop
+    - a later, different rejection still fails closed
+
+<!-- END proof -->
+
 ### SC-SEC-005 — Data arriving from outside is validated at the boundary
 
 🟢 🔒 Requests, external systems and files are checked where they enter; code inside the boundary is
 trusted.
 
 _Source:_ internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/bundle-dtos-validate.test.js`
+    - CreateBundleDto
+        - accepts a complete bundle
+        - requires the two identity fields
+        - holds the key pattern
+        - holds the lengths and the sort-order range
+    - UpdateBundleDto
+        - accepts an empty patch
+        - clears a text field with null, and keeps the same limits
+    - CreateBundleVersionDraftDto
+        - accepts a complete draft
+        - requires the feature list
+        - holds the feature-key shape
+        - holds the decimal shape, and lets null through
+        - holds the date shape, and lets null through
+    - UpdateBundleVersionDraftDto
+        - accepts an empty patch and the same shapes as create
+        - refuses what create refuses, field for field
+- `packages/spec/tests/schemas.test.js`
+    - adminManifestSchema compiles
+    - planCatalogSchema compiles
+    - promoCodeSchema compiles
+    - auditEventSchema compiles
+    - planCatalog accepts minimal valid catalog
+    - promoCode CreatePromoCodeRequest accepts a typical PERCENT code
+    - promoCode CreatePromoCodeRequest rejects lowercase code
+    - auditEvent accepts minimal valid entry
+    - auditEvent rejects lowercase action
+    - adminManifest accepts minimal valid manifest
+    - adminManifest rejects the removed planVersions standard page
+    - adminManifest rejects capability with colon notation
+
+<!-- END proof -->
 
 ### SC-SEC-006 — An installation must terminate traffic at a proxy it controls
 
@@ -5142,6 +8651,17 @@ records survives is not a decision a migration takes on its own.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-apply-dry-run.test.js`
+    - it names the lines, and leaves the file untouched
+    - and the real run writes exactly those lines
+    - past tense belongs to the run that did it
+
+<!-- END proof -->
+
 ### SC-PRIV-010 — History is not rewritten
 
 🟢 🔒 A period a tenant was already billed for is left as it stands, even by a correction that would
@@ -5162,6 +8682,20 @@ the two it was.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-guards.test.js`
+    - AdminAuditService
+        - actorTag formats source:email:context
+        - log() writes through and appends the actor tag to changes
+        - fromWebRequest builds AdminActor with source=web
+        - fromWebRequest falls back to
+        - fromCli builds AdminActor with source=cli + hostname
+
+<!-- END proof -->
+
 ### SC-AUD-002 — An action that belongs to no single tenant says so
 
 🟢 Platform-wide acts are distinguishable from acts on one tenant, rather than looking like an entry
@@ -5170,11 +8704,43 @@ distinguishable from one a person took.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/audit-tail-flow.test.js`
+    - empty filter → empty query object
+    - actor → actorTag
+    - action + entity
+    - since → from
+    - limit → pageSize
+    - maps fields + truncated entityId
+    - null-actorTag →
+    - short entityId not truncated
+
+<!-- END proof -->
+
 ### SC-AUD-003 — Every change to a subscription is recorded with what it was before and after
 
 🟢 Plan changes, scheduled changes, activations, accepted versions and cancellations.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/audit-tail-flow.test.js`
+    - empty filter → empty query object
+    - actor → actorTag
+    - action + entity
+    - since → from
+    - limit → pageSize
+    - maps fields + truncated entityId
+    - null-actorTag →
+    - short entityId not truncated
+
+<!-- END proof -->
 
 ### SC-AUD-004 — A failure to record something never blocks the act itself
 
@@ -5253,11 +8819,118 @@ rolling the whole thing back.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/migration-constraints.test.js`
+    - the one that appeared between the two listings
+    - nothing new means nothing to append to, even with migrations present
+    - directories that are not migrations are not candidates
+    - the newest of several, when a run somehow produced two
+    - no migrations at all is not an error, it is nothing to do
+    - the statements land after the tables
+    - it says where the copy came from
+    - running it twice appends once
+    - a migration that already has them is recognised
+    - a migration without a trailing newline still gets a separating one
+    - reads the table off each statement
+    - keeps the ones whose table is present
+    - keeps everything when every table is present
+    - a statement it cannot read is kept, not dropped
+    - nothing applicable appends nothing at all
+    - only a failure stops the command
+    - a failure says where the SQL is, because the operator now needs it
+    - nothing to append is not a failure
+    - every outcome carries a message and a decision
+- `packages/cli/tests/schema-apply-dry-run.test.js`
+    - it names the lines, and leaves the file untouched
+    - and the real run writes exactly those lines
+    - past tense belongs to the run that did it
+- `packages/cli/tests/schema-apply.test.js`
+    - finds top-level models
+    - ignores commented-out models
+    - does not find enum blocks
+    - block stays complete with all lines
+    - adds all models when schema is empty of platform models
+    - idempotent: existing models remain untouched
+    - returns identical schema when all models already present
+    - label appears in the header comment
+    - a fragment yields its enums and its models
+    - apply appends the enum above the model, once
+    - an enum the consumer already declares is left alone
+    - a bare model map still works, with no enums
+- `packages/cli/tests/schema-check.test.js`
+    - reads name, type and modifiers, skips attributes and comments
+    - reads single-line model blocks
+    - reads members and ignores attributes
+    - reads members sharing one line
+    - separates models from enums
+    - commented-out relations are not fields
+    - identical schema has no drift
+    - consumer extensions are not drift
+    - missing field in an adopted model fails
+    - absent model is informational, not a failure
+    - missing enum value in an adopted enum fails
+    - absent enum is informational, not a failure
+    - type change is a mismatch
+    - String replaced by a locally declared enum is allowed
+    - String[] replaced by a local enum list is allowed
+    - a non-String spec type is not substitutable by an enum
+    - a consumer widening a required field to nullable is a mismatch
+    - a consumer tightening a nullable field to required is allowed
+    - list change is a mismatch
+    - identical attributes produce no finding
+    - a missing index is reported but does not fail the check
+    - a missing unique constraint fails the check
+    - a diverging @@map fails the check and names both sides
+    - whitespace and attribute options do not create false findings
+    - extra consumer indexes are not reported
+    - a commented-out @@unique or @@map counts as absent, not present
+    - a brace inside a string default does not close the model early
+    - a // inside a string literal is not treated as a comment
+    - indexed field arguments are parsed past their parentheses
+    - @@map survives the comment strip
+    - blanks contents, keeps quotes and length
+    - handles escaped quotes without leaving the string early
+    - leaves a line without strings untouched
+    - is linear on pathological input
+
+<!-- END proof -->
+
 ### SC-OPS-003 — An operator can list what a migration will touch before running it
 
 🟢 Every migration that changes rows ships with the query that shows which ones.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-apply.test.js`
+    - finds top-level models
+    - ignores commented-out models
+    - does not find enum blocks
+    - block stays complete with all lines
+    - adds all models when schema is empty of platform models
+    - idempotent: existing models remain untouched
+    - returns identical schema when all models already present
+    - label appears in the header comment
+    - a fragment yields its enums and its models
+    - apply appends the enum above the model, once
+    - an enum the consumer already declares is left alone
+    - a bare model map still works, with no enums
+- `tests/build-stamp.test.js`
+    - is stable across runs and changes with a source edit
+    - sees a deleted file and a build config, not a test
+    - a dependency edit makes the dependent stale
+    - no stamp means not current
+    - only a build through build-and-prune writes a stamp
+    - the previous stamp is gone before the build starts
+    - the lockfile is an input
+
+<!-- END proof -->
 
 ### SC-OPS-004 — A destructive step is preceded by a check, not by turning the safety off
 
@@ -5278,6 +8951,23 @@ _Source:_ release 0.27.0
 🟢 Payment providers retry, and a retry must not produce a second account or a second charge.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - error when no plans
+    - ok with plans + details contain planIds
+    - warning when snapshot empty
+    - ok with content
+    - ok when findByEmail does not throw
+    - error when findByEmail throws
+    - ok with standardPages count
+    - error when getManifest throws
+    - contains exactly 4 provider classes
+
+<!-- END proof -->
 
 ### SC-OPS-007 — Repeating an action a person took changes nothing either
 
@@ -5336,6 +9026,71 @@ _Tested by:_
 - `packages/nest/tests/di-token-registry.test.js`
     - @saasicat/nest${name ===
     - every exported token key uses a known prefix
+- `packages/nest/tests/platform-composition.test.js`
+    - the seam is in the CJS build too
+        - the composers are there, in the same order
+        - and so is the export table and its one exception
+- `packages/nest/tests/saasicat-module-escape-hatches.test.js`
+    - platform entry class identity
+        - ${name} is re-exported from @saasicat/nest/platform
+- `packages/spec/tests/docs-version-pins.test.js`
+    - documentation pins no package versions (they rot at every release)
+    - pin detection covers every spec form npm accepts
+- `packages/spec/tests/openapi-version-is-the-package-version.test.js`
+    - the OpenAPI document carries the version this package publishes
+- `packages/ui-vue/tests/injection-keys-are-global-symbols.test.js`
+    - the guard found Vue and read every file
+    - there are keys and call sites to look at
+    - every injection key is created with Symbol.for
+    - every key a provide/inject call names is one the declaration scan found
+    - every provide/inject call site was read
+    - the annotated declarations survive the tree walk
+    - an annotated declaration
+    - an InjectionKey reached through a local type alias (#158, shape 1)
+    - same-file homonyms stay in their own scope (#158, shape 2)
+    - a cast and a satisfies
+    - a second declarator, and one behind type arguments
+    - a .vue script block that closes with
+    - a key exported from a .vue and provided from a .ts
+    - a .vue script block that never closes
+    - provide and inject imported under another name
+    - a key imported through
+    - a string key is a key, and not a missing Symbol.for
+    - grouping is grouping, and a decoy is not a Symbol.for
+    - an assertion may contain what a type contains
+    - a key reached through a property is reported, not skipped
+    - a key declared outside the tree is reported, not skipped
+    - a used key that is not declared as an InjectionKey
+    - a local binding spelled Symbol is not the global Symbol
+    - a comment and a string are not call sites
+    - somebody else
+    - the token count is a second reader, not the same one
+- `tests/a-dependency-is-declared-once.test.js`
+    - the sweep finds the manifests
+    - nothing is both a dependency and a devDependency
+    - nothing is both a dependency and a peer
+- `tests/consumers-dedupe-singleton-peers.test.js`
+    - the peer set is non-empty and is what we think it is
+    - ${relative} dedupes them
+- `tests/di-tokens-share-one-namespace.test.js`
+    - the scan found the tokens
+    - every key starts with saasicat/&lt;package&gt;/
+    - no two declarations share a key
+    - reads single- and multi-line calls, and reports template literals
+    - derives the prefix from the package directory
+- `tests/error-identity-across-entries.test.js`
+    - the two entries really do hand out separate classes
+    - instanceof does not survive the split
+    - the brand does, and the error keeps everything it carried
+    - a foreign error is still wrapped, so the brand is not a blanket pass
+    - a transport failure marked through one entry is read back through the other
+    - an empty response marked through one entry is read back through the other
+    - an unmarked error is not mistaken for either
+- `tests/every-published-package-is-in-the-fixed-group.test.js`
+    - there is exactly one fixed group
+    - every publishable package is in it
+    - the group names no package that does not exist
+    - while in pre mode, initialVersions names every publishable package
 
 <!-- END proof -->
 
@@ -5345,12 +9100,75 @@ _Tested by:_
 
 _Source:_ `CONTRIBUTING.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/pre-release-mode-is-documented.test.js`
+    - on a 0.x base, a major changeset and pre mode appear together
+    - and the tag it uses is the tag the docs name
+    - the check has a subject either way
+
+<!-- END proof -->
+
 ### SC-COMP-003 — There is one deliberate break on the way to 1.0, and one guide for it
 
 🟢 A single coordinated cut with a migration guide and a command that performs most of it, rather
 than a long tail of deprecations.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/v1-imports.test.js`
+    - it has entries
+    - every destination is on a public surface
+    - every move lands on a file that exists — in this package or the one it names
+    - a component that left for the tenant package is rewritten, not reported
+    - a package target names a package this repository publishes
+    - a primitive that moved into ui/
+    - the shell, which left pages/ for layouts/ — under either old spelling
+    - a page that only lost the second spelling
+    - a page that was already right stays untouched
+    - a domain component is recognised as unreachable
+    - and it survives the rewrite untouched, so the build names it
+    - a primitive is not reported — it has somewhere to go
+    - a page-private part under the old alias is a removal, not a page
+    - counts what it changed and leaves the rest alone
+    - the whole path below it comes along
+    - the emitted specifier is not prefixed with the old package
+    - a subpath that merely starts with the same letters is untouched
+- `packages/cli/tests/v1-rename.test.js`
+    - it has entries in every section
+    - every registry-key target is inside the one namespace
+    - every per-entry token target is exported by that entry
+    - every identifier stem resolves to the one spelling
+    - the module class and the option types
+    - a stem inside a longer identifier
+    - the lowercase scope and file names are not a stem
+    - a registry key a consumer spelled themselves, on one line or three
+    - an import specifier that looks like the ui-vue key prefix is left alone
+    - the token that meant two things is renamed by the entry it came from
+    - and reported, not guessed, when the entry does not say which
+    - the package that stopped being only types
+    - the e2e helper subpath
+    - a second run changes nothing
+    - single-line, multi-line, type-only and aliased forms
+    - finishes on the input a backtracking expression would choke on
+    - is reported, not rewritten to whichever import came last
+    - the dependency fields are rewritten, nothing else is
+    - the optional flag follows the peer it belongs to
+    - a workspace or path range is reported, not guessed at
+    - a manifest without the package is returned untouched
+    - the specifier rewrite stops at the package boundary
+- `tests/pre-release-mode-is-documented.test.js`
+    - on a 0.x base, a major changeset and pre mode appear together
+    - and the tag it uses is the tag the docs name
+    - the check has a subject either way
+
+<!-- END proof -->
 
 ### SC-COMP-004 — The upgrade command reports what it cannot decide rather than guessing
 
@@ -5359,6 +9177,114 @@ would find out later. It errs towards leaving work rather than removing theirs.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
+    - every member is reported, flattened to the path it has in the file
+    - an empty list reads as one, rather than as nothing at all
+    - the report is read off the document, so it follows what the template writes
+    - a catalogue the platform would refuse fails here, not at the first boot
+    - names both, with the line each is on
+    - the set is read off the schema, not written out beside it
+    - every setting the schema names has a sentence saying where it goes
+    - says where each one goes, separately
+    - leaves the source untouched — there is nothing to write back
+    - a longer identifier that merely contains the name is not reported
+    - reads the value back as well as writing it — the same migration, later
+    - a file that passes nothing produces no report at all
+    - prose is not scanned — it cannot pass a module option
+    - code is
+    - a shorthand property is reported
+    - a destructured read is reported
+    - a mention in a comment is reported, and that is the chosen trade
+    - several occurrences of one setting are all named, in file order
+- `packages/cli/tests/codemod-project-key.test.js`
+    - the only parameter takes the question mark with it
+    - the first of several hands the question mark to the next
+    - a later one takes its own ampersand
+    - an interpolation with an ampersand inside it stays whole
+    - a fragment survives the parameter in front of it
+    - a call expression is simple enough to keep
+    - a nested object inside the interpolation
+    - a brace inside a string inside the interpolation
+    - an interpolation that never closes
+    - somebody else
+    - and the word in one of its query values does not make it ours
+    - an occurrence at the very start does not end the scan
+    - the endpoint constant
+    - a create body
+    - a string-literal type member, which
+    - an interface member
+    - a bare-identifier value
+    - the shorthand form, which used to pass in silence
+    - a consumer
+    - several are reported in the order they appear, once per line
+    - is neither rewritten nor reported
+    - and neither is a suffix
+    - a rewrite that shortens the file does not shift the lines it reports
+    - and a parameter that was removed is not also reported
+    - loses the top-level key and nothing else
+    - an indented key of the same name is not the top-level one
+- `packages/cli/tests/v1-rename.test.js`
+    - it has entries in every section
+    - every registry-key target is inside the one namespace
+    - every per-entry token target is exported by that entry
+    - every identifier stem resolves to the one spelling
+    - the module class and the option types
+    - a stem inside a longer identifier
+    - the lowercase scope and file names are not a stem
+    - a registry key a consumer spelled themselves, on one line or three
+    - an import specifier that looks like the ui-vue key prefix is left alone
+    - the token that meant two things is renamed by the entry it came from
+    - and reported, not guessed, when the entry does not say which
+    - the package that stopped being only types
+    - the e2e helper subpath
+    - a second run changes nothing
+    - single-line, multi-line, type-only and aliased forms
+    - finishes on the input a backtracking expression would choke on
+    - is reported, not rewritten to whichever import came last
+    - the dependency fields are rewritten, nothing else is
+    - the optional flag follows the peer it belongs to
+    - a workspace or path range is reported, not guessed at
+    - a manifest without the package is returned untouched
+    - the specifier rewrite stops at the package boundary
+- `tests/codemod-stylesheet-parser.test.js`
+    - a comment before the property does not hide the declaration
+    - a comment between two declarations hides neither
+    - a comment glued to the property name is still a comment
+    - a commented-out rule contributes no declarations
+    - an unterminated comment swallows the rest and nothing more
+    - a comment opener inside a string opens no comment
+    - an apostrophe inside a comment opens no string
+    - offsets survive a comment before the declaration
+    - offsets survive a comment inside the value
+    - offsets survive a multi-line comment
+    - a selector colon is not a property
+    - a colon inside parentheses does not split the property
+    - the last declaration needs no trailing semicolon
+    - nesting needs no special case — @media and :deep() are just depth
+    - a custom property is a declaration like any other
+    - the same literal lands in different groups
+    - a custom property is its own group — its readers decide its role
+    - a property that paints nothing is not a colour site
+    - case and padding do not change the group
+    - a .css file is one block at offset 0
+    - an SFC contributes one block per &lt;style&gt;, offset into the file
+    - an upper-case tag is still a block
+    - an end tag is read however HTML lets it be written
+    - scoped and lang attributes do not hide a block
+    - a template is never a site — neither its text nor its inline style
+    - start/end address the literal in the original file
+    - the same literal under two properties yields two different keys
+    - a colour inside a comment is prose, not paint
+    - a functional colour with a var() channel is a token in use, not a literal
+    - sites come back in document order
+    - case and inner whitespace do not make a second key
+
+<!-- END proof -->
+
 ### SC-COMP-005 — A step no command can take is named as a step the operator takes
 
 🟢 The change to the integrator's own database is shipped as a file they run once, and the guide says
@@ -5366,12 +9292,118 @@ so rather than implying the command covered it.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/codemod-project-key.test.js`
+    - the only parameter takes the question mark with it
+    - the first of several hands the question mark to the next
+    - a later one takes its own ampersand
+    - an interpolation with an ampersand inside it stays whole
+    - a fragment survives the parameter in front of it
+    - a call expression is simple enough to keep
+    - a nested object inside the interpolation
+    - a brace inside a string inside the interpolation
+    - an interpolation that never closes
+    - somebody else
+    - and the word in one of its query values does not make it ours
+    - an occurrence at the very start does not end the scan
+    - the endpoint constant
+    - a create body
+    - a string-literal type member, which
+    - an interface member
+    - a bare-identifier value
+    - the shorthand form, which used to pass in silence
+    - a consumer
+    - several are reported in the order they appear, once per line
+    - is neither rewritten nor reported
+    - and neither is a suffix
+    - a rewrite that shortens the file does not shift the lines it reports
+    - and a parameter that was removed is not also reported
+    - loses the top-level key and nothing else
+    - an indented key of the same name is not the top-level one
+
+<!-- END proof -->
+
 ### SC-COMP-006 — An identifier a consumer may have written down is not renamed again
 
 🟢 The names an application injects into SaaSiCat are part of the runtime contract. They were renamed
 once, at 1.0, and that rename is part of what the major version paid for.
 
 _Source:_ ADR 0002 · `CONTRIBUTING.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/v1-imports.test.js`
+    - it has entries
+    - every destination is on a public surface
+    - every move lands on a file that exists — in this package or the one it names
+    - a component that left for the tenant package is rewritten, not reported
+    - a package target names a package this repository publishes
+    - a primitive that moved into ui/
+    - the shell, which left pages/ for layouts/ — under either old spelling
+    - a page that only lost the second spelling
+    - a page that was already right stays untouched
+    - a domain component is recognised as unreachable
+    - and it survives the rewrite untouched, so the build names it
+    - a primitive is not reported — it has somewhere to go
+    - a page-private part under the old alias is a removal, not a page
+    - counts what it changed and leaves the rest alone
+    - the whole path below it comes along
+    - the emitted specifier is not prefixed with the old package
+    - a subpath that merely starts with the same letters is untouched
+- `tests/a-promise-is-not-edited-into-another.test.js`
+    - a line break is not a change
+    - code formatting is not a change
+    - but emphasis is, because it cannot be told from a literal
+    - an identifier is read as where its chain ends
+    - and swapping in an unrelated one is a change
+    - the heading is part of the promise
+    - an underscore inside a name is not emphasis
+    - an asterisk inside a pattern is not emphasis
+    - a different word is a change
+    - an untouched entry is accepted
+    - a rewritten promise is refused
+    - a rewritten promise the commit calls editorial is accepted
+    - an editorial claim for one entry does not cover another
+    - a deleted entry is refused
+    - a new entry beside the old one is accepted
+    - superseding without touching the wording is accepted
+    - rewriting the wording while superseding is refused
+    - delivering a promise is not rewriting it
+    - filing a delivered promise as an intention is refused
+    - correcting a record that was wrong is accepted when it is claimed
+    - demoting a promise to a draft is refused
+    - deciding a draft is accepted
+    - dropping a draft is accepted
+    - a withdrawn promise coming back is refused
+    - a rewrite in the resolution is reported
+    - a deletion in the resolution is reported
+    - what came in from the other branch is not
+    - what this branch had already done is not
+    - a parent that never had the entry does not acquit it
+    - the parent that notices need not be the first
+    - an entry that only arrived with one parent is left alone
+    - the parser produces exactly the fields the guard has decided about
+    - nothing is in both lists
+    - the sweep is looking at a real entry
+    - a successor that already existed is refused
+    - a successor introduced by the same change is accepted
+    - a supersession that was already there is left alone
+    - but retargeting one that was already there is refused
+    - a withdrawal naming where the ground is covered is accepted
+    - a claim covers the step that carries it
+    - and does not reach the step after it
+    - the same two edits pooled into one step would pass
+    - a trailer names one identifier
+    - a trailer names several, however they are separated
+    - several commits each contribute their own
+    - the word inside a sentence is not a trailer
+
+<!-- END proof -->
 
 ### SC-COMP-007 — A change that would otherwise be silent breaks the integrator's build instead
 
@@ -5382,6 +9414,48 @@ it keeps everything.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-check.test.js`
+    - reads name, type and modifiers, skips attributes and comments
+    - reads single-line model blocks
+    - reads members and ignores attributes
+    - reads members sharing one line
+    - separates models from enums
+    - commented-out relations are not fields
+    - identical schema has no drift
+    - consumer extensions are not drift
+    - missing field in an adopted model fails
+    - absent model is informational, not a failure
+    - missing enum value in an adopted enum fails
+    - absent enum is informational, not a failure
+    - type change is a mismatch
+    - String replaced by a locally declared enum is allowed
+    - String[] replaced by a local enum list is allowed
+    - a non-String spec type is not substitutable by an enum
+    - a consumer widening a required field to nullable is a mismatch
+    - a consumer tightening a nullable field to required is allowed
+    - list change is a mismatch
+    - identical attributes produce no finding
+    - a missing index is reported but does not fail the check
+    - a missing unique constraint fails the check
+    - a diverging @@map fails the check and names both sides
+    - whitespace and attribute options do not create false findings
+    - extra consumer indexes are not reported
+    - a commented-out @@unique or @@map counts as absent, not present
+    - a brace inside a string default does not close the model early
+    - a // inside a string literal is not treated as a comment
+    - indexed field arguments are parsed past their parentheses
+    - @@map survives the comment strip
+    - blanks contents, keeps quotes and length
+    - handles escaped quotes without leaving the string early
+    - leaves a line without strings untouched
+    - is linear on pathological input
+
+<!-- END proof -->
+
 ### SC-COMP-008 — An implementation offers only what it can actually answer
 
 🟢 Declaring an operation and then failing inside it turned a recoverable fallback into a server
@@ -5390,12 +9464,70 @@ absent and the platform falls back.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/codegen-drift.test.js`
+    - ${genFile} is in sync with ${file}
+- `packages/spec/tests/openapi-version-is-the-package-version.test.js`
+    - the OpenAPI document carries the version this package publishes
+- `tests/dist-is-self-contained.test.js`
+    - every package that builds was swept
+    - ${pkg.name}: the export map names entry points that exist
+    - ${pkg.name}: every export target the manifest commits to is on disk
+    - ${pkg.name}: every relative reference inside dist/ resolves
+    - ${pkg.name}: no emitted file is unreachable
+- `tests/export-map-matches-filesystem.test.js`
+    - the sweep finds the packages it claims to check
+    - ${pkg.name}: exports its own package.json
+    - ${pkg.name}: every non-wildcard target exists
+    - ${pkg.name}: every wildcard pattern resolves to something
+    - ${pkg.name}: a require condition never hands out an ESM .d.ts
+    - ${pkg.name}: files[] covers every exported path
+    - no NEW subpath duplicates a target
+- `tests/openapi-covers-the-implementation.test.js`
+    - both sweeps reach what they claim to read
+    - every admin route the platform serves is documented
+    - every documented operation is served by the platform or declared app-served
+    - nothing is marked app-served that the platform actually serves
+    - a controller with a computed path says which document covers it
+- `tests/public-options-name-only-what-we-publish.test.js`
+    - the sweep found the components and their interfaces
+    - every Quasar type in an exported interface is re-exported
+- `tests/vue-entry-is-complete.test.js`
+    - there is a layer to compare
+    - the two lists are the same
+    - the vue entry re-exports nothing outside its own layer
+
+<!-- END proof -->
+
 ### SC-COMP-009 — Shipped source stays within a language level an integrator's toolchain can read
 
 🟢 Their compiler reads it, not SaaSiCat's. Raising that floor breaks consumers below it and is a
 deliberate, announced change — never a way to make a build pass.
 
 _Source:_ `CONTRIBUTING.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/module-resolution.test.js`
+    - reads the live value, not the commented-out one above it
+    - follows extends to a base config that sets the old resolution
+    - a local value overrides the inherited one
+    - returns null when nothing in the chain sets it
+    - returns null for a config TypeScript cannot parse, or none at all
+    - accepts the three kinds that resolve subpath exports, and unset
+    - refuses node10 and classic, naming the setting the reader knows it by
+- `packages/create-saasicat-admin/tests/scaffold-typechecks.test.js`
+    - vue-tsc accepts the templates as written
+- `packages/ui-vue/tests/component/sfc-compiles.test.ts`
+    - the sweep finds the files it claims to check
+    - no file fails the SFC compiler
+
+<!-- END proof -->
 
 ### SC-COMP-010 — An integrator's own data access translates; it does not decide
 
@@ -5405,12 +9537,180 @@ status — moves a rule to where the other one does not have it.
 
 _Source:_ ADR 0007
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
+    - table names match the canonical @@map names
+    - camelCase column names are preserved (no snake_case mapping)
+    - instance db → ready instances; declared capabilities
+    - token db → factory specs injecting the token
+    - hasher instance + instance db enables provisioning
+    - transaction runner passes the drizzle tx through as context
+- `packages/adapter-prisma/tests/prisma-adapters.test.js`
+    - secret roundtrip incl. enabledAt handling
+    - write maps actor to userId + actorTag on audit_logs
+    - write without changes defaults to {}
+    - maps wildcard actorTag, pagination and row → AuditEntry
+    - isBypassActive only inside runWithBypass
+    - run passes the interactive tx client through as context
+    - findByTenantId maps row + plan version to SubscriptionRecord
+    - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
+    - countByPlanVersionId uses a single OR count
+    - countActiveByPlanKey aggregates by authoritative PlanVersion identity
+    - maps the canonical subscription to the tenant billing display form
+    - findLatestLive filters live versions and maps the record
+    - claimSlot issues the atomic guarded UPDATE
+    - releaseSlot floors at 0 and reactivates EXHAUSTED
+    - create normalizes the code and serializes decimals
+    - findByCode hides soft-deleted codes
+    - update persists every field editable in the Admin promo page
+    - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+    - create maps defaults and double redemption rejects
+    - createSuperAdmin hashes the password and lowercases the email
+    - duplicate email throws PlatformUserExistsError
+    - upsertPlanVersion is idempotent and supersedes older live versions on publish
+    - loadSnapshot maps rows to wire formats with ISO dates and defaults
+    - bundle.validityWindows reaches the catalog bundle repository
+    - bundle.validityWindows reaches the entitlement bundle repository too
+    - defaults to the 0.6-compatible behavior when omitted
+    - token client → factory specs injecting the token
+    - instance client → ready instances; hasher instance enables provisioning
+    - token client + hasher token → provisioning factory injecting both
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - dates leave as ISO strings, and an undeleted plan says so
+    - a soft-deleted plan carries the date it was deleted on
+    - the plan key is the one passed, not the one on the row
+    - prices survive as strings, whatever the driver handed over
+    - a schema without validity windows reads them as null, not as dates
+    - a schema without endsAt omits the field rather than saying null
+    - publishedChanges that is not an array reads as null
+    - features and quotas drop entries of the wrong type
+    - a JSON column holding nothing usable reads as empty, not as a crash
+    - dates stay Date objects — a contract record is not a wire format
+    - the lines it is handed become its lines
+    - an entitlement snapshot that is not an object reads as null
+    - snapshot arrays that are not arrays read as empty
+    - terms that are not an object read as null
+    - money becomes a number, from a string or from a Decimal
+    - the commitment date and the metadata survive both ways round
+    - a features snapshot of mixed types keeps only the strings
+- `packages/nest/tests/saasicat-persistence.test.js`
+    - SaaSiCatModule persistence bundle
+        - forRoot wires from a bundle without individual adapters
+        - missing core adapters are reported by name
+        - entitlement pulls repositories + transaction runner from the bundle
+        - entitlement without required capabilities fails fast at boot
+        - explicit adapters combine with a bundle
+        - DB hydration forwards the dbCatalog identity to the plan-catalog factory
+        - DB hydration without dbCatalog fails fast instead of loading an empty catalog
+        - the mega module COMPILES through Nest DI with a bundle (boot smoke)
+        - bundle without entitlement slice still requires repositories for entitlement
+        - the high-level standard stack wires catalog and tenant billing from one bundle
+        - the high-level standard stack compiles through Nest DI
+- `packages/nest/tests/the-module-hands-over-what-it-was-given.test.js`
+    - SubscriptionBundleModule.forRoot
+        - says nothing about the term when the consumer said nothing
+        - hands over a term the consumer did configure
+        - hands over an explicit zero rather than treating it as unset
+        - and the services then commit the tenant to nothing
+
+<!-- END proof -->
+
 ### SC-COMP-011 — Every data-access implementation is held to the same executable contract
 
 🟢 Against a real database, covering the behaviours that only appear under concurrency. "Atomic"
 means four different things to four implementations, and prose could not settle it.
 
 _Source:_ ADR 0007
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/the-query-map-describes-the-real-tables.test.js`
+    - there is more than one, so a broken scan cannot pass by finding none
+    - ${table} declares exactly the canonical columns
+- `packages/adapter-prisma/tests/prisma-adapters.test.js`
+    - secret roundtrip incl. enabledAt handling
+    - write maps actor to userId + actorTag on audit_logs
+    - write without changes defaults to {}
+    - maps wildcard actorTag, pagination and row → AuditEntry
+    - isBypassActive only inside runWithBypass
+    - run passes the interactive tx client through as context
+    - findByTenantId maps row + plan version to SubscriptionRecord
+    - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
+    - countByPlanVersionId uses a single OR count
+    - countActiveByPlanKey aggregates by authoritative PlanVersion identity
+    - maps the canonical subscription to the tenant billing display form
+    - findLatestLive filters live versions and maps the record
+    - claimSlot issues the atomic guarded UPDATE
+    - releaseSlot floors at 0 and reactivates EXHAUSTED
+    - create normalizes the code and serializes decimals
+    - findByCode hides soft-deleted codes
+    - update persists every field editable in the Admin promo page
+    - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+    - create maps defaults and double redemption rejects
+    - createSuperAdmin hashes the password and lowercases the email
+    - duplicate email throws PlatformUserExistsError
+    - upsertPlanVersion is idempotent and supersedes older live versions on publish
+    - loadSnapshot maps rows to wire formats with ISO dates and defaults
+    - bundle.validityWindows reaches the catalog bundle repository
+    - bundle.validityWindows reaches the entitlement bundle repository too
+    - defaults to the 0.6-compatible behavior when omitted
+    - token client → factory specs injecting the token
+    - instance client → ready instances; hasher instance enables provisioning
+    - token client + hasher token → provisioning factory injecting both
+- `packages/cli/tests/migration-constraints.test.js`
+    - the one that appeared between the two listings
+    - nothing new means nothing to append to, even with migrations present
+    - directories that are not migrations are not candidates
+    - the newest of several, when a run somehow produced two
+    - no migrations at all is not an error, it is nothing to do
+    - the statements land after the tables
+    - it says where the copy came from
+    - running it twice appends once
+    - a migration that already has them is recognised
+    - a migration without a trailing newline still gets a separating one
+    - reads the table off each statement
+    - keeps the ones whose table is present
+    - keeps everything when every table is present
+    - a statement it cannot read is kept, not dropped
+    - nothing applicable appends nothing at all
+    - only a failure stops the command
+    - a failure says where the SQL is, because the operator now needs it
+    - nothing to append is not a failure
+    - every outcome carries a message and a decision
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - dates leave as ISO strings, and an undeleted plan says so
+    - a soft-deleted plan carries the date it was deleted on
+    - the plan key is the one passed, not the one on the row
+    - prices survive as strings, whatever the driver handed over
+    - a schema without validity windows reads them as null, not as dates
+    - a schema without endsAt omits the field rather than saying null
+    - publishedChanges that is not an array reads as null
+    - features and quotas drop entries of the wrong type
+    - a JSON column holding nothing usable reads as empty, not as a crash
+    - dates stay Date objects — a contract record is not a wire format
+    - the lines it is handed become its lines
+    - an entitlement snapshot that is not an object reads as null
+    - snapshot arrays that are not arrays read as empty
+    - terms that are not an object read as null
+    - money becomes a number, from a string or from a Decimal
+    - the commitment date and the metadata survive both ways round
+    - a features snapshot of mixed types keeps only the strings
+- `packages/nest/tests/saasicat-persistence.test.js`
+    - standard adapters
+        - SubscriptionPlanResolver only grants active subscriptions
+        - QuotaProvidersUsageSnapshot reuses every quota counter
+- `packages/spec/tests/reference-sql-drift.test.js`
+    - prisma-fragments compose and reference-schema.postgres.sql is in sync
+    - normative constraints are part of the reference schema
+    - bundle validity windows and their lookup index are in the reference schema
+    - plan-version validity, termination and lookup index are in the reference schema
+
+<!-- END proof -->
 
 ### SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
 
@@ -5422,11 +9722,25 @@ _Source:_ ADR 0007
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
+    - table names match the canonical @@map names
+    - camelCase column names are preserved (no snake_case mapping)
+    - instance db → ready instances; declared capabilities
+    - token db → factory specs injecting the token
+    - hasher instance + instance db enables provisioning
+    - transaction runner passes the drizzle tx through as context
+- `packages/adapter-drizzle/tests/every-exported-class-reaches-the-factory.test.js`
+    - names enough exports for this check to mean anything
+    - ${name} is reachable through drizzlePersistence()
 - `packages/nest/tests/an-adapter-without-a-plan-catalogue-can-sell-bundles.test.js`
     - boots with subscriptionBundles enabled
     - and the module is handed the repository it found
     - an adapter with neither is still refused, by name
     - a plan catalogue still wins where an adapter has one
+- `packages/nest/tests/saasicat-persistence.test.js`
+    - standard adapters
+        - SubscriptionPlanResolver only grants active subscriptions
+        - QuotaProvidersUsageSnapshot reuses every quota counter
 
 <!-- END proof -->
 
@@ -5442,6 +9756,32 @@ _Source:_ `docs/reference/options.md`
 
 _Tested by:_
 
+- `packages/cli/tests/fk-pointers.test.js`
+    - every commented relation to Tenant or User
+    - prose that merely mentions @relation is not one
+    - a relation to something else is left alone
+    - both targets, renamed to the app models
+    - naming only the tenant leaves the user relations commented, and says so
+    - naming nothing changes nothing
+    - the column alignment the fragment chose survives
+    - running it twice is a no-op — there is nothing left to uncomment
+    - a missing opposite field stops the pointer, and names the line to add
+    - the relation NAME is part of the question
+    - relationNameOf reads the name, and only a name
+    - hasBackRelation matches on type and name together
+    - and listing what the schema does declare
+    - a name that does exist passes
+    - naming nothing passes
+    - every commented FK pointer in them is one this recognises
+    - a unique foreign key is recognised as one-to-one
+    - the foreign key is read off the relation attribute
+    - a singular opposite field counts as the back relation
+    - so the pointer is enabled rather than reported as missing
+    - and when it IS missing, the suggestion is singular too
+    - a name full of metacharacters matches nothing rather than everything
+    - and the same through hasBackRelation directly
+    - a field name with an alternation does not match a different field
+    - an ordinary name still works, so the escaping did not break matching
 - `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
     - answers, using the newest live version for the redundancy hint
     - and the same answer as a schema that does offer the lookup
@@ -5458,12 +9798,37 @@ everyone who reads it.
 
 _Source:_ `docs/explanation/test-coverage.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/the-example-sends-the-role-its-guards-require.test.js`
+    - the guard still names roles
+    - ${label} assigns the role header
+    - ${label} assigns a role the guard accepts
+- `tests/tutorials-match-the-example.test.js`
+    - the sweep finds the tutorials and their claims
+    - every annotated block appears in the file it names
+    - every saasicat command a tutorial gives exists
+
+<!-- END proof -->
+
 ### SC-COMP-015 — A public interface is changed only after its consumers have been checked
 
 🟢 Reusable components, exported types, configuration formats and extension points reach real
 applications. Additive is preferred; a break is intentional and reflected in the release notes.
 
 _Source:_ internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/saasicat-module-escape-hatches.test.js`
+    - root entry incremental migration
+        - root SaaSiCatModule composes the same root-entry module classes
+
+<!-- END proof -->
 
 ## 24. Being understandable to a stranger
 
@@ -5477,12 +9842,44 @@ documentation does not exist for the reader. The requirements here are what that
 
 _Source:_ `docs/explanation/test-coverage.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/package-readmes-follow-one-shape.test.js`
+    - the sweep finds every package
+    - each README names its package and carries the three sections
+    - a package with more than one entry point documents all of them
+- `tests/repository-carries-no-heavy-binaries.test.js`
+    - the sweep finds the assets it claims to weigh
+    - every tracked binary stays under ${LIMIT_KB} KB
+- `tests/tutorials-match-the-example.test.js`
+    - the sweep finds the tutorials and their claims
+    - every annotated block appears in the file it names
+    - every saasicat command a tutorial gives exists
+
+<!-- END proof -->
+
 ### SC-READ-002 — A gap is named rather than papered over
 
 🟢 Where a property cannot be checked automatically, that is said plainly instead of prose being
 presented as enforcement.
 
 _Source:_ `docs/explanation/test-coverage.md` · internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/a-suite-that-throws-fails-the-run.test.js`
+    - the sweep finds the suites
+    - no describe body is async
+- `tests/coverage-measures-every-package-it-can.test.js`
+    - the sweep finds the packages
+    - every measurable package has a recorded baseline
+    - no baseline entry describes a package that is gone
+
+<!-- END proof -->
 
 ### SC-READ-003 — A statement about the software is part of it
 
@@ -5492,11 +9889,148 @@ it cannot be corrected.
 
 _Source:_ internal engineering guidelines
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/a-promise-is-not-edited-into-another.test.js`
+    - a line break is not a change
+    - code formatting is not a change
+    - but emphasis is, because it cannot be told from a literal
+    - an identifier is read as where its chain ends
+    - and swapping in an unrelated one is a change
+    - the heading is part of the promise
+    - an underscore inside a name is not emphasis
+    - an asterisk inside a pattern is not emphasis
+    - a different word is a change
+    - an untouched entry is accepted
+    - a rewritten promise is refused
+    - a rewritten promise the commit calls editorial is accepted
+    - an editorial claim for one entry does not cover another
+    - a deleted entry is refused
+    - a new entry beside the old one is accepted
+    - superseding without touching the wording is accepted
+    - rewriting the wording while superseding is refused
+    - delivering a promise is not rewriting it
+    - filing a delivered promise as an intention is refused
+    - correcting a record that was wrong is accepted when it is claimed
+    - demoting a promise to a draft is refused
+    - deciding a draft is accepted
+    - dropping a draft is accepted
+    - a withdrawn promise coming back is refused
+    - a rewrite in the resolution is reported
+    - a deletion in the resolution is reported
+    - what came in from the other branch is not
+    - what this branch had already done is not
+    - a parent that never had the entry does not acquit it
+    - the parent that notices need not be the first
+    - an entry that only arrived with one parent is left alone
+    - the parser produces exactly the fields the guard has decided about
+    - nothing is in both lists
+    - the sweep is looking at a real entry
+    - a successor that already existed is refused
+    - a successor introduced by the same change is accepted
+    - a supersession that was already there is left alone
+    - but retargeting one that was already there is refused
+    - a withdrawal naming where the ground is covered is accepted
+    - a claim covers the step that carries it
+    - and does not reach the step after it
+    - the same two edits pooled into one step would pass
+    - a trailer names one identifier
+    - a trailer names several, however they are separated
+    - several commits each contribute their own
+    - the word inside a sentence is not a trailer
+- `tests/requirements-are-generated.test.js`
+    - the sources yield a catalogue worth checking
+    - the document on disk is what the generator produces
+    - the index names every entry that is not ordinary
+    - the region markers stay in the sources
+    - the page and the source it was spliced into say the same thing
+    - the generated region inside the sources is current too
+    - the sources satisfy every rule the checker can state
+    - a risk opens the promise, behind the state
+    - and behind the delivery marker where that opens it
+    - an entry without one is ordinary, not unmarked
+    - a mark that is neither a state nor a risk is refused
+    - the block is generated, and the page carries it
+    - it is not part of the promise
+    - an entry nothing tests carries no block
+    - a value keeps its colons, quotes and backticks
+    - front matter that never closes is an error, not an empty chapter
+    - a heading with a hyphen is kept as an entry with no identifier
+    - dependencies come from the prose, and never point at the entry itself
+    - a draft is read from its own first words
+    - a marker wrapped across a line still counts
+    - an entry with no marker is current and delivered
+    - a retired entry is read from its own first words
+    - a clean chapter is accepted
+    - an identifier used twice
+    - a heading with a hyphen instead of an em dash
+    - an entry with no source
+    - an entry with two sources
+    - a marker line with a letter too many
+    - a number skipped inside a chapter
+    - an entry filed under the wrong chapter
+    - a reference to an identifier that does not exist
+    - a promise leaning on one that no longer holds
+    - a successor that does not exist
+    - a promise superseded by a draft
+    - a chain that ends where nothing stands
+    - a chain that arrives at a promise that stands is accepted
+    - a supersession chain that loops
+    - a chapter number that skips
+    - an anchor that lands on no heading
+    - an anchor across chapters resolves
+    - a draft that also claims to be decided but not delivered
+    - a state that opens with the wrong colour
+    - a retired entry that opens with no state
+    - an undelivered promise that opens with none
+    - a state marker appended after the prose
+    - a colour with no space before its marker
+    - a colour with two spaces before its marker still parses
+    - a state marker that nearly matches
+    - a state marker wearing a colour no state has
+    - an identifier with a digit missing
+    - a mistyped identifier in a chapter introduction
+    - a vanished reference in a chapter introduction
+    - a real reference in a chapter introduction is accepted
+    - a mistyped identifier in the heading
+    - a real identifier in the heading is resolved
+    - an identifier with a suffix that continues a name
+    - a link into the repository
+    - an anchor inside the document is still a link
+    - a state word nobody defined
+    - a directory that does not say where it belongs
+    - nothing carrying the chapter table
+    - two files carrying it
+    - markers in the wrong order
+    - a doubled pair of markers
+    - Markdown that nothing reads
+    - the file that is deliberately not published is not one
+    - nothing to open the document with
+    - a preamble part numbered out of sequence
+    - a chapter field nobody reads
+    - a chapter with a heading and nothing under it
+
+<!-- END proof -->
+
 ### SC-READ-004 — An architectural decision records what breaks if it is ignored
 
 🟢 Not only what was decided and why, but what a reader will experience if they do something else.
 
 _Source:_ ADR 0001 to ADR 0011
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/adrs-record-what-breaks.test.js`
+    - the sweep finds the records
+    - the numbering is unique and has no gaps
+    - each record carries a status, a date and the five sections
+    - the
+
+<!-- END proof -->
 
 ### SC-READ-005 — The product has one spelling of its own name
 
@@ -5504,6 +10038,19 @@ _Source:_ ADR 0001 to ADR 0011
 rename.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/one-spelling.test.js`
+    - the scan reaches the repository
+    - no tracked file carries an old spelling without declaring it
+    - flags each old spelling as a whole identifier
+    - does not flag the three accepted forms
+    - a declaration has to be in the head of the file
+
+<!-- END proof -->
 
 ### SC-READ-006 — A reference a reader cannot follow is not made
 
@@ -5513,12 +10060,62 @@ such citations had reached error messages an operator could read.
 
 _Source:_ internal engineering guidelines
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/docs-links-resolve.test.js`
+    - the sweep found the documentation
+    - every relative link points at a file that exists
+    - every anchor points at a heading that exists
+- `tests/no-dangling-doc-refs.test.js`
+    - the sweep actually reaches the source tree
+    - no shipped file cites a document from the private planning repo
+
+<!-- END proof -->
+
 ### SC-READ-007 — Reference documentation is generated from the implementation
 
 🟢 The list of refusal codes and the list of configuration rules are derived from the code that
 implements them, so they cannot drift into describing something that is no longer true.
 
 _Source:_ `docs/reference/error-codes.md` · `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/docs-api-drift.test.js`
+    - the sweep reaches the documentation it claims to check
+    - every table that enumerates the packages lists all of them
+    - no text claims a package count the repository does not have
+    - the sweep finds the blocks it claims to read
+    - every documented import resolves through the export map
+    - every documented option exists, and a complete example passes the required ones
+- `tests/openapi-covers-the-implementation.test.js`
+    - both sweeps reach what they claim to read
+    - every admin route the platform serves is documented
+    - every documented operation is served by the platform or declared app-served
+    - nothing is marked app-served that the platform actually serves
+    - a controller with a computed path says which document covers it
+- `tests/options-reference-is-generated.test.js`
+    - the committed page is what the generator produces
+    - it says it is generated, at the top where an editor would see it
+    - ${rule.id} resolves
+    - the slug is the one GitHub uses
+    - there are rules to check at all
+- `tests/public-options-name-only-what-we-publish.test.js`
+    - the sweep found the components and their interfaces
+    - every Quasar type in an exported interface is re-exported
+- `tests/reference-pages-are-generated.test.js`
+    - the generators produce every page they claim to
+    - every page on disk is what the generator produces
+    - every declaration is found, whatever the comments say
+    - a var() reference is still not a declaration
+    - a token name outside a declaration does not hide the next one
+    - an unterminated comment swallows the rest rather than the scanner
+
+<!-- END proof -->
 
 ### SC-READ-008 — There is one way to do each thing, not two right answers
 
@@ -5527,3 +10124,24 @@ see two correct-looking options and no rule saying which is meant, that is a def
 product, not a matter of taste.
 
 _Source:_ ADR 0008 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/agent-worktrees-are-not-linted.test.js`
+    - git ignores them — this keeps
+    - eslint ignores them
+    - and the ignore stops there — the source tree is still checked
+- `tests/css-classes-have-a-user.test.js`
+    - no stylesheet defines a class nothing writes
+- `tests/nest-domain-boundaries.test.js`
+    - ${path} may not import a sibling barrel
+    - a barrel one directory deeper is caught too
+    - importing the declaring module is what the rule asks for
+    - ${domain}/ may not reach back into platform/
+    - testing/ may, because it sits downstream of platform/
+    - platform/ may import its own neighbours
+    - no file in the package violates either rule
+
+<!-- END proof -->

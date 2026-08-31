@@ -5,6 +5,9 @@
 // `pnpm gen:types` and commit the new snapshots — that makes every schema cut
 // visible in the PR diff.
 
+// @requirement SC-SPEC-001 — A trial commits to nothing, so a plan change during one takes effect at once
+// @requirement SC-COMP-008 — An implementation offers only what it can actually answer
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';

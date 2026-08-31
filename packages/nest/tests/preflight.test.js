@@ -74,6 +74,8 @@ function makeBundleVersion(overrides) {
     };
 }
 
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
+// @requirement SC-CAT-016 — The check that runs before a deployment always blocks
 describe('runPreflight', () => {
     test('empty catalog → overall=ok, total=0', () => {
         const r = runPreflight({
@@ -141,6 +143,7 @@ describe('runPreflight', () => {
     });
 });
 
+// @requirement SC-CFG-005 — A missing required setting stops the installation, naming the file and the field
 describe('formatPreflightReport', () => {
     test('OK report contains OK checkmark', () => {
         const out = formatPreflightReport({

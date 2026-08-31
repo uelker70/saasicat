@@ -21,6 +21,9 @@
 //     supplies the base URL via the HTTP adapter).
 //   - Hardcoded app paths in TESTS and TYPESCRIPT DOC COMMENTS.
 
+// @requirement SC-UI-013 — A tenant-facing section can be embedded without adopting a UI framework
+// @requirement SC-LANG-012 — SaaSiCat carries no vocabulary from anybody's business
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

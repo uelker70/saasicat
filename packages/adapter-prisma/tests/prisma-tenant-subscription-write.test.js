@@ -1,3 +1,6 @@
+// @requirement SC-SUB-001 — A tenant has one subscription
+// @requirement SC-SEC-001 — A tenant never sees another tenant's data
+
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { PrismaTenantSubscriptionWriteAdapter } from '../dist/index.js';

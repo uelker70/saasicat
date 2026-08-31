@@ -11,6 +11,8 @@
 // role declared in one theme only. That failure is the point. A generator that
 // quietly writes an empty page turns a rename into a silently emptied document.
 
+// @requirement SC-READ-007 — Reference documentation is generated from the implementation
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

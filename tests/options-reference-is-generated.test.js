@@ -1,3 +1,5 @@
+// @requirement SC-READ-007 — Reference documentation is generated from the implementation
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

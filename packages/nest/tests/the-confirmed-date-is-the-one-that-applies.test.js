@@ -70,6 +70,7 @@ function build() {
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 
+// @requirement SC-CHG-009 — The date the tenant was shown is the date the change is made on
 describe('the confirmed date is the one that applies', () => {
     test('a matching expectation goes through', async () => {
         const { controller, port } = build();

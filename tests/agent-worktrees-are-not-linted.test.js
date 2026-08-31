@@ -1,3 +1,5 @@
+// @requirement SC-READ-008 — There is one way to do each thing, not two right answers
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

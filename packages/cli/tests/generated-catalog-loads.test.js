@@ -1,3 +1,6 @@
+// @requirement SC-PLAN-022 — Everything wrong with an uploaded catalogue is reported at once
+// @requirement SC-PLAN-023 — A catalogue that cannot be read is the caller's mistake, not a server failure
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';

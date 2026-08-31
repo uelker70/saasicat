@@ -1,3 +1,5 @@
+// @requirement SC-COMP-013 — An installation whose store cannot hold a limit exactly does not start the enforcement
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';

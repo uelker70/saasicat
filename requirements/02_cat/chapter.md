@@ -41,12 +41,61 @@ names one is refused.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-strict-mode.test.js`
+    - validatePlanDraft (pure)
+        - all present → no warnings
+        - unknown feature → PLAN_FEATURE_UNKNOWN
+        - unknown quota key → QUOTA_MISSING
+        - multiple violations → multiple warnings, sorted by features[]/quotas{}
+        - PLAN_FEATURE_UNKNOWN is disjoint from BUNDLE_FEATURE_UNKNOWN
+    - PlanVersionsService — strict mode integration
+        - warn-only: createDraft with unknown feature → 201 + warnings[]
+        - blocking: createDraft with unknown feature → 422
+        - blocking: createDraft with unknown quota → 422 with QUOTA_MISSING
+        - blocking: all present → 201 + warnings=[]
+        - blocking without snapshot source → degrades to warn-only instead of crashing (#25)
+        - blocking: marketed-only feature → NO 422 (allowlist)
+        - blocking: NON-allowlisted unknown feature → still 422
+        - scanner fallback (#25): blocking without token but with DiscoveryScanner enforces
+          correctly
+        - warn-only without snapshot → no check, warnings=[]
+        - blocking: publishPlanVersion runs the strict check on publish too
+        - updatePlanDraft in blocking: drift is rejected
+- `packages/nest/tests/seed-gate.test.js`
+    - validateSeedAgainstSnapshot
+        - all seeded features discovered → overall ok
+        - plan with an undiscovered feature → PLAN_FEATURE_UNKNOWN + error
+        - bundle with an undiscovered feature → BUNDLE_FEATURE_UNKNOWN
+        - undiscovered quota → QUOTA_MISSING
+        - empty input → ok
+        - formatSeedGateReport shows entity + code
+
+<!-- END proof -->
+
 ### SC-CAT-004 — A plan may not reference something no code implements
 
 🟢 A feature no code declares and a limit nothing counts cannot be sold. Code is the source of truth
 for what exists.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-strict-mode.test.js`
+    - validatePlanDraft (pure)
+        - all present → no warnings
+        - unknown feature → PLAN_FEATURE_UNKNOWN
+        - unknown quota key → QUOTA_MISSING
+        - multiple violations → multiple warnings, sorted by features[]/quotas{}
+        - PLAN_FEATURE_UNKNOWN is disjoint from BUNDLE_FEATURE_UNKNOWN
+
+<!-- END proof -->
 
 ### SC-CAT-005 — A marketed non-code feature is the one narrow exception, and is configured explicitly
 
@@ -241,6 +290,8 @@ _Tested by:_
     - no-op when autoSyncDiscoveryAtBoot=false
     - no-op without an injected snapshot
     - swallows a sync error at boot (no boot crash)
+- `packages/ui-vue/tests/component/discovery-page-keeps-the-first-edit.test.ts`
+    - the second payload still holds the first edit
 
 <!-- END proof -->
 
@@ -308,6 +359,13 @@ _Tested by:_
         - no-op when autoSyncDiscoveryAtBoot=false
         - no-op without an injected snapshot
         - swallows a sync error at boot (no boot crash)
+- `packages/nest/tests/discovery-controller.test.js`
+    - DiscoveryController — GET /admin/discovery
+        - returns the discovery snapshot as the body
+        - sets the ETag header with snapshot.hash + scannedAt
+        - returns HTTP 304 + null body on an If-None-Match match
+        - returns the full snapshot when If-None-Match does not match
+        - ignores an empty If-None-Match header
 
 <!-- END proof -->
 
@@ -379,3 +437,31 @@ _Tested by:_
 check runs before the first write of seeded data.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-strict-mode.test.js`
+    - PlanVersionsService — strict mode integration
+        - warn-only: createDraft with unknown feature → 201 + warnings[]
+        - blocking: createDraft with unknown feature → 422
+        - blocking: createDraft with unknown quota → 422 with QUOTA_MISSING
+        - blocking: all present → 201 + warnings=[]
+        - blocking without snapshot source → degrades to warn-only instead of crashing (#25)
+        - blocking: marketed-only feature → NO 422 (allowlist)
+        - blocking: NON-allowlisted unknown feature → still 422
+        - scanner fallback (#25): blocking without token but with DiscoveryScanner enforces
+          correctly
+        - warn-only without snapshot → no check, warnings=[]
+        - blocking: publishPlanVersion runs the strict check on publish too
+        - updatePlanDraft in blocking: drift is rejected
+- `packages/nest/tests/preflight.test.js`
+    - runPreflight
+        - empty catalog → overall=ok, total=0
+        - everything present → overall=ok
+        - plan with unknown feature → overall=error, kind=plan
+        - bundle with unknown feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN
+        - findings are deterministically sorted (kind, entityKey, version, code)
+
+<!-- END proof -->

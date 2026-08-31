@@ -1,3 +1,5 @@
+// @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -11,6 +11,9 @@
 // `<section>`, no `<main>`), and no page quietly reintroduces the hand-written
 // markup they replace.
 
+// @requirement SC-UI-001 — Every standard screen is built the same way
+// @requirement SC-A11Y-008 — Each screen has one heading that names it, and every section is labelled
+
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 

@@ -17,6 +17,8 @@
 // test that named `TENANT_ADMIN` itself would keep passing on the day the guard
 // stops accepting it.
 
+// @requirement SC-COMP-014 — The example application is kept in step with the platform
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -11,6 +11,9 @@
 // the two forms that need no grammar — the key in a `saas.yaml`, and a query
 // part on a `/catalog/` URL.
 
+// @requirement SC-COMP-004 — The upgrade command reports what it cannot decide rather than guessing
+// @requirement SC-COMP-005 — A step no command can take is named as a step the operator takes
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

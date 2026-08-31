@@ -1,3 +1,5 @@
+// @requirement SC-COMP-009 — Shipped source stays within a language level an integrator's toolchain can read
+
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';

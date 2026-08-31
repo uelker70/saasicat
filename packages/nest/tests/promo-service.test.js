@@ -201,6 +201,9 @@ function buildSvc(overrides = {}) {
     );
 }
 
+// @requirement SC-PROMO-001 — A code is redeemed at most once per subscription
+// @requirement SC-PROMO-002 — A code with a redemption limit cannot be over-redeemed
+// @requirement SC-PROMO-003 — A redemption limit can be raised, never lowered
 describe('PromoCodesService.create — validation', () => {
     test('accepts a valid code', async () => {
         const svc = buildSvc();
@@ -301,6 +304,9 @@ describe('PromoCodesService.create — validation', () => {
     });
 });
 
+// @requirement SC-PROMO-006 — A discount runs for at most 24 months or billing periods
+// @requirement SC-PROMO-007 — A one-off discount carries no duration and applies to the first invoice only
+// @requirement SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
 describe('PromoCodesService.preview — eligibility', () => {
     test('NOT_FOUND when no code exists', async () => {
         const svc = buildSvc();
@@ -377,6 +383,9 @@ describe('PromoCodesService.preview — eligibility', () => {
     });
 });
 
+// @requirement SC-PROMO-009 — A plan may be marked as not discountable
+// @requirement SC-PROMO-010 — A code is for first-time customers unless the operator says otherwise
+// @requirement SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
 describe('PromoCodesService.redeem — eligibility', () => {
     const SUBSCRIPTION_LOOKUP = {
         async findById() {

@@ -17,6 +17,8 @@
 // These tests assert the arrangement rather than the pixels: which actions
 // share a container, and which do not.
 
+// @requirement SC-UI-010 — An action sits with the object it acts on
+
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import BundlesPage from '../../src/pages/BundlesPage.vue';

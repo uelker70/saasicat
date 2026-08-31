@@ -5,6 +5,8 @@
 // server query, so selecting "active" reloaded to just the active codes and
 // every other tile read 0 — the counts destroyed themselves on first use.
 
+// @requirement SC-UI-021 — A campaign that worked looks like a success, not a fault
+
 import { describe, expect, test } from 'vitest';
 
 import PromoCodesPage from '../../src/pages/PromoCodesPage.vue';

@@ -1,3 +1,6 @@
+// @requirement SC-SCOPE-009 — SaaSiCat is source-available and must not be called open source
+// @requirement SC-SCOPE-010 — A published version keeps the licence it was published under
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';

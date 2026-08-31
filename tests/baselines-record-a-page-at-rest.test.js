@@ -11,6 +11,8 @@
 // browser. This one needs nothing, runs with `test:repo`, and answers the
 // question the other cannot: is any baseline ALREADY polluted?
 
+// @requirement SC-UI-001 — Every standard screen is built the same way
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

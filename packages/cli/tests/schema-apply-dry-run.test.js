@@ -1,3 +1,6 @@
+// @requirement SC-PRIV-009 — A migration that would destroy data stops and says what it found
+// @requirement SC-OPS-002 — A migration is safe on a partially adopted schema
+
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';

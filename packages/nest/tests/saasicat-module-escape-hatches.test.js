@@ -56,6 +56,7 @@ const baseOptions = () => ({
 
 const tokensOf = (dyn) => (dyn.providers ?? []).map((p) => p.provide ?? p);
 
+// @requirement SC-CFG-011 — An application that declares nothing to enforce still starts
 describe('globalFeatureGuard', () => {
     test('defaults to binding StaticFeatureGuard as APP_GUARD', () => {
         const dyn = SaaSiCatModule.forRoot(baseOptions());
@@ -90,6 +91,7 @@ describe('globalFeatureGuard', () => {
     });
 });
 
+// @requirement SC-ADM-001 — Only a platform administrator reaches the administration surface
 describe('includeManifestController', () => {
     const manifestModuleOf = (dyn) =>
         (dyn.imports ?? []).find((imported) => imported?.module?.name === 'AdminManifestModule');
@@ -120,6 +122,7 @@ describe('includeManifestController', () => {
     });
 });
 
+// @requirement SC-COMP-001 — All packages carry one version number and move together
 describe('platform entry class identity', () => {
     // The CJS builds do not share code between entries, so every class an app
     // may inject must be reachable from the entry that registers it. A class
@@ -165,6 +168,7 @@ describe('platform entry class identity', () => {
     }
 });
 
+// @requirement SC-COMP-015 — A public interface is changed only after its consumers have been checked
 describe('root entry incremental migration', () => {
     test('root SaaSiCatModule composes the same root-entry module classes', () => {
         const dyn = rootEntry.SaaSiCatModule.forRoot({

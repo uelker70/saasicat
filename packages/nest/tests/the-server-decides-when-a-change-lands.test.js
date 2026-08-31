@@ -85,6 +85,8 @@ function buildController(planPreview, writePort) {
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 
+// @requirement SC-CHG-001 — The tenant says what to change to; the platform says when
+// @requirement SC-CHG-010 — Every refusal the preview shows is also enforced where the change is made
 describe('a plan change is timed by the rules, not by the request', () => {
     test('a caller asking for "immediately" on a deferred change is scheduled anyway', async () => {
         // The exact bypass: yearly STARTER, monthly PRO, `effectiveImmediately`

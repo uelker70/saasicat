@@ -39,6 +39,8 @@ function buildSnapshot(features = [], quotas = []) {
 // Pure function: validatePlanDraft
 // ─────────────────────────────────────────────────────────────────
 
+// @requirement SC-CAT-003 — Only approved features and quotas may be put in a plan or a bundle
+// @requirement SC-CAT-004 — A plan may not reference something no code implements
 describe('validatePlanDraft (pure)', () => {
     test('all present → no warnings', () => {
         const snap = buildSnapshot(['MEMBERS', 'CALENDAR'], ['members', 'storageGb']);
@@ -115,6 +117,8 @@ async function setupService({
     return { repo, stem, versions, plan };
 }
 
+// @requirement SC-CAT-003 — Only approved features and quotas may be put in a plan or a bundle
+// @requirement SC-CAT-016 — The check that runs before a deployment always blocks
 describe('PlanVersionsService — strict mode integration', () => {
     test('warn-only: createDraft with unknown feature → 201 + warnings[]', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);

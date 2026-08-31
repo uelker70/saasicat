@@ -12,6 +12,9 @@
 // stylesheets; a fifth would be covered the day it is added, and a renamed one
 // fails here rather than in somebody's browser.
 
+// @requirement SC-UI-014 — The administration brings its own UI framework
+// @requirement SC-CFG-013 — A generated application does not compile until the integrator names their access rules
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

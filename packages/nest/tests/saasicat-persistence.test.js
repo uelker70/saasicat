@@ -52,6 +52,7 @@ function fakeBundle(capabilityOverrides = {}) {
     };
 }
 
+// @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
 describe('SaaSiCatModule persistence bundle', () => {
     test('forRoot wires from a bundle without individual adapters', () => {
         const mod = SaaSiCatModule.forRoot({
@@ -377,6 +378,8 @@ describe('SaaSiCatModule persistence bundle', () => {
     });
 });
 
+// @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
+// @requirement SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
 describe('standard adapters', () => {
     test('SubscriptionPlanResolver only grants active subscriptions', async () => {
         const repository = {

@@ -1,3 +1,6 @@
+// @requirement SC-CFG-019 — A migration tool reports a setting that moved; it does not delete it
+// @requirement SC-COMP-004 — The upgrade command reports what it cannot decide rather than guessing
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';

@@ -1,3 +1,6 @@
+// @requirement SC-ENTL-020 — Hiding a control is not protection
+// @requirement SC-ENTL-005 — A request for something the contract does not include is refused
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ref } from 'vue';

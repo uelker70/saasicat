@@ -9,6 +9,8 @@
 // mount in this Vitest process — a case that picks 'dark' would then decide the
 // outcome of the next file, and the leak reads exactly like a pass.
 
+// @requirement SC-UI-016 — Light and dark are both shipped, and a person can pick
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { computed, ref, type Ref } from 'vue';
 

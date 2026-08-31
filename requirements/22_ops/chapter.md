@@ -23,11 +23,118 @@ rolling the whole thing back.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/migration-constraints.test.js`
+    - the one that appeared between the two listings
+    - nothing new means nothing to append to, even with migrations present
+    - directories that are not migrations are not candidates
+    - the newest of several, when a run somehow produced two
+    - no migrations at all is not an error, it is nothing to do
+    - the statements land after the tables
+    - it says where the copy came from
+    - running it twice appends once
+    - a migration that already has them is recognised
+    - a migration without a trailing newline still gets a separating one
+    - reads the table off each statement
+    - keeps the ones whose table is present
+    - keeps everything when every table is present
+    - a statement it cannot read is kept, not dropped
+    - nothing applicable appends nothing at all
+    - only a failure stops the command
+    - a failure says where the SQL is, because the operator now needs it
+    - nothing to append is not a failure
+    - every outcome carries a message and a decision
+- `packages/cli/tests/schema-apply-dry-run.test.js`
+    - it names the lines, and leaves the file untouched
+    - and the real run writes exactly those lines
+    - past tense belongs to the run that did it
+- `packages/cli/tests/schema-apply.test.js`
+    - finds top-level models
+    - ignores commented-out models
+    - does not find enum blocks
+    - block stays complete with all lines
+    - adds all models when schema is empty of platform models
+    - idempotent: existing models remain untouched
+    - returns identical schema when all models already present
+    - label appears in the header comment
+    - a fragment yields its enums and its models
+    - apply appends the enum above the model, once
+    - an enum the consumer already declares is left alone
+    - a bare model map still works, with no enums
+- `packages/cli/tests/schema-check.test.js`
+    - reads name, type and modifiers, skips attributes and comments
+    - reads single-line model blocks
+    - reads members and ignores attributes
+    - reads members sharing one line
+    - separates models from enums
+    - commented-out relations are not fields
+    - identical schema has no drift
+    - consumer extensions are not drift
+    - missing field in an adopted model fails
+    - absent model is informational, not a failure
+    - missing enum value in an adopted enum fails
+    - absent enum is informational, not a failure
+    - type change is a mismatch
+    - String replaced by a locally declared enum is allowed
+    - String[] replaced by a local enum list is allowed
+    - a non-String spec type is not substitutable by an enum
+    - a consumer widening a required field to nullable is a mismatch
+    - a consumer tightening a nullable field to required is allowed
+    - list change is a mismatch
+    - identical attributes produce no finding
+    - a missing index is reported but does not fail the check
+    - a missing unique constraint fails the check
+    - a diverging @@map fails the check and names both sides
+    - whitespace and attribute options do not create false findings
+    - extra consumer indexes are not reported
+    - a commented-out @@unique or @@map counts as absent, not present
+    - a brace inside a string default does not close the model early
+    - a // inside a string literal is not treated as a comment
+    - indexed field arguments are parsed past their parentheses
+    - @@map survives the comment strip
+    - blanks contents, keeps quotes and length
+    - handles escaped quotes without leaving the string early
+    - leaves a line without strings untouched
+    - is linear on pathological input
+
+<!-- END proof -->
+
 ### SC-OPS-003 — An operator can list what a migration will touch before running it
 
 🟢 Every migration that changes rows ships with the query that shows which ones.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/schema-apply.test.js`
+    - finds top-level models
+    - ignores commented-out models
+    - does not find enum blocks
+    - block stays complete with all lines
+    - adds all models when schema is empty of platform models
+    - idempotent: existing models remain untouched
+    - returns identical schema when all models already present
+    - label appears in the header comment
+    - a fragment yields its enums and its models
+    - apply appends the enum above the model, once
+    - an enum the consumer already declares is left alone
+    - a bare model map still works, with no enums
+- `tests/build-stamp.test.js`
+    - is stable across runs and changes with a source edit
+    - sees a deleted file and a build config, not a test
+    - a dependency edit makes the dependent stale
+    - no stamp means not current
+    - only a build through build-and-prune writes a stamp
+    - the previous stamp is gone before the build starts
+    - the lockfile is an input
+
+<!-- END proof -->
 
 ### SC-OPS-004 — A destructive step is preceded by a check, not by turning the safety off
 
@@ -48,6 +155,23 @@ _Source:_ release 0.27.0
 🟢 Payment providers retry, and a retry must not produce a second account or a second charge.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - error when no plans
+    - ok with plans + details contain planIds
+    - warning when snapshot empty
+    - ok with content
+    - ok when findByEmail does not throw
+    - error when findByEmail throws
+    - ok with standardPages count
+    - error when getManifest throws
+    - contains exactly 4 provider classes
+
+<!-- END proof -->
 
 ### SC-OPS-007 — Repeating an action a person took changes nothing either
 

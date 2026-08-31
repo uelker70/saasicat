@@ -17,6 +17,19 @@ _Source:_ `docs/explanation/concepts.md`
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - aggregateLimits — main aggregator
+        - plan default without bundles
+        - plan + bundle quotas sum additively
+        - bundle features add to the features set
+        - plannedOnly features are consistently hidden
+        - customLimits.quotas overrides plan + bundles
+        - canceled bundles (canceledEffectiveAt &lt; now) are not included
+        - bundle quota in a quota dimension the plan does not have is passed through
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — deriveLimits + Resolution
+        - TRIAL: uses trialEntitlementPlan via DB lookup
+        - Pilot with config: pilotEntitlementPlan overrides
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
     - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
     - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
@@ -39,6 +52,15 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - aggregateLimits — main aggregator
+        - plan default without bundles
+        - plan + bundle quotas sum additively
+        - bundle features add to the features set
+        - plannedOnly features are consistently hidden
+        - customLimits.quotas overrides plan + bundles
+        - canceled bundles (canceledEffectiveAt &lt; now) are not included
+        - bundle quota in a quota dimension the plan does not have is passed through
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
     - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
     - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
@@ -57,11 +79,40 @@ the catalogue and still not be handed over.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - filterPlannedOnlyFeatures
+        - plannedOnly features are filtered out
+        - unknown features (not in catalog) stay in
+
+<!-- END proof -->
+
 ### SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
 
 🟢 Catalogue edits do not reach a running contract.
 
 _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - toEffectiveLimitsSnapshot
+        - set becomes sorted array (deterministic)
+        - snapshot is independent of the original quota object (deep copy)
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — deriveLimits + Resolution
+        - TRIAL: uses trialEntitlementPlan via DB lookup
+        - Pilot with config: pilotEntitlementPlan overrides
+    - EntitlementService — V3 ContractLineItems
+        - reads entitlements from active contract snapshot without catalog join
+        - Contract entitlementSnapshot wins over line-item aggregation
+
+<!-- END proof -->
 
 ### SC-ENTL-005 — A request for something the contract does not include is refused
 
@@ -75,6 +126,11 @@ _Source:_ `README.md` · `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-aggregation.test.js`
+    - hasFeature / hasAnyFeature
+        - hasFeature matches
+        - hasAnyFeature: at least one is enough
+        - hasAnyFeature: empty list → false
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — annotation evaluation
         - lets routes without @RequireFeature pass unchecked
@@ -86,6 +142,15 @@ _Tested by:_
         - Logical OR: none match → Forbidden with all keys in the message
         - Class-level annotation applies when the handler has none
         - Handler annotation overrides class annotation
+- `packages/ui-vue/tests/feature-gate.test.js`
+    - app.provide is called with the inject key
+    - route without meta.requiresFeature always passes
+    - no entitlement bound -&gt; pass
+    - feature present -&gt; pass
+    - feature missing + no redirectTo -&gt; next(false)
+    - feature missing + redirectTo -&gt; next(
+    - array requiresFeature -&gt; logical OR
+    - loading + null snapshot + allowWhileLoading default -&gt; pass
 
 <!-- END proof -->
 
@@ -118,12 +183,44 @@ that each fit both go through and the limit an operator sold is not the limit th
 
 _Source:_ `docs/explanation/data-model.md` · `docs/reference/options.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — transactional
+        - insert runs when under the limit
+        - LimitExceededError when insert would exceed the limit
+        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
+        - -1 (unlimited) never blocks
+        - NotFound when subscription is missing
+        - Error for unknown quota dimension
+    - EntitlementService.enforceLimit — forwards tx to lookup ports (#70)
+        - contract, bundle and bundle-version lookups receive the runner tx
+
+<!-- END proof -->
+
 ### SC-ENTL-008 — A single large action can be refused by a limit it would cross in one go
 
 🟢 The check is against what the action would consume, not against a single unit, so one ten-gigabyte
 file does not fit under a one-gigabyte allowance.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — transactional
+        - insert runs when under the limit
+        - LimitExceededError when insert would exceed the limit
+        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
+        - -1 (unlimited) never blocks
+        - NotFound when subscription is missing
+        - Error for unknown quota dimension
+
+<!-- END proof -->
 
 ### SC-ENTL-009 — The declarative check is a guard, not a guarantee
 
@@ -150,6 +247,18 @@ _Tested by:_
 because an installation has not finished wiring a counter.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/saasicat-module.test.js`
+    - StaticEntitlementService (via StaticPlanResolver)
+        - snapshot returns features+quotas from the plan catalog
+        - hasFeature + quotaLimit as convenience methods
+        - snapshot with an unresolved plan = empty set
+
+<!-- END proof -->
 
 ### SC-ENTL-011 — Enforcing a limit nobody declared is the installation's fault, not the tenant's
 
@@ -209,6 +318,13 @@ _Tested by:_
     - while a subscription is running
         - it is granted its plan
         - and a cancellation still to come changes nothing
+- `packages/ui-vue-tenant/tests/component/a-cancelled-plan-still-runs.test.ts`
+    - the tenant is offered the act
+    - and told nothing about a cancellation
+    - the date is shown, not just the word
+    - and the subscription is described as unchanged until then
+    - the act is no longer offered
+    - changing plan still is
 
 <!-- END proof -->
 
@@ -278,6 +394,14 @@ _Tested by:_
     - a cached answer at the cancellation boundary
         - is not served past the moment it ends
         - and is still served inside its ordinary lifetime
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — computeLimits + Cache
+        - returns plan default limits for STANDARD
+        - second call on the same tenant does NOT hit the DB
+        - NotFound for unknown tenant
+        - invalidateTenant forces a re-read
+        - TTL: reloads after &gt;60 s
+        - different tenants are cached separately
 
 <!-- END proof -->
 
@@ -347,3 +471,19 @@ _Tested by:_
 constructs the request by hand gets the same answer.
 
 _Source:_ `docs/guides/build-the-admin-frontend.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/feature-gate.test.js`
+    - app.provide is called with the inject key
+    - route without meta.requiresFeature always passes
+    - no entitlement bound -&gt; pass
+    - feature present -&gt; pass
+    - feature missing + no redirectTo -&gt; next(false)
+    - feature missing + redirectTo -&gt; next(
+    - array requiresFeature -&gt; logical OR
+    - loading + null snapshot + allowWhileLoading default -&gt; pass
+
+<!-- END proof -->

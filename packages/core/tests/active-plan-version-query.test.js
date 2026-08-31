@@ -1,3 +1,6 @@
+// @requirement SC-PLAN-011 — A published version says which day it applies from
+// @requirement SC-PLAN-018 — The version that applies is the one valid on the day of the purchase
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

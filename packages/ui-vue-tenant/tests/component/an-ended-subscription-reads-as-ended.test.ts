@@ -1,3 +1,6 @@
+// @requirement SC-CANC-015 — A tenant who has cancelled is told from which date
+// @requirement SC-CANC-016 — A subscription is in one of three states, not two
+
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick, ref } from 'vue';

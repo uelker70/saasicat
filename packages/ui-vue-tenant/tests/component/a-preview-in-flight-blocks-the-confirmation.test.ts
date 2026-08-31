@@ -1,3 +1,6 @@
+// @requirement SC-PRIC-006 — The preview and the booking describe the same contract
+// @requirement SC-UI-018 — Where two answers are outstanding, the current question's answer wins
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';

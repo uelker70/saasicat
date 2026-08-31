@@ -90,6 +90,7 @@ function buildContractHarness() {
     return { svc, subRepo, contractRepo };
 }
 
+// @requirement SC-ENTL-016 — An answer computed before an end date arrives is not served after it
 describe('EntitlementService — computeLimits + Cache', () => {
     test('returns plan default limits for STANDARD', async () => {
         const { svc, subRepo } = buildHarness();
@@ -168,6 +169,8 @@ describe('EntitlementService — computeLimits + Cache', () => {
     });
 });
 
+// @requirement SC-ENTL-001 — What a tenant may do is their plan plus the add-ons they booked
+// @requirement SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
 describe('EntitlementService — deriveLimits + Resolution', () => {
     test('TRIAL: uses trialEntitlementPlan via DB lookup', async () => {
         const { svc, subRepo } = buildHarness({
@@ -196,6 +199,8 @@ describe('EntitlementService — deriveLimits + Resolution', () => {
     });
 });
 
+// @requirement SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
+// @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 describe('EntitlementService — V3 ContractLineItems', () => {
     test('reads entitlements from active contract snapshot without catalog join', async () => {
         const { svc, subRepo, contractRepo } = buildContractHarness();
@@ -301,6 +306,8 @@ describe('EntitlementService — V3 ContractLineItems', () => {
     });
 });
 
+// @requirement SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
+// @requirement SC-ENTL-008 — A single large action can be refused by a limit it would cross in one go
 describe('EntitlementService.enforceLimit — transactional', () => {
     test('insert runs when under the limit', async () => {
         const { svc, subRepo, txRunner } = buildHarness();
@@ -434,6 +441,7 @@ describe('EntitlementService.enforceLimit — transactional', () => {
     });
 });
 
+// @requirement SC-BUN-033 — An add-on bought after a contract was agreed takes effect immediately
 describe('EntitlementService — bundles booked after the contract was signed', () => {
     // A contract freezes what was agreed at signing time. A bundle bought
     // afterwards must take effect right away — before this it stayed without
@@ -634,6 +642,7 @@ describe('EntitlementService — bundles booked after the contract was signed', 
     });
 });
 
+// @requirement SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
 describe('EntitlementService.enforceLimit — forwards tx to lookup ports (#70)', () => {
     test('contract, bundle and bundle-version lookups receive the runner tx', async () => {
         const subRepo = new FakeSubscriptionRepository();

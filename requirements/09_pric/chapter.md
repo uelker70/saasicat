@@ -102,6 +102,17 @@ _Source:_ release 1.0.0-rc.6
 
 _Source:_ #222
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
+    - the answer to the abandoned question is taken off the screen
+    - and the confirmation cannot be given
+    - the outdated one does not install itself
+
+<!-- END proof -->
+
 ### SC-PRIC-007 — An amount a tenant sees is the amount that is charged
 
 🟢 💰 Money is held to two decimal places and never as a floating-point number, and the same
@@ -110,6 +121,20 @@ Discounts, part periods and tax do not accumulate a difference between what a pa
 billed.
 
 _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/a-price-lookup-stays-inside-its-limit.test.js`
+    - asks for nothing when there is nothing to ask about
+    - sends one request while the catalogue fits
+    - splits a catalogue larger than the cap instead of being rejected whole
+    - merges what the batches answer
+    - a consumer without the endpoint keeps the catalogue rather than breaking
+    - a failed lookup is not the same answer as an absent one
+
+<!-- END proof -->
 
 ### SC-PRIC-008 — Gross, net and tax are one calculation, stated once
 
@@ -132,11 +157,37 @@ _Source:_ #217 · #214
 
 _Source:_ `docs/reference/options.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
+        - priceTag of the bundle MarketingProjection lands in the payload
+        - priceTag is null without a MarketingProjection (backward compatible)
+        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
+          FeatureCatalogEntries (incl. i18n)
+        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
+          (graceful)
+
+<!-- END proof -->
+
 ### SC-PRIC-011 — A plan that is not marketed has no list price
 
 🟢 💰 It is sold by negotiation, and no page invents a figure for it.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
+    - PublicMarketingCatalogService — Plan priceTag (#47)
+        - the plan MarketingProjection priceTag lands in the payload
+        - priceTag is null when the projection maintains none (backwards compatible)
+
+<!-- END proof -->
 
 ### SC-PRIC-012 — A contract mixing rhythms totals one period of its own rhythm
 
@@ -145,11 +196,32 @@ once.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a yearly contract holding a monthly add-on
+        - counts the add-on as often as it falls due
+        - a yearly add-on beside a yearly plan is counted once
+        - a monthly contract adds a monthly add-on as it stands
+
+<!-- END proof -->
+
 ### SC-PRIC-013 — Amounts of money cross the wire exactly, not as approximations
 
 🟢 💰 So that nothing is lost between the system that computed a figure and the one that shows it.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/every-wire-date-is-hydrated.test.js`
+    - ${subject.record} → ${subject.converterName}
+
+<!-- END proof -->
 
 ### SC-PRIC-014 — The number of decimal places follows the currency
 
@@ -169,6 +241,24 @@ _Source:_ #214
 🟢 💰 A contract concluded at 19 % is charged 19 % for its term, whatever the rate later becomes.
 
 _Source:_ #217 · #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/validity-window.test.js`
+    - the window a version is refused for
+        - no start at all
+        - a start that is not a date
+        - a start on or before the predecessor’s
+        - a start that leaves a gap after a predecessor that ends
+        - a predecessor without an end imposes no seam
+        - an end that is not a date
+        - an end on or before the start
+        - the codes come from the caller, so a plan refuses as a plan
+        - the gapless refusal says which day it wanted
+
+<!-- END proof -->
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 

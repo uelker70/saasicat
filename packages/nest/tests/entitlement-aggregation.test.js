@@ -44,6 +44,7 @@ const PLAN_VERSION = {
     features: ['CASHBOOK'],
 };
 
+// @requirement SC-ENTL-003 — A feature declared as not yet rolled out is never granted
 describe('filterPlannedOnlyFeatures', () => {
     test('plannedOnly features are filtered out', () => {
         const out = filterPlannedOnlyFeatures(new Set(['CASHBOOK', 'API_ACCESS']), CATALOG);
@@ -56,6 +57,7 @@ describe('filterPlannedOnlyFeatures', () => {
     });
 });
 
+// @requirement SC-SPEC-008 — A negotiated arrangement is expressed as limits set for that tenant
 describe('applyCustomLimits', () => {
     const base = {
         plan: 'BASIC',
@@ -92,6 +94,8 @@ describe('applyCustomLimits', () => {
     });
 });
 
+// @requirement SC-ENTL-001 — What a tenant may do is their plan plus the add-ons they booked
+// @requirement SC-ENTL-002 — An unlimited allowance beats any number, and an absent one counts as none
 describe('aggregateLimits — main aggregator', () => {
     test('plan default without bundles', () => {
         const r = aggregateLimits({ plan: 'BASIC', planVersion: PLAN_VERSION }, CATALOG, NOW);
@@ -224,6 +228,7 @@ describe('aggregateLimits — main aggregator', () => {
     });
 });
 
+// @requirement SC-ENTL-005 — A request for something the contract does not include is refused
 describe('hasFeature / hasAnyFeature', () => {
     const limits = {
         plan: 'BASIC',
@@ -243,6 +248,7 @@ describe('hasFeature / hasAnyFeature', () => {
     });
 });
 
+// @requirement SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
 describe('toEffectiveLimitsSnapshot', () => {
     test('set becomes sorted array (deterministic)', () => {
         const snap = toEffectiveLimitsSnapshot({

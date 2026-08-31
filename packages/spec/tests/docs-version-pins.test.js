@@ -6,6 +6,8 @@
 // template had the same defect. Version numbers in docs rot silently at every
 // release, so the policy is: never pin, always resolve to latest.
 
+// @requirement SC-COMP-001 — All packages carry one version number and move together
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';

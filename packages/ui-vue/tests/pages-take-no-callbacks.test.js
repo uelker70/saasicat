@@ -20,6 +20,9 @@
  * `injection-keys-are-global-symbols` was rewritten to answer. Both guards read
  * the sources through `support/vue-typescript-program.mjs` for that reason.
  */
+// @requirement SC-UI-001 — Every standard screen is built the same way
+// @requirement SC-UI-008 — Equivalent actions behave the same everywhere
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';

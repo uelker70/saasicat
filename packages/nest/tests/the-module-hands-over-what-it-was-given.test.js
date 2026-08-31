@@ -34,6 +34,7 @@ const configFrom = (options) => {
     return entry.useValue;
 };
 
+// @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
 describe('SubscriptionBundleModule.forRoot', () => {
     test('says nothing about the term when the consumer said nothing', () => {
         // Not "provides 0": the module must not decide this at all, or the

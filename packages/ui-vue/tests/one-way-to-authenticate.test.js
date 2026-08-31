@@ -13,6 +13,9 @@
 // This is a source scan on purpose: the property is the ABSENCE of an option,
 // and absence cannot be observed by calling something.
 
+// @requirement SC-ADM-001 — Only a platform administrator reaches the administration surface
+// @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

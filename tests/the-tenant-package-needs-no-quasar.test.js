@@ -18,6 +18,8 @@
 // that looked for a `q-` prefix. Asking Quasar what Quasar defines needs no
 // list and stays right when Quasar adds a class.
 
+// @requirement SC-UI-013 — A tenant-facing section can be embedded without adopting a UI framework
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

@@ -1,3 +1,5 @@
+// @requirement SC-LANG-006 — Text a customer reads carries its values beside its code, not inside a sentence
+
 import { describe, expect, test } from 'vitest';
 
 import { messageParts } from '../../src/message-parts';

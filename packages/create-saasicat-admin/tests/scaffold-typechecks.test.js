@@ -1,3 +1,5 @@
+// @requirement SC-COMP-009 — Shipped source stays within a language level an integrator's toolchain can read
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';

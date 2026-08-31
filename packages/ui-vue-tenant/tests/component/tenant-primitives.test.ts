@@ -1,3 +1,5 @@
+// @requirement SC-UI-013 — A tenant-facing section can be embedded without adopting a UI framework
+
 import { describe, expect, test } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { readFileSync } from 'node:fs';

@@ -1,3 +1,5 @@
+// @requirement SC-ADM-015 — The administration only offers what the application actually has
+
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PrismaAdminResourcesAdapter } from '../dist/index.js';

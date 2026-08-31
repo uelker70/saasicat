@@ -4,6 +4,9 @@ import { resolveEntitlementPlan } from '../dist/entitlement/index.js';
 
 const NOW = new Date('2026-05-08T12:00:00Z');
 
+// @requirement SC-SPEC-005 — A trial grants the trial's entitlements, not the booked plan's
+// @requirement SC-SPEC-006 — A pilot arrangement outranks every other way of resolving what a tenant may do
+// @requirement SC-SPEC-009 — A subscription waiting on a negotiated contract falls back to a named interim plan
 describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
     test('Default: no override → subscription.plan', () => {
         const plan = resolveEntitlementPlan({ plan: 'STANDARD', status: 'ACTIVE' }, {}, NOW);

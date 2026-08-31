@@ -1,3 +1,5 @@
+// @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';

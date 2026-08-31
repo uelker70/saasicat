@@ -19,6 +19,7 @@ const CATALOG = {
     ],
 };
 
+// @requirement SC-ADM-015 — The administration only offers what the application actually has
 describe('TenantManifestService', () => {
     test('returns a snapshot with filtered NavItems (feature gate)', async () => {
         const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
@@ -93,6 +94,7 @@ describe('TenantManifestService', () => {
     });
 });
 
+// @requirement SC-ADM-015 — The administration only offers what the application actually has
 describe('SaaSiCatModule + tenantManifest', () => {
     class FakeMfa {
         async getSecret() {
@@ -147,6 +149,7 @@ describe('SaaSiCatModule + tenantManifest', () => {
     });
 });
 
+// @requirement SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
 describe('buildTenantManifestController', () => {
     test('creates a controller class with the configured path', () => {
         const Ctrl = buildTenantManifestController({ guards: [], path: 'my/custom' });

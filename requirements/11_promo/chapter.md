@@ -13,17 +13,77 @@ half-applies is worse than none.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — validation
+        - accepts a valid code
+        - rejects a code with an invalid pattern
+        - PERCENT must be 0–100
+        - ABSOLUTE must be positive
+        - ONCE must not have a durationValue
+        - MONTHS / BILLING_CYCLES need 1–24 as durationValue
+        - rejects the nonRedeemablePlans whitelist (ENTERPRISE)
+        - rejects validUntil ≤ validFrom
+        - rejects ABSOLUTE ≥ lowest plan gross without allowZeroInvoice
+        - accepts an ABSOLUTE discount ≥ plan gross when allowZeroInvoice=true
+        - rejects a duplicate code
+
+<!-- END proof -->
+
 ### SC-PROMO-002 — A code with a redemption limit cannot be over-redeemed
 
 🟢 However many people try at the same moment. It closes itself once it is full.
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — validation
+        - accepts a valid code
+        - rejects a code with an invalid pattern
+        - PERCENT must be 0–100
+        - ABSOLUTE must be positive
+        - ONCE must not have a durationValue
+        - MONTHS / BILLING_CYCLES need 1–24 as durationValue
+        - rejects the nonRedeemablePlans whitelist (ENTERPRISE)
+        - rejects validUntil ≤ validFrom
+        - rejects ABSOLUTE ≥ lowest plan gross without allowZeroInvoice
+        - accepts an ABSOLUTE discount ≥ plan gross when allowZeroInvoice=true
+        - rejects a duplicate code
+
+<!-- END proof -->
+
 ### SC-PROMO-003 — A redemption limit can be raised, never lowered
 
 🟢 Lowering it would retroactively invalidate redemptions that already happened.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.create — validation
+        - accepts a valid code
+        - rejects a code with an invalid pattern
+        - PERCENT must be 0–100
+        - ABSOLUTE must be positive
+        - ONCE must not have a durationValue
+        - MONTHS / BILLING_CYCLES need 1–24 as durationValue
+        - rejects the nonRedeemablePlans whitelist (ENTERPRISE)
+        - rejects validUntil ≤ validFrom
+        - rejects ABSOLUTE ≥ lowest plan gross without allowZeroInvoice
+        - accepts an ABSOLUTE discount ≥ plan gross when allowZeroInvoice=true
+        - rejects a duplicate code
+
+<!-- END proof -->
 
 ### SC-PROMO-004 — A code that has been redeemed is never deleted; it is paused
 
@@ -43,12 +103,40 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+
+<!-- END proof -->
+
 ### SC-PROMO-007 — A one-off discount carries no duration and applies to the first invoice only
 
 🟢 The regular price applies from the second period. The two forms are alternatives, and a code
 claiming both describes nothing.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+
+<!-- END proof -->
 
 ### SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
 
@@ -57,11 +145,37 @@ invoice of zero. Otherwise a code quietly makes a plan free.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - NOT_FOUND when no code exists
+        - PLAN_MISMATCH when the whitelist excludes the plan
+        - PLAN_MISMATCH on nonRedeemable (ENTERPRISE)
+        - NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+
+<!-- END proof -->
+
 ### SC-PROMO-009 — A plan may be marked as not discountable
 
 🟢 A code cannot be created for it and never validates against it.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.redeem — eligibility
+        - enforces firstTimeCustomersOnly also at the final redeem with email
+        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
+        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+
+<!-- END proof -->
 
 ### SC-PROMO-010 — A code is for first-time customers unless the operator says otherwise
 
@@ -70,12 +184,36 @@ round.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.redeem — eligibility
+        - enforces firstTimeCustomersOnly also at the final redeem with email
+        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
+        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+
+<!-- END proof -->
+
 ### SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
 
 🟢 💰 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they
 never received.
 
 _Source:_ `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.redeem — eligibility
+        - enforces firstTimeCustomersOnly also at the final redeem with email
+        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
+        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+
+<!-- END proof -->
 
 ### SC-PROMO-012 — A code only applies to a subscription belonging to the person redeeming it
 
@@ -89,11 +227,57 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Source:_ `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/promotion-helpers.test.js`
+    - active within the window
+    - scheduled before validFrom
+    - expired after validTo
+    - highest priority wins on overlap
+    - onlyLocales filters
+    - billingCycle filters
+    - requiresCoupon promotions are not selected automatically
+    - non-matching plan → null
+    - targetType filters bundle promotions separately from plan promotions
+    - percent
+    - amount
+    - amount clamps at 0
+    - intro
+    - freeMonths
+    - null when promotion is missing
+
+<!-- END proof -->
+
 ### SC-PROMO-014 — A code is 4 to 32 characters of upper-case letters, digits, hyphen and underscore
 
 🟢
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/promotion-helpers.test.js`
+    - active within the window
+    - scheduled before validFrom
+    - expired after validTo
+    - highest priority wins on overlap
+    - onlyLocales filters
+    - billingCycle filters
+    - requiresCoupon promotions are not selected automatically
+    - non-matching plan → null
+    - targetType filters bundle promotions separately from plan promotions
+    - percent
+    - amount
+    - amount clamps at 0
+    - intro
+    - freeMonths
+    - null when promotion is missing
+
+<!-- END proof -->
 
 ### SC-PROMO-015 — What a code promised when it was redeemed stays with the redemption
 

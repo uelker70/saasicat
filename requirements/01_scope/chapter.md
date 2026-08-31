@@ -15,6 +15,31 @@ application it sits in.
 
 _Source:_ ADR 0007 · `README.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-composition.test.js`
+    - the base modules
+        - the DB-hydration path builds the catalogue from the sink
+        - the app identity comes from the catalogue that is configured
+        - an explicit app identity wins over the catalogue
+- `packages/nest/tests/saasicat-module.test.js`
+    - SaaSiCatModule.forRoot
+        - throws when neither planCatalog nor planCatalogReadSink is set
+        - quickstart path: planCatalog + 3 adapters are enough
+        - Entitlement opt-in: enabled without repos -&gt; error
+        - Entitlement active with all repos -&gt; 5 sub-modules
+        - accepts empty guards: [] as an explicit choice
+        - composes setup, admin stats, checkout offer and subscription contract
+        - setup and subscription contract can derive their adapters from persistence
+        - the centrally composed optional services resolve in a real Nest container
+        - without defaultPlanId & without planResolver: no entitlement stack
+        - with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered
+        - with quotaProviders: classes become providers + aggregated in the registry token
+
+<!-- END proof -->
+
 ### SC-SCOPE-002 — One installation serves one application
 
 🟢 A plan key, a bundle key, a feature key and a quota key are unique for the whole installation.
@@ -24,6 +49,20 @@ tenant, installation-wide, has always required anyway.
 
 _Source:_ #236 · `docs/explanation/data-model.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/a-key-belongs-to-the-installation.test.js`
+    - the scan reaches the repository
+    - the scan reads the shipped DDL, where the column actually lived
+    - no tracked file carries the retired identifier without declaring it
+    - the rule is not vacuous: it refuses each spelling
+    - and it does not refuse a word that merely contains one
+    - a declaration excuses the file it is in, and only in its head
+
+<!-- END proof -->
+
 ### SC-SCOPE-003 — An installation that does not name its application does not start
 
 🟢 The application's name is what a tenant reads on the sign-in page and what an operator sees in the
@@ -31,6 +70,29 @@ administration. An absent name is not a default to fill in: the installation wou
 by an empty string, and nobody would notice until a customer did.
 
 _Source:_ #236 · `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a catalogue that names no application
+        - is a violation of its own, named
+        - and so is a blank one, which is the same omission spelled differently
+        - a named one passes
+        - the DB-hydration path is held to it too
+        - and a configuration with no catalogue at all is the other finding, not both
+- `packages/ui-vue/tests/login-branding.test.js`
+    - a complete boot response is used as-is
+    - production is not shown as an environment badge
+    - ${name}: falls back instead of throwing
+    - without boot and without app branding the card still renders
+    - empty strings from boot do not blank the card
+    - true only for an explicit production environment
+    - a malformed payload is not treated as production
+    - other environments are not production
+
+<!-- END proof -->
 
 ### SC-SCOPE-004 — SaaSiCat does not take payments
 
@@ -68,6 +130,35 @@ exist is an open question, not an oversight.
 
 _Source:_ #175 · `docs/guides/mount-behind-express.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-composition.test.js`
+    - every module a composer mounts is also exported
+        - with every feature on
+        - every declared exception is actually mounted
+        - the probe actually mounts something
+        - a feature that is off is neither mounted nor exported
+    - features are added as composers, not as edits to the assembler
+        - the assembler imports no domain module of its own
+        - there are composers to speak for
+- `packages/nest/tests/saasicat-module.test.js`
+    - SaaSiCatModule.forRoot
+        - throws when neither planCatalog nor planCatalogReadSink is set
+        - quickstart path: planCatalog + 3 adapters are enough
+        - Entitlement opt-in: enabled without repos -&gt; error
+        - Entitlement active with all repos -&gt; 5 sub-modules
+        - accepts empty guards: [] as an explicit choice
+        - composes setup, admin stats, checkout offer and subscription contract
+        - setup and subscription contract can derive their adapters from persistence
+        - the centrally composed optional services resolve in a real Nest container
+        - without defaultPlanId & without planResolver: no entitlement stack
+        - with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered
+        - with quotaProviders: classes become providers + aggregated in the registry token
+
+<!-- END proof -->
+
 ### SC-SCOPE-008 — Anything may be built on SaaSiCat except a competitor to it
 
 🟢 Reading it, running it, changing it, redistributing it, and building and selling a SaaS product on
@@ -83,9 +174,37 @@ is a factual error about its licence, and it is the kind of error that gets repe
 
 _Source:_ ADR 0001
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/license-is-consistent.test.js`
+    - there are packages to check
+    - each one has a LICENSE file
+    - and it is byte-identical to the one at the root
+    - and the license field agrees with the file, everywhere
+    - ${file} quotes it verbatim
+    - the clause is not trivially short, so the check is not trivially true
+
+<!-- END proof -->
+
 ### SC-SCOPE-010 — A published version keeps the licence it was published under
 
 🟢 Rights already granted with a release cannot be withdrawn by a later one. Everything published up
 to and including 0.26.1 stays under the earlier permissive licence.
 
 _Source:_ ADR 0001 · release 0.27.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/license-is-consistent.test.js`
+    - there are packages to check
+    - each one has a LICENSE file
+    - and it is byte-identical to the one at the root
+    - and the license field agrees with the file, everywhere
+    - ${file} quotes it verbatim
+    - the clause is not trivially short, so the check is not trivially true
+
+<!-- END proof -->
