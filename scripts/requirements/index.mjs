@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
 
 import { parseChapter, readCatalogue, RISKS } from './parse.mjs';
-import { scanTests, unproven, withTitles } from './proof.mjs';
+import { scanTests, standing, unproven, withTitles } from './proof.mjs';
 import { render, withChapterTable, withProofs } from './render.mjs';
 import { check } from './check.mjs';
 
@@ -158,11 +158,24 @@ export function listing(root) {
     // Coverage is the strict reading: a case that runs, not a file that
     // mentions. The ratchet uses the other one, and says why.
     const { proved, cases } = scanTests(root);
+    // Whether a proof is owed is settled before whether one exists. Asked the
+    // other way round, a requirement that is decided but not yet delivered and
+    // already has a test written ahead of it reads as `proved` — and since
+    // `coverage` counts everything that is not `not owed`, it then joins the
+    // denominator that `unproven` deliberately leaves it out of. Two entries
+    // did exactly that, one of them money-marked.
+    const owes = new Set(standing(catalogue.entries));
     const owed = new Set(unproven(catalogue.entries, proved));
     return catalogue.entries.map((entry) => ({
         id: entry.id,
         state: entry.status === 'current' && !entry.delivered ? 'pending' : entry.status,
-        proof: proved.has(entry.id) ? 'proved' : owed.has(entry.id) ? 'owed' : 'not owed',
+        proof: !owes.has(entry.id)
+            ? 'not owed'
+            : proved.has(entry.id)
+              ? 'proved'
+              : owed.has(entry.id)
+                ? 'owed'
+                : 'not owed',
         risk: entry.risk,
         tests: proved.get(entry.id) ?? [],
         cases: cases.get(entry.id) ?? [],

@@ -632,10 +632,39 @@ describe('every requirement can be seen with its state', () => {
         // having been proved — and collapsing the two would report coverage
         // that nobody has.
         const owed = rows.filter((row) => row.proof === 'owed');
-        const exempt = rows.filter((row) => row.proof === 'not owed');
         assert.ok(owed.length > 0, 'nothing is owed a proof, which cannot be right yet');
-        assert.ok(exempt.every((row) => row.state !== 'current' || row.proof === 'not owed'));
-        assert.ok(rows.every((row) => (row.proof === 'proved') === row.tests.length > 0));
+
+        // Whether a proof is owed is settled first. The old assertion here was
+        // `(proof === 'proved') === tests.length > 0`, which is the bug written
+        // down: a requirement decided but not yet delivered, with a test
+        // written ahead of it, read as proved.
+        const early = rows.filter((row) => row.state !== 'current' && row.proof !== 'not owed');
+        assert.deepEqual(
+            early.map((row) => `${row.id} is ${row.state} but reads ${row.proof}`),
+            [],
+        );
+
+        const standing = rows.filter((row) => row.state === 'current');
+        assert.ok(standing.every((row) => (row.proof === 'proved') === row.tests.length > 0));
+    });
+
+    test('the denominator is the promises that stand, and only those', () => {
+        // `coverage` counts everything that is not `not owed`, so a row let
+        // through above lands in the denominator that `unproven` leaves it out
+        // of — and the percentage then describes a population nobody named.
+        assert.equal(coverage(rows).owed, rows.filter((row) => row.state === 'current').length);
+    });
+
+    test('a promise owed nothing counts in neither half', () => {
+        const at = coverage([
+            { proof: 'proved', risk: undefined },
+            { proof: 'owed', risk: undefined },
+            { proof: 'not owed', risk: undefined },
+        ]);
+        assert.deepEqual(
+            { proved: at.proved, owed: at.owed, exempt: at.exempt },
+            { proved: 1, owed: 2, exempt: 1 },
+        );
     });
 });
 
