@@ -1,6 +1,3 @@
-// @requirement SC-SUB-001 — A tenant has one subscription
-// @requirement SC-SEC-001 — A tenant never sees another tenant's data
-
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { PrismaTenantSubscriptionWriteAdapter } from '../dist/index.js';
@@ -377,5 +374,77 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
                 }),
             /validityWindows=true/,
         );
+    });
+});
+
+describe("a write never reaches another tenant's row", () => {
+    // The store holds one tenant's subscription. Every call below asks for a
+    // different one, so anything that came back or changed would be data the
+    // caller has no claim to — which is the whole of the promise, at the seam
+    // where it is either kept or lost.
+    //
+    // The adapter refuses rather than quietly doing nothing, which is the
+    // better of the two: a silent no-op looks like success to the caller.
+
+    const forAnotherTenant = () => {
+        const prisma = fakePrisma({ subscription: subscriptionRow({ tenantId: 'tenant-1' }) });
+        return { prisma, adapter: new PrismaTenantSubscriptionWriteAdapter(prisma) };
+    };
+
+    // @requirement SC-SEC-001 — A tenant never sees another tenant's data
+    test('a plan change asked for by a stranger changes nothing', async () => {
+        const { prisma, adapter } = forAnotherTenant();
+
+        await assert.rejects(
+            () =>
+                adapter.changePlanImmediate('tenant-2', {
+                    planId: 'PRO',
+                    cycle: 'MONTHLY',
+                    periodStart: null,
+                    periodEnd: null,
+                    nextStatus: null,
+                }),
+            /No subscription for tenant tenant-2/,
+        );
+
+        assert.equal(prisma.state.subscription.plan, 'STARTER');
+        assert.equal(prisma.state.subscription.billingCycle, 'YEARLY');
+        for (const call of prisma.calls.subscriptionUpdateMany) {
+            assert.equal(call.where.tenantId, 'tenant-2', 'a write went out unscoped');
+        }
+    });
+
+    // @requirement SC-SEC-001 — A tenant never sees another tenant's data
+    test('a cancellation asked for by a stranger changes nothing', async () => {
+        const { prisma, adapter } = forAnotherTenant();
+
+        await assert.rejects(
+            () =>
+                adapter.cancelSubscription('tenant-2', {
+                    canceledAt: new Date('2026-01-01T00:00:00.000Z'),
+                    canceledEffectiveAt: null,
+                    nextStatus: null,
+                }),
+            /No subscription for tenant tenant-2/,
+        );
+
+        assert.equal(prisma.state.subscription.canceledAt, null);
+        assert.equal(prisma.state.subscription.status, 'ACTIVE');
+    });
+
+    test('and the same calls for the tenant that owns the row do take effect', async () => {
+        // The counter-check: an adapter that wrote nothing at all would pass
+        // both assertions above while being entirely broken.
+        const { prisma, adapter } = forAnotherTenant();
+
+        await adapter.changePlanImmediate('tenant-1', {
+            planId: 'PRO',
+            cycle: 'MONTHLY',
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+        });
+
+        assert.equal(prisma.state.subscription.plan, 'PRO');
     });
 });

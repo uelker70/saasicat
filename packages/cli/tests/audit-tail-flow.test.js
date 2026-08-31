@@ -1,6 +1,3 @@
-// @requirement SC-AUD-002 — An action that belongs to no single tenant says so
-// @requirement SC-AUD-003 — Every change to a subscription is recorded with what it was before and after
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AuditTailFlow } from '../dist/index.js';

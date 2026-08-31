@@ -46,17 +46,9 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/cli/tests/audit-tail-flow.test.js`
-    - AuditTailFlow.run — filter mapping
-        - empty filter → empty query object
-        - actor → actorTag
-        - action + entity
-        - since → from
-        - limit → pageSize
-    - AuditTailFlow.formatRows
-        - maps fields + truncated entityId
-        - null-actorTag → "—"
-        - short entityId not truncated
+- `packages/adapter-prisma/tests/prisma-adapters.test.js`
+    - PrismaAuditAdapter
+        - write maps actor to userId + actorTag on audit_logs
 
 <!-- END proof -->
 
@@ -70,17 +62,10 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/cli/tests/audit-tail-flow.test.js`
-    - AuditTailFlow.run — filter mapping
-        - empty filter → empty query object
-        - actor → actorTag
-        - action + entity
-        - since → from
-        - limit → pageSize
-    - AuditTailFlow.formatRows
-        - maps fields + truncated entityId
-        - null-actorTag → "—"
-        - short entityId not truncated
+- `packages/nest/tests/a-subscription-change-is-recorded-before-and-after.test.js`
+    - a plan change is recorded with what it was before and after
+        - the entry names the plan and cycle on both sides of the change
+        - the before is read from the subscription, not echoed from the request
 
 <!-- END proof -->
 

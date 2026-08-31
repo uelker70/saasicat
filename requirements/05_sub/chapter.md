@@ -17,17 +17,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
-    - PrismaTenantSubscriptionWriteAdapter
-        - the no-options default preserves the 0.6 plan-only write
-        - opening a window records the day the subscription is billed on
-        - and a change that opens none leaves it alone
-        - normalized mode binds semantic plan and active version atomically with named delegates
-        - a pending version of the same target plan is retained
-        - a failing onboarding callback rolls plan and version back together
-        - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
-        - pending PlanVersion acceptance rejects a changed CAS target and a missing target
-        - invalid validity capability combinations fail at construction
+- `packages/spec/tests/reference-sql-drift.test.js`
+    - the reference schema makes one subscription per tenant impossible to break
 
 <!-- END proof -->
 

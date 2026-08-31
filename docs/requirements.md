@@ -3266,17 +3266,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
-    - PrismaTenantSubscriptionWriteAdapter
-        - the no-options default preserves the 0.6 plan-only write
-        - opening a window records the day the subscription is billed on
-        - and a change that opens none leaves it alone
-        - normalized mode binds semantic plan and active version atomically with named delegates
-        - a pending version of the same target plan is retained
-        - a failing onboarding callback rolls plan and version back together
-        - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
-        - pending PlanVersion acceptance rejects a changed CAS target and a missing target
-        - invalid validity capability combinations fail at construction
+- `packages/spec/tests/reference-sql-drift.test.js`
+    - the reference schema makes one subscription per tenant impossible to break
 
 <!-- END proof -->
 
@@ -10634,16 +10625,9 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
-    - PrismaTenantSubscriptionWriteAdapter
-        - the no-options default preserves the 0.6 plan-only write
-        - opening a window records the day the subscription is billed on
-        - and a change that opens none leaves it alone
-        - normalized mode binds semantic plan and active version atomically with named delegates
-        - a pending version of the same target plan is retained
-        - a failing onboarding callback rolls plan and version back together
-        - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
-        - pending PlanVersion acceptance rejects a changed CAS target and a missing target
-        - invalid validity capability combinations fail at construction
+    - a write never reaches another tenant's row
+        - a plan change asked for by a stranger changes nothing
+        - a cancellation asked for by a stranger changes nothing
 
 <!-- END proof -->
 
@@ -11107,17 +11091,9 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/cli/tests/audit-tail-flow.test.js`
-    - AuditTailFlow.run — filter mapping
-        - empty filter → empty query object
-        - actor → actorTag
-        - action + entity
-        - since → from
-        - limit → pageSize
-    - AuditTailFlow.formatRows
-        - maps fields + truncated entityId
-        - null-actorTag → "—"
-        - short entityId not truncated
+- `packages/adapter-prisma/tests/prisma-adapters.test.js`
+    - PrismaAuditAdapter
+        - write maps actor to userId + actorTag on audit_logs
 
 <!-- END proof -->
 
@@ -11131,17 +11107,10 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/cli/tests/audit-tail-flow.test.js`
-    - AuditTailFlow.run — filter mapping
-        - empty filter → empty query object
-        - actor → actorTag
-        - action + entity
-        - since → from
-        - limit → pageSize
-    - AuditTailFlow.formatRows
-        - maps fields + truncated entityId
-        - null-actorTag → "—"
-        - short entityId not truncated
+- `packages/nest/tests/a-subscription-change-is-recorded-before-and-after.test.js`
+    - a plan change is recorded with what it was before and after
+        - the entry names the plan and cycle on both sides of the change
+        - the before is read from the subscription, not echoed from the request
 
 <!-- END proof -->
 
@@ -12327,6 +12296,7 @@ _Tested by:_
     - normative constraints are part of the reference schema
     - bundle validity windows and their lookup index are in the reference schema
     - plan-version validity, termination and lookup index are in the reference schema
+    - the reference schema makes one subscription per tenant impossible to break
 
 <!-- END proof -->
 

@@ -859,6 +859,7 @@ _Tested by:_
     - normative constraints are part of the reference schema
     - bundle validity windows and their lookup index are in the reference schema
     - plan-version validity, termination and lookup index are in the reference schema
+    - the reference schema makes one subscription per tenant impossible to break
 
 <!-- END proof -->
 
