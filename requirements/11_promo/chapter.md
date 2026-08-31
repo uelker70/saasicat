@@ -314,7 +314,7 @@ _Tested by:_
     - computeRegularStartsAt BILLING_CYCLES 2 (YEARLY)
     - buildLabel ONCE PERCENT
     - buildLabel MONTHS 6 ABSOLUTE
-    - buildLabel BILLING_CYCLES 1 YEARLY →
+    - buildLabel BILLING_CYCLES 1 YEARLY → "for the first year"
     - buildLabel MONTHS 1 → singular
     - buildLabel without options keeps the de-DE/EUR output it always had
     - buildLabel formats the amount in the given locale
@@ -370,7 +370,7 @@ _Tested by:_
     - computeRegularStartsAt BILLING_CYCLES 2 (YEARLY)
     - buildLabel ONCE PERCENT
     - buildLabel MONTHS 6 ABSOLUTE
-    - buildLabel BILLING_CYCLES 1 YEARLY →
+    - buildLabel BILLING_CYCLES 1 YEARLY → "for the first year"
     - buildLabel MONTHS 1 → singular
     - buildLabel without options keeps the de-DE/EUR output it always had
     - buildLabel formats the amount in the given locale
@@ -410,7 +410,7 @@ _Tested by:_
     - computeRegularStartsAt BILLING_CYCLES 2 (YEARLY)
     - buildLabel ONCE PERCENT
     - buildLabel MONTHS 6 ABSOLUTE
-    - buildLabel BILLING_CYCLES 1 YEARLY →
+    - buildLabel BILLING_CYCLES 1 YEARLY → "for the first year"
     - buildLabel MONTHS 1 → singular
     - buildLabel without options keeps the de-DE/EUR output it always had
     - buildLabel formats the amount in the given locale

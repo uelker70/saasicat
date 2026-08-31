@@ -20,9 +20,9 @@ _Tested by:_
 
 - `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
     - a plan change is timed by the rules, not by the request
-        - a caller asking for
+        - a caller asking for "immediately" on a deferred change is scheduled anyway
         - a caller asking for nothing on an immediate change still gets it today
-        - the scheduled date is the preview
+        - the scheduled date is the preview's, not a second computation
 
 <!-- END proof -->
 
@@ -40,7 +40,7 @@ _Tested by:_
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - an immediate change may not shorten the term
         - the matrix is complete
-        - ${label} takes effect ${expected ?
+        - ${label} takes effect ${expected ? 'now' : 'at term end'}
 
 <!-- END proof -->
 
@@ -62,7 +62,7 @@ _Tested by:_
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - an immediate change may not shorten the term
         - the matrix is complete
-        - ${label} takes effect ${expected ?
+        - ${label} takes effect ${expected ? 'now' : 'at term end'}
 
 <!-- END proof -->
 
@@ -230,9 +230,9 @@ _Tested by:_
         - nothing booked, nothing blocked
 - `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
     - a plan change is timed by the rules, not by the request
-        - a caller asking for
+        - a caller asking for "immediately" on a deferred change is scheduled anyway
         - a caller asking for nothing on an immediate change still gets it today
-        - the scheduled date is the preview
+        - the scheduled date is the preview's, not a second computation
 
 <!-- END proof -->
 

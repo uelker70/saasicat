@@ -56,7 +56,7 @@ _Tested by:_
     - accepts valid code
     - skips automatically in non-prod
     - skips with yes=true in prod
-    - accepts
+    - accepts "production" as answer
     - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
     - writes through platform AdminAuditService with cli actor
     - has code, message and exitCode
@@ -64,11 +64,11 @@ _Tested by:_
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client
+    - every request carries the client's header
     - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
     - there is a corpus to scan
-    - no option named
+    - no option named `getAuthToken` survives
     - nothing builds a Bearer header by hand
 
 <!-- END proof -->
@@ -99,7 +99,7 @@ _Tested by:_
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client
+    - every request carries the client's header
     - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/navigation-guard.test.js`
     - returns null when neither authGuard nor manifestGuard is set
@@ -227,8 +227,9 @@ _Tested by:_
     - a rejected status is read by the same declaration
     - an instance with its own transform is read as decoding until it says otherwise
     - an empty body throws, whichever instance asked for it
-    - an instance that hands the body over reads
-    - a declaration recovers
+    - an instance that hands the body over reads `""` as the empty string
+    - a declaration recovers `""` from an instance that already decoded it
+    - `""` is the one body a decoding instance under `auto` cannot get back
     - a body no one could decode is the text it was, where axios kept it
     - a rejected status arrives as a response with its body readable
     - the prefix an instance carries as its baseURL is stripped back off
@@ -242,10 +243,10 @@ _Tested by:_
     - a genuine network failure is marked
     - a DNS failure and a timeout are the same fact and are marked too
     - a network failure a rejection interceptor rethrows is still marked
-    - an interceptor
+    - an interceptor's replacement error keeps its message
     - …including when it carries axios’s config across, which is the shape that fooled the old
       reading
-    - …and when it carries
+    - …and when it carries `request` too, which is why `isAxiosError` is read
     - an interceptor rejecting with another request’s failure is that request’s answer
     - a failure while setting the request up keeps its own words
     - a request interceptor that throws is not a transport failure

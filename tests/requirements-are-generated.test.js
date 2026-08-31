@@ -26,7 +26,7 @@ import {
     frontMatter,
     readCatalogue,
 } from '../scripts/requirements/parse.mjs';
-import { BEGIN, END, proofBlock } from '../scripts/requirements/render.mjs';
+import { BEGIN, END, proofBlock, withProofs } from '../scripts/requirements/render.mjs';
 import { check } from '../scripts/requirements/check.mjs';
 import { ROOT, TARGET, renderCatalogue } from '../scripts/requirements/index.mjs';
 
@@ -191,6 +191,56 @@ describe('the tests an entry names are written under it', () => {
         // requirement nobody has covered.
         const { text } = { text: proofBlock([]) };
         assert.equal(text, '');
+    });
+});
+
+describe('a generated region that lost its close destroys nothing', () => {
+    // A merge resolved badly is all it takes, and the command that maintains
+    // the catalogue was the one deleting it: the strip ran from the marker to
+    // whatever closed next. Two ways that ended, both silent — to the end of
+    // the file, or to the *next* entry's close, eating the requirement in
+    // between and leaving a shorter catalogue that still numbers contiguously.
+
+    const proved = (id) =>
+        `### ${id} — Title\n\n🟢 Prose.\n\n_Source:_ #1\n\n` +
+        '<!-- BEGIN proof -->\n\n_Tested by:_\n\n- `x.test.js`\n\n<!-- END proof -->';
+
+    test('an unclosed marker keeps the requirement after it', () => {
+        const text =
+            `${head()}\n${proved('SC-A-001').replace('\n<!-- END proof -->', '')}` +
+            `\n\n${proved('SC-A-002')}`;
+        const after = withProofs(text, new Map());
+        assert.match(after, /SC-A-002/, 'the next requirement was eaten');
+        assert.match(after, /BEGIN proof/, 'the damage was hidden rather than left to be seen');
+    });
+
+    test('an unclosed marker at the end keeps the rest of the file', () => {
+        const text = `${head()}\n${entry('SC-A-001')}\n\n<!-- BEGIN proof -->\n\nTrailing prose.`;
+        assert.match(withProofs(text, new Map()), /Trailing prose\./);
+    });
+
+    test('and the checker refuses the file so nothing is written', () => {
+        const text = `${head()}\n${proved('SC-A-001').replace('\n<!-- END proof -->', '')}`;
+        const problems = check(catalogueOf([['01_a', text]]));
+        assert.ok(
+            problems.some((problem) => problem.includes('is never closed')),
+            JSON.stringify(problems),
+        );
+    });
+
+    test('a close that opens nothing is refused too', () => {
+        const text = `${head()}\n${entry('SC-A-001')}\n\n<!-- END proof -->`;
+        const problems = check(catalogueOf([['01_a', text]]));
+        assert.ok(
+            problems.some((problem) => problem.includes('closes nothing')),
+            JSON.stringify(problems),
+        );
+    });
+
+    test('a well-formed chapter is not refused', () => {
+        // The counter-check: a rule that refused everything would pass the four
+        // above and fail the catalogue.
+        assert.deepEqual(check(catalogueOf([['01_a', `${head()}\n${proved('SC-A-001')}`]])), []);
     });
 });
 

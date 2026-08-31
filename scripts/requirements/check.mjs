@@ -28,6 +28,8 @@ import {
     ID,
     LOOKS_LIKE_AN_ID,
     MARKER_LIKE,
+    PROOF_BEGIN,
+    PROOF_END,
     proseOf,
     SOURCE,
 } from './parse.mjs';
@@ -78,6 +80,7 @@ export function check(catalogue) {
     for (const chapter of catalogue.chapters) {
         for (const entry of chapter.entries) checkEntry(entry, chapter, byId, say);
         checkNumbering(chapter, say);
+        checkProofMarkers(chapter, say);
     }
     checkReferences(catalogue, byId, say);
     checkFragments(catalogue, say);
@@ -354,6 +357,37 @@ function checkRetired(entry, byId, say) {
  * where it should have been superseded, or a number about to be handed out
  * twice.
  */
+/**
+ * Every generated proof region opens once and closes once.
+ *
+ * An unclosed `<!-- BEGIN proof -->` used to take the rest of the chapter with
+ * it: the renderer dropped from the marker to the end of the file and wrote the
+ * result, so the command that maintains the catalogue deleted part of it. A
+ * merge conflict resolved badly is all it takes. Nothing deletes on a malformed
+ * marker any more, and this refuses the file so the damage is reported instead
+ * of written — the checker runs before anything is written, which is the only
+ * reason a refusal here is enough.
+ */
+function checkProofMarkers(chapter, say) {
+    const where = (at) => `${chapter.where}:${chapter.offset + at}`;
+    let opened = null;
+    chapter.body.split('\n').forEach((line, at) => {
+        const marker = line.trim();
+        if (marker === PROOF_BEGIN) {
+            if (opened !== null)
+                say(
+                    where(at),
+                    `'${PROOF_BEGIN}' opens inside the one at line ${chapter.offset + opened}`,
+                );
+            opened = at;
+        } else if (marker === PROOF_END) {
+            if (opened === null) say(where(at), `'${PROOF_END}' closes nothing`);
+            opened = null;
+        }
+    });
+    if (opened !== null) say(where(opened), `'${PROOF_BEGIN}' is never closed`);
+}
+
 function checkNumbering(chapter, say) {
     const numbers = chapter.entries.map((entry) => entry.number).filter((n) => n !== null);
     const sorted = [...numbers].sort((a, b) => a - b);

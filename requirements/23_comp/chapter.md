@@ -21,7 +21,7 @@ _Tested by:_
     - the shared bundle actually backs every entry
     - a class is shared even between entries that never import each other
 - `packages/nest/tests/di-token-registry.test.js`
-    - @saasicat/nest${name ===
+    - @saasicat/nest${name === '.' ? '' : name}
     - every exported token key uses a known prefix
 - `packages/nest/tests/platform-composition.test.js`
     - the seam is in the CJS build too
@@ -47,11 +47,11 @@ _Tested by:_
     - same-file homonyms stay in their own scope (#158, shape 2)
     - a cast and a satisfies
     - a second declarator, and one behind type arguments
-    - a .vue script block that closes with
+    - a .vue script block that closes with `&lt;/script &gt;`
     - a key exported from a .vue and provided from a .ts
     - a .vue script block that never closes
     - provide and inject imported under another name
-    - a key imported through
+    - a key imported through `export *` and through `export { … } from`
     - a string key is a key, and not a missing Symbol.for
     - grouping is grouping, and a decoy is not a Symbol.for
     - an assertion may contain what a type contains
@@ -60,7 +60,7 @@ _Tested by:_
     - a used key that is not declared as an InjectionKey
     - a local binding spelled Symbol is not the global Symbol
     - a comment and a string are not call sites
-    - somebody else
+    - somebody else's provide is not Vue's
     - the token count is a second reader, not the same one
 - `tests/a-dependency-is-declared-once.test.js`
     - the sweep finds the manifests
@@ -207,16 +207,16 @@ _Tested by:_
     - a nested object inside the interpolation
     - a brace inside a string inside the interpolation
     - an interpolation that never closes
-    - somebody else
+    - somebody else's endpoint keeps its parameter, and is reported
     - and the word in one of its query values does not make it ours
     - an occurrence at the very start does not end the scan
     - the endpoint constant
     - a create body
-    - a string-literal type member, which
+    - a string-literal type member, which `tsc` accepts
     - an interface member
     - a bare-identifier value
     - the shorthand form, which used to pass in silence
-    - a consumer
+    - a consumer's own object
     - several are reported in the order they appear, once per line
     - is neither rewritten nor reported
     - and neither is a suffix
@@ -303,16 +303,16 @@ _Tested by:_
     - a nested object inside the interpolation
     - a brace inside a string inside the interpolation
     - an interpolation that never closes
-    - somebody else
+    - somebody else's endpoint keeps its parameter, and is reported
     - and the word in one of its query values does not make it ours
     - an occurrence at the very start does not end the scan
     - the endpoint constant
     - a create body
-    - a string-literal type member, which
+    - a string-literal type member, which `tsc` accepts
     - an interface member
     - a bare-identifier value
     - the shorthand form, which used to pass in silence
-    - a consumer
+    - a consumer's own object
     - several are reported in the order they appear, once per line
     - is neither rewritten nor reported
     - and neither is a suffix
@@ -689,6 +689,7 @@ _Tested by:_
     - a statement it cannot read is kept, not dropped
     - nothing applicable appends nothing at all
     - only a failure stops the command
+    - "before applying" is said exactly when the command will not apply
     - a failure says where the SQL is, because the operator now needs it
     - nothing to append is not a failure
     - every outcome carries a message and a decision

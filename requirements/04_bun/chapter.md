@@ -142,7 +142,7 @@ _Tested by:_
 - `packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js`
     - which cycles a bundle may be sold on
         - every combination, not three of the four
-        - ${bundle} bundle on a ${plan} plan is ${allowed ?
+        - ${bundle} bundle on a ${plan} plan is ${allowed ? 'allowed' : 'refused'}
 
 <!-- END proof -->
 
@@ -179,7 +179,7 @@ _Tested by:_
     - the booking’s own period arrives as dates, not as wire strings
     - a booking with no period of its own keeps null, not the epoch
     - a nullable date that is set is mapped too
-    - load() keeps the list usable and reports the failure on
+    - load() keeps the list usable and reports the failure on `error`
     - a 204 to load() is an empty list, not a failure
     - add() prepends the new bundle and sends the token
     - without a token no Authorization header is invented
@@ -204,8 +204,8 @@ _Tested by:_
     - a yearly booking states the yearly charge, not a monthly figure
     - a monthly booking beside a yearly plan reads as monthly
     - a price only an override supplies is shown, though no catalogue price exists
-    - a booking from before the rhythm was recorded takes the plan
-    - a price the server did not send is joined from the catalogue in the booking
+    - a booking from before the rhythm was recorded takes the plan's
+    - a price the server did not send is joined from the catalogue in the booking's rhythm
     - a price the server resolved to nothing is shown as nothing
 
 <!-- END proof -->
@@ -1062,7 +1062,7 @@ _Tested by:_
 - `packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js`
     - which cycles a bundle may be sold on
         - every combination, not three of the four
-        - ${bundle} bundle on a ${plan} plan is ${allowed ?
+        - ${bundle} bundle on a ${plan} plan is ${allowed ? 'allowed' : 'refused'}
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
     - a yearly add-on blocks the move to a monthly plan
     - the blocker names the date the add-on runs to, so the tenant can act

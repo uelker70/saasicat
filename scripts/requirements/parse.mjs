@@ -240,12 +240,20 @@ export function entriesIn(body, where, startLine) {
     return { intro: trim(intro).join('\n'), entries: entries.map(finishEntry) };
 }
 
-/** Everything outside the generated proof block, which is the entry as written. */
+/**
+ * Everything outside the generated proof block, which is the entry as written.
+ *
+ * An unclosed marker keeps every line. Slicing to the end of the entry read the
+ * rest of the promise as generated and dropped it, which is the one direction
+ * this must never fail in: a promise that disappears takes its fingerprint with
+ * it and the guard sees a change nobody made. Left in, the junk is visible,
+ * `check.mjs` refuses the file, and nothing is written.
+ */
 function withoutProof(lines) {
     const from = lines.findIndex((line) => line.trim() === PROOF_BEGIN);
     if (from === -1) return lines;
     const to = lines.findIndex((line, at) => at > from && line.trim() === PROOF_END);
-    return to === -1 ? lines.slice(0, from) : [...lines.slice(0, from), ...lines.slice(to + 1)];
+    return to === -1 ? lines : [...lines.slice(0, from), ...lines.slice(to + 1)];
 }
 
 function finishEntry(entry) {
@@ -338,6 +346,7 @@ export function parseChapter(text, directory) {
         where,
         directory,
         number: named ? Number(named[1]) : null,
+        offset,
         prefix: named?.[2],
         title: fields.title,
         intro,

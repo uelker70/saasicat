@@ -439,7 +439,7 @@ _Tested by:_
     - and hands back no window on a version that has one stored
 - `packages/core/tests/active-plan-version-query.test.js`
     - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL (
+    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
     - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
     - startOfUtcDay normalizes to 00:00 UTC
     - without withEndsAt: no endsAt clause (CatalogPlanVersion)
@@ -453,7 +453,7 @@ _Tested by:_
     - the window a version is published with
         - the publish call wins over the draft for the start
         - the draft carries the start when the call does not
-        - an explicit null end means unbounded, not
+        - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/newly-published-composables.test.js`
     - every one of them arrived
@@ -489,7 +489,7 @@ _Tested by:_
     - the window a version is published with
         - the publish call wins over the draft for the start
         - the draft carries the start when the call does not
-        - an explicit null end means unbounded, not
+        - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/version-maps.test.js`
     - the endpoint and the plan list are both required
@@ -766,7 +766,7 @@ _Tested by:_
     - token factories receive normalized schema options
 - `packages/core/tests/active-plan-version-query.test.js`
     - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL (
+    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
     - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
     - startOfUtcDay normalizes to 00:00 UTC
     - without withEndsAt: no endsAt clause (CatalogPlanVersion)
@@ -897,6 +897,7 @@ _Tested by:_
     - with several, including a camel-cased key
     - and with --skip-hasher, which does not touch the catalogue
     - the check is not vacuous — a hand-broken catalogue is refused
+    - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -940,6 +941,7 @@ _Tested by:_
     - with several, including a camel-cased key
     - and with --skip-hasher, which does not touch the catalogue
     - the check is not vacuous — a hand-broken catalogue is refused
+    - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - loadPlanCatalogFromString accepts valid example
     - loadPlanCatalogFromString rejects schemaVersion != 1
@@ -1006,7 +1008,7 @@ _Tested by:_
     - sends a JSON content type
     - a caller header wins over the default
     - serialises the body — the transport only carries strings
-    - sends no body when there is none, rather than the string
+    - sends no body when there is none, rather than the string "undefined"
     - a client that resolved with no status never reads as an answer
     - a 204 and an unparsable 2xx both read as no body
     - a non-2xx throws an AdminError carrying the parsed body and the code

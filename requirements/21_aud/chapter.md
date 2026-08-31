@@ -22,7 +22,7 @@ _Tested by:_
         - actorTag formats source:email:context
         - log() writes through and appends the actor tag to changes
         - fromWebRequest builds AdminActor with source=web
-        - fromWebRequest falls back to
+        - fromWebRequest falls back to "unknown" when there is no session
         - fromCli builds AdminActor with source=cli + hostname
 - `packages/nest/tests/onboarding-subscription.test.js`
     - onboarding writes an audit log with COMPLETE_ONBOARDING_SUBSCRIPTION
@@ -53,7 +53,7 @@ _Tested by:_
     - since → from
     - limit → pageSize
     - maps fields + truncated entityId
-    - null-actorTag →
+    - null-actorTag → "—"
     - short entityId not truncated
 
 <!-- END proof -->
@@ -75,7 +75,7 @@ _Tested by:_
     - since → from
     - limit → pageSize
     - maps fields + truncated entityId
-    - null-actorTag →
+    - null-actorTag → "—"
     - short entityId not truncated
 
 <!-- END proof -->

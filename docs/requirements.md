@@ -558,7 +558,7 @@ _Tested by:_
     - load() adopts the snapshot and remembers the ETag
     - the second load sends the ETag, and a 304 changes nothing
     - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on
+    - a failed load lands on `error`, not on a rejection the page has to catch
     - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
     - a failed rescan says rescan, not discovery
     - a client that rejects is reported as it is, not re-wrapped
@@ -629,7 +629,7 @@ _Tested by:_
     - load() adopts the snapshot and remembers the ETag
     - the second load sends the ETag, and a 304 changes nothing
     - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on
+    - a failed load lands on `error`, not on a rejection the page has to catch
     - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
     - a failed rescan says rescan, not discovery
     - a client that rejects is reported as it is, not re-wrapped
@@ -1296,7 +1296,7 @@ _Tested by:_
     - and hands back no window on a version that has one stored
 - `packages/core/tests/active-plan-version-query.test.js`
     - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL (
+    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
     - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
     - startOfUtcDay normalizes to 00:00 UTC
     - without withEndsAt: no endsAt clause (CatalogPlanVersion)
@@ -1310,7 +1310,7 @@ _Tested by:_
     - the window a version is published with
         - the publish call wins over the draft for the start
         - the draft carries the start when the call does not
-        - an explicit null end means unbounded, not
+        - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/newly-published-composables.test.js`
     - every one of them arrived
@@ -1346,7 +1346,7 @@ _Tested by:_
     - the window a version is published with
         - the publish call wins over the draft for the start
         - the draft carries the start when the call does not
-        - an explicit null end means unbounded, not
+        - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/version-maps.test.js`
     - the endpoint and the plan list are both required
@@ -1623,7 +1623,7 @@ _Tested by:_
     - token factories receive normalized schema options
 - `packages/core/tests/active-plan-version-query.test.js`
     - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL (
+    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
     - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
     - startOfUtcDay normalizes to 00:00 UTC
     - without withEndsAt: no endsAt clause (CatalogPlanVersion)
@@ -1754,6 +1754,7 @@ _Tested by:_
     - with several, including a camel-cased key
     - and with --skip-hasher, which does not touch the catalogue
     - the check is not vacuous — a hand-broken catalogue is refused
+    - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -1797,6 +1798,7 @@ _Tested by:_
     - with several, including a camel-cased key
     - and with --skip-hasher, which does not touch the catalogue
     - the check is not vacuous — a hand-broken catalogue is refused
+    - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - loadPlanCatalogFromString accepts valid example
     - loadPlanCatalogFromString rejects schemaVersion != 1
@@ -1863,7 +1865,7 @@ _Tested by:_
     - sends a JSON content type
     - a caller header wins over the default
     - serialises the body — the transport only carries strings
-    - sends no body when there is none, rather than the string
+    - sends no body when there is none, rather than the string "undefined"
     - a client that resolved with no status never reads as an answer
     - a 204 and an unparsable 2xx both read as no body
     - a non-2xx throws an AdminError carrying the parsed body and the code
@@ -2043,7 +2045,7 @@ _Tested by:_
 - `packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js`
     - which cycles a bundle may be sold on
         - every combination, not three of the four
-        - ${bundle} bundle on a ${plan} plan is ${allowed ?
+        - ${bundle} bundle on a ${plan} plan is ${allowed ? 'allowed' : 'refused'}
 
 <!-- END proof -->
 
@@ -2080,7 +2082,7 @@ _Tested by:_
     - the booking’s own period arrives as dates, not as wire strings
     - a booking with no period of its own keeps null, not the epoch
     - a nullable date that is set is mapped too
-    - load() keeps the list usable and reports the failure on
+    - load() keeps the list usable and reports the failure on `error`
     - a 204 to load() is an empty list, not a failure
     - add() prepends the new bundle and sends the token
     - without a token no Authorization header is invented
@@ -2105,8 +2107,8 @@ _Tested by:_
     - a yearly booking states the yearly charge, not a monthly figure
     - a monthly booking beside a yearly plan reads as monthly
     - a price only an override supplies is shown, though no catalogue price exists
-    - a booking from before the rhythm was recorded takes the plan
-    - a price the server did not send is joined from the catalogue in the booking
+    - a booking from before the rhythm was recorded takes the plan's
+    - a price the server did not send is joined from the catalogue in the booking's rhythm
     - a price the server resolved to nothing is shown as nothing
 
 <!-- END proof -->
@@ -2963,7 +2965,7 @@ _Tested by:_
 - `packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js`
     - which cycles a bundle may be sold on
         - every combination, not three of the four
-        - ${bundle} bundle on a ${plan} plan is ${allowed ?
+        - ${bundle} bundle on a ${plan} plan is ${allowed ? 'allowed' : 'refused'}
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
     - a yearly add-on blocks the move to a monthly plan
     - the blocker names the date the add-on runs to, so the tenant can act
@@ -3451,9 +3453,9 @@ _Tested by:_
 
 - `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
     - a plan change is timed by the rules, not by the request
-        - a caller asking for
+        - a caller asking for "immediately" on a deferred change is scheduled anyway
         - a caller asking for nothing on an immediate change still gets it today
-        - the scheduled date is the preview
+        - the scheduled date is the preview's, not a second computation
 
 <!-- END proof -->
 
@@ -3471,7 +3473,7 @@ _Tested by:_
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - an immediate change may not shorten the term
         - the matrix is complete
-        - ${label} takes effect ${expected ?
+        - ${label} takes effect ${expected ? 'now' : 'at term end'}
 
 <!-- END proof -->
 
@@ -3493,7 +3495,7 @@ _Tested by:_
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - an immediate change may not shorten the term
         - the matrix is complete
-        - ${label} takes effect ${expected ?
+        - ${label} takes effect ${expected ? 'now' : 'at term end'}
 
 <!-- END proof -->
 
@@ -3661,9 +3663,9 @@ _Tested by:_
         - nothing booked, nothing blocked
 - `packages/nest/tests/the-server-decides-when-a-change-lands.test.js`
     - a plan change is timed by the rules, not by the request
-        - a caller asking for
+        - a caller asking for "immediately" on a deferred change is scheduled anyway
         - a caller asking for nothing on an immediate change still gets it today
-        - the scheduled date is the preview
+        - the scheduled date is the preview's, not a second computation
 
 <!-- END proof -->
 
@@ -4266,7 +4268,7 @@ _Tested by:_
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it
         - the matrix asks more of a trial than of a term
-        - on trial, ${label} takes effect ${expected ?
+        - on trial, ${label} takes effect ${expected ? 'now' : 'at term end'}
 
 <!-- END proof -->
 
@@ -4927,7 +4929,7 @@ _Tested by:_
     - no entitlement bound -&gt; pass
     - feature present -&gt; pass
     - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next(
+    - feature missing + redirectTo -&gt; next("/upgrade")
     - array requiresFeature -&gt; logical OR
     - loading + null snapshot + allowWhileLoading default -&gt; pass
 
@@ -4950,7 +4952,7 @@ _Tested by:_
 - `packages/nest/tests/limit-exceeded-filter.test.js`
     - responds with HTTP 402 + standard body shape
     - carries the quota dimension correctly from the exception
-    - lets floating-point
+    - lets floating-point `used`/`max` pass through for storage
     - robust when method/url are missing from the request
 
 <!-- END proof -->
@@ -5237,9 +5239,9 @@ _Tested by:_
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — auth paths
         - SUPER_ADMIN bypasses the feature check
-        - SUPER_ADMIN via
-        - missing user → Forbidden (
-        - missing tenantId → Forbidden (
+        - SUPER_ADMIN via `platformRole` is detected
+        - missing user → Forbidden ("Not authenticated")
+        - missing tenantId → Forbidden ("No tenant assigned")
         - tenantId from request.tenantId takes precedence over user.tenantId
 
 <!-- END proof -->
@@ -5261,14 +5263,14 @@ _Tested by:_
     - no entitlement bound -&gt; pass
     - feature present -&gt; pass
     - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next(
+    - feature missing + redirectTo -&gt; next("/upgrade")
     - array requiresFeature -&gt; logical OR
     - loading + null snapshot + allowWhileLoading default -&gt; pass
 - `packages/ui-vue/tests/use-entitlement.test.js`
     - autoLoad loads the snapshot
     - hasFeature(key) returns a boolean
     - hasFeature without a loaded Entitlement → false
-    - the client
+    - the client's auth header reaches the request untouched
     - 500 → error set, entitlement null
     - endpoint is required: without an endpoint useEntitlement throws
 
@@ -5588,7 +5590,7 @@ _Tested by:_
     - computeRegularStartsAt BILLING_CYCLES 2 (YEARLY)
     - buildLabel ONCE PERCENT
     - buildLabel MONTHS 6 ABSOLUTE
-    - buildLabel BILLING_CYCLES 1 YEARLY →
+    - buildLabel BILLING_CYCLES 1 YEARLY → "for the first year"
     - buildLabel MONTHS 1 → singular
     - buildLabel without options keeps the de-DE/EUR output it always had
     - buildLabel formats the amount in the given locale
@@ -5644,7 +5646,7 @@ _Tested by:_
     - computeRegularStartsAt BILLING_CYCLES 2 (YEARLY)
     - buildLabel ONCE PERCENT
     - buildLabel MONTHS 6 ABSOLUTE
-    - buildLabel BILLING_CYCLES 1 YEARLY →
+    - buildLabel BILLING_CYCLES 1 YEARLY → "for the first year"
     - buildLabel MONTHS 1 → singular
     - buildLabel without options keeps the de-DE/EUR output it always had
     - buildLabel formats the amount in the given locale
@@ -5684,7 +5686,7 @@ _Tested by:_
     - computeRegularStartsAt BILLING_CYCLES 2 (YEARLY)
     - buildLabel ONCE PERCENT
     - buildLabel MONTHS 6 ABSOLUTE
-    - buildLabel BILLING_CYCLES 1 YEARLY →
+    - buildLabel BILLING_CYCLES 1 YEARLY → "for the first year"
     - buildLabel MONTHS 1 → singular
     - buildLabel without options keeps the de-DE/EUR output it always had
     - buildLabel formats the amount in the given locale
@@ -6585,12 +6587,12 @@ _Tested by:_
         - rejects TENANT_ADMIN
         - rejects a missing user
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and
-    - accepts empty
-    - does NOT throw when
-    - accepts a configured
-    - additionally accepts
-    - throws on missing
+    - throws when the controller should be registered and `guards` is missing
+    - accepts empty `guards: []` as an explicit auth-free choice
+    - does NOT throw when `includeManifestController: false`
+    - accepts a configured `guards` list
+    - additionally accepts `reloadGuards` for MFA protection on reload
+    - throws on missing `guards` even without an explicit includeManifestController
 - `packages/nest/tests/discovery-controller.test.js`
     - DiscoveryController — GET /admin/discovery
         - returns the discovery snapshot as the body
@@ -6604,7 +6606,7 @@ _Tested by:_
         - defaults to mounting the manifest controller
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
     - there is a corpus to scan
-    - no option named
+    - no option named `getAuthToken` survives
     - nothing builds a Bearer header by hand
 
 <!-- END proof -->
@@ -6620,12 +6622,12 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and
-    - accepts empty
-    - does NOT throw when
-    - accepts a configured
-    - additionally accepts
-    - throws on missing
+    - throws when the controller should be registered and `guards` is missing
+    - accepts empty `guards: []` as an explicit auth-free choice
+    - does NOT throw when `includeManifestController: false`
+    - accepts a configured `guards` list
+    - additionally accepts `reloadGuards` for MFA protection on reload
+    - throws on missing `guards` even without an explicit includeManifestController
 
 <!-- END proof -->
 
@@ -6713,7 +6715,7 @@ _Tested by:_
         - actorTag formats source:email:context
         - log() writes through and appends the actor tag to changes
         - fromWebRequest builds AdminActor with source=web
-        - fromWebRequest falls back to
+        - fromWebRequest falls back to "unknown" when there is no session
         - fromCli builds AdminActor with source=cli + hostname
 
 <!-- END proof -->
@@ -6740,7 +6742,7 @@ _Tested by:_
     - returns secret + otpauthUri for SUPER_ADMIN
     - audit log contains issuer in changes
     - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with
+    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
     - accepts re-setup with force=true without prompt
     - returns multi-line instructions with secret + URI
 
@@ -6774,7 +6776,7 @@ _Tested by:_
     - returns secret + otpauthUri for SUPER_ADMIN
     - audit log contains issuer in changes
     - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with
+    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
     - accepts re-setup with force=true without prompt
     - returns multi-line instructions with secret + URI
 
@@ -6839,7 +6841,8 @@ _Tested by:_
         - the controller declares some, and each one is a real route
         - a caller without a role is refused, with the code the client reads
         - an unauthenticated caller is refused separately
-        - the tenant
+        - the tenant's own administrator is admitted
+        - `role` is honoured where `platformRole` is absent
         - a platform operator is admitted too
         - a plain member is refused
 
@@ -6945,7 +6948,7 @@ _Tested by:_
     - a body with no recognised number reads as null, not as a failure
 - `packages/ui-vue/tests/manifest-loader.test.js`
     - GET without If-None-Match, persists body + ETag
-    - the client
+    - the client's auth header reaches the request untouched
     - storageKeyPrefix isolates caches
     - sends If-None-Match + returns cached body on 304
     - a 304 whose cached body is gone is repaired, not reported
@@ -6967,7 +6970,7 @@ _Tested by:_
     - parallel ensureLoaded calls all reject with the same error
     - clearCache clears manifest, loaded, loader cache
     - reload forces a re-load
-    - uses the given
+    - uses the given `id`, so parallel stores are isolated
 - `packages/ui-vue/tests/nav-builder.test.js`
     - lists enabled StandardPages with Capability=true
     - rejects disabled pages
@@ -7136,8 +7139,8 @@ _Tested by:_
     - no primitive hard-codes a user-visible string
     - no file grows past the budget for its layer
 - `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
-    - the guard reads every page in
-    - no prop in
+    - the guard reads every page in `src/pages/`
+    - no prop in `src/pages/` is callable, and none exceeds the cap
     - the one exception says why, in its own source
     - an inline callback prop
     - a callback hidden behind a type alias — what a pattern cannot see
@@ -7208,7 +7211,7 @@ _Tested by:_
     - Consumer login bootstrap sequence
     - Cache-hit path: second manifest load returns 304
     - Logout path: clearCache clears everything
-    - Manifest reload after a
+    - Manifest reload after a `manifest reload` action invalidates the cache
     - Action drift detected: manifest action without a handler
     - UI rejects routes with a missing capability
     - Publish 3 drafts: 2 OK, 1 conflict — atomic progress
@@ -7271,7 +7274,7 @@ _Tested by:_
     - the endpoint is required
     - load() filters by project key and sends the auth header
     - load() without a token sends none rather than an empty one
-    - a failed load lands on
+    - a failed load lands on `error` and leaves the list alone
     - an unparseable error body is still an error, with no body
     - create() appends the created row
     - update() replaces exactly the row it changed
@@ -7289,7 +7292,7 @@ _Tested by:_
     - autoLoad fetches without being asked
     - the endpoint is required
     - load(), create(), update() and softDelete() keep the list in step
-    - a failed load lands on
+    - a failed load lands on `error`
     - autoLoad fetches without being asked
     - the endpoint and the bundle id are both required
     - createDraft() appends and updateDraft() replaces
@@ -7307,7 +7310,7 @@ _Tested by:_
     - autoLoad fetches without being asked
     - the endpoint is required
     - load(), create(), update() and remove() keep the list in step
-    - a failed load lands on
+    - a failed load lands on `error`
     - autoLoad fetches without being asked
     - the endpoint is required
     - the query string carries only the filter parts that are set
@@ -7315,7 +7318,7 @@ _Tested by:_
     - create() reloads, because a new tuple can fall inside the filter
     - update() patches the row in place, remove() drops it
     - a mutation without a body rejects, and create() does not reload after it
-    - a failed load lands on
+    - a failed load lands on `error`
     - autoLoad fetches without being asked
 - `packages/ui-vue/tests/composables.test.js`
     - initial state: boot=null, loading=false
@@ -7487,7 +7490,7 @@ _Tested by:_
     - wraps a thrown string
     - survives a thrown nothing
     - a null dereference is not a connection problem
-    - a real fetch failure still says
+    - a real fetch failure still says "check your connection"
     - a malformed URL is a transport failure too, not an unknown one
     - the client passes a response through untouched
     - a consumer error carrying a status keeps its message
@@ -7514,8 +7517,8 @@ _Tested by:_
     - an error body that is not JSON does not become a second failure
     - a validation rejection keeps its constraints — the array is joined here too
     - a 2xx still returns the parsed body
-    - an AdminError carries it at
-    - an axios rejection carries it at
+    - an AdminError carries it at `status`
+    - an axios rejection carries it at `response.status`
     - anything else has none
 - `packages/ui-vue/tests/component/error-state-outranks-the-accent.test.ts`
     - the stylesheet the theme has to outrank really parsed
@@ -7566,7 +7569,7 @@ _Tested by:_
     - wraps a thrown string
     - survives a thrown nothing
     - a null dereference is not a connection problem
-    - a real fetch failure still says
+    - a real fetch failure still says "check your connection"
     - a malformed URL is a transport failure too, not an unknown one
     - the client passes a response through untouched
     - a consumer error carrying a status keeps its message
@@ -7593,8 +7596,8 @@ _Tested by:_
     - an error body that is not JSON does not become a second failure
     - a validation rejection keeps its constraints — the array is joined here too
     - a 2xx still returns the parsed body
-    - an AdminError carries it at
-    - an axios rejection carries it at
+    - an AdminError carries it at `status`
+    - an axios rejection carries it at `response.status`
     - anything else has none
 
 <!-- END proof -->
@@ -7610,7 +7613,7 @@ _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/list-resource.test.js`
-    - the three spellings of
+    - the three spellings of "not filtered" are left out
     - the falsy values that are answers are not
     - always states its page, first and in order
     - appends to an endpoint that already carries a query
@@ -7623,7 +7626,7 @@ _Tested by:_
     - an envelope is read field by field
     - what the answer did not state stays absent
     - a body that is neither is an empty page, not a crash
-    - an
+    - an `items` that is not an array is not passed off as rows
     - a page below the first is the first
     - a fractional page is the one it is on
     - a page size stays inside 1..max
@@ -7633,7 +7636,7 @@ _Tested by:_
     - pending is true while in flight and false afterwards
     - runs onSuccess with the result, before run resolves
     - stays silent on success by default
-    - notifyOn
+    - notifyOn "both" raises the success message
     - a success message may be computed at call time
     - reports the failure in the result instead of throwing
     - a void action is still distinguishable — the whole reason for the shape
@@ -7643,7 +7646,7 @@ _Tested by:_
     - reports through the notify port, worded from the default catalog
     - what the server said outranks the catalog
     - errorMessage outranks both, and sees the AdminError
-    - notifyOn
+    - notifyOn "none" records the error without announcing it
     - without a notify port the failure is still recorded
     - pending stays true until the last one settles
     - the older call failing last leaves no error behind
@@ -7695,8 +7698,8 @@ _Tested by:_
     - listOrphanedDefs: manifest-declared actions without a handler
     - listOrphanedHandlers: registered handlers without a manifest def
 - `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
-    - the guard reads every page in
-    - no prop in
+    - the guard reads every page in `src/pages/`
+    - no prop in `src/pages/` is callable, and none exceeds the cap
     - the one exception says why, in its own source
     - an inline callback prop
     - a callback hidden behind a type alias — what a pattern cannot see
@@ -7732,10 +7735,10 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic
+    - carries the wording the page wrote, not a generic "are you sure"
     - a destructive action is coloured as one
     - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads
+    - both buttons are labelled, so neither reads "OK"
     - no prompt means no input — a plain confirm stays plain
     - a prompt carries its initial value and type
     - a prompt with no initial value starts empty and takes text
@@ -7808,7 +7811,7 @@ _Tested by:_
     - paramStyle=repeat
     - Capability filter: insufficient columns are not fetched
     - empty tenantIds list → empty object, no request
-    - the client
+    - the client's auth header reaches the request untouched
     - appends correctly to an endpoint with an existing query
     - per-Tenant placeholder in endpoint → BatchColumnDriftError
     - listDriftIssues collects all problematic columns
@@ -7820,7 +7823,7 @@ _Tested by:_
     - hands a page its rows already typed, with no assertion at the call site
     - refuses the resources and operations that cannot answer with a page
 - `packages/ui-vue/tests/list-resource.test.js`
-    - the three spellings of
+    - the three spellings of "not filtered" are left out
     - the falsy values that are answers are not
     - always states its page, first and in order
     - appends to an endpoint that already carries a query
@@ -7833,13 +7836,13 @@ _Tested by:_
     - an envelope is read field by field
     - what the answer did not state stays absent
     - a body that is neither is an empty page, not a crash
-    - an
+    - an `items` that is not an array is not passed off as rows
     - a page below the first is the first
     - a fractional page is the one it is on
     - a page size stays inside 1..max
 - `packages/ui-vue/tests/use-api-list-shape.test.js`
-    - Raw array
-    - Wrapper object
+    - Raw array `[{...}, {...}]` is consumed as items[]+total (array shape)
+    - Wrapper object `{items, total, page, pageSize}` is supported the same way (wrapper shape)
     - Empty array → items=[], total=0
     - null/undefined body → items=[], no crash
 - `packages/ui-vue/tests/use-api-list.test.js`
@@ -7851,7 +7854,7 @@ _Tested by:_
     - goToPage(0) → clamps to page 1
     - filter values as query params, empty values omitted
     - endpoint with query string → correct separator
-    - the client
+    - the client's auth header reaches the request untouched
     - non-200 → error.value set, items.value empty
 - `packages/ui-vue/tests/use-resource-list.test.js`
     - asks the descriptor’s endpoint, which no caller had to supply
@@ -7897,10 +7900,10 @@ _Tested by:_
 
 - `packages/ui-vue/tests/component/roster-primitives.test.ts`
     - each tone brings its own icon, so the shape differs before the hue does
-    - an explicit
+    - an explicit `icon: false` renders none — for a body that carries its own
     - the close button is only there when the caller asked for it
     - a null error renders nothing at all — no empty box above the body
-    - a rejection becomes a sentence, not
+    - a rejection becomes a sentence, not "[object Object]"
     - retry is offered only when there is something to retry
     - a failed submit keeps the dialog open and shows the reason
     - a successful submit closes it and says so once
@@ -7909,7 +7912,7 @@ _Tested by:_
     - a hidden action is not rendered — a row shows what it is eligible for
     - a disabled action stays visible, so the row does not change shape
     - the error is announced, and it replaces the hint rather than joining it
-    - the slot is handed the id to point
+    - the slot is handed the id to point `aria-describedby` at
     - the end group is pushed away from the start one, not centred
     - with no end content there is no empty end group to space against
     - sticky is opt-in — a toolbar that follows the scroll is a decision
@@ -7952,7 +7955,7 @@ _Source:_ ADR 0010 · #206
 _Tested by:_
 
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
-    - No composable/loader has
+    - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
     - useTenants() WITHOUT the endpoint option throws with a clear error message
 - `packages/ui-vue/tests/project-page-host.test.js`
     - returns a catch-all route with the ProjectPageHost component
@@ -8009,8 +8012,8 @@ _Tested by:_
 - `packages/ui-vue/tests/theme-layer-discipline.test.js`
     - the sweep reached all four layers
     - the sweep reached the inline styles too
-    - the audit
-    - the audit
+    - the audit's Quasar palette is Quasar's
+    - the audit's idea of a Quasar component is Quasar's
     - L1 primitives reference nothing
     - L2 roles contain no colour literal
     - L3 component sheets contain no colour literal
@@ -8024,7 +8027,7 @@ _Tested by:_
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
     - the export map still publishes stylesheets
     - ${label} imports all of them
-    - ${label} loads the theme after Quasar
+    - ${label} loads the theme after Quasar's stylesheet
     - ${label} takes them from this package, not from Quasar
 - `tests/quasar-colours-resolve-to-the-theme.test.js`
     - the sources actually paint Quasar colours
@@ -8106,7 +8109,9 @@ _Tested by:_
     - a named colour BARE in an SVG paint attribute
     - a named colour as a string inside a bound paint attribute
     - the two halves do not report the same colour twice
+    - `color` inside SVG is paint
     - the namespace, not the tag name — a bare &lt;g&gt; is not SVG
+    - `color` on the SVG elements a tag list forgets
     - every CSS named colour, not the obvious eighteen
     - a longer keyword is not read as the shorter one inside it
     - several literals in one binding
@@ -8117,7 +8122,7 @@ _Tested by:_
     - a slot shorthand that happens to spell a colour
     - an input mask
     - an anchor href
-    - a Quasar
+    - a Quasar `color` prop names a palette entry, not a colour
     - a var() is the goal, not a finding
     - a functional notation with a var() channel is a token in use
     - a binding that carries data rather than a literal
@@ -8149,7 +8154,7 @@ _Tested by:_
     - a path it cannot cross is kept, because it cannot tell
     - but a name inside another string is not a use of it
     - a name is bounded by the alphabet it is written in
-    - a trailing ! ends the name, and only
+    - a trailing ! ends the name, and only `!.` carries it onwards
     - and the literal survives, because the class is rendered
     - a size, a weight or a leading in it is a literal
     - a tokenized shorthand is not
@@ -8157,7 +8162,7 @@ _Tested by:_
     - a static style attribute is a fragment
     - several attributes, in template order
     - a bound :style is NOT a fragment
-    - an attribute that is not
+    - an attribute that is not `style` is not a fragment
     - null and empty still mean different things
     - a bound style that is one string literal is inline CSS too
     - the line is the line the attribute value starts on
@@ -8189,6 +8194,7 @@ _Tested by:_
     - a two-word hue is read whole, with its shade
     - a value that merely begins with a palette word is not one
     - an attribute that is not a colour prop is not read
+    - `color` inside SVG belongs to the paint category
     - the class form belongs to the class category
     - a comment in a binding is prose, not a palette
     - null and empty still mean different things
@@ -8211,17 +8217,18 @@ _Source:_ #137 · ADR 0009
 _Tested by:_
 
 - `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
-    - Quasar
+    - Quasar's configured dark mode survives the bootstrap
     - an explicit scheme still outranks what Quasar was set to
-    - Quasar
-    - the machine still decides when Quasar says
-    - Quasar
+    - Quasar's configured LIGHT mode survives a dark machine
+    - the machine still decides when Quasar says 'auto'
+    - Quasar's 'auto' stays 'system' rather than freezing
     - with no dark configuration at all, the theme is left on system
-    - Quasar
+    - Quasar's own toggle is carried back into the theme
     - the two directions do not chase each other
-    - a
-    - Quasar
+    - a 'system' pick survives the bridge's own round trip
+    - Quasar's 'auto' comes back as 'system', not as a frozen value
     - a hard pick that agrees with the machine is still a pick
+    - 'system' still follows the machine once the bridge has written to Quasar
     - dispose() stops the bridge writing to the document
 - `packages/ui-vue/tests/component/theme-switcher.test.ts`
     - renders when the shell provides a theme
@@ -8229,11 +8236,12 @@ _Tested by:_
     - a context from an older package version still shows it
     - a catalog from an older package version renders instead of throwing
     - the button names the active scheme
+    - 'system' is named as itself, not as what it resolves to
     - an unknown active scheme falls back to its value instead of blanking
     - the accessible label comes from the catalog
     - all three schemes become menu entries
     - picking an entry writes the shared scheme
-    - picking
+    - picking 'system' stores 'system' rather than what it resolves to
     - only the active entry carries the check mark
 - `packages/ui-vue/tests/identity-accents-match-theme.test.js`
     - the resolver reaches a hex at all
@@ -8253,9 +8261,10 @@ _Tested by:_
     - the theme fires only on a signal the application sent
     - no role is declared twice within one theme
 - `packages/ui-vue/tests/use-sa-theme.test.js`
-    - defaults to
+    - defaults to 'system'
     - an explicit scheme resolves to itself
-    - without matchMedia,
+    - without matchMedia, 'system' resolves to light
+    - 'system' follows the operating system, and keeps following it
     - an explicit pick outranks the operating system
     - the picked scheme is written to storage
     - a stored pick outranks the app default
@@ -8302,10 +8311,10 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic
+    - carries the wording the page wrote, not a generic "are you sure"
     - a destructive action is coloured as one
     - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads
+    - both buttons are labelled, so neither reads "OK"
     - no prompt means no input — a plain confirm stays plain
     - a prompt carries its initial value and type
     - a prompt with no initial value starts empty and takes text
@@ -8356,10 +8365,10 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic
+    - carries the wording the page wrote, not a generic "are you sure"
     - a destructive action is coloured as one
     - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads
+    - both buttons are labelled, so neither reads "OK"
     - no prompt means no input — a plain confirm stays plain
     - a prompt carries its initial value and type
     - a prompt with no initial value starts empty and takes text
@@ -8449,7 +8458,7 @@ _Tested by:_
     - pending is true while in flight and false afterwards
     - runs onSuccess with the result, before run resolves
     - stays silent on success by default
-    - notifyOn
+    - notifyOn "both" raises the success message
     - a success message may be computed at call time
     - reports the failure in the result instead of throwing
     - a void action is still distinguishable — the whole reason for the shape
@@ -8459,7 +8468,7 @@ _Tested by:_
     - reports through the notify port, worded from the default catalog
     - what the server said outranks the catalog
     - errorMessage outranks both, and sees the AdminError
-    - notifyOn
+    - notifyOn "none" records the error without announcing it
     - without a notify port the failure is still recorded
     - pending stays true until the last one settles
     - the older call failing last leaves no error behind
@@ -8910,8 +8919,8 @@ _Tested by:_
     - is refused before anything is planned
     - and a valid one still plans
     - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema
-    - the minimum number of quotas is the schema
+    - the quota key pattern is the schema's
+    - the minimum number of quotas is the schema's
     - the classes get identifiers, the catalogue keeps the words
     - and the file names follow the identifier, not the label
     - every generated class name is a valid identifier
@@ -8929,7 +8938,7 @@ _Tested by:_
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
     - the export map still publishes stylesheets
     - ${label} imports all of them
-    - ${label} loads the theme after Quasar
+    - ${label} loads the theme after Quasar's stylesheet
     - ${label} takes them from this package, not from Quasar
 - `tests/templates-import-what-exists.test.js`
     - the templates name some subpaths
@@ -8957,7 +8966,7 @@ _Tested by:_
 
 - `packages/cli/tests/cli-commands.test.js`
     - names every command
-    - and every
+    - and every `init` example it prints actually runs
     - an unknown command exits 1 rather than doing nothing
     - a model the app never adopted is reported, and is not an error
     - a field removed from an adopted model is drift, and exits 1
@@ -9021,8 +9030,8 @@ _Tested by:_
     - is refused before anything is planned
     - and a valid one still plans
     - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema
-    - the minimum number of quotas is the schema
+    - the quota key pattern is the schema's
+    - the minimum number of quotas is the schema's
     - the classes get identifiers, the catalogue keeps the words
     - and the file names follow the identifier, not the label
     - every generated class name is a valid identifier
@@ -9053,17 +9062,18 @@ _Source:_ `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
-    - Quasar
+    - Quasar's configured dark mode survives the bootstrap
     - an explicit scheme still outranks what Quasar was set to
-    - Quasar
-    - the machine still decides when Quasar says
-    - Quasar
+    - Quasar's configured LIGHT mode survives a dark machine
+    - the machine still decides when Quasar says 'auto'
+    - Quasar's 'auto' stays 'system' rather than freezing
     - with no dark configuration at all, the theme is left on system
-    - Quasar
+    - Quasar's own toggle is carried back into the theme
     - the two directions do not chase each other
-    - a
-    - Quasar
+    - a 'system' pick survives the bridge's own round trip
+    - Quasar's 'auto' comes back as 'system', not as a frozen value
     - a hard pick that agrees with the machine is still a pick
+    - 'system' still follows the machine once the bridge has written to Quasar
     - dispose() stops the bridge writing to the document
 - `packages/ui-vue/tests/text-shape.test.js`
     - accepts what the old pattern accepted
@@ -9668,7 +9678,7 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
     - the shipped German catalogue renders the German sentence
     - the shipped English catalogue renders the English sentence
-    - an app
+    - an app's own catalogue wins, in a language the platform does not ship
     - a code the app left untranslated still reads, from the shipped text
     - a code nobody has a text for falls back to the message the backend sent
 - `packages/ui-vue-tenant/tests/component/message-parts.test.ts`
@@ -9770,7 +9780,7 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
     - the shipped German catalogue renders the German sentence
     - the shipped English catalogue renders the English sentence
-    - an app
+    - an app's own catalogue wins, in a language the platform does not ship
     - a code the app left untranslated still reads, from the shipped text
     - a code nobody has a text for falls back to the message the backend sent
 
@@ -9793,7 +9803,7 @@ _Tested by:_
     - no construction of one takes its message from the catalog
 - `packages/ui-vue/tests/diagnostics-survive-the-locale.test.js`
     - ${name} says the same thing in German and in English
-    - ${name} shows the operator the catalog
+    - ${name} shows the operator the catalog's sentence, in their language
 
 <!-- END proof -->
 
@@ -9816,7 +9826,7 @@ _Tested by:_
 - `packages/nest/tests/registration-helpers.test.js`
     - slugify: the fallback carries no domain vocabulary
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
-    - No composable/loader has
+    - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
     - useTenants() WITHOUT the endpoint option throws with a clear error message
 
 <!-- END proof -->
@@ -9875,7 +9885,7 @@ _Tested by:_
     - wraps a thrown string
     - survives a thrown nothing
     - a null dereference is not a connection problem
-    - a real fetch failure still says
+    - a real fetch failure still says "check your connection"
     - a malformed URL is a transport failure too, not an unknown one
     - the client passes a response through untouched
     - a consumer error carrying a status keeps its message
@@ -9902,8 +9912,8 @@ _Tested by:_
     - an error body that is not JSON does not become a second failure
     - a validation rejection keeps its constraints — the array is joined here too
     - a 2xx still returns the parsed body
-    - an AdminError carries it at
-    - an axios rejection carries it at
+    - an AdminError carries it at `status`
+    - an axios rejection carries it at `response.status`
     - anything else has none
 
 <!-- END proof -->
@@ -9964,7 +9974,7 @@ _Tested by:_
     - accepts valid code
     - skips automatically in non-prod
     - skips with yes=true in prod
-    - accepts
+    - accepts "production" as answer
     - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
     - writes through platform AdminAuditService with cli actor
     - has code, message and exitCode
@@ -9972,11 +9982,11 @@ _Tested by:_
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client
+    - every request carries the client's header
     - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
     - there is a corpus to scan
-    - no option named
+    - no option named `getAuthToken` survives
     - nothing builds a Bearer header by hand
 
 <!-- END proof -->
@@ -10007,7 +10017,7 @@ _Tested by:_
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client
+    - every request carries the client's header
     - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/navigation-guard.test.js`
     - returns null when neither authGuard nor manifestGuard is set
@@ -10135,8 +10145,9 @@ _Tested by:_
     - a rejected status is read by the same declaration
     - an instance with its own transform is read as decoding until it says otherwise
     - an empty body throws, whichever instance asked for it
-    - an instance that hands the body over reads
-    - a declaration recovers
+    - an instance that hands the body over reads `""` as the empty string
+    - a declaration recovers `""` from an instance that already decoded it
+    - `""` is the one body a decoding instance under `auto` cannot get back
     - a body no one could decode is the text it was, where axios kept it
     - a rejected status arrives as a response with its body readable
     - the prefix an instance carries as its baseURL is stripped back off
@@ -10150,10 +10161,10 @@ _Tested by:_
     - a genuine network failure is marked
     - a DNS failure and a timeout are the same fact and are marked too
     - a network failure a rejection interceptor rethrows is still marked
-    - an interceptor
+    - an interceptor's replacement error keeps its message
     - …including when it carries axios’s config across, which is the shape that fooled the old
       reading
-    - …and when it carries
+    - …and when it carries `request` too, which is why `isAxiosError` is read
     - an interceptor rejecting with another request’s failure is that request’s answer
     - a failure while setting the request up keeps its own words
     - a request interceptor that throws is not a transport failure
@@ -10352,7 +10363,7 @@ _Tested by:_
         - actorTag formats source:email:context
         - log() writes through and appends the actor tag to changes
         - fromWebRequest builds AdminActor with source=web
-        - fromWebRequest falls back to
+        - fromWebRequest falls back to "unknown" when there is no session
         - fromCli builds AdminActor with source=cli + hostname
 - `packages/nest/tests/onboarding-subscription.test.js`
     - onboarding writes an audit log with COMPLETE_ONBOARDING_SUBSCRIPTION
@@ -10383,7 +10394,7 @@ _Tested by:_
     - since → from
     - limit → pageSize
     - maps fields + truncated entityId
-    - null-actorTag →
+    - null-actorTag → "—"
     - short entityId not truncated
 
 <!-- END proof -->
@@ -10405,7 +10416,7 @@ _Tested by:_
     - since → from
     - limit → pageSize
     - maps fields + truncated entityId
-    - null-actorTag →
+    - null-actorTag → "—"
     - short entityId not truncated
 
 <!-- END proof -->
@@ -10545,6 +10556,7 @@ _Tested by:_
     - a statement it cannot read is kept, not dropped
     - nothing applicable appends nothing at all
     - only a failure stops the command
+    - "before applying" is said exactly when the command will not apply
     - a failure says where the SQL is, because the operator now needs it
     - nothing to append is not a failure
     - every outcome carries a message and a decision
@@ -10735,7 +10747,7 @@ _Tested by:_
     - the shared bundle actually backs every entry
     - a class is shared even between entries that never import each other
 - `packages/nest/tests/di-token-registry.test.js`
-    - @saasicat/nest${name ===
+    - @saasicat/nest${name === '.' ? '' : name}
     - every exported token key uses a known prefix
 - `packages/nest/tests/platform-composition.test.js`
     - the seam is in the CJS build too
@@ -10761,11 +10773,11 @@ _Tested by:_
     - same-file homonyms stay in their own scope (#158, shape 2)
     - a cast and a satisfies
     - a second declarator, and one behind type arguments
-    - a .vue script block that closes with
+    - a .vue script block that closes with `&lt;/script &gt;`
     - a key exported from a .vue and provided from a .ts
     - a .vue script block that never closes
     - provide and inject imported under another name
-    - a key imported through
+    - a key imported through `export *` and through `export { … } from`
     - a string key is a key, and not a missing Symbol.for
     - grouping is grouping, and a decoy is not a Symbol.for
     - an assertion may contain what a type contains
@@ -10774,7 +10786,7 @@ _Tested by:_
     - a used key that is not declared as an InjectionKey
     - a local binding spelled Symbol is not the global Symbol
     - a comment and a string are not call sites
-    - somebody else
+    - somebody else's provide is not Vue's
     - the token count is a second reader, not the same one
 - `tests/a-dependency-is-declared-once.test.js`
     - the sweep finds the manifests
@@ -10921,16 +10933,16 @@ _Tested by:_
     - a nested object inside the interpolation
     - a brace inside a string inside the interpolation
     - an interpolation that never closes
-    - somebody else
+    - somebody else's endpoint keeps its parameter, and is reported
     - and the word in one of its query values does not make it ours
     - an occurrence at the very start does not end the scan
     - the endpoint constant
     - a create body
-    - a string-literal type member, which
+    - a string-literal type member, which `tsc` accepts
     - an interface member
     - a bare-identifier value
     - the shorthand form, which used to pass in silence
-    - a consumer
+    - a consumer's own object
     - several are reported in the order they appear, once per line
     - is neither rewritten nor reported
     - and neither is a suffix
@@ -11017,16 +11029,16 @@ _Tested by:_
     - a nested object inside the interpolation
     - a brace inside a string inside the interpolation
     - an interpolation that never closes
-    - somebody else
+    - somebody else's endpoint keeps its parameter, and is reported
     - and the word in one of its query values does not make it ours
     - an occurrence at the very start does not end the scan
     - the endpoint constant
     - a create body
-    - a string-literal type member, which
+    - a string-literal type member, which `tsc` accepts
     - an interface member
     - a bare-identifier value
     - the shorthand form, which used to pass in silence
-    - a consumer
+    - a consumer's own object
     - several are reported in the order they appear, once per line
     - is neither rewritten nor reported
     - and neither is a suffix
@@ -11403,6 +11415,7 @@ _Tested by:_
     - a statement it cannot read is kept, not dropped
     - nothing applicable appends nothing at all
     - only a failure stops the command
+    - "before applying" is said exactly when the command will not apply
     - a failure says where the SQL is, because the operator now needs it
     - nothing to append is not a failure
     - every outcome carries a message and a decision
@@ -11592,6 +11605,7 @@ _Tested by:_
     - the sweep finds every package
     - each README names its package and carries the three sections
     - a package with more than one entry point documents all of them
+    - "what this is not" says something concrete
 - `tests/repository-carries-no-heavy-binaries.test.js`
     - the sweep finds the assets it claims to weigh
     - every tracked binary stays under ${LIMIT_KB} KB
@@ -11697,6 +11711,11 @@ _Tested by:_
     - the block is generated, and the page carries it
     - it is not part of the promise
     - an entry nothing tests carries no block
+    - an unclosed marker keeps the requirement after it
+    - an unclosed marker at the end keeps the rest of the file
+    - and the checker refuses the file so nothing is written
+    - a close that opens nothing is refused too
+    - a well-formed chapter is not refused
     - a value keeps its colons, quotes and backticks
     - front matter that never closes is an error, not an empty chapter
     - a heading with a hyphen is kept as an entry with no identifier
@@ -11770,7 +11789,7 @@ _Tested by:_
     - the sweep finds the records
     - the numbering is unique and has no gaps
     - each record carries a status, a date and the five sections
-    - the
+    - the "what breaks" section says something
 
 <!-- END proof -->
 
@@ -11872,7 +11891,7 @@ _Source:_ ADR 0008 · #217
 _Tested by:_
 
 - `tests/agent-worktrees-are-not-linted.test.js`
-    - git ignores them — this keeps
+    - git ignores them — this keeps `git status` clean and Prettier out
     - eslint ignores them
     - and the ignore stops there — the source tree is still checked
 - `tests/css-classes-have-a-user.test.js`

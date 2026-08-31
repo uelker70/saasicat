@@ -46,8 +46,8 @@ _Tested by:_
     - no primitive hard-codes a user-visible string
     - no file grows past the budget for its layer
 - `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
-    - the guard reads every page in
-    - no prop in
+    - the guard reads every page in `src/pages/`
+    - no prop in `src/pages/` is callable, and none exceeds the cap
     - the one exception says why, in its own source
     - an inline callback prop
     - a callback hidden behind a type alias — what a pattern cannot see
@@ -118,7 +118,7 @@ _Tested by:_
     - Consumer login bootstrap sequence
     - Cache-hit path: second manifest load returns 304
     - Logout path: clearCache clears everything
-    - Manifest reload after a
+    - Manifest reload after a `manifest reload` action invalidates the cache
     - Action drift detected: manifest action without a handler
     - UI rejects routes with a missing capability
     - Publish 3 drafts: 2 OK, 1 conflict — atomic progress
@@ -181,7 +181,7 @@ _Tested by:_
     - the endpoint is required
     - load() filters by project key and sends the auth header
     - load() without a token sends none rather than an empty one
-    - a failed load lands on
+    - a failed load lands on `error` and leaves the list alone
     - an unparseable error body is still an error, with no body
     - create() appends the created row
     - update() replaces exactly the row it changed
@@ -199,7 +199,7 @@ _Tested by:_
     - autoLoad fetches without being asked
     - the endpoint is required
     - load(), create(), update() and softDelete() keep the list in step
-    - a failed load lands on
+    - a failed load lands on `error`
     - autoLoad fetches without being asked
     - the endpoint and the bundle id are both required
     - createDraft() appends and updateDraft() replaces
@@ -217,7 +217,7 @@ _Tested by:_
     - autoLoad fetches without being asked
     - the endpoint is required
     - load(), create(), update() and remove() keep the list in step
-    - a failed load lands on
+    - a failed load lands on `error`
     - autoLoad fetches without being asked
     - the endpoint is required
     - the query string carries only the filter parts that are set
@@ -225,7 +225,7 @@ _Tested by:_
     - create() reloads, because a new tuple can fall inside the filter
     - update() patches the row in place, remove() drops it
     - a mutation without a body rejects, and create() does not reload after it
-    - a failed load lands on
+    - a failed load lands on `error`
     - autoLoad fetches without being asked
 - `packages/ui-vue/tests/composables.test.js`
     - initial state: boot=null, loading=false
@@ -397,7 +397,7 @@ _Tested by:_
     - wraps a thrown string
     - survives a thrown nothing
     - a null dereference is not a connection problem
-    - a real fetch failure still says
+    - a real fetch failure still says "check your connection"
     - a malformed URL is a transport failure too, not an unknown one
     - the client passes a response through untouched
     - a consumer error carrying a status keeps its message
@@ -424,8 +424,8 @@ _Tested by:_
     - an error body that is not JSON does not become a second failure
     - a validation rejection keeps its constraints — the array is joined here too
     - a 2xx still returns the parsed body
-    - an AdminError carries it at
-    - an axios rejection carries it at
+    - an AdminError carries it at `status`
+    - an axios rejection carries it at `response.status`
     - anything else has none
 - `packages/ui-vue/tests/component/error-state-outranks-the-accent.test.ts`
     - the stylesheet the theme has to outrank really parsed
@@ -476,7 +476,7 @@ _Tested by:_
     - wraps a thrown string
     - survives a thrown nothing
     - a null dereference is not a connection problem
-    - a real fetch failure still says
+    - a real fetch failure still says "check your connection"
     - a malformed URL is a transport failure too, not an unknown one
     - the client passes a response through untouched
     - a consumer error carrying a status keeps its message
@@ -503,8 +503,8 @@ _Tested by:_
     - an error body that is not JSON does not become a second failure
     - a validation rejection keeps its constraints — the array is joined here too
     - a 2xx still returns the parsed body
-    - an AdminError carries it at
-    - an axios rejection carries it at
+    - an AdminError carries it at `status`
+    - an axios rejection carries it at `response.status`
     - anything else has none
 
 <!-- END proof -->
@@ -520,7 +520,7 @@ _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/list-resource.test.js`
-    - the three spellings of
+    - the three spellings of "not filtered" are left out
     - the falsy values that are answers are not
     - always states its page, first and in order
     - appends to an endpoint that already carries a query
@@ -533,7 +533,7 @@ _Tested by:_
     - an envelope is read field by field
     - what the answer did not state stays absent
     - a body that is neither is an empty page, not a crash
-    - an
+    - an `items` that is not an array is not passed off as rows
     - a page below the first is the first
     - a fractional page is the one it is on
     - a page size stays inside 1..max
@@ -543,7 +543,7 @@ _Tested by:_
     - pending is true while in flight and false afterwards
     - runs onSuccess with the result, before run resolves
     - stays silent on success by default
-    - notifyOn
+    - notifyOn "both" raises the success message
     - a success message may be computed at call time
     - reports the failure in the result instead of throwing
     - a void action is still distinguishable — the whole reason for the shape
@@ -553,7 +553,7 @@ _Tested by:_
     - reports through the notify port, worded from the default catalog
     - what the server said outranks the catalog
     - errorMessage outranks both, and sees the AdminError
-    - notifyOn
+    - notifyOn "none" records the error without announcing it
     - without a notify port the failure is still recorded
     - pending stays true until the last one settles
     - the older call failing last leaves no error behind
@@ -605,8 +605,8 @@ _Tested by:_
     - listOrphanedDefs: manifest-declared actions without a handler
     - listOrphanedHandlers: registered handlers without a manifest def
 - `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
-    - the guard reads every page in
-    - no prop in
+    - the guard reads every page in `src/pages/`
+    - no prop in `src/pages/` is callable, and none exceeds the cap
     - the one exception says why, in its own source
     - an inline callback prop
     - a callback hidden behind a type alias — what a pattern cannot see
@@ -642,10 +642,10 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic
+    - carries the wording the page wrote, not a generic "are you sure"
     - a destructive action is coloured as one
     - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads
+    - both buttons are labelled, so neither reads "OK"
     - no prompt means no input — a plain confirm stays plain
     - a prompt carries its initial value and type
     - a prompt with no initial value starts empty and takes text
@@ -718,7 +718,7 @@ _Tested by:_
     - paramStyle=repeat
     - Capability filter: insufficient columns are not fetched
     - empty tenantIds list → empty object, no request
-    - the client
+    - the client's auth header reaches the request untouched
     - appends correctly to an endpoint with an existing query
     - per-Tenant placeholder in endpoint → BatchColumnDriftError
     - listDriftIssues collects all problematic columns
@@ -730,7 +730,7 @@ _Tested by:_
     - hands a page its rows already typed, with no assertion at the call site
     - refuses the resources and operations that cannot answer with a page
 - `packages/ui-vue/tests/list-resource.test.js`
-    - the three spellings of
+    - the three spellings of "not filtered" are left out
     - the falsy values that are answers are not
     - always states its page, first and in order
     - appends to an endpoint that already carries a query
@@ -743,13 +743,13 @@ _Tested by:_
     - an envelope is read field by field
     - what the answer did not state stays absent
     - a body that is neither is an empty page, not a crash
-    - an
+    - an `items` that is not an array is not passed off as rows
     - a page below the first is the first
     - a fractional page is the one it is on
     - a page size stays inside 1..max
 - `packages/ui-vue/tests/use-api-list-shape.test.js`
-    - Raw array
-    - Wrapper object
+    - Raw array `[{...}, {...}]` is consumed as items[]+total (array shape)
+    - Wrapper object `{items, total, page, pageSize}` is supported the same way (wrapper shape)
     - Empty array → items=[], total=0
     - null/undefined body → items=[], no crash
 - `packages/ui-vue/tests/use-api-list.test.js`
@@ -761,7 +761,7 @@ _Tested by:_
     - goToPage(0) → clamps to page 1
     - filter values as query params, empty values omitted
     - endpoint with query string → correct separator
-    - the client
+    - the client's auth header reaches the request untouched
     - non-200 → error.value set, items.value empty
 - `packages/ui-vue/tests/use-resource-list.test.js`
     - asks the descriptor’s endpoint, which no caller had to supply
@@ -807,10 +807,10 @@ _Tested by:_
 
 - `packages/ui-vue/tests/component/roster-primitives.test.ts`
     - each tone brings its own icon, so the shape differs before the hue does
-    - an explicit
+    - an explicit `icon: false` renders none — for a body that carries its own
     - the close button is only there when the caller asked for it
     - a null error renders nothing at all — no empty box above the body
-    - a rejection becomes a sentence, not
+    - a rejection becomes a sentence, not "[object Object]"
     - retry is offered only when there is something to retry
     - a failed submit keeps the dialog open and shows the reason
     - a successful submit closes it and says so once
@@ -819,7 +819,7 @@ _Tested by:_
     - a hidden action is not rendered — a row shows what it is eligible for
     - a disabled action stays visible, so the row does not change shape
     - the error is announced, and it replaces the hint rather than joining it
-    - the slot is handed the id to point
+    - the slot is handed the id to point `aria-describedby` at
     - the end group is pushed away from the start one, not centred
     - with no end content there is no empty end group to space against
     - sticky is opt-in — a toolbar that follows the scroll is a decision
@@ -862,7 +862,7 @@ _Source:_ ADR 0010 · #206
 _Tested by:_
 
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
-    - No composable/loader has
+    - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
     - useTenants() WITHOUT the endpoint option throws with a clear error message
 - `packages/ui-vue/tests/project-page-host.test.js`
     - returns a catch-all route with the ProjectPageHost component
@@ -919,8 +919,8 @@ _Tested by:_
 - `packages/ui-vue/tests/theme-layer-discipline.test.js`
     - the sweep reached all four layers
     - the sweep reached the inline styles too
-    - the audit
-    - the audit
+    - the audit's Quasar palette is Quasar's
+    - the audit's idea of a Quasar component is Quasar's
     - L1 primitives reference nothing
     - L2 roles contain no colour literal
     - L3 component sheets contain no colour literal
@@ -934,7 +934,7 @@ _Tested by:_
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
     - the export map still publishes stylesheets
     - ${label} imports all of them
-    - ${label} loads the theme after Quasar
+    - ${label} loads the theme after Quasar's stylesheet
     - ${label} takes them from this package, not from Quasar
 - `tests/quasar-colours-resolve-to-the-theme.test.js`
     - the sources actually paint Quasar colours
@@ -1016,7 +1016,9 @@ _Tested by:_
     - a named colour BARE in an SVG paint attribute
     - a named colour as a string inside a bound paint attribute
     - the two halves do not report the same colour twice
+    - `color` inside SVG is paint
     - the namespace, not the tag name — a bare &lt;g&gt; is not SVG
+    - `color` on the SVG elements a tag list forgets
     - every CSS named colour, not the obvious eighteen
     - a longer keyword is not read as the shorter one inside it
     - several literals in one binding
@@ -1027,7 +1029,7 @@ _Tested by:_
     - a slot shorthand that happens to spell a colour
     - an input mask
     - an anchor href
-    - a Quasar
+    - a Quasar `color` prop names a palette entry, not a colour
     - a var() is the goal, not a finding
     - a functional notation with a var() channel is a token in use
     - a binding that carries data rather than a literal
@@ -1059,7 +1061,7 @@ _Tested by:_
     - a path it cannot cross is kept, because it cannot tell
     - but a name inside another string is not a use of it
     - a name is bounded by the alphabet it is written in
-    - a trailing ! ends the name, and only
+    - a trailing ! ends the name, and only `!.` carries it onwards
     - and the literal survives, because the class is rendered
     - a size, a weight or a leading in it is a literal
     - a tokenized shorthand is not
@@ -1067,7 +1069,7 @@ _Tested by:_
     - a static style attribute is a fragment
     - several attributes, in template order
     - a bound :style is NOT a fragment
-    - an attribute that is not
+    - an attribute that is not `style` is not a fragment
     - null and empty still mean different things
     - a bound style that is one string literal is inline CSS too
     - the line is the line the attribute value starts on
@@ -1099,6 +1101,7 @@ _Tested by:_
     - a two-word hue is read whole, with its shade
     - a value that merely begins with a palette word is not one
     - an attribute that is not a colour prop is not read
+    - `color` inside SVG belongs to the paint category
     - the class form belongs to the class category
     - a comment in a binding is prose, not a palette
     - null and empty still mean different things
@@ -1121,17 +1124,18 @@ _Source:_ #137 · ADR 0009
 _Tested by:_
 
 - `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
-    - Quasar
+    - Quasar's configured dark mode survives the bootstrap
     - an explicit scheme still outranks what Quasar was set to
-    - Quasar
-    - the machine still decides when Quasar says
-    - Quasar
+    - Quasar's configured LIGHT mode survives a dark machine
+    - the machine still decides when Quasar says 'auto'
+    - Quasar's 'auto' stays 'system' rather than freezing
     - with no dark configuration at all, the theme is left on system
-    - Quasar
+    - Quasar's own toggle is carried back into the theme
     - the two directions do not chase each other
-    - a
-    - Quasar
+    - a 'system' pick survives the bridge's own round trip
+    - Quasar's 'auto' comes back as 'system', not as a frozen value
     - a hard pick that agrees with the machine is still a pick
+    - 'system' still follows the machine once the bridge has written to Quasar
     - dispose() stops the bridge writing to the document
 - `packages/ui-vue/tests/component/theme-switcher.test.ts`
     - renders when the shell provides a theme
@@ -1139,11 +1143,12 @@ _Tested by:_
     - a context from an older package version still shows it
     - a catalog from an older package version renders instead of throwing
     - the button names the active scheme
+    - 'system' is named as itself, not as what it resolves to
     - an unknown active scheme falls back to its value instead of blanking
     - the accessible label comes from the catalog
     - all three schemes become menu entries
     - picking an entry writes the shared scheme
-    - picking
+    - picking 'system' stores 'system' rather than what it resolves to
     - only the active entry carries the check mark
 - `packages/ui-vue/tests/identity-accents-match-theme.test.js`
     - the resolver reaches a hex at all
@@ -1163,9 +1168,10 @@ _Tested by:_
     - the theme fires only on a signal the application sent
     - no role is declared twice within one theme
 - `packages/ui-vue/tests/use-sa-theme.test.js`
-    - defaults to
+    - defaults to 'system'
     - an explicit scheme resolves to itself
-    - without matchMedia,
+    - without matchMedia, 'system' resolves to light
+    - 'system' follows the operating system, and keeps following it
     - an explicit pick outranks the operating system
     - the picked scheme is written to storage
     - a stored pick outranks the app default
@@ -1212,10 +1218,10 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic
+    - carries the wording the page wrote, not a generic "are you sure"
     - a destructive action is coloured as one
     - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads
+    - both buttons are labelled, so neither reads "OK"
     - no prompt means no input — a plain confirm stays plain
     - a prompt carries its initial value and type
     - a prompt with no initial value starts empty and takes text
@@ -1266,10 +1272,10 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic
+    - carries the wording the page wrote, not a generic "are you sure"
     - a destructive action is coloured as one
     - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads
+    - both buttons are labelled, so neither reads "OK"
     - no prompt means no input — a plain confirm stays plain
     - a prompt carries its initial value and type
     - a prompt with no initial value starts empty and takes text
@@ -1359,7 +1365,7 @@ _Tested by:_
     - pending is true while in flight and false afterwards
     - runs onSuccess with the result, before run resolves
     - stays silent on success by default
-    - notifyOn
+    - notifyOn "both" raises the success message
     - a success message may be computed at call time
     - reports the failure in the result instead of throwing
     - a void action is still distinguishable — the whole reason for the shape
@@ -1369,7 +1375,7 @@ _Tested by:_
     - reports through the notify port, worded from the default catalog
     - what the server said outranks the catalog
     - errorMessage outranks both, and sees the AdminError
-    - notifyOn
+    - notifyOn "none" records the error without announcing it
     - without a notify port the failure is still recorded
     - pending stays true until the last one settles
     - the older call failing last leaves no error behind

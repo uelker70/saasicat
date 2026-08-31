@@ -20,17 +20,18 @@ _Source:_ `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
-    - Quasar
+    - Quasar's configured dark mode survives the bootstrap
     - an explicit scheme still outranks what Quasar was set to
-    - Quasar
-    - the machine still decides when Quasar says
-    - Quasar
+    - Quasar's configured LIGHT mode survives a dark machine
+    - the machine still decides when Quasar says 'auto'
+    - Quasar's 'auto' stays 'system' rather than freezing
     - with no dark configuration at all, the theme is left on system
-    - Quasar
+    - Quasar's own toggle is carried back into the theme
     - the two directions do not chase each other
-    - a
-    - Quasar
+    - a 'system' pick survives the bridge's own round trip
+    - Quasar's 'auto' comes back as 'system', not as a frozen value
     - a hard pick that agrees with the machine is still a pick
+    - 'system' still follows the machine once the bridge has written to Quasar
     - dispose() stops the bridge writing to the document
 - `packages/ui-vue/tests/text-shape.test.js`
     - accepts what the old pattern accepted

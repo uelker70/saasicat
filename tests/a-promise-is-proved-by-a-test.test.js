@@ -21,7 +21,13 @@ import {
     unproven,
     withTitles,
 } from '../scripts/requirements/proof.mjs';
-import { ROOT, coverage, listing } from '../scripts/requirements/index.mjs';
+import {
+    ROOT,
+    checkAnnotations,
+    coverage,
+    listing,
+    problemsIn,
+} from '../scripts/requirements/index.mjs';
 import { readCatalogue } from '../scripts/requirements/parse.mjs';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -306,6 +312,116 @@ describe('a parameterised case is a case', () => {
             '});',
         ].join('\n');
         assert.deepEqual(casesIn(src), []);
+    });
+});
+
+describe('the command refuses an annotation that names nothing standing', () => {
+    // `test:repo` has always checked this. The command a contributor actually
+    // runs did not: it answered an unknown tag by quietly stripping the title
+    // off it and reporting success, so the mistake surfaced a suite later, in
+    // a file the contributor was not looking at.
+    const tree = (annotation) => {
+        const root = mkdtempSync(join(tmpdir(), 'annotations-'));
+        mkdirSync(join(root, 'tests'), { recursive: true });
+        writeFileSync(
+            join(root, 'tests', 'one.test.js'),
+            [`// @requirement ${annotation}`, "test('runs', () => {});"].join('\n'),
+        );
+        return root;
+    };
+    const catalogue = catalogueOf([
+        [
+            '01_a',
+            '---\ntitle: Title\n---\n\nIntro.\n\n' +
+                '### SC-A-001 — Title\n\n' +
+                '🔵 _(Superseded on 2026-01-01 by `SC-A-002`.)_ Prose.\n\n_Source:_ #1\n\n' +
+                '### SC-A-002 — Title\n\n🟢 Prose.\n\n_Source:_ #1',
+        ],
+    ]);
+
+    test('an identifier no requirement carries is refused', () => {
+        const problems = checkAnnotations(catalogue, tree('SC-A-404'));
+        assert.deepEqual(problems, ["tests/one.test.js: 'SC-A-404' names no requirement"]);
+    });
+
+    test('a retired identifier is refused, because it proves nothing owed', () => {
+        const problems = checkAnnotations(catalogue, tree('SC-A-001'));
+        assert.ok(problems[0]?.includes('is superseded'), JSON.stringify(problems));
+    });
+
+    test('the command asks, not only the suite', () => {
+        // What the finding was: the check existed and the command did not run
+        // it, so `requirements:update` stripped the title off an unknown tag
+        // and reported success.
+        const problems = problemsIn(catalogue, tree('SC-A-404'));
+        assert.ok(
+            problems.some((problem) => problem.includes('names no requirement')),
+            JSON.stringify(problems),
+        );
+    });
+
+    test('a standing identifier is accepted', () => {
+        // The counter-check: a rule that refused everything would pass both
+        // assertions above and fail every run.
+        assert.deepEqual(checkAnnotations(catalogue, tree('SC-A-002')), []);
+    });
+});
+
+describe('a case is named as its line names it', () => {
+    // The pattern that read the name stopped at the first quote character
+    // inside it, so a name mentioning `error` or "undefined" was recorded
+    // truncated — dozens of them across the catalogue, each one reading like a
+    // sentence that trails off.
+
+    test('a name is not cut short at a quote inside it', () => {
+        const src = [
+            '// @requirement SC-A-001',
+            'test("a load lands on `error`, not on a rejection", () => {});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['a load lands on `error`, not on a rejection'],
+        );
+    });
+
+    test('a name computed at run time is recorded as the expression', () => {
+        // It cannot be named statically, and dropping it made eight real cases
+        // invisible. The expression is what a reader searches the file for.
+        const src = [
+            '// @requirement SC-A-001',
+            'for (const input of INPUTS) {',
+            '    test(JSON.stringify(input), async () => {});',
+            '}',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['JSON.stringify(input)'],
+        );
+    });
+
+    test('a template literal is recorded as written, not expanded', () => {
+        const src = [
+            '// @requirement SC-A-001',
+            'test(`${testCase.op} sends the same request`, async () => {});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['${testCase.op} sends the same request'],
+        );
+    });
+
+    test('a line that opens no case names none', () => {
+        // The counter-check: a scanner that answered for any line would report
+        // the assertions in a file as cases of their own.
+        const src = [
+            '// @requirement SC-A-001',
+            'assert.ok(submit(form), "posted");',
+            "test('a real one', () => {});",
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['a real one'],
+        );
     });
 });
 

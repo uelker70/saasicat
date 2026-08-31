@@ -22,12 +22,12 @@ _Tested by:_
         - rejects TENANT_ADMIN
         - rejects a missing user
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and
-    - accepts empty
-    - does NOT throw when
-    - accepts a configured
-    - additionally accepts
-    - throws on missing
+    - throws when the controller should be registered and `guards` is missing
+    - accepts empty `guards: []` as an explicit auth-free choice
+    - does NOT throw when `includeManifestController: false`
+    - accepts a configured `guards` list
+    - additionally accepts `reloadGuards` for MFA protection on reload
+    - throws on missing `guards` even without an explicit includeManifestController
 - `packages/nest/tests/discovery-controller.test.js`
     - DiscoveryController — GET /admin/discovery
         - returns the discovery snapshot as the body
@@ -41,7 +41,7 @@ _Tested by:_
         - defaults to mounting the manifest controller
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
     - there is a corpus to scan
-    - no option named
+    - no option named `getAuthToken` survives
     - nothing builds a Bearer header by hand
 
 <!-- END proof -->
@@ -57,12 +57,12 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and
-    - accepts empty
-    - does NOT throw when
-    - accepts a configured
-    - additionally accepts
-    - throws on missing
+    - throws when the controller should be registered and `guards` is missing
+    - accepts empty `guards: []` as an explicit auth-free choice
+    - does NOT throw when `includeManifestController: false`
+    - accepts a configured `guards` list
+    - additionally accepts `reloadGuards` for MFA protection on reload
+    - throws on missing `guards` even without an explicit includeManifestController
 
 <!-- END proof -->
 
@@ -150,7 +150,7 @@ _Tested by:_
         - actorTag formats source:email:context
         - log() writes through and appends the actor tag to changes
         - fromWebRequest builds AdminActor with source=web
-        - fromWebRequest falls back to
+        - fromWebRequest falls back to "unknown" when there is no session
         - fromCli builds AdminActor with source=cli + hostname
 
 <!-- END proof -->
@@ -177,7 +177,7 @@ _Tested by:_
     - returns secret + otpauthUri for SUPER_ADMIN
     - audit log contains issuer in changes
     - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with
+    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
     - accepts re-setup with force=true without prompt
     - returns multi-line instructions with secret + URI
 
@@ -211,7 +211,7 @@ _Tested by:_
     - returns secret + otpauthUri for SUPER_ADMIN
     - audit log contains issuer in changes
     - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with
+    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
     - accepts re-setup with force=true without prompt
     - returns multi-line instructions with secret + URI
 
@@ -276,7 +276,8 @@ _Tested by:_
         - the controller declares some, and each one is a real route
         - a caller without a role is refused, with the code the client reads
         - an unauthenticated caller is refused separately
-        - the tenant
+        - the tenant's own administrator is admitted
+        - `role` is honoured where `platformRole` is absent
         - a platform operator is admitted too
         - a plain member is refused
 
@@ -382,7 +383,7 @@ _Tested by:_
     - a body with no recognised number reads as null, not as a failure
 - `packages/ui-vue/tests/manifest-loader.test.js`
     - GET without If-None-Match, persists body + ETag
-    - the client
+    - the client's auth header reaches the request untouched
     - storageKeyPrefix isolates caches
     - sends If-None-Match + returns cached body on 304
     - a 304 whose cached body is gone is repaired, not reported
@@ -404,7 +405,7 @@ _Tested by:_
     - parallel ensureLoaded calls all reject with the same error
     - clearCache clears manifest, loaded, loader cache
     - reload forces a re-load
-    - uses the given
+    - uses the given `id`, so parallel stores are isolated
 - `packages/ui-vue/tests/nav-builder.test.js`
     - lists enabled StandardPages with Capability=true
     - rejects disabled pages

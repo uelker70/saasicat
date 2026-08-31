@@ -104,7 +104,42 @@ const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
 export function casesIn(text) {
     const lines = text.split('\n');
     const indent = (line) => line.length - line.trimStart().length;
-    const nameIn = (line) => /(?:describe|test|it)\(\s*['"`]([^'"`]+)['"`]/.exec(line)?.[1];
+    /**
+     * The name a `describe`, `test` or `it` line gives what it opens.
+     *
+     * A string literal yields its contents; anything else yields the expression
+     * as written. A case named at run time — `test(JSON.stringify(input), …)`
+     * inside a loop — cannot be named statically, and dropping it made eight
+     * real cases invisible to a trace whose whole point is that a requirement
+     * shows what covers it. The expression is what a reader searches the file
+     * for, which is also why a template literal is recorded as written rather
+     * than expanded: `${op} sends the request` finds the line, the op does not.
+     *
+     * Scanned rather than matched. A pattern for "the first argument" needs two
+     * quantifiers that can each claim the same characters, and a long line then
+     * costs more than reading it once.
+     */
+    const nameIn = (line) => {
+        const opens = /^\s*(?:describe|test|it)\(/.exec(line);
+        if (!opens) return undefined;
+        let from = opens[0].length;
+        while (line[from] === ' ' || line[from] === '\t') from++;
+        const quote = line[from];
+        if (quote === "'" || quote === '"' || quote === '`') {
+            const to = line.indexOf(quote, from + 1);
+            return to === -1 ? undefined : line.slice(from + 1, to);
+        }
+        let depth = 0;
+        for (let at = from; at < line.length; at++) {
+            const char = line[at];
+            if ('([{'.includes(char)) depth++;
+            else if (')]}'.includes(char)) {
+                if (depth === 0) break;
+                depth--;
+            } else if (char === ',' && depth === 0) return line.slice(from, at).trim() || undefined;
+        }
+        return undefined;
+    };
     const isComment = (line) => /^\s*(?:\/\/|\/\*|\*)/.test(line);
 
     /**

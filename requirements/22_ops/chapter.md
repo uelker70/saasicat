@@ -72,6 +72,7 @@ _Tested by:_
     - a statement it cannot read is kept, not dropped
     - nothing applicable appends nothing at all
     - only a failure stops the command
+    - "before applying" is said exactly when the command will not apply
     - a failure says where the SQL is, because the operator now needs it
     - nothing to append is not a failure
     - every outcome carries a message and a decision

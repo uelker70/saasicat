@@ -22,7 +22,7 @@ _Tested by:_
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it
         - the matrix asks more of a trial than of a term
-        - on trial, ${label} takes effect ${expected ?
+        - on trial, ${label} takes effect ${expected ? 'now' : 'at term end'}
 
 <!-- END proof -->
 

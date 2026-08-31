@@ -403,8 +403,8 @@ _Tested by:_
     - is refused before anything is planned
     - and a valid one still plans
     - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema
-    - the minimum number of quotas is the schema
+    - the quota key pattern is the schema's
+    - the minimum number of quotas is the schema's
     - the classes get identifiers, the catalogue keeps the words
     - and the file names follow the identifier, not the label
     - every generated class name is a valid identifier
@@ -422,7 +422,7 @@ _Tested by:_
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
     - the export map still publishes stylesheets
     - ${label} imports all of them
-    - ${label} loads the theme after Quasar
+    - ${label} loads the theme after Quasar's stylesheet
     - ${label} takes them from this package, not from Quasar
 - `tests/templates-import-what-exists.test.js`
     - the templates name some subpaths
@@ -450,7 +450,7 @@ _Tested by:_
 
 - `packages/cli/tests/cli-commands.test.js`
     - names every command
-    - and every
+    - and every `init` example it prints actually runs
     - an unknown command exits 1 rather than doing nothing
     - a model the app never adopted is reported, and is not an error
     - a field removed from an adopted model is drift, and exits 1
@@ -514,8 +514,8 @@ _Tested by:_
     - is refused before anything is planned
     - and a valid one still plans
     - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema
-    - the minimum number of quotas is the schema
+    - the quota key pattern is the schema's
+    - the minimum number of quotas is the schema's
     - the classes get identifiers, the catalogue keeps the words
     - and the file names follow the identifier, not the label
     - every generated class name is a valid identifier

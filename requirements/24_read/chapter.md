@@ -20,6 +20,7 @@ _Tested by:_
     - the sweep finds every package
     - each README names its package and carries the three sections
     - a package with more than one entry point documents all of them
+    - "what this is not" says something concrete
 - `tests/repository-carries-no-heavy-binaries.test.js`
     - the sweep finds the assets it claims to weigh
     - every tracked binary stays under ${LIMIT_KB} KB
@@ -125,6 +126,11 @@ _Tested by:_
     - the block is generated, and the page carries it
     - it is not part of the promise
     - an entry nothing tests carries no block
+    - an unclosed marker keeps the requirement after it
+    - an unclosed marker at the end keeps the rest of the file
+    - and the checker refuses the file so nothing is written
+    - a close that opens nothing is refused too
+    - a well-formed chapter is not refused
     - a value keeps its colons, quotes and backticks
     - front matter that never closes is an error, not an empty chapter
     - a heading with a hyphen is kept as an entry with no identifier
@@ -198,7 +204,7 @@ _Tested by:_
     - the sweep finds the records
     - the numbering is unique and has no gaps
     - each record carries a status, a date and the five sections
-    - the
+    - the "what breaks" section says something
 
 <!-- END proof -->
 
@@ -300,7 +306,7 @@ _Source:_ ADR 0008 · #217
 _Tested by:_
 
 - `tests/agent-worktrees-are-not-linted.test.js`
-    - git ignores them — this keeps
+    - git ignores them — this keeps `git status` clean and Prettier out
     - eslint ignores them
     - and the ignore stops there — the source tree is still checked
 - `tests/css-classes-have-a-user.test.js`

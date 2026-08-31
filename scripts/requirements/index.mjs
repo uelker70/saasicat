@@ -120,6 +120,39 @@ export function coverage(rows, risk) {
     };
 }
 
+/**
+ * Everything wrong with the sources, from both readings.
+ *
+ * Named rather than spelled out at the call site, because "the command checks
+ * the annotations too" is the promise — and a promise that lives only in the
+ * order of two spread elements is one a refactor drops without a test noticing.
+ */
+export function problemsIn(catalogue, root) {
+    return [...check(catalogue), ...checkAnnotations(catalogue, root)];
+}
+
+/**
+ * Every annotation names a requirement that exists and still stands.
+ *
+ * The link runs both ways, so it can rot from either end, and a typo is the
+ * ordinary case — the whole point of annotating is that somebody types an
+ * identifier by hand. `test:repo` has always checked this; the command a
+ * contributor actually runs did not, and it answered an unknown tag by quietly
+ * stripping the title off it and reporting success.
+ */
+export function checkAnnotations(catalogue, root) {
+    const byId = new Map(catalogue.entries.map((entry) => [entry.id, entry]));
+    const problems = [];
+    for (const [id, files] of scanTests(root).annotated) {
+        const entry = byId.get(id);
+        const where = files.join(', ');
+        if (!entry) problems.push(`${where}: '${id}' names no requirement`);
+        else if (entry.status !== 'current')
+            problems.push(`${where}: '${id}' is ${entry.status}, so it proves nothing owed`);
+    }
+    return problems;
+}
+
 export function listing(root) {
     const catalogue = readCatalogue(root);
     // Coverage is the strict reading: a case that runs, not a file that
@@ -191,7 +224,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     }
 
     const { catalogue, files, text } = await renderCatalogue();
-    const problems = check(catalogue);
+    const problems = problemsIn(catalogue, ROOT);
 
     for (const problem of problems) process.stderr.write(`${problem}\n`);
     if (problems.length) {

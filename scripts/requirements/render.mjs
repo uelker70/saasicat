@@ -231,7 +231,23 @@ export function withProofs(text, casesById) {
 
         if (line.trim() === PROOF_BEGIN) {
             // Drop the old block; the fresh one is written after `_Source:_`.
-            while (at < lines.length && lines[at].trim() !== PROOF_END) at++;
+            // A generated region never spans a heading, so the search stops
+            // at one. Without that bound an unclosed marker was closed by the
+            // *next* entry's `END` and the requirement between them was eaten
+            // — a shortened catalogue that still numbers contiguously, which
+            // is exactly what no check would notice. Running instead to the
+            // end of the file dropped everything after the marker. Both wrote
+            // the result: the command that maintains the catalogue deleting
+            // the catalogue. Left alone, the damage stays visible and
+            // `check.mjs` refuses to write anything.
+            let to = at;
+            while (to < lines.length && lines[to].trim() !== PROOF_END && !HEADING.test(lines[to]))
+                to++;
+            if (to === lines.length || lines[to].trim() !== PROOF_END) {
+                out.push(line);
+                continue;
+            }
+            at = to;
             // And the blank line that separated it.
             if (out.at(-1) === '') out.pop();
             continue;

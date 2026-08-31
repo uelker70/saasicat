@@ -326,7 +326,7 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
     - the shipped German catalogue renders the German sentence
     - the shipped English catalogue renders the English sentence
-    - an app
+    - an app's own catalogue wins, in a language the platform does not ship
     - a code the app left untranslated still reads, from the shipped text
     - a code nobody has a text for falls back to the message the backend sent
 - `packages/ui-vue-tenant/tests/component/message-parts.test.ts`
@@ -428,7 +428,7 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
     - the shipped German catalogue renders the German sentence
     - the shipped English catalogue renders the English sentence
-    - an app
+    - an app's own catalogue wins, in a language the platform does not ship
     - a code the app left untranslated still reads, from the shipped text
     - a code nobody has a text for falls back to the message the backend sent
 
@@ -451,7 +451,7 @@ _Tested by:_
     - no construction of one takes its message from the catalog
 - `packages/ui-vue/tests/diagnostics-survive-the-locale.test.js`
     - ${name} says the same thing in German and in English
-    - ${name} shows the operator the catalog
+    - ${name} shows the operator the catalog's sentence, in their language
 
 <!-- END proof -->
 
@@ -474,7 +474,7 @@ _Tested by:_
 - `packages/nest/tests/registration-helpers.test.js`
     - slugify: the fallback carries no domain vocabulary
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
-    - No composable/loader has
+    - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
     - useTenants() WITHOUT the endpoint option throws with a clear error message
 
 <!-- END proof -->
@@ -533,7 +533,7 @@ _Tested by:_
     - wraps a thrown string
     - survives a thrown nothing
     - a null dereference is not a connection problem
-    - a real fetch failure still says
+    - a real fetch failure still says "check your connection"
     - a malformed URL is a transport failure too, not an unknown one
     - the client passes a response through untouched
     - a consumer error carrying a status keeps its message
@@ -560,8 +560,8 @@ _Tested by:_
     - an error body that is not JSON does not become a second failure
     - a validation rejection keeps its constraints — the array is joined here too
     - a 2xx still returns the parsed body
-    - an AdminError carries it at
-    - an axios rejection carries it at
+    - an AdminError carries it at `status`
+    - an axios rejection carries it at `response.status`
     - anything else has none
 
 <!-- END proof -->

@@ -198,7 +198,7 @@ _Tested by:_
     - load() adopts the snapshot and remembers the ETag
     - the second load sends the ETag, and a 304 changes nothing
     - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on
+    - a failed load lands on `error`, not on a rejection the page has to catch
     - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
     - a failed rescan says rescan, not discovery
     - a client that rejects is reported as it is, not re-wrapped
@@ -269,7 +269,7 @@ _Tested by:_
     - load() adopts the snapshot and remembers the ETag
     - the second load sends the ETag, and a 304 changes nothing
     - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on
+    - a failed load lands on `error`, not on a rejection the page has to catch
     - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
     - a failed rescan says rescan, not discovery
     - a client that rejects is reported as it is, not re-wrapped

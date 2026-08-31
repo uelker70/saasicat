@@ -148,7 +148,7 @@ _Tested by:_
     - no entitlement bound -&gt; pass
     - feature present -&gt; pass
     - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next(
+    - feature missing + redirectTo -&gt; next("/upgrade")
     - array requiresFeature -&gt; logical OR
     - loading + null snapshot + allowWhileLoading default -&gt; pass
 
@@ -171,7 +171,7 @@ _Tested by:_
 - `packages/nest/tests/limit-exceeded-filter.test.js`
     - responds with HTTP 402 + standard body shape
     - carries the quota dimension correctly from the exception
-    - lets floating-point
+    - lets floating-point `used`/`max` pass through for storage
     - robust when method/url are missing from the request
 
 <!-- END proof -->
@@ -458,9 +458,9 @@ _Tested by:_
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — auth paths
         - SUPER_ADMIN bypasses the feature check
-        - SUPER_ADMIN via
-        - missing user → Forbidden (
-        - missing tenantId → Forbidden (
+        - SUPER_ADMIN via `platformRole` is detected
+        - missing user → Forbidden ("Not authenticated")
+        - missing tenantId → Forbidden ("No tenant assigned")
         - tenantId from request.tenantId takes precedence over user.tenantId
 
 <!-- END proof -->
@@ -482,14 +482,14 @@ _Tested by:_
     - no entitlement bound -&gt; pass
     - feature present -&gt; pass
     - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next(
+    - feature missing + redirectTo -&gt; next("/upgrade")
     - array requiresFeature -&gt; logical OR
     - loading + null snapshot + allowWhileLoading default -&gt; pass
 - `packages/ui-vue/tests/use-entitlement.test.js`
     - autoLoad loads the snapshot
     - hasFeature(key) returns a boolean
     - hasFeature without a loaded Entitlement → false
-    - the client
+    - the client's auth header reaches the request untouched
     - 500 → error set, entitlement null
     - endpoint is required: without an endpoint useEntitlement throws
 
