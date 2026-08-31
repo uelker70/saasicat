@@ -71,9 +71,17 @@ code: you do not edit the promise, you retire the entry and write a new one.
 
 The question that decides between rows one and three: **does what somebody can rely on change?**
 
-Superseding points at a promise that stands. If nothing replaces it, withdraw it instead — a
-supersession that ends at a draft or at something withdrawn removes a promise and reads to whoever
-follows the trail as though there were something to follow it to.
+**A supersession introduces the promise that replaces it.** Point it at an entry you write in the
+same change, so that following the trail arrives at the rewrite. It also has to arrive at a promise
+that stands — a chain ending at a draft or at something withdrawn removes a promise and reads as
+though there were something to follow it to.
+
+Where another entry already covers the ground, the promise is gone rather than rewritten, and that
+is a withdrawal whose prose says where the ground is covered:
+
+```markdown
+🔴 _(Withdrawn on 2026-09-01.)_ `SC-PLAN-026` covers this, and covering it twice was the defect.
+```
 
 To retire an entry, leave it exactly where it is and open it with a marker:
 

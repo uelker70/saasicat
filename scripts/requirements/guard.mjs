@@ -347,6 +347,36 @@ function readCatalogueAt(root, ref) {
  * `SC-A-001` would also excuse a later commit rewriting it into a different
  * promise — the claim would outlive the edit it was made for.
  */
+/**
+ * A supersession introduces the promise that replaces it.
+ *
+ * Pointing at an entry that already stood accepts a promise being dropped while
+ * the trail suggests it was rewritten, and no reading of the two catalogues can
+ * tell that apart from a genuine replacement — whether a successor succeeds is
+ * a judgement, not a comparison.
+ *
+ * Consolidation is not what is being refused here; it is being given its right
+ * name. Where an entry is redundant because another already covers its ground,
+ * the promise is gone as a promise of its own, and that is a withdrawal whose
+ * prose says where the ground is covered. Supersession then means exactly one
+ * thing, which is what makes it worth following.
+ */
+export function newSuccessors(before, after) {
+    const then = new Map(before.map((entry) => [entry.id, entry]));
+    return after
+        .filter((entry) => entry.status === 'superseded' && entry.supersededBy)
+        .filter((entry) => then.get(entry.id)?.status !== 'superseded')
+        .filter((entry) => then.has(entry.supersededBy))
+        .map(
+            (entry) =>
+                `${entry.id} is superseded by '${entry.supersededBy}', which already existed.\n` +
+                '    A supersession introduces the promise that replaces it, so that following the\n' +
+                '    trail arrives at the rewrite. Where another entry already covers this ground,\n' +
+                `    the promise is gone rather than rewritten: withdraw ${entry.id} and say in its\n` +
+                `    prose that '${entry.supersededBy}' covers it.`,
+        );
+}
+
 export function judge(steps) {
     return steps.flatMap((step) =>
         ownWork(
@@ -451,6 +481,7 @@ export function guard(root, base, head) {
         judged: revisions.length,
         problems: [
             ...judge(steps).map((problem) => problem.message),
+            ...newSuccessors(baseline.entries, after.entries),
             ...ratchet(
                 {
                     debt: unproven(baseline.entries, namedAt(root, merged)),

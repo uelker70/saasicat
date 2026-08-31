@@ -84,8 +84,18 @@ _Source:_ #133 · ADR 0009
 ```
 
 A promise that is dropped rather than replaced is withdrawn instead, with no successor:
-`🔴 _(Withdrawn on 2026-09-01.)_`. Both markers open the entry, because a reader arriving from an old
-link has to learn in the first few words that it does not apply.
+`🔴 _(Withdrawn on 2026-09-01.)_`.
+
+A supersession introduces the entry that replaces it, and the guard refuses one pointing at an
+entry that already stood. Not because consolidating two requirements into one is wrong, but because
+it is a different thing wearing the same marker: whether a successor genuinely succeeds is a
+judgement no comparison of two catalogues can make, so supersession is held to the one shape that
+can be checked. Where another entry already covers the ground, the promise is gone as a promise of
+its own — a withdrawal whose prose names where the ground is covered, which reads correctly to
+whoever follows the trail and says the true thing.
+
+Both markers open the entry, because a reader arriving from an old link has to learn in the first
+few words that it does not apply.
 
 A promise moves between states in one direction: a draft is decided or dropped, a promise that
 stands is superseded or withdrawn, and nothing comes back. Delivery moves the same way. The marker

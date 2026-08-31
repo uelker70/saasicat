@@ -18,7 +18,13 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
-import { compare, editorialIn, fingerprint, judge } from '../scripts/requirements/guard.mjs';
+import {
+    compare,
+    editorialIn,
+    fingerprint,
+    judge,
+    newSuccessors,
+} from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
 const entry = (id, text) => `### ${id} — Title\n\n${text}\n\n_Source:_ #1`;
@@ -297,6 +303,42 @@ describe('a revision answers for what it did, not what it inherited', () => {
         // The counter-proof: an addition is not this revision's doing to answer
         // for, and the rule must not turn every merge into a complaint.
         assert.deepEqual(judge([merge([withBoth(promise), older], withBoth(promise))]), []);
+    });
+});
+
+describe('a supersession introduces the promise that replaces it', () => {
+    // Pointing at an entry that already stood accepts a promise being dropped
+    // while the trail suggests it was rewritten, and no reading of two
+    // catalogues tells that apart from a genuine replacement. Consolidation is
+    // not refused, it is given its right name: where another entry already
+    // covers the ground, the promise is gone rather than rewritten.
+    const promise = 'The name stays the same across price changes.';
+    const superseded = '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ The old wording.';
+    const pair = (first, second = 'The other entry.') =>
+        entries(entry('SC-A-001', first), entry('SC-A-002', second));
+
+    test('a successor that already existed is refused', () => {
+        const [problem] = newSuccessors(pair(promise), pair(superseded));
+        assert.match(problem, /which already existed/);
+        assert.match(problem, /withdraw SC-A-001/);
+    });
+
+    test('a successor introduced by the same change is accepted', () => {
+        const before = entries(entry('SC-A-001', promise));
+        assert.deepEqual(newSuccessors(before, pair(superseded)), []);
+    });
+
+    test('a supersession that was already there is left alone', () => {
+        // Only a supersession this change makes is judged, or every later
+        // change would report the same entry again.
+        assert.deepEqual(newSuccessors(pair(superseded), pair(superseded)), []);
+    });
+
+    test('a withdrawal naming where the ground is covered is accepted', () => {
+        // The form consolidation takes. The promise is gone as a promise of its
+        // own, and the prose says where it now lives.
+        const withdrawn = '🔴 _(Withdrawn on 2026-09-01.)_ SC-A-002 covers this.';
+        assert.deepEqual(newSuccessors(pair(promise), pair(withdrawn)), []);
     });
 });
 
