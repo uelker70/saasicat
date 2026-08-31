@@ -15,8 +15,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-SUB-002 — The minimum term is the billing period that was chosen, and it starts at activation
 
-🟢 💰 Monthly or yearly. There is no third rhythm, and no commitment separate from the period unless an
-operator configures one for an add-on.
+🟢 💰 Monthly or yearly. There is no third rhythm, and no commitment separate from the period unless
+an operator configures one for an add-on.
 
 _Source:_ #212
 
@@ -39,11 +39,11 @@ _Source:_ #212
 
 ### SC-SUB-004 — A short month does not move the billing day
 
-🟢 💰 A subscription billed on the 31st is billed on 28 February and then on 31 March. One billed on the
-30th is billed on the 30th of October, not the 31st: the day is "the 30th", not "the end of the
-month". Reading the next date off the previous one let a single February move a tenant's billing
-day permanently three days earlier, and every date derived from it moved too — the renewal, the
-notice deadline, and the end date the customer was told about.
+🟢 💰 A subscription billed on the 31st is billed on 28 February and then on 31 March. One billed on
+the 30th is billed on the 30th of October, not the 31st: the day is "the 30th", not "the end of the
+month". Reading the next date off the previous one let a single February move a tenant's billing day
+permanently three days earlier, and every date derived from it moved too — the renewal, the notice
+deadline, and the end date the customer was told about.
 
 _Source:_ #220 · `docs/guides/upgrade-to-1.0.md`
 
@@ -140,15 +140,15 @@ _Source:_ release 1.0.0-rc.6
 
 ### SC-SUB-008 — A declared cancellation does not stop the renewal until it lands
 
-🟢 💰 Where a notice period pushed the ending into the following period, that period has to exist before
-it can end.
+🟢 💰 Where a notice period pushed the ending into the following period, that period has to exist
+before it can end.
 
 _Source:_ release 1.0.0-rc.6
 
 ### SC-SUB-009 — A tenant in arrears can still cancel
 
-🟢 💰 A tenant whose payment failed wanting out is the single most important cancellation there is, and
-a status check placed one line too early would refuse it.
+🟢 💰 A tenant whose payment failed wanting out is the single most important cancellation there is,
+and a status check placed one line too early would refuse it.
 
 _Source:_ #218
 

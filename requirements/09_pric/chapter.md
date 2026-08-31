@@ -16,8 +16,8 @@ _Source:_ #222
 
 ### SC-PRIC-002 — A part-period is charged by days
 
-🟢 💰 Not by whole months. Plan changes and add-on bookings then answer with the same arithmetic, so two
-screens describing one situation cannot quote different figures.
+🟢 💰 Not by whole months. Plan changes and add-on bookings then answer with the same arithmetic, so
+two screens describing one situation cannot quote different figures.
 
 _Source:_ #222
 
@@ -104,9 +104,10 @@ _Source:_ #222
 
 ### SC-PRIC-007 — An amount a tenant sees is the amount that is charged
 
-🟢 💰 Money is held to two decimal places and never as a floating-point number, and the same arithmetic
-produces the same figure in the backend, the tenant's page and the administration. Discounts, part
-periods and tax do not accumulate a difference between what a page shows and what is billed.
+🟢 💰 Money is held to two decimal places and never as a floating-point number, and the same
+arithmetic produces the same figure in the backend, the tenant's page and the administration.
+Discounts, part periods and tax do not accumulate a difference between what a page shows and what is
+billed.
 
 _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
@@ -139,7 +140,8 @@ _Source:_ release 1.0.0-rc.6
 
 ### SC-PRIC-012 — A contract mixing rhythms totals one period of its own rhythm
 
-🟢 💰 A monthly add-on beside a yearly plan counts as often as it falls due within that year, not once.
+🟢 💰 A monthly add-on beside a yearly plan counts as often as it falls due within that year, not
+once.
 
 _Source:_ release 1.0.0-rc.7
 
@@ -170,8 +172,8 @@ _Source:_ #217 · #214
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 
-🟡 _(Decided, not yet delivered.)_ 💰 Storing net and gross leaves the rate living in the ratio between
-them, and a ratio cannot be reproduced for a rounded gross, cannot express an exempt or
+🟡 _(Decided, not yet delivered.)_ 💰 Storing net and gross leaves the rate living in the ratio
+between them, and a ratio cannot be reproduced for a rounded gross, cannot express an exempt or
 reverse-charge line, and does not survive a rate change.
 
 _Source:_ #214
@@ -184,9 +186,9 @@ _Source:_ #214
 
 ### SC-PRIC-019 — A tenant can see their own account
 
-🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history. An open balance a customer
-cannot see is a surprise at the moment it becomes a problem; one they can see is something they can
-act on.
+🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history. An open balance a
+customer cannot see is a surprise at the moment it becomes a problem; one they can see is something
+they can act on.
 
 _Source:_ #214
 

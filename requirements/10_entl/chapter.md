@@ -113,8 +113,8 @@ _Tested by:_
 
 ### SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
 
-🟢 🔒 Counting and then writing happens as one indivisible step per tenant; otherwise two requests that
-each fit both go through and the limit an operator sold is not the limit that applies.
+🟢 🔒 Counting and then writing happens as one indivisible step per tenant; otherwise two requests
+that each fit both go through and the limit an operator sold is not the limit that applies.
 
 _Source:_ `docs/explanation/data-model.md` · `docs/reference/options.md`
 
@@ -171,8 +171,8 @@ _Tested by:_
 
 ### SC-ENTL-012 — A cancellation that has taken effect grants nothing
 
-🟢 🔒 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier was
-granted exactly what it was granted while active.
+🟢 🔒 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier
+was granted exactly what it was granted while active.
 
 _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
 

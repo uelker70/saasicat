@@ -111,8 +111,8 @@ _Source:_ release 1.0.0-rc.4
 
 ### SC-ADM-012 — Test-only bypasses are ignored in production
 
-🟢 🔒 The switches that skip the second factor and the rate limits exist for continuous integration and
-are honoured only outside production. An integrator cannot add their own.
+🟢 🔒 The switches that skip the second factor and the rate limits exist for continuous integration
+and are honoured only outside production. An integrator cannot add their own.
 
 _Source:_ `SECURITY.md`
 

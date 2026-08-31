@@ -16,7 +16,8 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 ### SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
 
-🟢 💰 Everything else waits for the term to end, which is where a shorter period may legitimately begin.
+🟢 💰 Everything else waits for the term to end, which is where a shorter period may legitimately
+begin.
 
 _Source:_ #212
 
@@ -33,8 +34,8 @@ _Tested by:_
 
 ### SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 
-🟢 💰 The customer keeps the period they already paid for, the higher plan runs inside it, and only the
-difference is charged for what is left of it. So an immediate upgrade never lengthens the
+🟢 💰 The customer keeps the period they already paid for, the higher plan runs inside it, and only
+the difference is charged for what is left of it. So an immediate upgrade never lengthens the
 commitment.
 
 _Source:_ #212

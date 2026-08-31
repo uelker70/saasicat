@@ -119,7 +119,12 @@ The claim covers that commit and no other, so commit the fix and let the commit 
 | 🔵 Superseded — replaced, follow the id  | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` |
 | 🔴 Withdrawn — gone, nothing replaces it | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              |
 
-Nineteen entries say everything in their heading and carry nothing under it but `🟢`. Only a
+Nineteen entries say everything in their heading and carry nothing under it but `🟢`.
+
+Behind the state, an entry may carry what a breach of it would cost — `💰` for money or law, `🔒`
+for tenant separation, access or somebody's data. Most carry neither, which is the ordinary case.
+It is what decides which untested promise to cover first, so `pnpm run requirements:list` reports
+coverage against each. Only a
 current entry may say it is not built yet — a draft is not decided, and a retired one has nothing
 left to deliver.
 

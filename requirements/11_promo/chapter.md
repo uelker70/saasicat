@@ -72,8 +72,8 @@ _Source:_ release 1.0.0-rc.7
 
 ### SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
 
-🟢 💰 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they never
-received.
+🟢 💰 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they
+never received.
 
 _Source:_ `docs/reference/options.md`
 

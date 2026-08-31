@@ -734,8 +734,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-PLAN-005 — A version somebody has already bought cannot be edited
 
-🟢 💰 Only a draft can be changed, or a published version that is the newest of its line, has nobody on
-it, and does not start until some day in the future.
+🟢 💰 Only a draft can be changed, or a published version that is the newest of its line, has nobody
+on it, and does not start until some day in the future.
 
 _Source:_ `docs/reference/error-codes.md`
 
@@ -808,8 +808,8 @@ _Source:_ current practice
 
 ### SC-PLAN-008 — A price of exactly zero has to be meant
 
-🟢 💰 Publishing a plan version priced at zero is refused unless the operator says explicitly that it is
-deliberate. An accidental batch publish at 0.00 once set every tariff to free.
+🟢 💰 Publishing a plan version priced at zero is refused unless the operator says explicitly that it
+is deliberate. An accidental batch publish at 0.00 once set every tariff to free.
 
 _Source:_ `docs/reference/error-codes.md`
 
@@ -1119,9 +1119,9 @@ _Tested by:_
 
 ### SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
 
-🟢 💰 It runs from the booking to the next occurrence of the plan's billing day and is charged pro rata.
-The fraction is taken against a whole cycle of the add-on's own rhythm, so a monthly add-on on a
-yearly plan is not charged a fraction of a year at a monthly price.
+🟢 💰 It runs from the booking to the next occurrence of the plan's billing day and is charged pro
+rata. The fraction is taken against a whole cycle of the add-on's own rhythm, so a monthly add-on on
+a yearly plan is not charged a fraction of a year at a monthly price.
 
 _Source:_ #222
 
@@ -1203,9 +1203,9 @@ _Tested by:_
 
 ### SC-BUN-006 — The price an add-on is advertised at is the price it is booked at
 
-🟢 💰 Including its unit. A card saying "per month" beside a yearly plan is the figure a tenant compares
-add-ons by, and comparing by the wrong one is a decision made on wrong information even when the
-confirmation later shows the right amount.
+🟢 💰 Including its unit. A card saying "per month" beside a yearly plan is the figure a tenant
+compares add-ons by, and comparing by the wrong one is a decision made on wrong information even
+when the confirmation later shows the right amount.
 
 _Source:_ #234
 
@@ -1911,8 +1911,8 @@ _Tested by:_
 
 ### SC-BUN-030 — An add-on price of exactly zero has to be meant
 
-🟢 💰 A deliberately free add-on leaves its price unset. An explicit zero is refused unless the operator
-says it is intended, for the same reason it is on a plan.
+🟢 💰 A deliberately free add-on leaves its price unset. An explicit zero is refused unless the
+operator says it is intended, for the same reason it is on a plan.
 
 _Source:_ `docs/reference/error-codes.md`
 
@@ -2012,8 +2012,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-SUB-002 — The minimum term is the billing period that was chosen, and it starts at activation
 
-🟢 💰 Monthly or yearly. There is no third rhythm, and no commitment separate from the period unless an
-operator configures one for an add-on.
+🟢 💰 Monthly or yearly. There is no third rhythm, and no commitment separate from the period unless
+an operator configures one for an add-on.
 
 _Source:_ #212
 
@@ -2036,11 +2036,11 @@ _Source:_ #212
 
 ### SC-SUB-004 — A short month does not move the billing day
 
-🟢 💰 A subscription billed on the 31st is billed on 28 February and then on 31 March. One billed on the
-30th is billed on the 30th of October, not the 31st: the day is "the 30th", not "the end of the
-month". Reading the next date off the previous one let a single February move a tenant's billing
-day permanently three days earlier, and every date derived from it moved too — the renewal, the
-notice deadline, and the end date the customer was told about.
+🟢 💰 A subscription billed on the 31st is billed on 28 February and then on 31 March. One billed on
+the 30th is billed on the 30th of October, not the 31st: the day is "the 30th", not "the end of the
+month". Reading the next date off the previous one let a single February move a tenant's billing day
+permanently three days earlier, and every date derived from it moved too — the renewal, the notice
+deadline, and the end date the customer was told about.
 
 _Source:_ #220 · `docs/guides/upgrade-to-1.0.md`
 
@@ -2137,15 +2137,15 @@ _Source:_ release 1.0.0-rc.6
 
 ### SC-SUB-008 — A declared cancellation does not stop the renewal until it lands
 
-🟢 💰 Where a notice period pushed the ending into the following period, that period has to exist before
-it can end.
+🟢 💰 Where a notice period pushed the ending into the following period, that period has to exist
+before it can end.
 
 _Source:_ release 1.0.0-rc.6
 
 ### SC-SUB-009 — A tenant in arrears can still cancel
 
-🟢 💰 A tenant whose payment failed wanting out is the single most important cancellation there is, and
-a status check placed one line too early would refuse it.
+🟢 💰 A tenant whose payment failed wanting out is the single most important cancellation there is,
+and a status check placed one line too early would refuse it.
 
 _Source:_ #218
 
@@ -2297,7 +2297,8 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 ### SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
 
-🟢 💰 Everything else waits for the term to end, which is where a shorter period may legitimately begin.
+🟢 💰 Everything else waits for the term to end, which is where a shorter period may legitimately
+begin.
 
 _Source:_ #212
 
@@ -2314,8 +2315,8 @@ _Tested by:_
 
 ### SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 
-🟢 💰 The customer keeps the period they already paid for, the higher plan runs inside it, and only the
-difference is charged for what is left of it. So an immediate upgrade never lengthens the
+🟢 💰 The customer keeps the period they already paid for, the higher plan runs inside it, and only
+the difference is charged for what is left of it. So an immediate upgrade never lengthens the
 commitment.
 
 _Source:_ #212
@@ -2622,8 +2623,8 @@ _Tested by:_
 
 ### SC-CANC-005 — There is no notice period until an installation names one
 
-🟢 💰 Every installation states both numbers in `config/saas.yaml`, and one that states neither does not
-start. Zero is what most should write: a cancellation declared on the last day of a period then
+🟢 💰 Every installation states both numbers in `config/saas.yaml`, and one that states neither does
+not start. Zero is what most should write: a cancellation declared on the last day of a period then
 still takes effect at the end of that period, which is the reading a customer expects and the one
 that generates no disputes. It is written down rather than defaulted, because a notice period is a
 commercial decision and an unwritten one is a decision nobody made.
@@ -2739,10 +2740,10 @@ _Tested by:_
 
 ### SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
 
-🟢 💰 However long the notice is. Advancing by exactly one period gave a customer between 31 and 60 days
-of a 60-day notice depending on which day they happened to declare — the operator promised sixty
-and the customer received thirty-one. A misconfiguration should cost the customer a longer wait,
-not cost the operator a promise the software cannot keep.
+🟢 💰 However long the notice is. Advancing by exactly one period gave a customer between 31 and 60
+days of a 60-day notice depending on which day they happened to declare — the operator promised
+sixty and the customer received thirty-one. A misconfiguration should cost the customer a longer
+wait, not cost the operator a promise the software cannot keep.
 
 _Source:_ #230
 
@@ -3087,8 +3088,8 @@ _Source:_ #222
 
 ### SC-PRIC-002 — A part-period is charged by days
 
-🟢 💰 Not by whole months. Plan changes and add-on bookings then answer with the same arithmetic, so two
-screens describing one situation cannot quote different figures.
+🟢 💰 Not by whole months. Plan changes and add-on bookings then answer with the same arithmetic, so
+two screens describing one situation cannot quote different figures.
 
 _Source:_ #222
 
@@ -3175,9 +3176,10 @@ _Source:_ #222
 
 ### SC-PRIC-007 — An amount a tenant sees is the amount that is charged
 
-🟢 💰 Money is held to two decimal places and never as a floating-point number, and the same arithmetic
-produces the same figure in the backend, the tenant's page and the administration. Discounts, part
-periods and tax do not accumulate a difference between what a page shows and what is billed.
+🟢 💰 Money is held to two decimal places and never as a floating-point number, and the same
+arithmetic produces the same figure in the backend, the tenant's page and the administration.
+Discounts, part periods and tax do not accumulate a difference between what a page shows and what is
+billed.
 
 _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
@@ -3210,7 +3212,8 @@ _Source:_ release 1.0.0-rc.6
 
 ### SC-PRIC-012 — A contract mixing rhythms totals one period of its own rhythm
 
-🟢 💰 A monthly add-on beside a yearly plan counts as often as it falls due within that year, not once.
+🟢 💰 A monthly add-on beside a yearly plan counts as often as it falls due within that year, not
+once.
 
 _Source:_ release 1.0.0-rc.7
 
@@ -3241,8 +3244,8 @@ _Source:_ #217 · #214
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 
-🟡 _(Decided, not yet delivered.)_ 💰 Storing net and gross leaves the rate living in the ratio between
-them, and a ratio cannot be reproduced for a rounded gross, cannot express an exempt or
+🟡 _(Decided, not yet delivered.)_ 💰 Storing net and gross leaves the rate living in the ratio
+between them, and a ratio cannot be reproduced for a rounded gross, cannot express an exempt or
 reverse-charge line, and does not survive a rate change.
 
 _Source:_ #214
@@ -3255,9 +3258,9 @@ _Source:_ #214
 
 ### SC-PRIC-019 — A tenant can see their own account
 
-🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history. An open balance a customer
-cannot see is a surprise at the moment it becomes a problem; one they can see is something they can
-act on.
+🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history. An open balance a
+customer cannot see is a surprise at the moment it becomes a problem; one they can see is something
+they can act on.
 
 _Source:_ #214
 
@@ -3389,8 +3392,8 @@ _Tested by:_
 
 ### SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
 
-🟢 🔒 Counting and then writing happens as one indivisible step per tenant; otherwise two requests that
-each fit both go through and the limit an operator sold is not the limit that applies.
+🟢 🔒 Counting and then writing happens as one indivisible step per tenant; otherwise two requests
+that each fit both go through and the limit an operator sold is not the limit that applies.
 
 _Source:_ `docs/explanation/data-model.md` · `docs/reference/options.md`
 
@@ -3447,8 +3450,8 @@ _Tested by:_
 
 ### SC-ENTL-012 — A cancellation that has taken effect grants nothing
 
-🟢 🔒 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier was
-granted exactly what it was granted while active.
+🟢 🔒 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier
+was granted exactly what it was granted while active.
 
 _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
 
@@ -3696,8 +3699,8 @@ _Source:_ release 1.0.0-rc.7
 
 ### SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
 
-🟢 💰 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they never
-received.
+🟢 💰 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they
+never received.
 
 _Source:_ `docs/reference/options.md`
 
@@ -4258,8 +4261,8 @@ _Source:_ release 1.0.0-rc.4
 
 ### SC-ADM-012 — Test-only bypasses are ignored in production
 
-🟢 🔒 The switches that skip the second factor and the rate limits exist for continuous integration and
-are honoured only outside production. An integrator cannot add their own.
+🟢 🔒 The switches that skip the second factor and the rate limits exist for continuous integration
+and are honoured only outside production. An integrator cannot add their own.
 
 _Source:_ `SECURITY.md`
 
@@ -5030,9 +5033,9 @@ _Source:_ internal engineering guidelines
 
 ### SC-SEC-006 — An installation must terminate traffic at a proxy it controls
 
-🟢 🔒 Rate limits identify a caller from a header a client can set. Without a proxy that overwrites it,
-an attacker rotates identities and defeats every limit on sign-in, registration, code resends and
-promotional codes.
+🟢 🔒 Rate limits identify a caller from a header a client can set. Without a proxy that overwrites
+it, an attacker rotates identities and defeats every limit on sign-in, registration, code resends
+and promotional codes.
 
 _Source:_ `SECURITY.md`
 
@@ -5058,8 +5061,8 @@ _Source:_ `SECURITY.md`
 
 ### SC-SEC-010 — A vulnerability is reported privately and never described in public
 
-🟢 🔒 Not in an issue, a pull request, a commit message or a release note. A fix may still be published;
-its description must not double as instructions.
+🟢 🔒 Not in an issue, a pull request, a commit message or a release note. A fix may still be
+published; its description must not double as instructions.
 
 _Source:_ `SECURITY.md`
 
@@ -5134,8 +5137,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-PRIV-009 — A migration that would destroy data stops and says what it found
 
-🟢 🔒 Rather than merging rows nobody meant to merge, or discarding them. Which of two colliding records
-survives is not a decision a migration takes on its own.
+🟢 🔒 Rather than merging rows nobody meant to merge, or discarding them. Which of two colliding
+records survives is not a decision a migration takes on its own.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 

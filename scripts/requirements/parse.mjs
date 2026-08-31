@@ -132,10 +132,13 @@ export const CURRENT = /^(🟢)(?:\s+|$)/u;
  * It is optional and it is not the state — an entry without one is not
  * unassessed, it is ordinary. Marking every entry would say nothing, the same
  * way marking none did.
+ *
+ * Or the end of the text, because an entry whose whole promise is its heading
+ * carries nothing under it but its state and this.
  */
 export const RISKS = { money: '💰', tenancy: '🔒' };
 
-export const RISK = /^([💰🔒])\s+/u;
+export const RISK = /^([💰🔒])(?:\s+|$)/u;
 export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
 // Every gap is `\s`, not a space. These files are wrapped by hand at a hundred
 // columns, and two committed entries wrap this marker across the break — so

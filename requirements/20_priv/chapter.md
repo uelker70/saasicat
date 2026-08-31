@@ -58,8 +58,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-PRIV-009 — A migration that would destroy data stops and says what it found
 
-🟢 🔒 Rather than merging rows nobody meant to merge, or discarding them. Which of two colliding records
-survives is not a decision a migration takes on its own.
+🟢 🔒 Rather than merging rows nobody meant to merge, or discarding them. Which of two colliding
+records survives is not a decision a migration takes on its own.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
 

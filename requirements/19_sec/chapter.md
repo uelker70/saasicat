@@ -42,9 +42,9 @@ _Source:_ internal engineering guidelines
 
 ### SC-SEC-006 — An installation must terminate traffic at a proxy it controls
 
-🟢 🔒 Rate limits identify a caller from a header a client can set. Without a proxy that overwrites it,
-an attacker rotates identities and defeats every limit on sign-in, registration, code resends and
-promotional codes.
+🟢 🔒 Rate limits identify a caller from a header a client can set. Without a proxy that overwrites
+it, an attacker rotates identities and defeats every limit on sign-in, registration, code resends
+and promotional codes.
 
 _Source:_ `SECURITY.md`
 
@@ -70,8 +70,8 @@ _Source:_ `SECURITY.md`
 
 ### SC-SEC-010 — A vulnerability is reported privately and never described in public
 
-🟢 🔒 Not in an issue, a pull request, a commit message or a release note. A fix may still be published;
-its description must not double as instructions.
+🟢 🔒 Not in an issue, a pull request, a commit message or a release note. A fix may still be
+published; its description must not double as instructions.
 
 _Source:_ `SECURITY.md`
 

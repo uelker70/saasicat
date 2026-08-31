@@ -83,8 +83,8 @@ _Tested by:_
 
 ### SC-CANC-005 — There is no notice period until an installation names one
 
-🟢 💰 Every installation states both numbers in `config/saas.yaml`, and one that states neither does not
-start. Zero is what most should write: a cancellation declared on the last day of a period then
+🟢 💰 Every installation states both numbers in `config/saas.yaml`, and one that states neither does
+not start. Zero is what most should write: a cancellation declared on the last day of a period then
 still takes effect at the end of that period, which is the reading a customer expects and the one
 that generates no disputes. It is written down rather than defaulted, because a notice period is a
 commercial decision and an unwritten one is a decision nobody made.
@@ -200,10 +200,10 @@ _Tested by:_
 
 ### SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
 
-🟢 💰 However long the notice is. Advancing by exactly one period gave a customer between 31 and 60 days
-of a 60-day notice depending on which day they happened to declare — the operator promised sixty
-and the customer received thirty-one. A misconfiguration should cost the customer a longer wait,
-not cost the operator a promise the software cannot keep.
+🟢 💰 However long the notice is. Advancing by exactly one period gave a customer between 31 and 60
+days of a 60-day notice depending on which day they happened to declare — the operator promised
+sixty and the customer received thirty-one. A misconfiguration should cost the customer a longer
+wait, not cost the operator a promise the software cannot keep.
 
 _Source:_ #230
 
