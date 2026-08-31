@@ -266,7 +266,7 @@ _Tested by:_
 🟡 _(Decided, not yet delivered.)_ Somebody who edited the file an hour ago otherwise has no way to
 tell whether it has landed. The timestamp is the requirement, not decoration.
 
-_Source:_ #217
+_Source:_ #217 · #260
 
 ### SC-CFG-009 — A configuration change is noticed and reported
 
@@ -274,7 +274,7 @@ _Source:_ #217
 people by mail is an addition, never a substitute. An address list that silently swallowed the
 notification because nobody wired mail would be worse than having neither.
 
-_Source:_ #217
+_Source:_ #217 · #260
 
 ### SC-CFG-010 — An installation that declares a protection and enforces nothing does not start
 
