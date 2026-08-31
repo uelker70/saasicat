@@ -104,6 +104,25 @@ export const PENDING = /\s?(?:([⚪🔵🔴🟡])\s+)?_\(Decided,\s+not\s+yet\s+
 /** Every identifier mentioned in a piece of prose. */
 export const REFERENCES = /\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g;
 
+/**
+ * Anything an author could have meant as an identifier, deliberately wider.
+ *
+ * Held against `ID` to find the near-misses. It consumes every character that
+ * could continue a name, because stopping earlier hands back a valid-looking
+ * prefix of a broken token — `SC-PLAN-004_extra` read as `SC-PLAN-004`, which
+ * passed while the reference itself resolved to nothing.
+ */
+export const LOOKS_LIKE_AN_ID = /\bSC-[A-Za-z0-9][A-Za-z0-9_-]*/g;
+
+/**
+ * The prose of an entry, which is its title and its body.
+ *
+ * Nineteen entries carry their whole promise in the title, and a title can name
+ * another requirement as readily as a paragraph can. Reading references from
+ * the body alone left those unresolved and unchecked.
+ */
+export const proseOf = (entry) => `${entry.title ?? ''}\n${entry.text}`;
+
 const FENCE = '---';
 const FRONT_MATTER_KEY = /^([a-z][a-zA-Z]*): ?(.*)$/;
 
@@ -228,7 +247,9 @@ function finishEntry(entry) {
         delivered: !pending,
         // Derived, never written down: the prose is the only place a
         // relationship is stated, so it is the only place it can go stale.
-        references: [...new Set(text.match(REFERENCES) ?? [])].filter((id) => id !== entry.id),
+        references: [...new Set(`${entry.title ?? ''}\n${text}`.match(REFERENCES) ?? [])].filter(
+            (id) => id !== entry.id,
+        ),
     };
 }
 

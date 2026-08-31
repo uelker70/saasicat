@@ -535,6 +535,35 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
+    test('a mistyped identifier in the heading', () => {
+        // The scan read the body and not the title, and nineteen entries carry
+        // their whole promise in the title. A broken identifier there was
+        // published unread.
+        complains(
+            [['01_a', `${head()}\n### SC-A-001 — Follow SC-PLAN-04\n\n_Source:_ #1`]],
+            "names 'SC-PLAN-04', which is not an identifier",
+        );
+    });
+
+    test('a real identifier in the heading is resolved', () => {
+        // References were read from the body alone, so one named in a title
+        // resolved to nothing and nothing checked it.
+        complains(
+            [['01_a', `${head()}\n### SC-A-001 — Follow SC-PLAN-004\n\n_Source:_ #1`]],
+            "refers to 'SC-PLAN-004', which does not exist",
+        );
+    });
+
+    test('an identifier with a suffix that continues a name', () => {
+        // The near-miss pattern stopped at the underscore and handed back
+        // `SC-PLAN-004`, which passed — while the reference itself resolved to
+        // nothing, because `_` continues a word.
+        complains(
+            [['01_a', `${head()}\n### SC-A-001 — Title\n\nSee SC-PLAN-004_extra.\n\n_Source:_ #1`]],
+            "names 'SC-PLAN-004_extra', which is not an identifier",
+        );
+    });
+
     test('a link into the repository', () => {
         // A relative link is right in exactly one of the two places this text
         // is read: written to resolve from the published page it is broken in
