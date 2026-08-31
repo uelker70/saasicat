@@ -862,6 +862,7 @@ test('handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription cr
 
 // @requirement SC-REG-019 — The same payment event applied twice changes nothing
 // @requirement SC-OPS-001 — An operator can retry a failed deployment
+// @requirement SC-OPS-006 — Applying the same external event twice changes nothing
 test('handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation', async () => {
     const ctx = makeService();
     const { sessionId } = await startThroughCheckout(ctx);

@@ -99,16 +99,10 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
-- `packages/ui-vue/tests/reorder-priorities.test.js`
-    - reorderedPriorities
-        - a move within equal priorities produces the order it promises
-        - it keeps the gaps an operator chose
-        - rows that keep their value are reported as unchanged
-        - no move, no writes
-        - a value at the top of the range stays inside it
-        - a list already at the ceiling still separates
-        - pulling ties apart never goes below zero
-        - a move to the end lands at the end
+- `packages/nest/tests/promo-service.test.js`
+    - a code that has been redeemed is kept
+        - a soft delete is refused while a redemption points at it
+        - and pausing it instead is allowed
 
 <!-- END proof -->
 

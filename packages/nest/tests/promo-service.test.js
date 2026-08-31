@@ -462,3 +462,67 @@ describe('PromoCodesService.redeem — eligibility', () => {
         assert.equal(redemption.tenantId, 'tenant-1');
     });
 });
+
+describe('a code that has been redeemed is kept', () => {
+    // Deleting one would take the explanation of somebody's discount with it:
+    // the redemptions point at the code, and a customer asking why they paid
+    // what they paid has to be answerable. So the code is paused, not removed.
+
+    // @requirement SC-PROMO-004 — A code that has been redeemed is never deleted; it is paused
+    test('a soft delete is refused while a redemption points at it', async () => {
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({
+            promoRepo,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async countByPromoCode() {
+                    return 1;
+                },
+            },
+        });
+        const created = await svc.create(BASE_INPUT);
+
+        await assert.rejects(
+            () => svc.softDelete(created.id),
+            (error) => {
+                assert.equal(error.response.code, 'PROMO_CODE_HAS_REDEMPTIONS');
+                assert.equal(error.response.params.redemptions, 1);
+                return true;
+            },
+        );
+        assert.ok(!((await promoRepo.findById(created.id)).deletedAt instanceof Date));
+    });
+
+    // @requirement SC-PROMO-004 — A code that has been redeemed is never deleted; it is paused
+    test('and pausing it instead is allowed', async () => {
+        // The other half of the promise. Refusing the delete is only right if
+        // there is something the operator can do instead.
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({
+            promoRepo,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async countByPromoCode() {
+                    return 1;
+                },
+            },
+        });
+        const created = await svc.create(BASE_INPUT);
+
+        await svc.update(created.id, { status: 'PAUSED' });
+        const after = await promoRepo.findById(created.id);
+        assert.equal(after.status, 'PAUSED');
+        assert.ok(!(after.deletedAt instanceof Date));
+    });
+
+    test('a code nobody redeemed is deleted as asked', async () => {
+        // The counter-check: a rule that refused every delete would pass both
+        // assertions above and break the operator's ordinary case.
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({ promoRepo });
+        const created = await svc.create(BASE_INPUT);
+
+        await svc.softDelete(created.id);
+        assert.ok((await promoRepo.findById(created.id)).deletedAt instanceof Date);
+    });
+});

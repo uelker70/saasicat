@@ -253,6 +253,38 @@ describe('a line item row becomes a line item record', () => {
         );
     });
 
+    const carried = (amount) =>
+        toContractLineItemRecord(lineItemRow({ priceNet: amount })).priceNet.toFixed(2);
+
+    // @requirement SC-PRIC-013 — Amounts of money cross the wire exactly, not as approximations
+    test('an amount arrives with the cent it left with', () => {
+        // The column is DECIMAL(10,2) and this is where it stops being one:
+        // Prisma hands over a Decimal, Drizzle a numeric string, and both go
+        // through `Number()`. Ten digits at two decimals fit a double exactly,
+        // so the amounts worth pinning are both ends of the declared range and
+        // the ones where binary floating point is known to drift.
+        for (const amount of [
+            '0.01',
+            '0.10',
+            '0.29',
+            '19.99',
+            '70.70',
+            '1234567.89',
+            '99999999.99',
+        ]) {
+            assert.equal(carried(amount), amount, `${amount} did not survive the crossing`);
+        }
+    });
+
+    test('and the guarantee stops where the column does', () => {
+        // The counter-check. It holds *because* the scale is two, not because
+        // `Number()` is exact — a third decimal is outside DECIMAL(10,2) and
+        // does not come back. A test that only passed amounts it survives
+        // would be describing `Number()`, which keeps no such promise.
+        assert.notEqual(carried('1.005'), '1.005');
+        assert.notEqual(carried('8.165'), '8.165');
+    });
+
     test('the commitment date and the metadata survive both ways round', () => {
         const withTerm = toContractLineItemRecord(
             lineItemRow({

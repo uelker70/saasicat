@@ -1,5 +1,4 @@
 // @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
-// @requirement SC-OPS-006 — Applying the same external event twice changes nothing
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

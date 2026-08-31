@@ -235,9 +235,9 @@ _Source:_ release 1.0.0-rc.7
 
 _Tested by:_
 
-- `packages/ui-vue/tests/every-wire-date-is-hydrated.test.js`
-    - every date a record declares is converted at the HTTP boundary
-        - ${subject.record} → ${subject.converterName}
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a line item row becomes a line item record
+        - an amount arrives with the cent it left with
 
 <!-- END proof -->
 

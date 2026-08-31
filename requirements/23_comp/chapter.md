@@ -701,6 +701,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - an amount arrives with the cent it left with
+        - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
 - `packages/nest/tests/saasicat-persistence.test.js`
@@ -839,6 +841,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - an amount arrives with the cent it left with
+        - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
 - `packages/nest/tests/create-saasicat-test-module.test.js`

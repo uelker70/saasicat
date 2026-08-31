@@ -1,5 +1,3 @@
-// @requirement SC-PRIC-013 — Amounts of money cross the wire exactly, not as approximations
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

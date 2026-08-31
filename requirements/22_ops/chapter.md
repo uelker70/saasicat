@@ -221,21 +221,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/cli/tests/default-doctor-checks.test.js`
-    - PlanCatalogDoctorCheck
-        - error when no plans
-        - ok with plans + details contain planIds
-    - DiscoverySnapshotDoctorCheck
-        - warning when snapshot empty
-        - ok with content
-    - UserPortDoctorCheck
-        - ok when findByEmail does not throw
-        - error when findByEmail throws
-    - AdminManifestDoctorCheck
-        - ok with standardPages count
-        - error when getManifest throws
-    - PLATFORM_DOCTOR_CHECK_PROVIDERS
-        - contains exactly 4 provider classes
+- `packages/nest/tests/registration-service.test.js`
+    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
 
 <!-- END proof -->
 

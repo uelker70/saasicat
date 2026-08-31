@@ -4879,9 +4879,9 @@ _Source:_ release 1.0.0-rc.7
 
 _Tested by:_
 
-- `packages/ui-vue/tests/every-wire-date-is-hydrated.test.js`
-    - every date a record declares is converted at the HTTP boundary
-        - ${subject.record} → ${subject.converterName}
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a line item row becomes a line item record
+        - an amount arrives with the cent it left with
 
 <!-- END proof -->
 
@@ -5581,16 +5581,10 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
-- `packages/ui-vue/tests/reorder-priorities.test.js`
-    - reorderedPriorities
-        - a move within equal priorities produces the order it promises
-        - it keeps the gaps an operator chose
-        - rows that keep their value are reported as unchanged
-        - no move, no writes
-        - a value at the top of the range stays inside it
-        - a list already at the ceiling still separates
-        - pulling ties apart never goes below zero
-        - a move to the end lands at the end
+- `packages/nest/tests/promo-service.test.js`
+    - a code that has been redeemed is kept
+        - a soft delete is refused while a redemption points at it
+        - and pausing it instead is allowed
 
 <!-- END proof -->
 
@@ -11435,21 +11429,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/cli/tests/default-doctor-checks.test.js`
-    - PlanCatalogDoctorCheck
-        - error when no plans
-        - ok with plans + details contain planIds
-    - DiscoverySnapshotDoctorCheck
-        - warning when snapshot empty
-        - ok with content
-    - UserPortDoctorCheck
-        - ok when findByEmail does not throw
-        - error when findByEmail throws
-    - AdminManifestDoctorCheck
-        - ok with standardPages count
-        - error when getManifest throws
-    - PLATFORM_DOCTOR_CHECK_PROVIDERS
-        - contains exactly 4 provider classes
+- `packages/nest/tests/registration-service.test.js`
+    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
 
 <!-- END proof -->
 
@@ -12188,6 +12169,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - an amount arrives with the cent it left with
+        - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
 - `packages/nest/tests/saasicat-persistence.test.js`
@@ -12326,6 +12309,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - an amount arrives with the cent it left with
+        - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
 - `packages/nest/tests/create-saasicat-test-module.test.js`
