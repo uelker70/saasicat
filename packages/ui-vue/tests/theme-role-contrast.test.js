@@ -1,3 +1,6 @@
+// @requirement SC-A11Y-001 — Text is legible in both themes
+// @requirement SC-A11Y-002 — Meaningful visuals stand out from what is next to them
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

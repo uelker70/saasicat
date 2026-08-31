@@ -1,3 +1,5 @@
+// @requirement SC-UI-016 — Light and dark are both shipped, and a person can pick
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

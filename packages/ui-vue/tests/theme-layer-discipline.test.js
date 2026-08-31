@@ -1,3 +1,5 @@
+// @requirement SC-UI-014 — The administration brings its own UI framework
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

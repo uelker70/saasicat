@@ -73,6 +73,16 @@ or lose days. Where the plan being moved to has no trial, the trial end stays wh
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/trial-carryover.test.js`
+    - carries remaining trial time to a target plan with a longer trial
+    - is drift-free across repeated switches (reconstructs trial start)
+
+<!-- END proof -->
+
 ### SC-SPEC-005 — A trial grants the trial's entitlements, not the booked plan's
 
 🟢 And it opens no billing period; the agreement is frozen when the subscription becomes a paid one.
@@ -130,6 +140,20 @@ _Tested by:_
 🟢 It needs a second factor and an explicit confirmation, and it is recorded.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
+    - blocks submitting while required fields are missing
+    - draws the plan picker from the options passed in
+    - derives the slug from the name
+    - adopts plan, end date and note from the row
+    - draws the same plan picker as the create dialog
+    - offers preset buttons for the end date
+
+<!-- END proof -->
 
 ### SC-SPEC-008 — A negotiated arrangement is expressed as limits set for that tenant
 

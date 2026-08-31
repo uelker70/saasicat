@@ -7,6 +7,8 @@
 // a page renders the list either way, but a mutation the caller awaited has to
 // fail loudly — and both need to keep the shape `toAdminError` reads.
 
+// @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

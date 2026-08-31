@@ -1,3 +1,5 @@
+// @requirement SC-ENTL-020 — Hiding a control is not protection
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { useEntitlement } from '../dist/index.js';

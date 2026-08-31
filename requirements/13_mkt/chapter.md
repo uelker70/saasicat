@@ -12,6 +12,19 @@ saw is what they get, and a catalogue edit in between cannot change it.
 
 _Source:_ `docs/explanation/architecture.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/public-catalog-controller.test.js`
+    - listPlans returns only marketed plans in the generic format
+    - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
+    - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
+    - listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)
+    - listBundles without a CatalogEntry repo: requiresFeatures stays empty (graceful)
+
+<!-- END proof -->
+
 ### SC-MKT-002 — Only plans an operator marked as marketed appear in self-service
 
 🟢 A negotiated plan is not something a stranger can select for themselves.
@@ -26,6 +39,8 @@ _Tested by:_
     - ConfiguratorCatalogBuilder
         - maps marketed live PlanVersions onto models (incl. quota normalization)
         - plan without a marketing entry is hidden
+- `packages/nest/tests/registration-service.test.js`
+    - listPublicPlans() passes the plan list through
 
 <!-- END proof -->
 
@@ -222,6 +237,16 @@ _Tested by:_
         - i18n: falls back to DE projection when locale is missing
         - i18n: without a projection the bundle root label applies (description stays empty)
         - bundle promotions are resolved with targetType=BUNDLE
+- `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
+    - load() reads all three endpoints under the default prefix
+    - a trailing slash in the prefix does not become a double slash
+    - the wire form of a bundle becomes the shape the page renders
+    - the optional wire fields default rather than arriving as undefined
+    - a missing /bundles endpoint is not fatal — the plan page still renders
+    - a failing /plans clears what it could not load
+    - a client that resolves with status 0 fails the load rather than emptying it
+    - a client that rejects is reported, not swallowed
+    - it loads on its own unless the consumer says otherwise
 
 <!-- END proof -->
 
@@ -236,6 +261,12 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/public-catalog-controller.test.js`
+    - listPlans returns only marketed plans in the generic format
+    - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
+    - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
+    - listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)
+    - listBundles without a CatalogEntry repo: requiresFeatures stays empty (graceful)
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards
@@ -366,6 +397,12 @@ _Tested by:_
           contract
         - getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract
         - getActiveInvoiceSnapshotForTenant throws without an active contract
+- `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
+    - add re-freezes the contract with an unchanged plan
+    - cancel re-freezes the contract
+    - without a ContractFreezePort, add works unchanged
+    - freeze error is non-fatal — the mutation result still comes back
+    - a failed mutation triggers no freeze
 
 <!-- END proof -->
 

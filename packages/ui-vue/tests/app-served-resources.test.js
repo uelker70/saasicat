@@ -24,6 +24,9 @@
 // Changing one of these breaks an app the platform cannot see. That is what
 // makes them worth a test rather than a comment.
 
+// @requirement SC-ADM-015 — The administration only offers what the application actually has
+// @requirement SC-UI-003 — Replacing one operation that does not exist is refused at start-up
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

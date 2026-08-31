@@ -1,3 +1,6 @@
+// @requirement SC-PROMO-001 — A code is redeemed at most once per subscription
+// @requirement SC-PROMO-005 — A percentage discount is between 0 and 100
+
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildPromoCodeAdminController } from '../dist/promo/index.js';

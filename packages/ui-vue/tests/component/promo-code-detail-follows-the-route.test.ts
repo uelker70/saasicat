@@ -5,6 +5,8 @@
 // second URL — and a save from there writes to the wrong record. The page has
 // to follow its param.
 
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
 

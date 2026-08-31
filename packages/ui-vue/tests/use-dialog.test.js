@@ -16,6 +16,9 @@
 // loaded here, and a render function shows the binding contract — panel ref,
 // panel props, backdrop props — more plainly than a template does.
 
+// @requirement SC-A11Y-011 — A dialog does not stack on top of itself
+// @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
+
 import { after, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

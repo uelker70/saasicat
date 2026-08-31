@@ -9,6 +9,8 @@
 // A structural test cannot see that. What the page renders depends on the route
 // it is mounted under, so this mounts it under one and looks.
 
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, expect, test } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
 

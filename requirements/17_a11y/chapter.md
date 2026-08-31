@@ -32,6 +32,26 @@ _Tested by:_
     - Quasar
     - a hard pick that agrees with the machine is still a pick
     - dispose() stops the bridge writing to the document
+- `packages/ui-vue/tests/text-shape.test.js`
+    - accepts what the old pattern accepted
+    - rejects what the old pattern rejected, and the shapes it got wrong
+    - finishes on the input the pattern backtracked on
+    - strips a run of one character at either end and nothing inside
+    - finishes on a long run
+- `packages/ui-vue/tests/theme-role-contrast.test.js`
+    - the sweep found rules and can resolve the palette
+    - gradient backgrounds are read, not skipped
+    - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
+    - every pairing the ${themeName} sweep leaves unjudged says why
+    - the helper no longer hands back the bare accent as text
+    - the resolver reaches real numbers for both input shapes
+    - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
+    - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
+- `packages/ui-vue/tests/theme-token-parity.test.js`
+    - the files were actually read
+    - every light role has a dark counterpart, and the reverse
+    - the theme fires only on a signal the application sent
+    - no role is declared twice within one theme
 - `tests/a-role-that-is-read-is-defined.test.js`
     - both sides of the comparison were actually read
     - the definitions reach the scale, not only the colours
@@ -64,6 +84,15 @@ _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
 
 _Tested by:_
 
+- `packages/ui-vue/tests/theme-role-contrast.test.js`
+    - the sweep found rules and can resolve the palette
+    - gradient backgrounds are read, not skipped
+    - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
+    - every pairing the ${themeName} sweep leaves unjudged says why
+    - the helper no longer hands back the bare accent as text
+    - the resolver reaches real numbers for both input shapes
+    - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
+    - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
 - `tests/filled-status-carries-white-text.test.js`
     - the base layer declares some
     - each resolves to a literal colour rather than another variable
@@ -251,6 +280,26 @@ _Tested by:_
 - `packages/ui-vue/tests/component/one-dialog-per-page-not-per-row.test.ts`
     - the fixture renders several rows — without that this proves nothing
     - one instance exists, however many rows there are
+- `packages/ui-vue/tests/use-dialog.test.js`
+    - the panel carries the modal role and is named by its heading
+    - opening moves focus into the panel
+    - closing puts focus back where it was
+    - a trigger that is gone by then leaves focus at the document body
+    - unmounting while open still gives the focus back
+    - tab from the last control wraps to the first
+    - shift+tab from the first control wraps to the last
+    - shift+tab from the panel itself wraps to the last control
+    - a tab from outside the panel is pulled back in
+    - a panel with nothing tabbable keeps the caret on itself
+    - escape asks the caller to close
+    - a persistent dialog ignores escape
+    - a click on the backdrop closes, a click in the panel does not
+    - a persistent dialog ignores the backdrop too
+    - a closed dialog no longer answers escape
+    - the lock is taken while open and given back on close
+    - an inner dialog closing does not give the page back to the outer one
+    - the default is body
+    - a host that names a container gets it
 
 <!-- END proof -->
 

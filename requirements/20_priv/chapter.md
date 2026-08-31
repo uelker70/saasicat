@@ -25,11 +25,31 @@ _Source:_ release 1.0.0-rc.7
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-helpers.test.js`
+    - verifyOtpCode returns false on a broken hash (no throw)
+- `packages/nest/tests/registration-service.test.js`
+    - start() stores OTP only as a hash, never in plaintext
+
+<!-- END proof -->
+
 ### SC-PRIV-004 — The record of a registration carries no address, password or code in the clear
 
 🟢 🔒 Recording the address would make the trail itself a way to find out who has an account.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - start() stores OTP only as a hash, never in plaintext
+
+<!-- END proof -->
 
 ### SC-PRIV-005 — Payment details are kept masked
 
@@ -50,11 +70,30 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - runCleanup() deletes expired, leaves active alone
+    - runCleanup() frees the email again after deletion → repeated start() works
+
+<!-- END proof -->
+
 ### SC-PRIV-008 — Failed attempts are part of the record, not only successful ones
 
 🟢 🔒
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED
+
+<!-- END proof -->
 
 ### SC-PRIV-009 — A migration that would destroy data stops and says what it found
 

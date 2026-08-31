@@ -3,6 +3,8 @@
 // handler receives, when the save button is released, and that a handler error
 // stays inside the dialog instead of reaching the caller.
 
+// @requirement SC-PROMO-005 — A percentage discount is between 0 and 100
+
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { computed, ref } from 'vue';

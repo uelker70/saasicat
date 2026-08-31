@@ -24,6 +24,8 @@
  * two sets. A pattern would not do — the bootstrap's largest provide spans six
  * lines, and a `grep` for `app.provide(KEY` misses exactly the one that broke.
  */
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';

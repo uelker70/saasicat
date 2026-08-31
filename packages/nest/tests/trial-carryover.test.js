@@ -6,6 +6,7 @@ import { computeCarriedTrialEndsAt } from '../dist/billing/index.js';
 
 const DAY = 86_400_000;
 
+// @requirement SC-SPEC-004 — Switching plans during a trial carries the remaining trial time over
 test('carries remaining trial time to a target plan with a longer trial', () => {
     const now = new Date('2026-06-09T00:00:00.000Z');
     // Currently a 14-day trial, 10 days left (4 used). Target 30 days.
@@ -23,6 +24,7 @@ test('clamps to 0 when more trial is used than the target offers', () => {
     assert.equal(result.getTime(), now.getTime()); // 0 days → ends now
 });
 
+// @requirement SC-SPEC-004 — Switching plans during a trial carries the remaining trial time over
 test('is drift-free across repeated switches (reconstructs trial start)', () => {
     const now = new Date('2026-06-09T00:00:00.000Z');
     // Trial started 4 days ago (14-day trial → 10 left). Switching to a 14-day

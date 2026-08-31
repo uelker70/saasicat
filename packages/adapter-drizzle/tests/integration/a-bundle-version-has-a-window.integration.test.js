@@ -10,6 +10,9 @@
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
+// @requirement SC-PLAN-011 — A published version says which day it applies from
+// @requirement SC-BUN-024 — An add-on version somebody has already booked cannot be edited
+
 import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';

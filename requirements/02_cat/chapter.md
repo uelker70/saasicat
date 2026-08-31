@@ -193,6 +193,18 @@ _Tested by:_
     - no-op when autoSyncDiscoveryAtBoot=false
     - no-op without an injected snapshot
     - swallows a sync error at boot (no boot crash)
+- `packages/ui-vue/tests/use-discovery.test.js`
+    - the endpoint is required — there is no prefix the platform could guess
+    - load() adopts the snapshot and remembers the ETag
+    - the second load sends the ETag, and a 304 changes nothing
+    - reload() drops the ETag, so the server has to answer with a body
+    - a failed load lands on
+    - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
+    - a failed rescan says rescan, not discovery
+    - a client that rejects is reported as it is, not re-wrapped
+    - a client that resolves with status 0 never reached the server
+    - a client that throws a non-Error still leaves an Error behind
+    - autoLoad fetches without being asked
 
 <!-- END proof -->
 
@@ -247,6 +259,25 @@ _Tested by:_
 🟢 The automatic scan at start-up never reactivates one.
 
 _Source:_ `docs/explanation/concepts.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/use-discovery.test.js`
+    - the endpoint is required — there is no prefix the platform could guess
+    - load() adopts the snapshot and remembers the ETag
+    - the second load sends the ETag, and a 304 changes nothing
+    - reload() drops the ETag, so the server has to answer with a body
+    - a failed load lands on
+    - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
+    - a failed rescan says rescan, not discovery
+    - a client that rejects is reported as it is, not re-wrapped
+    - a client that resolves with status 0 never reached the server
+    - a client that throws a non-Error still leaves an Error behind
+    - autoLoad fetches without being asked
+
+<!-- END proof -->
 
 ### SC-CAT-010 — Labels an operator has written are never overwritten by the scan
 

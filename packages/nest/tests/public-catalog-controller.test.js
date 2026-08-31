@@ -3,6 +3,9 @@
 // PlanCatalog + FeatureUiRegistry, no side effects, no request lifecycle
 // needed.
 
+// @requirement SC-MKT-001 — A pricing page reads the published catalogue rather than computing prices
+// @requirement SC-MKT-012 — The public catalogue answers even when something behind it is unavailable
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PublicCatalogController } from '../dist/billing/index.js';

@@ -12,6 +12,9 @@
 //   SAASICAT_TEST_DATABASE_URL=postgresql://postgres:test@localhost:5432/postgres \
 //       pnpm --filter @saasicat/adapter-prisma test:integration
 
+// @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
+// @requirement SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
+
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

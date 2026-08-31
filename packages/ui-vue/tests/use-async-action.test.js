@@ -4,6 +4,9 @@
 // mutation, one with a success continuation, one whose failure needs a page's
 // own wording, and one that must stay silent.
 
+// @requirement SC-UI-007 — Loading, empty and error are handled deliberately on every screen
+// @requirement SC-UI-020 — A page never takes the whole screen down because data arrived in a shape it did not expect
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -1,3 +1,5 @@
+// @requirement SC-PROMO-002 — A code with a redemption limit cannot be over-redeemed
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 

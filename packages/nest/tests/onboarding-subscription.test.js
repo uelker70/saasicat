@@ -172,6 +172,8 @@ test('onboarding from ACTIVE status sets a new period window + ACTIVE status', a
     assert.equal(call.nextStatus, 'ACTIVE');
 });
 
+// @requirement SC-REG-015 — A promotional code is re-checked every time the price is shown
+// @requirement SC-PROMO-009 — A plan may be marked as not discountable
 test('onboarding with promoCode + PromoCodesService redeems atomically', async () => {
     const write = buildWritePort();
     const promo = buildPromoStub();
@@ -247,6 +249,8 @@ test('onboarding on a failed promo redeem persists plan + warning', async () => 
     assert.match(result.warnings[0], /EXPIRED/);
 });
 
+// @requirement SC-PLAN-021 — A plan that is not sold self-service says so and says who to ask
+// @requirement SC-REG-013 — A plan that does not exist and one that is not on offer answer the same
 test('onboarding throws ForbiddenException for blocked self-service plans', async () => {
     const ctrl = buildController({
         blockedPlans: { asTarget: ['ENTERPRISE'], asSource: [] },
@@ -275,6 +279,7 @@ test('onboarding throws ForbiddenException for blocked self-service plans', asyn
     assert.equal(body.params.planKey, 'ENTERPRISE');
 });
 
+// @requirement SC-REG-017 — Add-ons chosen during sign-up never cost somebody their plan
 test('onboarding throws BadRequestException when plan-change blockers are active', async () => {
     const ctrl = buildController({
         planPreview: buildPlanPreview({ blockers: ['QUOTA_EXCEEDED:members'] }),
@@ -305,6 +310,7 @@ test('onboarding throws NotFoundException without a subscription', async () => {
     );
 });
 
+// @requirement SC-AUD-001 — Every administrative action records who did it, from where, and when
 test('onboarding writes an audit log with COMPLETE_ONBOARDING_SUBSCRIPTION', async () => {
     const audit = buildAudit();
     const ctrl = buildController({ auditService: audit });

@@ -7,6 +7,8 @@
 // first render, so it is worth more than the branch percentage that noticed it
 // was missing.
 
+// @requirement SC-UI-003 — Replacing one operation that does not exist is refused at start-up
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

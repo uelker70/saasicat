@@ -6,6 +6,8 @@
 // meant to be the same requests, so the test states what "the same" means
 // before anything is rebuilt on top of them.
 
+// @requirement SC-PLAN-024 — The order plans appear in is set by moving them, not by typing numbers
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

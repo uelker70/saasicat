@@ -6,6 +6,8 @@
 // all twenty-four. The test that matters here is the one where a single
 // operation is wrapped and every other one still comes from the platform.
 
+// @requirement SC-ADM-015 — The administration only offers what the application actually has
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

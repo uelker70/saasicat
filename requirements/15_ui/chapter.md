@@ -78,6 +78,22 @@ _Tested by:_
     - writes all templates into target + replaces tokens
     - dryRun writes nothing
     - runs through a bin symlink, as npm create / npx invoke it
+- `packages/ui-vue/tests/boot-loader.test.js`
+    - returns body on 200
+    - sends GET to the configured endpoint
+    - configurable endpoint
+    - throws BootLoadError on non-200
+    - endpoint is required: without an endpoint BootLoader throws
+- `packages/ui-vue/tests/component/bootstrap-installs-what-it-provides.test.ts`
+    - with no app options, the platform set is installed
+    - an app configuring Quasar still gets every plugin the ports need
+    - the app’s own config is kept
+    - an app may replace a plugin with its own build
+    - an app that passes only a config keeps the whole platform set
+    - an app that names its client gets a registry
+    - an app that does not gets none, rather than one wired to a bare fetch
+- `packages/ui-vue/tests/component/promo-code-detail-follows-the-route.test.ts`
+    - navigating from one code to another loads the second
 - `packages/ui-vue/tests/component/route-mounted-pages.test.ts`
     - ${name} declares no required props
     - ${name} mounts with no props and without Vue warnings
@@ -85,6 +101,27 @@ _Tested by:_
     - boots into a guarded route rather than reloading the public error route
     - discards the cached manifest before booting, not after
     - its buttons are wired to handlers, never to a possibly-undefined prop
+- `packages/ui-vue/tests/component/tenant-detail-follows-the-route.test.ts`
+    - navigating from one slug to another loads the second
+- `packages/ui-vue/tests/component/the-plan-page-steps-aside-for-its-steps.test.ts`
+    - the plans route has the two steps as children
+    - every nested standard route carries the step marker
+    - a claimed plans route keeps the steps beneath it
+    - an own children list on a claimed route wins outright
+    - a top-level standard route is not marked
+    - the paths resolve at all
+    - on the plans route itself the page owns the hero
+    - on the editor step the page stands aside
+    - on the review step the page stands aside
+    - and on a sibling page it owns the hero again
+- `packages/ui-vue/tests/integration.test.js`
+    - Consumer login bootstrap sequence
+    - Cache-hit path: second manifest load returns 304
+    - Logout path: clearCache clears everything
+    - Manifest reload after a
+    - Action drift detected: manifest action without a handler
+    - UI rejects routes with a missing capability
+    - Publish 3 drafts: 2 OK, 1 conflict — atomic progress
 - `packages/ui-vue/tests/pages-barrel-is-complete.test.js`
     - there are pages to compare
     - every page on disk is in the barrel
@@ -101,6 +138,19 @@ _Tested by:_
     - a read written across lines counts
     - a bracketed read counts
     - the path parser finds the parameter
+- `packages/ui-vue/tests/plan-step-routes-exist.test.js`
+    - the plan pages and their routes are found
+    - ${page} pushes only to standard routes
+- `packages/ui-vue/tests/platform-loaders.test.js`
+    - returns BootLoader + ManifestLoader instances
+    - derives default endpoints from apiBase
+    - honors explicit endpoint overrides
+    - passes storageKeyPrefix and the client through to ManifestLoader
+- `packages/ui-vue/tests/the-fixture-installs-what-the-bootstrap-does.test.js`
+    - both files were actually read
+    - no seam the bootstrap installs is missing from the fixture
+    - a provide spread over several lines is found
+    - a missing key is reported rather than passed over
 
 <!-- END proof -->
 
@@ -110,6 +160,109 @@ _Tested by:_
 the old behaviour until somebody notices an approval was never recorded.
 
 _Source:_ release 0.26.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/app-served-resources.test.js`
+    - ${c.op} calls ${c.method} ${c.url}
+    - every operation this descriptor declares has a case above
+    - ${name}.${c.op} calls ${c.method} ${c.url}
+    - ${name}: every operation has a case above
+    - ${name} sends the header with a code
+    - ${name} sends no header for an empty code
+    - users.resetPassword posts the audit reason
+    - promoCodes.detail reads one code by id
+    - reads exactly the endpoint the card declares
+    - a reading, not a rendering — the timestamp comes back unformatted
+    - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/catalog-composables.test.js`
+    - the endpoint is required
+    - load() filters by project key and sends the auth header
+    - load() without a token sends none rather than an empty one
+    - a failed load lands on
+    - an unparseable error body is still an error, with no body
+    - create() appends the created row
+    - update() replaces exactly the row it changed
+    - softDelete() and hardDelete() drop the row and hit different paths
+    - a mutation the server answered without a body does not touch the list
+    - loadTenantCounts() fills the map, and swallows its own failure
+    - autoLoad fetches without being asked
+    - the endpoint and the plan id are both required
+    - load() reads the versions of that plan
+    - a failed load says PlanVersions, not Plans
+    - createDraft() appends the new version out of the mutation result
+    - updateDraft() and publish() replace the version they addressed
+    - discardDraft() removes it and terminateVersion() replaces it
+    - every mutation that needs a body rejects when none arrives
+    - autoLoad fetches without being asked
+    - the endpoint is required
+    - load(), create(), update() and softDelete() keep the list in step
+    - a failed load lands on
+    - autoLoad fetches without being asked
+    - the endpoint and the bundle id are both required
+    - createDraft() appends and updateDraft() replaces
+    - publish() reloads, because it can supersede another version
+    - discardDraft() removes the version from the list
+    - a failed load says BundleVersions
+    - autoLoad fetches without being asked
+    - the endpoint is required
+    - load() reads capabilities, features and quotas in one go
+    - one failing request fails the load, and the lists stay empty
+    - reviewFeature() and reviewQuota() replace the entry they reviewed
+    - the i18n and base editors address their own paths
+    - every editor rejects when the answer carries no entry
+    - syncDiscovery() posts the snapshot and reloads the three lists
+    - autoLoad fetches without being asked
+    - the endpoint is required
+    - load(), create(), update() and remove() keep the list in step
+    - a failed load lands on
+    - autoLoad fetches without being asked
+    - the endpoint is required
+    - the query string carries only the filter parts that are set
+    - setFilter() replaces the filter and reloads with it
+    - create() reloads, because a new tuple can fall inside the filter
+    - update() patches the row in place, remove() drops it
+    - a mutation without a body rejects, and create() does not reload after it
+    - a failed load lands on
+    - autoLoad fetches without being asked
+- `packages/ui-vue/tests/composables.test.js`
+    - initial state: boot=null, loading=false
+    - load() fills boot.value
+    - load() sets error on HTTP failure
+    - loading state toggles correctly
+    - initial state: manifest=null
+    - load() fills manifest
+    - reload() discards cache + loads fresh
+    - clearCache() sets manifest to null
+- `packages/ui-vue/tests/resources-match-the-composables.test.js`
+    - ${resource.name}: ${testCase.name}
+    - the list operation these cases drive is the one they name
+    - ${testCase.name} sends the same request
+    - ${testCase.name} sends the same request
+    - covers every operation both sides declare
+    - terminate matches too, under the composable’s own name
+    - the one header the two sides do not agree on
+    - ${testCase.op} sends the same request
+    - ${key}: every operation is driven by a case
+- `packages/ui-vue/tests/resources-optional-arguments.test.js`
+    - promoCodes.list() sends a bare path
+    - users.list() sends a bare path
+    - marketing.listProjections() sends a bare path when nothing narrows it
+    - tenants.list() asks for the first page at the default size
+    - planVersions.publish sends an empty object, not an absent body
+    - bundleVersions.publish does the same
+    - read() sends no If-None-Match
+    - read(null) is the same request — that is how a forced reload is spelled
+    - read(etag) revalidates
+    - an unchanged snapshot is not re-read
+    - a loaded snapshot carries the tag the next read revalidates with
+    - a status that is neither 200 nor 304 fails rather than reading a body
+    - a rescan that does not answer 200 or 201 fails the same way
+    - ${def.key}.${op} answers []
+
+<!-- END proof -->
 
 ### SC-UI-004 — Nothing is written until the person saves or publishes
 
@@ -131,6 +284,9 @@ _Tested by:_
     - no clearable model has a string method called on it unguarded
 - `packages/ui-vue/tests/component/discovery-page-keeps-the-first-edit.test.ts`
     - the second payload still holds the first edit
+- `packages/ui-vue/tests/component/grouped-options-keep-their-defaults.test.ts`
+    - TenantsPage renders the plan column
+    - PromoCodesPage offers the four statuses in its filter
 - `packages/ui-vue/tests/component/plan-wizard-keeps-its-draft.test.ts`
     - the editor writes what was typed into the wizard, not into the page
     - the review renders the unsaved values, not the published version
@@ -140,6 +296,63 @@ _Tested by:_
     - a save that succeeds clears the draft
     - publish carries the form and the checklist flags
     - a publish that does not go through keeps the draft
+- `packages/ui-vue/tests/kv-store.test.js`
+    - without localStorage it is a no-op store
+    - a throwing localStorage getter does not escape
+    - reads and writes go through when localStorage works
+    - a failing write is swallowed — quota or private mode
+    - a failing read yields null rather than throwing
+- `packages/ui-vue/tests/use-plan-editor.test.js`
+    - lists all catalog features with correct marker flags
+    - featuresByTier groups + sorts by tier order
+    - features without tier land in OTHER group at the end
+    - manifest without features block: empty but no crash
+    - toggle add + remove
+    - toggle on plannedOnly feature is ignored (no state change)
+    - nonRegressive: inherited feature cannot be removed
+    - nonRegressive=false: inherited feature may be removed
+    - snapshot returns sorted selection
+    - validateDraft accepts a clean selection
+    - validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key is
+      present
+- `packages/ui-vue/tests/use-steps.test.js`
+    - it starts on the first step
+    - every step is done, current or upcoming
+    - back on the first step is refused rather than wrapping around
+    - next on the last step is refused
+    - reset takes it back to the start
+    - the guard stops the move and says so
+    - a click on a next button the guard refuses moves nothing
+    - the same predicate answers the button and the move
+    - advancing puts focus on the new heading
+    - going back puts focus on the heading too
+    - a refused move does not move focus
+    - the heading is focusable without joining the tab order
+    - it refuses to be built
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - selectedPlan is null before selection
+    - setPlan removes bundles incompatible with the new plan
+    - setPlan keeps universally compatible bundles
+    - Monthly uses monthlyNet, Yearly uses yearlyNet
+    - yearSavings = 12*monthly − yearly
+    - yearlyNet=null falls back to monthly × DEFAULT_YEARLY_FACTOR
+    - Bundle toggle marks bundle + activates its features
+    - Bundle deselect removes activated features again
+    - Bundle price flows into subtotalNet
+    - PERCENT promo is applied to subtotalNet
+    - ABSOLUTE promo is capped at subtotal
+    - clearPromo removes discount + sets status idle
+    - setPromoCode clears a previous valid status
+    - serializes plan + cycle + bundle version IDs
+    - without bundle selection bundleVersionIds is missing from the payload
+    - serializes promoCode only when status is valid
+    - throws when plan is not set
+    - covered bundle does not flow into bundlesNet nor into the breakdown
+    - covered bundle is missing from toApiPayload().bundleVersionIds
+    - deselecting the covering bundle charges the other one again
+    - mutual coverage Y={C},Z={C} → exactly ONE bundle charged + sent
+    - false with fresh state
+    - true as soon as a bundle is added
 
 <!-- END proof -->
 
@@ -324,6 +537,50 @@ _Tested by:_
     - a page below the first is the first
     - a fractional page is the one it is on
     - a page size stays inside 1..max
+- `packages/ui-vue/tests/use-async-action.test.js`
+    - resolves what the action returned
+    - passes every argument through
+    - pending is true while in flight and false afterwards
+    - runs onSuccess with the result, before run resolves
+    - stays silent on success by default
+    - notifyOn
+    - a success message may be computed at call time
+    - reports the failure in the result instead of throwing
+    - a void action is still distinguishable — the whole reason for the shape
+    - records the failure as an AdminError
+    - clears pending even when the action throws
+    - skips onSuccess
+    - reports through the notify port, worded from the default catalog
+    - what the server said outranks the catalog
+    - errorMessage outranks both, and sees the AdminError
+    - notifyOn
+    - without a notify port the failure is still recorded
+    - pending stays true until the last one settles
+    - the older call failing last leaves no error behind
+    - but a failure from the newest call is still recorded
+    - a success toast that throws leaves the action successful
+    - a successMessage that throws does the same
+    - an error toast that throws still returns the action failure
+    - a failing continuation fails the action, and says so only once
+    - a continuation that succeeds still gets its success toast
+    - a later success clears an earlier failure
+    - reset clears it without running anything
+- `packages/ui-vue/tests/use-async-data.test.js`
+    - starts at the initial value
+    - loads on creation by default
+    - immediate: false loads nothing until asked
+    - does not block setup — nothing has loaded synchronously
+    - pending is true while in flight
+    - records the failure as an AdminError
+    - puts the data back to initial rather than leaving stale rows
+    - reload does not throw
+    - clears pending even when the load throws
+    - a later success clears the error
+    - a superseded load does not overwrite the newer one
+    - a superseded load does not clear pending while the newer one runs
+    - a superseded load that FAILS does not wipe the page or raise its error
+    - reloads when a watched source changes
+    - a watched source combines with immediate: false — the first load is the change
 
 <!-- END proof -->
 
@@ -338,6 +595,15 @@ _Source:_ internal engineering guidelines
 
 _Tested by:_
 
+- `packages/ui-vue/tests/action-registry.test.js`
+    - returns {def, handler} for a registered key
+    - dispatch calls handler with input
+    - ActionDefNotInManifestError for an unknown key
+    - MissingHandlerError for a declared key without a handler
+    - accepts handler registration for a declared key
+    - rejects registration for non-declared keys
+    - listOrphanedDefs: manifest-declared actions without a handler
+    - listOrphanedHandlers: registered handlers without a manifest def
 - `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
     - the guard reads every page in
     - no prop in
@@ -347,6 +613,21 @@ _Tested by:_
     - a sixth prop
     - an exception tag with no real reason
     - a declared exception passes
+- `packages/ui-vue/tests/use-tenant-action-flow.test.js`
+    - actionsForRow returns [] when manifest is null
+    - actionsForRow returns [] when tenants.actions is empty
+    - Confirm → MFA → Handler in correct order
+    - Confirm abort prevents MFA + Handler
+    - MFA abort prevents Handler
+    - hides action when requiredCapability is false in the manifest
+    - hides action when no handler is registered in the actions map
+    - visibleForRow filters row-specifically by capability+handler
+    - availableActions is row-independent — Reactivate stays visible despite a sample row with
+      isActive=true
+    - availableActions statically filters disabled capabilities + orphan handlers
+    - throws when an action requires MFA but no mfa provider is set
+    - throws when an action requires confirm but no confirm provider is set
+    - orphanedDefs lists manifest actions without a handler
 
 <!-- END proof -->
 
@@ -371,6 +652,17 @@ _Tested by:_
     - an app-provided port is the one that gets asked
     - without one, the Quasar implementation is the fallback — which still asks
     - a context from an older package version still resolves, because the key is Symbol.for
+- `packages/ui-vue/tests/use-bulk-publish.test.js`
+    - sets items with default status pending
+    - all successful → success count = 3, done=true
+    - single error → success=2, failure=1, done=true
+    - empty changeNote → all items failed
+    - mfaCode sets X-Mfa-Code header
+    - auth token is sent along
+    - endpoints are called per kind
+    - override endpoints configurable
+    - progress=0 for empty set
+    - progress=0 before run, =1 after run
 
 <!-- END proof -->
 
@@ -385,6 +677,15 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/ui-vue/tests/action-registry.test.js`
+    - returns {def, handler} for a registered key
+    - dispatch calls handler with input
+    - ActionDefNotInManifestError for an unknown key
+    - MissingHandlerError for a declared key without a handler
+    - accepts handler registration for a declared key
+    - rejects registration for non-declared keys
+    - listOrphanedDefs: manifest-declared actions without a handler
+    - listOrphanedHandlers: registered handlers without a manifest def
 - `packages/ui-vue/tests/component/bundle-actions-belong-to-their-object.test.ts`
     - save and publish share one bar
     - discard stays with the draft state that offers it
@@ -412,6 +713,19 @@ _Source:_ release 0.26.0
 
 _Tested by:_
 
+- `packages/ui-vue/tests/batch-column-fetcher.test.js`
+    - 1 request per column with comma-separated tenantIds
+    - paramStyle=repeat
+    - Capability filter: insufficient columns are not fetched
+    - empty tenantIds list → empty object, no request
+    - the client
+    - appends correctly to an endpoint with an existing query
+    - per-Tenant placeholder in endpoint → BatchColumnDriftError
+    - listDriftIssues collects all problematic columns
+    - non-200 response throws an error naming column, endpoint and status
+    - returns only columns with a satisfied Capability
+- `packages/ui-vue/tests/component/the-page-suite-finds-the-dashboard-distributions.test.ts`
+    - every distribution title answers the selector the suite ships
 - `packages/ui-vue/tests/component/typed-lists-carry-their-row-type.test.ts`
     - hands a page its rows already typed, with no assertion at the call site
     - refuses the resources and operations that cannot answer with a page
@@ -433,6 +747,48 @@ _Tested by:_
     - a page below the first is the first
     - a fractional page is the one it is on
     - a page size stays inside 1..max
+- `packages/ui-vue/tests/use-api-list-shape.test.js`
+    - Raw array
+    - Wrapper object
+    - Empty array → items=[], total=0
+    - null/undefined body → items=[], no crash
+- `packages/ui-vue/tests/use-api-list.test.js`
+    - autoLoad triggers first request
+    - autoLoad=false skips initial load
+    - reload() makes an additional request
+    - goToPage(N) → page param changes
+    - setPageSize(N) → jumps to page 1
+    - goToPage(0) → clamps to page 1
+    - filter values as query params, empty values omitted
+    - endpoint with query string → correct separator
+    - the client
+    - non-200 → error.value set, items.value empty
+- `packages/ui-vue/tests/use-resource-list.test.js`
+    - asks the descriptor’s endpoint, which no caller had to supply
+    - does not block setup — nothing has loaded synchronously
+    - immediate: false loads nothing until asked
+    - an opening page size is one request, not two
+    - an opening page size past the cap is capped, not sent
+    - goToPage moves the request and the ref
+    - setPageSize returns to the first page
+    - a page off the scale is clamped before it is sent
+    - a changed filter reloads from the first page
+    - a filter mutated in place is seen too
+    - a reported total is the total
+    - an unreported total falls back to the rows in hand
+    - a bare array — what the tenants controller actually answers — is rows and count
+    - a failure arrives as an AdminError carrying the status
+    - a failure empties the table rather than leaving stale rows under it
+    - a superseded load does not overwrite the newer one
+    - a clamped page is adopted, so the next request asks for what is shown
+    - an overdue answer moves neither the rows nor the paginator
+    - an answer that says nothing about the page leaves the asked-for one
+    - an operation the resource does not have fails by name, listing what there is
+    - an operation named after an Object prototype key does not exist either
+    - no registry in scope says so, in the registry’s own words
+    - a filter that claims the pagination fails where it is written
+    - a filter that gains one later fails on the next load, without a word for the operator
+    - an empty or absent pagination key in the filter is not a claim
 
 <!-- END proof -->
 
@@ -473,6 +829,9 @@ _Tested by:_
     - inline and block are different treatments, not the same one twice
     - the tone is a class, so the theme decides what it looks like
     - the label is always there — colour never carries the status alone
+- `packages/ui-vue/tests/flex-direction-override.test.js`
+    - the sweep found the stylesheets
+    - no rule flips flex-direction while inheriting justify-content
 - `tests/px-to-scale.test.js`
     - an exact value takes its own token
     - a midpoint rounds down
@@ -505,6 +864,24 @@ _Tested by:_
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
     - No composable/loader has
     - useTenants() WITHOUT the endpoint option throws with a clear error message
+- `packages/ui-vue/tests/project-page-host.test.js`
+    - returns a catch-all route with the ProjectPageHost component
+    - path pattern can be overridden
+    - does not match the empty /admin path so the dashboard redirect applies
+    - exports SUPER_ADMIN_EXTENSIONS_KEY and SUPER_ADMIN_MANIFEST_KEY
+    - ProjectPageHost is a defineComponent-compatible component
+    - returns null when no accessor was provided
+    - returns the manifest value via a provided accessor
+- `packages/ui-vue/tests/use-tenant-billing-url.test.js`
+    - default apiPrefix is /billing (no /api prefix → no doubling)
+    - custom apiPrefix /api/v1/billing is used 1:1 as sub-path (no /api adapter)
+    - trailing slash in apiPrefix is normalized (no //billing)
+    - plan preview, bundles and cancel all go under the same prefix
+    - default apiPrefix is /billing — catalog endpoints land under
+      /billing/{plans,bundles,feature-registry}
+    - an explicit cycle is sent by both the preview and the booking
+    - omitting it sends no field at all, so the plan’s rhythm decides
+    - a minimum term still travels, alone or beside a cycle
 - `packages/ui-vue-tenant/tests/component/tenant-primitives.test.ts`
     - it renders a native button that does not submit
     - an accessible name from the call site lands on the button itself
@@ -538,6 +915,21 @@ _Source:_ ADR 0011 · #207
 
 _Tested by:_
 
+- `packages/ui-vue/tests/theme-layer-discipline.test.js`
+    - the sweep reached all four layers
+    - the sweep reached the inline styles too
+    - the audit
+    - the audit
+    - L1 primitives reference nothing
+    - L2 roles contain no colour literal
+    - L3 component sheets contain no colour literal
+    - L3 component sheets do not reach past the roles into the palette
+    - every font-size names a step of the type scale
+    - the package does not use its own deprecation shims
+    - a foreground role is never used as a background
+    - surfaces that do not follow the theme use only roles that do not flip
+    - pages and components do not reach past the roles into the palette
+    - no rule paints --sa-color-accent as text on an accent surface
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
     - the export map still publishes stylesheets
     - ${label} imports all of them
@@ -602,6 +994,10 @@ _Tested by:_
     - true only for an explicit production environment
     - a malformed payload is not treated as production
     - other environments are not production
+- `packages/ui-vue/tests/scaffolder-brand-defaults.test.js`
+    - both declarations are found
+    - they are the same colour
+    - the fixture declares no palette of its own
 - `tests/quasar-colours-resolve-to-the-theme.test.js`
     - the sources actually paint Quasar colours
     - no page paints a Quasar palette rung the theme cannot move
@@ -756,6 +1152,37 @@ _Tested by:_
     - every hex in the file is one of the ramp values
     - ${label} is concrete, not a token reference
     - ${label} fits the promotion column
+- `packages/ui-vue/tests/theme-reaches-every-page.test.js`
+    - the reach markers are derivable from the stylesheets
+    - a marker that exists only inside a comment does not count
+    - every standard page renders a node inside that reach
+- `packages/ui-vue/tests/theme-token-parity.test.js`
+    - the files were actually read
+    - every light role has a dark counterpart, and the reverse
+    - the theme fires only on a signal the application sent
+    - no role is declared twice within one theme
+- `packages/ui-vue/tests/use-sa-theme.test.js`
+    - defaults to
+    - an explicit scheme resolves to itself
+    - without matchMedia,
+    - an explicit pick outranks the operating system
+    - the picked scheme is written to storage
+    - a stored pick outranks the app default
+    - a corrupt stored value falls back to the app default
+    - persist: false neither reads nor writes storage
+    - an app-supplied Ref is used as-is and is not persisted
+    - dispose() ends the operating-system subscription
+    - dispose() is idempotent and stops persisting
+    - a stored pick does not overrule an app-supplied Ref
+    - the switcher is on by default
+    - an app can turn it off
+    - a readonly scheme turns it off on its own
+    - it offers exactly the three schemes, in a stable order
+    - two apps on one origin can keep their picks apart
+    - a prefixed app reads back its own pick, not the unprefixed one
+    - the key itself is unchanged
+    - outside a shell it returns a shared, unpersisted instance
+    - the injection key is a global symbol
 - `tests/a-role-that-is-read-is-defined.test.js`
     - both sides of the comparison were actually read
     - the definitions reach the scale, not only the colours
@@ -794,6 +1221,34 @@ _Tested by:_
     - an app-provided port is the one that gets asked
     - without one, the Quasar implementation is the fallback — which still asks
     - a context from an older package version still resolves, because the key is Symbol.for
+- `packages/ui-vue/tests/use-dialog.test.js`
+    - the panel carries the modal role and is named by its heading
+    - opening moves focus into the panel
+    - closing puts focus back where it was
+    - a trigger that is gone by then leaves focus at the document body
+    - unmounting while open still gives the focus back
+    - tab from the last control wraps to the first
+    - shift+tab from the first control wraps to the last
+    - shift+tab from the panel itself wraps to the last control
+    - a tab from outside the panel is pulled back in
+    - a panel with nothing tabbable keeps the caret on itself
+    - escape asks the caller to close
+    - a persistent dialog ignores escape
+    - a click on the backdrop closes, a click in the panel does not
+    - a persistent dialog ignores the backdrop too
+    - a closed dialog no longer answers escape
+    - the lock is taken while open and given back on close
+    - an inner dialog closing does not give the page back to the outer one
+    - the default is body
+    - a host that names a container gets it
+- `packages/ui-vue-tenant/tests/component/tenant-dialogs.test.ts`
+    - the panel is a modal named by its own heading
+    - a persistent dialog still renders a way out
+    - a closed dialog renders nothing at all
+    - the close control asks the caller to close
+    - its title and the bundle label both reach the head
+    - the footer confirm carries the action, and blockers disable it
+    - while it loads, the ring is decoration and the sentence carries the news
 
 <!-- END proof -->
 
@@ -844,6 +1299,23 @@ _Source:_ #133 · `docs/explanation/design-guide.md`
 
 _Tested by:_
 
+- `packages/ui-vue/tests/component/admin-accordion.test.ts`
+    - it is a button, and one that does not submit
+    - aria-expanded says which state it is in
+    - aria-controls names the body that is actually there
+    - the body names the trigger back
+    - two instances on ONE page do not share their ids
+    - a disabled row is inert and says so
+    - the body is absent while closed, not merely hidden
+    - a click asks for the opposite, and changes nothing by itself
+    - an open row asks to close
+    - it renders outside the button
+    - clicking it does not toggle the row
+    - nothing is rendered for it when the slot is unused
+    - the page supplies a glyph and the component supplies the frame
+    - a row whose state the badge should report says so
+    - no badge is drawn for a row that has no glyph
+    - the badge sits inside the trigger, unlike the actions
 - `packages/ui-vue/tests/component/disclosures-open-what-they-say.test.ts`
     - the row is a button that says whether it is open
     - clicking one row opens that row, and only that one
@@ -875,6 +1347,57 @@ _Tested by:_
 🟢 A malformed payload leaves a page that says so, not a blank content area beside a working shell.
 
 _Source:_ release 0.24.1
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/use-async-action.test.js`
+    - resolves what the action returned
+    - passes every argument through
+    - pending is true while in flight and false afterwards
+    - runs onSuccess with the result, before run resolves
+    - stays silent on success by default
+    - notifyOn
+    - a success message may be computed at call time
+    - reports the failure in the result instead of throwing
+    - a void action is still distinguishable — the whole reason for the shape
+    - records the failure as an AdminError
+    - clears pending even when the action throws
+    - skips onSuccess
+    - reports through the notify port, worded from the default catalog
+    - what the server said outranks the catalog
+    - errorMessage outranks both, and sees the AdminError
+    - notifyOn
+    - without a notify port the failure is still recorded
+    - pending stays true until the last one settles
+    - the older call failing last leaves no error behind
+    - but a failure from the newest call is still recorded
+    - a success toast that throws leaves the action successful
+    - a successMessage that throws does the same
+    - an error toast that throws still returns the action failure
+    - a failing continuation fails the action, and says so only once
+    - a continuation that succeeds still gets its success toast
+    - a later success clears an earlier failure
+    - reset clears it without running anything
+- `packages/ui-vue/tests/use-async-data.test.js`
+    - starts at the initial value
+    - loads on creation by default
+    - immediate: false loads nothing until asked
+    - does not block setup — nothing has loaded synchronously
+    - pending is true while in flight
+    - records the failure as an AdminError
+    - puts the data back to initial rather than leaving stale rows
+    - reload does not throw
+    - clears pending even when the load throws
+    - a later success clears the error
+    - a superseded load does not overwrite the newer one
+    - a superseded load does not clear pending while the newer one runs
+    - a superseded load that FAILS does not wipe the page or raise its error
+    - reloads when a watched source changes
+    - a watched source combines with immediate: false — the first load is the change
+
+<!-- END proof -->
 
 ### SC-UI-021 — A campaign that worked looks like a success, not a fault
 

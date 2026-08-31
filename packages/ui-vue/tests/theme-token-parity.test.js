@@ -1,3 +1,6 @@
+// @requirement SC-UI-016 — Light and dark are both shipped, and a person can pick
+// @requirement SC-A11Y-001 — Text is legible in both themes
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

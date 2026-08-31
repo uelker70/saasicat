@@ -14,11 +14,31 @@ not surfaced either. Otherwise the flow becomes a way to enumerate customers.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - start() with active user → no PendingRegistration created
+    - start() email normalization: trim + lowercase
+    - resendOtp() unknown email → neutral response, no throw
+
+<!-- END proof -->
+
 ### SC-REG-002 — A half-finished registration is never counted as a customer
 
 🟢 Not in numbers an operator reads, and not in a check for whether an address is already taken.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - start() creates PendingRegistration and sends OTP
+
+<!-- END proof -->
 
 ### SC-REG-003 — Accepting the terms, the privacy notice and the data agreement is part of step one
 
@@ -32,11 +52,30 @@ _Source:_ release 1.0.0-rc.7
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - start() with active user → no PendingRegistration created
+
+<!-- END proof -->
+
 ### SC-REG-005 — Restarting an unverified registration issues a new code and keeps the stored data
 
 🟢 The old code stops working, and nothing somebody else typed overwrites what is there.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - start() with expired PendingRegistration → deletes + creates new
+    - start() with existing PENDING_EMAIL_VERIFICATION → OTP is regenerated
+
+<!-- END proof -->
 
 ### SC-REG-006 — A verification code expires, and says so
 
@@ -45,6 +84,15 @@ like a wrong code.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - verifyOtp() expired OTP → OTP_EXPIRED
+
+<!-- END proof -->
+
 ### SC-REG-007 — After five wrong verification codes the attempt is locked
 
 🟢 A subsequently correct code no longer works, and the only way on is a new code. The attempt is
@@ -52,11 +100,32 @@ counted before the code is compared, so parallel attempts cannot race past the l
 
 _Source:_ `SECURITY.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - verifyOtp() after 5 failed attempts → OTP_LOCKED
+    - verifyOtp() correct code after lockout → still OTP_LOCKED
+    - verifyOtp() parallel failed attempts with stale counter → atomic increment locks
+
+<!-- END proof -->
+
 ### SC-REG-008 — A locked verification tells the person to request a new code
 
 🟢 Not to try again, which is the one thing that will not work.
 
 _Source:_ `SECURITY.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - verifyOtp() correct code after lockout → still OTP_LOCKED
+    - resendOtp() after lockout → new code unlocks (counter reset)
+
+<!-- END proof -->
 
 ### SC-REG-009 — Repeated attempts are rate-limited, and the answer says how long to wait
 
@@ -65,12 +134,33 @@ dropped instead.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - resendOtp() rate limit kicks in → silently dropped after 3 sends
+
+<!-- END proof -->
+
 ### SC-REG-010 — A registration expires, and so does the link that resumes it
 
 🟢 An abandoned one is removed outright rather than kept in a reduced form, so the address becomes
 usable again.
 
 _Source:_ `docs/reference/error-codes.md` · release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - start() with expired PendingRegistration → deletes + creates new
+    - runCleanup() deletes expired, leaves active alone
+    - resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID
+    - resume: resumeWithToken() token points to deleted Pending → RESUME_TOKEN_INVALID
+
+<!-- END proof -->
 
 ### SC-REG-011 — The steps come in order
 
@@ -79,17 +169,50 @@ registration.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - start() creates PendingRegistration and sends OTP
+    - selectPlan() without email verification (PENDING_EMAIL_VERIFICATION) →
+      INVALID_REGISTRATION_STATE
+    - startCheckout() without plan selection → PLAN_NOT_SELECTED
+
+<!-- END proof -->
+
 ### SC-REG-012 — The plan can be changed freely up to the moment of payment
 
 🟢 And it is checked again at that moment, because it may have left the catalogue in between.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - selectPlan() plan change in status PLAN_SELECTED is allowed
+
+<!-- END proof -->
+
 ### SC-REG-013 — A plan that does not exist and one that is not on offer answer the same
 
 🟢 Otherwise the difference between the two would tell a stranger which plans an installation has.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - onboarding throws ForbiddenException for blocked self-service plans
+- `packages/nest/tests/registration-service.test.js`
+    - selectPlan() non-catalogued plan → PLAN_NOT_AVAILABLE
+    - listPublicPlans() passes the plan list through
+
+<!-- END proof -->
 
 ### SC-REG-014 — Prices in the sign-up flow are worked out by the server
 
@@ -98,11 +221,29 @@ applies to, and no total goes below zero.
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - startCheckout() calls provider with correct params
+
+<!-- END proof -->
+
 ### SC-REG-015 — A promotional code is re-checked every time the price is shown
 
 🟢 The stored code is only there to be displayed back to the person entering it.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - onboarding with promoCode + PromoCodesService redeems atomically
+
+<!-- END proof -->
 
 ### SC-REG-016 — The account, the tenant and the subscription are created together or not at all
 
@@ -110,11 +251,29 @@ _Source:_ release 1.0.0-rc.7
 
 _Source:_ release 1.0.0-rc.7
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription created
+
+<!-- END proof -->
+
 ### SC-REG-017 — Add-ons chosen during sign-up never cost somebody their plan
 
 🟢 If one of them cannot be booked, it becomes a warning and the plan still activates.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - onboarding throws BadRequestException when plan-change blockers are active
+
+<!-- END proof -->
 
 ### SC-REG-018 — Whether a payment confirmation is genuine is the integrator's to verify
 
@@ -123,11 +282,33 @@ payment confirmation, so verification sits in front of the route.
 
 _Source:_ `SECURITY.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - startCheckout() calls provider with correct params
+    - handlePaymentEvent() without sessionId → MISSING_SESSION_ID
+
+<!-- END proof -->
+
 ### SC-REG-019 — The same payment event applied twice changes nothing
 
 🟢 Providers retry, and a retry must not create a second account or a second charge.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
+    - handlePaymentEvent() FAILED → no activation, but event claimed
+    - audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate →
+      PAYMENT_DUPLICATE_IGNORED
+
+<!-- END proof -->
 
 ### SC-REG-020 — A resumed registration never carries a password or a verification code with it
 
@@ -135,3 +316,13 @@ _Source:_ `docs/explanation/data-model.md`
 used against them.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - resume: resumeWithToken() success → returns pending ID + nextStep + snapshot
+    - resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID
+
+<!-- END proof -->

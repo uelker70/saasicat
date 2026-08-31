@@ -10,6 +10,8 @@
 //   5. Bulk publish: useBulkPublish.run → parallel publishes.
 //   6. Logout: clearCache → ETag disappears.
 
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

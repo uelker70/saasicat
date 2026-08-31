@@ -1,3 +1,5 @@
+// @requirement SC-A11Y-001 — Text is legible in both themes
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

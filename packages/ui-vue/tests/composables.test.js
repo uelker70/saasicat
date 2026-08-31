@@ -1,3 +1,5 @@
+// @requirement SC-UI-003 — Replacing one operation that does not exist is refused at start-up
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { useManifest, usePublicBoot } from '../dist/index.js';

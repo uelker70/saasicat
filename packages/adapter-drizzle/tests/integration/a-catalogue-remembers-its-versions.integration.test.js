@@ -8,6 +8,9 @@
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
+// @requirement SC-PLAN-004 — A published version is never deleted
+// @requirement SC-PLAN-014 — A plan that has ever been published is kept
+
 import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';

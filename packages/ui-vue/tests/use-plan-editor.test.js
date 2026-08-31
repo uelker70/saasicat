@@ -1,3 +1,6 @@
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+// @requirement SC-PLAN-002 — A plan has at most one unpublished draft at a time
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { usePlanEditor, PlannedOnlyFeatureError } from '../dist/index.js';

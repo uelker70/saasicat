@@ -9,6 +9,8 @@
 // reached at all, because "delegates to useAsyncData" is a claim about
 // behaviour, not about an import.
 
+// @requirement SC-UI-011 — A list says how many rows there are, or says it is showing what it received
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

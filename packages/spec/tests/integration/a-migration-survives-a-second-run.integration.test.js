@@ -29,6 +29,9 @@
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
+// @requirement SC-OPS-002 — A migration is safe on a partially adopted schema
+// @requirement SC-OPS-003 — An operator can list what a migration will touch before running it
+
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';

@@ -471,6 +471,8 @@ _Source:_ release 0.17.0
 
 _Tested by:_
 
+- `packages/nest/tests/registration-helpers.test.js`
+    - slugify: the fallback carries no domain vocabulary
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
     - No composable/loader has
     - useTenants() WITHOUT the endpoint option throws with a clear error message

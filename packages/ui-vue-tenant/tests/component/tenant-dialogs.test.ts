@@ -1,3 +1,5 @@
+// @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';

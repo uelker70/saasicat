@@ -48,6 +48,7 @@ test('verifyOtpCode returns true on a matching hash, false otherwise', () => {
     assert.equal(verifyOtpCode(hash, '12345'), false);
 });
 
+// @requirement SC-PRIV-003 — Passwords and verification codes cannot be read back out of storage
 test('verifyOtpCode returns false on a broken hash (no throw)', () => {
     assert.equal(verifyOtpCode('not-hex', '123456'), false);
     assert.equal(verifyOtpCode('', '123456'), false);
@@ -76,6 +77,7 @@ test('slugify: empty input returns the fallback', () => {
     assert.equal(slugify('!!!'), 'tenant');
 });
 
+// @requirement SC-LANG-012 — SaaSiCat carries no vocabulary from anybody's business
 test('slugify: the fallback carries no domain vocabulary', () => {
     // A car dealership registering under a name that reduces to nothing must
     // not end up on a slug from someone else's business.

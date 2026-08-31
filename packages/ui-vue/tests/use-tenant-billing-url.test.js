@@ -7,6 +7,8 @@
 // (default `/billing`). The composable calls `http(apiPrefix + path)` —
 // the adapter prepends its baseURL.
 
+// @requirement SC-UI-013 — A tenant-facing section can be embedded without adopting a UI framework
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { useTenantBilling, useTenantBillingCatalog } from '../dist/index.js';

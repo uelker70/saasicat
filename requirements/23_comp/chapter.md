@@ -523,6 +523,12 @@ _Tested by:_
 - `packages/ui-vue/tests/component/sfc-compiles.test.ts`
     - the sweep finds the files it claims to check
     - no file fails the SFC compiler
+- `packages/ui-vue/tests/composables-survive-the-server.test.js`
+    - the premise holds: there is no document here
+    - it does not reach for a document that is not there
+    - the markup it emits is still named
+    - the step machine needs no document to say where it is
+    - applying a brand colour is a no-op, and so is undoing it
 
 <!-- END proof -->
 
@@ -626,9 +632,16 @@ _Source:_ ADR 0007
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - text-declared enum columns round-trip against Postgres enum types
+    - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-drizzle/tests/the-query-map-describes-the-real-tables.test.js`
     - there is more than one, so a broken scan cannot pass by finding none
     - ${table} declares exactly the canonical columns
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - partial unique draft indexes exist
+    - one draft per plan lineage is enforced by the database
+    - subscriptions require planVersionId
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
     - secret roundtrip incl. enabledAt handling
     - write maps actor to userId + actorTag on audit_logs
@@ -697,6 +710,10 @@ _Tested by:_
     - money becomes a number, from a string or from a Decimal
     - the commitment date and the metadata survive both ways round
     - a features snapshot of mixed types keeps only the strings
+- `packages/nest/tests/create-saasicat-test-module.test.js`
+    - returns a DynamicModule with a test host
+    - default stubs are no-op capable
+    - overrides can replace individual adapters
 - `packages/nest/tests/saasicat-persistence.test.js`
     - standard adapters
         - SubscriptionPlanResolver only grants active subscriptions
@@ -729,6 +746,13 @@ _Tested by:_
 - `packages/adapter-drizzle/tests/every-exported-class-reaches-the-factory.test.js`
     - names enough exports for this check to mean anything
     - ${name} is reachable through drizzlePersistence()
+- `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
+    - text-declared enum columns round-trip against Postgres enum types
+    - the required planVersionId constraint bites through the drizzle write path
+- `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
+    - partial unique draft indexes exist
+    - one draft per plan lineage is enforced by the database
+    - subscriptions require planVersionId
 - `packages/nest/tests/an-adapter-without-a-plan-catalogue-can-sell-bundles.test.js`
     - boots with subscriptionBundles enabled
     - and the module is handed the repository it found
@@ -799,6 +823,13 @@ _Source:_ `docs/explanation/test-coverage.md`
 
 _Tested by:_
 
+- `examples/notesapp/tests/dev-proxy-targets-own-backend.test.mjs`
+    - docker-compose declares a default for every port the dev server needs
+    - the vite config reads the ports from the file, not from the shell
+    - ${variable}: the config fallback equals the compose default
+    - .env.example documents the same defaults it tells people to override
+- `examples/notesapp/tests/notesapp-smoke.test.mjs`
+    - static entitlement resolves the STARTER plan for every tenant
 - `tests/the-example-sends-the-role-its-guards-require.test.js`
     - the guard still names roles
     - ${label} assigns the role header

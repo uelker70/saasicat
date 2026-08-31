@@ -4,6 +4,9 @@
 // successful mutation; without the port everything stays as before;
 // freeze errors are non-fatal (the mutation is already persisted).
 
+// @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
+// @requirement SC-PRIC-012 — A contract mixing rhythms totals one period of its own rhythm
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTenantSubscriptionBundlesController } from '../dist/billing/index.js';

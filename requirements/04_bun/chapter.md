@@ -173,6 +173,20 @@ _Tested by:_
         - a bundle with no price in the asked rhythm is refused, not given away
         - the preview names the day the plan takes the bundle down with it
         - a plan that runs on names no end at all
+- `packages/ui-vue/tests/use-tenant-subscription-bundles.test.js`
+    - the endpoint is required — there is no prefix the platform could guess
+    - load() maps the wire dates on a record onto Dates
+    - the booking’s own period arrives as dates, not as wire strings
+    - a booking with no period of its own keeps null, not the epoch
+    - a nullable date that is set is mapped too
+    - load() keeps the list usable and reports the failure on
+    - a 204 to load() is an empty list, not a failure
+    - add() prepends the new bundle and sends the token
+    - without a token no Authorization header is invented
+    - cancel() replaces the row it cancelled
+    - a mutation the server answered without a body says the change may have landed
+    - a mutation that failed outright is not that — it says check the status
+    - autoLoad fetches without being asked
 - `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
     - no control appears, because there is one legal answer
     - the card quotes the monthly price with the monthly unit
@@ -241,6 +255,16 @@ _Tested by:_
         - during a trial it is booked, and waits for a window rather than inventing one
         - a plan that has no price for it refuses the booking outright
         - …while a plan the override does not touch books it happily
+- `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
+    - load() reads all three endpoints under the default prefix
+    - a trailing slash in the prefix does not become a double slash
+    - the wire form of a bundle becomes the shape the page renders
+    - the optional wire fields default rather than arriving as undefined
+    - a missing /bundles endpoint is not fatal — the plan page still renders
+    - a failing /plans clears what it could not load
+    - a client that resolves with status 0 fails the load rather than emptying it
+    - a client that rejects is reported, not swallowed
+    - it loads on its own unless the consumer says otherwise
 
 <!-- END proof -->
 
@@ -796,6 +820,15 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/integration/a-bundle-version-has-a-window.integration.test.js`
+    - the one whose window opened later wins
+    - a version with no window at all loses to one that has a window it is inside
+    - a closed window is excluded even when it is the later one
+    - a version is active throughout its last day, and not the next
+    - a version is not active before its window opens
+    - a bundle with no published version at all answers null, not an error
+    - does not offer the method, rather than answering from columns it ignores
+    - and hands back no window on a version that has one stored
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - a bundle the operator retired
         - is not priced, though its version is still live
@@ -881,6 +914,9 @@ _Tested by:_
         - idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED
         - draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED
         - custom defaultMinimumTermMonths from the config token takes effect
+- `packages/nest/tests/tenant-subscription-bundles-plan-compat.test.js`
+    - add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
+    - preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
 
 <!-- END proof -->
 
@@ -926,6 +962,24 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/adapter-drizzle/tests/integration/a-booking-outlives-the-request.integration.test.js`
+    - a booking with a window keeps every part of it
+    - a booking from before those columns keeps null, not an invented window
+    - an id nobody booked answers null rather than throwing
+    - the list is the subscription’s own, not the neighbour’s
+    - a subscription with no bookings lists nothing, rather than everything
+    - a booking nobody cancelled is active
+    - a cancellation still ahead leaves it active
+    - a cancellation that has landed ends it
+    - the effective date itself is the first moment it is over
+    - asking without a moment asks about now
+    - reactivating clears both dates and the booking is active again
+    - cancelling something that is not there says so, rather than doing nothing quietly
+    - reactivating something that is not there says so too
+    - active bookings of that version are counted, across subscriptions
+    - a different version is not counted
+    - a booking whose cancellation has landed is not counted
+    - a version nobody booked counts zero
 - `packages/adapter-prisma/tests/prisma-bundle.repository.test.js`
     - legacy default never requires, writes or exposes validity columns
     - enabled mode round-trips validity dates on create and update
@@ -1021,6 +1075,9 @@ _Tested by:_
     - a consumer without the bundle module is not blocked by bookings it cannot have
     - moving to a LONGER cycle with a monthly add-on is fine
     - the date falls back to the minimum term where no period is stored
+- `packages/nest/tests/tenant-subscription-bundles-plan-compat.test.js`
+    - add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
+    - preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally

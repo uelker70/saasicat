@@ -215,6 +215,14 @@ _Source:_ #212
 
 _Tested by:_
 
+- `packages/nest/tests/plan-change-preview.test.js`
+    - preview returns UPGRADE STARTER→STANDARD with proration and feature diff
+    - preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage too high
+    - preview blocks ENTERPRISE as a self-service target
+    - the self-service refusal names the plan and says what to do about it
+    - preview NOOP when plan and cycle are identical
+    - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
+    - limitsCheck renders the union of quota keys from limits, target plan and usage
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally
@@ -254,6 +262,21 @@ _Tested by:_
 🟢 They are told which limit and by how much, and reduce usage first.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-change-preview.test.js`
+    - preview returns UPGRADE STARTER→STANDARD with proration and feature diff
+    - preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage too high
+    - preview blocks ENTERPRISE as a self-service target
+    - the self-service refusal names the plan and says what to do about it
+    - preview NOOP when plan and cycle are identical
+    - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
+    - limitsCheck renders the union of quota keys from limits, target plan and usage
+
+<!-- END proof -->
 
 ### SC-CHG-013 — A change that removes features warns, it does not refuse
 

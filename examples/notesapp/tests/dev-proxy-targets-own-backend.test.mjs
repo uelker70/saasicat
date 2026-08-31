@@ -1,3 +1,5 @@
+// @requirement SC-COMP-014 — The example application is kept in step with the platform
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

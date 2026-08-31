@@ -1,3 +1,6 @@
+// @requirement SC-UI-009 — A destructive action says what it will destroy, by name
+// @requirement SC-PLAN-017 — Publishing happens in the administration, never in a seed
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { useBulkPublish, SA_MESSAGES, DEFAULT_SA_LOCALE } from '../dist/index.js';

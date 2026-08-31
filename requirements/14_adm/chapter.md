@@ -258,6 +258,16 @@ _Tested by:_
     - every writing route asks for the tenant administrator
     - the three that cost money are actually among them
     - reading and previewing stay open to every tenant user
+- `packages/nest/tests/tenant-billing-controller.test.js`
+    - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
+    - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
+    - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
+    - getUsage returns packageSnapshot=null when the Subscription has no snapshot
+    - getUsage throws NotFoundException when the Subscription is missing
+    - getUsage throws NotFoundException when tenantIdResolver yields no ID
+    - ComposedTenantAuthGuard chains guards in order — all ok = true
+    - ComposedTenantAuthGuard short-circuits on the first false
+    - ComposedTenantAuthGuard throws 403 without configured guards
 - `packages/nest/tests/tenant-manifest.test.js`
     - buildTenantManifestController
         - creates a controller class with the configured path
@@ -347,6 +357,8 @@ _Tested by:_
     - wrong Capability pattern → error
     - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
     - formatReport shows severity icons + paths
+- `packages/nest/tests/admin-resources.test.js`
+    - AdminResourcesService keeps tenant actions and writes their audit entry
 - `packages/nest/tests/tenant-manifest.test.js`
     - TenantManifestService
         - returns a snapshot with filtered NavItems (feature gate)
@@ -356,6 +368,18 @@ _Tested by:_
     - SaaSiCatModule + tenantManifest
         - tenantManifest without defaultPlanId/resolver throws
         - tenantManifest + defaultPlanId registers controller + service
+- `packages/ui-vue/tests/app-served-resources.test.js`
+    - ${c.op} calls ${c.method} ${c.url}
+    - every operation this descriptor declares has a case above
+    - ${name}.${c.op} calls ${c.method} ${c.url}
+    - ${name}: every operation has a case above
+    - ${name} sends the header with a code
+    - ${name} sends no header for an empty code
+    - users.resetPassword posts the audit reason
+    - promoCodes.detail reads one code by id
+    - reads exactly the endpoint the card declares
+    - a reading, not a rendering — the timestamp comes back unformatted
+    - a body with no recognised number reads as null, not as a failure
 - `packages/ui-vue/tests/manifest-loader.test.js`
     - GET without If-None-Match, persists body + ETag
     - the client
@@ -371,6 +395,16 @@ _Tested by:_
     - returns {etag, body} after a successful load
     - a token acquired after construction reaches the next request
     - a token that changes between requests is not cached
+- `packages/ui-vue/tests/manifest-store-factory.test.js`
+    - initial: manifest=null, loaded=false, loading=false
+    - ensureLoaded triggers load + sets loaded=true
+    - ensureLoaded is idempotent — second call does not load again
+    - parallel ensureLoaded calls share the same inflight promise
+    - ensureLoaded rejects with the original error, state is still set
+    - parallel ensureLoaded calls all reject with the same error
+    - clearCache clears manifest, loaded, loader cache
+    - reload forces a re-load
+    - uses the given
 - `packages/ui-vue/tests/nav-builder.test.js`
     - lists enabled StandardPages with Capability=true
     - rejects disabled pages
@@ -391,6 +425,29 @@ _Tested by:_
     - items within a section without mutation
     - returns the registered component
     - null for an unknown key
+- `packages/ui-vue/tests/resource-registry.test.js`
+    - refuses to be built without a client, rather than reaching for fetch
+    - the message names the two clients the package ships
+    - every platform resource builds from apiBase and locale alone
+    - and the plan list it hands out addresses the catalogue
+    - hands out the operations of the resource asked for
+    - an unknown key fails by name, listing what there is
+    - keys() reports what it can answer for
+    - asking twice gives the same operations
+    - a context getter is read per call
+    - a context override redirects one resource and leaves the others
+    - an http override sends one resource through another client
+    - one operation is wrapped and the other five stay the platform’s
+    - the wrapper may answer without calling the platform at all
+    - overriding a resource that does not exist fails at boot too
+    - an override named after an Object prototype key is still rejected
+    - an operation named after Object.prototype does not exist either
+    - overriding an operation that does not exist fails at boot, not at click
+    - is what the shell registers, and every entry is a resource
+    - the instance wrapper runs outside the app wrapper, and both run
+    - an instance context wins over the app context for that page only
+    - binding one operation leaves the others on the platform implementation
+    - an unknown resource says so instead of returning something inert
 
 <!-- END proof -->
 

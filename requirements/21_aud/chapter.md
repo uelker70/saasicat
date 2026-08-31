@@ -24,6 +24,13 @@ _Tested by:_
         - fromWebRequest builds AdminActor with source=web
         - fromWebRequest falls back to
         - fromCli builds AdminActor with source=cli + hostname
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - onboarding writes an audit log with COMPLETE_ONBOARDING_SUBSCRIPTION
+- `packages/nest/tests/registration-service.test.js`
+    - audit: start() logs REGISTRATION_STARTED + pendingId
+    - audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED
+    - audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate →
+      PAYMENT_DUPLICATE_IGNORED
 
 <!-- END proof -->
 
@@ -112,6 +119,15 @@ _Source:_ `docs/explanation/data-model.md`
 🟢
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/registration-service.test.js`
+    - audit: failure in AuditLogger does not crash the auth flow
+
+<!-- END proof -->
 
 ### SC-AUD-010 — A charge names where it came from and which agreement line it belongs to
 

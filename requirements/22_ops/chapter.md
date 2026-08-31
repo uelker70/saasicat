@@ -16,6 +16,34 @@ asked that column for its values, and the message named the column rather than t
 
 _Source:_ `CONTRIBUTING.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/integration/a-booking-outlives-the-request.integration.test.js`
+    - a booking with a window keeps every part of it
+    - a booking from before those columns keeps null, not an invented window
+    - an id nobody booked answers null rather than throwing
+    - the list is the subscription’s own, not the neighbour’s
+    - a subscription with no bookings lists nothing, rather than everything
+    - a booking nobody cancelled is active
+    - a cancellation still ahead leaves it active
+    - a cancellation that has landed ends it
+    - the effective date itself is the first moment it is over
+    - asking without a moment asks about now
+    - reactivating clears both dates and the booking is active again
+    - cancelling something that is not there says so, rather than doing nothing quietly
+    - reactivating something that is not there says so too
+    - active bookings of that version are counted, across subscriptions
+    - a different version is not counted
+    - a booking whose cancellation has landed is not counted
+    - a version nobody booked counts zero
+- `packages/nest/tests/registration-service.test.js`
+    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
+    - runCleanup() without expired → deleted=0, idempotent
+
+<!-- END proof -->
+
 ### SC-OPS-002 — A migration is safe on a partially adopted schema
 
 🟢 An installation that never took a particular table migrates the ones it does have, instead of
@@ -99,6 +127,9 @@ _Tested by:_
     - handles escaped quotes without leaving the string early
     - leaves a line without strings untouched
     - is linear on pathological input
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - there are migrations to check
+    - ${name} runs twice, and the second time changes nothing
 
 <!-- END proof -->
 
@@ -125,6 +156,9 @@ _Tested by:_
     - apply appends the enum above the model, once
     - an enum the consumer already declares is left alone
     - a bare model map still works, with no enums
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - there are migrations to check
+    - ${name} runs twice, and the second time changes nothing
 - `tests/build-stamp.test.js`
     - is stable across runs and changes with a source edit
     - sees a deleted file and a build config, not a test

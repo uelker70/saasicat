@@ -106,6 +106,14 @@ _Source:_ #222
 
 _Tested by:_
 
+- `packages/nest/tests/plan-change-preview.test.js`
+    - preview returns UPGRADE STARTER→STANDARD with proration and feature diff
+    - preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage too high
+    - preview blocks ENTERPRISE as a self-service target
+    - the self-service refusal names the plan and says what to do about it
+    - preview NOOP when plan and cycle are identical
+    - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
+    - limitsCheck renders the union of quota keys from limits, target plan and usage
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
     - the answer to the abandoned question is taken off the screen
     - and the confirmation cannot be given
@@ -205,6 +213,12 @@ _Tested by:_
         - counts the add-on as often as it falls due
         - a yearly add-on beside a yearly plan is counted once
         - a monthly contract adds a monthly add-on as it stands
+- `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
+    - add re-freezes the contract with an unchanged plan
+    - cancel re-freezes the contract
+    - without a ContractFreezePort, add works unchanged
+    - freeze error is non-fatal — the mutation result still comes back
+    - a failed mutation triggers no freeze
 
 <!-- END proof -->
 
@@ -281,6 +295,23 @@ customer cannot see is a surprise at the moment it becomes a problem; one they c
 they can act on.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/tenant-billing-controller.test.js`
+    - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
+    - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
+    - getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)
+    - getUsage returns packageSnapshot=null when the Subscription has no snapshot
+    - getUsage throws NotFoundException when the Subscription is missing
+    - getUsage throws NotFoundException when tenantIdResolver yields no ID
+    - ComposedTenantAuthGuard chains guards in order — all ok = true
+    - ComposedTenantAuthGuard short-circuits on the first false
+    - ComposedTenantAuthGuard throws 403 without configured guards
+
+<!-- END proof -->
 
 ### SC-PRIC-020 — A charge, once written, is never edited
 

@@ -2,6 +2,9 @@
 // is cheap: the function is framework-free, so a mounted row is not needed to
 // find out what a move costs in writes.
 
+// @requirement SC-PROMO-004 — A code that has been redeemed is never deleted; it is paused
+// @requirement SC-PLAN-024 — The order plans appear in is set by moving them, not by typing numbers
+
 import { deepStrictEqual } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 

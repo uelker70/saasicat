@@ -1,3 +1,5 @@
+// @requirement SC-PLAN-018 — The version that applies is the one valid on the day of the purchase
+
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 

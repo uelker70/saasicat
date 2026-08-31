@@ -2,6 +2,8 @@
 // Tests against the built bundle (`dist/index.js`) without DOM/Vue Test Utils —
 // the composable is HTTP-free and reactivity-only, so directly callable.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { useSubscriptionDraft, DEFAULT_YEARLY_FACTOR } from '../dist/index.js';

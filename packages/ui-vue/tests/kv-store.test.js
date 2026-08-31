@@ -3,6 +3,8 @@
 // touch into a throw, so the store has to degrade instead of taking the app
 // down with it.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+
 import { describe, test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 

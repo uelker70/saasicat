@@ -485,5 +485,12 @@ _Tested by:_
     - feature missing + redirectTo -&gt; next(
     - array requiresFeature -&gt; logical OR
     - loading + null snapshot + allowWhileLoading default -&gt; pass
+- `packages/ui-vue/tests/use-entitlement.test.js`
+    - autoLoad loads the snapshot
+    - hasFeature(key) returns a boolean
+    - hasFeature without a loaded Entitlement → false
+    - the client
+    - 500 → error set, entitlement null
+    - endpoint is required: without an endpoint useEntitlement throws
 
 <!-- END proof -->
