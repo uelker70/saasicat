@@ -116,37 +116,47 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 
 <!-- END proof -->
 
@@ -162,49 +172,60 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 - `packages/ui-vue/tests/use-discovery.test.js`
-    - the endpoint is required — there is no prefix the platform could guess
-    - load() adopts the snapshot and remembers the ETag
-    - the second load sends the ETag, and a 304 changes nothing
-    - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on `error`, not on a rejection the page has to catch
-    - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
-    - a failed rescan says rescan, not discovery
-    - a client that rejects is reported as it is, not re-wrapped
-    - a client that resolves with status 0 never reached the server
-    - a client that throws a non-Error still leaves an Error behind
-    - autoLoad fetches without being asked
+    - useDiscovery
+        - the endpoint is required — there is no prefix the platform could guess
+        - load() adopts the snapshot and remembers the ETag
+        - the second load sends the ETag, and a 304 changes nothing
+        - reload() drops the ETag, so the server has to answer with a body
+        - a failed load lands on `error`, not on a rejection the page has to catch
+        - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
+        - a failed rescan says rescan, not discovery
+        - a client that rejects is reported as it is, not re-wrapped
+        - a client that resolves with status 0 never reached the server
+        - a client that throws a non-Error still leaves an Error behind
+        - autoLoad fetches without being asked
 
 <!-- END proof -->
 
@@ -220,37 +241,47 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 
 <!-- END proof -->
 
@@ -265,17 +296,18 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/use-discovery.test.js`
-    - the endpoint is required — there is no prefix the platform could guess
-    - load() adopts the snapshot and remembers the ETag
-    - the second load sends the ETag, and a 304 changes nothing
-    - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on `error`, not on a rejection the page has to catch
-    - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
-    - a failed rescan says rescan, not discovery
-    - a client that rejects is reported as it is, not re-wrapped
-    - a client that resolves with status 0 never reached the server
-    - a client that throws a non-Error still leaves an Error behind
-    - autoLoad fetches without being asked
+    - useDiscovery
+        - the endpoint is required — there is no prefix the platform could guess
+        - load() adopts the snapshot and remembers the ETag
+        - the second load sends the ETag, and a 304 changes nothing
+        - reload() drops the ETag, so the server has to answer with a body
+        - a failed load lands on `error`, not on a rejection the page has to catch
+        - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
+        - a failed rescan says rescan, not discovery
+        - a client that rejects is reported as it is, not re-wrapped
+        - a client that resolves with status 0 never reached the server
+        - a client that throws a non-Error still leaves an Error behind
+        - autoLoad fetches without being asked
 
 <!-- END proof -->
 
@@ -290,39 +322,50 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 - `packages/ui-vue/tests/component/discovery-page-keeps-the-first-edit.test.ts`
-    - the second payload still holds the first edit
+    - DiscoveryPage carries a saved translation into the next save
+        - the second payload still holds the first edit
 
 <!-- END proof -->
 
@@ -364,32 +407,41 @@ _Tested by:_
         - a missing capability is retired on sync, a missing feature obsoleted
         - internal capabilities do not appear in the catalog
         - quota without declaredAt → usageProvider null
-        - approve persists the approval signature + approvedBy
-        - revoking approval (approved → pending) deletes the approval fields
-        - invalid transition (pending → outdated) is rejected
-        - approve without a snapshot is rejected
-        - reviewQuota approve uses the quota signature
-        - reviewFeature throws on an unknown key
-        - approved → outdated when the capability set changes
-        - approved stays approved when the signature is stable
-        - quota drift: a changed unit flips approved → outdated
-        - manual obsolete stays put on sync (no auto-resurrect)
-        - a requires change on a capability flips approved → outdated (#35)
-        - a vanished key with a replaces claimant gets successorKey + obsolete
-        - a vanished key without a claimant stays bare obsolete (no successorKey)
-        - a reappearing key loses its successorKey
-        - quota replaces sets successorKey on the old quota entry
-        - sync is idempotent: a second run counts no further replaced
-        - repository without setFeatureSuccessor: sync runs through without a pointer
-        - requires/replaces are mirrored into the feature entries
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
         - setFeatureI18n persists translations
-        - syncs the injected snapshot at boot (default on)
-        - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-        - registry does NOT overwrite existing SuperAdmin values (#12)
-        - seeds label even for an already-existing bare row (label==key) (#12)
-        - no-op when autoSyncDiscoveryAtBoot=false
-        - no-op without an injected snapshot
-        - swallows a sync error at boot (no boot crash)
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 - `packages/nest/tests/discovery-controller.test.js`
     - DiscoveryController — GET /admin/discovery
         - returns the discovery snapshot as the body

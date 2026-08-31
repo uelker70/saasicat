@@ -120,7 +120,7 @@ export function casesIn(text) {
      * costs more than reading it once.
      */
     const nameIn = (line) => {
-        const opens = /^\s*(?:describe|test|it)\(/.exec(line);
+        const opens = /^\s*(?:describe|suite|test|it)(?:\.\w+)?\(/.exec(line);
         if (!opens) return undefined;
         let from = opens[0].length;
         while (line[from] === ' ' || line[from] === '\t') from++;
@@ -169,16 +169,33 @@ export function casesIn(text) {
     // this reads indentation: Prettier owns the formatting of every file here.
     const skipped = new Array(lines.length).fill(false);
     const open = [];
+
+    // And the suites a line sits in, so a case is named by its path rather than
+    // by its leaf. Five suites in one file each holding "the endpoint is
+    // required" produced five identical lines under the requirement — a trace
+    // whose one job is to say which case to open.
+    const path = lines.map(() => []);
+    const suites = [];
+
     lines.forEach((line, at) => {
         if (!line.trim()) return;
         const depth = indent(line);
         while (open.length > 0 && depth <= open.at(-1)) open.pop();
+        while (suites.length > 0 && depth <= suites.at(-1).depth) suites.pop();
         skipped[at] = open.length > 0;
+        path[at] = suites.map((suite) => suite.title);
         if (/^\s*(?:describe|suite)\.skip\(/.test(line)) open.push(depth);
+        if (/^\s*(?:describe|suite)(?:\.\w+)?\(/.test(line)) {
+            const title = nameIn(line);
+            if (title) suites.push({ depth, title });
+        }
     });
 
-    /** The same, but only where the case actually runs. */
-    const liveCaseAt = (at) => (skipped[at] ? null : caseAt(at));
+    /** A case where it stands, by its full path, or nothing where it does not run. */
+    const caseNameAt = (at) => {
+        const leaf = skipped[at] ? null : caseAt(at);
+        return leaf ? [...path[at], leaf].join(' › ') : null;
+    };
 
     /** The cases under a block: deeper-indented, until the indentation returns. */
     const casesUnder = (at) => {
@@ -188,13 +205,13 @@ export function casesIn(text) {
             if (lines[i].trim() && indent(lines[i]) <= depth) break;
             // `test(` and not `test.skip(` — deliberately, not by accident of
             // the pattern. A skipped case is a case that does not run.
-            const name = liveCaseAt(i);
+            const name = caseNameAt(i);
             if (name) names.push(name);
         }
         return names;
     };
 
-    const everyCase = lines.map((_, at) => liveCaseAt(at)).filter(Boolean);
+    const everyCase = lines.map((_, at) => caseNameAt(at)).filter(Boolean);
 
     const found = [];
     let pending = [];
@@ -209,21 +226,19 @@ export function casesIn(text) {
             return;
         }
 
-        const block = /^\s*describe\(/.test(line);
-        const title = block ? nameIn(line) : caseAt(at);
-        if (title && pending.length > 0) {
+        const block = /^\s*(?:describe|suite)(?:\.\w+)?\(/.test(line);
+        const opens = block ? nameIn(line) : caseAt(at);
+        if (opens && pending.length > 0) {
             const ids = pending;
             pending = [];
             // A block with no live case under it proves nothing, and must not
             // stand in for one: a suite whose cases are all skipped would
             // otherwise read as covered, which is the one thing a coverage
             // number must never say.
-            const names = block ? casesUnder(at) : skipped[at] ? [] : [title];
-            for (const id of ids) {
-                for (const name of names) {
-                    found.push({ id, case: block ? `${title} › ${name}` : name });
-                }
-            }
+            // The path comes from the walk, not from this branch: an
+            // annotation on a nested block used to name one level of it.
+            const names = block ? casesUnder(at) : [caseNameAt(at)].filter(Boolean);
+            for (const id of ids) for (const name of names) found.push({ id, case: name });
             opened = true;
             return;
         }

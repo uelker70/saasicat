@@ -174,39 +174,45 @@ _Tested by:_
         - the preview names the day the plan takes the bundle down with it
         - a plan that runs on names no end at all
 - `packages/ui-vue/tests/use-tenant-subscription-bundles.test.js`
-    - the endpoint is required — there is no prefix the platform could guess
-    - load() maps the wire dates on a record onto Dates
-    - the booking’s own period arrives as dates, not as wire strings
-    - a booking with no period of its own keeps null, not the epoch
-    - a nullable date that is set is mapped too
-    - load() keeps the list usable and reports the failure on `error`
-    - a 204 to load() is an empty list, not a failure
-    - add() prepends the new bundle and sends the token
-    - without a token no Authorization header is invented
-    - cancel() replaces the row it cancelled
-    - a mutation the server answered without a body says the change may have landed
-    - a mutation that failed outright is not that — it says check the status
-    - autoLoad fetches without being asked
+    - useTenantSubscriptionBundles
+        - the endpoint is required — there is no prefix the platform could guess
+        - load() maps the wire dates on a record onto Dates
+        - the booking’s own period arrives as dates, not as wire strings
+        - a booking with no period of its own keeps null, not the epoch
+        - a nullable date that is set is mapped too
+        - load() keeps the list usable and reports the failure on `error`
+        - a 204 to load() is an empty list, not a failure
+        - add() prepends the new bundle and sends the token
+        - without a token no Authorization header is invented
+        - cancel() replaces the row it cancelled
+        - a mutation the server answered without a body says the change may have landed
+        - a mutation that failed outright is not that — it says check the status
+        - autoLoad fetches without being asked
 - `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
-    - no control appears, because there is one legal answer
-    - the card quotes the monthly price with the monthly unit
-    - buying sends the rhythm rather than leaving it to be guessed
-    - the control appears, preselected to the plan — nobody is repriced by an upgrade
-    - switching moves the price and the unit together
-    - buying sends what was chosen, not what the plan is
-    - is not offered, and says why instead of showing a price
-    - becomes bookable again when the other rhythm is chosen
-    - keeps the reason that actually explains it when it is already booked
-    - an untouched control follows the plan when it turns yearly
-    - a rhythm the tenant chose survives a plan change that still offers it
-    - a choice the plan took away does not come back as a choice
-    - drops a selection the plan no longer offers
-    - a yearly booking states the yearly charge, not a monthly figure
-    - a monthly booking beside a yearly plan reads as monthly
-    - a price only an override supplies is shown, though no catalogue price exists
-    - a booking from before the rhythm was recorded takes the plan's
-    - a price the server did not send is joined from the catalogue in the booking's rhythm
-    - a price the server resolved to nothing is shown as nothing
+    - a monthly plan offers no choice
+        - no control appears, because there is one legal answer
+        - the card quotes the monthly price with the monthly unit
+        - buying sends the rhythm rather than leaving it to be guessed
+    - a yearly plan offers both
+        - the control appears, preselected to the plan — nobody is repriced by an upgrade
+        - switching moves the price and the unit together
+        - buying sends what was chosen, not what the plan is
+    - a bundle that is not sold in the chosen rhythm
+        - is not offered, and says why instead of showing a price
+        - becomes bookable again when the other rhythm is chosen
+        - keeps the reason that actually explains it when it is already booked
+    - a plan whose rhythm changes underneath the section
+        - an untouched control follows the plan when it turns yearly
+        - a rhythm the tenant chose survives a plan change that still offers it
+        - a choice the plan took away does not come back as a choice
+        - drops a selection the plan no longer offers
+    - what a booked bundle says it costs
+        - a yearly booking states the yearly charge, not a monthly figure
+        - a monthly booking beside a yearly plan reads as monthly
+        - a price only an override supplies is shown, though no catalogue price exists
+        - a booking from before the rhythm was recorded takes the plan's
+        - a price the server did not send is joined from the catalogue in the booking's rhythm
+        - a price the server resolved to nothing is shown as nothing
 
 <!-- END proof -->
 
@@ -256,15 +262,16 @@ _Tested by:_
         - a plan that has no price for it refuses the booking outright
         - …while a plan the override does not touch books it happily
 - `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
-    - load() reads all three endpoints under the default prefix
-    - a trailing slash in the prefix does not become a double slash
-    - the wire form of a bundle becomes the shape the page renders
-    - the optional wire fields default rather than arriving as undefined
-    - a missing /bundles endpoint is not fatal — the plan page still renders
-    - a failing /plans clears what it could not load
-    - a client that resolves with status 0 fails the load rather than emptying it
-    - a client that rejects is reported, not swallowed
-    - it loads on its own unless the consumer says otherwise
+    - useTenantBillingCatalog
+        - load() reads all three endpoints under the default prefix
+        - a trailing slash in the prefix does not become a double slash
+        - the wire form of a bundle becomes the shape the page renders
+        - the optional wire fields default rather than arriving as undefined
+        - a missing /bundles endpoint is not fatal — the plan page still renders
+        - a failing /plans clears what it could not load
+        - a client that resolves with status 0 fails the load rather than emptying it
+        - a client that rejects is reported, not swallowed
+        - it loads on its own unless the consumer says otherwise
 
 <!-- END proof -->
 
@@ -280,26 +287,30 @@ _Source:_ #239
 _Tested by:_
 
 - `packages/core/tests/bundle-defaults-are-decided-once.test.js`
-    - an omitted quota map is empty, not absent
-    - an omitted price is null, not zero
-    - an unstated bundle is marketed
-    - …and an explicit false stays false
-    - an omitted change note is empty, and lineage is null
-    - everything given is passed through untouched
-    - it says nothing about validity windows
-    - an omitted description or icon is null, not an empty string
-    - an unstated sort order is zero, and an explicit zero survives
-    - an omitted translation map is empty
-    - the identity fields are carried straight over
-    - dates become ISO strings, because that is what the row type says
-    - a retired stem carries its date rather than a flag
-    - an i18n map is passed through
-    - anything that is not a map becomes one
-    - an omitted field is not in the patch at all
-    - an explicit null is kept, because somebody chose it
-    - falsy values are values
-    - a key that was not asked for is not in the patch
-    - an empty patch is empty, not undefined
+    - what a new draft starts from
+        - an omitted quota map is empty, not absent
+        - an omitted price is null, not zero
+        - an unstated bundle is marketed
+        - …and an explicit false stays false
+        - an omitted change note is empty, and lineage is null
+        - everything given is passed through untouched
+        - it says nothing about validity windows
+    - what a new bundle stem starts from
+        - an omitted description or icon is null, not an empty string
+        - an unstated sort order is zero, and an explicit zero survives
+        - an omitted translation map is empty
+        - the identity fields are carried straight over
+    - reading a stored stem back
+        - dates become ISO strings, because that is what the row type says
+        - a retired stem carries its date rather than a flag
+        - an i18n map is passed through
+        - anything that is not a map becomes one
+    - the fields a caller actually gave
+        - an omitted field is not in the patch at all
+        - an explicit null is kept, because somebody chose it
+        - falsy values are values
+        - a key that was not asked for is not in the patch
+        - an empty patch is empty, not undefined
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -446,17 +457,18 @@ _Source:_ #221 · #222
 _Tested by:_
 
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
-    - a yearly add-on blocks the move to a monthly plan
-    - the blocker names the date the add-on runs to, so the tenant can act
-    - and says both in either language, not only in the English message
-    - the German sentence carries no English cycle word
-    - staying on the yearly cycle is not blocked
-    - a monthly add-on does not block a monthly plan
-    - an add-on with no rhythm of its own follows the plan and blocks nothing
-    - no active bookings, nothing to block
-    - a consumer without the bundle module is not blocked by bookings it cannot have
-    - moving to a LONGER cycle with a monthly add-on is fine
-    - the date falls back to the minimum term where no period is stored
+    - moving to a shorter cycle with a longer add-on booked
+        - a yearly add-on blocks the move to a monthly plan
+        - the blocker names the date the add-on runs to, so the tenant can act
+        - and says both in either language, not only in the English message
+        - the German sentence carries no English cycle word
+        - staying on the yearly cycle is not blocked
+        - a monthly add-on does not block a monthly plan
+        - an add-on with no rhythm of its own follows the plan and blocks nothing
+        - no active bookings, nothing to block
+        - a consumer without the bundle module is not blocked by bookings it cannot have
+        - moving to a LONGER cycle with a monthly add-on is fine
+        - the date falls back to the minimum term where no period is stored
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -481,26 +493,30 @@ _Source:_ #222
 _Tested by:_
 
 - `packages/core/tests/bundle-defaults-are-decided-once.test.js`
-    - an omitted quota map is empty, not absent
-    - an omitted price is null, not zero
-    - an unstated bundle is marketed
-    - …and an explicit false stays false
-    - an omitted change note is empty, and lineage is null
-    - everything given is passed through untouched
-    - it says nothing about validity windows
-    - an omitted description or icon is null, not an empty string
-    - an unstated sort order is zero, and an explicit zero survives
-    - an omitted translation map is empty
-    - the identity fields are carried straight over
-    - dates become ISO strings, because that is what the row type says
-    - a retired stem carries its date rather than a flag
-    - an i18n map is passed through
-    - anything that is not a map becomes one
-    - an omitted field is not in the patch at all
-    - an explicit null is kept, because somebody chose it
-    - falsy values are values
-    - a key that was not asked for is not in the patch
-    - an empty patch is empty, not undefined
+    - what a new draft starts from
+        - an omitted quota map is empty, not absent
+        - an omitted price is null, not zero
+        - an unstated bundle is marketed
+        - …and an explicit false stays false
+        - an omitted change note is empty, and lineage is null
+        - everything given is passed through untouched
+        - it says nothing about validity windows
+    - what a new bundle stem starts from
+        - an omitted description or icon is null, not an empty string
+        - an unstated sort order is zero, and an explicit zero survives
+        - an omitted translation map is empty
+        - the identity fields are carried straight over
+    - reading a stored stem back
+        - dates become ISO strings, because that is what the row type says
+        - a retired stem carries its date rather than a flag
+        - an i18n map is passed through
+        - anything that is not a map becomes one
+    - the fields a caller actually gave
+        - an omitted field is not in the patch at all
+        - an explicit null is kept, because somebody chose it
+        - falsy values are values
+        - a key that was not asked for is not in the patch
+        - an empty patch is empty, not undefined
 - `packages/nest/tests/subscription-bundles-service.test.js`
     - SubscriptionBundlesService — addBundleToSubscription
         - a booking commits the tenant to nothing unless somebody says so
@@ -579,12 +595,14 @@ _Tested by:_
         - states the capped term, not the uncapped one
         - and the full term where nothing ends the parent
 - `packages/ui-vue-tenant/tests/component/a-booking-states-what-it-commits-to.test.ts`
-    - the date the first period runs to is on the screen
-    - a booking with no period to align to says nothing rather than nothing-as-a-date
-    - a plan that is already ending names the day
-    - a plan that runs on shows no end date
-    - the no-refund rule holds whether or not the plan is ending
-    - a cancellation preview does not repeat the booking terms
+    - the first period is named before it is agreed to
+        - the date the first period runs to is on the screen
+        - a booking with no period to align to says nothing rather than nothing-as-a-date
+    - ending with the plan is stated, not left to be discovered
+        - a plan that is already ending names the day
+        - a plan that runs on shows no end date
+        - the no-refund rule holds whether or not the plan is ending
+        - a cancellation preview does not repeat the booking terms
 
 <!-- END proof -->
 
@@ -757,31 +775,36 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/bundle-availability.test.js`
-    - returns uncovered requires sorted + deduplicated
-    - empty when all requires are covered
-    - empty when the bundle has no requires
-    - bookable when requires covered and features are new
-    - missing-requires grays out bundle on uncovered prerequisite
-    - covered when all bundle features are already covered (already included)
-    - covered beats missing-requires (fully covered bundle never bookable)
-    - partial coverage stays bookable (not covered)
-    - bundle without features is never covered
-    - plan ∪ features of the other selected bundles, without the bundle itself
-    - excludes own features (otherwise every bundle would be trivially covered)
-    - Y is redundant when C is already covered by Z
-    - Z is not redundant — D is not covered elsewhere
-    - redundant when the plan already contains the features
-    - single selected bundle is not redundant (self-exclusion)
-    - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
-    - input order irrelevant — sorting determines the kept one (z remains)
-    - sortOrder controls which bundle is kept
-    - 3-cycle of identical bundles → exactly ONE remains
-    - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
-    - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
-    - bundles covered by the plan are discarded
-    - disjoint bundles are all kept
-    - empty selection → empty result
-    - does not mutate the input
+    - missingRequiresFor
+        - returns uncovered requires sorted + deduplicated
+        - empty when all requires are covered
+        - empty when the bundle has no requires
+    - resolveBundleAvailability
+        - bookable when requires covered and features are new
+        - missing-requires grays out bundle on uncovered prerequisite
+        - covered when all bundle features are already covered (already included)
+        - covered beats missing-requires (fully covered bundle never bookable)
+        - partial coverage stays bookable (not covered)
+        - bundle without features is never covered
+    - coverageExcludingSelf
+        - plan ∪ features of the other selected bundles, without the bundle itself
+        - excludes own features (otherwise every bundle would be trivially covered)
+    - isBundleRedundant
+        - Y is redundant when C is already covered by Z
+        - Z is not redundant — D is not covered elsewhere
+        - redundant when the plan already contains the features
+        - single selected bundle is not redundant (self-exclusion)
+    - selectChargeableBundles
+        - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
+        - input order irrelevant — sorting determines the kept one (z remains)
+        - sortOrder controls which bundle is kept
+        - 3-cycle of identical bundles → exactly ONE remains
+        - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
+        - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
+        - bundles covered by the plan are discarded
+        - disjoint bundles are all kept
+        - empty selection → empty result
+        - does not mutate the input
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - which bundles a tenant may ask the price of
         - a draft is not priced, because it was never on offer
@@ -821,14 +844,17 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-bundle-version-has-a-window.integration.test.js`
-    - the one whose window opened later wins
-    - a version with no window at all loses to one that has a window it is inside
-    - a closed window is excluded even when it is the later one
-    - a version is active throughout its last day, and not the next
-    - a version is not active before its window opens
-    - a bundle with no published version at all answers null, not an error
-    - does not offer the method, rather than answering from columns it ignores
-    - and hands back no window on a version that has one stored
+    - two versions inside the same moment
+        - the one whose window opened later wins
+        - a version with no window at all loses to one that has a window it is inside
+        - a closed window is excluded even when it is the later one
+    - the edges of one window
+        - a version is active throughout its last day, and not the next
+        - a version is not active before its window opens
+        - a bundle with no published version at all answers null, not an error
+    - an adapter that does not promise windows
+        - does not offer the method, rather than answering from columns it ignores
+        - and hands back no window on a version that has one stored
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - a bundle the operator retired
         - is not priced, though its version is still live
@@ -867,31 +893,36 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/bundle-availability.test.js`
-    - returns uncovered requires sorted + deduplicated
-    - empty when all requires are covered
-    - empty when the bundle has no requires
-    - bookable when requires covered and features are new
-    - missing-requires grays out bundle on uncovered prerequisite
-    - covered when all bundle features are already covered (already included)
-    - covered beats missing-requires (fully covered bundle never bookable)
-    - partial coverage stays bookable (not covered)
-    - bundle without features is never covered
-    - plan ∪ features of the other selected bundles, without the bundle itself
-    - excludes own features (otherwise every bundle would be trivially covered)
-    - Y is redundant when C is already covered by Z
-    - Z is not redundant — D is not covered elsewhere
-    - redundant when the plan already contains the features
-    - single selected bundle is not redundant (self-exclusion)
-    - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
-    - input order irrelevant — sorting determines the kept one (z remains)
-    - sortOrder controls which bundle is kept
-    - 3-cycle of identical bundles → exactly ONE remains
-    - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
-    - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
-    - bundles covered by the plan are discarded
-    - disjoint bundles are all kept
-    - empty selection → empty result
-    - does not mutate the input
+    - missingRequiresFor
+        - returns uncovered requires sorted + deduplicated
+        - empty when all requires are covered
+        - empty when the bundle has no requires
+    - resolveBundleAvailability
+        - bookable when requires covered and features are new
+        - missing-requires grays out bundle on uncovered prerequisite
+        - covered when all bundle features are already covered (already included)
+        - covered beats missing-requires (fully covered bundle never bookable)
+        - partial coverage stays bookable (not covered)
+        - bundle without features is never covered
+    - coverageExcludingSelf
+        - plan ∪ features of the other selected bundles, without the bundle itself
+        - excludes own features (otherwise every bundle would be trivially covered)
+    - isBundleRedundant
+        - Y is redundant when C is already covered by Z
+        - Z is not redundant — D is not covered elsewhere
+        - redundant when the plan already contains the features
+        - single selected bundle is not redundant (self-exclusion)
+    - selectChargeableBundles
+        - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
+        - input order irrelevant — sorting determines the kept one (z remains)
+        - sortOrder controls which bundle is kept
+        - 3-cycle of identical bundles → exactly ONE remains
+        - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
+        - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
+        - bundles covered by the plan are discarded
+        - disjoint bundles are all kept
+        - empty selection → empty result
+        - does not mutate the input
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - an operator publishes a bundle
         - a base price is enough
@@ -963,30 +994,35 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-booking-outlives-the-request.integration.test.js`
-    - a booking with a window keeps every part of it
-    - a booking from before those columns keeps null, not an invented window
-    - an id nobody booked answers null rather than throwing
-    - the list is the subscription’s own, not the neighbour’s
-    - a subscription with no bookings lists nothing, rather than everything
-    - a booking nobody cancelled is active
-    - a cancellation still ahead leaves it active
-    - a cancellation that has landed ends it
-    - the effective date itself is the first moment it is over
-    - asking without a moment asks about now
-    - reactivating clears both dates and the booking is active again
-    - cancelling something that is not there says so, rather than doing nothing quietly
-    - reactivating something that is not there says so too
-    - active bookings of that version are counted, across subscriptions
-    - a different version is not counted
-    - a booking whose cancellation has landed is not counted
-    - a version nobody booked counts zero
+    - what a booking carries
+        - a booking with a window keeps every part of it
+        - a booking from before those columns keeps null, not an invented window
+        - an id nobody booked answers null rather than throwing
+        - the list is the subscription’s own, not the neighbour’s
+        - a subscription with no bookings lists nothing, rather than everything
+    - what counts as active
+        - a booking nobody cancelled is active
+        - a cancellation still ahead leaves it active
+        - a cancellation that has landed ends it
+        - the effective date itself is the first moment it is over
+        - asking without a moment asks about now
+    - undoing a cancellation
+        - reactivating clears both dates and the booking is active again
+        - cancelling something that is not there says so, rather than doing nothing quietly
+        - reactivating something that is not there says so too
+    - counting what a catalogue version still owes
+        - active bookings of that version are counted, across subscriptions
+        - a different version is not counted
+        - a booking whose cancellation has landed is not counted
+        - a version nobody booked counts zero
 - `packages/adapter-prisma/tests/prisma-bundle.repository.test.js`
-    - legacy default never requires, writes or exposes validity columns
-    - enabled mode round-trips validity dates on create and update
-    - enabled mode resolves the active version with inclusive days and deterministic priority
-    - enabled publish is internally atomic and applies auto-succession
-    - enabled publish refuses a version somebody else published first
-    - enabled publish reuses a caller transaction instead of nesting one
+    - PrismaBundleRepository validity-window schema mode
+        - legacy default never requires, writes or exposes validity columns
+        - enabled mode round-trips validity dates on create and update
+        - enabled mode resolves the active version with inclusive days and deterministic priority
+        - enabled publish is internally atomic and applies auto-succession
+        - enabled publish refuses a version somebody else published first
+        - enabled publish reuses a caller transaction instead of nesting one
 - `packages/nest/tests/subscription-bundle-repo.test.js`
     - SubscriptionBundleRepository — lifecycle
         - add + listBySubscription returns the new booking
@@ -1064,17 +1100,18 @@ _Tested by:_
         - every combination, not three of the four
         - ${bundle} bundle on a ${plan} plan is ${allowed ? 'allowed' : 'refused'}
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
-    - a yearly add-on blocks the move to a monthly plan
-    - the blocker names the date the add-on runs to, so the tenant can act
-    - and says both in either language, not only in the English message
-    - the German sentence carries no English cycle word
-    - staying on the yearly cycle is not blocked
-    - a monthly add-on does not block a monthly plan
-    - an add-on with no rhythm of its own follows the plan and blocks nothing
-    - no active bookings, nothing to block
-    - a consumer without the bundle module is not blocked by bookings it cannot have
-    - moving to a LONGER cycle with a monthly add-on is fine
-    - the date falls back to the minimum term where no period is stored
+    - moving to a shorter cycle with a longer add-on booked
+        - a yearly add-on blocks the move to a monthly plan
+        - the blocker names the date the add-on runs to, so the tenant can act
+        - and says both in either language, not only in the English message
+        - the German sentence carries no English cycle word
+        - staying on the yearly cycle is not blocked
+        - a monthly add-on does not block a monthly plan
+        - an add-on with no rhythm of its own follows the plan and blocks nothing
+        - no active bookings, nothing to block
+        - a consumer without the bundle module is not blocked by bookings it cannot have
+        - moving to a LONGER cycle with a monthly add-on is fine
+        - the date falls back to the minimum term where no period is stored
 - `packages/nest/tests/tenant-subscription-bundles-plan-compat.test.js`
     - add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
     - preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID

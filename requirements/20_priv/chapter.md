@@ -107,9 +107,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/schema-apply-dry-run.test.js`
-    - it names the lines, and leaves the file untouched
-    - and the real run writes exactly those lines
-    - past tense belongs to the run that did it
+    - the dry run previews what the real run writes
+        - it names the lines, and leaves the file untouched
+        - and the real run writes exactly those lines
+        - past tense belongs to the run that did it
 
 <!-- END proof -->
 

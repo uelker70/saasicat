@@ -238,15 +238,16 @@ _Tested by:_
         - i18n: without a projection the bundle root label applies (description stays empty)
         - bundle promotions are resolved with targetType=BUNDLE
 - `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
-    - load() reads all three endpoints under the default prefix
-    - a trailing slash in the prefix does not become a double slash
-    - the wire form of a bundle becomes the shape the page renders
-    - the optional wire fields default rather than arriving as undefined
-    - a missing /bundles endpoint is not fatal — the plan page still renders
-    - a failing /plans clears what it could not load
-    - a client that resolves with status 0 fails the load rather than emptying it
-    - a client that rejects is reported, not swallowed
-    - it loads on its own unless the consumer says otherwise
+    - useTenantBillingCatalog
+        - load() reads all three endpoints under the default prefix
+        - a trailing slash in the prefix does not become a double slash
+        - the wire form of a bundle becomes the shape the page renders
+        - the optional wire fields default rather than arriving as undefined
+        - a missing /bundles endpoint is not fatal — the plan page still renders
+        - a failing /plans clears what it could not load
+        - a client that resolves with status 0 fails the load rather than emptying it
+        - a client that rejects is reported, not swallowed
+        - it loads on its own unless the consumer says otherwise
 
 <!-- END proof -->
 

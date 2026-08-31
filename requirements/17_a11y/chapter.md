@@ -20,57 +20,65 @@ _Source:_ `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
-    - Quasar's configured dark mode survives the bootstrap
-    - an explicit scheme still outranks what Quasar was set to
-    - Quasar's configured LIGHT mode survives a dark machine
-    - the machine still decides when Quasar says 'auto'
-    - Quasar's 'auto' stays 'system' rather than freezing
-    - with no dark configuration at all, the theme is left on system
-    - Quasar's own toggle is carried back into the theme
-    - the two directions do not chase each other
-    - a 'system' pick survives the bridge's own round trip
-    - Quasar's 'auto' comes back as 'system', not as a frozen value
-    - a hard pick that agrees with the machine is still a pick
-    - 'system' still follows the machine once the bridge has written to Quasar
-    - dispose() stops the bridge writing to the document
+    - the bootstrap and an already-chosen theme
+        - Quasar's configured dark mode survives the bootstrap
+        - an explicit scheme still outranks what Quasar was set to
+        - Quasar's configured LIGHT mode survives a dark machine
+        - the machine still decides when Quasar says 'auto'
+        - Quasar's 'auto' stays 'system' rather than freezing
+        - with no dark configuration at all, the theme is left on system
+        - Quasar's own toggle is carried back into the theme
+        - the two directions do not chase each other
+        - a 'system' pick survives the bridge's own round trip
+        - Quasar's 'auto' comes back as 'system', not as a frozen value
+        - a hard pick that agrees with the machine is still a pick
+        - 'system' still follows the machine once the bridge has written to Quasar
+        - dispose() stops the bridge writing to the document
 - `packages/ui-vue/tests/text-shape.test.js`
-    - accepts what the old pattern accepted
-    - rejects what the old pattern rejected, and the shapes it got wrong
-    - finishes on the input the pattern backtracked on
-    - strips a run of one character at either end and nothing inside
-    - finishes on a long run
+    - looksLikeEmail
+        - accepts what the old pattern accepted
+        - rejects what the old pattern rejected, and the shapes it got wrong
+        - finishes on the input the pattern backtracked on
+    - trimChar
+        - strips a run of one character at either end and nothing inside
+        - finishes on a long run
 - `packages/ui-vue/tests/theme-role-contrast.test.js`
-    - the sweep found rules and can resolve the palette
-    - gradient backgrounds are read, not skipped
-    - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
-    - every pairing the ${themeName} sweep leaves unjudged says why
-    - the helper no longer hands back the bare accent as text
-    - the resolver reaches real numbers for both input shapes
-    - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
-    - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
+    - a role background and a role foreground stay readable together
+        - the sweep found rules and can resolve the palette
+        - gradient backgrounds are read, not skipped
+        - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
+        - every pairing the ${themeName} sweep leaves unjudged says why
+    - the identity chip stays readable on its own tint
+        - the helper no longer hands back the bare accent as text
+        - the resolver reaches real numbers for both input shapes
+        - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
+        - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
 - `packages/ui-vue/tests/theme-token-parity.test.js`
-    - the files were actually read
-    - every light role has a dark counterpart, and the reverse
-    - the theme fires only on a signal the application sent
-    - no role is declared twice within one theme
+    - light and dark declare the same roles
+        - the files were actually read
+        - every light role has a dark counterpart, and the reverse
+        - the theme fires only on a signal the application sent
+        - no role is declared twice within one theme
 - `tests/a-role-that-is-read-is-defined.test.js`
-    - both sides of the comparison were actually read
-    - the definitions reach the scale, not only the colours
-    - the reads reach the two files the defect shipped in
-    - no role is read that the theme leaves undefined
-    - the rule is not vacuous: an undefined role is reported, with its line
-    - and a role the theme defines is not reported
-    - a fallback answers for the role it stands in for
-    - a nested read is a read of its own
-    - a role named in a comment is not a read
-    - a comment above a read does not move its line
-    - the import graph is followed, not guessed
+    - a role that is read is a role the theme defines
+        - both sides of the comparison were actually read
+        - the definitions reach the scale, not only the colours
+        - the reads reach the two files the defect shipped in
+        - no role is read that the theme leaves undefined
+        - the rule is not vacuous: an undefined role is reported, with its line
+        - and a role the theme defines is not reported
+        - a fallback answers for the role it stands in for
+        - a nested read is a read of its own
+        - a role named in a comment is not a read
+        - a comment above a read does not move its line
+        - the import graph is followed, not guessed
 - `tests/filled-status-carries-white-text.test.js`
-    - the base layer declares some
-    - each resolves to a literal colour rather than another variable
-    - white on each clears the floor
-    - both themes declare them, with the same value
-    - each theme hands the same four to Quasar, in its own block
+    - filled status surfaces carry white text
+        - the base layer declares some
+        - each resolves to a literal colour rather than another variable
+        - white on each clears the floor
+        - both themes declare them, with the same value
+        - each theme hands the same four to Quasar, in its own block
 
 <!-- END proof -->
 
@@ -86,20 +94,23 @@ _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/theme-role-contrast.test.js`
-    - the sweep found rules and can resolve the palette
-    - gradient backgrounds are read, not skipped
-    - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
-    - every pairing the ${themeName} sweep leaves unjudged says why
-    - the helper no longer hands back the bare accent as text
-    - the resolver reaches real numbers for both input shapes
-    - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
-    - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
+    - a role background and a role foreground stay readable together
+        - the sweep found rules and can resolve the palette
+        - gradient backgrounds are read, not skipped
+        - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
+        - every pairing the ${themeName} sweep leaves unjudged says why
+    - the identity chip stays readable on its own tint
+        - the helper no longer hands back the bare accent as text
+        - the resolver reaches real numbers for both input shapes
+        - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
+        - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
 - `tests/filled-status-carries-white-text.test.js`
-    - the base layer declares some
-    - each resolves to a literal colour rather than another variable
-    - white on each clears the floor
-    - both themes declare them, with the same value
-    - each theme hands the same four to Quasar, in its own block
+    - filled status surfaces carry white text
+        - the base layer declares some
+        - each resolves to a literal colour rather than another variable
+        - white on each clears the floor
+        - both themes declare them, with the same value
+        - each theme hands the same four to Quasar, in its own block
 
 <!-- END proof -->
 
@@ -116,12 +127,13 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/ui-vue/tests/design-token-budget.test.js`
-    - the audit reaches the source tree
-    - the inline-style sweep reads a fixture it cannot miss
-    - a CSS-wide keyword is not a typographic value
-    - a palette prop counts on a Quasar component and nowhere else
-    - ${metric} does not grow (floor ${floor} — ${why})
-    - ${metric} baseline has not overshot its floor
+    - design-token budgets
+        - the audit reaches the source tree
+        - the inline-style sweep reads a fixture it cannot miss
+        - a CSS-wide keyword is not a typographic value
+        - a palette prop counts on a Quasar component and nowhere else
+        - ${metric} does not grow (floor ${floor} — ${why})
+        - ${metric} baseline has not overshot its floor
 
 <!-- END proof -->
 
@@ -138,28 +150,32 @@ _Source:_ #133 · `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/disclosures-open-what-they-say.test.ts`
-    - the row is a button that says whether it is open
-    - clicking one row opens that row, and only that one
-    - clicking the open row closes it again
-    - the timeline bar that opens the same row is a control too
-    - the toggle is a button that says whether it is open
-    - the backend-only fields appear once it is open
-    - the toggle asks its owner rather than deciding
-    - an edit in the open editor reaches the update handler
-    - the plan cell is the keyboard path, and says what it controls
-    - a click on a cell that holds no control opens the row
-    - a click on a field in the row does not
-    - the handle moves the row with the arrow keys
-    - the arrow keys stop at the ends of the list
-    - a drag from the first row to the second reports that move
-    - a drag downwards lands where the pointer is, not one row further
-    - a twitch inside the dragged row is not a move
-    - a drag upwards lands where the pointer is
-    - a drag released where it started reports nothing
-    - a row that cannot be written is not part of the order
-    - a row without a live version has no handle
-    - a focusable ancestor does not silence the row
-    - the plan cell opens the row exactly once
+    - a promotion row opens its editor
+        - the row is a button that says whether it is open
+        - clicking one row opens that row, and only that one
+        - clicking the open row closes it again
+        - the timeline bar that opens the same row is a control too
+    - the advanced section of the promo-code form opens
+        - the toggle is a button that says whether it is open
+        - the backend-only fields appear once it is open
+        - the toggle asks its owner rather than deciding
+    - the promotions tab is a reactive form, not a snapshot
+        - an edit in the open editor reaches the update handler
+    - a marketing row opens its editor from anywhere but its fields
+        - the plan cell is the keyboard path, and says what it controls
+        - a click on a cell that holds no control opens the row
+        - a click on a field in the row does not
+        - the handle moves the row with the arrow keys
+        - the arrow keys stop at the ends of the list
+        - a drag from the first row to the second reports that move
+        - a drag downwards lands where the pointer is, not one row further
+        - a twitch inside the dragged row is not a move
+        - a drag upwards lands where the pointer is
+        - a drag released where it started reports nothing
+        - a row that cannot be written is not part of the order
+        - a row without a live version has no handle
+        - a focusable ancestor does not silence the row
+        - the plan cell opens the row exactly once
 
 <!-- END proof -->
 
@@ -180,11 +196,12 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/component/error-state-outranks-the-accent.test.ts`
-    - the stylesheet the theme has to outrank really parsed
-    - a focused valid field still gets the accent label
-    - a focused invalid field keeps its negative label
-    - an invalid field that was never focused keeps it too
-    - a list item has no error state for the sibling rule to trample
+    - the accent label yields to the error state
+        - the stylesheet the theme has to outrank really parsed
+        - a focused valid field still gets the accent label
+        - a focused invalid field keeps its negative label
+        - an invalid field that was never focused keeps it too
+        - a list item has no error state for the sibling rule to trample
 
 <!-- END proof -->
 
@@ -206,32 +223,36 @@ _Source:_ `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/admin-page-shell.test.ts`
-    - renders the title as the page heading
-    - omits the subtitle and the actions bar when neither is supplied
-    - renders a markup subtitle through the slot
-    - names the section by pointing aria-labelledby at its own heading
-    - gives sibling sections distinct heading ids
-    - renders no heading level above h2
-    - the source sweep actually finds the pages it claims to check
-    - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
-    - no content page renders its own &lt;main&gt; or a QPage
-    - no content page hand-writes the hero markup instead of using AdminHero
-    - AdminHero renders the only &lt;h1&gt; in the package
-    - no view renders its hero inside the page body
-    - no view hand-writes the reload button instead of using AdminRefreshBtn
-    - no view writes its own table instead of using AdminTable
-    - a component whose only job is to emit is never used without a listener
-    - the actions column is filled through row-actions, not body-cell-actions
-    - no page declares its own statistic tile styling
-    - an unscoped page style reaches only its own sub-components
-    - no page block titles itself with a heading-shaped &lt;div&gt;
-    - no view writes its own disclosure instead of using AdminAccordion
-    - the sweep reaches the pages it claims to check
-    - no page reaches for Quasar directly
-    - no page redeclares the frame the theme draws
-    - a page imports only from the layers below it
-    - no primitive hard-codes a user-visible string
-    - no file grows past the budget for its layer
+    - AdminHero
+        - renders the title as the page heading
+        - omits the subtitle and the actions bar when neither is supplied
+        - renders a markup subtitle through the slot
+    - AdminSection
+        - names the section by pointing aria-labelledby at its own heading
+        - gives sibling sections distinct heading ids
+        - renders no heading level above h2
+    - page shell contract
+        - the source sweep actually finds the pages it claims to check
+        - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
+        - no content page renders its own &lt;main&gt; or a QPage
+        - no content page hand-writes the hero markup instead of using AdminHero
+        - AdminHero renders the only &lt;h1&gt; in the package
+        - no view renders its hero inside the page body
+        - no view hand-writes the reload button instead of using AdminRefreshBtn
+        - no view writes its own table instead of using AdminTable
+        - a component whose only job is to emit is never used without a listener
+        - the actions column is filled through row-actions, not body-cell-actions
+        - no page declares its own statistic tile styling
+        - an unscoped page style reaches only its own sub-components
+        - no page block titles itself with a heading-shaped &lt;div&gt;
+        - no view writes its own disclosure instead of using AdminAccordion
+    - the boundaries a page keeps
+        - the sweep reaches the pages it claims to check
+        - no page reaches for Quasar directly
+        - no page redeclares the frame the theme draws
+        - a page imports only from the layers below it
+        - no primitive hard-codes a user-visible string
+        - no file grows past the budget for its layer
 
 <!-- END proof -->
 
@@ -252,18 +273,21 @@ _Source:_ release 0.24.2
 _Tested by:_
 
 - `tests/px-to-scale.test.js`
-    - an exact value takes its own token
-    - a midpoint rounds down
-    - a value nearer one rung takes it, up or down
-    - radii use their names, not their numbers
-    - a negative keeps its sign in a calc
-    - tracking is converted rather than snapped
-    - a property no scale answers for
-    - a declaration that already reads a token
-    - a token definition
-    - every value in a shorthand moves together
-    - a zero stays a zero
-    - touches declarations and nothing else
+    - pixels snap to the nearest rung
+        - an exact value takes its own token
+        - a midpoint rounds down
+        - a value nearer one rung takes it, up or down
+        - radii use their names, not their numbers
+        - a negative keeps its sign in a calc
+        - tracking is converted rather than snapped
+    - what the codemod leaves alone
+        - a property no scale answers for
+        - a declaration that already reads a token
+        - a token definition
+        - every value in a shorthand moves together
+        - a zero stays a zero
+    - rewriting a file
+        - touches declarations and nothing else
 
 <!-- END proof -->
 
@@ -279,28 +303,35 @@ _Source:_ release 1.0.0-rc.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/one-dialog-per-page-not-per-row.test.ts`
-    - the fixture renders several rows — without that this proves nothing
-    - one instance exists, however many rows there are
+    - the one-time-password dialog is one dialog
+        - the fixture renders several rows — without that this proves nothing
+        - one instance exists, however many rows there are
 - `packages/ui-vue/tests/use-dialog.test.js`
-    - the panel carries the modal role and is named by its heading
-    - opening moves focus into the panel
-    - closing puts focus back where it was
-    - a trigger that is gone by then leaves focus at the document body
-    - unmounting while open still gives the focus back
-    - tab from the last control wraps to the first
-    - shift+tab from the first control wraps to the last
-    - shift+tab from the panel itself wraps to the last control
-    - a tab from outside the panel is pulled back in
-    - a panel with nothing tabbable keeps the caret on itself
-    - escape asks the caller to close
-    - a persistent dialog ignores escape
-    - a click on the backdrop closes, a click in the panel does not
-    - a persistent dialog ignores the backdrop too
-    - a closed dialog no longer answers escape
-    - the lock is taken while open and given back on close
-    - an inner dialog closing does not give the page back to the outer one
-    - the default is body
-    - a host that names a container gets it
+    - the dialog is announced as one
+        - the panel carries the modal role and is named by its heading
+    - focus enters and comes back
+        - opening moves focus into the panel
+        - closing puts focus back where it was
+        - a trigger that is gone by then leaves focus at the document body
+        - unmounting while open still gives the focus back
+    - the trap keeps tab inside the panel
+        - tab from the last control wraps to the first
+        - shift+tab from the first control wraps to the last
+        - shift+tab from the panel itself wraps to the last control
+        - a tab from outside the panel is pulled back in
+        - a panel with nothing tabbable keeps the caret on itself
+    - escape and the backdrop
+        - escape asks the caller to close
+        - a persistent dialog ignores escape
+        - a click on the backdrop closes, a click in the panel does not
+        - a persistent dialog ignores the backdrop too
+        - a closed dialog no longer answers escape
+    - the page behind does not scroll
+        - the lock is taken while open and given back on close
+        - an inner dialog closing does not give the page back to the outer one
+    - the panel can be teleported somewhere other than body
+        - the default is body
+        - a host that names a container gets it
 
 <!-- END proof -->
 

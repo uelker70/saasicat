@@ -47,14 +47,16 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/cli/tests/audit-tail-flow.test.js`
-    - empty filter → empty query object
-    - actor → actorTag
-    - action + entity
-    - since → from
-    - limit → pageSize
-    - maps fields + truncated entityId
-    - null-actorTag → "—"
-    - short entityId not truncated
+    - AuditTailFlow.run — filter mapping
+        - empty filter → empty query object
+        - actor → actorTag
+        - action + entity
+        - since → from
+        - limit → pageSize
+    - AuditTailFlow.formatRows
+        - maps fields + truncated entityId
+        - null-actorTag → "—"
+        - short entityId not truncated
 
 <!-- END proof -->
 
@@ -69,14 +71,16 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/cli/tests/audit-tail-flow.test.js`
-    - empty filter → empty query object
-    - actor → actorTag
-    - action + entity
-    - since → from
-    - limit → pageSize
-    - maps fields + truncated entityId
-    - null-actorTag → "—"
-    - short entityId not truncated
+    - AuditTailFlow.run — filter mapping
+        - empty filter → empty query object
+        - actor → actorTag
+        - action + entity
+        - since → from
+        - limit → pageSize
+    - AuditTailFlow.formatRows
+        - maps fields + truncated entityId
+        - null-actorTag → "—"
+        - short entityId not truncated
 
 <!-- END proof -->
 

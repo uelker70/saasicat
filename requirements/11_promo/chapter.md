@@ -100,14 +100,15 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/reorder-priorities.test.js`
-    - a move within equal priorities produces the order it promises
-    - it keeps the gaps an operator chose
-    - rows that keep their value are reported as unchanged
-    - no move, no writes
-    - a value at the top of the range stays inside it
-    - a list already at the ceiling still separates
-    - pulling ties apart never goes below zero
-    - a move to the end lands at the end
+    - reorderedPriorities
+        - a move within equal priorities produces the order it promises
+        - it keeps the gaps an operator chose
+        - rows that keep their value are reported as unchanged
+        - no move, no writes
+        - a value at the top of the range stays inside it
+        - a list already at the ceiling still separates
+        - pulling ties apart never goes below zero
+        - a move to the end lands at the end
 
 <!-- END proof -->
 
@@ -124,19 +125,22 @@ _Tested by:_
 - `packages/nest/tests/promo-admin-controller.test.js`
     - standard promo Admin controller exposes list, create, edit and delete
 - `packages/ui-vue/tests/component/promo-code-dialogs.test.ts`
-    - passes the entered values through to submit
-    - reopening starts from an empty form
-    - does not submit while the code is malformed
-    - keeps a handler error inside the dialog
-    - adopts the row values into the form
-    - sends nothing while nothing has changed
-    - sends only the changed fields, with the row id
-    - keeps a handler error inside the dialog
-    - create: typing into the code field lands upper-cased in the form
-    - create: the random button fills a valid code
-    - edit: the code field shows the code and is disabled
-    - the status switch appears on edit only
-    - the plan picker writes into the dialog form
+    - PromoCodeCreateDialog
+        - passes the entered values through to submit
+        - reopening starts from an empty form
+        - does not submit while the code is malformed
+        - keeps a handler error inside the dialog
+    - PromoCodeEditDialog
+        - adopts the row values into the form
+        - sends nothing while nothing has changed
+        - sends only the changed fields, with the row id
+        - keeps a handler error inside the dialog
+    - Shared form body
+        - create: typing into the code field lands upper-cased in the form
+        - create: the random button fills a valid code
+        - edit: the code field shows the code and is disabled
+        - the status switch appears on edit only
+        - the plan picker writes into the dialog form
 
 <!-- END proof -->
 
@@ -284,21 +288,24 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/core/tests/promotion-helpers.test.js`
-    - active within the window
-    - scheduled before validFrom
-    - expired after validTo
-    - highest priority wins on overlap
-    - onlyLocales filters
-    - billingCycle filters
-    - requiresCoupon promotions are not selected automatically
-    - non-matching plan → null
-    - targetType filters bundle promotions separately from plan promotions
-    - percent
-    - amount
-    - amount clamps at 0
-    - intro
-    - freeMonths
-    - null when promotion is missing
+    - promoStatus
+        - active within the window
+        - scheduled before validFrom
+        - expired after validTo
+    - pickActivePromo
+        - highest priority wins on overlap
+        - onlyLocales filters
+        - billingCycle filters
+        - requiresCoupon promotions are not selected automatically
+        - non-matching plan → null
+        - targetType filters bundle promotions separately from plan promotions
+    - applyPromo
+        - percent
+        - amount
+        - amount clamps at 0
+        - intro
+        - freeMonths
+        - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
     - round2 rounds to two decimal places
     - grossFromNet adds VAT
@@ -340,21 +347,24 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/promotion-helpers.test.js`
-    - active within the window
-    - scheduled before validFrom
-    - expired after validTo
-    - highest priority wins on overlap
-    - onlyLocales filters
-    - billingCycle filters
-    - requiresCoupon promotions are not selected automatically
-    - non-matching plan → null
-    - targetType filters bundle promotions separately from plan promotions
-    - percent
-    - amount
-    - amount clamps at 0
-    - intro
-    - freeMonths
-    - null when promotion is missing
+    - promoStatus
+        - active within the window
+        - scheduled before validFrom
+        - expired after validTo
+    - pickActivePromo
+        - highest priority wins on overlap
+        - onlyLocales filters
+        - billingCycle filters
+        - requiresCoupon promotions are not selected automatically
+        - non-matching plan → null
+        - targetType filters bundle promotions separately from plan promotions
+    - applyPromo
+        - percent
+        - amount
+        - amount clamps at 0
+        - intro
+        - freeMonths
+        - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
     - round2 rounds to two decimal places
     - grossFromNet adds VAT

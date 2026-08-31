@@ -112,18 +112,21 @@ _Tested by:_
         - published draft → ALREADY_PUBLISHED
         - draft without baseVersionId → NO_BASE_VERSION
 - `packages/ui-vue/tests/use-plan-editor.test.js`
-    - lists all catalog features with correct marker flags
-    - featuresByTier groups + sorts by tier order
-    - features without tier land in OTHER group at the end
-    - manifest without features block: empty but no crash
-    - toggle add + remove
-    - toggle on plannedOnly feature is ignored (no state change)
-    - nonRegressive: inherited feature cannot be removed
-    - nonRegressive=false: inherited feature may be removed
-    - snapshot returns sorted selection
-    - validateDraft accepts a clean selection
-    - validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key is
-      present
+    - usePlanEditor — Discovery (availableFeatures)
+        - lists all catalog features with correct marker flags
+        - featuresByTier groups + sorts by tier order
+        - features without tier land in OTHER group at the end
+        - manifest without features block: empty but no crash
+    - usePlanEditor — toggleFeature
+        - toggle add + remove
+        - toggle on plannedOnly feature is ignored (no state change)
+        - nonRegressive: inherited feature cannot be removed
+        - nonRegressive=false: inherited feature may be removed
+    - usePlanEditor — validateDraft + snapshot
+        - snapshot returns sorted selection
+        - validateDraft accepts a clean selection
+        - validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key
+          is present
 
 <!-- END proof -->
 
@@ -185,30 +188,35 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-catalogue-remembers-its-versions.integration.test.js`
-    - a new bundle comes back with its defaults filled in
-    - it is findable by its key as well as its id
-    - a key nobody took has no bundle
-    - an update changes what it names and leaves the rest alone
-    - a field can be cleared on purpose, which is not the same as leaving it out
-    - updating a bundle that is not there says so
-    - a retired bundle drops out of the list but stays readable
-    - …and can be listed deliberately
-    - the list is ordered by sort order, then by key
-    - a bundle key cannot be claimed twice
-    - the first draft is v1, and the next one after publishing is v2
-    - a second draft beside an unpublished one is refused, and names the one in the way
-    - the draft is the one findable as current, and only while it is a draft
-    - an edit changes what it names and leaves the rest standing
-    - a price can be taken away, which an omitted field would not do
-    - editing a version that is not there says so
-    - every version of the bundle is listed, oldest first
-    - a version id nobody created answers null
-    - an unpublished draft is gone afterwards
-    - a published version is refused — it is what somebody may have booked
-    - discarding something that is already gone is a no-op, not an error
-    - the newest published one that has not been superseded
-    - a bundle with only a draft has nothing live
-    - every transaction-aware read answers with a pool of one
+    - an operator manages a bundle
+        - a new bundle comes back with its defaults filled in
+        - it is findable by its key as well as its id
+        - a key nobody took has no bundle
+        - an update changes what it names and leaves the rest alone
+        - a field can be cleared on purpose, which is not the same as leaving it out
+        - updating a bundle that is not there says so
+        - a retired bundle drops out of the list but stays readable
+        - …and can be listed deliberately
+        - the list is ordered by sort order, then by key
+        - a bundle key cannot be claimed twice
+    - drafting a version
+        - the first draft is v1, and the next one after publishing is v2
+        - a second draft beside an unpublished one is refused, and names the one in the way
+        - the draft is the one findable as current, and only while it is a draft
+        - an edit changes what it names and leaves the rest standing
+        - a price can be taken away, which an omitted field would not do
+        - editing a version that is not there says so
+        - every version of the bundle is listed, oldest first
+        - a version id nobody created answers null
+    - discarding a draft
+        - an unpublished draft is gone afterwards
+        - a published version is refused — it is what somebody may have booked
+        - discarding something that is already gone is a no-op, not an error
+    - which version is live
+        - the newest published one that has not been superseded
+        - a bundle with only a draft has nothing live
+    - reading inside a transaction stays on its connection
+        - every transaction-aware read answers with a pool of one
 
 <!-- END proof -->
 
@@ -224,11 +232,12 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/version-editability.test.js`
-    - drafts remain editable
-    - published-but-future is only editable when latest-in-chain without a subscription
-    - subscriptionCount undefined blocks fail-closed
-    - referenced versions remain frozen
-    - non-latest, superseded and already-active versions remain frozen
+    - isVersionEditable
+        - drafts remain editable
+        - published-but-future is only editable when latest-in-chain without a subscription
+        - subscriptionCount undefined blocks fail-closed
+        - referenced versions remain frozen
+        - non-latest, superseded and already-active versions remain frozen
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
@@ -274,11 +283,12 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/version-editability.test.js`
-    - drafts remain editable
-    - published-but-future is only editable when latest-in-chain without a subscription
-    - subscriptionCount undefined blocks fail-closed
-    - referenced versions remain frozen
-    - non-latest, superseded and already-active versions remain frozen
+    - isVersionEditable
+        - drafts remain editable
+        - published-but-future is only editable when latest-in-chain without a subscription
+        - subscriptionCount undefined blocks fail-closed
+        - referenced versions remain frozen
+        - non-latest, superseded and already-active versions remain frozen
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — published-but-future editing (Pack 2c)
         - updatePlanDraft allows published-but-future version (latest, 0 subs)
@@ -429,21 +439,25 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-bundle-version-has-a-window.integration.test.js`
-    - the one whose window opened later wins
-    - a version with no window at all loses to one that has a window it is inside
-    - a closed window is excluded even when it is the later one
-    - a version is active throughout its last day, and not the next
-    - a version is not active before its window opens
-    - a bundle with no published version at all answers null, not an error
-    - does not offer the method, rather than answering from columns it ignores
-    - and hands back no window on a version that has one stored
+    - two versions inside the same moment
+        - the one whose window opened later wins
+        - a version with no window at all loses to one that has a window it is inside
+        - a closed window is excluded even when it is the later one
+    - the edges of one window
+        - a version is active throughout its last day, and not the next
+        - a version is not active before its window opens
+        - a bundle with no published version at all answers null, not an error
+    - an adapter that does not promise windows
+        - does not offer the method, rather than answering from columns it ignores
+        - and hands back no window on a version that has one stored
 - `packages/core/tests/active-plan-version-query.test.js`
-    - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
-    - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
-    - startOfUtcDay normalizes to 00:00 UTC
-    - without withEndsAt: no endsAt clause (CatalogPlanVersion)
-    - withEndsAt: adds an endsAt clause (PlanVersion)
+    - buildActivePlanVersionWhere
+        - requires publishedAt IS NOT NULL
+        - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
+        - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
+        - startOfUtcDay normalizes to 00:00 UTC
+        - without withEndsAt: no endsAt clause (CatalogPlanVersion)
+        - withEndsAt: adds an endsAt clause (PlanVersion)
 - `packages/nest/tests/public-marketing-catalog-bundles.test.js`
     - PublicMarketingCatalogService — Plans (validFrom tolerance)
         - live plan version with validFrom=NULL appears in the catalog
@@ -456,20 +470,25 @@ _Tested by:_
         - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/newly-published-composables.test.js`
-    - every one of them arrived
-    - it attaches a cause without the ES2022 constructor option
-    - it returns the same error rather than a copy
-    - the property stays writable, the way the native one is
-    - a prompt opens the dialog and waits
-    - a second prompt settles the first instead of stranding it
-    - closing answers the caller with null
-    - a provided state reaches a descendant
-    - without a provider it hands back a fresh, unshared one
-    - reset empties the draft
-    - it ends the session and then goes to the login page
-    - a rejecting logout still leaves the protected page
-    - with no adapter it navigates anyway
-    - the manifest cache is cleared whether or not an adapter ran
+    - the barrels publish all four
+        - every one of them arrived
+    - attachCause
+        - it attaches a cause without the ES2022 constructor option
+        - it returns the same error rather than a copy
+        - the property stays writable, the way the native one is
+    - useMfaPrompt
+        - a prompt opens the dialog and waits
+        - a second prompt settles the first instead of stranding it
+        - closing answers the caller with null
+    - the plan wizard state
+        - a provided state reaches a descendant
+        - without a provider it hands back a fresh, unshared one
+        - reset empties the draft
+    - useSignOut
+        - it ends the session and then goes to the login page
+        - a rejecting logout still leaves the protected page
+        - with no adapter it navigates anyway
+        - the manifest cache is cleared whether or not an adapter ran
 
 <!-- END proof -->
 
@@ -492,21 +511,23 @@ _Tested by:_
         - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/version-maps.test.js`
-    - the endpoint and the plan list are both required
-    - an empty plan list asks nothing
-    - the live version is the newest published one that was not superseded
-    - two versions activated on the same day are ordered by version number
-    - a plan with no published version maps to null, not to a missing key
-    - one failing plan does not blank the others
-    - an unreadable body is treated as no versions
-    - a changed plan list reloads on its own; an unchanged one does not
-    - the endpoint and the bundle list are both required
-    - an empty bundle list asks nothing and holds an empty mapping
-    - every bundle gets its list, keyed by id
-    - a bundle whose versions fail gets an empty list, not a missing key
-    - an unreadable body becomes an empty list
-    - refreshOne() replaces one entry and leaves the rest as they were
-    - a failing refreshOne() leaves the previous entry standing
+    - useLivePlanVersions
+        - the endpoint and the plan list are both required
+        - an empty plan list asks nothing
+        - the live version is the newest published one that was not superseded
+        - two versions activated on the same day are ordered by version number
+        - a plan with no published version maps to null, not to a missing key
+        - one failing plan does not blank the others
+        - an unreadable body is treated as no versions
+        - a changed plan list reloads on its own; an unchanged one does not
+    - useBundleVersionsMap
+        - the endpoint and the bundle list are both required
+        - an empty bundle list asks nothing and holds an empty mapping
+        - every bundle gets its list, keyed by id
+        - a bundle whose versions fail gets an empty list, not a missing key
+        - an unreadable body becomes an empty list
+        - refreshOne() replaces one entry and leaves the rest as they were
+        - a failing refreshOne() leaves the previous entry standing
 
 <!-- END proof -->
 
@@ -540,30 +561,35 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-catalogue-remembers-its-versions.integration.test.js`
-    - a new bundle comes back with its defaults filled in
-    - it is findable by its key as well as its id
-    - a key nobody took has no bundle
-    - an update changes what it names and leaves the rest alone
-    - a field can be cleared on purpose, which is not the same as leaving it out
-    - updating a bundle that is not there says so
-    - a retired bundle drops out of the list but stays readable
-    - …and can be listed deliberately
-    - the list is ordered by sort order, then by key
-    - a bundle key cannot be claimed twice
-    - the first draft is v1, and the next one after publishing is v2
-    - a second draft beside an unpublished one is refused, and names the one in the way
-    - the draft is the one findable as current, and only while it is a draft
-    - an edit changes what it names and leaves the rest standing
-    - a price can be taken away, which an omitted field would not do
-    - editing a version that is not there says so
-    - every version of the bundle is listed, oldest first
-    - a version id nobody created answers null
-    - an unpublished draft is gone afterwards
-    - a published version is refused — it is what somebody may have booked
-    - discarding something that is already gone is a no-op, not an error
-    - the newest published one that has not been superseded
-    - a bundle with only a draft has nothing live
-    - every transaction-aware read answers with a pool of one
+    - an operator manages a bundle
+        - a new bundle comes back with its defaults filled in
+        - it is findable by its key as well as its id
+        - a key nobody took has no bundle
+        - an update changes what it names and leaves the rest alone
+        - a field can be cleared on purpose, which is not the same as leaving it out
+        - updating a bundle that is not there says so
+        - a retired bundle drops out of the list but stays readable
+        - …and can be listed deliberately
+        - the list is ordered by sort order, then by key
+        - a bundle key cannot be claimed twice
+    - drafting a version
+        - the first draft is v1, and the next one after publishing is v2
+        - a second draft beside an unpublished one is refused, and names the one in the way
+        - the draft is the one findable as current, and only while it is a draft
+        - an edit changes what it names and leaves the rest standing
+        - a price can be taken away, which an omitted field would not do
+        - editing a version that is not there says so
+        - every version of the bundle is listed, oldest first
+        - a version id nobody created answers null
+    - discarding a draft
+        - an unpublished draft is gone afterwards
+        - a published version is refused — it is what somebody may have booked
+        - discarding something that is already gone is a no-op, not an error
+    - which version is live
+        - the newest published one that has not been superseded
+        - a bundle with only a draft has nothing live
+    - reading inside a transaction stays on its connection
+        - every transaction-aware read answers with a pool of one
 - `packages/nest/tests/plans-service.test.js`
     - PlansService — root operations
         - createPlan + listPlans + getPlan happy path
@@ -669,39 +695,44 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
-    - a plan is found by its key, and a key nobody took is not
-    - listing is ordered by sort order, then by key
-    - a retired plan drops out of the list, and comes back when asked for
-    - onlyPublished hides a plan whose versions are all still drafts
-    - a plan key cannot be claimed twice, so no version lineage is shared
-    - a retired plan still occupies its key
-    - renaming a plan touches what was named and nothing else
-    - renaming a plan that is gone says so instead of writing nothing
-    - deleting a plan twice is not an error
-    - drafts are numbered in order, and listed that way
-    - the current draft is the unpublished one, and there is none once it ships
-    - the latest live version is the newest unsuperseded one
-    - a terminated version is not live any more
-    - a draft can be edited, and only the named fields move
-    - a version published for a future date can still be corrected
-    - editing a version that is gone says so
-    - a draft can be discarded, a published version cannot, and a missing one is a no-op
-    - publishing the same draft twice fails the second time
-    - a scheduled change is written, and only while the row is uncancelled
-    - an immediate change binds the plan and refuses once a cancellation lands
-    - changing to a plan with no live version says so rather than binding nothing
-    - an immediate change stays on its own connection when a version is pending
-    - accepting a pending version is idempotent, and reports the second call as such
-    - accepting when nothing is pending says so
-    - a second cancellation returns the first one instead of replacing it
-    - an operator ending a contract on the spot flips the status
-    - an ordinary cancellation never names the status column
-    - ending a contract on the spot does name it
-    - an immediate change locks the row it decides from
-    - a tenant with no subscription reads as none, not as an error
-    - the dates and the plan version a person is shown all come back
-    - a pending version comes with what a person needs to decide
-    - the version a subscription is billed for cannot be deleted underneath it
+    - the plans an operator has on sale
+        - a plan is found by its key, and a key nobody took is not
+        - listing is ordered by sort order, then by key
+        - a retired plan drops out of the list, and comes back when asked for
+        - onlyPublished hides a plan whose versions are all still drafts
+        - a plan key cannot be claimed twice, so no version lineage is shared
+        - a retired plan still occupies its key
+        - renaming a plan touches what was named and nothing else
+        - renaming a plan that is gone says so instead of writing nothing
+        - deleting a plan twice is not an error
+    - the versions behind a plan
+        - drafts are numbered in order, and listed that way
+        - the current draft is the unpublished one, and there is none once it ships
+        - the latest live version is the newest unsuperseded one
+        - a terminated version is not live any more
+        - a draft can be edited, and only the named fields move
+        - a version published for a future date can still be corrected
+        - editing a version that is gone says so
+        - a draft can be discarded, a published version cannot, and a missing one is a no-op
+        - publishing the same draft twice fails the second time
+    - a tenant's own writes
+        - a scheduled change is written, and only while the row is uncancelled
+        - an immediate change binds the plan and refuses once a cancellation lands
+        - changing to a plan with no live version says so rather than binding nothing
+        - an immediate change stays on its own connection when a version is pending
+        - accepting a pending version is idempotent, and reports the second call as such
+        - accepting when nothing is pending says so
+        - a second cancellation returns the first one instead of replacing it
+        - an operator ending a contract on the spot flips the status
+    - the statements a tenant write sends
+        - an ordinary cancellation never names the status column
+        - ending a contract on the spot does name it
+        - an immediate change locks the row it decides from
+    - the subscription a tenant is shown
+        - a tenant with no subscription reads as none, not as an error
+        - the dates and the plan version a person is shown all come back
+        - a pending version comes with what a person needs to decide
+        - the version a subscription is billed for cannot be deleted underneath it
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -723,16 +754,20 @@ _Tested by:_
         - empty input → ok
         - formatSeedGateReport shows entity + code
 - `packages/ui-vue/tests/use-bulk-publish.test.js`
-    - sets items with default status pending
-    - all successful → success count = 3, done=true
-    - single error → success=2, failure=1, done=true
-    - empty changeNote → all items failed
-    - mfaCode sets X-Mfa-Code header
-    - auth token is sent along
-    - endpoints are called per kind
-    - override endpoints configurable
-    - progress=0 for empty set
-    - progress=0 before run, =1 after run
+    - useBulkPublish.setItems
+        - sets items with default status pending
+    - useBulkPublish.run — parallel publishes
+        - all successful → success count = 3, done=true
+        - single error → success=2, failure=1, done=true
+        - empty changeNote → all items failed
+        - mfaCode sets X-Mfa-Code header
+        - auth token is sent along
+    - useBulkPublish — endpoint mapping
+        - endpoints are called per kind
+        - override endpoints configurable
+    - useBulkPublish — progress
+        - progress=0 for empty set
+        - progress=0 before run, =1 after run
 
 <!-- END proof -->
 
@@ -747,49 +782,57 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-plan-binding.test.js`
-    - the omitted schema preserves every 0.6 plan default
-    - normalized mode resolves both directions
-    - catalog read uses the catalog delegate and exposes semantic planKey
-    - catalog import resolves planKey to UUID and writes only the catalog delegate
-    - entitlement and subscription adapters use their delegate and map UUID back
-    - active subscription counts use authoritative PlanVersions
-    - a subscription that has ended is not an active tenant
-    - all subscription operations honor tenantSubscription.delegate, including tx reads
-    - bundle booking count is opt-in and uses active cancellation semantics
-    - findActive is opt-in, day-inclusive and can include endsAt
-    - active lookups prefer a dated version over a legacy NULL validFrom
-    - draft fields, active lookup, atomic publish, succession and termination round-trip
-    - legacy constructor keeps planKey storage and drops unsupported fields
-    - latest live lookup excludes a version whose explicit endsAt elapsed
-    - legacy onlyPublished reads the live versions, and a key names one plan
-    - legacy onlyPublished omits a plan whose only version is a draft
-    - token factories receive normalized schema options
+    - Prisma plan binding options
+        - the omitted schema preserves every 0.6 plan default
+        - normalized mode resolves both directions
+    - normalized plan identity across Prisma adapters
+        - catalog read uses the catalog delegate and exposes semantic planKey
+        - catalog import resolves planKey to UUID and writes only the catalog delegate
+        - entitlement and subscription adapters use their delegate and map UUID back
+        - active subscription counts use authoritative PlanVersions
+        - a subscription that has ended is not an active tenant
+        - all subscription operations honor tenantSubscription.delegate, including tx reads
+        - bundle booking count is opt-in and uses active cancellation semantics
+        - findActive is opt-in, day-inclusive and can include endsAt
+        - active lookups prefer a dated version over a legacy NULL validFrom
+    - PrismaPlanRepository normalized lifecycle
+        - draft fields, active lookup, atomic publish, succession and termination round-trip
+        - legacy constructor keeps planKey storage and drops unsupported fields
+        - latest live lookup excludes a version whose explicit endsAt elapsed
+        - legacy onlyPublished reads the live versions, and a key names one plan
+        - legacy onlyPublished omits a plan whose only version is a draft
+    - prismaPersistence schema forwarding
+        - token factories receive normalized schema options
 - `packages/core/tests/active-plan-version-query.test.js`
-    - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
-    - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
-    - startOfUtcDay normalizes to 00:00 UTC
-    - without withEndsAt: no endsAt clause (CatalogPlanVersion)
-    - withEndsAt: adds an endsAt clause (PlanVersion)
+    - buildActivePlanVersionWhere
+        - requires publishedAt IS NOT NULL
+        - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
+        - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
+        - startOfUtcDay normalizes to 00:00 UTC
+        - without withEndsAt: no endsAt clause (CatalogPlanVersion)
+        - withEndsAt: adds an endsAt clause (PlanVersion)
 - `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
-    - answers, using the newest live version for the redundancy hint
-    - and the same answer as a schema that does offer the lookup
-    - a bundle the plan does not cover gets no redundancy warning either way
-    - with no plan repository at all it still answers
-    - a repository that offers the lookup and throws inside it is the bug itself
+    - a bundle preview on a schema without validity windows
+        - answers, using the newest live version for the redundancy hint
+        - and the same answer as a schema that does offer the lookup
+        - a bundle the plan does not cover gets no redundancy warning either way
+        - with no plan repository at all it still answers
+        - a repository that offers the lookup and throws inside it is the bug itself
 - `packages/nest/tests/public-marketing-catalog-bundles.test.js`
     - PublicMarketingCatalogService — Plans (validFrom tolerance)
         - live plan version with validFrom=NULL appears in the catalog
         - findActivePlanVersion returns the NULL-validFrom version when it is the only live one
         - dated version wins over NULL-validFrom (fallback, not an override)
 - `packages/ui-vue/tests/resolve-plans.test.js`
-    - picks the currently valid version as the live one
-    - falls back to the next scheduled version when nothing is live
-    - gives a plan with only drafts a row without a version
-    - marks a plan expired only when nothing is left to come
-    - lists sub-rows without repeating the parent
-    - sorts by sortOrder, then by key
-    - counts what the tiles above the list show
+    - resolvePlans
+        - picks the currently valid version as the live one
+        - falls back to the next scheduled version when nothing is live
+        - gives a plan with only drafts a row without a version
+        - marks a plan expired only when nothing is left to come
+        - lists sub-rows without repeating the parent
+        - sorts by sortOrder, then by key
+    - countPlans
+        - counts what the tiles above the list show
 
 <!-- END proof -->
 
@@ -859,45 +902,52 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
-    - a plan is found by its key, and a key nobody took is not
-    - listing is ordered by sort order, then by key
-    - a retired plan drops out of the list, and comes back when asked for
-    - onlyPublished hides a plan whose versions are all still drafts
-    - a plan key cannot be claimed twice, so no version lineage is shared
-    - a retired plan still occupies its key
-    - renaming a plan touches what was named and nothing else
-    - renaming a plan that is gone says so instead of writing nothing
-    - deleting a plan twice is not an error
-    - drafts are numbered in order, and listed that way
-    - the current draft is the unpublished one, and there is none once it ships
-    - the latest live version is the newest unsuperseded one
-    - a terminated version is not live any more
-    - a draft can be edited, and only the named fields move
-    - a version published for a future date can still be corrected
-    - editing a version that is gone says so
-    - a draft can be discarded, a published version cannot, and a missing one is a no-op
-    - publishing the same draft twice fails the second time
-    - a scheduled change is written, and only while the row is uncancelled
-    - an immediate change binds the plan and refuses once a cancellation lands
-    - changing to a plan with no live version says so rather than binding nothing
-    - an immediate change stays on its own connection when a version is pending
-    - accepting a pending version is idempotent, and reports the second call as such
-    - accepting when nothing is pending says so
-    - a second cancellation returns the first one instead of replacing it
-    - an operator ending a contract on the spot flips the status
-    - an ordinary cancellation never names the status column
-    - ending a contract on the spot does name it
-    - an immediate change locks the row it decides from
-    - a tenant with no subscription reads as none, not as an error
-    - the dates and the plan version a person is shown all come back
-    - a pending version comes with what a person needs to decide
-    - the version a subscription is billed for cannot be deleted underneath it
+    - the plans an operator has on sale
+        - a plan is found by its key, and a key nobody took is not
+        - listing is ordered by sort order, then by key
+        - a retired plan drops out of the list, and comes back when asked for
+        - onlyPublished hides a plan whose versions are all still drafts
+        - a plan key cannot be claimed twice, so no version lineage is shared
+        - a retired plan still occupies its key
+        - renaming a plan touches what was named and nothing else
+        - renaming a plan that is gone says so instead of writing nothing
+        - deleting a plan twice is not an error
+    - the versions behind a plan
+        - drafts are numbered in order, and listed that way
+        - the current draft is the unpublished one, and there is none once it ships
+        - the latest live version is the newest unsuperseded one
+        - a terminated version is not live any more
+        - a draft can be edited, and only the named fields move
+        - a version published for a future date can still be corrected
+        - editing a version that is gone says so
+        - a draft can be discarded, a published version cannot, and a missing one is a no-op
+        - publishing the same draft twice fails the second time
+    - a tenant's own writes
+        - a scheduled change is written, and only while the row is uncancelled
+        - an immediate change binds the plan and refuses once a cancellation lands
+        - changing to a plan with no live version says so rather than binding nothing
+        - an immediate change stays on its own connection when a version is pending
+        - accepting a pending version is idempotent, and reports the second call as such
+        - accepting when nothing is pending says so
+        - a second cancellation returns the first one instead of replacing it
+        - an operator ending a contract on the spot flips the status
+    - the statements a tenant write sends
+        - an ordinary cancellation never names the status column
+        - ending a contract on the spot does name it
+        - an immediate change locks the row it decides from
+    - the subscription a tenant is shown
+        - a tenant with no subscription reads as none, not as an error
+        - the dates and the plan version a person is shown all come back
+        - a pending version comes with what a person needs to decide
+        - the version a subscription is billed for cannot be deleted underneath it
 - `packages/cli/tests/generated-catalog-loads.test.js`
-    - with a single quota
-    - with several, including a camel-cased key
-    - and with --skip-hasher, which does not touch the catalogue
-    - the check is not vacuous — a hand-broken catalogue is refused
-    - JSON.stringify(input)
+    - the catalogue init writes is one the platform accepts
+        - with a single quota
+        - with several, including a camel-cased key
+        - and with --skip-hasher, which does not touch the catalogue
+        - the check is not vacuous — a hand-broken catalogue is refused
+    - either init refuses the input, or the platform accepts the output
+        - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -937,11 +987,13 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/cli/tests/generated-catalog-loads.test.js`
-    - with a single quota
-    - with several, including a camel-cased key
-    - and with --skip-hasher, which does not touch the catalogue
-    - the check is not vacuous — a hand-broken catalogue is refused
-    - JSON.stringify(input)
+    - the catalogue init writes is one the platform accepts
+        - with a single quota
+        - with several, including a camel-cased key
+        - and with --skip-hasher, which does not touch the catalogue
+        - the check is not vacuous — a hand-broken catalogue is refused
+    - either init refuses the input, or the platform accepts the output
+        - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - loadPlanCatalogFromString accepts valid example
     - loadPlanCatalogFromString rejects schemaVersion != 1
@@ -980,68 +1032,77 @@ _Tested by:_
     - PublicMarketingCatalogService — comparison matrix (staircase sorting)
         - feature rows: widest coverage first, on a tie the leading plan column
 - `packages/ui-vue/tests/reorder-priorities.test.js`
-    - a move within equal priorities produces the order it promises
-    - it keeps the gaps an operator chose
-    - rows that keep their value are reported as unchanged
-    - no move, no writes
-    - a value at the top of the range stays inside it
-    - a list already at the ceiling still separates
-    - pulling ties apart never goes below zero
-    - a move to the end lands at the end
+    - reorderedPriorities
+        - a move within equal priorities produces the order it promises
+        - it keeps the gaps an operator chose
+        - rows that keep their value are reported as unchanged
+        - no move, no writes
+        - a value at the top of the range stays inside it
+        - a list already at the ceiling still separates
+        - pulling ties apart never goes below zero
+        - a move to the end lands at the end
 - `packages/ui-vue/tests/resources-plans.test.js`
-    - supplies http and context, leaving the operation its own arguments
-    - binds every operation the resource declares, and nothing else
-    - reads a context getter per call, so a changed endpoint is picked up
-    - list addresses the plan catalogue
-    - list turns an empty response into an empty list, not null
-    - tenantCounts has its own path and the same scoping
-    - tenantCounts turns an empty response into an empty map
-    - create posts to the unscoped collection — the body carries the project
-    - update patches the plan by id
-    - softDelete and hardDelete are different endpoints
-    - a delete tolerates both an empty response and one with a body
-    - reading versions goes through the plan
-    - creating a draft goes through the plan too
-    - but every mutation of an existing version addresses the version directly
-    - discarding a draft deletes the version, not the plan
-    - listForPlan turns an empty response into an empty list
-    - sends a JSON content type
-    - a caller header wins over the default
-    - serialises the body — the transport only carries strings
-    - sends no body when there is none, rather than the string "undefined"
-    - a client that resolved with no status never reads as an answer
-    - a 204 and an unparsable 2xx both read as no body
-    - a non-2xx throws an AdminError carrying the parsed body and the code
-    - what the server said survives — a page must not lose actionable text
-    - a validation array is joined here too, not only in the JSON helper
-    - a non-2xx without a readable body still reports its status
-    - a mutation that answers with nothing is a failure, not a null
-    - each empty-body failure names the operation it came from
-    - publish with no options sends an empty payload, not nothing
-    - a request with no init at all defaults to GET
-    - requestJsonBody names the default method when it has no init either
-    - a non-string code on the body is not treated as a code
-    - a non-2xx whose body is not an object still carries what came back
-    - requestJsonBody passes a present body through untouched
+    - bindResource
+        - supplies http and context, leaving the operation its own arguments
+        - binds every operation the resource declares, and nothing else
+        - reads a context getter per call, so a changed endpoint is picked up
+    - plansResource
+        - list addresses the plan catalogue
+        - list turns an empty response into an empty list, not null
+        - tenantCounts has its own path and the same scoping
+        - tenantCounts turns an empty response into an empty map
+        - create posts to the unscoped collection — the body carries the project
+        - update patches the plan by id
+        - softDelete and hardDelete are different endpoints
+        - a delete tolerates both an empty response and one with a body
+    - planVersionsResource
+        - reading versions goes through the plan
+        - creating a draft goes through the plan too
+        - but every mutation of an existing version addresses the version directly
+        - discarding a draft deletes the version, not the plan
+        - listForPlan turns an empty response into an empty list
+    - the shared request policy
+        - sends a JSON content type
+        - a caller header wins over the default
+        - serialises the body — the transport only carries strings
+        - sends no body when there is none, rather than the string "undefined"
+        - a client that resolved with no status never reads as an answer
+        - a 204 and an unparsable 2xx both read as no body
+        - a non-2xx throws an AdminError carrying the parsed body and the code
+        - what the server said survives — a page must not lose actionable text
+        - a validation array is joined here too, not only in the JSON helper
+        - a non-2xx without a readable body still reports its status
+        - a mutation that answers with nothing is a failure, not a null
+        - each empty-body failure names the operation it came from
+        - publish with no options sends an empty payload, not nothing
+        - a request with no init at all defaults to GET
+        - requestJsonBody names the default method when it has no init either
+        - a non-string code on the body is not treated as a code
+        - a non-2xx whose body is not an object still carries what came back
+        - requestJsonBody passes a present body through untouched
 - `packages/ui-vue/tests/use-plans.test.js`
-    - refuses to run without an endpoint, because the platform cannot guess it
-    - does not load until asked
-    - autoLoad fires exactly one request
-    - fills the list and clears loading
-    - an empty response is an empty list, not a failure
-    - a failure lands in error and does not escape
-    - tenantCounts failing is swallowed on purpose and leaves an empty map
-    - create appends what came back
-    - update replaces in place, keeping the order
-    - softDelete removes the row
-    - a rejected delete leaves the row where it was
-    - a create that answers with nothing is a failure, not a silent no-op
-    - needs both an endpoint and a plan
-    - load fills the versions
-    - createDraft appends the nested version, not the whole result
-    - publish replaces the version in place
-    - discardDraft removes it
-    - terminateVersion replaces the version with what came back
-    - its errors carry the API name they came from
+    - usePlans — construction
+        - refuses to run without an endpoint, because the platform cannot guess it
+        - does not load until asked
+        - autoLoad fires exactly one request
+    - usePlans — load
+        - fills the list and clears loading
+        - an empty response is an empty list, not a failure
+        - a failure lands in error and does not escape
+        - tenantCounts failing is swallowed on purpose and leaves an empty map
+    - usePlans — mutations keep the list in step
+        - create appends what came back
+        - update replaces in place, keeping the order
+        - softDelete removes the row
+        - a rejected delete leaves the row where it was
+        - a create that answers with nothing is a failure, not a silent no-op
+    - usePlanVersions
+        - needs both an endpoint and a plan
+        - load fills the versions
+        - createDraft appends the nested version, not the whole result
+        - publish replaces the version in place
+        - discardDraft removes it
+        - terminateVersion replaces the version with what came back
+        - its errors carry the API name they came from
 
 <!-- END proof -->

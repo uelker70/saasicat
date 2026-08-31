@@ -205,12 +205,13 @@ _Source:_ #236 · `docs/explanation/data-model.md`
 _Tested by:_
 
 - `tests/a-key-belongs-to-the-installation.test.js`
-    - the scan reaches the repository
-    - the scan reads the shipped DDL, where the column actually lived
-    - no tracked file carries the retired identifier without declaring it
-    - the rule is not vacuous: it refuses each spelling
-    - and it does not refuse a word that merely contains one
-    - a declaration excuses the file it is in, and only in its head
+    - a key belongs to the installation, not to a project
+        - the scan reaches the repository
+        - the scan reads the shipped DDL, where the column actually lived
+        - no tracked file carries the retired identifier without declaring it
+        - the rule is not vacuous: it refuses each spelling
+        - and it does not refuse a word that merely contains one
+        - a declaration excuses the file it is in, and only in its head
 
 <!-- END proof -->
 
@@ -234,14 +235,17 @@ _Tested by:_
         - the DB-hydration path is held to it too
         - and a configuration with no catalogue at all is the other finding, not both
 - `packages/ui-vue/tests/login-branding.test.js`
-    - a complete boot response is used as-is
-    - production is not shown as an environment badge
-    - ${name}: falls back instead of throwing
-    - without boot and without app branding the card still renders
-    - empty strings from boot do not blank the card
-    - true only for an explicit production environment
-    - a malformed payload is not treated as production
-    - other environments are not production
+    - resolveLoginBranding — boot values win, app branding fills in
+        - a complete boot response is used as-is
+        - production is not shown as an environment badge
+    - resolveLoginBranding — malformed boot must not take the card down
+        - ${name}: falls back instead of throwing
+        - without boot and without app branding the card still renders
+        - empty strings from boot do not blank the card
+    - isProductionBoot — the dev-credentials guard
+        - true only for an explicit production environment
+        - a malformed payload is not treated as production
+        - other environments are not production
 
 <!-- END proof -->
 
@@ -330,12 +334,14 @@ _Source:_ ADR 0001
 _Tested by:_
 
 - `tests/license-is-consistent.test.js`
-    - there are packages to check
-    - each one has a LICENSE file
-    - and it is byte-identical to the one at the root
-    - and the license field agrees with the file, everywhere
-    - ${file} quotes it verbatim
-    - the clause is not trivially short, so the check is not trivially true
+    - every published package ships the same licence as the repository
+        - there are packages to check
+        - each one has a LICENSE file
+        - and it is byte-identical to the one at the root
+        - and the license field agrees with the file, everywhere
+    - what the docs say about the licence is what the licence says
+        - ${file} quotes it verbatim
+        - the clause is not trivially short, so the check is not trivially true
 
 <!-- END proof -->
 
@@ -351,12 +357,14 @@ _Source:_ ADR 0001 · release 0.27.0
 _Tested by:_
 
 - `tests/license-is-consistent.test.js`
-    - there are packages to check
-    - each one has a LICENSE file
-    - and it is byte-identical to the one at the root
-    - and the license field agrees with the file, everywhere
-    - ${file} quotes it verbatim
-    - the clause is not trivially short, so the check is not trivially true
+    - every published package ships the same licence as the repository
+        - there are packages to check
+        - each one has a LICENSE file
+        - and it is byte-identical to the one at the root
+        - and the license field agrees with the file, everywhere
+    - what the docs say about the licence is what the licence says
+        - ${file} quotes it verbatim
+        - the clause is not trivially short, so the check is not trivially true
 
 <!-- END proof -->
 
@@ -476,37 +484,47 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 
 <!-- END proof -->
 
@@ -522,49 +540,60 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 - `packages/ui-vue/tests/use-discovery.test.js`
-    - the endpoint is required — there is no prefix the platform could guess
-    - load() adopts the snapshot and remembers the ETag
-    - the second load sends the ETag, and a 304 changes nothing
-    - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on `error`, not on a rejection the page has to catch
-    - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
-    - a failed rescan says rescan, not discovery
-    - a client that rejects is reported as it is, not re-wrapped
-    - a client that resolves with status 0 never reached the server
-    - a client that throws a non-Error still leaves an Error behind
-    - autoLoad fetches without being asked
+    - useDiscovery
+        - the endpoint is required — there is no prefix the platform could guess
+        - load() adopts the snapshot and remembers the ETag
+        - the second load sends the ETag, and a 304 changes nothing
+        - reload() drops the ETag, so the server has to answer with a body
+        - a failed load lands on `error`, not on a rejection the page has to catch
+        - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
+        - a failed rescan says rescan, not discovery
+        - a client that rejects is reported as it is, not re-wrapped
+        - a client that resolves with status 0 never reached the server
+        - a client that throws a non-Error still leaves an Error behind
+        - autoLoad fetches without being asked
 
 <!-- END proof -->
 
@@ -580,37 +609,47 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 
 <!-- END proof -->
 
@@ -625,17 +664,18 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/use-discovery.test.js`
-    - the endpoint is required — there is no prefix the platform could guess
-    - load() adopts the snapshot and remembers the ETag
-    - the second load sends the ETag, and a 304 changes nothing
-    - reload() drops the ETag, so the server has to answer with a body
-    - a failed load lands on `error`, not on a rejection the page has to catch
-    - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
-    - a failed rescan says rescan, not discovery
-    - a client that rejects is reported as it is, not re-wrapped
-    - a client that resolves with status 0 never reached the server
-    - a client that throws a non-Error still leaves an Error behind
-    - autoLoad fetches without being asked
+    - useDiscovery
+        - the endpoint is required — there is no prefix the platform could guess
+        - load() adopts the snapshot and remembers the ETag
+        - the second load sends the ETag, and a 304 changes nothing
+        - reload() drops the ETag, so the server has to answer with a body
+        - a failed load lands on `error`, not on a rejection the page has to catch
+        - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
+        - a failed rescan says rescan, not discovery
+        - a client that rejects is reported as it is, not re-wrapped
+        - a client that resolves with status 0 never reached the server
+        - a client that throws a non-Error still leaves an Error behind
+        - autoLoad fetches without being asked
 
 <!-- END proof -->
 
@@ -650,39 +690,50 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/nest/tests/catalog-entries-service.test.js`
-    - sync creates new capabilities with their code status
-    - sync creates new features/quotas as pending
-    - a missing capability is retired on sync, a missing feature obsoleted
-    - internal capabilities do not appear in the catalog
-    - quota without declaredAt → usageProvider null
-    - approve persists the approval signature + approvedBy
-    - revoking approval (approved → pending) deletes the approval fields
-    - invalid transition (pending → outdated) is rejected
-    - approve without a snapshot is rejected
-    - reviewQuota approve uses the quota signature
-    - reviewFeature throws on an unknown key
-    - approved → outdated when the capability set changes
-    - approved stays approved when the signature is stable
-    - quota drift: a changed unit flips approved → outdated
-    - manual obsolete stays put on sync (no auto-resurrect)
-    - a requires change on a capability flips approved → outdated (#35)
-    - a vanished key with a replaces claimant gets successorKey + obsolete
-    - a vanished key without a claimant stays bare obsolete (no successorKey)
-    - a reappearing key loses its successorKey
-    - quota replaces sets successorKey on the old quota entry
-    - sync is idempotent: a second run counts no further replaced
-    - repository without setFeatureSuccessor: sync runs through without a pointer
-    - requires/replaces are mirrored into the feature entries
-    - setFeatureI18n persists translations
-    - syncs the injected snapshot at boot (default on)
-    - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-    - registry does NOT overwrite existing SuperAdmin values (#12)
-    - seeds label even for an already-existing bare row (label==key) (#12)
-    - no-op when autoSyncDiscoveryAtBoot=false
-    - no-op without an injected snapshot
-    - swallows a sync error at boot (no boot crash)
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 - `packages/ui-vue/tests/component/discovery-page-keeps-the-first-edit.test.ts`
-    - the second payload still holds the first edit
+    - DiscoveryPage carries a saved translation into the next save
+        - the second payload still holds the first edit
 
 <!-- END proof -->
 
@@ -724,32 +775,41 @@ _Tested by:_
         - a missing capability is retired on sync, a missing feature obsoleted
         - internal capabilities do not appear in the catalog
         - quota without declaredAt → usageProvider null
-        - approve persists the approval signature + approvedBy
-        - revoking approval (approved → pending) deletes the approval fields
-        - invalid transition (pending → outdated) is rejected
-        - approve without a snapshot is rejected
-        - reviewQuota approve uses the quota signature
-        - reviewFeature throws on an unknown key
-        - approved → outdated when the capability set changes
-        - approved stays approved when the signature is stable
-        - quota drift: a changed unit flips approved → outdated
-        - manual obsolete stays put on sync (no auto-resurrect)
-        - a requires change on a capability flips approved → outdated (#35)
-        - a vanished key with a replaces claimant gets successorKey + obsolete
-        - a vanished key without a claimant stays bare obsolete (no successorKey)
-        - a reappearing key loses its successorKey
-        - quota replaces sets successorKey on the old quota entry
-        - sync is idempotent: a second run counts no further replaced
-        - repository without setFeatureSuccessor: sync runs through without a pointer
-        - requires/replaces are mirrored into the feature entries
+        - reviewFeature/reviewQuota (#20) › approve persists the approval signature + approvedBy
+        - reviewFeature/reviewQuota (#20) › revoking approval (approved → pending) deletes the
+          approval fields
+        - reviewFeature/reviewQuota (#20) › invalid transition (pending → outdated) is rejected
+        - reviewFeature/reviewQuota (#20) › approve without a snapshot is rejected
+        - reviewFeature/reviewQuota (#20) › reviewQuota approve uses the quota signature
+        - reviewFeature/reviewQuota (#20) › reviewFeature throws on an unknown key
+        - drift detection on sync (#20) › approved → outdated when the capability set changes
+        - drift detection on sync (#20) › approved stays approved when the signature is stable
+        - drift detection on sync (#20) › quota drift: a changed unit flips approved → outdated
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
+        - drift detection on sync (#20) › a requires change on a capability flips approved →
+          outdated (#35)
+        - replaced semantics on sync (#39) › a vanished key with a replaces claimant gets
+          successorKey + obsolete
+        - replaced semantics on sync (#39) › a vanished key without a claimant stays bare obsolete
+          (no successorKey)
+        - replaced semantics on sync (#39) › a reappearing key loses its successorKey
+        - replaced semantics on sync (#39) › quota replaces sets successorKey on the old quota entry
+        - replaced semantics on sync (#39) › sync is idempotent: a second run counts no further
+          replaced
+        - replaced semantics on sync (#39) › repository without setFeatureSuccessor: sync runs
+          through without a pointer
+        - replaced semantics on sync (#39) › requires/replaces are mirrored into the feature entries
         - setFeatureI18n persists translations
-        - syncs the injected snapshot at boot (default on)
-        - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
-        - registry does NOT overwrite existing SuperAdmin values (#12)
-        - seeds label even for an already-existing bare row (label==key) (#12)
-        - no-op when autoSyncDiscoveryAtBoot=false
-        - no-op without an injected snapshot
-        - swallows a sync error at boot (no boot crash)
+        - onApplicationBootstrap (auto-sync, #12) › syncs the injected snapshot at boot (default on)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label/description/icon from the
+          FeatureUiRegistry into empty fields (#12)
+        - onApplicationBootstrap (auto-sync, #12) › registry does NOT overwrite existing SuperAdmin
+          values (#12)
+        - onApplicationBootstrap (auto-sync, #12) › seeds label even for an already-existing bare
+          row (label==key) (#12)
+        - onApplicationBootstrap (auto-sync, #12) › no-op when autoSyncDiscoveryAtBoot=false
+        - onApplicationBootstrap (auto-sync, #12) › no-op without an injected snapshot
+        - onApplicationBootstrap (auto-sync, #12) › swallows a sync error at boot (no boot crash)
 - `packages/nest/tests/discovery-controller.test.js`
     - DiscoveryController — GET /admin/discovery
         - returns the discovery snapshot as the body
@@ -969,18 +1029,21 @@ _Tested by:_
         - published draft → ALREADY_PUBLISHED
         - draft without baseVersionId → NO_BASE_VERSION
 - `packages/ui-vue/tests/use-plan-editor.test.js`
-    - lists all catalog features with correct marker flags
-    - featuresByTier groups + sorts by tier order
-    - features without tier land in OTHER group at the end
-    - manifest without features block: empty but no crash
-    - toggle add + remove
-    - toggle on plannedOnly feature is ignored (no state change)
-    - nonRegressive: inherited feature cannot be removed
-    - nonRegressive=false: inherited feature may be removed
-    - snapshot returns sorted selection
-    - validateDraft accepts a clean selection
-    - validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key is
-      present
+    - usePlanEditor — Discovery (availableFeatures)
+        - lists all catalog features with correct marker flags
+        - featuresByTier groups + sorts by tier order
+        - features without tier land in OTHER group at the end
+        - manifest without features block: empty but no crash
+    - usePlanEditor — toggleFeature
+        - toggle add + remove
+        - toggle on plannedOnly feature is ignored (no state change)
+        - nonRegressive: inherited feature cannot be removed
+        - nonRegressive=false: inherited feature may be removed
+    - usePlanEditor — validateDraft + snapshot
+        - snapshot returns sorted selection
+        - validateDraft accepts a clean selection
+        - validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key
+          is present
 
 <!-- END proof -->
 
@@ -1042,30 +1105,35 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-catalogue-remembers-its-versions.integration.test.js`
-    - a new bundle comes back with its defaults filled in
-    - it is findable by its key as well as its id
-    - a key nobody took has no bundle
-    - an update changes what it names and leaves the rest alone
-    - a field can be cleared on purpose, which is not the same as leaving it out
-    - updating a bundle that is not there says so
-    - a retired bundle drops out of the list but stays readable
-    - …and can be listed deliberately
-    - the list is ordered by sort order, then by key
-    - a bundle key cannot be claimed twice
-    - the first draft is v1, and the next one after publishing is v2
-    - a second draft beside an unpublished one is refused, and names the one in the way
-    - the draft is the one findable as current, and only while it is a draft
-    - an edit changes what it names and leaves the rest standing
-    - a price can be taken away, which an omitted field would not do
-    - editing a version that is not there says so
-    - every version of the bundle is listed, oldest first
-    - a version id nobody created answers null
-    - an unpublished draft is gone afterwards
-    - a published version is refused — it is what somebody may have booked
-    - discarding something that is already gone is a no-op, not an error
-    - the newest published one that has not been superseded
-    - a bundle with only a draft has nothing live
-    - every transaction-aware read answers with a pool of one
+    - an operator manages a bundle
+        - a new bundle comes back with its defaults filled in
+        - it is findable by its key as well as its id
+        - a key nobody took has no bundle
+        - an update changes what it names and leaves the rest alone
+        - a field can be cleared on purpose, which is not the same as leaving it out
+        - updating a bundle that is not there says so
+        - a retired bundle drops out of the list but stays readable
+        - …and can be listed deliberately
+        - the list is ordered by sort order, then by key
+        - a bundle key cannot be claimed twice
+    - drafting a version
+        - the first draft is v1, and the next one after publishing is v2
+        - a second draft beside an unpublished one is refused, and names the one in the way
+        - the draft is the one findable as current, and only while it is a draft
+        - an edit changes what it names and leaves the rest standing
+        - a price can be taken away, which an omitted field would not do
+        - editing a version that is not there says so
+        - every version of the bundle is listed, oldest first
+        - a version id nobody created answers null
+    - discarding a draft
+        - an unpublished draft is gone afterwards
+        - a published version is refused — it is what somebody may have booked
+        - discarding something that is already gone is a no-op, not an error
+    - which version is live
+        - the newest published one that has not been superseded
+        - a bundle with only a draft has nothing live
+    - reading inside a transaction stays on its connection
+        - every transaction-aware read answers with a pool of one
 
 <!-- END proof -->
 
@@ -1081,11 +1149,12 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/version-editability.test.js`
-    - drafts remain editable
-    - published-but-future is only editable when latest-in-chain without a subscription
-    - subscriptionCount undefined blocks fail-closed
-    - referenced versions remain frozen
-    - non-latest, superseded and already-active versions remain frozen
+    - isVersionEditable
+        - drafts remain editable
+        - published-but-future is only editable when latest-in-chain without a subscription
+        - subscriptionCount undefined blocks fail-closed
+        - referenced versions remain frozen
+        - non-latest, superseded and already-active versions remain frozen
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
@@ -1131,11 +1200,12 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/version-editability.test.js`
-    - drafts remain editable
-    - published-but-future is only editable when latest-in-chain without a subscription
-    - subscriptionCount undefined blocks fail-closed
-    - referenced versions remain frozen
-    - non-latest, superseded and already-active versions remain frozen
+    - isVersionEditable
+        - drafts remain editable
+        - published-but-future is only editable when latest-in-chain without a subscription
+        - subscriptionCount undefined blocks fail-closed
+        - referenced versions remain frozen
+        - non-latest, superseded and already-active versions remain frozen
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — published-but-future editing (Pack 2c)
         - updatePlanDraft allows published-but-future version (latest, 0 subs)
@@ -1286,21 +1356,25 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-bundle-version-has-a-window.integration.test.js`
-    - the one whose window opened later wins
-    - a version with no window at all loses to one that has a window it is inside
-    - a closed window is excluded even when it is the later one
-    - a version is active throughout its last day, and not the next
-    - a version is not active before its window opens
-    - a bundle with no published version at all answers null, not an error
-    - does not offer the method, rather than answering from columns it ignores
-    - and hands back no window on a version that has one stored
+    - two versions inside the same moment
+        - the one whose window opened later wins
+        - a version with no window at all loses to one that has a window it is inside
+        - a closed window is excluded even when it is the later one
+    - the edges of one window
+        - a version is active throughout its last day, and not the next
+        - a version is not active before its window opens
+        - a bundle with no published version at all answers null, not an error
+    - an adapter that does not promise windows
+        - does not offer the method, rather than answering from columns it ignores
+        - and hands back no window on a version that has one stored
 - `packages/core/tests/active-plan-version-query.test.js`
-    - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
-    - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
-    - startOfUtcDay normalizes to 00:00 UTC
-    - without withEndsAt: no endsAt clause (CatalogPlanVersion)
-    - withEndsAt: adds an endsAt clause (PlanVersion)
+    - buildActivePlanVersionWhere
+        - requires publishedAt IS NOT NULL
+        - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
+        - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
+        - startOfUtcDay normalizes to 00:00 UTC
+        - without withEndsAt: no endsAt clause (CatalogPlanVersion)
+        - withEndsAt: adds an endsAt clause (PlanVersion)
 - `packages/nest/tests/public-marketing-catalog-bundles.test.js`
     - PublicMarketingCatalogService — Plans (validFrom tolerance)
         - live plan version with validFrom=NULL appears in the catalog
@@ -1313,20 +1387,25 @@ _Tested by:_
         - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/newly-published-composables.test.js`
-    - every one of them arrived
-    - it attaches a cause without the ES2022 constructor option
-    - it returns the same error rather than a copy
-    - the property stays writable, the way the native one is
-    - a prompt opens the dialog and waits
-    - a second prompt settles the first instead of stranding it
-    - closing answers the caller with null
-    - a provided state reaches a descendant
-    - without a provider it hands back a fresh, unshared one
-    - reset empties the draft
-    - it ends the session and then goes to the login page
-    - a rejecting logout still leaves the protected page
-    - with no adapter it navigates anyway
-    - the manifest cache is cleared whether or not an adapter ran
+    - the barrels publish all four
+        - every one of them arrived
+    - attachCause
+        - it attaches a cause without the ES2022 constructor option
+        - it returns the same error rather than a copy
+        - the property stays writable, the way the native one is
+    - useMfaPrompt
+        - a prompt opens the dialog and waits
+        - a second prompt settles the first instead of stranding it
+        - closing answers the caller with null
+    - the plan wizard state
+        - a provided state reaches a descendant
+        - without a provider it hands back a fresh, unshared one
+        - reset empties the draft
+    - useSignOut
+        - it ends the session and then goes to the login page
+        - a rejecting logout still leaves the protected page
+        - with no adapter it navigates anyway
+        - the manifest cache is cleared whether or not an adapter ran
 
 <!-- END proof -->
 
@@ -1349,21 +1428,23 @@ _Tested by:_
         - an explicit null end means unbounded, not "ask the draft"
         - a silent call still takes the draft’s end
 - `packages/ui-vue/tests/version-maps.test.js`
-    - the endpoint and the plan list are both required
-    - an empty plan list asks nothing
-    - the live version is the newest published one that was not superseded
-    - two versions activated on the same day are ordered by version number
-    - a plan with no published version maps to null, not to a missing key
-    - one failing plan does not blank the others
-    - an unreadable body is treated as no versions
-    - a changed plan list reloads on its own; an unchanged one does not
-    - the endpoint and the bundle list are both required
-    - an empty bundle list asks nothing and holds an empty mapping
-    - every bundle gets its list, keyed by id
-    - a bundle whose versions fail gets an empty list, not a missing key
-    - an unreadable body becomes an empty list
-    - refreshOne() replaces one entry and leaves the rest as they were
-    - a failing refreshOne() leaves the previous entry standing
+    - useLivePlanVersions
+        - the endpoint and the plan list are both required
+        - an empty plan list asks nothing
+        - the live version is the newest published one that was not superseded
+        - two versions activated on the same day are ordered by version number
+        - a plan with no published version maps to null, not to a missing key
+        - one failing plan does not blank the others
+        - an unreadable body is treated as no versions
+        - a changed plan list reloads on its own; an unchanged one does not
+    - useBundleVersionsMap
+        - the endpoint and the bundle list are both required
+        - an empty bundle list asks nothing and holds an empty mapping
+        - every bundle gets its list, keyed by id
+        - a bundle whose versions fail gets an empty list, not a missing key
+        - an unreadable body becomes an empty list
+        - refreshOne() replaces one entry and leaves the rest as they were
+        - a failing refreshOne() leaves the previous entry standing
 
 <!-- END proof -->
 
@@ -1397,30 +1478,35 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-catalogue-remembers-its-versions.integration.test.js`
-    - a new bundle comes back with its defaults filled in
-    - it is findable by its key as well as its id
-    - a key nobody took has no bundle
-    - an update changes what it names and leaves the rest alone
-    - a field can be cleared on purpose, which is not the same as leaving it out
-    - updating a bundle that is not there says so
-    - a retired bundle drops out of the list but stays readable
-    - …and can be listed deliberately
-    - the list is ordered by sort order, then by key
-    - a bundle key cannot be claimed twice
-    - the first draft is v1, and the next one after publishing is v2
-    - a second draft beside an unpublished one is refused, and names the one in the way
-    - the draft is the one findable as current, and only while it is a draft
-    - an edit changes what it names and leaves the rest standing
-    - a price can be taken away, which an omitted field would not do
-    - editing a version that is not there says so
-    - every version of the bundle is listed, oldest first
-    - a version id nobody created answers null
-    - an unpublished draft is gone afterwards
-    - a published version is refused — it is what somebody may have booked
-    - discarding something that is already gone is a no-op, not an error
-    - the newest published one that has not been superseded
-    - a bundle with only a draft has nothing live
-    - every transaction-aware read answers with a pool of one
+    - an operator manages a bundle
+        - a new bundle comes back with its defaults filled in
+        - it is findable by its key as well as its id
+        - a key nobody took has no bundle
+        - an update changes what it names and leaves the rest alone
+        - a field can be cleared on purpose, which is not the same as leaving it out
+        - updating a bundle that is not there says so
+        - a retired bundle drops out of the list but stays readable
+        - …and can be listed deliberately
+        - the list is ordered by sort order, then by key
+        - a bundle key cannot be claimed twice
+    - drafting a version
+        - the first draft is v1, and the next one after publishing is v2
+        - a second draft beside an unpublished one is refused, and names the one in the way
+        - the draft is the one findable as current, and only while it is a draft
+        - an edit changes what it names and leaves the rest standing
+        - a price can be taken away, which an omitted field would not do
+        - editing a version that is not there says so
+        - every version of the bundle is listed, oldest first
+        - a version id nobody created answers null
+    - discarding a draft
+        - an unpublished draft is gone afterwards
+        - a published version is refused — it is what somebody may have booked
+        - discarding something that is already gone is a no-op, not an error
+    - which version is live
+        - the newest published one that has not been superseded
+        - a bundle with only a draft has nothing live
+    - reading inside a transaction stays on its connection
+        - every transaction-aware read answers with a pool of one
 - `packages/nest/tests/plans-service.test.js`
     - PlansService — root operations
         - createPlan + listPlans + getPlan happy path
@@ -1526,39 +1612,44 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
-    - a plan is found by its key, and a key nobody took is not
-    - listing is ordered by sort order, then by key
-    - a retired plan drops out of the list, and comes back when asked for
-    - onlyPublished hides a plan whose versions are all still drafts
-    - a plan key cannot be claimed twice, so no version lineage is shared
-    - a retired plan still occupies its key
-    - renaming a plan touches what was named and nothing else
-    - renaming a plan that is gone says so instead of writing nothing
-    - deleting a plan twice is not an error
-    - drafts are numbered in order, and listed that way
-    - the current draft is the unpublished one, and there is none once it ships
-    - the latest live version is the newest unsuperseded one
-    - a terminated version is not live any more
-    - a draft can be edited, and only the named fields move
-    - a version published for a future date can still be corrected
-    - editing a version that is gone says so
-    - a draft can be discarded, a published version cannot, and a missing one is a no-op
-    - publishing the same draft twice fails the second time
-    - a scheduled change is written, and only while the row is uncancelled
-    - an immediate change binds the plan and refuses once a cancellation lands
-    - changing to a plan with no live version says so rather than binding nothing
-    - an immediate change stays on its own connection when a version is pending
-    - accepting a pending version is idempotent, and reports the second call as such
-    - accepting when nothing is pending says so
-    - a second cancellation returns the first one instead of replacing it
-    - an operator ending a contract on the spot flips the status
-    - an ordinary cancellation never names the status column
-    - ending a contract on the spot does name it
-    - an immediate change locks the row it decides from
-    - a tenant with no subscription reads as none, not as an error
-    - the dates and the plan version a person is shown all come back
-    - a pending version comes with what a person needs to decide
-    - the version a subscription is billed for cannot be deleted underneath it
+    - the plans an operator has on sale
+        - a plan is found by its key, and a key nobody took is not
+        - listing is ordered by sort order, then by key
+        - a retired plan drops out of the list, and comes back when asked for
+        - onlyPublished hides a plan whose versions are all still drafts
+        - a plan key cannot be claimed twice, so no version lineage is shared
+        - a retired plan still occupies its key
+        - renaming a plan touches what was named and nothing else
+        - renaming a plan that is gone says so instead of writing nothing
+        - deleting a plan twice is not an error
+    - the versions behind a plan
+        - drafts are numbered in order, and listed that way
+        - the current draft is the unpublished one, and there is none once it ships
+        - the latest live version is the newest unsuperseded one
+        - a terminated version is not live any more
+        - a draft can be edited, and only the named fields move
+        - a version published for a future date can still be corrected
+        - editing a version that is gone says so
+        - a draft can be discarded, a published version cannot, and a missing one is a no-op
+        - publishing the same draft twice fails the second time
+    - a tenant's own writes
+        - a scheduled change is written, and only while the row is uncancelled
+        - an immediate change binds the plan and refuses once a cancellation lands
+        - changing to a plan with no live version says so rather than binding nothing
+        - an immediate change stays on its own connection when a version is pending
+        - accepting a pending version is idempotent, and reports the second call as such
+        - accepting when nothing is pending says so
+        - a second cancellation returns the first one instead of replacing it
+        - an operator ending a contract on the spot flips the status
+    - the statements a tenant write sends
+        - an ordinary cancellation never names the status column
+        - ending a contract on the spot does name it
+        - an immediate change locks the row it decides from
+    - the subscription a tenant is shown
+        - a tenant with no subscription reads as none, not as an error
+        - the dates and the plan version a person is shown all come back
+        - a pending version comes with what a person needs to decide
+        - the version a subscription is billed for cannot be deleted underneath it
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -1580,16 +1671,20 @@ _Tested by:_
         - empty input → ok
         - formatSeedGateReport shows entity + code
 - `packages/ui-vue/tests/use-bulk-publish.test.js`
-    - sets items with default status pending
-    - all successful → success count = 3, done=true
-    - single error → success=2, failure=1, done=true
-    - empty changeNote → all items failed
-    - mfaCode sets X-Mfa-Code header
-    - auth token is sent along
-    - endpoints are called per kind
-    - override endpoints configurable
-    - progress=0 for empty set
-    - progress=0 before run, =1 after run
+    - useBulkPublish.setItems
+        - sets items with default status pending
+    - useBulkPublish.run — parallel publishes
+        - all successful → success count = 3, done=true
+        - single error → success=2, failure=1, done=true
+        - empty changeNote → all items failed
+        - mfaCode sets X-Mfa-Code header
+        - auth token is sent along
+    - useBulkPublish — endpoint mapping
+        - endpoints are called per kind
+        - override endpoints configurable
+    - useBulkPublish — progress
+        - progress=0 for empty set
+        - progress=0 before run, =1 after run
 
 <!-- END proof -->
 
@@ -1604,49 +1699,57 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-plan-binding.test.js`
-    - the omitted schema preserves every 0.6 plan default
-    - normalized mode resolves both directions
-    - catalog read uses the catalog delegate and exposes semantic planKey
-    - catalog import resolves planKey to UUID and writes only the catalog delegate
-    - entitlement and subscription adapters use their delegate and map UUID back
-    - active subscription counts use authoritative PlanVersions
-    - a subscription that has ended is not an active tenant
-    - all subscription operations honor tenantSubscription.delegate, including tx reads
-    - bundle booking count is opt-in and uses active cancellation semantics
-    - findActive is opt-in, day-inclusive and can include endsAt
-    - active lookups prefer a dated version over a legacy NULL validFrom
-    - draft fields, active lookup, atomic publish, succession and termination round-trip
-    - legacy constructor keeps planKey storage and drops unsupported fields
-    - latest live lookup excludes a version whose explicit endsAt elapsed
-    - legacy onlyPublished reads the live versions, and a key names one plan
-    - legacy onlyPublished omits a plan whose only version is a draft
-    - token factories receive normalized schema options
+    - Prisma plan binding options
+        - the omitted schema preserves every 0.6 plan default
+        - normalized mode resolves both directions
+    - normalized plan identity across Prisma adapters
+        - catalog read uses the catalog delegate and exposes semantic planKey
+        - catalog import resolves planKey to UUID and writes only the catalog delegate
+        - entitlement and subscription adapters use their delegate and map UUID back
+        - active subscription counts use authoritative PlanVersions
+        - a subscription that has ended is not an active tenant
+        - all subscription operations honor tenantSubscription.delegate, including tx reads
+        - bundle booking count is opt-in and uses active cancellation semantics
+        - findActive is opt-in, day-inclusive and can include endsAt
+        - active lookups prefer a dated version over a legacy NULL validFrom
+    - PrismaPlanRepository normalized lifecycle
+        - draft fields, active lookup, atomic publish, succession and termination round-trip
+        - legacy constructor keeps planKey storage and drops unsupported fields
+        - latest live lookup excludes a version whose explicit endsAt elapsed
+        - legacy onlyPublished reads the live versions, and a key names one plan
+        - legacy onlyPublished omits a plan whose only version is a draft
+    - prismaPersistence schema forwarding
+        - token factories receive normalized schema options
 - `packages/core/tests/active-plan-version-query.test.js`
-    - requires publishedAt IS NOT NULL
-    - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
-    - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
-    - startOfUtcDay normalizes to 00:00 UTC
-    - without withEndsAt: no endsAt clause (CatalogPlanVersion)
-    - withEndsAt: adds an endsAt clause (PlanVersion)
+    - buildActivePlanVersionWhere
+        - requires publishedAt IS NOT NULL
+        - tolerates validFrom IS NULL ("valid since forever") alongside validFrom &lt;= asOf
+        - validUntil day-inclusive: &gt;= startOfDay(asOf), not &gt; asOf
+        - startOfUtcDay normalizes to 00:00 UTC
+        - without withEndsAt: no endsAt clause (CatalogPlanVersion)
+        - withEndsAt: adds an endsAt clause (PlanVersion)
 - `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
-    - answers, using the newest live version for the redundancy hint
-    - and the same answer as a schema that does offer the lookup
-    - a bundle the plan does not cover gets no redundancy warning either way
-    - with no plan repository at all it still answers
-    - a repository that offers the lookup and throws inside it is the bug itself
+    - a bundle preview on a schema without validity windows
+        - answers, using the newest live version for the redundancy hint
+        - and the same answer as a schema that does offer the lookup
+        - a bundle the plan does not cover gets no redundancy warning either way
+        - with no plan repository at all it still answers
+        - a repository that offers the lookup and throws inside it is the bug itself
 - `packages/nest/tests/public-marketing-catalog-bundles.test.js`
     - PublicMarketingCatalogService — Plans (validFrom tolerance)
         - live plan version with validFrom=NULL appears in the catalog
         - findActivePlanVersion returns the NULL-validFrom version when it is the only live one
         - dated version wins over NULL-validFrom (fallback, not an override)
 - `packages/ui-vue/tests/resolve-plans.test.js`
-    - picks the currently valid version as the live one
-    - falls back to the next scheduled version when nothing is live
-    - gives a plan with only drafts a row without a version
-    - marks a plan expired only when nothing is left to come
-    - lists sub-rows without repeating the parent
-    - sorts by sortOrder, then by key
-    - counts what the tiles above the list show
+    - resolvePlans
+        - picks the currently valid version as the live one
+        - falls back to the next scheduled version when nothing is live
+        - gives a plan with only drafts a row without a version
+        - marks a plan expired only when nothing is left to come
+        - lists sub-rows without repeating the parent
+        - sorts by sortOrder, then by key
+    - countPlans
+        - counts what the tiles above the list show
 
 <!-- END proof -->
 
@@ -1716,45 +1819,52 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/an-operator-runs-the-plan-catalogue.integration.test.js`
-    - a plan is found by its key, and a key nobody took is not
-    - listing is ordered by sort order, then by key
-    - a retired plan drops out of the list, and comes back when asked for
-    - onlyPublished hides a plan whose versions are all still drafts
-    - a plan key cannot be claimed twice, so no version lineage is shared
-    - a retired plan still occupies its key
-    - renaming a plan touches what was named and nothing else
-    - renaming a plan that is gone says so instead of writing nothing
-    - deleting a plan twice is not an error
-    - drafts are numbered in order, and listed that way
-    - the current draft is the unpublished one, and there is none once it ships
-    - the latest live version is the newest unsuperseded one
-    - a terminated version is not live any more
-    - a draft can be edited, and only the named fields move
-    - a version published for a future date can still be corrected
-    - editing a version that is gone says so
-    - a draft can be discarded, a published version cannot, and a missing one is a no-op
-    - publishing the same draft twice fails the second time
-    - a scheduled change is written, and only while the row is uncancelled
-    - an immediate change binds the plan and refuses once a cancellation lands
-    - changing to a plan with no live version says so rather than binding nothing
-    - an immediate change stays on its own connection when a version is pending
-    - accepting a pending version is idempotent, and reports the second call as such
-    - accepting when nothing is pending says so
-    - a second cancellation returns the first one instead of replacing it
-    - an operator ending a contract on the spot flips the status
-    - an ordinary cancellation never names the status column
-    - ending a contract on the spot does name it
-    - an immediate change locks the row it decides from
-    - a tenant with no subscription reads as none, not as an error
-    - the dates and the plan version a person is shown all come back
-    - a pending version comes with what a person needs to decide
-    - the version a subscription is billed for cannot be deleted underneath it
+    - the plans an operator has on sale
+        - a plan is found by its key, and a key nobody took is not
+        - listing is ordered by sort order, then by key
+        - a retired plan drops out of the list, and comes back when asked for
+        - onlyPublished hides a plan whose versions are all still drafts
+        - a plan key cannot be claimed twice, so no version lineage is shared
+        - a retired plan still occupies its key
+        - renaming a plan touches what was named and nothing else
+        - renaming a plan that is gone says so instead of writing nothing
+        - deleting a plan twice is not an error
+    - the versions behind a plan
+        - drafts are numbered in order, and listed that way
+        - the current draft is the unpublished one, and there is none once it ships
+        - the latest live version is the newest unsuperseded one
+        - a terminated version is not live any more
+        - a draft can be edited, and only the named fields move
+        - a version published for a future date can still be corrected
+        - editing a version that is gone says so
+        - a draft can be discarded, a published version cannot, and a missing one is a no-op
+        - publishing the same draft twice fails the second time
+    - a tenant's own writes
+        - a scheduled change is written, and only while the row is uncancelled
+        - an immediate change binds the plan and refuses once a cancellation lands
+        - changing to a plan with no live version says so rather than binding nothing
+        - an immediate change stays on its own connection when a version is pending
+        - accepting a pending version is idempotent, and reports the second call as such
+        - accepting when nothing is pending says so
+        - a second cancellation returns the first one instead of replacing it
+        - an operator ending a contract on the spot flips the status
+    - the statements a tenant write sends
+        - an ordinary cancellation never names the status column
+        - ending a contract on the spot does name it
+        - an immediate change locks the row it decides from
+    - the subscription a tenant is shown
+        - a tenant with no subscription reads as none, not as an error
+        - the dates and the plan version a person is shown all come back
+        - a pending version comes with what a person needs to decide
+        - the version a subscription is billed for cannot be deleted underneath it
 - `packages/cli/tests/generated-catalog-loads.test.js`
-    - with a single quota
-    - with several, including a camel-cased key
-    - and with --skip-hasher, which does not touch the catalogue
-    - the check is not vacuous — a hand-broken catalogue is refused
-    - JSON.stringify(input)
+    - the catalogue init writes is one the platform accepts
+        - with a single quota
+        - with several, including a camel-cased key
+        - and with --skip-hasher, which does not touch the catalogue
+        - the check is not vacuous — a hand-broken catalogue is refused
+    - either init refuses the input, or the platform accepts the output
+        - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-importer.test.js`
     - PlanCatalogImporterService
         - importFromYaml: first round → all created
@@ -1794,11 +1904,13 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/cli/tests/generated-catalog-loads.test.js`
-    - with a single quota
-    - with several, including a camel-cased key
-    - and with --skip-hasher, which does not touch the catalogue
-    - the check is not vacuous — a hand-broken catalogue is refused
-    - JSON.stringify(input)
+    - the catalogue init writes is one the platform accepts
+        - with a single quota
+        - with several, including a camel-cased key
+        - and with --skip-hasher, which does not touch the catalogue
+        - the check is not vacuous — a hand-broken catalogue is refused
+    - either init refuses the input, or the platform accepts the output
+        - JSON.stringify(input)
 - `packages/nest/tests/plan-catalog-loader.test.js`
     - loadPlanCatalogFromString accepts valid example
     - loadPlanCatalogFromString rejects schemaVersion != 1
@@ -1837,69 +1949,78 @@ _Tested by:_
     - PublicMarketingCatalogService — comparison matrix (staircase sorting)
         - feature rows: widest coverage first, on a tie the leading plan column
 - `packages/ui-vue/tests/reorder-priorities.test.js`
-    - a move within equal priorities produces the order it promises
-    - it keeps the gaps an operator chose
-    - rows that keep their value are reported as unchanged
-    - no move, no writes
-    - a value at the top of the range stays inside it
-    - a list already at the ceiling still separates
-    - pulling ties apart never goes below zero
-    - a move to the end lands at the end
+    - reorderedPriorities
+        - a move within equal priorities produces the order it promises
+        - it keeps the gaps an operator chose
+        - rows that keep their value are reported as unchanged
+        - no move, no writes
+        - a value at the top of the range stays inside it
+        - a list already at the ceiling still separates
+        - pulling ties apart never goes below zero
+        - a move to the end lands at the end
 - `packages/ui-vue/tests/resources-plans.test.js`
-    - supplies http and context, leaving the operation its own arguments
-    - binds every operation the resource declares, and nothing else
-    - reads a context getter per call, so a changed endpoint is picked up
-    - list addresses the plan catalogue
-    - list turns an empty response into an empty list, not null
-    - tenantCounts has its own path and the same scoping
-    - tenantCounts turns an empty response into an empty map
-    - create posts to the unscoped collection — the body carries the project
-    - update patches the plan by id
-    - softDelete and hardDelete are different endpoints
-    - a delete tolerates both an empty response and one with a body
-    - reading versions goes through the plan
-    - creating a draft goes through the plan too
-    - but every mutation of an existing version addresses the version directly
-    - discarding a draft deletes the version, not the plan
-    - listForPlan turns an empty response into an empty list
-    - sends a JSON content type
-    - a caller header wins over the default
-    - serialises the body — the transport only carries strings
-    - sends no body when there is none, rather than the string "undefined"
-    - a client that resolved with no status never reads as an answer
-    - a 204 and an unparsable 2xx both read as no body
-    - a non-2xx throws an AdminError carrying the parsed body and the code
-    - what the server said survives — a page must not lose actionable text
-    - a validation array is joined here too, not only in the JSON helper
-    - a non-2xx without a readable body still reports its status
-    - a mutation that answers with nothing is a failure, not a null
-    - each empty-body failure names the operation it came from
-    - publish with no options sends an empty payload, not nothing
-    - a request with no init at all defaults to GET
-    - requestJsonBody names the default method when it has no init either
-    - a non-string code on the body is not treated as a code
-    - a non-2xx whose body is not an object still carries what came back
-    - requestJsonBody passes a present body through untouched
+    - bindResource
+        - supplies http and context, leaving the operation its own arguments
+        - binds every operation the resource declares, and nothing else
+        - reads a context getter per call, so a changed endpoint is picked up
+    - plansResource
+        - list addresses the plan catalogue
+        - list turns an empty response into an empty list, not null
+        - tenantCounts has its own path and the same scoping
+        - tenantCounts turns an empty response into an empty map
+        - create posts to the unscoped collection — the body carries the project
+        - update patches the plan by id
+        - softDelete and hardDelete are different endpoints
+        - a delete tolerates both an empty response and one with a body
+    - planVersionsResource
+        - reading versions goes through the plan
+        - creating a draft goes through the plan too
+        - but every mutation of an existing version addresses the version directly
+        - discarding a draft deletes the version, not the plan
+        - listForPlan turns an empty response into an empty list
+    - the shared request policy
+        - sends a JSON content type
+        - a caller header wins over the default
+        - serialises the body — the transport only carries strings
+        - sends no body when there is none, rather than the string "undefined"
+        - a client that resolved with no status never reads as an answer
+        - a 204 and an unparsable 2xx both read as no body
+        - a non-2xx throws an AdminError carrying the parsed body and the code
+        - what the server said survives — a page must not lose actionable text
+        - a validation array is joined here too, not only in the JSON helper
+        - a non-2xx without a readable body still reports its status
+        - a mutation that answers with nothing is a failure, not a null
+        - each empty-body failure names the operation it came from
+        - publish with no options sends an empty payload, not nothing
+        - a request with no init at all defaults to GET
+        - requestJsonBody names the default method when it has no init either
+        - a non-string code on the body is not treated as a code
+        - a non-2xx whose body is not an object still carries what came back
+        - requestJsonBody passes a present body through untouched
 - `packages/ui-vue/tests/use-plans.test.js`
-    - refuses to run without an endpoint, because the platform cannot guess it
-    - does not load until asked
-    - autoLoad fires exactly one request
-    - fills the list and clears loading
-    - an empty response is an empty list, not a failure
-    - a failure lands in error and does not escape
-    - tenantCounts failing is swallowed on purpose and leaves an empty map
-    - create appends what came back
-    - update replaces in place, keeping the order
-    - softDelete removes the row
-    - a rejected delete leaves the row where it was
-    - a create that answers with nothing is a failure, not a silent no-op
-    - needs both an endpoint and a plan
-    - load fills the versions
-    - createDraft appends the nested version, not the whole result
-    - publish replaces the version in place
-    - discardDraft removes it
-    - terminateVersion replaces the version with what came back
-    - its errors carry the API name they came from
+    - usePlans — construction
+        - refuses to run without an endpoint, because the platform cannot guess it
+        - does not load until asked
+        - autoLoad fires exactly one request
+    - usePlans — load
+        - fills the list and clears loading
+        - an empty response is an empty list, not a failure
+        - a failure lands in error and does not escape
+        - tenantCounts failing is swallowed on purpose and leaves an empty map
+    - usePlans — mutations keep the list in step
+        - create appends what came back
+        - update replaces in place, keeping the order
+        - softDelete removes the row
+        - a rejected delete leaves the row where it was
+        - a create that answers with nothing is a failure, not a silent no-op
+    - usePlanVersions
+        - needs both an endpoint and a plan
+        - load fills the versions
+        - createDraft appends the nested version, not the whole result
+        - publish replaces the version in place
+        - discardDraft removes it
+        - terminateVersion replaces the version with what came back
+        - its errors carry the API name they came from
 
 <!-- END proof -->
 
@@ -2077,39 +2198,45 @@ _Tested by:_
         - the preview names the day the plan takes the bundle down with it
         - a plan that runs on names no end at all
 - `packages/ui-vue/tests/use-tenant-subscription-bundles.test.js`
-    - the endpoint is required — there is no prefix the platform could guess
-    - load() maps the wire dates on a record onto Dates
-    - the booking’s own period arrives as dates, not as wire strings
-    - a booking with no period of its own keeps null, not the epoch
-    - a nullable date that is set is mapped too
-    - load() keeps the list usable and reports the failure on `error`
-    - a 204 to load() is an empty list, not a failure
-    - add() prepends the new bundle and sends the token
-    - without a token no Authorization header is invented
-    - cancel() replaces the row it cancelled
-    - a mutation the server answered without a body says the change may have landed
-    - a mutation that failed outright is not that — it says check the status
-    - autoLoad fetches without being asked
+    - useTenantSubscriptionBundles
+        - the endpoint is required — there is no prefix the platform could guess
+        - load() maps the wire dates on a record onto Dates
+        - the booking’s own period arrives as dates, not as wire strings
+        - a booking with no period of its own keeps null, not the epoch
+        - a nullable date that is set is mapped too
+        - load() keeps the list usable and reports the failure on `error`
+        - a 204 to load() is an empty list, not a failure
+        - add() prepends the new bundle and sends the token
+        - without a token no Authorization header is invented
+        - cancel() replaces the row it cancelled
+        - a mutation the server answered without a body says the change may have landed
+        - a mutation that failed outright is not that — it says check the status
+        - autoLoad fetches without being asked
 - `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
-    - no control appears, because there is one legal answer
-    - the card quotes the monthly price with the monthly unit
-    - buying sends the rhythm rather than leaving it to be guessed
-    - the control appears, preselected to the plan — nobody is repriced by an upgrade
-    - switching moves the price and the unit together
-    - buying sends what was chosen, not what the plan is
-    - is not offered, and says why instead of showing a price
-    - becomes bookable again when the other rhythm is chosen
-    - keeps the reason that actually explains it when it is already booked
-    - an untouched control follows the plan when it turns yearly
-    - a rhythm the tenant chose survives a plan change that still offers it
-    - a choice the plan took away does not come back as a choice
-    - drops a selection the plan no longer offers
-    - a yearly booking states the yearly charge, not a monthly figure
-    - a monthly booking beside a yearly plan reads as monthly
-    - a price only an override supplies is shown, though no catalogue price exists
-    - a booking from before the rhythm was recorded takes the plan's
-    - a price the server did not send is joined from the catalogue in the booking's rhythm
-    - a price the server resolved to nothing is shown as nothing
+    - a monthly plan offers no choice
+        - no control appears, because there is one legal answer
+        - the card quotes the monthly price with the monthly unit
+        - buying sends the rhythm rather than leaving it to be guessed
+    - a yearly plan offers both
+        - the control appears, preselected to the plan — nobody is repriced by an upgrade
+        - switching moves the price and the unit together
+        - buying sends what was chosen, not what the plan is
+    - a bundle that is not sold in the chosen rhythm
+        - is not offered, and says why instead of showing a price
+        - becomes bookable again when the other rhythm is chosen
+        - keeps the reason that actually explains it when it is already booked
+    - a plan whose rhythm changes underneath the section
+        - an untouched control follows the plan when it turns yearly
+        - a rhythm the tenant chose survives a plan change that still offers it
+        - a choice the plan took away does not come back as a choice
+        - drops a selection the plan no longer offers
+    - what a booked bundle says it costs
+        - a yearly booking states the yearly charge, not a monthly figure
+        - a monthly booking beside a yearly plan reads as monthly
+        - a price only an override supplies is shown, though no catalogue price exists
+        - a booking from before the rhythm was recorded takes the plan's
+        - a price the server did not send is joined from the catalogue in the booking's rhythm
+        - a price the server resolved to nothing is shown as nothing
 
 <!-- END proof -->
 
@@ -2159,15 +2286,16 @@ _Tested by:_
         - a plan that has no price for it refuses the booking outright
         - …while a plan the override does not touch books it happily
 - `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
-    - load() reads all three endpoints under the default prefix
-    - a trailing slash in the prefix does not become a double slash
-    - the wire form of a bundle becomes the shape the page renders
-    - the optional wire fields default rather than arriving as undefined
-    - a missing /bundles endpoint is not fatal — the plan page still renders
-    - a failing /plans clears what it could not load
-    - a client that resolves with status 0 fails the load rather than emptying it
-    - a client that rejects is reported, not swallowed
-    - it loads on its own unless the consumer says otherwise
+    - useTenantBillingCatalog
+        - load() reads all three endpoints under the default prefix
+        - a trailing slash in the prefix does not become a double slash
+        - the wire form of a bundle becomes the shape the page renders
+        - the optional wire fields default rather than arriving as undefined
+        - a missing /bundles endpoint is not fatal — the plan page still renders
+        - a failing /plans clears what it could not load
+        - a client that resolves with status 0 fails the load rather than emptying it
+        - a client that rejects is reported, not swallowed
+        - it loads on its own unless the consumer says otherwise
 
 <!-- END proof -->
 
@@ -2183,26 +2311,30 @@ _Source:_ #239
 _Tested by:_
 
 - `packages/core/tests/bundle-defaults-are-decided-once.test.js`
-    - an omitted quota map is empty, not absent
-    - an omitted price is null, not zero
-    - an unstated bundle is marketed
-    - …and an explicit false stays false
-    - an omitted change note is empty, and lineage is null
-    - everything given is passed through untouched
-    - it says nothing about validity windows
-    - an omitted description or icon is null, not an empty string
-    - an unstated sort order is zero, and an explicit zero survives
-    - an omitted translation map is empty
-    - the identity fields are carried straight over
-    - dates become ISO strings, because that is what the row type says
-    - a retired stem carries its date rather than a flag
-    - an i18n map is passed through
-    - anything that is not a map becomes one
-    - an omitted field is not in the patch at all
-    - an explicit null is kept, because somebody chose it
-    - falsy values are values
-    - a key that was not asked for is not in the patch
-    - an empty patch is empty, not undefined
+    - what a new draft starts from
+        - an omitted quota map is empty, not absent
+        - an omitted price is null, not zero
+        - an unstated bundle is marketed
+        - …and an explicit false stays false
+        - an omitted change note is empty, and lineage is null
+        - everything given is passed through untouched
+        - it says nothing about validity windows
+    - what a new bundle stem starts from
+        - an omitted description or icon is null, not an empty string
+        - an unstated sort order is zero, and an explicit zero survives
+        - an omitted translation map is empty
+        - the identity fields are carried straight over
+    - reading a stored stem back
+        - dates become ISO strings, because that is what the row type says
+        - a retired stem carries its date rather than a flag
+        - an i18n map is passed through
+        - anything that is not a map becomes one
+    - the fields a caller actually gave
+        - an omitted field is not in the patch at all
+        - an explicit null is kept, because somebody chose it
+        - falsy values are values
+        - a key that was not asked for is not in the patch
+        - an empty patch is empty, not undefined
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -2349,17 +2481,18 @@ _Source:_ #221 · #222
 _Tested by:_
 
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
-    - a yearly add-on blocks the move to a monthly plan
-    - the blocker names the date the add-on runs to, so the tenant can act
-    - and says both in either language, not only in the English message
-    - the German sentence carries no English cycle word
-    - staying on the yearly cycle is not blocked
-    - a monthly add-on does not block a monthly plan
-    - an add-on with no rhythm of its own follows the plan and blocks nothing
-    - no active bookings, nothing to block
-    - a consumer without the bundle module is not blocked by bookings it cannot have
-    - moving to a LONGER cycle with a monthly add-on is fine
-    - the date falls back to the minimum term where no period is stored
+    - moving to a shorter cycle with a longer add-on booked
+        - a yearly add-on blocks the move to a monthly plan
+        - the blocker names the date the add-on runs to, so the tenant can act
+        - and says both in either language, not only in the English message
+        - the German sentence carries no English cycle word
+        - staying on the yearly cycle is not blocked
+        - a monthly add-on does not block a monthly plan
+        - an add-on with no rhythm of its own follows the plan and blocks nothing
+        - no active bookings, nothing to block
+        - a consumer without the bundle module is not blocked by bookings it cannot have
+        - moving to a LONGER cycle with a monthly add-on is fine
+        - the date falls back to the minimum term where no period is stored
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
     - a commitment an operator did configure
         - binds inside it, and still cannot outlast the plan
@@ -2384,26 +2517,30 @@ _Source:_ #222
 _Tested by:_
 
 - `packages/core/tests/bundle-defaults-are-decided-once.test.js`
-    - an omitted quota map is empty, not absent
-    - an omitted price is null, not zero
-    - an unstated bundle is marketed
-    - …and an explicit false stays false
-    - an omitted change note is empty, and lineage is null
-    - everything given is passed through untouched
-    - it says nothing about validity windows
-    - an omitted description or icon is null, not an empty string
-    - an unstated sort order is zero, and an explicit zero survives
-    - an omitted translation map is empty
-    - the identity fields are carried straight over
-    - dates become ISO strings, because that is what the row type says
-    - a retired stem carries its date rather than a flag
-    - an i18n map is passed through
-    - anything that is not a map becomes one
-    - an omitted field is not in the patch at all
-    - an explicit null is kept, because somebody chose it
-    - falsy values are values
-    - a key that was not asked for is not in the patch
-    - an empty patch is empty, not undefined
+    - what a new draft starts from
+        - an omitted quota map is empty, not absent
+        - an omitted price is null, not zero
+        - an unstated bundle is marketed
+        - …and an explicit false stays false
+        - an omitted change note is empty, and lineage is null
+        - everything given is passed through untouched
+        - it says nothing about validity windows
+    - what a new bundle stem starts from
+        - an omitted description or icon is null, not an empty string
+        - an unstated sort order is zero, and an explicit zero survives
+        - an omitted translation map is empty
+        - the identity fields are carried straight over
+    - reading a stored stem back
+        - dates become ISO strings, because that is what the row type says
+        - a retired stem carries its date rather than a flag
+        - an i18n map is passed through
+        - anything that is not a map becomes one
+    - the fields a caller actually gave
+        - an omitted field is not in the patch at all
+        - an explicit null is kept, because somebody chose it
+        - falsy values are values
+        - a key that was not asked for is not in the patch
+        - an empty patch is empty, not undefined
 - `packages/nest/tests/subscription-bundles-service.test.js`
     - SubscriptionBundlesService — addBundleToSubscription
         - a booking commits the tenant to nothing unless somebody says so
@@ -2482,12 +2619,14 @@ _Tested by:_
         - states the capped term, not the uncapped one
         - and the full term where nothing ends the parent
 - `packages/ui-vue-tenant/tests/component/a-booking-states-what-it-commits-to.test.ts`
-    - the date the first period runs to is on the screen
-    - a booking with no period to align to says nothing rather than nothing-as-a-date
-    - a plan that is already ending names the day
-    - a plan that runs on shows no end date
-    - the no-refund rule holds whether or not the plan is ending
-    - a cancellation preview does not repeat the booking terms
+    - the first period is named before it is agreed to
+        - the date the first period runs to is on the screen
+        - a booking with no period to align to says nothing rather than nothing-as-a-date
+    - ending with the plan is stated, not left to be discovered
+        - a plan that is already ending names the day
+        - a plan that runs on shows no end date
+        - the no-refund rule holds whether or not the plan is ending
+        - a cancellation preview does not repeat the booking terms
 
 <!-- END proof -->
 
@@ -2660,31 +2799,36 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/bundle-availability.test.js`
-    - returns uncovered requires sorted + deduplicated
-    - empty when all requires are covered
-    - empty when the bundle has no requires
-    - bookable when requires covered and features are new
-    - missing-requires grays out bundle on uncovered prerequisite
-    - covered when all bundle features are already covered (already included)
-    - covered beats missing-requires (fully covered bundle never bookable)
-    - partial coverage stays bookable (not covered)
-    - bundle without features is never covered
-    - plan ∪ features of the other selected bundles, without the bundle itself
-    - excludes own features (otherwise every bundle would be trivially covered)
-    - Y is redundant when C is already covered by Z
-    - Z is not redundant — D is not covered elsewhere
-    - redundant when the plan already contains the features
-    - single selected bundle is not redundant (self-exclusion)
-    - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
-    - input order irrelevant — sorting determines the kept one (z remains)
-    - sortOrder controls which bundle is kept
-    - 3-cycle of identical bundles → exactly ONE remains
-    - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
-    - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
-    - bundles covered by the plan are discarded
-    - disjoint bundles are all kept
-    - empty selection → empty result
-    - does not mutate the input
+    - missingRequiresFor
+        - returns uncovered requires sorted + deduplicated
+        - empty when all requires are covered
+        - empty when the bundle has no requires
+    - resolveBundleAvailability
+        - bookable when requires covered and features are new
+        - missing-requires grays out bundle on uncovered prerequisite
+        - covered when all bundle features are already covered (already included)
+        - covered beats missing-requires (fully covered bundle never bookable)
+        - partial coverage stays bookable (not covered)
+        - bundle without features is never covered
+    - coverageExcludingSelf
+        - plan ∪ features of the other selected bundles, without the bundle itself
+        - excludes own features (otherwise every bundle would be trivially covered)
+    - isBundleRedundant
+        - Y is redundant when C is already covered by Z
+        - Z is not redundant — D is not covered elsewhere
+        - redundant when the plan already contains the features
+        - single selected bundle is not redundant (self-exclusion)
+    - selectChargeableBundles
+        - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
+        - input order irrelevant — sorting determines the kept one (z remains)
+        - sortOrder controls which bundle is kept
+        - 3-cycle of identical bundles → exactly ONE remains
+        - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
+        - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
+        - bundles covered by the plan are discarded
+        - disjoint bundles are all kept
+        - empty selection → empty result
+        - does not mutate the input
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - which bundles a tenant may ask the price of
         - a draft is not priced, because it was never on offer
@@ -2724,14 +2868,17 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-bundle-version-has-a-window.integration.test.js`
-    - the one whose window opened later wins
-    - a version with no window at all loses to one that has a window it is inside
-    - a closed window is excluded even when it is the later one
-    - a version is active throughout its last day, and not the next
-    - a version is not active before its window opens
-    - a bundle with no published version at all answers null, not an error
-    - does not offer the method, rather than answering from columns it ignores
-    - and hands back no window on a version that has one stored
+    - two versions inside the same moment
+        - the one whose window opened later wins
+        - a version with no window at all loses to one that has a window it is inside
+        - a closed window is excluded even when it is the later one
+    - the edges of one window
+        - a version is active throughout its last day, and not the next
+        - a version is not active before its window opens
+        - a bundle with no published version at all answers null, not an error
+    - an adapter that does not promise windows
+        - does not offer the method, rather than answering from columns it ignores
+        - and hands back no window on a version that has one stored
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - a bundle the operator retired
         - is not priced, though its version is still live
@@ -2770,31 +2917,36 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/bundle-availability.test.js`
-    - returns uncovered requires sorted + deduplicated
-    - empty when all requires are covered
-    - empty when the bundle has no requires
-    - bookable when requires covered and features are new
-    - missing-requires grays out bundle on uncovered prerequisite
-    - covered when all bundle features are already covered (already included)
-    - covered beats missing-requires (fully covered bundle never bookable)
-    - partial coverage stays bookable (not covered)
-    - bundle without features is never covered
-    - plan ∪ features of the other selected bundles, without the bundle itself
-    - excludes own features (otherwise every bundle would be trivially covered)
-    - Y is redundant when C is already covered by Z
-    - Z is not redundant — D is not covered elsewhere
-    - redundant when the plan already contains the features
-    - single selected bundle is not redundant (self-exclusion)
-    - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
-    - input order irrelevant — sorting determines the kept one (z remains)
-    - sortOrder controls which bundle is kept
-    - 3-cycle of identical bundles → exactly ONE remains
-    - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
-    - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
-    - bundles covered by the plan are discarded
-    - disjoint bundles are all kept
-    - empty selection → empty result
-    - does not mutate the input
+    - missingRequiresFor
+        - returns uncovered requires sorted + deduplicated
+        - empty when all requires are covered
+        - empty when the bundle has no requires
+    - resolveBundleAvailability
+        - bookable when requires covered and features are new
+        - missing-requires grays out bundle on uncovered prerequisite
+        - covered when all bundle features are already covered (already included)
+        - covered beats missing-requires (fully covered bundle never bookable)
+        - partial coverage stays bookable (not covered)
+        - bundle without features is never covered
+    - coverageExcludingSelf
+        - plan ∪ features of the other selected bundles, without the bundle itself
+        - excludes own features (otherwise every bundle would be trivially covered)
+    - isBundleRedundant
+        - Y is redundant when C is already covered by Z
+        - Z is not redundant — D is not covered elsewhere
+        - redundant when the plan already contains the features
+        - single selected bundle is not redundant (self-exclusion)
+    - selectChargeableBundles
+        - mutual coverage Y={C},Z={C} → exactly ONE bundle remains (deterministically Z)
+        - input order irrelevant — sorting determines the kept one (z remains)
+        - sortOrder controls which bundle is kept
+        - 3-cycle of identical bundles → exactly ONE remains
+        - chain of proper subsets X⊂Y⊂Z → only the superset Z remains
+        - asymmetric Y={C} ⊂ Z={C,D} → Y discarded, Z kept (regression)
+        - bundles covered by the plan are discarded
+        - disjoint bundles are all kept
+        - empty selection → empty result
+        - does not mutate the input
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - an operator publishes a bundle
         - a base price is enough
@@ -2866,30 +3018,35 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-booking-outlives-the-request.integration.test.js`
-    - a booking with a window keeps every part of it
-    - a booking from before those columns keeps null, not an invented window
-    - an id nobody booked answers null rather than throwing
-    - the list is the subscription’s own, not the neighbour’s
-    - a subscription with no bookings lists nothing, rather than everything
-    - a booking nobody cancelled is active
-    - a cancellation still ahead leaves it active
-    - a cancellation that has landed ends it
-    - the effective date itself is the first moment it is over
-    - asking without a moment asks about now
-    - reactivating clears both dates and the booking is active again
-    - cancelling something that is not there says so, rather than doing nothing quietly
-    - reactivating something that is not there says so too
-    - active bookings of that version are counted, across subscriptions
-    - a different version is not counted
-    - a booking whose cancellation has landed is not counted
-    - a version nobody booked counts zero
+    - what a booking carries
+        - a booking with a window keeps every part of it
+        - a booking from before those columns keeps null, not an invented window
+        - an id nobody booked answers null rather than throwing
+        - the list is the subscription’s own, not the neighbour’s
+        - a subscription with no bookings lists nothing, rather than everything
+    - what counts as active
+        - a booking nobody cancelled is active
+        - a cancellation still ahead leaves it active
+        - a cancellation that has landed ends it
+        - the effective date itself is the first moment it is over
+        - asking without a moment asks about now
+    - undoing a cancellation
+        - reactivating clears both dates and the booking is active again
+        - cancelling something that is not there says so, rather than doing nothing quietly
+        - reactivating something that is not there says so too
+    - counting what a catalogue version still owes
+        - active bookings of that version are counted, across subscriptions
+        - a different version is not counted
+        - a booking whose cancellation has landed is not counted
+        - a version nobody booked counts zero
 - `packages/adapter-prisma/tests/prisma-bundle.repository.test.js`
-    - legacy default never requires, writes or exposes validity columns
-    - enabled mode round-trips validity dates on create and update
-    - enabled mode resolves the active version with inclusive days and deterministic priority
-    - enabled publish is internally atomic and applies auto-succession
-    - enabled publish refuses a version somebody else published first
-    - enabled publish reuses a caller transaction instead of nesting one
+    - PrismaBundleRepository validity-window schema mode
+        - legacy default never requires, writes or exposes validity columns
+        - enabled mode round-trips validity dates on create and update
+        - enabled mode resolves the active version with inclusive days and deterministic priority
+        - enabled publish is internally atomic and applies auto-succession
+        - enabled publish refuses a version somebody else published first
+        - enabled publish reuses a caller transaction instead of nesting one
 - `packages/nest/tests/subscription-bundle-repo.test.js`
     - SubscriptionBundleRepository — lifecycle
         - add + listBySubscription returns the new booking
@@ -2967,17 +3124,18 @@ _Tested by:_
         - every combination, not three of the four
         - ${bundle} bundle on a ${plan} plan is ${allowed ? 'allowed' : 'refused'}
 - `packages/nest/tests/a-plan-change-cannot-strand-a-bundle.test.js`
-    - a yearly add-on blocks the move to a monthly plan
-    - the blocker names the date the add-on runs to, so the tenant can act
-    - and says both in either language, not only in the English message
-    - the German sentence carries no English cycle word
-    - staying on the yearly cycle is not blocked
-    - a monthly add-on does not block a monthly plan
-    - an add-on with no rhythm of its own follows the plan and blocks nothing
-    - no active bookings, nothing to block
-    - a consumer without the bundle module is not blocked by bookings it cannot have
-    - moving to a LONGER cycle with a monthly add-on is fine
-    - the date falls back to the minimum term where no period is stored
+    - moving to a shorter cycle with a longer add-on booked
+        - a yearly add-on blocks the move to a monthly plan
+        - the blocker names the date the add-on runs to, so the tenant can act
+        - and says both in either language, not only in the English message
+        - the German sentence carries no English cycle word
+        - staying on the yearly cycle is not blocked
+        - a monthly add-on does not block a monthly plan
+        - an add-on with no rhythm of its own follows the plan and blocks nothing
+        - no active bookings, nothing to block
+        - a consumer without the bundle module is not blocked by bookings it cannot have
+        - moving to a LONGER cycle with a monthly add-on is fine
+        - the date falls back to the minimum term where no period is stored
 - `packages/nest/tests/tenant-subscription-bundles-plan-compat.test.js`
     - add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
     - preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID
@@ -3109,15 +3267,16 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
-    - the no-options default preserves the 0.6 plan-only write
-    - opening a window records the day the subscription is billed on
-    - and a change that opens none leaves it alone
-    - normalized mode binds semantic plan and active version atomically with named delegates
-    - a pending version of the same target plan is retained
-    - a failing onboarding callback rolls plan and version back together
-    - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
-    - pending PlanVersion acceptance rejects a changed CAS target and a missing target
-    - invalid validity capability combinations fail at construction
+    - PrismaTenantSubscriptionWriteAdapter
+        - the no-options default preserves the 0.6 plan-only write
+        - opening a window records the day the subscription is billed on
+        - and a change that opens none leaves it alone
+        - normalized mode binds semantic plan and active version atomically with named delegates
+        - a pending version of the same target plan is retained
+        - a failing onboarding callback rolls plan and version back together
+        - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
+        - pending PlanVersion acceptance rejects a changed CAS target and a missing target
+        - invalid validity capability combinations fail at construction
 
 <!-- END proof -->
 
@@ -3580,30 +3739,39 @@ _Tested by:_
         - a yearly customer choosing a monthly higher plan is told why it waits
         - the same upgrade on the same cycle happens now and says nothing
 - `packages/ui-vue-tenant/tests/component/a-later-change-is-acknowledged.test.ts`
-    - the block appears, led by what the customer does not get today
-    - it offers the alternative rather than only describing it
-    - the confirmation is locked until it is acknowledged
-    - an ordinary upgrade shows none of it
-    - a downgrade is a different sentence, not this one
-    - the heading counts the features and dates the loss
-    - every lost feature is listed, not just counted
-    - the confirmation is locked until it is acknowledged
-    - a downgrade that costs no feature says so instead of counting zero
-    - it says the rhythm changes later, and a new term starts then
-    - the confirmation is locked until it is acknowledged
-    - the effective date is set in bold, the rest is not
-    - the block disappears once the preview describes the new choice
+    - a shorter cycle defers everything, and says so first
+        - the block appears, led by what the customer does not get today
+        - it offers the alternative rather than only describing it
+        - the confirmation is locked until it is acknowledged
+        - an ordinary upgrade shows none of it
+        - a downgrade is a different sentence, not this one
+    - a downgrade names what falls away, and when
+        - the heading counts the features and dates the loss
+        - every lost feature is listed, not just counted
+        - the confirmation is locked until it is acknowledged
+        - a downgrade that costs no feature says so instead of counting zero
+    - a cycle change is acknowledged too
+        - it says the rhythm changes later, and a new term starts then
+        - the confirmation is locked until it is acknowledged
+    - the dates stand out from the sentence around them
+        - the effective date is set in bold, the rest is not
+    - keeping the yearly cycle re-asks rather than reusing the answer
+        - the block disappears once the preview describes the new choice
 - `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
-    - no plan chosen: pressing next changes nothing
-    - choosing the plan the tenant is already on is not a change
-    - a different plan advances
-    - no plan chosen: the button is disabled
-    - the plan the tenant is already on: still disabled
-    - a different plan: enabled
-    - on the preview step it follows the blockers
-    - advancing moves focus to the new heading
-    - a refused move leaves focus alone
-    - exactly one step is marked current, and it carries a word
+    - the wizard refuses a step it may not leave
+        - no plan chosen: pressing next changes nothing
+        - choosing the plan the tenant is already on is not a change
+        - a different plan advances
+    - the next button says whether it will do anything
+        - no plan chosen: the button is disabled
+        - the plan the tenant is already on: still disabled
+        - a different plan: enabled
+        - on the preview step it follows the blockers
+    - focus follows the step the tenant is now on
+        - advancing moves focus to the new heading
+        - a refused move leaves focus alone
+    - the progress list says where the tenant is without relying on colour
+        - exactly one step is marked current, and it carries a word
 
 <!-- END proof -->
 
@@ -3624,16 +3792,20 @@ _Tested by:_
         - a stale one is refused, and the answer carries the new date
         - no expectation still works
 - `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
-    - no plan chosen: pressing next changes nothing
-    - choosing the plan the tenant is already on is not a change
-    - a different plan advances
-    - no plan chosen: the button is disabled
-    - the plan the tenant is already on: still disabled
-    - a different plan: enabled
-    - on the preview step it follows the blockers
-    - advancing moves focus to the new heading
-    - a refused move leaves focus alone
-    - exactly one step is marked current, and it carries a word
+    - the wizard refuses a step it may not leave
+        - no plan chosen: pressing next changes nothing
+        - choosing the plan the tenant is already on is not a change
+        - a different plan advances
+    - the next button says whether it will do anything
+        - no plan chosen: the button is disabled
+        - the plan the tenant is already on: still disabled
+        - a different plan: enabled
+        - on the preview step it follows the blockers
+    - focus follows the step the tenant is now on
+        - advancing moves focus to the new heading
+        - a refused move leaves focus alone
+    - the progress list says where the tenant is without relying on colour
+        - exactly one step is marked current, and it carries a word
 
 <!-- END proof -->
 
@@ -4123,20 +4295,27 @@ _Tested by:_
         - is not refused for having read the clock a moment earlier
         - but a date still in the future is refused
 - `packages/ui-vue-tenant/tests/component/an-ended-subscription-reads-as-ended.test.ts`
-    - says so, in the past tense
-    - and offers neither of the two acts it no longer has
-    - runs unchanged, and says that instead
-    - and the plan can still be changed
-    - says nothing about one and offers both acts
-    - is read from the only column it has
-    - follows the boundary instead of the last render
-    - reaches a boundary further away than one hop
-    - and asks for no delay the platform would truncate
-    - shows an ended subscription as cancelled, whatever its status column says
-    - and a running one keeps its badge and its billing date
-    - offers no pending version to accept once the contract is over
-    - while a running subscription is asked about it
-    - is measured from now, not from when the card was created
+    - a subscription that has ended
+        - says so, in the past tense
+        - and offers neither of the two acts it no longer has
+    - a cancellation still to come
+        - runs unchanged, and says that instead
+        - and the plan can still be changed
+    - a subscription with no cancellation
+        - says nothing about one and offers both acts
+    - a cancellation older than the fields that describe it
+        - is read from the only column it has
+    - a card left open across the moment
+        - follows the boundary instead of the last render
+        - reaches a boundary further away than one hop
+        - and asks for no delay the platform would truncate
+    - the page around the card
+        - shows an ended subscription as cancelled, whatever its status column says
+        - and a running one keeps its badge and its billing date
+        - offers no pending version to accept once the contract is over
+        - while a running subscription is asked about it
+    - a cancellation that arrives after the page did
+        - is measured from now, not from when the card was created
 
 <!-- END proof -->
 
@@ -4158,27 +4337,36 @@ _Tested by:_
         - and a cancellation already recorded repairs its contract too
         - and a consumer without contracts is unaffected
 - `packages/ui-vue-tenant/tests/component/a-cancelled-plan-still-runs.test.ts`
-    - the tenant is offered the act
-    - and told nothing about a cancellation
-    - the date is shown, not just the word
-    - and the subscription is described as unchanged until then
-    - the act is no longer offered
-    - changing plan still is
+    - while nothing is cancelled
+        - the tenant is offered the act
+        - and told nothing about a cancellation
+    - once it is cancelled
+        - the date is shown, not just the word
+        - and the subscription is described as unchanged until then
+        - the act is no longer offered
+        - changing plan still is
 - `packages/ui-vue-tenant/tests/component/an-ended-subscription-reads-as-ended.test.ts`
-    - says so, in the past tense
-    - and offers neither of the two acts it no longer has
-    - runs unchanged, and says that instead
-    - and the plan can still be changed
-    - says nothing about one and offers both acts
-    - is read from the only column it has
-    - follows the boundary instead of the last render
-    - reaches a boundary further away than one hop
-    - and asks for no delay the platform would truncate
-    - shows an ended subscription as cancelled, whatever its status column says
-    - and a running one keeps its badge and its billing date
-    - offers no pending version to accept once the contract is over
-    - while a running subscription is asked about it
-    - is measured from now, not from when the card was created
+    - a subscription that has ended
+        - says so, in the past tense
+        - and offers neither of the two acts it no longer has
+    - a cancellation still to come
+        - runs unchanged, and says that instead
+        - and the plan can still be changed
+    - a subscription with no cancellation
+        - says nothing about one and offers both acts
+    - a cancellation older than the fields that describe it
+        - is read from the only column it has
+    - a card left open across the moment
+        - follows the boundary instead of the last render
+        - reaches a boundary further away than one hop
+        - and asks for no delay the platform would truncate
+    - the page around the card
+        - shows an ended subscription as cancelled, whatever its status column says
+        - and a running one keeps its badge and its billing date
+        - offers no pending version to accept once the contract is over
+        - while a running subscription is asked about it
+    - a cancellation that arrives after the page did
+        - is measured from now, not from when the card was created
 
 <!-- END proof -->
 
@@ -4264,7 +4452,8 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/core/tests/codegen-drift.test.js`
-    - ${genFile} is in sync with ${file}
+    - Q.4 Codegen drift gate
+        - ${genFile} is in sync with ${file}
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it
         - the matrix asks more of a trial than of a term
@@ -4392,12 +4581,14 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
-    - blocks submitting while required fields are missing
-    - draws the plan picker from the options passed in
-    - derives the slug from the name
-    - adopts plan, end date and note from the row
-    - draws the same plan picker as the create dialog
-    - offers preset buttons for the end date
+    - PilotCreateDialog
+        - blocks submitting while required fields are missing
+        - draws the plan picker from the options passed in
+        - derives the slug from the name
+    - PilotEditDialog
+        - adopts plan, end date and note from the row
+        - draws the same plan picker as the create dialog
+        - offers preset buttons for the end date
 
 <!-- END proof -->
 
@@ -4568,9 +4759,11 @@ _Tested by:_
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
-    - the answer to the abandoned question is taken off the screen
-    - and the confirmation cannot be given
-    - the outdated one does not install itself
+    - while a replacement preview is on the wire
+        - the answer to the abandoned question is taken off the screen
+        - and the confirmation cannot be given
+    - when the answers come back out of order
+        - the outdated one does not install itself
 
 <!-- END proof -->
 
@@ -4588,12 +4781,13 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/a-price-lookup-stays-inside-its-limit.test.js`
-    - asks for nothing when there is nothing to ask about
-    - sends one request while the catalogue fits
-    - splits a catalogue larger than the cap instead of being rejected whole
-    - merges what the batches answer
-    - a consumer without the endpoint keeps the catalogue rather than breaking
-    - a failed lookup is not the same answer as an absent one
+    - loadBundlePrices
+        - asks for nothing when there is nothing to ask about
+        - sends one request while the catalogue fits
+        - splits a catalogue larger than the cap instead of being rejected whole
+        - merges what the batches answer
+        - a consumer without the endpoint keeps the catalogue rather than breaking
+        - a failed lookup is not the same answer as an absent one
 
 <!-- END proof -->
 
@@ -4686,7 +4880,8 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/ui-vue/tests/every-wire-date-is-hydrated.test.js`
-    - ${subject.record} → ${subject.converterName}
+    - every date a record declares is converted at the HTTP boundary
+        - ${subject.record} → ${subject.converterName}
 
 <!-- END proof -->
 
@@ -4812,13 +5007,14 @@ _Tested by:_
         - TRIAL: uses trialEntitlementPlan via DB lookup
         - Pilot with config: pilotEntitlementPlan overrides
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
-    - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
-    - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
-    - collectSubscriptionBundleFeatures: set union
-    - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
-    - aggregateLimits: canceled bundle is ignored
-    - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
-    - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
+    - SubscriptionBundle aggregation (P11.7.3)
+        - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
+        - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
+        - collectSubscriptionBundleFeatures: set union
+        - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
+        - aggregateLimits: canceled bundle is ignored
+        - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
+        - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
 
 <!-- END proof -->
 
@@ -4843,13 +5039,14 @@ _Tested by:_
         - canceled bundles (canceledEffectiveAt &lt; now) are not included
         - bundle quota in a quota dimension the plan does not have is passed through
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
-    - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
-    - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
-    - collectSubscriptionBundleFeatures: set union
-    - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
-    - aggregateLimits: canceled bundle is ignored
-    - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
-    - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
+    - SubscriptionBundle aggregation (P11.7.3)
+        - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
+        - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
+        - collectSubscriptionBundleFeatures: set union
+        - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
+        - aggregateLimits: canceled bundle is ignored
+        - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
+        - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
 
 <!-- END proof -->
 
@@ -4924,14 +5121,16 @@ _Tested by:_
         - Class-level annotation applies when the handler has none
         - Handler annotation overrides class annotation
 - `packages/ui-vue/tests/feature-gate.test.js`
-    - app.provide is called with the inject key
-    - route without meta.requiresFeature always passes
-    - no entitlement bound -&gt; pass
-    - feature present -&gt; pass
-    - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next("/upgrade")
-    - array requiresFeature -&gt; logical OR
-    - loading + null snapshot + allowWhileLoading default -&gt; pass
+    - provideEntitlement
+        - app.provide is called with the inject key
+    - buildFeatureRouterGuard
+        - route without meta.requiresFeature always passes
+        - no entitlement bound -&gt; pass
+        - feature present -&gt; pass
+        - feature missing + no redirectTo -&gt; next(false)
+        - feature missing + redirectTo -&gt; next("/upgrade")
+        - array requiresFeature -&gt; logical OR
+        - loading + null snapshot + allowWhileLoading default -&gt; pass
 
 <!-- END proof -->
 
@@ -4950,10 +5149,11 @@ _Tested by:_
     - StaticFeatureGuard — FEATURE_NOT_LICENSED body
         - emits the full FeatureNotLicensedBody with empty offers
 - `packages/nest/tests/limit-exceeded-filter.test.js`
-    - responds with HTTP 402 + standard body shape
-    - carries the quota dimension correctly from the exception
-    - lets floating-point `used`/`max` pass through for storage
-    - robust when method/url are missing from the request
+    - LimitExceededFilter
+        - responds with HTTP 402 + standard body shape
+        - carries the quota dimension correctly from the exception
+        - lets floating-point `used`/`max` pass through for storage
+        - robust when method/url are missing from the request
 
 <!-- END proof -->
 
@@ -5100,12 +5300,14 @@ _Tested by:_
         - it is granted its plan
         - and a cancellation still to come changes nothing
 - `packages/ui-vue-tenant/tests/component/a-cancelled-plan-still-runs.test.ts`
-    - the tenant is offered the act
-    - and told nothing about a cancellation
-    - the date is shown, not just the word
-    - and the subscription is described as unchanged until then
-    - the act is no longer offered
-    - changing plan still is
+    - while nothing is cancelled
+        - the tenant is offered the act
+        - and told nothing about a cancellation
+    - once it is cancelled
+        - the date is shown, not just the word
+        - and the subscription is described as unchanged until then
+        - the act is no longer offered
+        - changing plan still is
 
 <!-- END proof -->
 
@@ -5206,14 +5408,15 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/catalog-bundle-upsell-resolver.test.js`
-    - returns published+marketed bundles that contain the missing feature
-    - non-marketed and draft bundles are not offers
-    - without requires data the cheaper price wins
-    - requires known (#35): combo bundle with dependency ranks before cheaper single bundle
-    - bundle that contains only the dependency (not the feature) is not an offer
-    - currency comes from the optional currency token, default EUR
-    - priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last
-    - empty featureKeys → no offers, no repo access
+    - CatalogBundleUpsellResolver
+        - returns published+marketed bundles that contain the missing feature
+        - non-marketed and draft bundles are not offers
+        - without requires data the cheaper price wins
+        - requires known (#35): combo bundle with dependency ranks before cheaper single bundle
+        - bundle that contains only the dependency (not the feature) is not an offer
+        - currency comes from the optional currency token, default EUR
+        - priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last
+        - empty featureKeys → no offers, no repo access
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — upsell response (#36)
         - structured 403 body: code, featureKey, featureKeys, offers, message
@@ -5258,21 +5461,24 @@ _Source:_ `docs/guides/build-the-admin-frontend.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/feature-gate.test.js`
-    - app.provide is called with the inject key
-    - route without meta.requiresFeature always passes
-    - no entitlement bound -&gt; pass
-    - feature present -&gt; pass
-    - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next("/upgrade")
-    - array requiresFeature -&gt; logical OR
-    - loading + null snapshot + allowWhileLoading default -&gt; pass
+    - provideEntitlement
+        - app.provide is called with the inject key
+    - buildFeatureRouterGuard
+        - route without meta.requiresFeature always passes
+        - no entitlement bound -&gt; pass
+        - feature present -&gt; pass
+        - feature missing + no redirectTo -&gt; next(false)
+        - feature missing + redirectTo -&gt; next("/upgrade")
+        - array requiresFeature -&gt; logical OR
+        - loading + null snapshot + allowWhileLoading default -&gt; pass
 - `packages/ui-vue/tests/use-entitlement.test.js`
-    - autoLoad loads the snapshot
-    - hasFeature(key) returns a boolean
-    - hasFeature without a loaded Entitlement → false
-    - the client's auth header reaches the request untouched
-    - 500 → error set, entitlement null
-    - endpoint is required: without an endpoint useEntitlement throws
+    - useEntitlement
+        - autoLoad loads the snapshot
+        - hasFeature(key) returns a boolean
+        - hasFeature without a loaded Entitlement → false
+        - the client's auth header reaches the request untouched
+        - 500 → error set, entitlement null
+        - endpoint is required: without an endpoint useEntitlement throws
 
 <!-- END proof -->
 
@@ -5376,14 +5582,15 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/reorder-priorities.test.js`
-    - a move within equal priorities produces the order it promises
-    - it keeps the gaps an operator chose
-    - rows that keep their value are reported as unchanged
-    - no move, no writes
-    - a value at the top of the range stays inside it
-    - a list already at the ceiling still separates
-    - pulling ties apart never goes below zero
-    - a move to the end lands at the end
+    - reorderedPriorities
+        - a move within equal priorities produces the order it promises
+        - it keeps the gaps an operator chose
+        - rows that keep their value are reported as unchanged
+        - no move, no writes
+        - a value at the top of the range stays inside it
+        - a list already at the ceiling still separates
+        - pulling ties apart never goes below zero
+        - a move to the end lands at the end
 
 <!-- END proof -->
 
@@ -5400,19 +5607,22 @@ _Tested by:_
 - `packages/nest/tests/promo-admin-controller.test.js`
     - standard promo Admin controller exposes list, create, edit and delete
 - `packages/ui-vue/tests/component/promo-code-dialogs.test.ts`
-    - passes the entered values through to submit
-    - reopening starts from an empty form
-    - does not submit while the code is malformed
-    - keeps a handler error inside the dialog
-    - adopts the row values into the form
-    - sends nothing while nothing has changed
-    - sends only the changed fields, with the row id
-    - keeps a handler error inside the dialog
-    - create: typing into the code field lands upper-cased in the form
-    - create: the random button fills a valid code
-    - edit: the code field shows the code and is disabled
-    - the status switch appears on edit only
-    - the plan picker writes into the dialog form
+    - PromoCodeCreateDialog
+        - passes the entered values through to submit
+        - reopening starts from an empty form
+        - does not submit while the code is malformed
+        - keeps a handler error inside the dialog
+    - PromoCodeEditDialog
+        - adopts the row values into the form
+        - sends nothing while nothing has changed
+        - sends only the changed fields, with the row id
+        - keeps a handler error inside the dialog
+    - Shared form body
+        - create: typing into the code field lands upper-cased in the form
+        - create: the random button fills a valid code
+        - edit: the code field shows the code and is disabled
+        - the status switch appears on edit only
+        - the plan picker writes into the dialog form
 
 <!-- END proof -->
 
@@ -5560,21 +5770,24 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/core/tests/promotion-helpers.test.js`
-    - active within the window
-    - scheduled before validFrom
-    - expired after validTo
-    - highest priority wins on overlap
-    - onlyLocales filters
-    - billingCycle filters
-    - requiresCoupon promotions are not selected automatically
-    - non-matching plan → null
-    - targetType filters bundle promotions separately from plan promotions
-    - percent
-    - amount
-    - amount clamps at 0
-    - intro
-    - freeMonths
-    - null when promotion is missing
+    - promoStatus
+        - active within the window
+        - scheduled before validFrom
+        - expired after validTo
+    - pickActivePromo
+        - highest priority wins on overlap
+        - onlyLocales filters
+        - billingCycle filters
+        - requiresCoupon promotions are not selected automatically
+        - non-matching plan → null
+        - targetType filters bundle promotions separately from plan promotions
+    - applyPromo
+        - percent
+        - amount
+        - amount clamps at 0
+        - intro
+        - freeMonths
+        - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
     - round2 rounds to two decimal places
     - grossFromNet adds VAT
@@ -5616,21 +5829,24 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/promotion-helpers.test.js`
-    - active within the window
-    - scheduled before validFrom
-    - expired after validTo
-    - highest priority wins on overlap
-    - onlyLocales filters
-    - billingCycle filters
-    - requiresCoupon promotions are not selected automatically
-    - non-matching plan → null
-    - targetType filters bundle promotions separately from plan promotions
-    - percent
-    - amount
-    - amount clamps at 0
-    - intro
-    - freeMonths
-    - null when promotion is missing
+    - promoStatus
+        - active within the window
+        - scheduled before validFrom
+        - expired after validTo
+    - pickActivePromo
+        - highest priority wins on overlap
+        - onlyLocales filters
+        - billingCycle filters
+        - requiresCoupon promotions are not selected automatically
+        - non-matching plan → null
+        - targetType filters bundle promotions separately from plan promotions
+    - applyPromo
+        - percent
+        - amount
+        - amount clamps at 0
+        - intro
+        - freeMonths
+        - null when promotion is missing
 - `packages/nest/tests/promo-calculator.test.js`
     - round2 rounds to two decimal places
     - grossFromNet adds VAT
@@ -6326,15 +6542,16 @@ _Tested by:_
         - i18n: without a projection the bundle root label applies (description stays empty)
         - bundle promotions are resolved with targetType=BUNDLE
 - `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
-    - load() reads all three endpoints under the default prefix
-    - a trailing slash in the prefix does not become a double slash
-    - the wire form of a bundle becomes the shape the page renders
-    - the optional wire fields default rather than arriving as undefined
-    - a missing /bundles endpoint is not fatal — the plan page still renders
-    - a failing /plans clears what it could not load
-    - a client that resolves with status 0 fails the load rather than emptying it
-    - a client that rejects is reported, not swallowed
-    - it loads on its own unless the consumer says otherwise
+    - useTenantBillingCatalog
+        - load() reads all three endpoints under the default prefix
+        - a trailing slash in the prefix does not become a double slash
+        - the wire form of a bundle becomes the shape the page renders
+        - the optional wire fields default rather than arriving as undefined
+        - a missing /bundles endpoint is not fatal — the plan page still renders
+        - a failing /plans clears what it could not load
+        - a client that resolves with status 0 fails the load rather than emptying it
+        - a client that rejects is reported, not swallowed
+        - it loads on its own unless the consumer says otherwise
 
 <!-- END proof -->
 
@@ -6587,12 +6804,13 @@ _Tested by:_
         - rejects TENANT_ADMIN
         - rejects a missing user
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and `guards` is missing
-    - accepts empty `guards: []` as an explicit auth-free choice
-    - does NOT throw when `includeManifestController: false`
-    - accepts a configured `guards` list
-    - additionally accepts `reloadGuards` for MFA protection on reload
-    - throws on missing `guards` even without an explicit includeManifestController
+    - AdminManifestModule.forRoot — guard configuration
+        - throws when the controller should be registered and `guards` is missing
+        - accepts empty `guards: []` as an explicit auth-free choice
+        - does NOT throw when `includeManifestController: false`
+        - accepts a configured `guards` list
+        - additionally accepts `reloadGuards` for MFA protection on reload
+        - throws on missing `guards` even without an explicit includeManifestController
 - `packages/nest/tests/discovery-controller.test.js`
     - DiscoveryController — GET /admin/discovery
         - returns the discovery snapshot as the body
@@ -6605,9 +6823,10 @@ _Tested by:_
         - is passed through to AdminManifestModule
         - defaults to mounting the manifest controller
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
-    - there is a corpus to scan
-    - no option named `getAuthToken` survives
-    - nothing builds a Bearer header by hand
+    - the HttpClient is the only way a request gets its auth
+        - there is a corpus to scan
+        - no option named `getAuthToken` survives
+        - nothing builds a Bearer header by hand
 
 <!-- END proof -->
 
@@ -6622,12 +6841,13 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and `guards` is missing
-    - accepts empty `guards: []` as an explicit auth-free choice
-    - does NOT throw when `includeManifestController: false`
-    - accepts a configured `guards` list
-    - additionally accepts `reloadGuards` for MFA protection on reload
-    - throws on missing `guards` even without an explicit includeManifestController
+    - AdminManifestModule.forRoot — guard configuration
+        - throws when the controller should be registered and `guards` is missing
+        - accepts empty `guards: []` as an explicit auth-free choice
+        - does NOT throw when `includeManifestController: false`
+        - accepts a configured `guards` list
+        - additionally accepts `reloadGuards` for MFA protection on reload
+        - throws on missing `guards` even without an explicit includeManifestController
 
 <!-- END proof -->
 
@@ -6739,12 +6959,15 @@ _Source:_ release 0.26.0
 _Tested by:_
 
 - `packages/cli/tests/mfa-setup-flow.test.js`
-    - returns secret + otpauthUri for SUPER_ADMIN
-    - audit log contains issuer in changes
-    - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
-    - accepts re-setup with force=true without prompt
-    - returns multi-line instructions with secret + URI
+    - MfaSetupFlow.run — first setup
+        - returns secret + otpauthUri for SUPER_ADMIN
+        - audit log contains issuer in changes
+    - MfaSetupFlow.run — re-setup
+        - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
+        - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
+        - accepts re-setup with force=true without prompt
+    - MfaSetupFlow.formatSetupResult
+        - returns multi-line instructions with secret + URI
 
 <!-- END proof -->
 
@@ -6773,12 +6996,15 @@ _Source:_ release 1.0.0-rc.4
 _Tested by:_
 
 - `packages/cli/tests/mfa-setup-flow.test.js`
-    - returns secret + otpauthUri for SUPER_ADMIN
-    - audit log contains issuer in changes
-    - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
-    - accepts re-setup with force=true without prompt
-    - returns multi-line instructions with secret + URI
+    - MfaSetupFlow.run — first setup
+        - returns secret + otpauthUri for SUPER_ADMIN
+        - audit log contains issuer in changes
+    - MfaSetupFlow.run — re-setup
+        - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
+        - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
+        - accepts re-setup with force=true without prompt
+    - MfaSetupFlow.formatSetupResult
+        - returns multi-line instructions with secret + URI
 
 <!-- END proof -->
 
@@ -6819,10 +7045,11 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
-    - the controller has routes, and each carries its metadata
-    - every writing route asks for the tenant administrator
-    - the three that cost money are actually among them
-    - reading and previewing stay open to every tenant user
+    - a route that costs money asks for the role
+        - the controller has routes, and each carries its metadata
+        - every writing route asks for the tenant administrator
+        - the three that cost money are actually among them
+        - reading and previewing stay open to every tenant user
 - `packages/nest/tests/tenant-billing-controller.test.js`
     - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
     - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
@@ -6860,13 +7087,15 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/cli/tests/whoami-flow.test.js`
-    - SUPER_ADMIN with MFA → full diagnosis
-    - user not found → isSuperAdmin=false, no crash
-    - production is detected
-    - MFA skip visible in non-prod
-    - MFA skip NOT active in production
-    - shows SUPER_ADMIN checkmark + MFA status
-    - shows bypass warning when active
+    - WhoAmIFlow.run
+        - SUPER_ADMIN with MFA → full diagnosis
+        - user not found → isSuperAdmin=false, no crash
+        - production is detected
+        - MFA skip visible in non-prod
+        - MFA skip NOT active in production
+    - WhoAmIFlow.formatResult
+        - shows SUPER_ADMIN checkmark + MFA status
+        - shows bypass warning when active
 - `packages/nest/tests/admin-guards.test.js`
     - SuperAdminGuard
         - accepts SUPER_ADMIN
@@ -6886,43 +7115,52 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/adapter-prisma/tests/admin-resources-mapping.test.js`
-    - defaults to exactly the names that used to be hardcoded
-    - a partial mapping leaves the rest at the defaults
-    - and names what the client does have
-    - and does not offer $connect as a candidate
-    - the adapter refuses to be built with it
-    - but an unmapped adapter is built even without those delegates
-    - the tenant list queries and reads the mapped names
-    - the detail route addresses the tenant by the mapped slug
-    - suspending writes the mapped flag
-    - the user list filters and reads the mapped names
-    - no mapping means the same queries as before
-    - the relation counter defaults to the mapped users relation
-    - an explicit tenantMetrics still wins
-    - the subscription list selects and reads the mapped tenant columns
-    - and an unmapped app still selects slug and name
-    - the tenant list reads the mapped subscription relation
-    - the detail route reads it as well
-    - the user list filters and reads the mapped tenant relation
-    - an unmapped app is unaffected in all three
+    - the mapping
+        - defaults to exactly the names that used to be hardcoded
+        - a partial mapping leaves the rest at the defaults
+    - a mapped delegate that does not exist fails at construction
+        - and names what the client does have
+        - and does not offer $connect as a candidate
+        - the adapter refuses to be built with it
+        - but an unmapped adapter is built even without those delegates
+    - an app that calls everything something else
+        - the tenant list queries and reads the mapped names
+        - the detail route addresses the tenant by the mapped slug
+        - suspending writes the mapped flag
+        - the user list filters and reads the mapped names
+    - an app that matches the convention is unaffected
+        - no mapping means the same queries as before
+    - the mapping reaches the two places it used to stop short of
+        - the relation counter defaults to the mapped users relation
+        - an explicit tenantMetrics still wins
+        - the subscription list selects and reads the mapped tenant columns
+        - and an unmapped app still selects slug and name
+    - the two relations that live on the app models
+        - the tenant list reads the mapped subscription relation
+        - the detail route reads it as well
+        - the user list filters and reads the mapped tenant relation
+        - an unmapped app is unaffected in all three
 - `packages/adapter-prisma/tests/prisma-admin-resources.test.js`
     - PrismaAdminResourcesAdapter serves every standard Admin resource
 - `packages/cli/tests/manifest-cli-flow.test.js`
-    - dump returns the manifest 1:1
-    - hash returns manifestHash
-    - hash throws when hash is missing
-    - validate ok for a clean manifest
-    - validate rejects wrong schemaVersion
-    - null for identical hash
-    - returns added/removed componentKeys
-    - clean manifest → overall=ok, all checks green
-    - wrong manifestHash pattern → error, exitCode=7
-    - per-tenant endpoint in TenantColumn → error
-    - non-/admin route → error
-    - unknown requiredCapability ref → error
-    - wrong Capability pattern → error
-    - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
-    - formatReport shows severity icons + paths
+    - ManifestCliFlow.dump / hash / validate
+        - dump returns the manifest 1:1
+        - hash returns manifestHash
+        - hash throws when hash is missing
+        - validate ok for a clean manifest
+        - validate rejects wrong schemaVersion
+    - ManifestCliFlow.diff
+        - null for identical hash
+        - returns added/removed componentKeys
+    - ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS
+        - clean manifest → overall=ok, all checks green
+        - wrong manifestHash pattern → error, exitCode=7
+        - per-tenant endpoint in TenantColumn → error
+        - non-/admin route → error
+        - unknown requiredCapability ref → error
+        - wrong Capability pattern → error
+        - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
+        - formatReport shows severity icons + paths
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
 - `packages/nest/tests/tenant-manifest.test.js`
@@ -6935,85 +7173,110 @@ _Tested by:_
         - tenantManifest without defaultPlanId/resolver throws
         - tenantManifest + defaultPlanId registers controller + service
 - `packages/ui-vue/tests/app-served-resources.test.js`
-    - ${c.op} calls ${c.method} ${c.url}
-    - every operation this descriptor declares has a case above
-    - ${name}.${c.op} calls ${c.method} ${c.url}
-    - ${name}: every operation has a case above
-    - ${name} sends the header with a code
-    - ${name} sends no header for an empty code
-    - users.resetPassword posts the audit reason
-    - promoCodes.detail reads one code by id
-    - reads exactly the endpoint the card declares
-    - a reading, not a rendering — the timestamp comes back unformatted
-    - a body with no recognised number reads as null, not as a failure
+    - pilotsResource — the paths a consumer already serves
+        - ${c.op} calls ${c.method} ${c.url}
+        - every operation this descriptor declares has a case above
+    - platformEmailResource and emailHistoryResource
+        - ${name}.${c.op} calls ${c.method} ${c.url}
+        - ${name}: every operation has a case above
+    - the second factor travels as a header, and only when there is one
+        - ${name} sends the header with a code
+        - ${name} sends no header for an empty code
+    - the two operations the platform ships but does not serve
+        - users.resetPassword posts the audit reason
+        - promoCodes.detail reads one code by id
+    - dashboardResource — the endpoint comes from the card, not from us
+        - reads exactly the endpoint the card declares
+        - a reading, not a rendering — the timestamp comes back unformatted
+        - a body with no recognised number reads as null, not as a failure
 - `packages/ui-vue/tests/manifest-loader.test.js`
-    - GET without If-None-Match, persists body + ETag
-    - the client's auth header reaches the request untouched
-    - storageKeyPrefix isolates caches
-    - sends If-None-Match + returns cached body on 304
-    - a 304 whose cached body is gone is repaired, not reported
-    - a cached body that no longer parses is repaired the same way
-    - a 304 to a request that carried no ETag is a server fault, and is reported
-    - a server answering 304 unconditionally is reported after one repair, not looped on
-    - 200 overwrites cache with new body + ETag
-    - deletes body + ETag from storage
-    - returns null on empty cache
-    - returns {etag, body} after a successful load
-    - a token acquired after construction reaches the next request
-    - a token that changes between requests is not cached
+    - ManifestLoader.load — first call
+        - GET without If-None-Match, persists body + ETag
+        - the client's auth header reaches the request untouched
+        - storageKeyPrefix isolates caches
+    - ManifestLoader.load — cache hit (304)
+        - sends If-None-Match + returns cached body on 304
+        - a 304 whose cached body is gone is repaired, not reported
+        - a cached body that no longer parses is repaired the same way
+        - a 304 to a request that carried no ETag is a server fault, and is reported
+        - a server answering 304 unconditionally is reported after one repair, not looped on
+    - ManifestLoader.load — refresh (200 with new ETag)
+        - 200 overwrites cache with new body + ETag
+    - ManifestLoader.clearCache
+        - deletes body + ETag from storage
+    - ManifestLoader.readCachedBody
+        - returns null on empty cache
+        - returns {etag, body} after a successful load
+    - ManifestLoader — the client authenticates, per request
+        - a token acquired after construction reaches the next request
+        - a token that changes between requests is not cached
 - `packages/ui-vue/tests/manifest-store-factory.test.js`
-    - initial: manifest=null, loaded=false, loading=false
-    - ensureLoaded triggers load + sets loaded=true
-    - ensureLoaded is idempotent — second call does not load again
-    - parallel ensureLoaded calls share the same inflight promise
-    - ensureLoaded rejects with the original error, state is still set
-    - parallel ensureLoaded calls all reject with the same error
-    - clearCache clears manifest, loaded, loader cache
-    - reload forces a re-load
-    - uses the given `id`, so parallel stores are isolated
+    - createManifestStore — Happy Path
+        - initial: manifest=null, loaded=false, loading=false
+        - ensureLoaded triggers load + sets loaded=true
+        - ensureLoaded is idempotent — second call does not load again
+        - parallel ensureLoaded calls share the same inflight promise
+    - createManifestStore — error path
+        - ensureLoaded rejects with the original error, state is still set
+        - parallel ensureLoaded calls all reject with the same error
+    - createManifestStore — clearCache + reload
+        - clearCache clears manifest, loaded, loader cache
+        - reload forces a re-load
+    - createManifestStore — store ID override
+        - uses the given `id`, so parallel stores are isolated
 - `packages/ui-vue/tests/nav-builder.test.js`
-    - lists enabled StandardPages with Capability=true
-    - rejects disabled pages
-    - rejects pages without Capability
-    - default routes from DEFAULT_STANDARD_PAGE_ROUTES
-    - does not expose the removed planVersions standard page
-    - ignores standard pages unsupported by this UI build
-    - standardPageRoutes override
-    - isStandard=true for StandardPages
-    - lists a ProjectPage without requiredCapability
-    - rejects a ProjectPage with a missing Capability
-    - lists a ProjectPage with a satisfied Capability
-    - navSection is passed through
-    - availableExtensions filters out ProjectPages with an unknown componentKey
-    - availableExtensions keeps ProjectPages with a known componentKey
-    - sectionOrder wins, the rest alphabetical
-    - sectionOrder override via second parameter
-    - items within a section without mutation
-    - returns the registered component
-    - null for an unknown key
+    - buildRoutes — StandardPages filter
+        - lists enabled StandardPages with Capability=true
+        - rejects disabled pages
+        - rejects pages without Capability
+        - default routes from DEFAULT_STANDARD_PAGE_ROUTES
+        - does not expose the removed planVersions standard page
+        - ignores standard pages unsupported by this UI build
+        - standardPageRoutes override
+        - isStandard=true for StandardPages
+    - buildRoutes — ProjectPages
+        - lists a ProjectPage without requiredCapability
+        - rejects a ProjectPage with a missing Capability
+        - lists a ProjectPage with a satisfied Capability
+        - navSection is passed through
+        - availableExtensions filters out ProjectPages with an unknown componentKey
+        - availableExtensions keeps ProjectPages with a known componentKey
+    - buildSidebar — section grouping
+        - sectionOrder wins, the rest alphabetical
+        - sectionOrder override via second parameter
+        - items within a section without mutation
+    - resolveExtension
+        - returns the registered component
+        - null for an unknown key
 - `packages/ui-vue/tests/resource-registry.test.js`
-    - refuses to be built without a client, rather than reaching for fetch
-    - the message names the two clients the package ships
-    - every platform resource builds from apiBase and locale alone
-    - and the plan list it hands out addresses the catalogue
-    - hands out the operations of the resource asked for
-    - an unknown key fails by name, listing what there is
-    - keys() reports what it can answer for
-    - asking twice gives the same operations
-    - a context getter is read per call
-    - a context override redirects one resource and leaves the others
-    - an http override sends one resource through another client
-    - one operation is wrapped and the other five stay the platform’s
-    - the wrapper may answer without calling the platform at all
-    - overriding a resource that does not exist fails at boot too
-    - an override named after an Object prototype key is still rejected
-    - an operation named after Object.prototype does not exist either
-    - overriding an operation that does not exist fails at boot, not at click
-    - is what the shell registers, and every entry is a resource
-    - the instance wrapper runs outside the app wrapper, and both run
-    - an instance context wins over the app context for that page only
-    - binding one operation leaves the others on the platform implementation
-    - an unknown resource says so instead of returning something inert
+    - createResourceRegistry — the http requirement
+        - refuses to be built without a client, rather than reaching for fetch
+        - the message names the two clients the package ships
+    - createResourceRegistry — a registry without a project to name
+        - every platform resource builds from apiBase and locale alone
+        - and the plan list it hands out addresses the catalogue
+    - createResourceRegistry — reaching a resource
+        - hands out the operations of the resource asked for
+        - an unknown key fails by name, listing what there is
+        - keys() reports what it can answer for
+        - asking twice gives the same operations
+        - a context getter is read per call
+    - createResourceRegistry — overrides
+        - a context override redirects one resource and leaves the others
+        - an http override sends one resource through another client
+        - one operation is wrapped and the other five stay the platform’s
+        - the wrapper may answer without calling the platform at all
+        - overriding a resource that does not exist fails at boot too
+        - an override named after an Object prototype key is still rejected
+        - an operation named after Object.prototype does not exist either
+        - overriding an operation that does not exist fails at boot, not at click
+    - platformResources
+        - is what the shell registers, and every entry is a resource
+    - registry.bind — an override for one page instance
+        - the instance wrapper runs outside the app wrapper, and both run
+        - an instance context wins over the app context for that page only
+        - binding one operation leaves the others on the platform implementation
+        - an unknown resource says so instead of returning something inert
 
 <!-- END proof -->
 
@@ -7028,14 +7291,18 @@ _Source:_ release 0.22.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/sign-out-ends-the-session.test.ts`
-    - calls the login adapter’s logout before leaving for /login
-    - says so loudly when the app supplied no way to end the session
-    - an explicit onLogout prop still wins over the default
-    - ends the session when no @logout listener is attached
-    - defers to the app when one is
-    - also defers when the listener was attached with @logout.once
-    - discards the manifest, and does so even when logout rejects
-    - a rejecting %s prop reaches Vue’s error handler
+    - AdminManifestErrorPage sign-out
+        - calls the login adapter’s logout before leaving for /login
+        - says so loudly when the app supplied no way to end the session
+        - an explicit onLogout prop still wins over the default
+    - AdminLayout sign-out
+        - ends the session when no @logout listener is attached
+        - defers to the app when one is
+        - also defers when the listener was attached with @logout.once
+    - sign-out and the cached manifest
+        - discards the manifest, and does so even when logout rejects
+    - handlers hand their promise back to Vue
+        - a rejecting %s prop reaches Vue’s error handler
 
 <!-- END proof -->
 
@@ -7050,25 +7317,29 @@ _Source:_ release 0.22.0
 _Tested by:_
 
 - `packages/ui-vue/tests/navigation-guard.test.js`
-    - returns null when neither authGuard nor manifestGuard is set
-    - redirects to onUnauthenticated() when isAuthenticated is false
-    - lets public routes bypass the auth guard
-    - redirects to onUnauthenticated when isSuperAdmin is false
-    - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
-    - avoids redirect loop: when the current route is already errorRoute, returns true
-    - falls back to render-allow + console.error when NO errorRoute is set
-    - lets the render through when ensureLoaded resolves successfully
-    - 401 from the manifest load routes to login, not to the error page
-    - 403 is treated the same way
-    - a genuine manifest failure still fails closed to the error page
-    - an error without a status stays on the fail-closed path
-    - without an authGuard a 401 still reaches the error page
-    - first 401 offers a re-login, the second stops the circle
-    - a successful load re-arms the redirect for a later expiry
-    - concurrent navigations on one rejection share the login redirect
-    - the second attempt fails closed once the operator has seen login
-    - a cached error instance does not resurrect the login loop
-    - a later, different rejection still fails closed
+    - buildNavigationGuard — auth path
+        - returns null when neither authGuard nor manifestGuard is set
+        - redirects to onUnauthenticated() when isAuthenticated is false
+        - lets public routes bypass the auth guard
+        - redirects to onUnauthenticated when isSuperAdmin is false
+    - buildNavigationGuard — manifest fail-closed
+        - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
+        - avoids redirect loop: when the current route is already errorRoute, returns true
+        - falls back to render-allow + console.error when NO errorRoute is set
+        - lets the render through when ensureLoaded resolves successfully
+    - buildNavigationGuard — expired session vs broken manifest
+        - 401 from the manifest load routes to login, not to the error page
+        - 403 is treated the same way
+        - a genuine manifest failure still fails closed to the error page
+        - an error without a status stays on the fail-closed path
+        - without an authGuard a 401 still reaches the error page
+    - buildNavigationGuard — no login loop on a persistent manifest 401
+        - first 401 offers a re-login, the second stops the circle
+        - a successful load re-arms the redirect for a later expiry
+        - concurrent navigations on one rejection share the login redirect
+        - the second attempt fails closed once the operator has seen login
+        - a cached error instance does not resurrect the login loop
+        - a later, different rejection still fails closed
 
 <!-- END proof -->
 
@@ -7112,43 +7383,50 @@ _Source:_ ADR 0008 · `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/admin-page-shell.test.ts`
-    - renders the title as the page heading
-    - omits the subtitle and the actions bar when neither is supplied
-    - renders a markup subtitle through the slot
-    - names the section by pointing aria-labelledby at its own heading
-    - gives sibling sections distinct heading ids
-    - renders no heading level above h2
-    - the source sweep actually finds the pages it claims to check
-    - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
-    - no content page renders its own &lt;main&gt; or a QPage
-    - no content page hand-writes the hero markup instead of using AdminHero
-    - AdminHero renders the only &lt;h1&gt; in the package
-    - no view renders its hero inside the page body
-    - no view hand-writes the reload button instead of using AdminRefreshBtn
-    - no view writes its own table instead of using AdminTable
-    - a component whose only job is to emit is never used without a listener
-    - the actions column is filled through row-actions, not body-cell-actions
-    - no page declares its own statistic tile styling
-    - an unscoped page style reaches only its own sub-components
-    - no page block titles itself with a heading-shaped &lt;div&gt;
-    - no view writes its own disclosure instead of using AdminAccordion
-    - the sweep reaches the pages it claims to check
-    - no page reaches for Quasar directly
-    - no page redeclares the frame the theme draws
-    - a page imports only from the layers below it
-    - no primitive hard-codes a user-visible string
-    - no file grows past the budget for its layer
+    - AdminHero
+        - renders the title as the page heading
+        - omits the subtitle and the actions bar when neither is supplied
+        - renders a markup subtitle through the slot
+    - AdminSection
+        - names the section by pointing aria-labelledby at its own heading
+        - gives sibling sections distinct heading ids
+        - renders no heading level above h2
+    - page shell contract
+        - the source sweep actually finds the pages it claims to check
+        - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
+        - no content page renders its own &lt;main&gt; or a QPage
+        - no content page hand-writes the hero markup instead of using AdminHero
+        - AdminHero renders the only &lt;h1&gt; in the package
+        - no view renders its hero inside the page body
+        - no view hand-writes the reload button instead of using AdminRefreshBtn
+        - no view writes its own table instead of using AdminTable
+        - a component whose only job is to emit is never used without a listener
+        - the actions column is filled through row-actions, not body-cell-actions
+        - no page declares its own statistic tile styling
+        - an unscoped page style reaches only its own sub-components
+        - no page block titles itself with a heading-shaped &lt;div&gt;
+        - no view writes its own disclosure instead of using AdminAccordion
+    - the boundaries a page keeps
+        - the sweep reaches the pages it claims to check
+        - no page reaches for Quasar directly
+        - no page redeclares the frame the theme draws
+        - a page imports only from the layers below it
+        - no primitive hard-codes a user-visible string
+        - no file grows past the budget for its layer
 - `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
-    - the guard reads every page in `src/pages/`
-    - no prop in `src/pages/` is callable, and none exceeds the cap
-    - the one exception says why, in its own source
-    - an inline callback prop
-    - a callback hidden behind a type alias — what a pattern cannot see
-    - a sixth prop
-    - an exception tag with no real reason
-    - a declared exception passes
+    - a page takes no callbacks
+        - the guard reads every page in `src/pages/`
+        - no prop in `src/pages/` is callable, and none exceeds the cap
+        - the one exception says why, in its own source
+    - the guard fails on what it forbids
+        - an inline callback prop
+        - a callback hidden behind a type alias — what a pattern cannot see
+        - a sixth prop
+        - an exception tag with no real reason
+        - a declared exception passes
 - `tests/baselines-record-a-page-at-rest.test.js`
-    - none of them recorded a node that was leaving
+    - recorded baselines
+        - none of them recorded a node that was leaving
 
 <!-- END proof -->
 
@@ -7165,85 +7443,111 @@ _Source:_ ADR 0008
 _Tested by:_
 
 - `packages/create-saasicat-admin/tests/scaffold.test.js`
-    - positionals + flags + tokens are separated
-    - replaces only tokens, passes other **X** strings through
-    - finds all .tpl files under templates/
-    - writes all templates into target + replaces tokens
-    - dryRun writes nothing
-    - runs through a bin symlink, as npm create / npx invoke it
+    - parseArgs
+        - positionals + flags + tokens are separated
+    - applyTokens
+        - replaces only tokens, passes other **X** strings through
+    - walkTemplates
+        - finds all .tpl files under templates/
+    - scaffold
+        - writes all templates into target + replaces tokens
+        - dryRun writes nothing
+    - bin entry point
+        - runs through a bin symlink, as npm create / npx invoke it
 - `packages/ui-vue/tests/boot-loader.test.js`
-    - returns body on 200
-    - sends GET to the configured endpoint
-    - configurable endpoint
-    - throws BootLoadError on non-200
-    - endpoint is required: without an endpoint BootLoader throws
+    - BootLoader.load
+        - returns body on 200
+        - sends GET to the configured endpoint
+        - configurable endpoint
+        - throws BootLoadError on non-200
+        - endpoint is required: without an endpoint BootLoader throws
 - `packages/ui-vue/tests/component/bootstrap-installs-what-it-provides.test.ts`
-    - with no app options, the platform set is installed
-    - an app configuring Quasar still gets every plugin the ports need
-    - the app’s own config is kept
-    - an app may replace a plugin with its own build
-    - an app that passes only a config keeps the whole platform set
-    - an app that names its client gets a registry
-    - an app that does not gets none, rather than one wired to a bare fetch
+    - resolveQuasarOptions
+        - with no app options, the platform set is installed
+        - an app configuring Quasar still gets every plugin the ports need
+        - the app’s own config is kept
+        - an app may replace a plugin with its own build
+        - an app that passes only a config keeps the whole platform set
+    - the resource registry is installed only with a real client
+        - an app that names its client gets a registry
+        - an app that does not gets none, rather than one wired to a bare fetch
 - `packages/ui-vue/tests/component/promo-code-detail-follows-the-route.test.ts`
-    - navigating from one code to another loads the second
+    - PromoCodeDetailPage follows the route param
+        - navigating from one code to another loads the second
 - `packages/ui-vue/tests/component/route-mounted-pages.test.ts`
-    - ${name} declares no required props
-    - ${name} mounts with no props and without Vue warnings
-    - the roster covers every page create-admin-routes mounts directly
-    - boots into a guarded route rather than reloading the public error route
-    - discards the cached manifest before booting, not after
-    - its buttons are wired to handlers, never to a possibly-undefined prop
+    - pages mounted by createAdminRoutes()
+        - ${name} declares no required props
+        - ${name} mounts with no props and without Vue warnings
+        - the roster covers every page create-admin-routes mounts directly
+    - AdminManifestErrorPage retry
+        - boots into a guarded route rather than reloading the public error route
+        - discards the cached manifest before booting, not after
+    - AdminManifestErrorPage without callbacks
+        - its buttons are wired to handlers, never to a possibly-undefined prop
 - `packages/ui-vue/tests/component/tenant-detail-follows-the-route.test.ts`
-    - navigating from one slug to another loads the second
+    - TenantDetailPage follows the route param
+        - navigating from one slug to another loads the second
 - `packages/ui-vue/tests/component/the-plan-page-steps-aside-for-its-steps.test.ts`
-    - the plans route has the two steps as children
-    - every nested standard route carries the step marker
-    - a claimed plans route keeps the steps beneath it
-    - an own children list on a claimed route wins outright
-    - a top-level standard route is not marked
-    - the paths resolve at all
-    - on the plans route itself the page owns the hero
-    - on the editor step the page stands aside
-    - on the review step the page stands aside
-    - and on a sibling page it owns the hero again
+    - the route table marks the plan steps as steps
+        - the plans route has the two steps as children
+        - every nested standard route carries the step marker
+        - a claimed plans route keeps the steps beneath it
+        - an own children list on a claimed route wins outright
+        - a top-level standard route is not marked
+    - the condition the page reads answers per route
+        - the paths resolve at all
+        - on the plans route itself the page owns the hero
+        - on the editor step the page stands aside
+        - on the review step the page stands aside
+        - and on a sibling page it owns the hero again
 - `packages/ui-vue/tests/integration.test.js`
-    - Consumer login bootstrap sequence
-    - Cache-hit path: second manifest load returns 304
-    - Logout path: clearCache clears everything
-    - Manifest reload after a `manifest reload` action invalidates the cache
-    - Action drift detected: manifest action without a handler
-    - UI rejects routes with a missing capability
-    - Publish 3 drafts: 2 OK, 1 conflict — atomic progress
+    - Full bootstrap flow: Boot → Manifest → Routes → Actions
+        - Consumer login bootstrap sequence
+        - Cache-hit path: second manifest load returns 304
+        - Logout path: clearCache clears everything
+        - Manifest reload after a `manifest reload` action invalidates the cache
+    - Drift detection: manifest vs. consumer shell build
+        - Action drift detected: manifest action without a handler
+        - UI rejects routes with a missing capability
+    - Bulk publish: end-to-end with server path
+        - Publish 3 drafts: 2 OK, 1 conflict — atomic progress
 - `packages/ui-vue/tests/pages-barrel-is-complete.test.js`
-    - there are pages to compare
-    - every page on disk is in the barrel
-    - every entry in the barrel is a page on disk
-    - each name matches the file it loads
-    - there are routes to check
-    - each names a page the barrel maps
-    - no two routes answer the same path
-    - the error page is not among them
+    - the pages barrel and the pages directory agree
+        - there are pages to compare
+        - every page on disk is in the barrel
+        - every entry in the barrel is a page on disk
+        - each name matches the file it loads
+    - the standard routes point at pages that exist
+        - there are routes to check
+        - each names a page the barrel maps
+        - no two routes answer the same path
+        - the error page is not among them
 - `packages/ui-vue/tests/pages-read-the-params-their-routes-declare.test.js`
-    - the table was read at all
-    - every parameterised route is answered by a page that reads it
-    - a mismatched read is reported
-    - a read written across lines counts
-    - a bracketed read counts
-    - the path parser finds the parameter
+    - a page reads the route parameter its route declares
+        - the table was read at all
+        - every parameterised route is answered by a page that reads it
+    - the reader sees what it has to see
+        - a mismatched read is reported
+        - a read written across lines counts
+        - a bracketed read counts
+        - the path parser finds the parameter
 - `packages/ui-vue/tests/plan-step-routes-exist.test.js`
-    - the plan pages and their routes are found
-    - ${page} pushes only to standard routes
+    - every step of the plan wizard navigates to a registered route
+        - the plan pages and their routes are found
+        - ${page} pushes only to standard routes
 - `packages/ui-vue/tests/platform-loaders.test.js`
-    - returns BootLoader + ManifestLoader instances
-    - derives default endpoints from apiBase
-    - honors explicit endpoint overrides
-    - passes storageKeyPrefix and the client through to ManifestLoader
+    - createPlatformLoaders
+        - returns BootLoader + ManifestLoader instances
+        - derives default endpoints from apiBase
+        - honors explicit endpoint overrides
+        - passes storageKeyPrefix and the client through to ManifestLoader
 - `packages/ui-vue/tests/the-fixture-installs-what-the-bootstrap-does.test.js`
-    - both files were actually read
-    - no seam the bootstrap installs is missing from the fixture
-    - a provide spread over several lines is found
-    - a missing key is reported rather than passed over
+    - the visual fixture installs what createSuperAdminApp installs
+        - both files were actually read
+        - no seam the bootstrap installs is missing from the fixture
+    - the reader sees what a pattern would miss
+        - a provide spread over several lines is found
+        - a missing key is reported rather than passed over
 
 <!-- END proof -->
 
@@ -7259,101 +7563,125 @@ _Source:_ release 0.26.0
 _Tested by:_
 
 - `packages/ui-vue/tests/app-served-resources.test.js`
-    - ${c.op} calls ${c.method} ${c.url}
-    - every operation this descriptor declares has a case above
-    - ${name}.${c.op} calls ${c.method} ${c.url}
-    - ${name}: every operation has a case above
-    - ${name} sends the header with a code
-    - ${name} sends no header for an empty code
-    - users.resetPassword posts the audit reason
-    - promoCodes.detail reads one code by id
-    - reads exactly the endpoint the card declares
-    - a reading, not a rendering — the timestamp comes back unformatted
-    - a body with no recognised number reads as null, not as a failure
+    - pilotsResource — the paths a consumer already serves
+        - ${c.op} calls ${c.method} ${c.url}
+        - every operation this descriptor declares has a case above
+    - platformEmailResource and emailHistoryResource
+        - ${name}.${c.op} calls ${c.method} ${c.url}
+        - ${name}: every operation has a case above
+    - the second factor travels as a header, and only when there is one
+        - ${name} sends the header with a code
+        - ${name} sends no header for an empty code
+    - the two operations the platform ships but does not serve
+        - users.resetPassword posts the audit reason
+        - promoCodes.detail reads one code by id
+    - dashboardResource — the endpoint comes from the card, not from us
+        - reads exactly the endpoint the card declares
+        - a reading, not a rendering — the timestamp comes back unformatted
+        - a body with no recognised number reads as null, not as a failure
 - `packages/ui-vue/tests/catalog-composables.test.js`
-    - the endpoint is required
-    - load() filters by project key and sends the auth header
-    - load() without a token sends none rather than an empty one
-    - a failed load lands on `error` and leaves the list alone
-    - an unparseable error body is still an error, with no body
-    - create() appends the created row
-    - update() replaces exactly the row it changed
-    - softDelete() and hardDelete() drop the row and hit different paths
-    - a mutation the server answered without a body does not touch the list
-    - loadTenantCounts() fills the map, and swallows its own failure
-    - autoLoad fetches without being asked
-    - the endpoint and the plan id are both required
-    - load() reads the versions of that plan
-    - a failed load says PlanVersions, not Plans
-    - createDraft() appends the new version out of the mutation result
-    - updateDraft() and publish() replace the version they addressed
-    - discardDraft() removes it and terminateVersion() replaces it
-    - every mutation that needs a body rejects when none arrives
-    - autoLoad fetches without being asked
-    - the endpoint is required
-    - load(), create(), update() and softDelete() keep the list in step
-    - a failed load lands on `error`
-    - autoLoad fetches without being asked
-    - the endpoint and the bundle id are both required
-    - createDraft() appends and updateDraft() replaces
-    - publish() reloads, because it can supersede another version
-    - discardDraft() removes the version from the list
-    - a failed load says BundleVersions
-    - autoLoad fetches without being asked
-    - the endpoint is required
-    - load() reads capabilities, features and quotas in one go
-    - one failing request fails the load, and the lists stay empty
-    - reviewFeature() and reviewQuota() replace the entry they reviewed
-    - the i18n and base editors address their own paths
-    - every editor rejects when the answer carries no entry
-    - syncDiscovery() posts the snapshot and reloads the three lists
-    - autoLoad fetches without being asked
-    - the endpoint is required
-    - load(), create(), update() and remove() keep the list in step
-    - a failed load lands on `error`
-    - autoLoad fetches without being asked
-    - the endpoint is required
-    - the query string carries only the filter parts that are set
-    - setFilter() replaces the filter and reloads with it
-    - create() reloads, because a new tuple can fall inside the filter
-    - update() patches the row in place, remove() drops it
-    - a mutation without a body rejects, and create() does not reload after it
-    - a failed load lands on `error`
-    - autoLoad fetches without being asked
+    - usePlans
+        - the endpoint is required
+        - load() filters by project key and sends the auth header
+        - load() without a token sends none rather than an empty one
+        - a failed load lands on `error` and leaves the list alone
+        - an unparseable error body is still an error, with no body
+        - create() appends the created row
+        - update() replaces exactly the row it changed
+        - softDelete() and hardDelete() drop the row and hit different paths
+        - a mutation the server answered without a body does not touch the list
+        - loadTenantCounts() fills the map, and swallows its own failure
+        - autoLoad fetches without being asked
+    - usePlanVersions
+        - the endpoint and the plan id are both required
+        - load() reads the versions of that plan
+        - a failed load says PlanVersions, not Plans
+        - createDraft() appends the new version out of the mutation result
+        - updateDraft() and publish() replace the version they addressed
+        - discardDraft() removes it and terminateVersion() replaces it
+        - every mutation that needs a body rejects when none arrives
+        - autoLoad fetches without being asked
+    - useBundles
+        - the endpoint is required
+        - load(), create(), update() and softDelete() keep the list in step
+        - a failed load lands on `error`
+        - autoLoad fetches without being asked
+    - useBundleVersions
+        - the endpoint and the bundle id are both required
+        - createDraft() appends and updateDraft() replaces
+        - publish() reloads, because it can supersede another version
+        - discardDraft() removes the version from the list
+        - a failed load says BundleVersions
+        - autoLoad fetches without being asked
+    - useCatalogEntries
+        - the endpoint is required
+        - load() reads capabilities, features and quotas in one go
+        - one failing request fails the load, and the lists stay empty
+        - reviewFeature() and reviewQuota() replace the entry they reviewed
+        - the i18n and base editors address their own paths
+        - every editor rejects when the answer carries no entry
+        - syncDiscovery() posts the snapshot and reloads the three lists
+        - autoLoad fetches without being asked
+    - usePromotions
+        - the endpoint is required
+        - load(), create(), update() and remove() keep the list in step
+        - a failed load lands on `error`
+        - autoLoad fetches without being asked
+    - useMarketingProjections
+        - the endpoint is required
+        - the query string carries only the filter parts that are set
+        - setFilter() replaces the filter and reloads with it
+        - create() reloads, because a new tuple can fall inside the filter
+        - update() patches the row in place, remove() drops it
+        - a mutation without a body rejects, and create() does not reload after it
+        - a failed load lands on `error`
+        - autoLoad fetches without being asked
 - `packages/ui-vue/tests/composables.test.js`
-    - initial state: boot=null, loading=false
-    - load() fills boot.value
-    - load() sets error on HTTP failure
-    - loading state toggles correctly
-    - initial state: manifest=null
-    - load() fills manifest
-    - reload() discards cache + loads fresh
-    - clearCache() sets manifest to null
+    - usePublicBoot
+        - initial state: boot=null, loading=false
+        - load() fills boot.value
+        - load() sets error on HTTP failure
+        - loading state toggles correctly
+    - useManifest
+        - initial state: manifest=null
+        - load() fills manifest
+        - reload() discards cache + loads fresh
+        - clearCache() sets manifest to null
 - `packages/ui-vue/tests/resources-match-the-composables.test.js`
-    - ${resource.name}: ${testCase.name}
-    - the list operation these cases drive is the one they name
-    - ${testCase.name} sends the same request
-    - ${testCase.name} sends the same request
-    - covers every operation both sides declare
-    - terminate matches too, under the composable’s own name
-    - the one header the two sides do not agree on
-    - ${testCase.op} sends the same request
-    - ${key}: every operation is driven by a case
+    - the list descriptors match the list composables
+        - ${resource.name}: ${testCase.name}
+        - the list operation these cases drive is the one they name
+    - plansResource matches usePlans
+        - ${testCase.name} sends the same request
+    - planVersionsResource matches usePlanVersions
+        - ${testCase.name} sends the same request
+    - the comparison itself
+        - covers every operation both sides declare
+        - terminate matches too, under the composable’s own name
+        - the one header the two sides do not agree on
+    - family.name
+        - ${testCase.op} sends the same request
+    - the comparison covers the whole roster
+        - ${key}: every operation is driven by a case
 - `packages/ui-vue/tests/resources-optional-arguments.test.js`
-    - promoCodes.list() sends a bare path
-    - users.list() sends a bare path
-    - marketing.listProjections() sends a bare path when nothing narrows it
-    - tenants.list() asks for the first page at the default size
-    - planVersions.publish sends an empty object, not an absent body
-    - bundleVersions.publish does the same
-    - read() sends no If-None-Match
-    - read(null) is the same request — that is how a forced reload is spelled
-    - read(etag) revalidates
-    - an unchanged snapshot is not re-read
-    - a loaded snapshot carries the tag the next read revalidates with
-    - a status that is neither 200 nor 304 fails rather than reading a body
-    - a rescan that does not answer 200 or 201 fails the same way
-    - ${def.key}.${op} answers []
+    - a list with no filter asks for no filter
+        - promoCodes.list() sends a bare path
+        - users.list() sends a bare path
+        - marketing.listProjections() sends a bare path when nothing narrows it
+        - tenants.list() asks for the first page at the default size
+    - a publish with nothing overridden
+        - planVersions.publish sends an empty object, not an absent body
+        - bundleVersions.publish does the same
+    - a discovery read with no tag to revalidate against
+        - read() sends no If-None-Match
+        - read(null) is the same request — that is how a forced reload is spelled
+        - read(etag) revalidates
+        - an unchanged snapshot is not re-read
+        - a loaded snapshot carries the tag the next read revalidates with
+        - a status that is neither 200 nor 304 fails rather than reading a body
+        - a rescan that does not answer 200 or 201 fails the same way
+    - an empty list answer is a list, not a null
+        - ${def.key}.${op} answers []
 
 <!-- END proof -->
 
@@ -7369,83 +7697,105 @@ _Source:_ release 1.0.0-rc.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/bundles-page-owns-what-it-saves.test.ts`
-    - each plan maps to its live version
-    - an edited label shows in the row the page owns
-    - a saved version reaches the aggregate map the KPIs read
+    - BundlesPage loads the live plan versions the overlap check reads
+        - each plan maps to its live version
+    - BundlesPage writes back what a mutation returns
+        - an edited label shows in the row the page owns
+        - a saved version reaches the aggregate map the KPIs read
 - `packages/ui-vue/tests/component/clearable-fields.test.ts`
-    - the sweep finds the fields it claims to check
-    - no clearable model has a string method called on it unguarded
+    - clearable fields
+        - the sweep finds the fields it claims to check
+        - no clearable model has a string method called on it unguarded
 - `packages/ui-vue/tests/component/discovery-page-keeps-the-first-edit.test.ts`
-    - the second payload still holds the first edit
+    - DiscoveryPage carries a saved translation into the next save
+        - the second payload still holds the first edit
 - `packages/ui-vue/tests/component/grouped-options-keep-their-defaults.test.ts`
-    - TenantsPage renders the plan column
-    - PromoCodesPage offers the four statuses in its filter
+    - a page configured with nothing still shows what it used to
+        - TenantsPage renders the plan column
+        - PromoCodesPage offers the four statuses in its filter
 - `packages/ui-vue/tests/component/plan-wizard-keeps-its-draft.test.ts`
-    - the editor writes what was typed into the wizard, not into the page
-    - the review renders the unsaved values, not the published version
-    - the draft outlives the navigation between the two steps
-    - cancelling clears the draft rather than leaving it for the next plan
-    - a refused save keeps the draft and stays on the step
-    - a save that succeeds clears the draft
-    - publish carries the form and the checklist flags
-    - a publish that does not go through keeps the draft
+    - the wizard carries its unsaved draft across the two routes
+        - the editor writes what was typed into the wizard, not into the page
+        - the review renders the unsaved values, not the published version
+        - the draft outlives the navigation between the two steps
+        - cancelling clears the draft rather than leaving it for the next plan
+    - a step leaves the wizard only when the write happened
+        - a refused save keeps the draft and stays on the step
+        - a save that succeeds clears the draft
+        - publish carries the form and the checklist flags
+        - a publish that does not go through keeps the draft
 - `packages/ui-vue/tests/kv-store.test.js`
-    - without localStorage it is a no-op store
-    - a throwing localStorage getter does not escape
-    - reads and writes go through when localStorage works
-    - a failing write is swallowed — quota or private mode
-    - a failing read yields null rather than throwing
+    - defaultKvStore
+        - without localStorage it is a no-op store
+        - a throwing localStorage getter does not escape
+        - reads and writes go through when localStorage works
+        - a failing write is swallowed — quota or private mode
+        - a failing read yields null rather than throwing
 - `packages/ui-vue/tests/use-plan-editor.test.js`
-    - lists all catalog features with correct marker flags
-    - featuresByTier groups + sorts by tier order
-    - features without tier land in OTHER group at the end
-    - manifest without features block: empty but no crash
-    - toggle add + remove
-    - toggle on plannedOnly feature is ignored (no state change)
-    - nonRegressive: inherited feature cannot be removed
-    - nonRegressive=false: inherited feature may be removed
-    - snapshot returns sorted selection
-    - validateDraft accepts a clean selection
-    - validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key is
-      present
+    - usePlanEditor — Discovery (availableFeatures)
+        - lists all catalog features with correct marker flags
+        - featuresByTier groups + sorts by tier order
+        - features without tier land in OTHER group at the end
+        - manifest without features block: empty but no crash
+    - usePlanEditor — toggleFeature
+        - toggle add + remove
+        - toggle on plannedOnly feature is ignored (no state change)
+        - nonRegressive: inherited feature cannot be removed
+        - nonRegressive=false: inherited feature may be removed
+    - usePlanEditor — validateDraft + snapshot
+        - snapshot returns sorted selection
+        - validateDraft accepts a clean selection
+        - validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key
+          is present
 - `packages/ui-vue/tests/use-steps.test.js`
-    - it starts on the first step
-    - every step is done, current or upcoming
-    - back on the first step is refused rather than wrapping around
-    - next on the last step is refused
-    - reset takes it back to the start
-    - the guard stops the move and says so
-    - a click on a next button the guard refuses moves nothing
-    - the same predicate answers the button and the move
-    - advancing puts focus on the new heading
-    - going back puts focus on the heading too
-    - a refused move does not move focus
-    - the heading is focusable without joining the tab order
-    - it refuses to be built
+    - a linear wizard knows where it is
+        - it starts on the first step
+        - every step is done, current or upcoming
+        - back on the first step is refused rather than wrapping around
+        - next on the last step is refused
+        - reset takes it back to the start
+    - a guarded step refuses to advance
+        - the guard stops the move and says so
+        - a click on a next button the guard refuses moves nothing
+        - the same predicate answers the button and the move
+    - focus follows the step
+        - advancing puts focus on the new heading
+        - going back puts focus on the heading too
+        - a refused move does not move focus
+        - the heading is focusable without joining the tab order
+    - a wizard with no steps is a mistake, not an empty wizard
+        - it refuses to be built
 - `packages/ui-vue/tests/use-subscription-draft.test.js`
-    - selectedPlan is null before selection
-    - setPlan removes bundles incompatible with the new plan
-    - setPlan keeps universally compatible bundles
-    - Monthly uses monthlyNet, Yearly uses yearlyNet
-    - yearSavings = 12*monthly − yearly
-    - yearlyNet=null falls back to monthly × DEFAULT_YEARLY_FACTOR
-    - Bundle toggle marks bundle + activates its features
-    - Bundle deselect removes activated features again
-    - Bundle price flows into subtotalNet
-    - PERCENT promo is applied to subtotalNet
-    - ABSOLUTE promo is capped at subtotal
-    - clearPromo removes discount + sets status idle
-    - setPromoCode clears a previous valid status
-    - serializes plan + cycle + bundle version IDs
-    - without bundle selection bundleVersionIds is missing from the payload
-    - serializes promoCode only when status is valid
-    - throws when plan is not set
-    - covered bundle does not flow into bundlesNet nor into the breakdown
-    - covered bundle is missing from toApiPayload().bundleVersionIds
-    - deselecting the covering bundle charges the other one again
-    - mutual coverage Y={C},Z={C} → exactly ONE bundle charged + sent
-    - false with fresh state
-    - true as soon as a bundle is added
+    - useSubscriptionDraft — plan selection
+        - selectedPlan is null before selection
+        - setPlan removes bundles incompatible with the new plan
+        - setPlan keeps universally compatible bundles
+    - useSubscriptionDraft — cycle toggle
+        - Monthly uses monthlyNet, Yearly uses yearlyNet
+        - yearSavings = 12*monthly − yearly
+        - yearlyNet=null falls back to monthly × DEFAULT_YEARLY_FACTOR
+    - useSubscriptionDraft — Bundles
+        - Bundle toggle marks bundle + activates its features
+        - Bundle deselect removes activated features again
+        - Bundle price flows into subtotalNet
+    - useSubscriptionDraft — Promo-Discount
+        - PERCENT promo is applied to subtotalNet
+        - ABSOLUTE promo is capped at subtotal
+        - clearPromo removes discount + sets status idle
+        - setPromoCode clears a previous valid status
+    - useSubscriptionDraft — toApiPayload
+        - serializes plan + cycle + bundle version IDs
+        - without bundle selection bundleVersionIds is missing from the payload
+        - serializes promoCode only when status is valid
+        - throws when plan is not set
+    - useSubscriptionDraft — redundant (covered) bundles
+        - covered bundle does not flow into bundlesNet nor into the breakdown
+        - covered bundle is missing from toApiPayload().bundleVersionIds
+        - deselecting the covering bundle charges the other one again
+        - mutual coverage Y={C},Z={C} → exactly ONE bundle charged + sent
+    - useSubscriptionDraft — isDirty
+        - false with fresh state
+        - true as soon as a bundle is added
 
 <!-- END proof -->
 
@@ -7462,70 +7812,84 @@ _Source:_ `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/admin-error.test.js`
-    - defaults to status 0 — a request that never produced one
-    - the diagnostic message names the request, the status and the code
-    - the diagnostic carries the detail when there is one
-    - an explicit message overrides the derived one
-    - cause is preserved
-    - recognises an instance
-    - rejects a plain error, a look-alike object, and nothing at all
-    - recognises what a throw site marked, and nothing else
-    - the marker is not enumerable, so it does not leak into a log line
-    - recognises what a client marked, and nothing else
-    - marking a non-object is a no-op rather than a second failure
-    - the marker is not enumerable, so it does not leak into a log line
-    - passes an AdminError through untouched
-    - reads an axios rejection: status, code, body, url and method
-    - a status-bearing error with an unreadable body has no detail at all
-    - joins a NestJS ValidationPipe message array instead of stringifying it
-    - reads one of the package’s own API errors, which carry status and body
-    - an answer that was empty is not a connection problem
-    - a consumer client rejecting with status 0 is not an empty response
-    - a manifest 304 that survives to be thrown is a diagnostic like any other
-    - a real HTTP failure is not an empty response
-    - a declared transport failure keeps its diagnostic off detail, so the catalog answers
-    - an axios failure with no response is transport too
-    - but an interceptor’s own error is not, however much of axios it carries
-    - but an error from app code keeps its message — that IS what was said
-    - wraps a thrown string
-    - survives a thrown nothing
-    - a null dereference is not a connection problem
-    - a real fetch failure still says "check your connection"
-    - a malformed URL is a transport failure too, not an unknown one
-    - the client passes a response through untouched
-    - a consumer error carrying a status keeps its message
-    - a consumer error merely NAMED like ours is still a consumer error
-    - a mutation the server answered without a body is an empty response
-    - a boot GET a client resolved as status 0 never reached the server
-    - a manifest GET a client resolved as status 0 never reached the server
-    - nor did a mutation a client resolved as status 0 — on any of the surfaces
-    - a discovery load a client resolved as status 0 never reached the server
-    - a plain object keeps the message it carries
-    - an Error from another realm is such an object
-    - an object with nothing readable falls through to the generic wording
-    - a non-string message is not a message
-    - what the failing side said outranks anything the platform could guess
-    - maps the statuses that have their own wording
-    - any other status falls through to the generic template, with the number in it
-    - a failure nothing knows anything about says so, rather than blaming the network
-    - a seam that declares the request never went out gets the network wording
-    - converts before formatting, so an axios rejection needs no pre-processing
-    - German is a complete alternative, not a fallback to English
-    - the two names are one class, so an existing instanceof check keeps working
-    - a non-2xx carries status, code, detail, url and method
-    - postJson reports its own method
-    - an error body that is not JSON does not become a second failure
-    - a validation rejection keeps its constraints — the array is joined here too
-    - a 2xx still returns the parsed body
-    - an AdminError carries it at `status`
-    - an axios rejection carries it at `response.status`
-    - anything else has none
+    - AdminError
+        - defaults to status 0 — a request that never produced one
+        - the diagnostic message names the request, the status and the code
+        - the diagnostic carries the detail when there is one
+        - an explicit message overrides the derived one
+        - cause is preserved
+    - isAdminError
+        - recognises an instance
+        - rejects a plain error, a look-alike object, and nothing at all
+    - isEmptyResponse
+        - recognises what a throw site marked, and nothing else
+        - the marker is not enumerable, so it does not leak into a log line
+    - isTransportFailure
+        - recognises what a client marked, and nothing else
+        - marking a non-object is a no-op rather than a second failure
+        - the marker is not enumerable, so it does not leak into a log line
+    - toAdminError
+        - passes an AdminError through untouched
+        - reads an axios rejection: status, code, body, url and method
+        - a status-bearing error with an unreadable body has no detail at all
+        - joins a NestJS ValidationPipe message array instead of stringifying it
+        - reads one of the package’s own API errors, which carry status and body
+        - an answer that was empty is not a connection problem
+        - a consumer client rejecting with status 0 is not an empty response
+        - a manifest 304 that survives to be thrown is a diagnostic like any other
+        - a real HTTP failure is not an empty response
+        - a declared transport failure keeps its diagnostic off detail, so the catalog answers
+        - an axios failure with no response is transport too
+        - but an interceptor’s own error is not, however much of axios it carries
+        - but an error from app code keeps its message — that IS what was said
+        - wraps a thrown string
+        - survives a thrown nothing
+    - a transport failure is declared by the client, not read off the class
+        - a null dereference is not a connection problem
+        - a real fetch failure still says "check your connection"
+        - a malformed URL is a transport failure too, not an unknown one
+        - the client passes a response through untouched
+    - toAdminError and consumer errors
+        - a consumer error carrying a status keeps its message
+        - a consumer error merely NAMED like ours is still a consumer error
+    - emptyResponse is read off the throw site, not off the class
+        - a mutation the server answered without a body is an empty response
+        - a boot GET a client resolved as status 0 never reached the server
+        - a manifest GET a client resolved as status 0 never reached the server
+        - nor did a mutation a client resolved as status 0 — on any of the surfaces
+        - a discovery load a client resolved as status 0 never reached the server
+    - toAdminError and rejections that are not Errors
+        - a plain object keeps the message it carries
+        - an Error from another realm is such an object
+        - an object with nothing readable falls through to the generic wording
+        - a non-string message is not a message
+    - adminErrorMessage
+        - what the failing side said outranks anything the platform could guess
+        - maps the statuses that have their own wording
+        - any other status falls through to the generic template, with the number in it
+        - a failure nothing knows anything about says so, rather than blaming the network
+        - a seam that declares the request never went out gets the network wording
+        - converts before formatting, so an axios rejection needs no pre-processing
+        - German is a complete alternative, not a fallback to English
+    - HttpJsonError is AdminError
+        - the two names are one class, so an existing instanceof check keeps working
+    - getJson / postJson raise AdminError
+        - a non-2xx carries status, code, detail, url and method
+        - postJson reports its own method
+        - an error body that is not JSON does not become a second failure
+        - a validation rejection keeps its constraints — the array is joined here too
+        - a 2xx still returns the parsed body
+    - httpStatusOf reads the status whichever shape carries it
+        - an AdminError carries it at `status`
+        - an axios rejection carries it at `response.status`
+        - anything else has none
 - `packages/ui-vue/tests/component/error-state-outranks-the-accent.test.ts`
-    - the stylesheet the theme has to outrank really parsed
-    - a focused valid field still gets the accent label
-    - a focused invalid field keeps its negative label
-    - an invalid field that was never focused keeps it too
-    - a list item has no error state for the sibling rule to trample
+    - the accent label yields to the error state
+        - the stylesheet the theme has to outrank really parsed
+        - a focused valid field still gets the accent label
+        - a focused invalid field keeps its negative label
+        - an invalid field that was never focused keeps it too
+        - a list item has no error state for the sibling rule to trample
 
 <!-- END proof -->
 
@@ -7541,64 +7905,77 @@ _Source:_ release 0.26.0
 _Tested by:_
 
 - `packages/ui-vue/tests/admin-error.test.js`
-    - defaults to status 0 — a request that never produced one
-    - the diagnostic message names the request, the status and the code
-    - the diagnostic carries the detail when there is one
-    - an explicit message overrides the derived one
-    - cause is preserved
-    - recognises an instance
-    - rejects a plain error, a look-alike object, and nothing at all
-    - recognises what a throw site marked, and nothing else
-    - the marker is not enumerable, so it does not leak into a log line
-    - recognises what a client marked, and nothing else
-    - marking a non-object is a no-op rather than a second failure
-    - the marker is not enumerable, so it does not leak into a log line
-    - passes an AdminError through untouched
-    - reads an axios rejection: status, code, body, url and method
-    - a status-bearing error with an unreadable body has no detail at all
-    - joins a NestJS ValidationPipe message array instead of stringifying it
-    - reads one of the package’s own API errors, which carry status and body
-    - an answer that was empty is not a connection problem
-    - a consumer client rejecting with status 0 is not an empty response
-    - a manifest 304 that survives to be thrown is a diagnostic like any other
-    - a real HTTP failure is not an empty response
-    - a declared transport failure keeps its diagnostic off detail, so the catalog answers
-    - an axios failure with no response is transport too
-    - but an interceptor’s own error is not, however much of axios it carries
-    - but an error from app code keeps its message — that IS what was said
-    - wraps a thrown string
-    - survives a thrown nothing
-    - a null dereference is not a connection problem
-    - a real fetch failure still says "check your connection"
-    - a malformed URL is a transport failure too, not an unknown one
-    - the client passes a response through untouched
-    - a consumer error carrying a status keeps its message
-    - a consumer error merely NAMED like ours is still a consumer error
-    - a mutation the server answered without a body is an empty response
-    - a boot GET a client resolved as status 0 never reached the server
-    - a manifest GET a client resolved as status 0 never reached the server
-    - nor did a mutation a client resolved as status 0 — on any of the surfaces
-    - a discovery load a client resolved as status 0 never reached the server
-    - a plain object keeps the message it carries
-    - an Error from another realm is such an object
-    - an object with nothing readable falls through to the generic wording
-    - a non-string message is not a message
-    - what the failing side said outranks anything the platform could guess
-    - maps the statuses that have their own wording
-    - any other status falls through to the generic template, with the number in it
-    - a failure nothing knows anything about says so, rather than blaming the network
-    - a seam that declares the request never went out gets the network wording
-    - converts before formatting, so an axios rejection needs no pre-processing
-    - German is a complete alternative, not a fallback to English
-    - the two names are one class, so an existing instanceof check keeps working
-    - a non-2xx carries status, code, detail, url and method
-    - postJson reports its own method
-    - an error body that is not JSON does not become a second failure
-    - a validation rejection keeps its constraints — the array is joined here too
-    - a 2xx still returns the parsed body
-    - an AdminError carries it at `status`
-    - an axios rejection carries it at `response.status`
-    - anything else has none
+    - AdminError
+        - defaults to status 0 — a request that never produced one
+        - the diagnostic message names the request, the status and the code
+        - the diagnostic carries the detail when there is one
+        - an explicit message overrides the derived one
+        - cause is preserved
+    - isAdminError
+        - recognises an instance
+        - rejects a plain error, a look-alike object, and nothing at all
+    - isEmptyResponse
+        - recognises what a throw site marked, and nothing else
+        - the marker is not enumerable, so it does not leak into a log line
+    - isTransportFailure
+        - recognises what a client marked, and nothing else
+        - marking a non-object is a no-op rather than a second failure
+        - the marker is not enumerable, so it does not leak into a log line
+    - toAdminError
+        - passes an AdminError through untouched
+        - reads an axios rejection: status, code, body, url and method
+        - a status-bearing error with an unreadable body has no detail at all
+        - joins a NestJS ValidationPipe message array instead of stringifying it
+        - reads one of the package’s own API errors, which carry status and body
+        - an answer that was empty is not a connection problem
+        - a consumer client rejecting with status 0 is not an empty response
+        - a manifest 304 that survives to be thrown is a diagnostic like any other
+        - a real HTTP failure is not an empty response
+        - a declared transport failure keeps its diagnostic off detail, so the catalog answers
+        - an axios failure with no response is transport too
+        - but an interceptor’s own error is not, however much of axios it carries
+        - but an error from app code keeps its message — that IS what was said
+        - wraps a thrown string
+        - survives a thrown nothing
+    - a transport failure is declared by the client, not read off the class
+        - a null dereference is not a connection problem
+        - a real fetch failure still says "check your connection"
+        - a malformed URL is a transport failure too, not an unknown one
+        - the client passes a response through untouched
+    - toAdminError and consumer errors
+        - a consumer error carrying a status keeps its message
+        - a consumer error merely NAMED like ours is still a consumer error
+    - emptyResponse is read off the throw site, not off the class
+        - a mutation the server answered without a body is an empty response
+        - a boot GET a client resolved as status 0 never reached the server
+        - a manifest GET a client resolved as status 0 never reached the server
+        - nor did a mutation a client resolved as status 0 — on any of the surfaces
+        - a discovery load a client resolved as status 0 never reached the server
+    - toAdminError and rejections that are not Errors
+        - a plain object keeps the message it carries
+        - an Error from another realm is such an object
+        - an object with nothing readable falls through to the generic wording
+        - a non-string message is not a message
+    - adminErrorMessage
+        - what the failing side said outranks anything the platform could guess
+        - maps the statuses that have their own wording
+        - any other status falls through to the generic template, with the number in it
+        - a failure nothing knows anything about says so, rather than blaming the network
+        - a seam that declares the request never went out gets the network wording
+        - converts before formatting, so an axios rejection needs no pre-processing
+        - German is a complete alternative, not a fallback to English
+    - HttpJsonError is AdminError
+        - the two names are one class, so an existing instanceof check keeps working
+    - getJson / postJson raise AdminError
+        - a non-2xx carries status, code, detail, url and method
+        - postJson reports its own method
+        - an error body that is not JSON does not become a second failure
+        - a validation rejection keeps its constraints — the array is joined here too
+        - a 2xx still returns the parsed body
+    - httpStatusOf reads the status whichever shape carries it
+        - an AdminError carries it at `status`
+        - an axios rejection carries it at `response.status`
+        - anything else has none
 
 <!-- END proof -->
 
@@ -7613,67 +7990,83 @@ _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/list-resource.test.js`
-    - the three spellings of "not filtered" are left out
-    - the falsy values that are answers are not
-    - always states its page, first and in order
-    - appends to an endpoint that already carries a query
-    - serialises the filter after the pagination, in insertion order
-    - omits the empty values and keeps the falsy ones
-    - encodes with URLSearchParams — a space is a plus, not %20
-    - is empty when nothing survives the rule
-    - leads with a question mark when something does
-    - a bare array reports the rows it sent
-    - an envelope is read field by field
-    - what the answer did not state stays absent
-    - a body that is neither is an empty page, not a crash
-    - an `items` that is not an array is not passed off as rows
-    - a page below the first is the first
-    - a fractional page is the one it is on
-    - a page size stays inside 1..max
+    - isSentInQuery — which values reach the server
+        - the three spellings of "not filtered" are left out
+        - the falsy values that are answers are not
+    - listUrl
+        - always states its page, first and in order
+        - appends to an endpoint that already carries a query
+        - serialises the filter after the pagination, in insertion order
+        - omits the empty values and keeps the falsy ones
+        - encodes with URLSearchParams — a space is a plus, not %20
+    - filterQueryString — the endpoints that do not page
+        - is empty when nothing survives the rule
+        - leads with a question mark when something does
+    - readListPage — both shapes real controllers answer with
+        - a bare array reports the rows it sent
+        - an envelope is read field by field
+        - what the answer did not state stays absent
+        - a body that is neither is an empty page, not a crash
+        - an `items` that is not an array is not passed off as rows
+    - the page bounds the admin API serves
+        - a page below the first is the first
+        - a fractional page is the one it is on
+        - a page size stays inside 1..max
 - `packages/ui-vue/tests/use-async-action.test.js`
-    - resolves what the action returned
-    - passes every argument through
-    - pending is true while in flight and false afterwards
-    - runs onSuccess with the result, before run resolves
-    - stays silent on success by default
-    - notifyOn "both" raises the success message
-    - a success message may be computed at call time
-    - reports the failure in the result instead of throwing
-    - a void action is still distinguishable — the whole reason for the shape
-    - records the failure as an AdminError
-    - clears pending even when the action throws
-    - skips onSuccess
-    - reports through the notify port, worded from the default catalog
-    - what the server said outranks the catalog
-    - errorMessage outranks both, and sees the AdminError
-    - notifyOn "none" records the error without announcing it
-    - without a notify port the failure is still recorded
-    - pending stays true until the last one settles
-    - the older call failing last leaves no error behind
-    - but a failure from the newest call is still recorded
-    - a success toast that throws leaves the action successful
-    - a successMessage that throws does the same
-    - an error toast that throws still returns the action failure
-    - a failing continuation fails the action, and says so only once
-    - a continuation that succeeds still gets its success toast
-    - a later success clears an earlier failure
-    - reset clears it without running anything
+    - useAsyncAction — the happy path
+        - resolves what the action returned
+        - passes every argument through
+        - pending is true while in flight and false afterwards
+        - runs onSuccess with the result, before run resolves
+        - stays silent on success by default
+        - notifyOn "both" raises the success message
+        - a success message may be computed at call time
+    - useAsyncAction — failure
+        - reports the failure in the result instead of throwing
+        - a void action is still distinguishable — the whole reason for the shape
+        - records the failure as an AdminError
+        - clears pending even when the action throws
+        - skips onSuccess
+        - reports through the notify port, worded from the default catalog
+        - what the server said outranks the catalog
+        - errorMessage outranks both, and sees the AdminError
+        - notifyOn "none" records the error without announcing it
+        - without a notify port the failure is still recorded
+    - useAsyncAction — overlapping invocations
+        - pending stays true until the last one settles
+    - useAsyncAction — a stale failure does not outlive a newer success
+        - the older call failing last leaves no error behind
+        - but a failure from the newest call is still recorded
+    - useAsyncAction — a report cannot change what happened
+        - a success toast that throws leaves the action successful
+        - a successMessage that throws does the same
+        - an error toast that throws still returns the action failure
+    - useAsyncAction — the success continuation
+        - a failing continuation fails the action, and says so only once
+        - a continuation that succeeds still gets its success toast
+    - useAsyncAction — the error ref over time
+        - a later success clears an earlier failure
+        - reset clears it without running anything
 - `packages/ui-vue/tests/use-async-data.test.js`
-    - starts at the initial value
-    - loads on creation by default
-    - immediate: false loads nothing until asked
-    - does not block setup — nothing has loaded synchronously
-    - pending is true while in flight
-    - records the failure as an AdminError
-    - puts the data back to initial rather than leaving stale rows
-    - reload does not throw
-    - clears pending even when the load throws
-    - a later success clears the error
-    - a superseded load does not overwrite the newer one
-    - a superseded load does not clear pending while the newer one runs
-    - a superseded load that FAILS does not wipe the page or raise its error
-    - reloads when a watched source changes
-    - a watched source combines with immediate: false — the first load is the change
+    - useAsyncData — loading
+        - starts at the initial value
+        - loads on creation by default
+        - immediate: false loads nothing until asked
+        - does not block setup — nothing has loaded synchronously
+        - pending is true while in flight
+    - useAsyncData — failure
+        - records the failure as an AdminError
+        - puts the data back to initial rather than leaving stale rows
+        - reload does not throw
+        - clears pending even when the load throws
+        - a later success clears the error
+    - useAsyncData — overlapping loads
+        - a superseded load does not overwrite the newer one
+        - a superseded load does not clear pending while the newer one runs
+        - a superseded load that FAILS does not wipe the page or raise its error
+    - useAsyncData — watch
+        - reloads when a watched source changes
+        - a watched source combines with immediate: false — the first load is the change
 
 <!-- END proof -->
 
@@ -7689,38 +8082,48 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/action-registry.test.js`
-    - returns {def, handler} for a registered key
-    - dispatch calls handler with input
-    - ActionDefNotInManifestError for an unknown key
-    - MissingHandlerError for a declared key without a handler
-    - accepts handler registration for a declared key
-    - rejects registration for non-declared keys
-    - listOrphanedDefs: manifest-declared actions without a handler
-    - listOrphanedHandlers: registered handlers without a manifest def
+    - ActionRegistry.get + dispatch
+        - returns {def, handler} for a registered key
+        - dispatch calls handler with input
+    - ActionRegistry.get — error paths
+        - ActionDefNotInManifestError for an unknown key
+        - MissingHandlerError for a declared key without a handler
+    - ActionRegistry.register — late binding
+        - accepts handler registration for a declared key
+        - rejects registration for non-declared keys
+    - ActionRegistry — drift detection
+        - listOrphanedDefs: manifest-declared actions without a handler
+        - listOrphanedHandlers: registered handlers without a manifest def
 - `packages/ui-vue/tests/pages-take-no-callbacks.test.js`
-    - the guard reads every page in `src/pages/`
-    - no prop in `src/pages/` is callable, and none exceeds the cap
-    - the one exception says why, in its own source
-    - an inline callback prop
-    - a callback hidden behind a type alias — what a pattern cannot see
-    - a sixth prop
-    - an exception tag with no real reason
-    - a declared exception passes
+    - a page takes no callbacks
+        - the guard reads every page in `src/pages/`
+        - no prop in `src/pages/` is callable, and none exceeds the cap
+        - the one exception says why, in its own source
+    - the guard fails on what it forbids
+        - an inline callback prop
+        - a callback hidden behind a type alias — what a pattern cannot see
+        - a sixth prop
+        - an exception tag with no real reason
+        - a declared exception passes
 - `packages/ui-vue/tests/use-tenant-action-flow.test.js`
-    - actionsForRow returns [] when manifest is null
-    - actionsForRow returns [] when tenants.actions is empty
-    - Confirm → MFA → Handler in correct order
-    - Confirm abort prevents MFA + Handler
-    - MFA abort prevents Handler
-    - hides action when requiredCapability is false in the manifest
-    - hides action when no handler is registered in the actions map
-    - visibleForRow filters row-specifically by capability+handler
-    - availableActions is row-independent — Reactivate stays visible despite a sample row with
-      isActive=true
-    - availableActions statically filters disabled capabilities + orphan handlers
-    - throws when an action requires MFA but no mfa provider is set
-    - throws when an action requires confirm but no confirm provider is set
-    - orphanedDefs lists manifest actions without a handler
+    - useTenantActionFlow — empty actions
+        - actionsForRow returns [] when manifest is null
+        - actionsForRow returns [] when tenants.actions is empty
+    - useTenantActionFlow — flow order
+        - Confirm → MFA → Handler in correct order
+        - Confirm abort prevents MFA + Handler
+        - MFA abort prevents Handler
+    - useTenantActionFlow — capability and handler filter
+        - hides action when requiredCapability is false in the manifest
+        - hides action when no handler is registered in the actions map
+        - visibleForRow filters row-specifically by capability+handler
+        - availableActions is row-independent — Reactivate stays visible despite a sample row with
+          isActive=true
+        - availableActions statically filters disabled capabilities + orphan handlers
+    - useTenantActionFlow — provider drift
+        - throws when an action requires MFA but no mfa provider is set
+        - throws when an action requires confirm but no confirm provider is set
+        - orphanedDefs lists manifest actions without a handler
 
 <!-- END proof -->
 
@@ -7735,27 +8138,33 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic "are you sure"
-    - a destructive action is coloured as one
-    - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads "OK"
-    - no prompt means no input — a plain confirm stays plain
-    - a prompt carries its initial value and type
-    - a prompt with no initial value starts empty and takes text
-    - an app-provided port is the one that gets asked
-    - without one, the Quasar implementation is the fallback — which still asks
-    - a context from an older package version still resolves, because the key is Symbol.for
+    - quasarConfirmOptions
+        - carries the wording the page wrote, not a generic "are you sure"
+        - a destructive action is coloured as one
+        - tone defaults to primary — only the caller may call something destructive
+        - both buttons are labelled, so neither reads "OK"
+        - no prompt means no input — a plain confirm stays plain
+        - a prompt carries its initial value and type
+        - a prompt with no initial value starts empty and takes text
+    - useSuperAdminConfirm
+        - an app-provided port is the one that gets asked
+        - without one, the Quasar implementation is the fallback — which still asks
+        - a context from an older package version still resolves, because the key is Symbol.for
 - `packages/ui-vue/tests/use-bulk-publish.test.js`
-    - sets items with default status pending
-    - all successful → success count = 3, done=true
-    - single error → success=2, failure=1, done=true
-    - empty changeNote → all items failed
-    - mfaCode sets X-Mfa-Code header
-    - auth token is sent along
-    - endpoints are called per kind
-    - override endpoints configurable
-    - progress=0 for empty set
-    - progress=0 before run, =1 after run
+    - useBulkPublish.setItems
+        - sets items with default status pending
+    - useBulkPublish.run — parallel publishes
+        - all successful → success count = 3, done=true
+        - single error → success=2, failure=1, done=true
+        - empty changeNote → all items failed
+        - mfaCode sets X-Mfa-Code header
+        - auth token is sent along
+    - useBulkPublish — endpoint mapping
+        - endpoints are called per kind
+        - override endpoints configurable
+    - useBulkPublish — progress
+        - progress=0 for empty set
+        - progress=0 before run, =1 after run
 
 <!-- END proof -->
 
@@ -7771,28 +8180,37 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/ui-vue/tests/action-registry.test.js`
-    - returns {def, handler} for a registered key
-    - dispatch calls handler with input
-    - ActionDefNotInManifestError for an unknown key
-    - MissingHandlerError for a declared key without a handler
-    - accepts handler registration for a declared key
-    - rejects registration for non-declared keys
-    - listOrphanedDefs: manifest-declared actions without a handler
-    - listOrphanedHandlers: registered handlers without a manifest def
+    - ActionRegistry.get + dispatch
+        - returns {def, handler} for a registered key
+        - dispatch calls handler with input
+    - ActionRegistry.get — error paths
+        - ActionDefNotInManifestError for an unknown key
+        - MissingHandlerError for a declared key without a handler
+    - ActionRegistry.register — late binding
+        - accepts handler registration for a declared key
+        - rejects registration for non-declared keys
+    - ActionRegistry — drift detection
+        - listOrphanedDefs: manifest-declared actions without a handler
+        - listOrphanedHandlers: registered handlers without a manifest def
 - `packages/ui-vue/tests/component/bundle-actions-belong-to-their-object.test.ts`
-    - save and publish share one bar
-    - discard stays with the draft state that offers it
-    - nothing spans both columns any more
-    - soft-delete is not among the version actions
-    - it sits in the card header, named for a reader who cannot see icons
-    - it is not a button inside a button
-    - deleting does not also expand the row it removes
-    - the confirm port decides, and window.confirm is never called
-    - a pristine form offers nothing to save
-    - an edit shows the marker and enables the button
+    - the version keeps its actions together
+        - save and publish share one bar
+        - discard stays with the draft state that offers it
+        - nothing spans both columns any more
+    - the bundle keeps its own
+        - soft-delete is not among the version actions
+        - it sits in the card header, named for a reader who cannot see icons
+        - it is not a button inside a button
+        - deleting does not also expand the row it removes
+    - deleting asks through the platform, not through the browser
+        - the confirm port decides, and window.confirm is never called
+    - two forms in one panel say which one is waiting
+        - a pristine form offers nothing to save
+        - an edit shows the marker and enables the button
 - `packages/ui-vue/tests/component/one-dialog-per-page-not-per-row.test.ts`
-    - the fixture renders several rows — without that this proves nothing
-    - one instance exists, however many rows there are
+    - the one-time-password dialog is one dialog
+        - the fixture renders several rows — without that this proves nothing
+        - one instance exists, however many rows there are
 
 <!-- END proof -->
 
@@ -7807,81 +8225,102 @@ _Source:_ release 0.26.0
 _Tested by:_
 
 - `packages/ui-vue/tests/batch-column-fetcher.test.js`
-    - 1 request per column with comma-separated tenantIds
-    - paramStyle=repeat
-    - Capability filter: insufficient columns are not fetched
-    - empty tenantIds list → empty object, no request
-    - the client's auth header reaches the request untouched
-    - appends correctly to an endpoint with an existing query
-    - per-Tenant placeholder in endpoint → BatchColumnDriftError
-    - listDriftIssues collects all problematic columns
-    - non-200 response throws an error naming column, endpoint and status
-    - returns only columns with a satisfied Capability
+    - BatchColumnFetcher.fetchAll
+        - 1 request per column with comma-separated tenantIds
+        - paramStyle=repeat
+        - Capability filter: insufficient columns are not fetched
+        - empty tenantIds list → empty object, no request
+        - the client's auth header reaches the request untouched
+        - appends correctly to an endpoint with an existing query
+    - BatchColumnFetcher — drift detection
+        - per-Tenant placeholder in endpoint → BatchColumnDriftError
+        - listDriftIssues collects all problematic columns
+        - non-200 response throws an error naming column, endpoint and status
+    - BatchColumnFetcher.eligibleColumns
+        - returns only columns with a satisfied Capability
 - `packages/ui-vue/tests/component/the-page-suite-finds-the-dashboard-distributions.test.ts`
-    - every distribution title answers the selector the suite ships
+    - the page suite finds the dashboard distributions where the page renders them
+        - every distribution title answers the selector the suite ships
 - `packages/ui-vue/tests/component/typed-lists-carry-their-row-type.test.ts`
-    - hands a page its rows already typed, with no assertion at the call site
-    - refuses the resources and operations that cannot answer with a page
+    - useResourceList — the typed surface
+        - hands a page its rows already typed, with no assertion at the call site
+        - refuses the resources and operations that cannot answer with a page
 - `packages/ui-vue/tests/list-resource.test.js`
-    - the three spellings of "not filtered" are left out
-    - the falsy values that are answers are not
-    - always states its page, first and in order
-    - appends to an endpoint that already carries a query
-    - serialises the filter after the pagination, in insertion order
-    - omits the empty values and keeps the falsy ones
-    - encodes with URLSearchParams — a space is a plus, not %20
-    - is empty when nothing survives the rule
-    - leads with a question mark when something does
-    - a bare array reports the rows it sent
-    - an envelope is read field by field
-    - what the answer did not state stays absent
-    - a body that is neither is an empty page, not a crash
-    - an `items` that is not an array is not passed off as rows
-    - a page below the first is the first
-    - a fractional page is the one it is on
-    - a page size stays inside 1..max
+    - isSentInQuery — which values reach the server
+        - the three spellings of "not filtered" are left out
+        - the falsy values that are answers are not
+    - listUrl
+        - always states its page, first and in order
+        - appends to an endpoint that already carries a query
+        - serialises the filter after the pagination, in insertion order
+        - omits the empty values and keeps the falsy ones
+        - encodes with URLSearchParams — a space is a plus, not %20
+    - filterQueryString — the endpoints that do not page
+        - is empty when nothing survives the rule
+        - leads with a question mark when something does
+    - readListPage — both shapes real controllers answer with
+        - a bare array reports the rows it sent
+        - an envelope is read field by field
+        - what the answer did not state stays absent
+        - a body that is neither is an empty page, not a crash
+        - an `items` that is not an array is not passed off as rows
+    - the page bounds the admin API serves
+        - a page below the first is the first
+        - a fractional page is the one it is on
+        - a page size stays inside 1..max
 - `packages/ui-vue/tests/use-api-list-shape.test.js`
-    - Raw array `[{...}, {...}]` is consumed as items[]+total (array shape)
-    - Wrapper object `{items, total, page, pageSize}` is supported the same way (wrapper shape)
-    - Empty array → items=[], total=0
-    - null/undefined body → items=[], no crash
+    - useApiList response shape tolerance
+        - Raw array `[{...}, {...}]` is consumed as items[]+total (array shape)
+        - Wrapper object `{items, total, page, pageSize}` is supported the same way (wrapper shape)
+        - Empty array → items=[], total=0
+        - null/undefined body → items=[], no crash
 - `packages/ui-vue/tests/use-api-list.test.js`
-    - autoLoad triggers first request
-    - autoLoad=false skips initial load
-    - reload() makes an additional request
-    - goToPage(N) → page param changes
-    - setPageSize(N) → jumps to page 1
-    - goToPage(0) → clamps to page 1
-    - filter values as query params, empty values omitted
-    - endpoint with query string → correct separator
-    - the client's auth header reaches the request untouched
-    - non-200 → error.value set, items.value empty
+    - useApiList — autoLoad + reload
+        - autoLoad triggers first request
+        - autoLoad=false skips initial load
+        - reload() makes an additional request
+    - useApiList — Pagination
+        - goToPage(N) → page param changes
+        - setPageSize(N) → jumps to page 1
+        - goToPage(0) → clamps to page 1
+    - useApiList — Filter
+        - filter values as query params, empty values omitted
+        - endpoint with query string → correct separator
+    - useApiList — Auth + Error
+        - the client's auth header reaches the request untouched
+        - non-200 → error.value set, items.value empty
 - `packages/ui-vue/tests/use-resource-list.test.js`
-    - asks the descriptor’s endpoint, which no caller had to supply
-    - does not block setup — nothing has loaded synchronously
-    - immediate: false loads nothing until asked
-    - an opening page size is one request, not two
-    - an opening page size past the cap is capped, not sent
-    - goToPage moves the request and the ref
-    - setPageSize returns to the first page
-    - a page off the scale is clamped before it is sent
-    - a changed filter reloads from the first page
-    - a filter mutated in place is seen too
-    - a reported total is the total
-    - an unreported total falls back to the rows in hand
-    - a bare array — what the tenants controller actually answers — is rows and count
-    - a failure arrives as an AdminError carrying the status
-    - a failure empties the table rather than leaving stale rows under it
-    - a superseded load does not overwrite the newer one
-    - a clamped page is adopted, so the next request asks for what is shown
-    - an overdue answer moves neither the rows nor the paginator
-    - an answer that says nothing about the page leaves the asked-for one
-    - an operation the resource does not have fails by name, listing what there is
-    - an operation named after an Object prototype key does not exist either
-    - no registry in scope says so, in the registry’s own words
-    - a filter that claims the pagination fails where it is written
-    - a filter that gains one later fails on the next load, without a word for the operator
-    - an empty or absent pagination key in the filter is not a claim
+    - useResourceList — the first load
+        - asks the descriptor’s endpoint, which no caller had to supply
+        - does not block setup — nothing has loaded synchronously
+        - immediate: false loads nothing until asked
+        - an opening page size is one request, not two
+        - an opening page size past the cap is capped, not sent
+    - useResourceList — the pagination it owns
+        - goToPage moves the request and the ref
+        - setPageSize returns to the first page
+        - a page off the scale is clamped before it is sent
+        - a changed filter reloads from the first page
+        - a filter mutated in place is seen too
+    - useResourceList — what the rows and the count say
+        - a reported total is the total
+        - an unreported total falls back to the rows in hand
+        - a bare array — what the tenants controller actually answers — is rows and count
+    - useResourceList — the state it delegates
+        - a failure arrives as an AdminError carrying the status
+        - a failure empties the table rather than leaving stale rows under it
+        - a superseded load does not overwrite the newer one
+    - useResourceList — the page the server actually served
+        - a clamped page is adopted, so the next request asks for what is shown
+        - an overdue answer moves neither the rows nor the paginator
+        - an answer that says nothing about the page leaves the asked-for one
+    - useResourceList — the failures it refuses to swallow
+        - an operation the resource does not have fails by name, listing what there is
+        - an operation named after an Object prototype key does not exist either
+        - no registry in scope says so, in the registry’s own words
+        - a filter that claims the pagination fails where it is written
+        - a filter that gains one later fails on the next load, without a word for the operator
+        - an empty or absent pagination key in the filter is not a claim
 
 <!-- END proof -->
 
@@ -7899,45 +8338,59 @@ _Source:_ internal engineering guidelines · release 0.26.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/roster-primitives.test.ts`
-    - each tone brings its own icon, so the shape differs before the hue does
-    - an explicit `icon: false` renders none — for a body that carries its own
-    - the close button is only there when the caller asked for it
-    - a null error renders nothing at all — no empty box above the body
-    - a rejection becomes a sentence, not "[object Object]"
-    - retry is offered only when there is something to retry
-    - a failed submit keeps the dialog open and shows the reason
-    - a successful submit closes it and says so once
-    - typing the wrong name leaves the confirming button unusable
-    - the typed answer does not survive a reopen
-    - a hidden action is not rendered — a row shows what it is eligible for
-    - a disabled action stays visible, so the row does not change shape
-    - the error is announced, and it replaces the hint rather than joining it
-    - the slot is handed the id to point `aria-describedby` at
-    - the end group is pushed away from the start one, not centred
-    - with no end content there is no empty end group to space against
-    - sticky is opt-in — a toolbar that follows the scroll is a decision
-    - the column count reaches the DOM, because the layout is CSS
-    - a field carries its span, so one wide input can sit in a narrow grid
-    - the title is the message; description and actions are optional
-    - inline and block are different treatments, not the same one twice
-    - the tone is a class, so the theme decides what it looks like
-    - the label is always there — colour never carries the status alone
+    - AdminBanner carries meaning without relying on colour
+        - each tone brings its own icon, so the shape differs before the hue does
+        - an explicit `icon: false` renders none — for a body that carries its own
+        - the close button is only there when the caller asked for it
+    - AdminErrorBanner is bound unconditionally and decides for itself
+        - a null error renders nothing at all — no empty box above the body
+        - a rejection becomes a sentence, not "[object Object]"
+        - retry is offered only when there is something to retry
+    - AdminFormDialog owns the submit lifecycle
+        - a failed submit keeps the dialog open and shows the reason
+        - a successful submit closes it and says so once
+    - AdminConfirmDialog escalates the irreversible ones
+        - typing the wrong name leaves the confirming button unusable
+        - the typed answer does not survive a reopen
+    - AdminRowActions
+        - a hidden action is not rendered — a row shows what it is eligible for
+        - a disabled action stays visible, so the row does not change shape
+    - AdminField associates what it shows
+        - the error is announced, and it replaces the hint rather than joining it
+        - the slot is handed the id to point `aria-describedby` at
+    - AdminToolbar
+        - the end group is pushed away from the start one, not centred
+        - with no end content there is no empty end group to space against
+        - sticky is opt-in — a toolbar that follows the scroll is a decision
+    - AdminFieldGrid
+        - the column count reaches the DOM, because the layout is CSS
+        - a field carries its span, so one wide input can sit in a narrow grid
+    - AdminEmptyState
+        - the title is the message; description and actions are optional
+        - inline and block are different treatments, not the same one twice
+    - AdminStatusPill
+        - the tone is a class, so the theme decides what it looks like
+        - the label is always there — colour never carries the status alone
 - `packages/ui-vue/tests/flex-direction-override.test.js`
-    - the sweep found the stylesheets
-    - no rule flips flex-direction while inheriting justify-content
+    - a rule that changes flex-direction states its own main-axis alignment
+        - the sweep found the stylesheets
+        - no rule flips flex-direction while inheriting justify-content
 - `tests/px-to-scale.test.js`
-    - an exact value takes its own token
-    - a midpoint rounds down
-    - a value nearer one rung takes it, up or down
-    - radii use their names, not their numbers
-    - a negative keeps its sign in a calc
-    - tracking is converted rather than snapped
-    - a property no scale answers for
-    - a declaration that already reads a token
-    - a token definition
-    - every value in a shorthand moves together
-    - a zero stays a zero
-    - touches declarations and nothing else
+    - pixels snap to the nearest rung
+        - an exact value takes its own token
+        - a midpoint rounds down
+        - a value nearer one rung takes it, up or down
+        - radii use their names, not their numbers
+        - a negative keeps its sign in a calc
+        - tracking is converted rather than snapped
+    - what the codemod leaves alone
+        - a property no scale answers for
+        - a declaration that already reads a token
+        - a token definition
+        - every value in a shorthand moves together
+        - a zero stays a zero
+    - rewriting a file
+        - touches declarations and nothing else
 
 <!-- END proof -->
 
@@ -7955,44 +8408,57 @@ _Source:_ ADR 0010 · #206
 _Tested by:_
 
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
-    - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
-    - useTenants() WITHOUT the endpoint option throws with a clear error message
+    - Platform package: no hardcoded app URL prefixes
+        - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
+    - Platform package: useTenants explicitly requires an endpoint
+        - useTenants() WITHOUT the endpoint option throws with a clear error message
 - `packages/ui-vue/tests/project-page-host.test.js`
-    - returns a catch-all route with the ProjectPageHost component
-    - path pattern can be overridden
-    - does not match the empty /admin path so the dashboard redirect applies
-    - exports SUPER_ADMIN_EXTENSIONS_KEY and SUPER_ADMIN_MANIFEST_KEY
-    - ProjectPageHost is a defineComponent-compatible component
-    - returns null when no accessor was provided
-    - returns the manifest value via a provided accessor
+    - createProjectPageHostRoute
+        - returns a catch-all route with the ProjectPageHost component
+        - path pattern can be overridden
+        - does not match the empty /admin path so the dashboard redirect applies
+    - ProjectPageHost — platform contract
+        - exports SUPER_ADMIN_EXTENSIONS_KEY and SUPER_ADMIN_MANIFEST_KEY
+        - ProjectPageHost is a defineComponent-compatible component
+    - useSuperAdminManifest
+        - returns null when no accessor was provided
+        - returns the manifest value via a provided accessor
 - `packages/ui-vue/tests/use-tenant-billing-url.test.js`
-    - default apiPrefix is /billing (no /api prefix → no doubling)
-    - custom apiPrefix /api/v1/billing is used 1:1 as sub-path (no /api adapter)
-    - trailing slash in apiPrefix is normalized (no //billing)
-    - plan preview, bundles and cancel all go under the same prefix
-    - default apiPrefix is /billing — catalog endpoints land under
-      /billing/{plans,bundles,feature-registry}
-    - an explicit cycle is sent by both the preview and the booking
-    - omitting it sends no field at all, so the plan’s rhythm decides
-    - a minimum term still travels, alone or beside a cycle
+    - useTenantBilling URL construction
+        - default apiPrefix is /billing (no /api prefix → no doubling)
+        - custom apiPrefix /api/v1/billing is used 1:1 as sub-path (no /api adapter)
+        - trailing slash in apiPrefix is normalized (no //billing)
+        - plan preview, bundles and cancel all go under the same prefix
+    - useTenantBillingCatalog URL construction
+        - default apiPrefix is /billing — catalog endpoints land under
+          /billing/{plans,bundles,feature-registry}
+    - the rhythm a bundle is booked in reaches the wire
+        - an explicit cycle is sent by both the preview and the booking
+        - omitting it sends no field at all, so the plan’s rhythm decides
+        - a minimum term still travels, alone or beside a cycle
 - `packages/ui-vue-tenant/tests/component/tenant-primitives.test.ts`
-    - it renders a native button that does not submit
-    - an accessible name from the call site lands on the button itself
-    - a click listener from the call site reaches the button
-    - the two axes are independent
-    - loading disables the button and marks it busy
-    - the ring is added beside the label, not instead of it
-    - a disabled button is not a busy one
-    - %s renders its slot inside one classed element
-    - the default animation turns
-    - a reduce block replaces the turn for the spinner
+    - the tenant button is a button
+        - it renders a native button that does not submit
+        - an accessible name from the call site lands on the button itself
+        - a click listener from the call site reaches the button
+        - the two axes are independent
+    - a running button says so and stays readable
+        - loading disables the button and marks it busy
+        - the ring is added beside the label, not instead of it
+        - a disabled button is not a busy one
+    - the card primitives are one element each
+        - %s renders its slot inside one classed element
+    - the spinner respects a reduced-motion preference
+        - the default animation turns
+        - a reduce block replaces the turn for the spinner
 - `tests/the-tenant-package-needs-no-quasar.test.js`
-    - there is a source tree to judge
-    - no dependency field names it
-    - the keywords do not advertise it
-    - nothing in the source imports it
-    - no template writes a Quasar component
-    - no template writes a class Quasar defines
+    - the tenant package needs no Quasar
+        - there is a source tree to judge
+        - no dependency field names it
+        - the keywords do not advertise it
+        - nothing in the source imports it
+        - no template writes a Quasar component
+        - no template writes a class Quasar defines
 
 <!-- END proof -->
 
@@ -8010,33 +8476,37 @@ _Source:_ ADR 0011 · #207
 _Tested by:_
 
 - `packages/ui-vue/tests/theme-layer-discipline.test.js`
-    - the sweep reached all four layers
-    - the sweep reached the inline styles too
-    - the audit's Quasar palette is Quasar's
-    - the audit's idea of a Quasar component is Quasar's
-    - L1 primitives reference nothing
-    - L2 roles contain no colour literal
-    - L3 component sheets contain no colour literal
-    - L3 component sheets do not reach past the roles into the palette
-    - every font-size names a step of the type scale
-    - the package does not use its own deprecation shims
-    - a foreground role is never used as a background
-    - surfaces that do not follow the theme use only roles that do not flip
-    - pages and components do not reach past the roles into the palette
-    - no rule paints --sa-color-accent as text on an accent surface
+    - the token layers only point one way
+        - the sweep reached all four layers
+        - the sweep reached the inline styles too
+        - the audit's Quasar palette is Quasar's
+        - the audit's idea of a Quasar component is Quasar's
+        - L1 primitives reference nothing
+        - L2 roles contain no colour literal
+        - L3 component sheets contain no colour literal
+        - L3 component sheets do not reach past the roles into the palette
+        - every font-size names a step of the type scale
+        - the package does not use its own deprecation shims
+        - a foreground role is never used as a background
+        - surfaces that do not follow the theme use only roles that do not flip
+        - pages and components do not reach past the roles into the palette
+        - no rule paints --sa-color-accent as text on an accent surface
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
-    - the export map still publishes stylesheets
-    - ${label} imports all of them
-    - ${label} loads the theme after Quasar's stylesheet
-    - ${label} takes them from this package, not from Quasar
+    - every entry point imports the stylesheets the package publishes
+        - the export map still publishes stylesheets
+        - ${label} imports all of them
+        - ${label} loads the theme after Quasar's stylesheet
+        - ${label} takes them from this package, not from Quasar
 - `tests/quasar-colours-resolve-to-the-theme.test.js`
-    - the sources actually paint Quasar colours
-    - no page paints a Quasar palette rung the theme cannot move
-    - every painted colour is one the platform decides
-    - the neutral greys do not grow
-    - every linked tone is a role the theme declares
-    - the guides show some overrides
-    - every role the bridge links is one a guide tells you to override
+    - quasar colours resolve to the theme
+        - the sources actually paint Quasar colours
+        - no page paints a Quasar palette rung the theme cannot move
+        - every painted colour is one the platform decides
+        - the neutral greys do not grow
+        - every linked tone is a role the theme declares
+    - the guides name the role the bridge actually reads
+        - the guides show some overrides
+        - every role the bridge links is one a guide tells you to override
 
 <!-- END proof -->
 
@@ -8053,155 +8523,182 @@ _Source:_ ADR 0011 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/brand-colour-reaches-both-namespaces.test.ts`
-    - it lands on the document element, not the body
-    - an app that names no colour leaves the variable alone
-    - the colour is also handed to the components as part of the brand
-    - a shell that set a colour removes it again
-    - a host value marked !important keeps its priority
-    - our own writes claim no priority of their own
-    - a value the host set itself is put back, not deleted
-    - a shell that named no colour touches nothing on the way out
-    - the accent role reads Quasar’s variable
-    - the shell writes no status colour of its own
-    - the theme hands Quasar the filled role, in both schemes
+    - the brand colour replaces $primary
+        - it lands on the document element, not the body
+        - an app that names no colour leaves the variable alone
+        - the colour is also handed to the components as part of the brand
+    - disposing gives the document back
+        - a shell that set a colour removes it again
+        - a host value marked !important keeps its priority
+        - our own writes claim no priority of their own
+        - a value the host set itself is put back, not deleted
+        - a shell that named no colour touches nothing on the way out
+    - the theme declares the link the option relies on
+        - the accent role reads Quasar’s variable
+    - the status tones follow the roles instead of being restated
+        - the shell writes no status colour of its own
+        - the theme hands Quasar the filled role, in both schemes
 - `packages/ui-vue/tests/design-token-budget.test.js`
-    - the audit reaches the source tree
-    - the inline-style sweep reads a fixture it cannot miss
-    - a CSS-wide keyword is not a typographic value
-    - a palette prop counts on a Quasar component and nowhere else
-    - ${metric} does not grow (floor ${floor} — ${why})
-    - ${metric} baseline has not overshot its floor
+    - design-token budgets
+        - the audit reaches the source tree
+        - the inline-style sweep reads a fixture it cannot miss
+        - a CSS-wide keyword is not a typographic value
+        - a palette prop counts on a Quasar component and nowhere else
+        - ${metric} does not grow (floor ${floor} — ${why})
+        - ${metric} baseline has not overshot its floor
 - `packages/ui-vue/tests/identity-accents-match-theme.test.js`
-    - the resolver reaches a hex at all
-    - both halves are the same length
-    - every stored value is what its role resolves to in the light theme
-    - the neutral matches too
-    - every hex in the file is one of the ramp values
-    - ${label} is concrete, not a token reference
-    - ${label} fits the promotion column
+    - the identity ramp is one ramp
+        - the resolver reaches a hex at all
+        - both halves are the same length
+        - every stored value is what its role resolves to in the light theme
+        - the neutral matches too
+    - the exemption cannot become a dumping ground
+        - every hex in the file is one of the ramp values
+    - a stored colour fits what the API accepts
+        - ${label} is concrete, not a token reference
+        - ${label} fits the promotion column
 - `packages/ui-vue/tests/login-branding.test.js`
-    - a complete boot response is used as-is
-    - production is not shown as an environment badge
-    - ${name}: falls back instead of throwing
-    - without boot and without app branding the card still renders
-    - empty strings from boot do not blank the card
-    - true only for an explicit production environment
-    - a malformed payload is not treated as production
-    - other environments are not production
+    - resolveLoginBranding — boot values win, app branding fills in
+        - a complete boot response is used as-is
+        - production is not shown as an environment badge
+    - resolveLoginBranding — malformed boot must not take the card down
+        - ${name}: falls back instead of throwing
+        - without boot and without app branding the card still renders
+        - empty strings from boot do not blank the card
+    - isProductionBoot — the dev-credentials guard
+        - true only for an explicit production environment
+        - a malformed payload is not treated as production
+        - other environments are not production
 - `packages/ui-vue/tests/scaffolder-brand-defaults.test.js`
-    - both declarations are found
-    - they are the same colour
-    - the fixture declares no palette of its own
+    - the visual fixture brands itself like a scaffolded app
+        - both declarations are found
+        - they are the same colour
+        - the fixture declares no palette of its own
 - `tests/quasar-colours-resolve-to-the-theme.test.js`
-    - the sources actually paint Quasar colours
-    - no page paints a Quasar palette rung the theme cannot move
-    - every painted colour is one the platform decides
-    - the neutral greys do not grow
-    - every linked tone is a role the theme declares
-    - the guides show some overrides
-    - every role the bridge links is one a guide tells you to override
+    - quasar colours resolve to the theme
+        - the sources actually paint Quasar colours
+        - no page paints a Quasar palette rung the theme cannot move
+        - every painted colour is one the platform decides
+        - the neutral greys do not grow
+        - every linked tone is a role the theme declares
+    - the guides name the role the bridge actually reads
+        - the guides show some overrides
+        - every role the bridge links is one a guide tells you to override
 - `tests/token-audit-template-scan.test.js`
-    - a static style attribute
-    - a bound style with a literal fallback
-    - an SVG paint attribute
-    - a functional notation with literal channels
-    - a named colour is a literal too
-    - a named colour BARE in an SVG paint attribute
-    - a named colour as a string inside a bound paint attribute
-    - the two halves do not report the same colour twice
-    - `color` inside SVG is paint
-    - the namespace, not the tag name — a bare &lt;g&gt; is not SVG
-    - `color` on the SVG elements a tag list forgets
-    - every CSS named colour, not the obvious eighteen
-    - a longer keyword is not read as the shorter one inside it
-    - several literals in one binding
-    - a literal nested deep in the tree
-    - a literal AFTER a nested &lt;template&gt;
-    - a hex in template TEXT is content, not paint
-    - a pull-request number in an HTML comment
-    - a slot shorthand that happens to spell a colour
-    - an input mask
-    - an anchor href
-    - a Quasar `color` prop names a palette entry, not a colour
-    - a var() is the goal, not a finding
-    - a functional notation with a var() channel is a token in use
-    - a binding that carries data rather than a literal
-    - the SVG keywords that are not colours
-    - a paint-server reference is an address, not a colour
-    - a CSS function name is case-insensitive
-    - a comment in a style attribute is prose, not paint
-    - a colour beside a comment is still found
-    - a modern colour function is a literal too
-    - a named colour in any property that paints
-    - a colour WORD where the property names something
-    - a custom property holding a literal is NOT excused
-    - an asset URL that spells a colour is an address
-    - a hyphenated identifier that begins with a colour name
-    - a colour function written in capitals
-    - a real colour beside a paint-server reference is still found
-    - a word that merely contains a colour name is not one
-    - a dynamic directive argument does not throw
-    - a &lt;style&gt; block is not a template finding
-    - a &lt;script&gt; block is not a template finding
-    - a file that is not an SFC is null, not empty
-    - an SFC with no template at all is null
-    - an SFC the parser cannot read is null, not empty
-    - a template that parses and holds nothing is empty, not null
-    - a literal on the third line of the template
-    - a binding spread over several lines points at the literal
-    - the text keeps its length, so every offset still points where it did
-    - a comparison between two literals is left alone
-    - a path it cannot cross is kept, because it cannot tell
-    - but a name inside another string is not a use of it
-    - a name is bounded by the alphabet it is written in
-    - a trailing ! ends the name, and only `!.` carries it onwards
-    - and the literal survives, because the class is rendered
-    - a size, a weight or a leading in it is a literal
-    - a tokenized shorthand is not
-    - a number in the family name is a name, not a size
-    - a static style attribute is a fragment
-    - several attributes, in template order
-    - a bound :style is NOT a fragment
-    - an attribute that is not `style` is not a fragment
-    - null and empty still mean different things
-    - a bound style that is one string literal is inline CSS too
-    - the line is the line the attribute value starts on
-    - a static class list
-    - a bound class list holds its literals as strings
-    - a brand or status name, not only a palette hue
-    - a two-word hue is read whole
-    - a string the list COMPARES is not a class it renders
-    - a name compared twice is still only compared
-    - an optionally chained name is one name, not its last segment
-    - and a name carrying a dollar sign is still one name
-    - but a literal the comparison can render is kept
-    - and grouping around the operand does not save it
-    - the branch a comparison SELECTS is still a class
-    - a class that merely ends in a palette word is not one
-    - a rule ABOUT the class is not a use of it
-    - blanking a compared string does not move the line after it
-    - null and empty still mean different things
-    - a static prop
-    - the two halves a component paints
-    - a brand or status name, not only a hue
-    - a bound prop holds its literals as strings
-    - a string the binding COMPARES is not a palette name it emits
-    - a binding that names nothing is not a finding
-    - a nested object is configuration, not props
-    - every prop that ends in -color on a Quasar component is one
-    - the object form of v-bind is read like the arg form
-    - a value outside the palette is not a palette finding
-    - a two-word hue is read whole, with its shade
-    - a value that merely begins with a palette word is not one
-    - an attribute that is not a colour prop is not read
-    - `color` inside SVG belongs to the paint category
-    - the class form belongs to the class category
-    - a comment in a binding is prose, not a palette
-    - null and empty still mean different things
-    - the line is the line the value sits on
-    - a prop in palette shape but not in the palette is not counted
-    - a rejected quoted word does not swallow the accepted one after it
-    - named colours are ASCII case-insensitive, as CSS keywords are
+    - a colour written as paint is found
+        - a static style attribute
+        - a bound style with a literal fallback
+        - an SVG paint attribute
+        - a functional notation with literal channels
+        - a named colour is a literal too
+        - a named colour BARE in an SVG paint attribute
+        - a named colour as a string inside a bound paint attribute
+        - the two halves do not report the same colour twice
+        - `color` inside SVG is paint
+        - the namespace, not the tag name — a bare &lt;g&gt; is not SVG
+        - `color` on the SVG elements a tag list forgets
+        - every CSS named colour, not the obvious eighteen
+        - a longer keyword is not read as the shorter one inside it
+        - several literals in one binding
+        - a literal nested deep in the tree
+        - a literal AFTER a nested &lt;template&gt;
+    - everything else a # means in a template stays silent
+        - a hex in template TEXT is content, not paint
+        - a pull-request number in an HTML comment
+        - a slot shorthand that happens to spell a colour
+        - an input mask
+        - an anchor href
+        - a Quasar `color` prop names a palette entry, not a colour
+        - a var() is the goal, not a finding
+        - a functional notation with a var() channel is a token in use
+        - a binding that carries data rather than a literal
+        - the SVG keywords that are not colours
+        - a paint-server reference is an address, not a colour
+        - a CSS function name is case-insensitive
+        - a comment in a style attribute is prose, not paint
+        - a colour beside a comment is still found
+        - a modern colour function is a literal too
+        - a named colour in any property that paints
+        - a colour WORD where the property names something
+        - a custom property holding a literal is NOT excused
+        - an asset URL that spells a colour is an address
+        - a hyphenated identifier that begins with a colour name
+        - a colour function written in capitals
+        - a real colour beside a paint-server reference is still found
+        - a word that merely contains a colour name is not one
+        - a dynamic directive argument does not throw
+    - the other blocks belong to the other categories
+        - a &lt;style&gt; block is not a template finding
+        - a &lt;script&gt; block is not a template finding
+    - null and empty mean different things
+        - a file that is not an SFC is null, not empty
+        - an SFC with no template at all is null
+        - an SFC the parser cannot read is null, not empty
+        - a template that parses and holds nothing is empty, not null
+    - the line is the line the literal is on
+        - a literal on the third line of the template
+        - a binding spread over several lines points at the literal
+    - blanking a string an expression only compares
+        - the text keeps its length, so every offset still points where it did
+        - a comparison between two literals is left alone
+    - what the comparison blanking deliberately does not do
+        - a path it cannot cross is kept, because it cannot tell
+        - but a name inside another string is not a use of it
+    - counting a name in an expression
+        - a name is bounded by the alphabet it is written in
+        - a trailing ! ends the name, and only `!.` carries it onwards
+        - and the literal survives, because the class is rendered
+    - the font shorthand hides three scales behind one property
+        - a size, a weight or a leading in it is a literal
+        - a tokenized shorthand is not
+        - a number in the family name is a name, not a size
+    - an inline style is a stylesheet fragment
+        - a static style attribute is a fragment
+        - several attributes, in template order
+        - a bound :style is NOT a fragment
+        - an attribute that is not `style` is not a fragment
+        - null and empty still mean different things
+        - a bound style that is one string literal is inline CSS too
+        - the line is the line the attribute value starts on
+    - a Quasar palette class is a colour decision
+        - a static class list
+        - a bound class list holds its literals as strings
+        - a brand or status name, not only a palette hue
+        - a two-word hue is read whole
+        - a string the list COMPARES is not a class it renders
+        - a name compared twice is still only compared
+        - an optionally chained name is one name, not its last segment
+        - and a name carrying a dollar sign is still one name
+        - but a literal the comparison can render is kept
+        - and grouping around the operand does not save it
+        - the branch a comparison SELECTS is still a class
+        - a class that merely ends in a palette word is not one
+        - a rule ABOUT the class is not a use of it
+        - blanking a compared string does not move the line after it
+        - null and empty still mean different things
+    - a Quasar palette prop is the same colour decision
+        - a static prop
+        - the two halves a component paints
+        - a brand or status name, not only a hue
+        - a bound prop holds its literals as strings
+        - a string the binding COMPARES is not a palette name it emits
+        - a binding that names nothing is not a finding
+        - a nested object is configuration, not props
+        - every prop that ends in -color on a Quasar component is one
+        - the object form of v-bind is read like the arg form
+        - a value outside the palette is not a palette finding
+        - a two-word hue is read whole, with its shade
+        - a value that merely begins with a palette word is not one
+        - an attribute that is not a colour prop is not read
+        - `color` inside SVG belongs to the paint category
+        - the class form belongs to the class category
+        - a comment in a binding is prose, not a palette
+        - null and empty still mean different things
+        - the line is the line the value sits on
+    - the vocabulary is data, the pattern is the shape
+        - a prop in palette shape but not in the palette is not counted
+        - a rejected quoted word does not swallow the accepted one after it
+        - named colours are ASCII case-insensitive, as CSS keywords are
 
 <!-- END proof -->
 
@@ -8217,84 +8714,98 @@ _Source:_ #137 · ADR 0009
 _Tested by:_
 
 - `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
-    - Quasar's configured dark mode survives the bootstrap
-    - an explicit scheme still outranks what Quasar was set to
-    - Quasar's configured LIGHT mode survives a dark machine
-    - the machine still decides when Quasar says 'auto'
-    - Quasar's 'auto' stays 'system' rather than freezing
-    - with no dark configuration at all, the theme is left on system
-    - Quasar's own toggle is carried back into the theme
-    - the two directions do not chase each other
-    - a 'system' pick survives the bridge's own round trip
-    - Quasar's 'auto' comes back as 'system', not as a frozen value
-    - a hard pick that agrees with the machine is still a pick
-    - 'system' still follows the machine once the bridge has written to Quasar
-    - dispose() stops the bridge writing to the document
+    - the bootstrap and an already-chosen theme
+        - Quasar's configured dark mode survives the bootstrap
+        - an explicit scheme still outranks what Quasar was set to
+        - Quasar's configured LIGHT mode survives a dark machine
+        - the machine still decides when Quasar says 'auto'
+        - Quasar's 'auto' stays 'system' rather than freezing
+        - with no dark configuration at all, the theme is left on system
+        - Quasar's own toggle is carried back into the theme
+        - the two directions do not chase each other
+        - a 'system' pick survives the bridge's own round trip
+        - Quasar's 'auto' comes back as 'system', not as a frozen value
+        - a hard pick that agrees with the machine is still a pick
+        - 'system' still follows the machine once the bridge has written to Quasar
+        - dispose() stops the bridge writing to the document
 - `packages/ui-vue/tests/component/theme-switcher.test.ts`
-    - renders when the shell provides a theme
-    - renders nothing when the app opted out
-    - a context from an older package version still shows it
-    - a catalog from an older package version renders instead of throwing
-    - the button names the active scheme
-    - 'system' is named as itself, not as what it resolves to
-    - an unknown active scheme falls back to its value instead of blanking
-    - the accessible label comes from the catalog
-    - all three schemes become menu entries
-    - picking an entry writes the shared scheme
-    - picking 'system' stores 'system' rather than what it resolves to
-    - only the active entry carries the check mark
+    - ThemeSwitcher visibility
+        - renders when the shell provides a theme
+        - renders nothing when the app opted out
+        - a context from an older package version still shows it
+        - a catalog from an older package version renders instead of throwing
+    - ThemeSwitcher contents
+        - the button names the active scheme
+        - 'system' is named as itself, not as what it resolves to
+        - an unknown active scheme falls back to its value instead of blanking
+        - the accessible label comes from the catalog
+        - all three schemes become menu entries
+    - ThemeSwitcher selection
+        - picking an entry writes the shared scheme
+        - picking 'system' stores 'system' rather than what it resolves to
+        - only the active entry carries the check mark
 - `packages/ui-vue/tests/identity-accents-match-theme.test.js`
-    - the resolver reaches a hex at all
-    - both halves are the same length
-    - every stored value is what its role resolves to in the light theme
-    - the neutral matches too
-    - every hex in the file is one of the ramp values
-    - ${label} is concrete, not a token reference
-    - ${label} fits the promotion column
+    - the identity ramp is one ramp
+        - the resolver reaches a hex at all
+        - both halves are the same length
+        - every stored value is what its role resolves to in the light theme
+        - the neutral matches too
+    - the exemption cannot become a dumping ground
+        - every hex in the file is one of the ramp values
+    - a stored colour fits what the API accepts
+        - ${label} is concrete, not a token reference
+        - ${label} fits the promotion column
 - `packages/ui-vue/tests/theme-reaches-every-page.test.js`
-    - the reach markers are derivable from the stylesheets
-    - a marker that exists only inside a comment does not count
-    - every standard page renders a node inside that reach
+    - the theme reaches every page it ships
+        - the reach markers are derivable from the stylesheets
+        - a marker that exists only inside a comment does not count
+        - every standard page renders a node inside that reach
 - `packages/ui-vue/tests/theme-token-parity.test.js`
-    - the files were actually read
-    - every light role has a dark counterpart, and the reverse
-    - the theme fires only on a signal the application sent
-    - no role is declared twice within one theme
+    - light and dark declare the same roles
+        - the files were actually read
+        - every light role has a dark counterpart, and the reverse
+        - the theme fires only on a signal the application sent
+        - no role is declared twice within one theme
 - `packages/ui-vue/tests/use-sa-theme.test.js`
-    - defaults to 'system'
-    - an explicit scheme resolves to itself
-    - without matchMedia, 'system' resolves to light
-    - 'system' follows the operating system, and keeps following it
-    - an explicit pick outranks the operating system
-    - the picked scheme is written to storage
-    - a stored pick outranks the app default
-    - a corrupt stored value falls back to the app default
-    - persist: false neither reads nor writes storage
-    - an app-supplied Ref is used as-is and is not persisted
-    - dispose() ends the operating-system subscription
-    - dispose() is idempotent and stops persisting
-    - a stored pick does not overrule an app-supplied Ref
-    - the switcher is on by default
-    - an app can turn it off
-    - a readonly scheme turns it off on its own
-    - it offers exactly the three schemes, in a stable order
-    - two apps on one origin can keep their picks apart
-    - a prefixed app reads back its own pick, not the unprefixed one
-    - the key itself is unchanged
-    - outside a shell it returns a shared, unpersisted instance
-    - the injection key is a global symbol
+    - createSaTheme
+        - defaults to 'system'
+        - an explicit scheme resolves to itself
+        - without matchMedia, 'system' resolves to light
+        - 'system' follows the operating system, and keeps following it
+        - an explicit pick outranks the operating system
+        - the picked scheme is written to storage
+        - a stored pick outranks the app default
+        - a corrupt stored value falls back to the app default
+        - persist: false neither reads nor writes storage
+        - an app-supplied Ref is used as-is and is not persisted
+        - dispose() ends the operating-system subscription
+        - dispose() is idempotent and stops persisting
+        - a stored pick does not overrule an app-supplied Ref
+    - the switcher the theme offers
+        - the switcher is on by default
+        - an app can turn it off
+        - a readonly scheme turns it off on its own
+        - it offers exactly the three schemes, in a stable order
+    - the persisted key
+        - two apps on one origin can keep their picks apart
+        - a prefixed app reads back its own pick, not the unprefixed one
+        - the key itself is unchanged
+    - useSaTheme
+        - outside a shell it returns a shared, unpersisted instance
+        - the injection key is a global symbol
 - `tests/a-role-that-is-read-is-defined.test.js`
-    - both sides of the comparison were actually read
-    - the definitions reach the scale, not only the colours
-    - the reads reach the two files the defect shipped in
-    - no role is read that the theme leaves undefined
-    - the rule is not vacuous: an undefined role is reported, with its line
-    - and a role the theme defines is not reported
-    - a fallback answers for the role it stands in for
-    - a nested read is a read of its own
-    - a role named in a comment is not a read
-    - a comment above a read does not move its line
-    - the import graph is followed, not guessed
+    - a role that is read is a role the theme defines
+        - both sides of the comparison were actually read
+        - the definitions reach the scale, not only the colours
+        - the reads reach the two files the defect shipped in
+        - no role is read that the theme leaves undefined
+        - the rule is not vacuous: an undefined role is reported, with its line
+        - and a role the theme defines is not reported
+        - a fallback answers for the role it stands in for
+        - a nested read is a read of its own
+        - a role named in a comment is not a read
+        - a comment above a read does not move its line
+        - the import graph is followed, not guessed
 
 <!-- END proof -->
 
@@ -8311,44 +8822,54 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic "are you sure"
-    - a destructive action is coloured as one
-    - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads "OK"
-    - no prompt means no input — a plain confirm stays plain
-    - a prompt carries its initial value and type
-    - a prompt with no initial value starts empty and takes text
-    - an app-provided port is the one that gets asked
-    - without one, the Quasar implementation is the fallback — which still asks
-    - a context from an older package version still resolves, because the key is Symbol.for
+    - quasarConfirmOptions
+        - carries the wording the page wrote, not a generic "are you sure"
+        - a destructive action is coloured as one
+        - tone defaults to primary — only the caller may call something destructive
+        - both buttons are labelled, so neither reads "OK"
+        - no prompt means no input — a plain confirm stays plain
+        - a prompt carries its initial value and type
+        - a prompt with no initial value starts empty and takes text
+    - useSuperAdminConfirm
+        - an app-provided port is the one that gets asked
+        - without one, the Quasar implementation is the fallback — which still asks
+        - a context from an older package version still resolves, because the key is Symbol.for
 - `packages/ui-vue/tests/use-dialog.test.js`
-    - the panel carries the modal role and is named by its heading
-    - opening moves focus into the panel
-    - closing puts focus back where it was
-    - a trigger that is gone by then leaves focus at the document body
-    - unmounting while open still gives the focus back
-    - tab from the last control wraps to the first
-    - shift+tab from the first control wraps to the last
-    - shift+tab from the panel itself wraps to the last control
-    - a tab from outside the panel is pulled back in
-    - a panel with nothing tabbable keeps the caret on itself
-    - escape asks the caller to close
-    - a persistent dialog ignores escape
-    - a click on the backdrop closes, a click in the panel does not
-    - a persistent dialog ignores the backdrop too
-    - a closed dialog no longer answers escape
-    - the lock is taken while open and given back on close
-    - an inner dialog closing does not give the page back to the outer one
-    - the default is body
-    - a host that names a container gets it
+    - the dialog is announced as one
+        - the panel carries the modal role and is named by its heading
+    - focus enters and comes back
+        - opening moves focus into the panel
+        - closing puts focus back where it was
+        - a trigger that is gone by then leaves focus at the document body
+        - unmounting while open still gives the focus back
+    - the trap keeps tab inside the panel
+        - tab from the last control wraps to the first
+        - shift+tab from the first control wraps to the last
+        - shift+tab from the panel itself wraps to the last control
+        - a tab from outside the panel is pulled back in
+        - a panel with nothing tabbable keeps the caret on itself
+    - escape and the backdrop
+        - escape asks the caller to close
+        - a persistent dialog ignores escape
+        - a click on the backdrop closes, a click in the panel does not
+        - a persistent dialog ignores the backdrop too
+        - a closed dialog no longer answers escape
+    - the page behind does not scroll
+        - the lock is taken while open and given back on close
+        - an inner dialog closing does not give the page back to the outer one
+    - the panel can be teleported somewhere other than body
+        - the default is body
+        - a host that names a container gets it
 - `packages/ui-vue-tenant/tests/component/tenant-dialogs.test.ts`
-    - the panel is a modal named by its own heading
-    - a persistent dialog still renders a way out
-    - a closed dialog renders nothing at all
-    - the close control asks the caller to close
-    - its title and the bundle label both reach the head
-    - the footer confirm carries the action, and blockers disable it
-    - while it loads, the ring is decoration and the sentence carries the news
+    - the dialog shell names itself
+        - the panel is a modal named by its own heading
+        - a persistent dialog still renders a way out
+        - a closed dialog renders nothing at all
+        - the close control asks the caller to close
+    - the bundle preview reaches the shell
+        - its title and the bundle label both reach the head
+        - the footer confirm carries the action, and blockers disable it
+        - while it loads, the ring is decoration and the sentence carries the news
 
 <!-- END proof -->
 
@@ -8365,25 +8886,30 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/ui-vue/tests/component/ui-confirm-port.test.ts`
-    - carries the wording the page wrote, not a generic "are you sure"
-    - a destructive action is coloured as one
-    - tone defaults to primary — only the caller may call something destructive
-    - both buttons are labelled, so neither reads "OK"
-    - no prompt means no input — a plain confirm stays plain
-    - a prompt carries its initial value and type
-    - a prompt with no initial value starts empty and takes text
-    - an app-provided port is the one that gets asked
-    - without one, the Quasar implementation is the fallback — which still asks
-    - a context from an older package version still resolves, because the key is Symbol.for
+    - quasarConfirmOptions
+        - carries the wording the page wrote, not a generic "are you sure"
+        - a destructive action is coloured as one
+        - tone defaults to primary — only the caller may call something destructive
+        - both buttons are labelled, so neither reads "OK"
+        - no prompt means no input — a plain confirm stays plain
+        - a prompt carries its initial value and type
+        - a prompt with no initial value starts empty and takes text
+    - useSuperAdminConfirm
+        - an app-provided port is the one that gets asked
+        - without one, the Quasar implementation is the fallback — which still asks
+        - a context from an older package version still resolves, because the key is Symbol.for
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
-    - the answer to the abandoned question is taken off the screen
-    - and the confirmation cannot be given
-    - the outdated one does not install itself
+    - while a replacement preview is on the wire
+        - the answer to the abandoned question is taken off the screen
+        - and the confirmation cannot be given
+    - when the answers come back out of order
+        - the outdated one does not install itself
 - `packages/ui-vue-tenant/tests/component/the-latest-question-wins.test.ts`
-    - a slower earlier answer does not overwrite a faster later one
-    - answers in order still commit only the last
-    - a single question commits, so the guard does not swallow the normal case
-    - a superseded call resolves rather than hanging
+    - only the current question commits its answer
+        - a slower earlier answer does not overwrite a faster later one
+        - answers in order still commit only the last
+        - a single question commits, so the guard does not swallow the normal case
+        - a superseded call resolves rather than hanging
 
 <!-- END proof -->
 
@@ -8400,45 +8926,53 @@ _Source:_ #133 · `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/admin-accordion.test.ts`
-    - it is a button, and one that does not submit
-    - aria-expanded says which state it is in
-    - aria-controls names the body that is actually there
-    - the body names the trigger back
-    - two instances on ONE page do not share their ids
-    - a disabled row is inert and says so
-    - the body is absent while closed, not merely hidden
-    - a click asks for the opposite, and changes nothing by itself
-    - an open row asks to close
-    - it renders outside the button
-    - clicking it does not toggle the row
-    - nothing is rendered for it when the slot is unused
-    - the page supplies a glyph and the component supplies the frame
-    - a row whose state the badge should report says so
-    - no badge is drawn for a row that has no glyph
-    - the badge sits inside the trigger, unlike the actions
+    - the trigger is a control, not a div that listens
+        - it is a button, and one that does not submit
+        - aria-expanded says which state it is in
+        - aria-controls names the body that is actually there
+        - the body names the trigger back
+        - two instances on ONE page do not share their ids
+        - a disabled row is inert and says so
+    - the page owns the state
+        - the body is absent while closed, not merely hidden
+        - a click asks for the opposite, and changes nothing by itself
+        - an open row asks to close
+    - a control in the header is not part of the trigger
+        - it renders outside the button
+        - clicking it does not toggle the row
+        - nothing is rendered for it when the slot is unused
+    - the badge is the component, the glyph is the page
+        - the page supplies a glyph and the component supplies the frame
+        - a row whose state the badge should report says so
+        - no badge is drawn for a row that has no glyph
+        - the badge sits inside the trigger, unlike the actions
 - `packages/ui-vue/tests/component/disclosures-open-what-they-say.test.ts`
-    - the row is a button that says whether it is open
-    - clicking one row opens that row, and only that one
-    - clicking the open row closes it again
-    - the timeline bar that opens the same row is a control too
-    - the toggle is a button that says whether it is open
-    - the backend-only fields appear once it is open
-    - the toggle asks its owner rather than deciding
-    - an edit in the open editor reaches the update handler
-    - the plan cell is the keyboard path, and says what it controls
-    - a click on a cell that holds no control opens the row
-    - a click on a field in the row does not
-    - the handle moves the row with the arrow keys
-    - the arrow keys stop at the ends of the list
-    - a drag from the first row to the second reports that move
-    - a drag downwards lands where the pointer is, not one row further
-    - a twitch inside the dragged row is not a move
-    - a drag upwards lands where the pointer is
-    - a drag released where it started reports nothing
-    - a row that cannot be written is not part of the order
-    - a row without a live version has no handle
-    - a focusable ancestor does not silence the row
-    - the plan cell opens the row exactly once
+    - a promotion row opens its editor
+        - the row is a button that says whether it is open
+        - clicking one row opens that row, and only that one
+        - clicking the open row closes it again
+        - the timeline bar that opens the same row is a control too
+    - the advanced section of the promo-code form opens
+        - the toggle is a button that says whether it is open
+        - the backend-only fields appear once it is open
+        - the toggle asks its owner rather than deciding
+    - the promotions tab is a reactive form, not a snapshot
+        - an edit in the open editor reaches the update handler
+    - a marketing row opens its editor from anywhere but its fields
+        - the plan cell is the keyboard path, and says what it controls
+        - a click on a cell that holds no control opens the row
+        - a click on a field in the row does not
+        - the handle moves the row with the arrow keys
+        - the arrow keys stop at the ends of the list
+        - a drag from the first row to the second reports that move
+        - a drag downwards lands where the pointer is, not one row further
+        - a twitch inside the dragged row is not a move
+        - a drag upwards lands where the pointer is
+        - a drag released where it started reports nothing
+        - a row that cannot be written is not part of the order
+        - a row without a live version has no handle
+        - a focusable ancestor does not silence the row
+        - the plan cell opens the row exactly once
 
 <!-- END proof -->
 
@@ -8453,49 +8987,60 @@ _Source:_ release 0.24.1
 _Tested by:_
 
 - `packages/ui-vue/tests/use-async-action.test.js`
-    - resolves what the action returned
-    - passes every argument through
-    - pending is true while in flight and false afterwards
-    - runs onSuccess with the result, before run resolves
-    - stays silent on success by default
-    - notifyOn "both" raises the success message
-    - a success message may be computed at call time
-    - reports the failure in the result instead of throwing
-    - a void action is still distinguishable — the whole reason for the shape
-    - records the failure as an AdminError
-    - clears pending even when the action throws
-    - skips onSuccess
-    - reports through the notify port, worded from the default catalog
-    - what the server said outranks the catalog
-    - errorMessage outranks both, and sees the AdminError
-    - notifyOn "none" records the error without announcing it
-    - without a notify port the failure is still recorded
-    - pending stays true until the last one settles
-    - the older call failing last leaves no error behind
-    - but a failure from the newest call is still recorded
-    - a success toast that throws leaves the action successful
-    - a successMessage that throws does the same
-    - an error toast that throws still returns the action failure
-    - a failing continuation fails the action, and says so only once
-    - a continuation that succeeds still gets its success toast
-    - a later success clears an earlier failure
-    - reset clears it without running anything
+    - useAsyncAction — the happy path
+        - resolves what the action returned
+        - passes every argument through
+        - pending is true while in flight and false afterwards
+        - runs onSuccess with the result, before run resolves
+        - stays silent on success by default
+        - notifyOn "both" raises the success message
+        - a success message may be computed at call time
+    - useAsyncAction — failure
+        - reports the failure in the result instead of throwing
+        - a void action is still distinguishable — the whole reason for the shape
+        - records the failure as an AdminError
+        - clears pending even when the action throws
+        - skips onSuccess
+        - reports through the notify port, worded from the default catalog
+        - what the server said outranks the catalog
+        - errorMessage outranks both, and sees the AdminError
+        - notifyOn "none" records the error without announcing it
+        - without a notify port the failure is still recorded
+    - useAsyncAction — overlapping invocations
+        - pending stays true until the last one settles
+    - useAsyncAction — a stale failure does not outlive a newer success
+        - the older call failing last leaves no error behind
+        - but a failure from the newest call is still recorded
+    - useAsyncAction — a report cannot change what happened
+        - a success toast that throws leaves the action successful
+        - a successMessage that throws does the same
+        - an error toast that throws still returns the action failure
+    - useAsyncAction — the success continuation
+        - a failing continuation fails the action, and says so only once
+        - a continuation that succeeds still gets its success toast
+    - useAsyncAction — the error ref over time
+        - a later success clears an earlier failure
+        - reset clears it without running anything
 - `packages/ui-vue/tests/use-async-data.test.js`
-    - starts at the initial value
-    - loads on creation by default
-    - immediate: false loads nothing until asked
-    - does not block setup — nothing has loaded synchronously
-    - pending is true while in flight
-    - records the failure as an AdminError
-    - puts the data back to initial rather than leaving stale rows
-    - reload does not throw
-    - clears pending even when the load throws
-    - a later success clears the error
-    - a superseded load does not overwrite the newer one
-    - a superseded load does not clear pending while the newer one runs
-    - a superseded load that FAILS does not wipe the page or raise its error
-    - reloads when a watched source changes
-    - a watched source combines with immediate: false — the first load is the change
+    - useAsyncData — loading
+        - starts at the initial value
+        - loads on creation by default
+        - immediate: false loads nothing until asked
+        - does not block setup — nothing has loaded synchronously
+        - pending is true while in flight
+    - useAsyncData — failure
+        - records the failure as an AdminError
+        - puts the data back to initial rather than leaving stale rows
+        - reload does not throw
+        - clears pending even when the load throws
+        - a later success clears the error
+    - useAsyncData — overlapping loads
+        - a superseded load does not overwrite the newer one
+        - a superseded load does not clear pending while the newer one runs
+        - a superseded load that FAILS does not wipe the page or raise its error
+    - useAsyncData — watch
+        - reloads when a watched source changes
+        - a watched source combines with immediate: false — the first load is the change
 
 <!-- END proof -->
 
@@ -8510,9 +9055,10 @@ _Source:_ release 1.0.0-rc.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/promo-code-tiles.test.ts`
-    - count every row the tenant has
-    - keep their counts when a tile narrows the table
-    - keep their counts while the search narrows the table
+    - promo code status tiles
+        - count every row the tenant has
+        - keep their counts when a tile narrows the table
+        - keep their counts while the search narrows the table
 
 <!-- END proof -->
 
@@ -8623,10 +9169,11 @@ _Source:_ #217
 _Tested by:_
 
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
-    - every member is reported, flattened to the path it has in the file
-    - an empty list reads as one, rather than as nothing at all
-    - the report is read off the document, so it follows what the template writes
-    - a catalogue the platform would refuse fails here, not at the first boot
+    - what init says about the settings it wrote
+        - every member is reported, flattened to the path it has in the file
+        - an empty list reads as one, rather than as nothing at all
+        - the report is read off the document, so it follows what the template writes
+        - a catalogue the platform would refuse fails here, not at the first boot
     - names both, with the line each is on
     - the set is read off the schema, not written out beside it
     - every setting the schema names has a sentence saying where it goes
@@ -8707,22 +9254,29 @@ _Source:_ `docs/reference/options.md`
 _Tested by:_
 
 - `packages/cli/tests/default-doctor-checks.test.js`
-    - error when no plans
-    - ok with plans + details contain planIds
-    - warning when snapshot empty
-    - ok with content
-    - ok when findByEmail does not throw
-    - error when findByEmail throws
-    - ok with standardPages count
-    - error when getManifest throws
-    - contains exactly 4 provider classes
+    - PlanCatalogDoctorCheck
+        - error when no plans
+        - ok with plans + details contain planIds
+    - DiscoverySnapshotDoctorCheck
+        - warning when snapshot empty
+        - ok with content
+    - UserPortDoctorCheck
+        - ok when findByEmail does not throw
+        - error when findByEmail throws
+    - AdminManifestDoctorCheck
+        - ok with standardPages count
+        - error when getManifest throws
+    - PLATFORM_DOCTOR_CHECK_PROVIDERS
+        - contains exactly 4 provider classes
 - `packages/cli/tests/doctor-flow.test.js`
-    - all checks ok → overall=ok, exitCode=0
-    - one warning + ok → overall=warning, exitCode=0
-    - one error → overall=error, exitCode=4
-    - exception in check → severity=error with exception message
-    - empty check list → overall=ok
-    - shows icons per severity
+    - DoctorFlow.run
+        - all checks ok → overall=ok, exitCode=0
+        - one warning + ok → overall=warning, exitCode=0
+        - one error → overall=error, exitCode=4
+        - exception in check → severity=error with exception message
+        - empty check list → overall=ok
+    - DoctorFlow.formatReport
+        - shows icons per severity
 - `packages/nest/tests/enforcement-chain-check.test.js`
     - the message names the true cause
         - the option, when the option is what unbound the guard
@@ -8760,11 +9314,12 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/nest/tests/enforcement-chain-warnings.test.js`
-    - warns when no plan resolver and no fallback plan are configured
-    - stays silent once defaultPlanId activates the static entitlement stack
-    - registers the coverage check instead of warning on the option alone
-    - stays silent on the default path with the guard bound
-    - the inert branch registers the check too, with the state that says so
+    - SaaSiCatModule.forRoot — enforcement-chain warnings
+        - warns when no plan resolver and no fallback plan are configured
+        - stays silent once defaultPlanId activates the static entitlement stack
+        - registers the coverage check instead of warning on the option alone
+        - stays silent on the default path with the guard bound
+        - the inert branch registers the check too, with the state that says so
 
 <!-- END proof -->
 
@@ -8813,17 +9368,19 @@ _Tested by:_
         - and the static path with a plan resolver boots with quota routes
         - the inert case still speaks first, so its message is the one read
 - `packages/nest/tests/enforcement-chain-refuses-boot.test.js`
-    - inert entitlement plus an annotated route: boot fails
-    - globalFeatureGuard: false plus an unguarded annotated route: boot fails
-    - globalFeatureGuard: false with the guard bound per route
-    - the platform binding its own global guard
-    - inert entitlement with nothing annotated — a catalogue-only app
-    - the V3 entitlement path, with FeatureGuard bound per route
-    - …but the same path with no feature guard at all does not
-    - …and neither does the V3 path with a quota nothing counts
-    - a quota route boots once something can resolve a plan
-    - enforcementChainCheck: false is a way out that works
-    - …and it turns off only that check
+    - an application whose enforcement chain is broken does not start
+        - inert entitlement plus an annotated route: boot fails
+        - globalFeatureGuard: false plus an unguarded annotated route: boot fails
+    - an application whose chain is intact starts
+        - globalFeatureGuard: false with the guard bound per route
+        - the platform binding its own global guard
+        - inert entitlement with nothing annotated — a catalogue-only app
+        - the V3 entitlement path, with FeatureGuard bound per route
+        - …but the same path with no feature guard at all does not
+        - …and neither does the V3 path with a quota nothing counts
+        - a quota route boots once something can resolve a plan
+        - enforcementChainCheck: false is a way out that works
+        - …and it turns off only that check
 - `packages/nest/tests/platform-configuration-rules.test.js`
     - forRoot runs the table
         - the same configuration fails through the module
@@ -8850,11 +9407,12 @@ _Tested by:_
         - reports an unrecognised wrapper rather than assuming it is safe
         - a quota-only route is not a guard question
 - `packages/nest/tests/enforcement-chain-warnings.test.js`
-    - warns when no plan resolver and no fallback plan are configured
-    - stays silent once defaultPlanId activates the static entitlement stack
-    - registers the coverage check instead of warning on the option alone
-    - stays silent on the default path with the guard bound
-    - the inert branch registers the check too, with the state that says so
+    - SaaSiCatModule.forRoot — enforcement-chain warnings
+        - warns when no plan resolver and no fallback plan are configured
+        - stays silent once defaultPlanId activates the static entitlement stack
+        - registers the coverage check instead of warning on the option alone
+        - stays silent on the default path with the guard bound
+        - the inert branch registers the check too, with the state that says so
 - `packages/nest/tests/saasicat-module-escape-hatches.test.js`
     - globalFeatureGuard
         - defaults to binding StaticFeatureGuard as APP_GUARD
@@ -8887,63 +9445,81 @@ _Source:_ release 0.27.0
 _Tested by:_
 
 - `packages/cli/tests/init.test.js`
-    - the minimum is seven files, one of them a quota provider
-    - each quota adds one provider, named after its key
-    - --skip-hasher drops the hasher and keeps the persistence bundle
-    - with a hasher the bundle wires it
-    - no file goes out with an unsubstituted token
-    - every template is reachable through some plan
-    - a multi-word key still produces valid identifiers
-    - the quota model becomes the Prisma delegate, not the model name
-    - a quota without a model counts a delegate named after the key
-    - the case helpers round-trip the shapes the plan relies on
-    - quotas land under both plans, at different limits
-    - there is no such thing as a plan without quotas
-    - nothing has a trailing space
-    - the admin module is registered, not merely imported
-    - nothing is imported that the inserted code does not use
-    - every symbol the block uses is imported
-    - what was already in the array keeps its own line
-    - the imports go after the last existing one
-    - running it twice does nothing the second time
-    - a file it cannot edit is declined, with the block to paste
-    - a one-line decorator is declined, and the reason names the shape it wants
-    - the limit filter is printed, not inserted
-    - without persistence it comments the line instead of importing nothing
-    - a generated persistence bundle is an imported one
-    - the admin module import path matches the file the plan writes
-    - each quota provider import path matches its file
-    - the block names one, so the file does not compile without it
-    - the block names the modules the platform resolves from, for the same reason
-    - and says why, where the reader is
-    - is refused before anything is planned
-    - and a valid one still plans
-    - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema's
-    - the minimum number of quotas is the schema's
-    - the classes get identifiers, the catalogue keeps the words
-    - and the file names follow the identifier, not the label
-    - every generated class name is a valid identifier
-    - for a camel-cased key, where the two used to disagree
-    - and for every spelling the schema allows
-    - stays intact, and the new imports go after it
-    - and a side-effect import is an import too, so nothing lands above it
+    - what gets written
+        - the minimum is seven files, one of them a quota provider
+        - each quota adds one provider, named after its key
+        - --skip-hasher drops the hasher and keeps the persistence bundle
+        - with a hasher the bundle wires it
+        - no file goes out with an unsubstituted token
+        - every template is reachable through some plan
+    - the names it derives
+        - a multi-word key still produces valid identifiers
+        - the quota model becomes the Prisma delegate, not the model name
+        - a quota without a model counts a delegate named after the key
+        - the case helpers round-trip the shapes the plan relies on
+    - the YAML it writes
+        - quotas land under both plans, at different limits
+        - there is no such thing as a plan without quotas
+        - nothing has a trailing space
+    - patching an existing app.module.ts
+        - the admin module is registered, not merely imported
+        - nothing is imported that the inserted code does not use
+        - every symbol the block uses is imported
+        - what was already in the array keeps its own line
+        - the imports go after the last existing one
+        - running it twice does nothing the second time
+        - a file it cannot edit is declined, with the block to paste
+        - a one-line decorator is declined, and the reason names the shape it wants
+        - the limit filter is printed, not inserted
+        - without persistence it comments the line instead of importing nothing
+    - what the plan implies for the patch
+        - a generated persistence bundle is an imported one
+        - the admin module import path matches the file the plan writes
+        - each quota provider import path matches its file
+    - the auth guard the generator cannot know
+        - the block names one, so the file does not compile without it
+        - the block names the modules the platform resolves from, for the same reason
+        - and says why, where the reader is
+    - an app key the generated files would refuse
+        - is refused before anything is planned
+        - and a valid one still plans
+        - the message carries the pattern rather than a paraphrase of it
+    - the quota rules come from the schema, not from a copy of them
+        - the quota key pattern is the schema's
+        - the minimum number of quotas is the schema's
+    - an app name a human would type
+        - the classes get identifiers, the catalogue keeps the words
+        - and the file names follow the identifier, not the label
+        - every generated class name is a valid identifier
+    - the file a quota provider is written to is the file that gets imported
+        - for a camel-cased key, where the two used to disagree
+        - and for every spelling the schema allows
+    - a root module whose last import spans several lines
+        - stays intact, and the new imports go after it
+        - and a side-effect import is an import too, so nothing lands above it
 - `packages/create-saasicat-admin/tests/scaffold.test.js`
-    - positionals + flags + tokens are separated
-    - replaces only tokens, passes other **X** strings through
-    - finds all .tpl files under templates/
-    - writes all templates into target + replaces tokens
-    - dryRun writes nothing
-    - runs through a bin symlink, as npm create / npx invoke it
+    - parseArgs
+        - positionals + flags + tokens are separated
+    - applyTokens
+        - replaces only tokens, passes other **X** strings through
+    - walkTemplates
+        - finds all .tpl files under templates/
+    - scaffold
+        - writes all templates into target + replaces tokens
+        - dryRun writes nothing
+    - bin entry point
+        - runs through a bin symlink, as npm create / npx invoke it
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
-    - the export map still publishes stylesheets
-    - ${label} imports all of them
-    - ${label} loads the theme after Quasar's stylesheet
-    - ${label} takes them from this package, not from Quasar
+    - every entry point imports the stylesheets the package publishes
+        - the export map still publishes stylesheets
+        - ${label} imports all of them
+        - ${label} loads the theme after Quasar's stylesheet
+        - ${label} takes them from this package, not from Quasar
 - `tests/templates-import-what-exists.test.js`
-    - the templates name some subpaths
-    - each one resolves through the export map
-    - and the file behind it is really there
+    - every ui-vue subpath a template or document names can be imported
+        - the templates name some subpaths
+        - each one resolves through the export map
+        - and the file behind it is really there
 
 <!-- END proof -->
 
@@ -8965,80 +9541,100 @@ _Source:_ #217
 _Tested by:_
 
 - `packages/cli/tests/cli-commands.test.js`
-    - names every command
-    - and every `init` example it prints actually runs
-    - an unknown command exits 1 rather than doing nothing
-    - a model the app never adopted is reported, and is not an error
-    - a field removed from an adopted model is drift, and exits 1
-    - and says nothing is missing once the fragments are applied
-    - a schema that does not exist is an error, not a stack trace
-    - appends the selected fragments and says which
-    - the enums a fragment declares arrive with its models
-    - running it twice appends nothing the second time
-    - a fragment selector that matches nothing is refused
-    - without --name it says so instead of guessing one
-    - --dry-run stops before Prisma, and says that it did
-    - scaffolds the wiring, patches the module, and names the next steps
-    - refuses to overwrite what is already there
-    - a tsconfig on the old moduleResolution is refused before any write
-    - a moduleResolution inherited through extends is refused too
-    - a key the generated files would refuse is refused here, before any write
-    - without a key it says which flag is missing
-    - --dry-run lists the files and writes none of them
-    - rewrites what moved and leaves the rest alone
-    - names what no longer has a home rather than guessing one
-    - --dry-run reports without writing
-    - it does not walk into node_modules or dist
-    - takes the key out of saas.yaml and the query, and reports the schema
-    - is idempotent, like the other two
-    - rewrites the four kinds of name and leaves the rest alone
-    - reports the token it cannot decide, and leaves it
-    - --dry-run reports and writes nothing
-    - the package rename reaches package.json, under its own indentation
-    - a second run has nothing left to do
-    - runs the import rewrite and the rename, in that order
+    - the help text
+        - names every command
+        - and every `init` example it prints actually runs
+        - an unknown command exits 1 rather than doing nothing
+    - schema check
+        - a model the app never adopted is reported, and is not an error
+        - a field removed from an adopted model is drift, and exits 1
+        - and says nothing is missing once the fragments are applied
+        - a schema that does not exist is an error, not a stack trace
+    - schema apply
+        - appends the selected fragments and says which
+        - the enums a fragment declares arrive with its models
+        - running it twice appends nothing the second time
+        - a fragment selector that matches nothing is refused
+    - schema migrate
+        - without --name it says so instead of guessing one
+        - --dry-run stops before Prisma, and says that it did
+    - init
+        - scaffolds the wiring, patches the module, and names the next steps
+        - refuses to overwrite what is already there
+        - a tsconfig on the old moduleResolution is refused before any write
+        - a moduleResolution inherited through extends is refused too
+        - a key the generated files would refuse is refused here, before any write
+        - without a key it says which flag is missing
+        - --dry-run lists the files and writes none of them
+    - codemod v1-imports
+        - rewrites what moved and leaves the rest alone
+        - names what no longer has a home rather than guessing one
+        - --dry-run reports without writing
+        - it does not walk into node_modules or dist
+    - codemod v1-project-key
+        - takes the key out of saas.yaml and the query, and reports the schema
+        - is idempotent, like the other two
+    - codemod v1-rename
+        - rewrites the four kinds of name and leaves the rest alone
+        - reports the token it cannot decide, and leaves it
+        - --dry-run reports and writes nothing
+        - the package rename reaches package.json, under its own indentation
+        - a second run has nothing left to do
+    - codemod v1
+        - runs the import rewrite and the rename, in that order
 - `packages/cli/tests/init.test.js`
-    - the minimum is seven files, one of them a quota provider
-    - each quota adds one provider, named after its key
-    - --skip-hasher drops the hasher and keeps the persistence bundle
-    - with a hasher the bundle wires it
-    - no file goes out with an unsubstituted token
-    - every template is reachable through some plan
-    - a multi-word key still produces valid identifiers
-    - the quota model becomes the Prisma delegate, not the model name
-    - a quota without a model counts a delegate named after the key
-    - the case helpers round-trip the shapes the plan relies on
-    - quotas land under both plans, at different limits
-    - there is no such thing as a plan without quotas
-    - nothing has a trailing space
-    - the admin module is registered, not merely imported
-    - nothing is imported that the inserted code does not use
-    - every symbol the block uses is imported
-    - what was already in the array keeps its own line
-    - the imports go after the last existing one
-    - running it twice does nothing the second time
-    - a file it cannot edit is declined, with the block to paste
-    - a one-line decorator is declined, and the reason names the shape it wants
-    - the limit filter is printed, not inserted
-    - without persistence it comments the line instead of importing nothing
-    - a generated persistence bundle is an imported one
-    - the admin module import path matches the file the plan writes
-    - each quota provider import path matches its file
-    - the block names one, so the file does not compile without it
-    - the block names the modules the platform resolves from, for the same reason
-    - and says why, where the reader is
-    - is refused before anything is planned
-    - and a valid one still plans
-    - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema's
-    - the minimum number of quotas is the schema's
-    - the classes get identifiers, the catalogue keeps the words
-    - and the file names follow the identifier, not the label
-    - every generated class name is a valid identifier
-    - for a camel-cased key, where the two used to disagree
-    - and for every spelling the schema allows
-    - stays intact, and the new imports go after it
-    - and a side-effect import is an import too, so nothing lands above it
+    - what gets written
+        - the minimum is seven files, one of them a quota provider
+        - each quota adds one provider, named after its key
+        - --skip-hasher drops the hasher and keeps the persistence bundle
+        - with a hasher the bundle wires it
+        - no file goes out with an unsubstituted token
+        - every template is reachable through some plan
+    - the names it derives
+        - a multi-word key still produces valid identifiers
+        - the quota model becomes the Prisma delegate, not the model name
+        - a quota without a model counts a delegate named after the key
+        - the case helpers round-trip the shapes the plan relies on
+    - the YAML it writes
+        - quotas land under both plans, at different limits
+        - there is no such thing as a plan without quotas
+        - nothing has a trailing space
+    - patching an existing app.module.ts
+        - the admin module is registered, not merely imported
+        - nothing is imported that the inserted code does not use
+        - every symbol the block uses is imported
+        - what was already in the array keeps its own line
+        - the imports go after the last existing one
+        - running it twice does nothing the second time
+        - a file it cannot edit is declined, with the block to paste
+        - a one-line decorator is declined, and the reason names the shape it wants
+        - the limit filter is printed, not inserted
+        - without persistence it comments the line instead of importing nothing
+    - what the plan implies for the patch
+        - a generated persistence bundle is an imported one
+        - the admin module import path matches the file the plan writes
+        - each quota provider import path matches its file
+    - the auth guard the generator cannot know
+        - the block names one, so the file does not compile without it
+        - the block names the modules the platform resolves from, for the same reason
+        - and says why, where the reader is
+    - an app key the generated files would refuse
+        - is refused before anything is planned
+        - and a valid one still plans
+        - the message carries the pattern rather than a paraphrase of it
+    - the quota rules come from the schema, not from a copy of them
+        - the quota key pattern is the schema's
+        - the minimum number of quotas is the schema's
+    - an app name a human would type
+        - the classes get identifiers, the catalogue keeps the words
+        - and the file names follow the identifier, not the label
+        - every generated class name is a valid identifier
+    - the file a quota provider is written to is the file that gets imported
+        - for a camel-cased key, where the two used to disagree
+        - and for every spelling the schema allows
+    - a root module whose last import spans several lines
+        - stays intact, and the new imports go after it
+        - and a side-effect import is an import too, so nothing lands above it
 
 <!-- END proof -->
 
@@ -9062,57 +9658,65 @@ _Source:_ `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/theme-bootstrap.test.ts`
-    - Quasar's configured dark mode survives the bootstrap
-    - an explicit scheme still outranks what Quasar was set to
-    - Quasar's configured LIGHT mode survives a dark machine
-    - the machine still decides when Quasar says 'auto'
-    - Quasar's 'auto' stays 'system' rather than freezing
-    - with no dark configuration at all, the theme is left on system
-    - Quasar's own toggle is carried back into the theme
-    - the two directions do not chase each other
-    - a 'system' pick survives the bridge's own round trip
-    - Quasar's 'auto' comes back as 'system', not as a frozen value
-    - a hard pick that agrees with the machine is still a pick
-    - 'system' still follows the machine once the bridge has written to Quasar
-    - dispose() stops the bridge writing to the document
+    - the bootstrap and an already-chosen theme
+        - Quasar's configured dark mode survives the bootstrap
+        - an explicit scheme still outranks what Quasar was set to
+        - Quasar's configured LIGHT mode survives a dark machine
+        - the machine still decides when Quasar says 'auto'
+        - Quasar's 'auto' stays 'system' rather than freezing
+        - with no dark configuration at all, the theme is left on system
+        - Quasar's own toggle is carried back into the theme
+        - the two directions do not chase each other
+        - a 'system' pick survives the bridge's own round trip
+        - Quasar's 'auto' comes back as 'system', not as a frozen value
+        - a hard pick that agrees with the machine is still a pick
+        - 'system' still follows the machine once the bridge has written to Quasar
+        - dispose() stops the bridge writing to the document
 - `packages/ui-vue/tests/text-shape.test.js`
-    - accepts what the old pattern accepted
-    - rejects what the old pattern rejected, and the shapes it got wrong
-    - finishes on the input the pattern backtracked on
-    - strips a run of one character at either end and nothing inside
-    - finishes on a long run
+    - looksLikeEmail
+        - accepts what the old pattern accepted
+        - rejects what the old pattern rejected, and the shapes it got wrong
+        - finishes on the input the pattern backtracked on
+    - trimChar
+        - strips a run of one character at either end and nothing inside
+        - finishes on a long run
 - `packages/ui-vue/tests/theme-role-contrast.test.js`
-    - the sweep found rules and can resolve the palette
-    - gradient backgrounds are read, not skipped
-    - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
-    - every pairing the ${themeName} sweep leaves unjudged says why
-    - the helper no longer hands back the bare accent as text
-    - the resolver reaches real numbers for both input shapes
-    - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
-    - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
+    - a role background and a role foreground stay readable together
+        - the sweep found rules and can resolve the palette
+        - gradient backgrounds are read, not skipped
+        - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
+        - every pairing the ${themeName} sweep leaves unjudged says why
+    - the identity chip stays readable on its own tint
+        - the helper no longer hands back the bare accent as text
+        - the resolver reaches real numbers for both input shapes
+        - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
+        - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
 - `packages/ui-vue/tests/theme-token-parity.test.js`
-    - the files were actually read
-    - every light role has a dark counterpart, and the reverse
-    - the theme fires only on a signal the application sent
-    - no role is declared twice within one theme
+    - light and dark declare the same roles
+        - the files were actually read
+        - every light role has a dark counterpart, and the reverse
+        - the theme fires only on a signal the application sent
+        - no role is declared twice within one theme
 - `tests/a-role-that-is-read-is-defined.test.js`
-    - both sides of the comparison were actually read
-    - the definitions reach the scale, not only the colours
-    - the reads reach the two files the defect shipped in
-    - no role is read that the theme leaves undefined
-    - the rule is not vacuous: an undefined role is reported, with its line
-    - and a role the theme defines is not reported
-    - a fallback answers for the role it stands in for
-    - a nested read is a read of its own
-    - a role named in a comment is not a read
-    - a comment above a read does not move its line
-    - the import graph is followed, not guessed
+    - a role that is read is a role the theme defines
+        - both sides of the comparison were actually read
+        - the definitions reach the scale, not only the colours
+        - the reads reach the two files the defect shipped in
+        - no role is read that the theme leaves undefined
+        - the rule is not vacuous: an undefined role is reported, with its line
+        - and a role the theme defines is not reported
+        - a fallback answers for the role it stands in for
+        - a nested read is a read of its own
+        - a role named in a comment is not a read
+        - a comment above a read does not move its line
+        - the import graph is followed, not guessed
 - `tests/filled-status-carries-white-text.test.js`
-    - the base layer declares some
-    - each resolves to a literal colour rather than another variable
-    - white on each clears the floor
-    - both themes declare them, with the same value
-    - each theme hands the same four to Quasar, in its own block
+    - filled status surfaces carry white text
+        - the base layer declares some
+        - each resolves to a literal colour rather than another variable
+        - white on each clears the floor
+        - both themes declare them, with the same value
+        - each theme hands the same four to Quasar, in its own block
 
 <!-- END proof -->
 
@@ -9128,20 +9732,23 @@ _Source:_ `docs/explanation/design-guide.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/theme-role-contrast.test.js`
-    - the sweep found rules and can resolve the palette
-    - gradient backgrounds are read, not skipped
-    - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
-    - every pairing the ${themeName} sweep leaves unjudged says why
-    - the helper no longer hands back the bare accent as text
-    - the resolver reaches real numbers for both input shapes
-    - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
-    - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
+    - a role background and a role foreground stay readable together
+        - the sweep found rules and can resolve the palette
+        - gradient backgrounds are read, not skipped
+        - nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme
+        - every pairing the ${themeName} sweep leaves unjudged says why
+    - the identity chip stays readable on its own tint
+        - the helper no longer hands back the bare accent as text
+        - the resolver reaches real numbers for both input shapes
+        - every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}
+        - no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}
 - `tests/filled-status-carries-white-text.test.js`
-    - the base layer declares some
-    - each resolves to a literal colour rather than another variable
-    - white on each clears the floor
-    - both themes declare them, with the same value
-    - each theme hands the same four to Quasar, in its own block
+    - filled status surfaces carry white text
+        - the base layer declares some
+        - each resolves to a literal colour rather than another variable
+        - white on each clears the floor
+        - both themes declare them, with the same value
+        - each theme hands the same four to Quasar, in its own block
 
 <!-- END proof -->
 
@@ -9158,12 +9765,13 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/ui-vue/tests/design-token-budget.test.js`
-    - the audit reaches the source tree
-    - the inline-style sweep reads a fixture it cannot miss
-    - a CSS-wide keyword is not a typographic value
-    - a palette prop counts on a Quasar component and nowhere else
-    - ${metric} does not grow (floor ${floor} — ${why})
-    - ${metric} baseline has not overshot its floor
+    - design-token budgets
+        - the audit reaches the source tree
+        - the inline-style sweep reads a fixture it cannot miss
+        - a CSS-wide keyword is not a typographic value
+        - a palette prop counts on a Quasar component and nowhere else
+        - ${metric} does not grow (floor ${floor} — ${why})
+        - ${metric} baseline has not overshot its floor
 
 <!-- END proof -->
 
@@ -9180,28 +9788,32 @@ _Source:_ #133 · `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/disclosures-open-what-they-say.test.ts`
-    - the row is a button that says whether it is open
-    - clicking one row opens that row, and only that one
-    - clicking the open row closes it again
-    - the timeline bar that opens the same row is a control too
-    - the toggle is a button that says whether it is open
-    - the backend-only fields appear once it is open
-    - the toggle asks its owner rather than deciding
-    - an edit in the open editor reaches the update handler
-    - the plan cell is the keyboard path, and says what it controls
-    - a click on a cell that holds no control opens the row
-    - a click on a field in the row does not
-    - the handle moves the row with the arrow keys
-    - the arrow keys stop at the ends of the list
-    - a drag from the first row to the second reports that move
-    - a drag downwards lands where the pointer is, not one row further
-    - a twitch inside the dragged row is not a move
-    - a drag upwards lands where the pointer is
-    - a drag released where it started reports nothing
-    - a row that cannot be written is not part of the order
-    - a row without a live version has no handle
-    - a focusable ancestor does not silence the row
-    - the plan cell opens the row exactly once
+    - a promotion row opens its editor
+        - the row is a button that says whether it is open
+        - clicking one row opens that row, and only that one
+        - clicking the open row closes it again
+        - the timeline bar that opens the same row is a control too
+    - the advanced section of the promo-code form opens
+        - the toggle is a button that says whether it is open
+        - the backend-only fields appear once it is open
+        - the toggle asks its owner rather than deciding
+    - the promotions tab is a reactive form, not a snapshot
+        - an edit in the open editor reaches the update handler
+    - a marketing row opens its editor from anywhere but its fields
+        - the plan cell is the keyboard path, and says what it controls
+        - a click on a cell that holds no control opens the row
+        - a click on a field in the row does not
+        - the handle moves the row with the arrow keys
+        - the arrow keys stop at the ends of the list
+        - a drag from the first row to the second reports that move
+        - a drag downwards lands where the pointer is, not one row further
+        - a twitch inside the dragged row is not a move
+        - a drag upwards lands where the pointer is
+        - a drag released where it started reports nothing
+        - a row that cannot be written is not part of the order
+        - a row without a live version has no handle
+        - a focusable ancestor does not silence the row
+        - the plan cell opens the row exactly once
 
 <!-- END proof -->
 
@@ -9222,11 +9834,12 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/component/error-state-outranks-the-accent.test.ts`
-    - the stylesheet the theme has to outrank really parsed
-    - a focused valid field still gets the accent label
-    - a focused invalid field keeps its negative label
-    - an invalid field that was never focused keeps it too
-    - a list item has no error state for the sibling rule to trample
+    - the accent label yields to the error state
+        - the stylesheet the theme has to outrank really parsed
+        - a focused valid field still gets the accent label
+        - a focused invalid field keeps its negative label
+        - an invalid field that was never focused keeps it too
+        - a list item has no error state for the sibling rule to trample
 
 <!-- END proof -->
 
@@ -9248,32 +9861,36 @@ _Source:_ `docs/explanation/design-guide.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/component/admin-page-shell.test.ts`
-    - renders the title as the page heading
-    - omits the subtitle and the actions bar when neither is supplied
-    - renders a markup subtitle through the slot
-    - names the section by pointing aria-labelledby at its own heading
-    - gives sibling sections distinct heading ids
-    - renders no heading level above h2
-    - the source sweep actually finds the pages it claims to check
-    - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
-    - no content page renders its own &lt;main&gt; or a QPage
-    - no content page hand-writes the hero markup instead of using AdminHero
-    - AdminHero renders the only &lt;h1&gt; in the package
-    - no view renders its hero inside the page body
-    - no view hand-writes the reload button instead of using AdminRefreshBtn
-    - no view writes its own table instead of using AdminTable
-    - a component whose only job is to emit is never used without a listener
-    - the actions column is filled through row-actions, not body-cell-actions
-    - no page declares its own statistic tile styling
-    - an unscoped page style reaches only its own sub-components
-    - no page block titles itself with a heading-shaped &lt;div&gt;
-    - no view writes its own disclosure instead of using AdminAccordion
-    - the sweep reaches the pages it claims to check
-    - no page reaches for Quasar directly
-    - no page redeclares the frame the theme draws
-    - a page imports only from the layers below it
-    - no primitive hard-codes a user-visible string
-    - no file grows past the budget for its layer
+    - AdminHero
+        - renders the title as the page heading
+        - omits the subtitle and the actions bar when neither is supplied
+        - renders a markup subtitle through the slot
+    - AdminSection
+        - names the section by pointing aria-labelledby at its own heading
+        - gives sibling sections distinct heading ids
+        - renders no heading level above h2
+    - page shell contract
+        - the source sweep actually finds the pages it claims to check
+        - AdminPage renders no &lt;main&gt; — the landmark belongs to AdminLayout
+        - no content page renders its own &lt;main&gt; or a QPage
+        - no content page hand-writes the hero markup instead of using AdminHero
+        - AdminHero renders the only &lt;h1&gt; in the package
+        - no view renders its hero inside the page body
+        - no view hand-writes the reload button instead of using AdminRefreshBtn
+        - no view writes its own table instead of using AdminTable
+        - a component whose only job is to emit is never used without a listener
+        - the actions column is filled through row-actions, not body-cell-actions
+        - no page declares its own statistic tile styling
+        - an unscoped page style reaches only its own sub-components
+        - no page block titles itself with a heading-shaped &lt;div&gt;
+        - no view writes its own disclosure instead of using AdminAccordion
+    - the boundaries a page keeps
+        - the sweep reaches the pages it claims to check
+        - no page reaches for Quasar directly
+        - no page redeclares the frame the theme draws
+        - a page imports only from the layers below it
+        - no primitive hard-codes a user-visible string
+        - no file grows past the budget for its layer
 
 <!-- END proof -->
 
@@ -9294,18 +9911,21 @@ _Source:_ release 0.24.2
 _Tested by:_
 
 - `tests/px-to-scale.test.js`
-    - an exact value takes its own token
-    - a midpoint rounds down
-    - a value nearer one rung takes it, up or down
-    - radii use their names, not their numbers
-    - a negative keeps its sign in a calc
-    - tracking is converted rather than snapped
-    - a property no scale answers for
-    - a declaration that already reads a token
-    - a token definition
-    - every value in a shorthand moves together
-    - a zero stays a zero
-    - touches declarations and nothing else
+    - pixels snap to the nearest rung
+        - an exact value takes its own token
+        - a midpoint rounds down
+        - a value nearer one rung takes it, up or down
+        - radii use their names, not their numbers
+        - a negative keeps its sign in a calc
+        - tracking is converted rather than snapped
+    - what the codemod leaves alone
+        - a property no scale answers for
+        - a declaration that already reads a token
+        - a token definition
+        - every value in a shorthand moves together
+        - a zero stays a zero
+    - rewriting a file
+        - touches declarations and nothing else
 
 <!-- END proof -->
 
@@ -9321,28 +9941,35 @@ _Source:_ release 1.0.0-rc.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/one-dialog-per-page-not-per-row.test.ts`
-    - the fixture renders several rows — without that this proves nothing
-    - one instance exists, however many rows there are
+    - the one-time-password dialog is one dialog
+        - the fixture renders several rows — without that this proves nothing
+        - one instance exists, however many rows there are
 - `packages/ui-vue/tests/use-dialog.test.js`
-    - the panel carries the modal role and is named by its heading
-    - opening moves focus into the panel
-    - closing puts focus back where it was
-    - a trigger that is gone by then leaves focus at the document body
-    - unmounting while open still gives the focus back
-    - tab from the last control wraps to the first
-    - shift+tab from the first control wraps to the last
-    - shift+tab from the panel itself wraps to the last control
-    - a tab from outside the panel is pulled back in
-    - a panel with nothing tabbable keeps the caret on itself
-    - escape asks the caller to close
-    - a persistent dialog ignores escape
-    - a click on the backdrop closes, a click in the panel does not
-    - a persistent dialog ignores the backdrop too
-    - a closed dialog no longer answers escape
-    - the lock is taken while open and given back on close
-    - an inner dialog closing does not give the page back to the outer one
-    - the default is body
-    - a host that names a container gets it
+    - the dialog is announced as one
+        - the panel carries the modal role and is named by its heading
+    - focus enters and comes back
+        - opening moves focus into the panel
+        - closing puts focus back where it was
+        - a trigger that is gone by then leaves focus at the document body
+        - unmounting while open still gives the focus back
+    - the trap keeps tab inside the panel
+        - tab from the last control wraps to the first
+        - shift+tab from the first control wraps to the last
+        - shift+tab from the panel itself wraps to the last control
+        - a tab from outside the panel is pulled back in
+        - a panel with nothing tabbable keeps the caret on itself
+    - escape and the backdrop
+        - escape asks the caller to close
+        - a persistent dialog ignores escape
+        - a click on the backdrop closes, a click in the panel does not
+        - a persistent dialog ignores the backdrop too
+        - a closed dialog no longer answers escape
+    - the page behind does not scroll
+        - the lock is taken while open and given back on close
+        - an inner dialog closing does not give the page back to the outer one
+    - the panel can be teleported somewhere other than body
+        - the default is body
+        - a host that names a container gets it
 
 <!-- END proof -->
 
@@ -9371,80 +9998,95 @@ _Source:_ #45 · #47 · release 0.16.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/locale-switcher.test.ts`
-    - renders when the app offers several languages
-    - renders nothing when the app opted out
-    - a context from an older package version still shows it
-    - the button shows the active language by its own name
-    - an app-supplied language is labelled from availableLocales
-    - an unknown active locale falls back to its code instead of blanking
-    - the accessible label comes from the catalog
-    - every offered language becomes a menu entry
-    - picking an entry writes the shared locale
-    - only the active entry carries the check mark
+    - LocaleSwitcher visibility
+        - renders when the app offers several languages
+        - renders nothing when the app opted out
+        - a context from an older package version still shows it
+    - LocaleSwitcher contents
+        - the button shows the active language by its own name
+        - an app-supplied language is labelled from availableLocales
+        - an unknown active locale falls back to its code instead of blanking
+        - the accessible label comes from the catalog
+        - every offered language becomes a menu entry
+    - LocaleSwitcher selection
+        - picking an entry writes the shared locale
+        - only the active entry carries the check mark
 - `packages/ui-vue/tests/i18n.test.js`
-    - German is the default locale
-    - every locale has a catalog, an Intl tag and a switcher label
-    - isSaBuiltinLocale accepts shipped locales and rejects anything else
-    - defaults to the platform locale
-    - switching the locale swaps the catalog and the Intl tag
-    - the picked locale is written to storage
-    - a stored pick outranks the app default
-    - a corrupt stored value falls back to the app default
-    - persist: false does not read the stored pick
-    - persist: false does not write the picked locale
-    - an app-supplied Ref is used as-is and outranks the stored pick
-    - an app-supplied Ref is not persisted by the platform
-    - enabled by default
-    - switcher: false turns it off
-    - a writable Ref keeps it on
-    - a writable computed keeps it on
-    - a readonly computed turns it off — writes would be swallowed
-    - English mirrors the German key structure exactly
-    - no message is left empty in either locale
-    - placeholders match between German and English
-    - replaces named placeholders
-    - leaves unknown placeholders verbatim
-    - replaces every occurrence of the same placeholder
-    - German uses a decimal comma and dot grouping
-    - English uses a decimal point and comma grouping
-    - defaults to the platform locale
-    - numeric strings are accepted
-    - null, undefined and non-numeric input render as an em dash
-    - zero is a real amount, not an empty value
-    - overrides replace only the given leaves
-    - keys absent from the base catalog are ignored
-    - merging does not mutate the shared catalog
-    - without overrides the shared catalog instance is returned
-    - English labels and sections are the default
-    - German locale switches labels and sections
-    - explicit label overrides still win over the locale defaults
-    - defaultSectionOrder matches the drawer order per locale
-    - English sidebar groups under the English section order
-    - ships German and English by default
-    - an app can offer a single language
-    - the offered order is the order given
-    - a locale without a catalog is dropped instead of rendering blank
-    - an empty selection falls back to everything available
-    - an app-supplied language joins the switcher with its own name
-    - a partial translation renders, filling gaps from basedOn
-    - basedOn defaults to English rather than the reference locale
-    - overrides apply to app-supplied languages too
-    - has() answers for built-ins and app languages alike
-    - resolution is cached — the same object comes back
-    - a single offered language hides the switcher
-    - an app language can be selected and formats with its own tag
-    - a stored pick the app no longer offers is ignored
-    - an unknown active locale renders the default instead of blanking
-    - storageKeyPrefix separates apps sharing one origin
-    - discovery status labels follow an app language
-    - relative-date wording follows an app language
-    - bundle status labels follow an app language
-    - untranslated keys in those namespaces fall back, not blank
-    - overrides reach the same namespaces
+    - i18n locales
+        - German is the default locale
+        - every locale has a catalog, an Intl tag and a switcher label
+        - isSaBuiltinLocale accepts shipped locales and rejects anything else
+    - createSuperAdminI18n
+        - defaults to the platform locale
+        - switching the locale swaps the catalog and the Intl tag
+        - the picked locale is written to storage
+        - a stored pick outranks the app default
+        - a corrupt stored value falls back to the app default
+        - persist: false does not read the stored pick
+        - persist: false does not write the picked locale
+        - an app-supplied Ref is used as-is and outranks the stored pick
+        - an app-supplied Ref is not persisted by the platform
+    - switcher availability
+        - enabled by default
+        - switcher: false turns it off
+        - a writable Ref keeps it on
+        - a writable computed keeps it on
+        - a readonly computed turns it off — writes would be swallowed
+    - catalog completeness
+        - English mirrors the German key structure exactly
+        - no message is left empty in either locale
+        - placeholders match between German and English
+    - formatMessage
+        - replaces named placeholders
+        - leaves unknown placeholders verbatim
+        - replaces every occurrence of the same placeholder
+    - formatCurrency
+        - German uses a decimal comma and dot grouping
+        - English uses a decimal point and comma grouping
+        - defaults to the platform locale
+        - numeric strings are accepted
+        - null, undefined and non-numeric input render as an em dash
+        - zero is a real amount, not an empty value
+    - mergeMessages / resolveMessages
+        - overrides replace only the given leaves
+        - keys absent from the base catalog are ignored
+        - merging does not mutate the shared catalog
+        - without overrides the shared catalog instance is returned
+    - locale-aware navigation defaults
+        - English labels and sections are the default
+        - German locale switches labels and sections
+        - explicit label overrides still win over the locale defaults
+        - defaultSectionOrder matches the drawer order per locale
+        - English sidebar groups under the English section order
+    - createSaCatalog — the app owns the language set
+        - ships German and English by default
+        - an app can offer a single language
+        - the offered order is the order given
+        - a locale without a catalog is dropped instead of rendering blank
+        - an empty selection falls back to everything available
+        - an app-supplied language joins the switcher with its own name
+        - a partial translation renders, filling gaps from basedOn
+        - basedOn defaults to English rather than the reference locale
+        - overrides apply to app-supplied languages too
+        - has() answers for built-ins and app languages alike
+        - resolution is cached — the same object comes back
+    - createSuperAdminI18n — app-owned languages end to end
+        - a single offered language hides the switcher
+        - an app language can be selected and formats with its own tag
+        - a stored pick the app no longer offers is ignored
+        - an unknown active locale renders the default instead of blanking
+        - storageKeyPrefix separates apps sharing one origin
+    - helper modules reach app-supplied languages
+        - discovery status labels follow an app language
+        - relative-date wording follows an app language
+        - bundle status labels follow an app language
+        - untranslated keys in those namespaces fall back, not blank
+        - overrides reach the same namespaces
 - `packages/ui-vue-tenant/tests/component/tenant-i18n-provider.test.ts`
-    - an ancestor that provides is read by a grandchild
-    - without a provider the shipped catalog fills in, so nothing renders blank
-    - the provided catalog wins over the shipped one
+    - the tenant catalog reaches a child without a prop
+        - an ancestor that provides is read by a grandchild
+        - without a provider the shipped catalog fills in, so nothing renders blank
+        - the provided catalog wins over the shipped one
 
 <!-- END proof -->
 
@@ -9465,9 +10107,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md` · current practice
 _Tested by:_
 
 - `packages/ui-vue-tenant/tests/component/tenant-i18n-provider.test.ts`
-    - an ancestor that provides is read by a grandchild
-    - without a provider the shipped catalog fills in, so nothing renders blank
-    - the provided catalog wins over the shipped one
+    - the tenant catalog reaches a child without a prop
+        - an ancestor that provides is read by a grandchild
+        - without a provider the shipped catalog fills in, so nothing renders blank
+        - the provided catalog wins over the shipped one
 
 <!-- END proof -->
 
@@ -9484,16 +10127,19 @@ _Source:_ release 0.17.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/locale-switcher.test.ts`
-    - renders when the app offers several languages
-    - renders nothing when the app opted out
-    - a context from an older package version still shows it
-    - the button shows the active language by its own name
-    - an app-supplied language is labelled from availableLocales
-    - an unknown active locale falls back to its code instead of blanking
-    - the accessible label comes from the catalog
-    - every offered language becomes a menu entry
-    - picking an entry writes the shared locale
-    - only the active entry carries the check mark
+    - LocaleSwitcher visibility
+        - renders when the app offers several languages
+        - renders nothing when the app opted out
+        - a context from an older package version still shows it
+    - LocaleSwitcher contents
+        - the button shows the active language by its own name
+        - an app-supplied language is labelled from availableLocales
+        - an unknown active locale falls back to its code instead of blanking
+        - the accessible label comes from the catalog
+        - every offered language becomes a menu entry
+    - LocaleSwitcher selection
+        - picking an entry writes the shared locale
+        - only the active entry carries the check mark
 
 <!-- END proof -->
 
@@ -9509,65 +10155,76 @@ _Source:_ #243 · release 0.19.0
 _Tested by:_
 
 - `packages/ui-vue/tests/i18n.test.js`
-    - German is the default locale
-    - every locale has a catalog, an Intl tag and a switcher label
-    - isSaBuiltinLocale accepts shipped locales and rejects anything else
-    - defaults to the platform locale
-    - switching the locale swaps the catalog and the Intl tag
-    - the picked locale is written to storage
-    - a stored pick outranks the app default
-    - a corrupt stored value falls back to the app default
-    - persist: false does not read the stored pick
-    - persist: false does not write the picked locale
-    - an app-supplied Ref is used as-is and outranks the stored pick
-    - an app-supplied Ref is not persisted by the platform
-    - enabled by default
-    - switcher: false turns it off
-    - a writable Ref keeps it on
-    - a writable computed keeps it on
-    - a readonly computed turns it off — writes would be swallowed
-    - English mirrors the German key structure exactly
-    - no message is left empty in either locale
-    - placeholders match between German and English
-    - replaces named placeholders
-    - leaves unknown placeholders verbatim
-    - replaces every occurrence of the same placeholder
-    - German uses a decimal comma and dot grouping
-    - English uses a decimal point and comma grouping
-    - defaults to the platform locale
-    - numeric strings are accepted
-    - null, undefined and non-numeric input render as an em dash
-    - zero is a real amount, not an empty value
-    - overrides replace only the given leaves
-    - keys absent from the base catalog are ignored
-    - merging does not mutate the shared catalog
-    - without overrides the shared catalog instance is returned
-    - English labels and sections are the default
-    - German locale switches labels and sections
-    - explicit label overrides still win over the locale defaults
-    - defaultSectionOrder matches the drawer order per locale
-    - English sidebar groups under the English section order
-    - ships German and English by default
-    - an app can offer a single language
-    - the offered order is the order given
-    - a locale without a catalog is dropped instead of rendering blank
-    - an empty selection falls back to everything available
-    - an app-supplied language joins the switcher with its own name
-    - a partial translation renders, filling gaps from basedOn
-    - basedOn defaults to English rather than the reference locale
-    - overrides apply to app-supplied languages too
-    - has() answers for built-ins and app languages alike
-    - resolution is cached — the same object comes back
-    - a single offered language hides the switcher
-    - an app language can be selected and formats with its own tag
-    - a stored pick the app no longer offers is ignored
-    - an unknown active locale renders the default instead of blanking
-    - storageKeyPrefix separates apps sharing one origin
-    - discovery status labels follow an app language
-    - relative-date wording follows an app language
-    - bundle status labels follow an app language
-    - untranslated keys in those namespaces fall back, not blank
-    - overrides reach the same namespaces
+    - i18n locales
+        - German is the default locale
+        - every locale has a catalog, an Intl tag and a switcher label
+        - isSaBuiltinLocale accepts shipped locales and rejects anything else
+    - createSuperAdminI18n
+        - defaults to the platform locale
+        - switching the locale swaps the catalog and the Intl tag
+        - the picked locale is written to storage
+        - a stored pick outranks the app default
+        - a corrupt stored value falls back to the app default
+        - persist: false does not read the stored pick
+        - persist: false does not write the picked locale
+        - an app-supplied Ref is used as-is and outranks the stored pick
+        - an app-supplied Ref is not persisted by the platform
+    - switcher availability
+        - enabled by default
+        - switcher: false turns it off
+        - a writable Ref keeps it on
+        - a writable computed keeps it on
+        - a readonly computed turns it off — writes would be swallowed
+    - catalog completeness
+        - English mirrors the German key structure exactly
+        - no message is left empty in either locale
+        - placeholders match between German and English
+    - formatMessage
+        - replaces named placeholders
+        - leaves unknown placeholders verbatim
+        - replaces every occurrence of the same placeholder
+    - formatCurrency
+        - German uses a decimal comma and dot grouping
+        - English uses a decimal point and comma grouping
+        - defaults to the platform locale
+        - numeric strings are accepted
+        - null, undefined and non-numeric input render as an em dash
+        - zero is a real amount, not an empty value
+    - mergeMessages / resolveMessages
+        - overrides replace only the given leaves
+        - keys absent from the base catalog are ignored
+        - merging does not mutate the shared catalog
+        - without overrides the shared catalog instance is returned
+    - locale-aware navigation defaults
+        - English labels and sections are the default
+        - German locale switches labels and sections
+        - explicit label overrides still win over the locale defaults
+        - defaultSectionOrder matches the drawer order per locale
+        - English sidebar groups under the English section order
+    - createSaCatalog — the app owns the language set
+        - ships German and English by default
+        - an app can offer a single language
+        - the offered order is the order given
+        - a locale without a catalog is dropped instead of rendering blank
+        - an empty selection falls back to everything available
+        - an app-supplied language joins the switcher with its own name
+        - a partial translation renders, filling gaps from basedOn
+        - basedOn defaults to English rather than the reference locale
+        - overrides apply to app-supplied languages too
+        - has() answers for built-ins and app languages alike
+        - resolution is cached — the same object comes back
+    - createSuperAdminI18n — app-owned languages end to end
+        - a single offered language hides the switcher
+        - an app language can be selected and formats with its own tag
+        - a stored pick the app no longer offers is ignored
+        - an unknown active locale renders the default instead of blanking
+        - storageKeyPrefix separates apps sharing one origin
+    - helper modules reach app-supplied languages
+        - discovery status labels follow an app language
+        - relative-date wording follows an app language
+        - bundle status labels follow an app language
+        - untranslated keys in those namespaces fall back, not blank
+        - overrides reach the same namespaces
 
 <!-- END proof -->
 
@@ -9583,65 +10240,76 @@ _Source:_ release 0.18.0
 _Tested by:_
 
 - `packages/ui-vue/tests/i18n.test.js`
-    - German is the default locale
-    - every locale has a catalog, an Intl tag and a switcher label
-    - isSaBuiltinLocale accepts shipped locales and rejects anything else
-    - defaults to the platform locale
-    - switching the locale swaps the catalog and the Intl tag
-    - the picked locale is written to storage
-    - a stored pick outranks the app default
-    - a corrupt stored value falls back to the app default
-    - persist: false does not read the stored pick
-    - persist: false does not write the picked locale
-    - an app-supplied Ref is used as-is and outranks the stored pick
-    - an app-supplied Ref is not persisted by the platform
-    - enabled by default
-    - switcher: false turns it off
-    - a writable Ref keeps it on
-    - a writable computed keeps it on
-    - a readonly computed turns it off — writes would be swallowed
-    - English mirrors the German key structure exactly
-    - no message is left empty in either locale
-    - placeholders match between German and English
-    - replaces named placeholders
-    - leaves unknown placeholders verbatim
-    - replaces every occurrence of the same placeholder
-    - German uses a decimal comma and dot grouping
-    - English uses a decimal point and comma grouping
-    - defaults to the platform locale
-    - numeric strings are accepted
-    - null, undefined and non-numeric input render as an em dash
-    - zero is a real amount, not an empty value
-    - overrides replace only the given leaves
-    - keys absent from the base catalog are ignored
-    - merging does not mutate the shared catalog
-    - without overrides the shared catalog instance is returned
-    - English labels and sections are the default
-    - German locale switches labels and sections
-    - explicit label overrides still win over the locale defaults
-    - defaultSectionOrder matches the drawer order per locale
-    - English sidebar groups under the English section order
-    - ships German and English by default
-    - an app can offer a single language
-    - the offered order is the order given
-    - a locale without a catalog is dropped instead of rendering blank
-    - an empty selection falls back to everything available
-    - an app-supplied language joins the switcher with its own name
-    - a partial translation renders, filling gaps from basedOn
-    - basedOn defaults to English rather than the reference locale
-    - overrides apply to app-supplied languages too
-    - has() answers for built-ins and app languages alike
-    - resolution is cached — the same object comes back
-    - a single offered language hides the switcher
-    - an app language can be selected and formats with its own tag
-    - a stored pick the app no longer offers is ignored
-    - an unknown active locale renders the default instead of blanking
-    - storageKeyPrefix separates apps sharing one origin
-    - discovery status labels follow an app language
-    - relative-date wording follows an app language
-    - bundle status labels follow an app language
-    - untranslated keys in those namespaces fall back, not blank
-    - overrides reach the same namespaces
+    - i18n locales
+        - German is the default locale
+        - every locale has a catalog, an Intl tag and a switcher label
+        - isSaBuiltinLocale accepts shipped locales and rejects anything else
+    - createSuperAdminI18n
+        - defaults to the platform locale
+        - switching the locale swaps the catalog and the Intl tag
+        - the picked locale is written to storage
+        - a stored pick outranks the app default
+        - a corrupt stored value falls back to the app default
+        - persist: false does not read the stored pick
+        - persist: false does not write the picked locale
+        - an app-supplied Ref is used as-is and outranks the stored pick
+        - an app-supplied Ref is not persisted by the platform
+    - switcher availability
+        - enabled by default
+        - switcher: false turns it off
+        - a writable Ref keeps it on
+        - a writable computed keeps it on
+        - a readonly computed turns it off — writes would be swallowed
+    - catalog completeness
+        - English mirrors the German key structure exactly
+        - no message is left empty in either locale
+        - placeholders match between German and English
+    - formatMessage
+        - replaces named placeholders
+        - leaves unknown placeholders verbatim
+        - replaces every occurrence of the same placeholder
+    - formatCurrency
+        - German uses a decimal comma and dot grouping
+        - English uses a decimal point and comma grouping
+        - defaults to the platform locale
+        - numeric strings are accepted
+        - null, undefined and non-numeric input render as an em dash
+        - zero is a real amount, not an empty value
+    - mergeMessages / resolveMessages
+        - overrides replace only the given leaves
+        - keys absent from the base catalog are ignored
+        - merging does not mutate the shared catalog
+        - without overrides the shared catalog instance is returned
+    - locale-aware navigation defaults
+        - English labels and sections are the default
+        - German locale switches labels and sections
+        - explicit label overrides still win over the locale defaults
+        - defaultSectionOrder matches the drawer order per locale
+        - English sidebar groups under the English section order
+    - createSaCatalog — the app owns the language set
+        - ships German and English by default
+        - an app can offer a single language
+        - the offered order is the order given
+        - a locale without a catalog is dropped instead of rendering blank
+        - an empty selection falls back to everything available
+        - an app-supplied language joins the switcher with its own name
+        - a partial translation renders, filling gaps from basedOn
+        - basedOn defaults to English rather than the reference locale
+        - overrides apply to app-supplied languages too
+        - has() answers for built-ins and app languages alike
+        - resolution is cached — the same object comes back
+    - createSuperAdminI18n — app-owned languages end to end
+        - a single offered language hides the switcher
+        - an app language can be selected and formats with its own tag
+        - a stored pick the app no longer offers is ignored
+        - an unknown active locale renders the default instead of blanking
+        - storageKeyPrefix separates apps sharing one origin
+    - helper modules reach app-supplied languages
+        - discovery status labels follow an app language
+        - relative-date wording follows an app language
+        - bundle status labels follow an app language
+        - untranslated keys in those namespaces fall back, not blank
+        - overrides reach the same namespaces
 
 <!-- END proof -->
 
@@ -9658,36 +10326,42 @@ _Source:_ #243
 _Tested by:_
 
 - `packages/nest/tests/error-params-contract.test.js`
-    - the sources contain coded throw sites at all
-    - every throw site supplies the placeholders its message template names
-    - all throw sites for one code agree on their params key names
+    - error params contract
+        - the sources contain coded throw sites at all
+        - every throw site supplies the placeholders its message template names
+        - all throw sites for one code agree on their params key names
 - `packages/nest/tests/preview-issues-are-translatable.test.js`
     - a preview issue can be read in the reader’s language
         - the scan finds the codes at all
         - ${locale} has a text for every code the preview emits
         - every template names only values the issue carries
 - `packages/ui-vue/tests/error-facts-are-declared.test.js`
-    - there are error classes to look at — otherwise nothing below looks at anything
-    - each status-carrying class calls markPlatformError(this)
-    - the brands are counted independently, against a floor that moves with the sources
-    - every status-0 platform error is marked as one
-    - nothing else claims to be one
-    - the helpers are discoverable
-    - each one calls requireServerAnswer before it reads a body
-    - every file that raises the sentinel also runs the guard
+    - the platform brand is on every class it decides for
+        - there are error classes to look at — otherwise nothing below looks at anything
+        - each status-carrying class calls markPlatformError(this)
+        - the brands are counted independently, against a floor that moves with the sources
+    - the empty-body sentinel is declared at its throw site
+        - every status-0 platform error is marked as one
+        - nothing else claims to be one
+    - a seam whose answer can be "no body" first asks whether one arrived
+        - the helpers are discoverable
+        - each one calls requireServerAnswer before it reads a body
+        - every file that raises the sentinel also runs the guard
 - `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
-    - the shipped German catalogue renders the German sentence
-    - the shipped English catalogue renders the English sentence
-    - an app's own catalogue wins, in a language the platform does not ship
-    - a code the app left untranslated still reads, from the shipped text
-    - a code nobody has a text for falls back to the message the backend sent
+    - the blocker is read in the language the app chose
+        - the shipped German catalogue renders the German sentence
+        - the shipped English catalogue renders the English sentence
+        - an app's own catalogue wins, in a language the platform does not ship
+        - a code the app left untranslated still reads, from the shipped text
+        - a code nobody has a text for falls back to the message the backend sent
 - `packages/ui-vue-tenant/tests/component/message-parts.test.ts`
-    - the substituted date is the emphasised one
-    - other values are substituted without emphasis
-    - a placeholder nobody supplied stays visible
-    - an unclosed brace is left alone rather than eating the rest
-    - a message without placeholders is one part
-    - two dates are both emphasised
+    - a message becomes parts
+        - the substituted date is the emphasised one
+        - other values are substituted without emphasis
+        - a placeholder nobody supplied stays visible
+        - an unclosed brace is left alone rather than eating the rest
+        - a message without placeholders is one part
+        - two dates are both emphasised
 
 <!-- END proof -->
 
@@ -9704,14 +10378,17 @@ _Source:_ #243
 _Tested by:_
 
 - `packages/ui-vue/tests/error-facts-are-declared.test.js`
-    - there are error classes to look at — otherwise nothing below looks at anything
-    - each status-carrying class calls markPlatformError(this)
-    - the brands are counted independently, against a floor that moves with the sources
-    - every status-0 platform error is marked as one
-    - nothing else claims to be one
-    - the helpers are discoverable
-    - each one calls requireServerAnswer before it reads a body
-    - every file that raises the sentinel also runs the guard
+    - the platform brand is on every class it decides for
+        - there are error classes to look at — otherwise nothing below looks at anything
+        - each status-carrying class calls markPlatformError(this)
+        - the brands are counted independently, against a floor that moves with the sources
+    - the empty-body sentinel is declared at its throw site
+        - every status-0 platform error is marked as one
+        - nothing else claims to be one
+    - a seam whose answer can be "no body" first asks whether one arrived
+        - the helpers are discoverable
+        - each one calls requireServerAnswer before it reads a body
+        - every file that raises the sentinel also runs the guard
 
 <!-- END proof -->
 
@@ -9727,23 +10404,27 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/core/tests/error-messages.test.js`
-    - the code map carries the one code declared in another file
-    - ${locale} has a text for every error code
-    - ${locale} has no text for an unknown code
-    - every locale interpolates the same placeholders per code
-    - substitutes named values
-    - leaves an unknown placeholder visible rather than dropping it
-    - treats null like a missing value
-    - prefers the consumer override
-    - falls back to the shipped default
-    - falls back to the message when the code has no text
-    - falls back to the code only when there is no message either
-    - reads top-level body fields when a placeholder is not in params
-    - params win over a top-level field of the same name
+    - shipped error messages
+        - the code map carries the one code declared in another file
+        - ${locale} has a text for every error code
+        - ${locale} has no text for an unknown code
+        - every locale interpolates the same placeholders per code
+    - formatErrorMessage
+        - substitutes named values
+        - leaves an unknown placeholder visible rather than dropping it
+        - treats null like a missing value
+    - resolveErrorMessage
+        - prefers the consumer override
+        - falls back to the shipped default
+        - falls back to the message when the code has no text
+        - falls back to the code only when there is no message either
+        - reads top-level body fields when a placeholder is not in params
+        - params win over a top-level field of the same name
 - `packages/nest/tests/error-params-contract.test.js`
-    - the sources contain coded throw sites at all
-    - every throw site supplies the placeholders its message template names
-    - all throw sites for one code agree on their params key names
+    - error params contract
+        - the sources contain coded throw sites at all
+        - every throw site supplies the placeholders its message template names
+        - all throw sites for one code agree on their params key names
 - `packages/nest/tests/feature-guard.test.js`
     - StaticFeatureGuard — FEATURE_NOT_LICENSED body
         - emits the full FeatureNotLicensedBody with empty offers
@@ -9751,13 +10432,15 @@ _Tested by:_
     - PublishValidationError
         - has name + code
 - `tests/error-identity-across-entries.test.js`
-    - the two entries really do hand out separate classes
-    - instanceof does not survive the split
-    - the brand does, and the error keeps everything it carried
-    - a foreign error is still wrapped, so the brand is not a blanket pass
-    - a transport failure marked through one entry is read back through the other
-    - an empty response marked through one entry is read back through the other
-    - an unmarked error is not mistaken for either
+    - AdminError across the CJS entries of @saasicat/ui-vue
+        - the two entries really do hand out separate classes
+        - instanceof does not survive the split
+        - the brand does, and the error keeps everything it carried
+        - a foreign error is still wrapped, so the brand is not a blanket pass
+    - the declarations about a failure survive the split too
+        - a transport failure marked through one entry is read back through the other
+        - an empty response marked through one entry is read back through the other
+        - an unmarked error is not mistaken for either
 
 <!-- END proof -->
 
@@ -9778,11 +10461,12 @@ _Tested by:_
         - ${locale} has a text for every code the preview emits
         - every template names only values the issue carries
 - `packages/ui-vue-tenant/tests/component/a-blocker-speaks-the-apps-language.test.ts`
-    - the shipped German catalogue renders the German sentence
-    - the shipped English catalogue renders the English sentence
-    - an app's own catalogue wins, in a language the platform does not ship
-    - a code the app left untranslated still reads, from the shipped text
-    - a code nobody has a text for falls back to the message the backend sent
+    - the blocker is read in the language the app chose
+        - the shipped German catalogue renders the German sentence
+        - the shipped English catalogue renders the English sentence
+        - an app's own catalogue wins, in a language the platform does not ship
+        - a code the app left untranslated still reads, from the shipped text
+        - a code nobody has a text for falls back to the message the backend sent
 
 <!-- END proof -->
 
@@ -9799,11 +10483,13 @@ _Source:_ #150 · release 0.19.0
 _Tested by:_
 
 - `packages/ui-vue/tests/diagnostics-are-not-translated.test.js`
-    - the error classes are discoverable — otherwise nothing below looks at anything
-    - no construction of one takes its message from the catalog
+    - the diagnostics this package brands are not translated
+        - the error classes are discoverable — otherwise nothing below looks at anything
+        - no construction of one takes its message from the catalog
 - `packages/ui-vue/tests/diagnostics-survive-the-locale.test.js`
-    - ${name} says the same thing in German and in English
-    - ${name} shows the operator the catalog's sentence, in their language
+    - the diagnostic of a failing seam does not depend on the UI language
+        - ${name} says the same thing in German and in English
+        - ${name} shows the operator the catalog's sentence, in their language
 
 <!-- END proof -->
 
@@ -9826,8 +10512,10 @@ _Tested by:_
 - `packages/nest/tests/registration-helpers.test.js`
     - slugify: the fallback carries no domain vocabulary
 - `packages/ui-vue/tests/no-hardcoded-app-prefix.test.js`
-    - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
-    - useTenants() WITHOUT the endpoint option throws with a clear error message
+    - Platform package: no hardcoded app URL prefixes
+        - No composable/loader has `/api/(v1/)?{admin,billing}/...` as a default
+    - Platform package: useTenants explicitly requires an endpoint
+        - useTenants() WITHOUT the endpoint option throws with a clear error message
 
 <!-- END proof -->
 
@@ -9843,78 +10531,94 @@ _Source:_ `docs/reference/error-codes.md` · `docs/reference/options.md`
 _Tested by:_
 
 - `packages/core/tests/error-messages.test.js`
-    - the code map carries the one code declared in another file
-    - ${locale} has a text for every error code
-    - ${locale} has no text for an unknown code
-    - every locale interpolates the same placeholders per code
-    - substitutes named values
-    - leaves an unknown placeholder visible rather than dropping it
-    - treats null like a missing value
-    - prefers the consumer override
-    - falls back to the shipped default
-    - falls back to the message when the code has no text
-    - falls back to the code only when there is no message either
-    - reads top-level body fields when a placeholder is not in params
-    - params win over a top-level field of the same name
+    - shipped error messages
+        - the code map carries the one code declared in another file
+        - ${locale} has a text for every error code
+        - ${locale} has no text for an unknown code
+        - every locale interpolates the same placeholders per code
+    - formatErrorMessage
+        - substitutes named values
+        - leaves an unknown placeholder visible rather than dropping it
+        - treats null like a missing value
+    - resolveErrorMessage
+        - prefers the consumer override
+        - falls back to the shipped default
+        - falls back to the message when the code has no text
+        - falls back to the code only when there is no message either
+        - reads top-level body fields when a placeholder is not in params
+        - params win over a top-level field of the same name
 - `packages/ui-vue/tests/admin-error.test.js`
-    - defaults to status 0 — a request that never produced one
-    - the diagnostic message names the request, the status and the code
-    - the diagnostic carries the detail when there is one
-    - an explicit message overrides the derived one
-    - cause is preserved
-    - recognises an instance
-    - rejects a plain error, a look-alike object, and nothing at all
-    - recognises what a throw site marked, and nothing else
-    - the marker is not enumerable, so it does not leak into a log line
-    - recognises what a client marked, and nothing else
-    - marking a non-object is a no-op rather than a second failure
-    - the marker is not enumerable, so it does not leak into a log line
-    - passes an AdminError through untouched
-    - reads an axios rejection: status, code, body, url and method
-    - a status-bearing error with an unreadable body has no detail at all
-    - joins a NestJS ValidationPipe message array instead of stringifying it
-    - reads one of the package’s own API errors, which carry status and body
-    - an answer that was empty is not a connection problem
-    - a consumer client rejecting with status 0 is not an empty response
-    - a manifest 304 that survives to be thrown is a diagnostic like any other
-    - a real HTTP failure is not an empty response
-    - a declared transport failure keeps its diagnostic off detail, so the catalog answers
-    - an axios failure with no response is transport too
-    - but an interceptor’s own error is not, however much of axios it carries
-    - but an error from app code keeps its message — that IS what was said
-    - wraps a thrown string
-    - survives a thrown nothing
-    - a null dereference is not a connection problem
-    - a real fetch failure still says "check your connection"
-    - a malformed URL is a transport failure too, not an unknown one
-    - the client passes a response through untouched
-    - a consumer error carrying a status keeps its message
-    - a consumer error merely NAMED like ours is still a consumer error
-    - a mutation the server answered without a body is an empty response
-    - a boot GET a client resolved as status 0 never reached the server
-    - a manifest GET a client resolved as status 0 never reached the server
-    - nor did a mutation a client resolved as status 0 — on any of the surfaces
-    - a discovery load a client resolved as status 0 never reached the server
-    - a plain object keeps the message it carries
-    - an Error from another realm is such an object
-    - an object with nothing readable falls through to the generic wording
-    - a non-string message is not a message
-    - what the failing side said outranks anything the platform could guess
-    - maps the statuses that have their own wording
-    - any other status falls through to the generic template, with the number in it
-    - a failure nothing knows anything about says so, rather than blaming the network
-    - a seam that declares the request never went out gets the network wording
-    - converts before formatting, so an axios rejection needs no pre-processing
-    - German is a complete alternative, not a fallback to English
-    - the two names are one class, so an existing instanceof check keeps working
-    - a non-2xx carries status, code, detail, url and method
-    - postJson reports its own method
-    - an error body that is not JSON does not become a second failure
-    - a validation rejection keeps its constraints — the array is joined here too
-    - a 2xx still returns the parsed body
-    - an AdminError carries it at `status`
-    - an axios rejection carries it at `response.status`
-    - anything else has none
+    - AdminError
+        - defaults to status 0 — a request that never produced one
+        - the diagnostic message names the request, the status and the code
+        - the diagnostic carries the detail when there is one
+        - an explicit message overrides the derived one
+        - cause is preserved
+    - isAdminError
+        - recognises an instance
+        - rejects a plain error, a look-alike object, and nothing at all
+    - isEmptyResponse
+        - recognises what a throw site marked, and nothing else
+        - the marker is not enumerable, so it does not leak into a log line
+    - isTransportFailure
+        - recognises what a client marked, and nothing else
+        - marking a non-object is a no-op rather than a second failure
+        - the marker is not enumerable, so it does not leak into a log line
+    - toAdminError
+        - passes an AdminError through untouched
+        - reads an axios rejection: status, code, body, url and method
+        - a status-bearing error with an unreadable body has no detail at all
+        - joins a NestJS ValidationPipe message array instead of stringifying it
+        - reads one of the package’s own API errors, which carry status and body
+        - an answer that was empty is not a connection problem
+        - a consumer client rejecting with status 0 is not an empty response
+        - a manifest 304 that survives to be thrown is a diagnostic like any other
+        - a real HTTP failure is not an empty response
+        - a declared transport failure keeps its diagnostic off detail, so the catalog answers
+        - an axios failure with no response is transport too
+        - but an interceptor’s own error is not, however much of axios it carries
+        - but an error from app code keeps its message — that IS what was said
+        - wraps a thrown string
+        - survives a thrown nothing
+    - a transport failure is declared by the client, not read off the class
+        - a null dereference is not a connection problem
+        - a real fetch failure still says "check your connection"
+        - a malformed URL is a transport failure too, not an unknown one
+        - the client passes a response through untouched
+    - toAdminError and consumer errors
+        - a consumer error carrying a status keeps its message
+        - a consumer error merely NAMED like ours is still a consumer error
+    - emptyResponse is read off the throw site, not off the class
+        - a mutation the server answered without a body is an empty response
+        - a boot GET a client resolved as status 0 never reached the server
+        - a manifest GET a client resolved as status 0 never reached the server
+        - nor did a mutation a client resolved as status 0 — on any of the surfaces
+        - a discovery load a client resolved as status 0 never reached the server
+    - toAdminError and rejections that are not Errors
+        - a plain object keeps the message it carries
+        - an Error from another realm is such an object
+        - an object with nothing readable falls through to the generic wording
+        - a non-string message is not a message
+    - adminErrorMessage
+        - what the failing side said outranks anything the platform could guess
+        - maps the statuses that have their own wording
+        - any other status falls through to the generic template, with the number in it
+        - a failure nothing knows anything about says so, rather than blaming the network
+        - a seam that declares the request never went out gets the network wording
+        - converts before formatting, so an axios rejection needs no pre-processing
+        - German is a complete alternative, not a fallback to English
+    - HttpJsonError is AdminError
+        - the two names are one class, so an existing instanceof check keeps working
+    - getJson / postJson raise AdminError
+        - a non-2xx carries status, code, detail, url and method
+        - postJson reports its own method
+        - an error body that is not JSON does not become a second failure
+        - a validation rejection keeps its constraints — the array is joined here too
+        - a 2xx still returns the parsed body
+    - httpStatusOf reads the status whichever shape carries it
+        - an AdminError carries it at `status`
+        - an axios rejection carries it at `response.status`
+        - anything else has none
 
 <!-- END proof -->
 
@@ -9936,15 +10640,16 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
-    - the no-options default preserves the 0.6 plan-only write
-    - opening a window records the day the subscription is billed on
-    - and a change that opens none leaves it alone
-    - normalized mode binds semantic plan and active version atomically with named delegates
-    - a pending version of the same target plan is retained
-    - a failing onboarding callback rolls plan and version back together
-    - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
-    - pending PlanVersion acceptance rejects a changed CAS target and a missing target
-    - invalid validity capability combinations fail at construction
+    - PrismaTenantSubscriptionWriteAdapter
+        - the no-options default preserves the 0.6 plan-only write
+        - opening a window records the day the subscription is billed on
+        - and a change that opens none leaves it alone
+        - normalized mode binds semantic plan and active version atomically with named delegates
+        - a pending version of the same target plan is retained
+        - a failing onboarding callback rolls plan and version back together
+        - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
+        - pending PlanVersion acceptance rejects a changed CAS target and a missing target
+        - invalid validity capability combinations fail at construction
 
 <!-- END proof -->
 
@@ -9959,35 +10664,43 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/cli/tests/cli-context.test.js`
-    - accepts --as flag
-    - falls back to env var
-    - throws NO_IDENTITY with exit code 2 when nothing is set
-    - --as overrides env var
-    - accepts SUPER_ADMIN user
-    - rejects non-existent user (USER_NOT_FOUND, exit 2)
-    - rejects deactivated user
-    - rejects non-SUPER_ADMIN (NOT_SUPER_ADMIN)
-    - Bypass: SKIP=1 + non-prod
-    - bypass NOT in production
-    - MFA_NOT_SET_UP when platform MfaService isEnabled=false
-    - MFA_FAILED on invalid code
-    - accepts valid code
-    - skips automatically in non-prod
-    - skips with yes=true in prod
-    - accepts "production" as answer
-    - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
-    - writes through platform AdminAuditService with cli actor
-    - has code, message and exitCode
+    - CliContextService.resolveIdentity
+        - accepts --as flag
+        - falls back to env var
+        - throws NO_IDENTITY with exit code 2 when nothing is set
+        - --as overrides env var
+    - CliContextService.ensureSuperAdmin
+        - accepts SUPER_ADMIN user
+        - rejects non-existent user (USER_NOT_FOUND, exit 2)
+        - rejects deactivated user
+        - rejects non-SUPER_ADMIN (NOT_SUPER_ADMIN)
+    - CliContextService.requireMfa
+        - Bypass: SKIP=1 + non-prod
+        - bypass NOT in production
+        - MFA_NOT_SET_UP when platform MfaService isEnabled=false
+        - MFA_FAILED on invalid code
+        - accepts valid code
+    - CliContextService.ensureProductionConfirmation
+        - skips automatically in non-prod
+        - skips with yes=true in prod
+        - accepts "production" as answer
+        - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
+    - CliContextService.log
+        - writes through platform AdminAuditService with cli actor
+    - CliError
+        - has code, message and exitCode
 - `packages/ui-vue/tests/admin-resource-client.test.js`
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client's header
-    - the page adds no header of its own to an unauthenticated client
+    - a mounted page issues authenticated requests
+        - every request carries the client's header
+        - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
-    - there is a corpus to scan
-    - no option named `getAuthToken` survives
-    - nothing builds a Bearer header by hand
+    - the HttpClient is the only way a request gets its auth
+        - there is a corpus to scan
+        - no option named `getAuthToken` survives
+        - nothing builds a Bearer header by hand
 
 <!-- END proof -->
 
@@ -10017,28 +10730,33 @@ _Tested by:_
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client's header
-    - the page adds no header of its own to an unauthenticated client
+    - a mounted page issues authenticated requests
+        - every request carries the client's header
+        - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/navigation-guard.test.js`
-    - returns null when neither authGuard nor manifestGuard is set
-    - redirects to onUnauthenticated() when isAuthenticated is false
-    - lets public routes bypass the auth guard
-    - redirects to onUnauthenticated when isSuperAdmin is false
-    - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
-    - avoids redirect loop: when the current route is already errorRoute, returns true
-    - falls back to render-allow + console.error when NO errorRoute is set
-    - lets the render through when ensureLoaded resolves successfully
-    - 401 from the manifest load routes to login, not to the error page
-    - 403 is treated the same way
-    - a genuine manifest failure still fails closed to the error page
-    - an error without a status stays on the fail-closed path
-    - without an authGuard a 401 still reaches the error page
-    - first 401 offers a re-login, the second stops the circle
-    - a successful load re-arms the redirect for a later expiry
-    - concurrent navigations on one rejection share the login redirect
-    - the second attempt fails closed once the operator has seen login
-    - a cached error instance does not resurrect the login loop
-    - a later, different rejection still fails closed
+    - buildNavigationGuard — auth path
+        - returns null when neither authGuard nor manifestGuard is set
+        - redirects to onUnauthenticated() when isAuthenticated is false
+        - lets public routes bypass the auth guard
+        - redirects to onUnauthenticated when isSuperAdmin is false
+    - buildNavigationGuard — manifest fail-closed
+        - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
+        - avoids redirect loop: when the current route is already errorRoute, returns true
+        - falls back to render-allow + console.error when NO errorRoute is set
+        - lets the render through when ensureLoaded resolves successfully
+    - buildNavigationGuard — expired session vs broken manifest
+        - 401 from the manifest load routes to login, not to the error page
+        - 403 is treated the same way
+        - a genuine manifest failure still fails closed to the error page
+        - an error without a status stays on the fail-closed path
+        - without an authGuard a 401 still reaches the error page
+    - buildNavigationGuard — no login loop on a persistent manifest 401
+        - first 401 offers a re-login, the second stops the circle
+        - a successful load re-arms the redirect for a later expiry
+        - concurrent navigations on one rejection share the login redirect
+        - the second attempt fails closed once the operator has seen login
+        - a cached error instance does not resurrect the login loop
+        - a later, different rejection still fails closed
 
 <!-- END proof -->
 
@@ -10085,91 +10803,98 @@ _Tested by:_
     - adminManifest rejects the removed planVersions standard page
     - adminManifest rejects capability with colon notation
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`
-    - ${label} renders instead of throwing
-    - the null case still shows the documented fallbacks
+    - DiscoveryPage survives a snapshot that is not a snapshot
+        - ${label} renders instead of throwing
+        - the null case still shows the documented fallbacks
 - `packages/ui-vue/tests/http-adapters.test.js`
-    - passes a relative URL through unchanged when there is no base URL
-    - prepends the base URL, without doubling the slash
-    - leaves an absolute URL alone even with a base URL set
-    - reads the headers hook per request, so a refreshed token is picked up
-    - awaits an async headers hook
-    - asks for JSON
-    - an Accept the hook asked for is kept
-    - a per-call header wins over the hook, whatever the casing
-    - supplies a JSON content type for a body that arrived without one
-    - does not invent a content type when there is no body
-    - a non-2xx is a response, not a throw
-    - response headers are readable under any casing
-    - a failed request is marked as one, whichever way the client was built
-    - defaultHttpClient is this client with no options
-    - strips the prefix the instance already carries as its baseURL
-    - tries several prefixes in order, so the longer one is not shadowed
-    - a prefix written with a trailing slash strips the same way
-    - a query ends the path, so the prefix is still the prefix
-    - a fragment ends it too
-    - leaves a URL that does not start with the prefix alone
-    - a URL that is exactly the prefix becomes the root, not the empty string
-    - without stripPrefix the URL passes through whole
-    - no status throws — 304, 402 and 500 all arrive as responses
-    - the method is upper-cased and defaults to GET
-    - a DELETE carries its body through
-    - json() returns what axios already parsed
-    - json() parses a raw string, for an instance with transformResponse disabled
-    - every way of turning axios’s own decoding off is read as text
-    - responseType json is the one that still means decoded
-    - json() does not decode a second time what axios already decoded
-    - a decoded string that reads as JSON keeps its meaning
-    - json() throws on a raw body that is not JSON, exactly as Response.json() does
-    - a body a decoding instance could not parse is the string it kept
-    - an empty body throws whatever the instance decodes
-    - a declared decoding instance hands an empty data over as the empty string
-    - a declared raw instance still throws on an empty data
-    - transformResponse null is a pipeline that ran nothing, so the body is raw
-    - a config that merely omits transformResponse has not said anything
-    - a response carrying no config is read as already decoded
-    - text() gives a string either way
-    - response headers are readable under any casing
-    - a header that is not there reads as null, not undefined
-    - survives an instance that reports no headers at all
-    - request headers are handed to the instance untouched
-    - a rejection the instance recovers from never reaches the platform
-    - a rejection it does not recover from arrives as a response, not a throw
-    - a failure with no response stays a throw
-    - a structural instance that says nothing is not marked for it
-    - …and the way out is the one the fetch adapter uses
-    - no validateStatus is imposed on the instance
-    - a 304 with an ETag is usable by the manifest loader’s cache path
-    - a 204 arrives as a status the caller can check before reading a body
-    - json() yields what was on the wire, however the instance is configured
-    - json() yields what was on the wire when the instance declares how
-    - a rejected status is read by the same declaration
-    - an instance with its own transform is read as decoding until it says otherwise
-    - an empty body throws, whichever instance asked for it
-    - an instance that hands the body over reads `""` as the empty string
-    - a declaration recovers `""` from an instance that already decoded it
-    - `""` is the one body a decoding instance under `auto` cannot get back
-    - a body no one could decode is the text it was, where axios kept it
-    - a rejected status arrives as a response with its body readable
-    - the prefix an instance carries as its baseURL is stripped back off
-    - a browser Blob body is read through the text() it exposes
-    - what an interceptor rewrites, the adapter can no longer judge
-    - a body axios delivered as bytes reads as the value those bytes spell
-    - and the two readers of a byte body agree about it
-    - an empty byte body throws, as an empty text body does
-    - a streamed body is refused by name, not mishandled
-    - a transform returning an object still hands that object over
-    - a genuine network failure is marked
-    - a DNS failure and a timeout are the same fact and are marked too
-    - a network failure a rejection interceptor rethrows is still marked
-    - an interceptor's replacement error keeps its message
-    - …including when it carries axios’s config across, which is the shape that fooled the old
-      reading
-    - …and when it carries `request` too, which is why `isAxiosError` is read
-    - an interceptor rejecting with another request’s failure is that request’s answer
-    - a failure while setting the request up keeps its own words
-    - a request interceptor that throws is not a transport failure
-    - an answered status never reaches the brand at all
-    - the reading holds on its own, not only where the adapter calls it
+    - createFetchHttpClient
+        - passes a relative URL through unchanged when there is no base URL
+        - prepends the base URL, without doubling the slash
+        - leaves an absolute URL alone even with a base URL set
+        - reads the headers hook per request, so a refreshed token is picked up
+        - awaits an async headers hook
+        - asks for JSON
+        - an Accept the hook asked for is kept
+        - a per-call header wins over the hook, whatever the casing
+        - supplies a JSON content type for a body that arrived without one
+        - does not invent a content type when there is no body
+        - a non-2xx is a response, not a throw
+        - response headers are readable under any casing
+        - a failed request is marked as one, whichever way the client was built
+        - defaultHttpClient is this client with no options
+    - createAxiosHttpClient
+        - strips the prefix the instance already carries as its baseURL
+        - tries several prefixes in order, so the longer one is not shadowed
+        - a prefix written with a trailing slash strips the same way
+        - a query ends the path, so the prefix is still the prefix
+        - a fragment ends it too
+        - leaves a URL that does not start with the prefix alone
+        - a URL that is exactly the prefix becomes the root, not the empty string
+        - without stripPrefix the URL passes through whole
+        - no status throws — 304, 402 and 500 all arrive as responses
+        - the method is upper-cased and defaults to GET
+        - a DELETE carries its body through
+        - json() returns what axios already parsed
+        - json() parses a raw string, for an instance with transformResponse disabled
+        - every way of turning axios’s own decoding off is read as text
+        - responseType json is the one that still means decoded
+        - json() does not decode a second time what axios already decoded
+        - a decoded string that reads as JSON keeps its meaning
+        - json() throws on a raw body that is not JSON, exactly as Response.json() does
+        - a body a decoding instance could not parse is the string it kept
+        - an empty body throws whatever the instance decodes
+        - a declared decoding instance hands an empty data over as the empty string
+        - a declared raw instance still throws on an empty data
+        - transformResponse null is a pipeline that ran nothing, so the body is raw
+        - a config that merely omits transformResponse has not said anything
+        - a response carrying no config is read as already decoded
+        - text() gives a string either way
+        - response headers are readable under any casing
+        - a header that is not there reads as null, not undefined
+        - survives an instance that reports no headers at all
+        - request headers are handed to the instance untouched
+    - createAxiosHttpClient — the instance keeps its own error handling
+        - a rejection the instance recovers from never reaches the platform
+        - a rejection it does not recover from arrives as a response, not a throw
+        - a failure with no response stays a throw
+        - a structural instance that says nothing is not marked for it
+        - …and the way out is the one the fetch adapter uses
+        - no validateStatus is imposed on the instance
+    - the adapters satisfy what the platform loaders expect
+        - a 304 with an ETag is usable by the manifest loader’s cache path
+        - a 204 arrives as a status the caller can check before reading a body
+    - createAxiosHttpClient — against a real axios instance
+        - json() yields what was on the wire, however the instance is configured
+        - json() yields what was on the wire when the instance declares how
+        - a rejected status is read by the same declaration
+        - an instance with its own transform is read as decoding until it says otherwise
+        - an empty body throws, whichever instance asked for it
+        - an instance that hands the body over reads `""` as the empty string
+        - a declaration recovers `""` from an instance that already decoded it
+        - `""` is the one body a decoding instance under `auto` cannot get back
+        - a body no one could decode is the text it was, where axios kept it
+        - a rejected status arrives as a response with its body readable
+        - the prefix an instance carries as its baseURL is stripped back off
+        - a browser Blob body is read through the text() it exposes
+        - what an interceptor rewrites, the adapter can no longer judge
+        - a body axios delivered as bytes reads as the value those bytes spell
+        - and the two readers of a byte body agree about it
+        - an empty byte body throws, as an empty text body does
+        - a streamed body is refused by name, not mishandled
+        - a transform returning an object still hands that object over
+    - createAxiosHttpClient — the transport brand, against real axios
+        - a genuine network failure is marked
+        - a DNS failure and a timeout are the same fact and are marked too
+        - a network failure a rejection interceptor rethrows is still marked
+        - an interceptor's replacement error keeps its message
+        - …including when it carries axios’s config across, which is the shape that fooled the old
+          reading
+        - …and when it carries `request` too, which is why `isAxiosError` is read
+        - an interceptor rejecting with another request’s failure is that request’s answer
+        - a failure while setting the request up keeps its own words
+        - a request interceptor that throws is not a transport failure
+        - an answered status never reaches the brand at all
+        - the reading holds on its own, not only where the adapter calls it
 
 <!-- END proof -->
 
@@ -10328,9 +11053,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/schema-apply-dry-run.test.js`
-    - it names the lines, and leaves the file untouched
-    - and the real run writes exactly those lines
-    - past tense belongs to the run that did it
+    - the dry run previews what the real run writes
+        - it names the lines, and leaves the file untouched
+        - and the real run writes exactly those lines
+        - past tense belongs to the run that did it
 
 <!-- END proof -->
 
@@ -10388,14 +11114,16 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/cli/tests/audit-tail-flow.test.js`
-    - empty filter → empty query object
-    - actor → actorTag
-    - action + entity
-    - since → from
-    - limit → pageSize
-    - maps fields + truncated entityId
-    - null-actorTag → "—"
-    - short entityId not truncated
+    - AuditTailFlow.run — filter mapping
+        - empty filter → empty query object
+        - actor → actorTag
+        - action + entity
+        - since → from
+        - limit → pageSize
+    - AuditTailFlow.formatRows
+        - maps fields + truncated entityId
+        - null-actorTag → "—"
+        - short entityId not truncated
 
 <!-- END proof -->
 
@@ -10410,14 +11138,16 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/cli/tests/audit-tail-flow.test.js`
-    - empty filter → empty query object
-    - actor → actorTag
-    - action + entity
-    - since → from
-    - limit → pageSize
-    - maps fields + truncated entityId
-    - null-actorTag → "—"
-    - short entityId not truncated
+    - AuditTailFlow.run — filter mapping
+        - empty filter → empty query object
+        - actor → actorTag
+        - action + entity
+        - since → from
+        - limit → pageSize
+    - AuditTailFlow.formatRows
+        - maps fields + truncated entityId
+        - null-actorTag → "—"
+        - short entityId not truncated
 
 <!-- END proof -->
 
@@ -10505,23 +11235,27 @@ _Source:_ `CONTRIBUTING.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-booking-outlives-the-request.integration.test.js`
-    - a booking with a window keeps every part of it
-    - a booking from before those columns keeps null, not an invented window
-    - an id nobody booked answers null rather than throwing
-    - the list is the subscription’s own, not the neighbour’s
-    - a subscription with no bookings lists nothing, rather than everything
-    - a booking nobody cancelled is active
-    - a cancellation still ahead leaves it active
-    - a cancellation that has landed ends it
-    - the effective date itself is the first moment it is over
-    - asking without a moment asks about now
-    - reactivating clears both dates and the booking is active again
-    - cancelling something that is not there says so, rather than doing nothing quietly
-    - reactivating something that is not there says so too
-    - active bookings of that version are counted, across subscriptions
-    - a different version is not counted
-    - a booking whose cancellation has landed is not counted
-    - a version nobody booked counts zero
+    - what a booking carries
+        - a booking with a window keeps every part of it
+        - a booking from before those columns keeps null, not an invented window
+        - an id nobody booked answers null rather than throwing
+        - the list is the subscription’s own, not the neighbour’s
+        - a subscription with no bookings lists nothing, rather than everything
+    - what counts as active
+        - a booking nobody cancelled is active
+        - a cancellation still ahead leaves it active
+        - a cancellation that has landed ends it
+        - the effective date itself is the first moment it is over
+        - asking without a moment asks about now
+    - undoing a cancellation
+        - reactivating clears both dates and the booking is active again
+        - cancelling something that is not there says so, rather than doing nothing quietly
+        - reactivating something that is not there says so too
+    - counting what a catalogue version still owes
+        - active bookings of that version are counted, across subscriptions
+        - a different version is not counted
+        - a booking whose cancellation has landed is not counted
+        - a version nobody booked counts zero
 - `packages/nest/tests/registration-service.test.js`
     - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
     - runCleanup() without expired → deleted=0, idempotent
@@ -10540,81 +11274,96 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/migration-constraints.test.js`
-    - the one that appeared between the two listings
-    - nothing new means nothing to append to, even with migrations present
-    - directories that are not migrations are not candidates
-    - the newest of several, when a run somehow produced two
-    - no migrations at all is not an error, it is nothing to do
-    - the statements land after the tables
-    - it says where the copy came from
-    - running it twice appends once
-    - a migration that already has them is recognised
-    - a migration without a trailing newline still gets a separating one
-    - reads the table off each statement
-    - keeps the ones whose table is present
-    - keeps everything when every table is present
-    - a statement it cannot read is kept, not dropped
-    - nothing applicable appends nothing at all
-    - only a failure stops the command
-    - "before applying" is said exactly when the command will not apply
-    - a failure says where the SQL is, because the operator now needs it
-    - nothing to append is not a failure
-    - every outcome carries a message and a decision
+    - which migration the constraints belong to
+        - the one that appeared between the two listings
+        - nothing new means nothing to append to, even with migrations present
+        - directories that are not migrations are not candidates
+        - the newest of several, when a run somehow produced two
+        - no migrations at all is not an error, it is nothing to do
+    - appending them
+        - the statements land after the tables
+        - it says where the copy came from
+        - running it twice appends once
+        - a migration that already has them is recognised
+        - a migration without a trailing newline still gets a separating one
+    - only the constraints this schema has tables for
+        - reads the table off each statement
+        - keeps the ones whose table is present
+        - keeps everything when every table is present
+        - a statement it cannot read is kept, not dropped
+        - nothing applicable appends nothing at all
+    - what step 3 did, and whether step 4 may follow
+        - only a failure stops the command
+        - "before applying" is said exactly when the command will not apply
+        - a failure says where the SQL is, because the operator now needs it
+        - nothing to append is not a failure
+        - every outcome carries a message and a decision
 - `packages/cli/tests/schema-apply-dry-run.test.js`
-    - it names the lines, and leaves the file untouched
-    - and the real run writes exactly those lines
-    - past tense belongs to the run that did it
+    - the dry run previews what the real run writes
+        - it names the lines, and leaves the file untouched
+        - and the real run writes exactly those lines
+        - past tense belongs to the run that did it
 - `packages/cli/tests/schema-apply.test.js`
-    - finds top-level models
+    - extractModelNames
+        - finds top-level models
     - ignores commented-out models
     - does not find enum blocks
-    - block stays complete with all lines
-    - adds all models when schema is empty of platform models
-    - idempotent: existing models remain untouched
-    - returns identical schema when all models already present
-    - label appears in the header comment
     - a fragment yields its enums and its models
     - apply appends the enum above the model, once
     - an enum the consumer already declares is left alone
     - a bare model map still works, with no enums
+    - extractModelBlocks
+        - block stays complete with all lines
+    - applyFragmentBlocks
+        - adds all models when schema is empty of platform models
+        - idempotent: existing models remain untouched
+        - returns identical schema when all models already present
+        - label appears in the header comment
 - `packages/cli/tests/schema-check.test.js`
-    - reads name, type and modifiers, skips attributes and comments
+    - parseFields
+        - reads name, type and modifiers, skips attributes and comments
     - reads single-line model blocks
-    - reads members and ignores attributes
-    - reads members sharing one line
-    - separates models from enums
-    - commented-out relations are not fields
-    - identical schema has no drift
-    - consumer extensions are not drift
-    - missing field in an adopted model fails
-    - absent model is informational, not a failure
-    - missing enum value in an adopted enum fails
-    - absent enum is informational, not a failure
-    - type change is a mismatch
-    - String replaced by a locally declared enum is allowed
-    - String[] replaced by a local enum list is allowed
-    - a non-String spec type is not substitutable by an enum
-    - a consumer widening a required field to nullable is a mismatch
-    - a consumer tightening a nullable field to required is allowed
-    - list change is a mismatch
     - identical attributes produce no finding
     - a missing index is reported but does not fail the check
     - a missing unique constraint fails the check
     - a diverging @@map fails the check and names both sides
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
-    - a commented-out @@unique or @@map counts as absent, not present
-    - a brace inside a string default does not close the model early
-    - a // inside a string literal is not treated as a comment
-    - indexed field arguments are parsed past their parentheses
-    - @@map survives the comment strip
-    - blanks contents, keeps quotes and length
-    - handles escaped quotes without leaving the string early
-    - leaves a line without strings untouched
-    - is linear on pathological input
+    - parseEnumValues
+        - reads members and ignores attributes
+        - reads members sharing one line
+    - parseSchema
+        - separates models from enums
+        - commented-out relations are not fields
+    - checkSchema
+        - identical schema has no drift
+        - consumer extensions are not drift
+        - missing field in an adopted model fails
+        - absent model is informational, not a failure
+        - missing enum value in an adopted enum fails
+        - absent enum is informational, not a failure
+        - type change is a mismatch
+        - String replaced by a locally declared enum is allowed
+        - String[] replaced by a local enum list is allowed
+        - a non-String spec type is not substitutable by an enum
+        - a consumer widening a required field to nullable is a mismatch
+        - a consumer tightening a nullable field to required is allowed
+        - list change is a mismatch
+    - parser hardening (review findings)
+        - a commented-out @@unique or @@map counts as absent, not present
+        - a brace inside a string default does not close the model early
+        - a // inside a string literal is not treated as a comment
+        - indexed field arguments are parsed past their parentheses
+        - @@map survives the comment strip
+    - blankStringLiterals
+        - blanks contents, keeps quotes and length
+        - handles escaped quotes without leaving the string early
+        - leaves a line without strings untouched
+        - is linear on pathological input
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
-    - there are migrations to check
-    - ${name} runs twice, and the second time changes nothing
+    - a shipped migration survives a second run
+        - there are migrations to check
+        - ${name} runs twice, and the second time changes nothing
 
 <!-- END proof -->
 
@@ -10629,29 +11378,36 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/schema-apply.test.js`
-    - finds top-level models
+    - extractModelNames
+        - finds top-level models
     - ignores commented-out models
     - does not find enum blocks
-    - block stays complete with all lines
-    - adds all models when schema is empty of platform models
-    - idempotent: existing models remain untouched
-    - returns identical schema when all models already present
-    - label appears in the header comment
     - a fragment yields its enums and its models
     - apply appends the enum above the model, once
     - an enum the consumer already declares is left alone
     - a bare model map still works, with no enums
+    - extractModelBlocks
+        - block stays complete with all lines
+    - applyFragmentBlocks
+        - adds all models when schema is empty of platform models
+        - idempotent: existing models remain untouched
+        - returns identical schema when all models already present
+        - label appears in the header comment
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
-    - there are migrations to check
-    - ${name} runs twice, and the second time changes nothing
+    - a shipped migration survives a second run
+        - there are migrations to check
+        - ${name} runs twice, and the second time changes nothing
 - `tests/build-stamp.test.js`
-    - is stable across runs and changes with a source edit
-    - sees a deleted file and a build config, not a test
-    - a dependency edit makes the dependent stale
-    - no stamp means not current
-    - only a build through build-and-prune writes a stamp
-    - the previous stamp is gone before the build starts
-    - the lockfile is an input
+    - the build stamp
+        - is stable across runs and changes with a source edit
+        - sees a deleted file and a build config, not a test
+        - a dependency edit makes the dependent stale
+        - no stamp means not current
+    - which builds are judged at all
+        - only a build through build-and-prune writes a stamp
+    - a build that does not finish leaves no stamp
+        - the previous stamp is gone before the build starts
+        - the lockfile is an input
 
 <!-- END proof -->
 
@@ -10680,15 +11436,20 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/cli/tests/default-doctor-checks.test.js`
-    - error when no plans
-    - ok with plans + details contain planIds
-    - warning when snapshot empty
-    - ok with content
-    - ok when findByEmail does not throw
-    - error when findByEmail throws
-    - ok with standardPages count
-    - error when getManifest throws
-    - contains exactly 4 provider classes
+    - PlanCatalogDoctorCheck
+        - error when no plans
+        - ok with plans + details contain planIds
+    - DiscoverySnapshotDoctorCheck
+        - warning when snapshot empty
+        - ok with content
+    - UserPortDoctorCheck
+        - ok when findByEmail does not throw
+        - error when findByEmail throws
+    - AdminManifestDoctorCheck
+        - ok with standardPages count
+        - error when getManifest throws
+    - PLATFORM_DOCTOR_CHECK_PROVIDERS
+        - contains exactly 4 provider classes
 
 <!-- END proof -->
 
@@ -10743,12 +11504,15 @@ _Source:_ `CONTRIBUTING.md` · `README.md`
 _Tested by:_
 
 - `packages/nest/tests/cjs-entry-identity.test.js`
-    - no exported name resolves to different values across entries
-    - the shared bundle actually backs every entry
-    - a class is shared even between entries that never import each other
+    - CJS entries share one set of objects
+        - no exported name resolves to different values across entries
+        - the shared bundle actually backs every entry
+        - a class is shared even between entries that never import each other
 - `packages/nest/tests/di-token-registry.test.js`
-    - @saasicat/nest${name === '.' ? '' : name}
-    - every exported token key uses a known prefix
+    - exported DI tokens live in the global symbol registry
+        - @saasicat/nest${name === '.' ? '' : name}
+    - token keys stay inside the shared namespace
+        - every exported token key uses a known prefix
 - `packages/nest/tests/platform-composition.test.js`
     - the seam is in the CJS build too
         - the composers are there, in the same order
@@ -10762,58 +11526,68 @@ _Tested by:_
 - `packages/spec/tests/openapi-version-is-the-package-version.test.js`
     - the OpenAPI document carries the version this package publishes
 - `packages/ui-vue/tests/injection-keys-are-global-symbols.test.js`
-    - the guard found Vue and read every file
-    - there are keys and call sites to look at
-    - every injection key is created with Symbol.for
-    - every key a provide/inject call names is one the declaration scan found
-    - every provide/inject call site was read
-    - the annotated declarations survive the tree walk
-    - an annotated declaration
-    - an InjectionKey reached through a local type alias (#158, shape 1)
-    - same-file homonyms stay in their own scope (#158, shape 2)
-    - a cast and a satisfies
-    - a second declarator, and one behind type arguments
-    - a .vue script block that closes with `&lt;/script &gt;`
-    - a key exported from a .vue and provided from a .ts
-    - a .vue script block that never closes
-    - provide and inject imported under another name
-    - a key imported through `export *` and through `export { … } from`
-    - a string key is a key, and not a missing Symbol.for
-    - grouping is grouping, and a decoy is not a Symbol.for
-    - an assertion may contain what a type contains
-    - a key reached through a property is reported, not skipped
-    - a key declared outside the tree is reported, not skipped
-    - a used key that is not declared as an InjectionKey
-    - a local binding spelled Symbol is not the global Symbol
-    - a comment and a string are not call sites
-    - somebody else's provide is not Vue's
-    - the token count is a second reader, not the same one
+    - every Vue injection key is created with Symbol.for
+        - the guard found Vue and read every file
+        - there are keys and call sites to look at
+        - every injection key is created with Symbol.for
+        - every key a provide/inject call names is one the declaration scan found
+        - every provide/inject call site was read
+        - the annotated declarations survive the tree walk
+    - the guard fails on what it says it covers
+        - an annotated declaration
+        - an InjectionKey reached through a local type alias (#158, shape 1)
+        - same-file homonyms stay in their own scope (#158, shape 2)
+        - a cast and a satisfies
+        - a second declarator, and one behind type arguments
+        - a .vue script block that closes with `&lt;/script &gt;`
+        - a key exported from a .vue and provided from a .ts
+        - a .vue script block that never closes
+        - provide and inject imported under another name
+        - a key imported through `export *` and through `export { … } from`
+        - a string key is a key, and not a missing Symbol.for
+        - grouping is grouping, and a decoy is not a Symbol.for
+        - an assertion may contain what a type contains
+        - a key reached through a property is reported, not skipped
+        - a key declared outside the tree is reported, not skipped
+        - a used key that is not declared as an InjectionKey
+        - a local binding spelled Symbol is not the global Symbol
+        - a comment and a string are not call sites
+        - somebody else's provide is not Vue's
+        - the token count is a second reader, not the same one
 - `tests/a-dependency-is-declared-once.test.js`
-    - the sweep finds the manifests
-    - nothing is both a dependency and a devDependency
-    - nothing is both a dependency and a peer
+    - a dependency is declared once
+        - the sweep finds the manifests
+        - nothing is both a dependency and a devDependency
+        - nothing is both a dependency and a peer
 - `tests/consumers-dedupe-singleton-peers.test.js`
-    - the peer set is non-empty and is what we think it is
-    - ${relative} dedupes them
+    - a consumer resolves one copy of every singleton peer
+        - the peer set is non-empty and is what we think it is
+        - ${relative} dedupes them
 - `tests/di-tokens-share-one-namespace.test.js`
-    - the scan found the tokens
-    - every key starts with saasicat/&lt;package&gt;/
-    - no two declarations share a key
-    - reads single- and multi-line calls, and reports template literals
-    - derives the prefix from the package directory
+    - registry keys share one namespace
+        - the scan found the tokens
+        - every key starts with saasicat/&lt;package&gt;/
+        - no two declarations share a key
+    - the scanner itself
+        - reads single- and multi-line calls, and reports template literals
+        - derives the prefix from the package directory
 - `tests/error-identity-across-entries.test.js`
-    - the two entries really do hand out separate classes
-    - instanceof does not survive the split
-    - the brand does, and the error keeps everything it carried
-    - a foreign error is still wrapped, so the brand is not a blanket pass
-    - a transport failure marked through one entry is read back through the other
-    - an empty response marked through one entry is read back through the other
-    - an unmarked error is not mistaken for either
+    - AdminError across the CJS entries of @saasicat/ui-vue
+        - the two entries really do hand out separate classes
+        - instanceof does not survive the split
+        - the brand does, and the error keeps everything it carried
+        - a foreign error is still wrapped, so the brand is not a blanket pass
+    - the declarations about a failure survive the split too
+        - a transport failure marked through one entry is read back through the other
+        - an empty response marked through one entry is read back through the other
+        - an unmarked error is not mistaken for either
 - `tests/every-published-package-is-in-the-fixed-group.test.js`
-    - there is exactly one fixed group
-    - every publishable package is in it
-    - the group names no package that does not exist
-    - while in pre mode, initialVersions names every publishable package
+    - the release group covers everything that is published
+        - there is exactly one fixed group
+        - every publishable package is in it
+        - the group names no package that does not exist
+    - the candidate line knows every package too
+        - while in pre mode, initialVersions names every publishable package
 
 <!-- END proof -->
 
@@ -10828,9 +11602,10 @@ _Source:_ `CONTRIBUTING.md`
 _Tested by:_
 
 - `tests/pre-release-mode-is-documented.test.js`
-    - on a 0.x base, a major changeset and pre mode appear together
-    - and the tag it uses is the tag the docs name
-    - the check has a subject either way
+    - the configured release line can reach the version it is for
+        - on a 0.x base, a major changeset and pre mode appear together
+        - and the tag it uses is the tag the docs name
+        - the check has a subject either way
 
 <!-- END proof -->
 
@@ -10846,50 +11621,61 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/v1-imports.test.js`
-    - it has entries
-    - every destination is on a public surface
-    - every move lands on a file that exists — in this package or the one it names
-    - a component that left for the tenant package is rewritten, not reported
-    - a package target names a package this repository publishes
-    - a primitive that moved into ui/
-    - the shell, which left pages/ for layouts/ — under either old spelling
-    - a page that only lost the second spelling
-    - a page that was already right stays untouched
-    - a domain component is recognised as unreachable
-    - and it survives the rewrite untouched, so the build names it
-    - a primitive is not reported — it has somewhere to go
-    - a page-private part under the old alias is a removal, not a page
-    - counts what it changed and leaves the rest alone
-    - the whole path below it comes along
-    - the emitted specifier is not prefixed with the old package
-    - a subpath that merely starts with the same letters is untouched
+    - the map is derived from the move, not written beside it
+        - it has entries
+        - every destination is on a public surface
+        - every move lands on a file that exists — in this package or the one it names
+        - a component that left for the tenant package is rewritten, not reported
+        - a package target names a package this repository publishes
+    - the four shapes a consumer meets
+        - a primitive that moved into ui/
+        - the shell, which left pages/ for layouts/ — under either old spelling
+        - a page that only lost the second spelling
+        - a page that was already right stays untouched
+    - what has no new home is reported, not guessed at
+        - a domain component is recognised as unreachable
+        - and it survives the rewrite untouched, so the build names it
+        - a primitive is not reported — it has somewhere to go
+        - a page-private part under the old alias is a removal, not a page
+    - rewriting a file
+        - counts what it changed and leaves the rest alone
+    - a prefix that moved to another package
+        - the whole path below it comes along
+        - the emitted specifier is not prefixed with the old package
+        - a subpath that merely starts with the same letters is untouched
 - `packages/cli/tests/v1-rename.test.js`
-    - it has entries in every section
-    - every registry-key target is inside the one namespace
-    - every per-entry token target is exported by that entry
-    - every identifier stem resolves to the one spelling
-    - the module class and the option types
-    - a stem inside a longer identifier
-    - the lowercase scope and file names are not a stem
-    - a registry key a consumer spelled themselves, on one line or three
-    - an import specifier that looks like the ui-vue key prefix is left alone
-    - the token that meant two things is renamed by the entry it came from
-    - and reported, not guessed, when the entry does not say which
-    - the package that stopped being only types
-    - the e2e helper subpath
-    - a second run changes nothing
-    - single-line, multi-line, type-only and aliased forms
-    - finishes on the input a backtracking expression would choke on
-    - is reported, not rewritten to whichever import came last
-    - the dependency fields are rewritten, nothing else is
-    - the optional flag follows the peer it belongs to
-    - a workspace or path range is reported, not guessed at
-    - a manifest without the package is returned untouched
-    - the specifier rewrite stops at the package boundary
+    - the table points at things that exist
+        - it has entries in every section
+        - every registry-key target is inside the one namespace
+        - every per-entry token target is exported by that entry
+        - every identifier stem resolves to the one spelling
+    - the shapes a consumer meets
+        - the module class and the option types
+        - a stem inside a longer identifier
+        - the lowercase scope and file names are not a stem
+        - a registry key a consumer spelled themselves, on one line or three
+        - an import specifier that looks like the ui-vue key prefix is left alone
+        - the token that meant two things is renamed by the entry it came from
+        - and reported, not guessed, when the entry does not say which
+        - the package that stopped being only types
+        - the e2e helper subpath
+        - a second run changes nothing
+    - reading named imports
+        - single-line, multi-line, type-only and aliased forms
+        - finishes on the input a backtracking expression would choke on
+    - one name from two entries in one file
+        - is reported, not rewritten to whichever import came last
+    - a renamed package reaches the manifest
+        - the dependency fields are rewritten, nothing else is
+        - the optional flag follows the peer it belongs to
+        - a workspace or path range is reported, not guessed at
+        - a manifest without the package is returned untouched
+        - the specifier rewrite stops at the package boundary
 - `tests/pre-release-mode-is-documented.test.js`
-    - on a 0.x base, a major changeset and pre mode appear together
-    - and the tag it uses is the tag the docs name
-    - the check has a subject either way
+    - the configured release line can reach the version it is for
+        - on a 0.x base, a major changeset and pre mode appear together
+        - and the tag it uses is the tag the docs name
+        - the check has a subject either way
 
 <!-- END proof -->
 
@@ -10905,10 +11691,11 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
-    - every member is reported, flattened to the path it has in the file
-    - an empty list reads as one, rather than as nothing at all
-    - the report is read off the document, so it follows what the template writes
-    - a catalogue the platform would refuse fails here, not at the first boot
+    - what init says about the settings it wrote
+        - every member is reported, flattened to the path it has in the file
+        - an empty list reads as one, rather than as nothing at all
+        - the report is read off the document, so it follows what the template writes
+        - a catalogue the platform would refuse fails here, not at the first boot
     - names both, with the line each is on
     - the set is read off the schema, not written out beside it
     - every setting the schema names has a sentence saying where it goes
@@ -10924,87 +11711,105 @@ _Tested by:_
     - a mention in a comment is reported, and that is the chosen trade
     - several occurrences of one setting are all named, in file order
 - `packages/cli/tests/codemod-project-key.test.js`
-    - the only parameter takes the question mark with it
-    - the first of several hands the question mark to the next
-    - a later one takes its own ampersand
-    - an interpolation with an ampersand inside it stays whole
-    - a fragment survives the parameter in front of it
-    - a call expression is simple enough to keep
-    - a nested object inside the interpolation
-    - a brace inside a string inside the interpolation
-    - an interpolation that never closes
-    - somebody else's endpoint keeps its parameter, and is reported
-    - and the word in one of its query values does not make it ours
-    - an occurrence at the very start does not end the scan
-    - the endpoint constant
-    - a create body
-    - a string-literal type member, which `tsc` accepts
-    - an interface member
-    - a bare-identifier value
-    - the shorthand form, which used to pass in silence
-    - a consumer's own object
-    - several are reported in the order they appear, once per line
-    - is neither rewritten nor reported
-    - and neither is a suffix
-    - a rewrite that shortens the file does not shift the lines it reports
-    - and a parameter that was removed is not also reported
-    - loses the top-level key and nothing else
-    - an indented key of the same name is not the top-level one
+    - a query parameter the admin API no longer reads
+        - the only parameter takes the question mark with it
+        - the first of several hands the question mark to the next
+        - a later one takes its own ampersand
+        - an interpolation with an ampersand inside it stays whole
+        - a fragment survives the parameter in front of it
+        - a call expression is simple enough to keep
+    - a value the scanner would have to lex is left alone
+        - a nested object inside the interpolation
+        - a brace inside a string inside the interpolation
+        - an interpolation that never closes
+        - somebody else's endpoint keeps its parameter, and is reported
+        - and the word in one of its query values does not make it ours
+        - an occurrence at the very start does not end the scan
+    - an object member is reported, never rewritten
+        - the endpoint constant
+        - a create body
+        - a string-literal type member, which `tsc` accepts
+        - an interface member
+        - a bare-identifier value
+        - the shorthand form, which used to pass in silence
+        - a consumer's own object
+        - several are reported in the order they appear, once per line
+    - a longer identifier is somebody else's name
+        - is neither rewritten nor reported
+        - and neither is a suffix
+    - the report names lines of the file a person will open
+        - a rewrite that shortens the file does not shift the lines it reports
+        - and a parameter that was removed is not also reported
+    - the catalogue configuration
+        - loses the top-level key and nothing else
+        - an indented key of the same name is not the top-level one
 - `packages/cli/tests/v1-rename.test.js`
-    - it has entries in every section
-    - every registry-key target is inside the one namespace
-    - every per-entry token target is exported by that entry
-    - every identifier stem resolves to the one spelling
-    - the module class and the option types
-    - a stem inside a longer identifier
-    - the lowercase scope and file names are not a stem
-    - a registry key a consumer spelled themselves, on one line or three
-    - an import specifier that looks like the ui-vue key prefix is left alone
-    - the token that meant two things is renamed by the entry it came from
-    - and reported, not guessed, when the entry does not say which
-    - the package that stopped being only types
-    - the e2e helper subpath
-    - a second run changes nothing
-    - single-line, multi-line, type-only and aliased forms
-    - finishes on the input a backtracking expression would choke on
-    - is reported, not rewritten to whichever import came last
-    - the dependency fields are rewritten, nothing else is
-    - the optional flag follows the peer it belongs to
-    - a workspace or path range is reported, not guessed at
-    - a manifest without the package is returned untouched
-    - the specifier rewrite stops at the package boundary
+    - the table points at things that exist
+        - it has entries in every section
+        - every registry-key target is inside the one namespace
+        - every per-entry token target is exported by that entry
+        - every identifier stem resolves to the one spelling
+    - the shapes a consumer meets
+        - the module class and the option types
+        - a stem inside a longer identifier
+        - the lowercase scope and file names are not a stem
+        - a registry key a consumer spelled themselves, on one line or three
+        - an import specifier that looks like the ui-vue key prefix is left alone
+        - the token that meant two things is renamed by the entry it came from
+        - and reported, not guessed, when the entry does not say which
+        - the package that stopped being only types
+        - the e2e helper subpath
+        - a second run changes nothing
+    - reading named imports
+        - single-line, multi-line, type-only and aliased forms
+        - finishes on the input a backtracking expression would choke on
+    - one name from two entries in one file
+        - is reported, not rewritten to whichever import came last
+    - a renamed package reaches the manifest
+        - the dependency fields are rewritten, nothing else is
+        - the optional flag follows the peer it belongs to
+        - a workspace or path range is reported, not guessed at
+        - a manifest without the package is returned untouched
+        - the specifier rewrite stops at the package boundary
 - `tests/codemod-stylesheet-parser.test.js`
-    - a comment before the property does not hide the declaration
-    - a comment between two declarations hides neither
-    - a comment glued to the property name is still a comment
-    - a commented-out rule contributes no declarations
-    - an unterminated comment swallows the rest and nothing more
-    - a comment opener inside a string opens no comment
-    - an apostrophe inside a comment opens no string
-    - offsets survive a comment before the declaration
-    - offsets survive a comment inside the value
-    - offsets survive a multi-line comment
-    - a selector colon is not a property
-    - a colon inside parentheses does not split the property
-    - the last declaration needs no trailing semicolon
-    - nesting needs no special case — @media and :deep() are just depth
-    - a custom property is a declaration like any other
-    - the same literal lands in different groups
-    - a custom property is its own group — its readers decide its role
-    - a property that paints nothing is not a colour site
-    - case and padding do not change the group
-    - a .css file is one block at offset 0
-    - an SFC contributes one block per &lt;style&gt;, offset into the file
-    - an upper-case tag is still a block
-    - an end tag is read however HTML lets it be written
-    - scoped and lang attributes do not hide a block
-    - a template is never a site — neither its text nor its inline style
-    - start/end address the literal in the original file
-    - the same literal under two properties yields two different keys
-    - a colour inside a comment is prose, not paint
-    - a functional colour with a var() channel is a token in use, not a literal
-    - sites come back in document order
-    - case and inner whitespace do not make a second key
+    - declarations — comments sit wherever a space may sit
+        - a comment before the property does not hide the declaration
+        - a comment between two declarations hides neither
+        - a comment glued to the property name is still a comment
+        - a commented-out rule contributes no declarations
+        - an unterminated comment swallows the rest and nothing more
+        - a comment opener inside a string opens no comment
+        - an apostrophe inside a comment opens no string
+    - declarations — the span is a byte range in the original text
+        - offsets survive a comment before the declaration
+        - offsets survive a comment inside the value
+        - offsets survive a multi-line comment
+    - declarations — structure
+        - a selector colon is not a property
+        - a colon inside parentheses does not split the property
+        - the last declaration needs no trailing semicolon
+        - nesting needs no special case — @media and :deep() are just depth
+        - a custom property is a declaration like any other
+    - propertyGroup — the paint job, not the value
+        - the same literal lands in different groups
+        - a custom property is its own group — its readers decide its role
+        - a property that paints nothing is not a colour site
+        - case and padding do not change the group
+    - styleBlocks — only stylesheets, with their offset
+        - a .css file is one block at offset 0
+        - an SFC contributes one block per &lt;style&gt;, offset into the file
+        - an upper-case tag is still a block
+        - an end tag is read however HTML lets it be written
+        - scoped and lang attributes do not hide a block
+    - colourSites — what a codemod is handed
+        - a template is never a site — neither its text nor its inline style
+        - start/end address the literal in the original file
+        - the same literal under two properties yields two different keys
+        - a colour inside a comment is prose, not paint
+        - a functional colour with a var() channel is a token in use, not a literal
+        - sites come back in document order
+    - normaliseColour — one key per colour
+        - case and inner whitespace do not make a second key
 
 <!-- END proof -->
 
@@ -11020,32 +11825,38 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/codemod-project-key.test.js`
-    - the only parameter takes the question mark with it
-    - the first of several hands the question mark to the next
-    - a later one takes its own ampersand
-    - an interpolation with an ampersand inside it stays whole
-    - a fragment survives the parameter in front of it
-    - a call expression is simple enough to keep
-    - a nested object inside the interpolation
-    - a brace inside a string inside the interpolation
-    - an interpolation that never closes
-    - somebody else's endpoint keeps its parameter, and is reported
-    - and the word in one of its query values does not make it ours
-    - an occurrence at the very start does not end the scan
-    - the endpoint constant
-    - a create body
-    - a string-literal type member, which `tsc` accepts
-    - an interface member
-    - a bare-identifier value
-    - the shorthand form, which used to pass in silence
-    - a consumer's own object
-    - several are reported in the order they appear, once per line
-    - is neither rewritten nor reported
-    - and neither is a suffix
-    - a rewrite that shortens the file does not shift the lines it reports
-    - and a parameter that was removed is not also reported
-    - loses the top-level key and nothing else
-    - an indented key of the same name is not the top-level one
+    - a query parameter the admin API no longer reads
+        - the only parameter takes the question mark with it
+        - the first of several hands the question mark to the next
+        - a later one takes its own ampersand
+        - an interpolation with an ampersand inside it stays whole
+        - a fragment survives the parameter in front of it
+        - a call expression is simple enough to keep
+    - a value the scanner would have to lex is left alone
+        - a nested object inside the interpolation
+        - a brace inside a string inside the interpolation
+        - an interpolation that never closes
+        - somebody else's endpoint keeps its parameter, and is reported
+        - and the word in one of its query values does not make it ours
+        - an occurrence at the very start does not end the scan
+    - an object member is reported, never rewritten
+        - the endpoint constant
+        - a create body
+        - a string-literal type member, which `tsc` accepts
+        - an interface member
+        - a bare-identifier value
+        - the shorthand form, which used to pass in silence
+        - a consumer's own object
+        - several are reported in the order they appear, once per line
+    - a longer identifier is somebody else's name
+        - is neither rewritten nor reported
+        - and neither is a suffix
+    - the report names lines of the file a person will open
+        - a rewrite that shortens the file does not shift the lines it reports
+        - and a parameter that was removed is not also reported
+    - the catalogue configuration
+        - loses the top-level key and nothing else
+        - an indented key of the same name is not the top-level one
 
 <!-- END proof -->
 
@@ -11061,70 +11872,83 @@ _Source:_ ADR 0002 · `CONTRIBUTING.md`
 _Tested by:_
 
 - `packages/cli/tests/v1-imports.test.js`
-    - it has entries
-    - every destination is on a public surface
-    - every move lands on a file that exists — in this package or the one it names
-    - a component that left for the tenant package is rewritten, not reported
-    - a package target names a package this repository publishes
-    - a primitive that moved into ui/
-    - the shell, which left pages/ for layouts/ — under either old spelling
-    - a page that only lost the second spelling
-    - a page that was already right stays untouched
-    - a domain component is recognised as unreachable
-    - and it survives the rewrite untouched, so the build names it
-    - a primitive is not reported — it has somewhere to go
-    - a page-private part under the old alias is a removal, not a page
-    - counts what it changed and leaves the rest alone
-    - the whole path below it comes along
-    - the emitted specifier is not prefixed with the old package
-    - a subpath that merely starts with the same letters is untouched
+    - the map is derived from the move, not written beside it
+        - it has entries
+        - every destination is on a public surface
+        - every move lands on a file that exists — in this package or the one it names
+        - a component that left for the tenant package is rewritten, not reported
+        - a package target names a package this repository publishes
+    - the four shapes a consumer meets
+        - a primitive that moved into ui/
+        - the shell, which left pages/ for layouts/ — under either old spelling
+        - a page that only lost the second spelling
+        - a page that was already right stays untouched
+    - what has no new home is reported, not guessed at
+        - a domain component is recognised as unreachable
+        - and it survives the rewrite untouched, so the build names it
+        - a primitive is not reported — it has somewhere to go
+        - a page-private part under the old alias is a removal, not a page
+    - rewriting a file
+        - counts what it changed and leaves the rest alone
+    - a prefix that moved to another package
+        - the whole path below it comes along
+        - the emitted specifier is not prefixed with the old package
+        - a subpath that merely starts with the same letters is untouched
 - `tests/a-promise-is-not-edited-into-another.test.js`
-    - a line break is not a change
-    - code formatting is not a change
-    - but emphasis is, because it cannot be told from a literal
-    - an identifier is read as where its chain ends
-    - and swapping in an unrelated one is a change
-    - the heading is part of the promise
-    - an underscore inside a name is not emphasis
-    - an asterisk inside a pattern is not emphasis
-    - a different word is a change
-    - an untouched entry is accepted
-    - a rewritten promise is refused
-    - a rewritten promise the commit calls editorial is accepted
-    - an editorial claim for one entry does not cover another
-    - a deleted entry is refused
-    - a new entry beside the old one is accepted
-    - superseding without touching the wording is accepted
-    - rewriting the wording while superseding is refused
-    - delivering a promise is not rewriting it
-    - filing a delivered promise as an intention is refused
-    - correcting a record that was wrong is accepted when it is claimed
-    - demoting a promise to a draft is refused
-    - deciding a draft is accepted
-    - dropping a draft is accepted
-    - a withdrawn promise coming back is refused
-    - a rewrite in the resolution is reported
-    - a deletion in the resolution is reported
-    - what came in from the other branch is not
-    - what this branch had already done is not
-    - a parent that never had the entry does not acquit it
-    - the parent that notices need not be the first
-    - an entry that only arrived with one parent is left alone
-    - the parser produces exactly the fields the guard has decided about
-    - nothing is in both lists
-    - the sweep is looking at a real entry
-    - a successor that already existed is refused
-    - a successor introduced by the same change is accepted
-    - a supersession that was already there is left alone
-    - but retargeting one that was already there is refused
-    - a withdrawal naming where the ground is covered is accepted
-    - a claim covers the step that carries it
-    - and does not reach the step after it
-    - the same two edits pooled into one step would pass
-    - a trailer names one identifier
-    - a trailer names several, however they are separated
-    - several commits each contribute their own
-    - the word inside a sentence is not a trailer
+    - the fingerprint is the promise, not the prose around it
+        - a line break is not a change
+        - code formatting is not a change
+        - but emphasis is, because it cannot be told from a literal
+        - an identifier is read as where its chain ends
+        - and swapping in an unrelated one is a change
+        - the heading is part of the promise
+        - an underscore inside a name is not emphasis
+        - an asterisk inside a pattern is not emphasis
+        - a different word is a change
+    - an entry that already exists may not quietly become another
+        - an untouched entry is accepted
+        - a rewritten promise is refused
+        - a rewritten promise the commit calls editorial is accepted
+        - an editorial claim for one entry does not cover another
+        - a deleted entry is refused
+        - a new entry beside the old one is accepted
+    - retiring an entry preserves what it said
+        - superseding without touching the wording is accepted
+        - rewriting the wording while superseding is refused
+        - delivering a promise is not rewriting it
+        - filing a delivered promise as an intention is refused
+        - correcting a record that was wrong is accepted when it is claimed
+        - demoting a promise to a draft is refused
+        - deciding a draft is accepted
+        - dropping a draft is accepted
+        - a withdrawn promise coming back is refused
+    - a revision answers for what it did, not what it inherited
+        - a rewrite in the resolution is reported
+        - a deletion in the resolution is reported
+        - what came in from the other branch is not
+        - what this branch had already done is not
+        - a parent that never had the entry does not acquit it
+        - the parent that notices need not be the first
+        - an entry that only arrived with one parent is left alone
+    - every field an entry has is decided about
+        - the parser produces exactly the fields the guard has decided about
+        - nothing is in both lists
+        - the sweep is looking at a real entry
+    - a supersession introduces the promise that replaces it
+        - a successor that already existed is refused
+        - a successor introduced by the same change is accepted
+        - a supersession that was already there is left alone
+        - but retargeting one that was already there is refused
+        - a withdrawal naming where the ground is covered is accepted
+    - a claim excuses the edit that made it, and no other
+        - a claim covers the step that carries it
+        - and does not reach the step after it
+        - the same two edits pooled into one step would pass
+    - the editorial claim is read from the commits, not from the entry
+        - a trailer names one identifier
+        - a trailer names several, however they are separated
+        - several commits each contribute their own
+        - the word inside a sentence is not a trailer
 
 <!-- END proof -->
 
@@ -11142,40 +11966,46 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/schema-check.test.js`
-    - reads name, type and modifiers, skips attributes and comments
+    - parseFields
+        - reads name, type and modifiers, skips attributes and comments
     - reads single-line model blocks
-    - reads members and ignores attributes
-    - reads members sharing one line
-    - separates models from enums
-    - commented-out relations are not fields
-    - identical schema has no drift
-    - consumer extensions are not drift
-    - missing field in an adopted model fails
-    - absent model is informational, not a failure
-    - missing enum value in an adopted enum fails
-    - absent enum is informational, not a failure
-    - type change is a mismatch
-    - String replaced by a locally declared enum is allowed
-    - String[] replaced by a local enum list is allowed
-    - a non-String spec type is not substitutable by an enum
-    - a consumer widening a required field to nullable is a mismatch
-    - a consumer tightening a nullable field to required is allowed
-    - list change is a mismatch
     - identical attributes produce no finding
     - a missing index is reported but does not fail the check
     - a missing unique constraint fails the check
     - a diverging @@map fails the check and names both sides
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
-    - a commented-out @@unique or @@map counts as absent, not present
-    - a brace inside a string default does not close the model early
-    - a // inside a string literal is not treated as a comment
-    - indexed field arguments are parsed past their parentheses
-    - @@map survives the comment strip
-    - blanks contents, keeps quotes and length
-    - handles escaped quotes without leaving the string early
-    - leaves a line without strings untouched
-    - is linear on pathological input
+    - parseEnumValues
+        - reads members and ignores attributes
+        - reads members sharing one line
+    - parseSchema
+        - separates models from enums
+        - commented-out relations are not fields
+    - checkSchema
+        - identical schema has no drift
+        - consumer extensions are not drift
+        - missing field in an adopted model fails
+        - absent model is informational, not a failure
+        - missing enum value in an adopted enum fails
+        - absent enum is informational, not a failure
+        - type change is a mismatch
+        - String replaced by a locally declared enum is allowed
+        - String[] replaced by a local enum list is allowed
+        - a non-String spec type is not substitutable by an enum
+        - a consumer widening a required field to nullable is a mismatch
+        - a consumer tightening a nullable field to required is allowed
+        - list change is a mismatch
+    - parser hardening (review findings)
+        - a commented-out @@unique or @@map counts as absent, not present
+        - a brace inside a string default does not close the model early
+        - a // inside a string literal is not treated as a comment
+        - indexed field arguments are parsed past their parentheses
+        - @@map survives the comment strip
+    - blankStringLiterals
+        - blanks contents, keeps quotes and length
+        - handles escaped quotes without leaving the string early
+        - leaves a line without strings untouched
+        - is linear on pathological input
 
 <!-- END proof -->
 
@@ -11192,36 +12022,43 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/core/tests/codegen-drift.test.js`
-    - ${genFile} is in sync with ${file}
+    - Q.4 Codegen drift gate
+        - ${genFile} is in sync with ${file}
 - `packages/spec/tests/openapi-version-is-the-package-version.test.js`
     - the OpenAPI document carries the version this package publishes
 - `tests/dist-is-self-contained.test.js`
-    - every package that builds was swept
-    - ${pkg.name}: the export map names entry points that exist
-    - ${pkg.name}: every export target the manifest commits to is on disk
-    - ${pkg.name}: every relative reference inside dist/ resolves
-    - ${pkg.name}: no emitted file is unreachable
+    - dist/ contains exactly what the entry points reach
+        - every package that builds was swept
+        - ${pkg.name}: the export map names entry points that exist
+        - ${pkg.name}: every export target the manifest commits to is on disk
+        - ${pkg.name}: every relative reference inside dist/ resolves
+        - ${pkg.name}: no emitted file is unreachable
 - `tests/export-map-matches-filesystem.test.js`
-    - the sweep finds the packages it claims to check
-    - ${pkg.name}: exports its own package.json
-    - ${pkg.name}: every non-wildcard target exists
-    - ${pkg.name}: every wildcard pattern resolves to something
-    - ${pkg.name}: a require condition never hands out an ESM .d.ts
-    - ${pkg.name}: files[] covers every exported path
-    - no NEW subpath duplicates a target
+    - package.json#exports matches the filesystem
+        - the sweep finds the packages it claims to check
+        - ${pkg.name}: exports its own package.json
+        - ${pkg.name}: every non-wildcard target exists
+        - ${pkg.name}: every wildcard pattern resolves to something
+        - ${pkg.name}: a require condition never hands out an ESM .d.ts
+        - ${pkg.name}: files[] covers every exported path
+    - the ui-vue source subpaths stay curated
+        - no NEW subpath duplicates a target
 - `tests/openapi-covers-the-implementation.test.js`
-    - both sweeps reach what they claim to read
-    - every admin route the platform serves is documented
-    - every documented operation is served by the platform or declared app-served
-    - nothing is marked app-served that the platform actually serves
-    - a controller with a computed path says which document covers it
+    - the OpenAPI document describes the implementation
+        - both sweeps reach what they claim to read
+        - every admin route the platform serves is documented
+        - every documented operation is served by the platform or declared app-served
+        - nothing is marked app-served that the platform actually serves
+        - a controller with a computed path says which document covers it
 - `tests/public-options-name-only-what-we-publish.test.js`
-    - the sweep found the components and their interfaces
-    - every Quasar type in an exported interface is re-exported
+    - a public option type names only types this package publishes
+        - the sweep found the components and their interfaces
+        - every Quasar type in an exported interface is re-exported
 - `tests/vue-entry-is-complete.test.js`
-    - there is a layer to compare
-    - the two lists are the same
-    - the vue entry re-exports nothing outside its own layer
+    - the vue entry publishes exactly the layer the main entry re-exports
+        - there is a layer to compare
+        - the two lists are the same
+        - the vue entry re-exports nothing outside its own layer
 
 <!-- END proof -->
 
@@ -11237,24 +12074,31 @@ _Source:_ `CONTRIBUTING.md`
 _Tested by:_
 
 - `packages/cli/tests/module-resolution.test.js`
-    - reads the live value, not the commented-out one above it
+    - readEffectiveModuleResolution
+        - reads the live value, not the commented-out one above it
     - follows extends to a base config that sets the old resolution
     - a local value overrides the inherited one
     - returns null when nothing in the chain sets it
     - returns null for a config TypeScript cannot parse, or none at all
-    - accepts the three kinds that resolve subpath exports, and unset
-    - refuses node10 and classic, naming the setting the reader knows it by
+    - judgeModuleResolution
+        - accepts the three kinds that resolve subpath exports, and unset
+        - refuses node10 and classic, naming the setting the reader knows it by
 - `packages/create-saasicat-admin/tests/scaffold-typechecks.test.js`
-    - vue-tsc accepts the templates as written
+    - a scaffolded admin type-checks against the ui-vue it was scaffolded for
+        - vue-tsc accepts the templates as written
 - `packages/ui-vue/tests/component/sfc-compiles.test.ts`
-    - the sweep finds the files it claims to check
-    - no file fails the SFC compiler
+    - every SFC compiles
+        - the sweep finds the files it claims to check
+        - no file fails the SFC compiler
 - `packages/ui-vue/tests/composables-survive-the-server.test.js`
     - the premise holds: there is no document here
-    - it does not reach for a document that is not there
-    - the markup it emits is still named
-    - the step machine needs no document to say where it is
-    - applying a brand colour is a no-op, and so is undoing it
+    - an initially-open dialog renders on the server
+        - it does not reach for a document that is not there
+        - the markup it emits is still named
+    - a wizard renders on the server
+        - the step machine needs no document to say where it is
+    - the brand bridge on a server
+        - applying a brand colour is a no-op, and so is undoing it
 
 <!-- END proof -->
 
@@ -11271,60 +12115,81 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
-    - table names match the canonical @@map names
-    - camelCase column names are preserved (no snake_case mapping)
-    - instance db → ready instances; declared capabilities
-    - token db → factory specs injecting the token
-    - hasher instance + instance db enables provisioning
-    - transaction runner passes the drizzle tx through as context
+    - schema table map
+        - table names match the canonical @@map names
+        - camelCase column names are preserved (no snake_case mapping)
+    - drizzlePersistence()
+        - instance db → ready instances; declared capabilities
+        - token db → factory specs injecting the token
+        - hasher instance + instance db enables provisioning
+        - transaction runner passes the drizzle tx through as context
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
-    - secret roundtrip incl. enabledAt handling
-    - write maps actor to userId + actorTag on audit_logs
-    - write without changes defaults to {}
-    - maps wildcard actorTag, pagination and row → AuditEntry
-    - isBypassActive only inside runWithBypass
-    - run passes the interactive tx client through as context
-    - findByTenantId maps row + plan version to SubscriptionRecord
-    - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
-    - countByPlanVersionId uses a single OR count
-    - countActiveByPlanKey aggregates by authoritative PlanVersion identity
-    - maps the canonical subscription to the tenant billing display form
-    - findLatestLive filters live versions and maps the record
-    - claimSlot issues the atomic guarded UPDATE
-    - releaseSlot floors at 0 and reactivates EXHAUSTED
-    - create normalizes the code and serializes decimals
-    - findByCode hides soft-deleted codes
-    - update persists every field editable in the Admin promo page
-    - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
-    - create maps defaults and double redemption rejects
-    - createSuperAdmin hashes the password and lowercases the email
-    - duplicate email throws PlatformUserExistsError
-    - upsertPlanVersion is idempotent and supersedes older live versions on publish
-    - loadSnapshot maps rows to wire formats with ISO dates and defaults
-    - bundle.validityWindows reaches the catalog bundle repository
-    - bundle.validityWindows reaches the entitlement bundle repository too
-    - defaults to the 0.6-compatible behavior when omitted
-    - token client → factory specs injecting the token
-    - instance client → ready instances; hasher instance enables provisioning
-    - token client + hasher token → provisioning factory injecting both
+    - PrismaMfaAdapter
+        - secret roundtrip incl. enabledAt handling
+    - PrismaAuditAdapter
+        - write maps actor to userId + actorTag on audit_logs
+        - write without changes defaults to {}
+    - PrismaAuditQueryAdapter
+        - maps wildcard actorTag, pagination and row → AuditEntry
+    - AsyncLocalRlsBypassAdapter
+        - isBypassActive only inside runWithBypass
+    - PrismaTransactionRunner
+        - run passes the interactive tx client through as context
+    - PrismaSubscriptionRepository
+        - findByTenantId maps row + plan version to SubscriptionRecord
+        - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
+        - countByPlanVersionId uses a single OR count
+        - countActiveByPlanKey aggregates by authoritative PlanVersion identity
+    - PrismaSubscriptionUsageAdapter
+        - maps the canonical subscription to the tenant billing display form
+    - PrismaPlanVersionRepository
+        - findLatestLive filters live versions and maps the record
+    - PrismaPromoCodeRepository
+        - claimSlot issues the atomic guarded UPDATE
+        - releaseSlot floors at 0 and reactivates EXHAUSTED
+        - create normalizes the code and serializes decimals
+        - findByCode hides soft-deleted codes
+        - update persists every field editable in the Admin promo page
+        - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+    - PrismaPromoCodeRedemptionRepository
+        - create maps defaults and double redemption rejects
+    - PrismaSuperAdminBootstrapAdapter
+        - createSuperAdmin hashes the password and lowercases the email
+        - duplicate email throws PlatformUserExistsError
+    - PrismaPlanCatalogImportSink
+        - upsertPlanVersion is idempotent and supersedes older live versions on publish
+    - PrismaPlanCatalogReadSink
+        - loadSnapshot maps rows to wire formats with ISO dates and defaults
+    - prismaPersistence() bundle options
+        - bundle.validityWindows reaches the catalog bundle repository
+        - bundle.validityWindows reaches the entitlement bundle repository too
+        - defaults to the 0.6-compatible behavior when omitted
+    - prismaPersistence()
+        - token client → factory specs injecting the token
+        - instance client → ready instances; hasher instance enables provisioning
+        - token client + hasher token → provisioning factory injecting both
 - `packages/core/tests/canonical-rows-become-records.test.js`
-    - dates leave as ISO strings, and an undeleted plan says so
-    - a soft-deleted plan carries the date it was deleted on
-    - the plan key is the one passed, not the one on the row
-    - prices survive as strings, whatever the driver handed over
-    - a schema without validity windows reads them as null, not as dates
-    - a schema without endsAt omits the field rather than saying null
-    - publishedChanges that is not an array reads as null
-    - features and quotas drop entries of the wrong type
-    - a JSON column holding nothing usable reads as empty, not as a crash
-    - dates stay Date objects — a contract record is not a wire format
-    - the lines it is handed become its lines
-    - an entitlement snapshot that is not an object reads as null
-    - snapshot arrays that are not arrays read as empty
-    - terms that are not an object read as null
-    - money becomes a number, from a string or from a Decimal
-    - the commitment date and the metadata survive both ways round
-    - a features snapshot of mixed types keeps only the strings
+    - a plan row becomes a plan record
+        - dates leave as ISO strings, and an undeleted plan says so
+        - a soft-deleted plan carries the date it was deleted on
+    - a plan version row becomes a version record
+        - the plan key is the one passed, not the one on the row
+        - prices survive as strings, whatever the driver handed over
+        - a schema without validity windows reads them as null, not as dates
+        - a schema without endsAt omits the field rather than saying null
+        - publishedChanges that is not an array reads as null
+        - features and quotas drop entries of the wrong type
+        - a JSON column holding nothing usable reads as empty, not as a crash
+    - a contract row becomes a contract record
+        - dates stay Date objects — a contract record is not a wire format
+        - the lines it is handed become its lines
+        - an entitlement snapshot that is not an object reads as null
+        - snapshot arrays that are not arrays read as empty
+        - terms that are not an object read as null
+    - a line item row becomes a line item record
+        - money becomes a number, from a string or from a Decimal
+        - the commitment date and the metadata survive both ways round
+        - a features snapshot of mixed types keeps only the strings
 - `packages/nest/tests/saasicat-persistence.test.js`
     - SaaSiCatModule persistence bundle
         - forRoot wires from a bundle without individual adapters
@@ -11359,88 +12224,115 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
-    - text-declared enum columns round-trip against Postgres enum types
-    - the required planVersionId constraint bites through the drizzle write path
+    - drizzle-specific schema interop
+        - text-declared enum columns round-trip against Postgres enum types
+        - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-drizzle/tests/the-query-map-describes-the-real-tables.test.js`
-    - there is more than one, so a broken scan cannot pass by finding none
-    - ${table} declares exactly the canonical columns
+    - every table in the query map
+        - there is more than one, so a broken scan cannot pass by finding none
+        - ${table} declares exactly the canonical columns
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
-    - partial unique draft indexes exist
-    - one draft per plan lineage is enforced by the database
-    - subscriptions require planVersionId
+    - canonical schema structure
+        - partial unique draft indexes exist
+        - one draft per plan lineage is enforced by the database
+        - subscriptions require planVersionId
 - `packages/adapter-prisma/tests/prisma-adapters.test.js`
-    - secret roundtrip incl. enabledAt handling
-    - write maps actor to userId + actorTag on audit_logs
-    - write without changes defaults to {}
-    - maps wildcard actorTag, pagination and row → AuditEntry
-    - isBypassActive only inside runWithBypass
-    - run passes the interactive tx client through as context
-    - findByTenantId maps row + plan version to SubscriptionRecord
-    - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
-    - countByPlanVersionId uses a single OR count
-    - countActiveByPlanKey aggregates by authoritative PlanVersion identity
-    - maps the canonical subscription to the tenant billing display form
-    - findLatestLive filters live versions and maps the record
-    - claimSlot issues the atomic guarded UPDATE
-    - releaseSlot floors at 0 and reactivates EXHAUSTED
-    - create normalizes the code and serializes decimals
-    - findByCode hides soft-deleted codes
-    - update persists every field editable in the Admin promo page
-    - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
-    - create maps defaults and double redemption rejects
-    - createSuperAdmin hashes the password and lowercases the email
-    - duplicate email throws PlatformUserExistsError
-    - upsertPlanVersion is idempotent and supersedes older live versions on publish
-    - loadSnapshot maps rows to wire formats with ISO dates and defaults
-    - bundle.validityWindows reaches the catalog bundle repository
-    - bundle.validityWindows reaches the entitlement bundle repository too
-    - defaults to the 0.6-compatible behavior when omitted
-    - token client → factory specs injecting the token
-    - instance client → ready instances; hasher instance enables provisioning
-    - token client + hasher token → provisioning factory injecting both
+    - PrismaMfaAdapter
+        - secret roundtrip incl. enabledAt handling
+    - PrismaAuditAdapter
+        - write maps actor to userId + actorTag on audit_logs
+        - write without changes defaults to {}
+    - PrismaAuditQueryAdapter
+        - maps wildcard actorTag, pagination and row → AuditEntry
+    - AsyncLocalRlsBypassAdapter
+        - isBypassActive only inside runWithBypass
+    - PrismaTransactionRunner
+        - run passes the interactive tx client through as context
+    - PrismaSubscriptionRepository
+        - findByTenantId maps row + plan version to SubscriptionRecord
+        - findByTenantIdLocked takes the FOR UPDATE lock inside the tx
+        - countByPlanVersionId uses a single OR count
+        - countActiveByPlanKey aggregates by authoritative PlanVersion identity
+    - PrismaSubscriptionUsageAdapter
+        - maps the canonical subscription to the tenant billing display form
+    - PrismaPlanVersionRepository
+        - findLatestLive filters live versions and maps the record
+    - PrismaPromoCodeRepository
+        - claimSlot issues the atomic guarded UPDATE
+        - releaseSlot floors at 0 and reactivates EXHAUSTED
+        - create normalizes the code and serializes decimals
+        - findByCode hides soft-deleted codes
+        - update persists every field editable in the Admin promo page
+        - expireDueCodes targets ACTIVE/PAUSED with validUntil &lt; now
+    - PrismaPromoCodeRedemptionRepository
+        - create maps defaults and double redemption rejects
+    - PrismaSuperAdminBootstrapAdapter
+        - createSuperAdmin hashes the password and lowercases the email
+        - duplicate email throws PlatformUserExistsError
+    - PrismaPlanCatalogImportSink
+        - upsertPlanVersion is idempotent and supersedes older live versions on publish
+    - PrismaPlanCatalogReadSink
+        - loadSnapshot maps rows to wire formats with ISO dates and defaults
+    - prismaPersistence() bundle options
+        - bundle.validityWindows reaches the catalog bundle repository
+        - bundle.validityWindows reaches the entitlement bundle repository too
+        - defaults to the 0.6-compatible behavior when omitted
+    - prismaPersistence()
+        - token client → factory specs injecting the token
+        - instance client → ready instances; hasher instance enables provisioning
+        - token client + hasher token → provisioning factory injecting both
 - `packages/cli/tests/migration-constraints.test.js`
-    - the one that appeared between the two listings
-    - nothing new means nothing to append to, even with migrations present
-    - directories that are not migrations are not candidates
-    - the newest of several, when a run somehow produced two
-    - no migrations at all is not an error, it is nothing to do
-    - the statements land after the tables
-    - it says where the copy came from
-    - running it twice appends once
-    - a migration that already has them is recognised
-    - a migration without a trailing newline still gets a separating one
-    - reads the table off each statement
-    - keeps the ones whose table is present
-    - keeps everything when every table is present
-    - a statement it cannot read is kept, not dropped
-    - nothing applicable appends nothing at all
-    - only a failure stops the command
-    - "before applying" is said exactly when the command will not apply
-    - a failure says where the SQL is, because the operator now needs it
-    - nothing to append is not a failure
-    - every outcome carries a message and a decision
+    - which migration the constraints belong to
+        - the one that appeared between the two listings
+        - nothing new means nothing to append to, even with migrations present
+        - directories that are not migrations are not candidates
+        - the newest of several, when a run somehow produced two
+        - no migrations at all is not an error, it is nothing to do
+    - appending them
+        - the statements land after the tables
+        - it says where the copy came from
+        - running it twice appends once
+        - a migration that already has them is recognised
+        - a migration without a trailing newline still gets a separating one
+    - only the constraints this schema has tables for
+        - reads the table off each statement
+        - keeps the ones whose table is present
+        - keeps everything when every table is present
+        - a statement it cannot read is kept, not dropped
+        - nothing applicable appends nothing at all
+    - what step 3 did, and whether step 4 may follow
+        - only a failure stops the command
+        - "before applying" is said exactly when the command will not apply
+        - a failure says where the SQL is, because the operator now needs it
+        - nothing to append is not a failure
+        - every outcome carries a message and a decision
 - `packages/core/tests/canonical-rows-become-records.test.js`
-    - dates leave as ISO strings, and an undeleted plan says so
-    - a soft-deleted plan carries the date it was deleted on
-    - the plan key is the one passed, not the one on the row
-    - prices survive as strings, whatever the driver handed over
-    - a schema without validity windows reads them as null, not as dates
-    - a schema without endsAt omits the field rather than saying null
-    - publishedChanges that is not an array reads as null
-    - features and quotas drop entries of the wrong type
-    - a JSON column holding nothing usable reads as empty, not as a crash
-    - dates stay Date objects — a contract record is not a wire format
-    - the lines it is handed become its lines
-    - an entitlement snapshot that is not an object reads as null
-    - snapshot arrays that are not arrays read as empty
-    - terms that are not an object read as null
-    - money becomes a number, from a string or from a Decimal
-    - the commitment date and the metadata survive both ways round
-    - a features snapshot of mixed types keeps only the strings
+    - a plan row becomes a plan record
+        - dates leave as ISO strings, and an undeleted plan says so
+        - a soft-deleted plan carries the date it was deleted on
+    - a plan version row becomes a version record
+        - the plan key is the one passed, not the one on the row
+        - prices survive as strings, whatever the driver handed over
+        - a schema without validity windows reads them as null, not as dates
+        - a schema without endsAt omits the field rather than saying null
+        - publishedChanges that is not an array reads as null
+        - features and quotas drop entries of the wrong type
+        - a JSON column holding nothing usable reads as empty, not as a crash
+    - a contract row becomes a contract record
+        - dates stay Date objects — a contract record is not a wire format
+        - the lines it is handed become its lines
+        - an entitlement snapshot that is not an object reads as null
+        - snapshot arrays that are not arrays read as empty
+        - terms that are not an object read as null
+    - a line item row becomes a line item record
+        - money becomes a number, from a string or from a Decimal
+        - the commitment date and the metadata survive both ways round
+        - a features snapshot of mixed types keeps only the strings
 - `packages/nest/tests/create-saasicat-test-module.test.js`
-    - returns a DynamicModule with a test host
-    - default stubs are no-op capable
-    - overrides can replace individual adapters
+    - createSaaSiCatTestModule
+        - returns a DynamicModule with a test host
+        - default stubs are no-op capable
+        - overrides can replace individual adapters
 - `packages/nest/tests/saasicat-persistence.test.js`
     - standard adapters
         - SubscriptionPlanResolver only grants active subscriptions
@@ -11464,27 +12356,33 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/drizzle-adapters.test.js`
-    - table names match the canonical @@map names
-    - camelCase column names are preserved (no snake_case mapping)
-    - instance db → ready instances; declared capabilities
-    - token db → factory specs injecting the token
-    - hasher instance + instance db enables provisioning
-    - transaction runner passes the drizzle tx through as context
+    - schema table map
+        - table names match the canonical @@map names
+        - camelCase column names are preserved (no snake_case mapping)
+    - drizzlePersistence()
+        - instance db → ready instances; declared capabilities
+        - token db → factory specs injecting the token
+        - hasher instance + instance db enables provisioning
+        - transaction runner passes the drizzle tx through as context
 - `packages/adapter-drizzle/tests/every-exported-class-reaches-the-factory.test.js`
-    - names enough exports for this check to mean anything
-    - ${name} is reachable through drizzlePersistence()
+    - the persistence factory
+        - names enough exports for this check to mean anything
+        - ${name} is reachable through drizzlePersistence()
 - `packages/adapter-drizzle/tests/integration/persistence-contract.integration.test.js`
-    - text-declared enum columns round-trip against Postgres enum types
-    - the required planVersionId constraint bites through the drizzle write path
+    - drizzle-specific schema interop
+        - text-declared enum columns round-trip against Postgres enum types
+        - the required planVersionId constraint bites through the drizzle write path
 - `packages/adapter-prisma/tests/integration/persistence-contract.integration.test.js`
-    - partial unique draft indexes exist
-    - one draft per plan lineage is enforced by the database
-    - subscriptions require planVersionId
+    - canonical schema structure
+        - partial unique draft indexes exist
+        - one draft per plan lineage is enforced by the database
+        - subscriptions require planVersionId
 - `packages/nest/tests/an-adapter-without-a-plan-catalogue-can-sell-bundles.test.js`
-    - boots with subscriptionBundles enabled
-    - and the module is handed the repository it found
-    - an adapter with neither is still refused, by name
-    - a plan catalogue still wins where an adapter has one
+    - an adapter with bundles but no plan catalogue
+        - boots with subscriptionBundles enabled
+        - and the module is handed the repository it found
+        - an adapter with neither is still refused, by name
+        - a plan catalogue still wins where an adapter has one
 - `packages/nest/tests/saasicat-persistence.test.js`
     - standard adapters
         - SubscriptionPlanResolver only grants active subscriptions
@@ -11505,37 +12403,44 @@ _Source:_ `docs/reference/options.md`
 _Tested by:_
 
 - `packages/cli/tests/fk-pointers.test.js`
-    - every commented relation to Tenant or User
-    - prose that merely mentions @relation is not one
-    - a relation to something else is left alone
-    - both targets, renamed to the app models
-    - naming only the tenant leaves the user relations commented, and says so
-    - naming nothing changes nothing
-    - the column alignment the fragment chose survives
-    - running it twice is a no-op — there is nothing left to uncomment
-    - a missing opposite field stops the pointer, and names the line to add
-    - the relation NAME is part of the question
-    - relationNameOf reads the name, and only a name
-    - hasBackRelation matches on type and name together
-    - and listing what the schema does declare
-    - a name that does exist passes
-    - naming nothing passes
-    - every commented FK pointer in them is one this recognises
+    - finding them
+        - every commented relation to Tenant or User
+        - prose that merely mentions @relation is not one
+        - a relation to something else is left alone
+    - enabling them
+        - both targets, renamed to the app models
+        - naming only the tenant leaves the user relations commented, and says so
+        - naming nothing changes nothing
+        - the column alignment the fragment chose survives
+        - running it twice is a no-op — there is nothing left to uncomment
+    - a relation Prisma would refuse is left commented
+        - a missing opposite field stops the pointer, and names the line to add
+        - the relation NAME is part of the question
+        - relationNameOf reads the name, and only a name
+        - hasBackRelation matches on type and name together
+    - refusing a model that does not exist
+        - and listing what the schema does declare
+        - a name that does exist passes
+        - naming nothing passes
+    - against the fragments as shipped
+        - every commented FK pointer in them is one this recognises
     - a unique foreign key is recognised as one-to-one
     - the foreign key is read off the relation attribute
     - a singular opposite field counts as the back relation
     - so the pointer is enabled rather than reported as missing
     - and when it IS missing, the suggestion is singular too
-    - a name full of metacharacters matches nothing rather than everything
-    - and the same through hasBackRelation directly
-    - a field name with an alternation does not match a different field
-    - an ordinary name still works, so the escaping did not break matching
+    - a model name is data, not part of the pattern
+        - a name full of metacharacters matches nothing rather than everything
+        - and the same through hasBackRelation directly
+        - a field name with an alternation does not match a different field
+        - an ordinary name still works, so the escaping did not break matching
 - `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
-    - answers, using the newest live version for the redundancy hint
-    - and the same answer as a schema that does offer the lookup
-    - a bundle the plan does not cover gets no redundancy warning either way
-    - with no plan repository at all it still answers
-    - a repository that offers the lookup and throws inside it is the bug itself
+    - a bundle preview on a schema without validity windows
+        - answers, using the newest live version for the redundancy hint
+        - and the same answer as a schema that does offer the lookup
+        - a bundle the plan does not cover gets no redundancy warning either way
+        - with no plan repository at all it still answers
+        - a repository that offers the lookup and throws inside it is the bug itself
 
 <!-- END proof -->
 
@@ -11556,15 +12461,18 @@ _Tested by:_
     - ${variable}: the config fallback equals the compose default
     - .env.example documents the same defaults it tells people to override
 - `examples/notesapp/tests/notesapp-smoke.test.mjs`
-    - static entitlement resolves the STARTER plan for every tenant
+    - notesapp platform wiring (smoke)
+        - static entitlement resolves the STARTER plan for every tenant
 - `tests/the-example-sends-the-role-its-guards-require.test.js`
-    - the guard still names roles
-    - ${label} assigns the role header
-    - ${label} assigns a role the guard accepts
+    - the notesapp clients present a role the platform accepts
+        - the guard still names roles
+        - ${label} assigns the role header
+        - ${label} assigns a role the guard accepts
 - `tests/tutorials-match-the-example.test.js`
-    - the sweep finds the tutorials and their claims
-    - every annotated block appears in the file it names
-    - every saasicat command a tutorial gives exists
+    - the tutorials print what the example actually contains
+        - the sweep finds the tutorials and their claims
+        - every annotated block appears in the file it names
+        - every saasicat command a tutorial gives exists
 
 <!-- END proof -->
 
@@ -11602,17 +12510,20 @@ _Source:_ `docs/explanation/test-coverage.md`
 _Tested by:_
 
 - `tests/package-readmes-follow-one-shape.test.js`
-    - the sweep finds every package
-    - each README names its package and carries the three sections
-    - a package with more than one entry point documents all of them
-    - "what this is not" says something concrete
+    - every package README answers the same questions
+        - the sweep finds every package
+        - each README names its package and carries the three sections
+        - a package with more than one entry point documents all of them
+        - "what this is not" says something concrete
 - `tests/repository-carries-no-heavy-binaries.test.js`
-    - the sweep finds the assets it claims to weigh
-    - every tracked binary stays under ${LIMIT_KB} KB
+    - no tracked binary is heavier than it needs to be
+        - the sweep finds the assets it claims to weigh
+        - every tracked binary stays under ${LIMIT_KB} KB
 - `tests/tutorials-match-the-example.test.js`
-    - the sweep finds the tutorials and their claims
-    - every annotated block appears in the file it names
-    - every saasicat command a tutorial gives exists
+    - the tutorials print what the example actually contains
+        - the sweep finds the tutorials and their claims
+        - every annotated block appears in the file it names
+        - every saasicat command a tutorial gives exists
 
 <!-- END proof -->
 
@@ -11628,12 +12539,14 @@ _Source:_ `docs/explanation/test-coverage.md` · internal engineering guidelines
 _Tested by:_
 
 - `tests/a-suite-that-throws-fails-the-run.test.js`
-    - the sweep finds the suites
-    - no describe body is async
+    - no suite hides its failure in a describe body
+        - the sweep finds the suites
+        - no describe body is async
 - `tests/coverage-measures-every-package-it-can.test.js`
-    - the sweep finds the packages
-    - every measurable package has a recorded baseline
-    - no baseline entry describes a package that is gone
+    - the coverage ratchet sees every package it can
+        - the sweep finds the packages
+        - every measurable package has a recorded baseline
+        - no baseline entry describes a package that is gone
 
 <!-- END proof -->
 
@@ -11650,128 +12563,142 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `tests/a-promise-is-not-edited-into-another.test.js`
-    - a line break is not a change
-    - code formatting is not a change
-    - but emphasis is, because it cannot be told from a literal
-    - an identifier is read as where its chain ends
-    - and swapping in an unrelated one is a change
-    - the heading is part of the promise
-    - an underscore inside a name is not emphasis
-    - an asterisk inside a pattern is not emphasis
-    - a different word is a change
-    - an untouched entry is accepted
-    - a rewritten promise is refused
-    - a rewritten promise the commit calls editorial is accepted
-    - an editorial claim for one entry does not cover another
-    - a deleted entry is refused
-    - a new entry beside the old one is accepted
-    - superseding without touching the wording is accepted
-    - rewriting the wording while superseding is refused
-    - delivering a promise is not rewriting it
-    - filing a delivered promise as an intention is refused
-    - correcting a record that was wrong is accepted when it is claimed
-    - demoting a promise to a draft is refused
-    - deciding a draft is accepted
-    - dropping a draft is accepted
-    - a withdrawn promise coming back is refused
-    - a rewrite in the resolution is reported
-    - a deletion in the resolution is reported
-    - what came in from the other branch is not
-    - what this branch had already done is not
-    - a parent that never had the entry does not acquit it
-    - the parent that notices need not be the first
-    - an entry that only arrived with one parent is left alone
-    - the parser produces exactly the fields the guard has decided about
-    - nothing is in both lists
-    - the sweep is looking at a real entry
-    - a successor that already existed is refused
-    - a successor introduced by the same change is accepted
-    - a supersession that was already there is left alone
-    - but retargeting one that was already there is refused
-    - a withdrawal naming where the ground is covered is accepted
-    - a claim covers the step that carries it
-    - and does not reach the step after it
-    - the same two edits pooled into one step would pass
-    - a trailer names one identifier
-    - a trailer names several, however they are separated
-    - several commits each contribute their own
-    - the word inside a sentence is not a trailer
+    - the fingerprint is the promise, not the prose around it
+        - a line break is not a change
+        - code formatting is not a change
+        - but emphasis is, because it cannot be told from a literal
+        - an identifier is read as where its chain ends
+        - and swapping in an unrelated one is a change
+        - the heading is part of the promise
+        - an underscore inside a name is not emphasis
+        - an asterisk inside a pattern is not emphasis
+        - a different word is a change
+    - an entry that already exists may not quietly become another
+        - an untouched entry is accepted
+        - a rewritten promise is refused
+        - a rewritten promise the commit calls editorial is accepted
+        - an editorial claim for one entry does not cover another
+        - a deleted entry is refused
+        - a new entry beside the old one is accepted
+    - retiring an entry preserves what it said
+        - superseding without touching the wording is accepted
+        - rewriting the wording while superseding is refused
+        - delivering a promise is not rewriting it
+        - filing a delivered promise as an intention is refused
+        - correcting a record that was wrong is accepted when it is claimed
+        - demoting a promise to a draft is refused
+        - deciding a draft is accepted
+        - dropping a draft is accepted
+        - a withdrawn promise coming back is refused
+    - a revision answers for what it did, not what it inherited
+        - a rewrite in the resolution is reported
+        - a deletion in the resolution is reported
+        - what came in from the other branch is not
+        - what this branch had already done is not
+        - a parent that never had the entry does not acquit it
+        - the parent that notices need not be the first
+        - an entry that only arrived with one parent is left alone
+    - every field an entry has is decided about
+        - the parser produces exactly the fields the guard has decided about
+        - nothing is in both lists
+        - the sweep is looking at a real entry
+    - a supersession introduces the promise that replaces it
+        - a successor that already existed is refused
+        - a successor introduced by the same change is accepted
+        - a supersession that was already there is left alone
+        - but retargeting one that was already there is refused
+        - a withdrawal naming where the ground is covered is accepted
+    - a claim excuses the edit that made it, and no other
+        - a claim covers the step that carries it
+        - and does not reach the step after it
+        - the same two edits pooled into one step would pass
+    - the editorial claim is read from the commits, not from the entry
+        - a trailer names one identifier
+        - a trailer names several, however they are separated
+        - several commits each contribute their own
+        - the word inside a sentence is not a trailer
 - `tests/requirements-are-generated.test.js`
-    - the sources yield a catalogue worth checking
-    - the document on disk is what the generator produces
-    - the index names every entry that is not ordinary
-    - the region markers stay in the sources
-    - the page and the source it was spliced into say the same thing
-    - the generated region inside the sources is current too
-    - the sources satisfy every rule the checker can state
-    - a risk opens the promise, behind the state
-    - and behind the delivery marker where that opens it
-    - an entry without one is ordinary, not unmarked
-    - a mark that is neither a state nor a risk is refused
-    - the block is generated, and the page carries it
-    - it is not part of the promise
-    - an entry nothing tests carries no block
-    - an unclosed marker keeps the requirement after it
-    - an unclosed marker at the end keeps the rest of the file
-    - and the checker refuses the file so nothing is written
-    - a close that opens nothing is refused too
-    - a well-formed chapter is not refused
-    - a value keeps its colons, quotes and backticks
-    - front matter that never closes is an error, not an empty chapter
-    - a heading with a hyphen is kept as an entry with no identifier
-    - dependencies come from the prose, and never point at the entry itself
-    - a draft is read from its own first words
-    - a marker wrapped across a line still counts
-    - an entry with no marker is current and delivered
-    - a retired entry is read from its own first words
-    - a clean chapter is accepted
-    - an identifier used twice
-    - a heading with a hyphen instead of an em dash
-    - an entry with no source
-    - an entry with two sources
-    - a marker line with a letter too many
-    - a number skipped inside a chapter
-    - an entry filed under the wrong chapter
-    - a reference to an identifier that does not exist
-    - a promise leaning on one that no longer holds
-    - a successor that does not exist
-    - a promise superseded by a draft
-    - a chain that ends where nothing stands
-    - a chain that arrives at a promise that stands is accepted
-    - a supersession chain that loops
-    - a chapter number that skips
-    - an anchor that lands on no heading
-    - an anchor across chapters resolves
-    - a draft that also claims to be decided but not delivered
-    - a state that opens with the wrong colour
-    - a retired entry that opens with no state
-    - an undelivered promise that opens with none
-    - a state marker appended after the prose
-    - a colour with no space before its marker
-    - a colour with two spaces before its marker still parses
-    - a state marker that nearly matches
-    - a state marker wearing a colour no state has
-    - an identifier with a digit missing
-    - a mistyped identifier in a chapter introduction
-    - a vanished reference in a chapter introduction
-    - a real reference in a chapter introduction is accepted
-    - a mistyped identifier in the heading
-    - a real identifier in the heading is resolved
-    - an identifier with a suffix that continues a name
-    - a link into the repository
-    - an anchor inside the document is still a link
-    - a state word nobody defined
-    - a directory that does not say where it belongs
-    - nothing carrying the chapter table
-    - two files carrying it
-    - markers in the wrong order
-    - a doubled pair of markers
-    - Markdown that nothing reads
-    - the file that is deliberately not published is not one
-    - nothing to open the document with
-    - a preamble part numbered out of sequence
-    - a chapter field nobody reads
-    - a chapter with a heading and nothing under it
+    - the requirements document is generated, not maintained
+        - the sources yield a catalogue worth checking
+        - the document on disk is what the generator produces
+        - the index names every entry that is not ordinary
+        - the region markers stay in the sources
+        - the page and the source it was spliced into say the same thing
+        - the generated region inside the sources is current too
+        - the sources satisfy every rule the checker can state
+    - what a breach costs is marked where it is more than ordinary
+        - a risk opens the promise, behind the state
+        - and behind the delivery marker where that opens it
+        - an entry without one is ordinary, not unmarked
+        - a mark that is neither a state nor a risk is refused
+    - the tests an entry names are written under it
+        - the block is generated, and the page carries it
+        - it is not part of the promise
+        - an entry nothing tests carries no block
+    - a generated region that lost its close destroys nothing
+        - an unclosed marker keeps the requirement after it
+        - an unclosed marker at the end keeps the rest of the file
+        - and the checker refuses the file so nothing is written
+        - a close that opens nothing is refused too
+        - a well-formed chapter is not refused
+    - the parser reads the entry, not the prose around it
+        - a value keeps its colons, quotes and backticks
+        - front matter that never closes is an error, not an empty chapter
+        - a heading with a hyphen is kept as an entry with no identifier
+        - dependencies come from the prose, and never point at the entry itself
+        - a draft is read from its own first words
+        - a marker wrapped across a line still counts
+        - an entry with no marker is current and delivered
+        - a retired entry is read from its own first words
+    - the checks refuse what the conventions used to leave to care
+        - a clean chapter is accepted
+        - an identifier used twice
+        - a heading with a hyphen instead of an em dash
+        - an entry with no source
+        - an entry with two sources
+        - a marker line with a letter too many
+        - a number skipped inside a chapter
+        - an entry filed under the wrong chapter
+        - a reference to an identifier that does not exist
+        - a promise leaning on one that no longer holds
+        - a successor that does not exist
+        - a promise superseded by a draft
+        - a chain that ends where nothing stands
+        - a chain that arrives at a promise that stands is accepted
+        - a supersession chain that loops
+        - a chapter number that skips
+        - an anchor that lands on no heading
+        - an anchor across chapters resolves
+        - a draft that also claims to be decided but not delivered
+        - a state that opens with the wrong colour
+        - a retired entry that opens with no state
+        - an undelivered promise that opens with none
+        - a state marker appended after the prose
+        - a colour with no space before its marker
+        - a colour with two spaces before its marker still parses
+        - a state marker that nearly matches
+        - a state marker wearing a colour no state has
+        - an identifier with a digit missing
+        - a mistyped identifier in a chapter introduction
+        - a vanished reference in a chapter introduction
+        - a real reference in a chapter introduction is accepted
+        - a mistyped identifier in the heading
+        - a real identifier in the heading is resolved
+        - an identifier with a suffix that continues a name
+        - a link into the repository
+        - an anchor inside the document is still a link
+        - a state word nobody defined
+        - a directory that does not say where it belongs
+        - nothing carrying the chapter table
+        - two files carrying it
+        - markers in the wrong order
+        - a doubled pair of markers
+        - Markdown that nothing reads
+        - the file that is deliberately not published is not one
+        - nothing to open the document with
+        - a preamble part numbered out of sequence
+        - a chapter field nobody reads
+        - a chapter with a heading and nothing under it
 
 <!-- END proof -->
 
@@ -11786,10 +12713,11 @@ _Source:_ ADR 0001 to ADR 0011
 _Tested by:_
 
 - `tests/adrs-record-what-breaks.test.js`
-    - the sweep finds the records
-    - the numbering is unique and has no gaps
-    - each record carries a status, a date and the five sections
-    - the "what breaks" section says something
+    - every architecture decision is recorded the same way
+        - the sweep finds the records
+        - the numbering is unique and has no gaps
+        - each record carries a status, a date and the five sections
+        - the "what breaks" section says something
 
 <!-- END proof -->
 
@@ -11805,11 +12733,13 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `tests/one-spelling.test.js`
-    - the scan reaches the repository
-    - no tracked file carries an old spelling without declaring it
-    - flags each old spelling as a whole identifier
-    - does not flag the three accepted forms
-    - a declaration has to be in the head of the file
+    - the product has one spelling
+        - the scan reaches the repository
+        - no tracked file carries an old spelling without declaring it
+    - the scanner itself
+        - flags each old spelling as a whole identifier
+        - does not flag the three accepted forms
+        - a declaration has to be in the head of the file
 
 <!-- END proof -->
 
@@ -11826,9 +12756,10 @@ _Source:_ internal engineering guidelines
 _Tested by:_
 
 - `tests/docs-links-resolve.test.js`
-    - the sweep found the documentation
-    - every relative link points at a file that exists
-    - every anchor points at a heading that exists
+    - documentation links resolve
+        - the sweep found the documentation
+        - every relative link points at a file that exists
+        - every anchor points at a heading that exists
 - `tests/no-dangling-doc-refs.test.js`
     - the sweep actually reaches the source tree
     - no shipped file cites a document from the private planning repo
@@ -11847,30 +12778,37 @@ _Source:_ `docs/reference/error-codes.md` · `docs/reference/options.md`
 _Tested by:_
 
 - `tests/docs-api-drift.test.js`
-    - the sweep reaches the documentation it claims to check
-    - every table that enumerates the packages lists all of them
-    - no text claims a package count the repository does not have
-    - the sweep finds the blocks it claims to read
-    - every documented import resolves through the export map
-    - every documented option exists, and a complete example passes the required ones
+    - documentation matches the packages that exist
+        - the sweep reaches the documentation it claims to check
+        - every table that enumerates the packages lists all of them
+        - no text claims a package count the repository does not have
+    - code blocks in the documentation use the API that exists
+        - the sweep finds the blocks it claims to read
+        - every documented import resolves through the export map
+        - every documented option exists, and a complete example passes the required ones
 - `tests/openapi-covers-the-implementation.test.js`
-    - both sweeps reach what they claim to read
-    - every admin route the platform serves is documented
-    - every documented operation is served by the platform or declared app-served
-    - nothing is marked app-served that the platform actually serves
-    - a controller with a computed path says which document covers it
+    - the OpenAPI document describes the implementation
+        - both sweeps reach what they claim to read
+        - every admin route the platform serves is documented
+        - every documented operation is served by the platform or declared app-served
+        - nothing is marked app-served that the platform actually serves
+        - a controller with a computed path says which document covers it
 - `tests/options-reference-is-generated.test.js`
-    - the committed page is what the generator produces
-    - it says it is generated, at the top where an editor would see it
-    - ${rule.id} resolves
-    - the slug is the one GitHub uses
-    - there are rules to check at all
+    - the options reference is generated, not maintained
+        - the committed page is what the generator produces
+        - it says it is generated, at the top where an editor would see it
+    - every rule links to a heading that exists
+        - ${rule.id} resolves
+        - the slug is the one GitHub uses
+        - there are rules to check at all
 - `tests/public-options-name-only-what-we-publish.test.js`
-    - the sweep found the components and their interfaces
-    - every Quasar type in an exported interface is re-exported
+    - a public option type names only types this package publishes
+        - the sweep found the components and their interfaces
+        - every Quasar type in an exported interface is re-exported
 - `tests/reference-pages-are-generated.test.js`
-    - the generators produce every page they claim to
-    - every page on disk is what the generator produces
+    - the reference pages are generated, not maintained
+        - the generators produce every page they claim to
+        - every page on disk is what the generator produces
     - every declaration is found, whatever the comments say
     - a var() reference is still not a declaration
     - a token name outside a declaration does not hide the next one
@@ -11891,18 +12829,23 @@ _Source:_ ADR 0008 · #217
 _Tested by:_
 
 - `tests/agent-worktrees-are-not-linted.test.js`
-    - git ignores them — this keeps `git status` clean and Prettier out
-    - eslint ignores them
-    - and the ignore stops there — the source tree is still checked
+    - agent worktrees under .claude/ stay out of the repo-wide gates
+        - git ignores them — this keeps `git status` clean and Prettier out
+        - eslint ignores them
+        - and the ignore stops there — the source tree is still checked
 - `tests/css-classes-have-a-user.test.js`
-    - no stylesheet defines a class nothing writes
+    - CSS classes have a user
+        - no stylesheet defines a class nothing writes
 - `tests/nest-domain-boundaries.test.js`
-    - ${path} may not import a sibling barrel
-    - a barrel one directory deeper is caught too
-    - importing the declaring module is what the rule asks for
-    - ${domain}/ may not reach back into platform/
-    - testing/ may, because it sits downstream of platform/
-    - platform/ may import its own neighbours
-    - no file in the package violates either rule
+    - no barrel-to-barrel imports across nest domains
+        - ${path} may not import a sibling barrel
+        - a barrel one directory deeper is caught too
+        - importing the declaring module is what the rule asks for
+    - domains do not import platform/
+        - ${domain}/ may not reach back into platform/
+        - testing/ may, because it sits downstream of platform/
+        - platform/ may import its own neighbours
+    - the boundaries hold on the tree as it stands
+        - no file in the package violates either rule
 
 <!-- END proof -->

@@ -115,9 +115,11 @@ _Tested by:_
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
-    - the answer to the abandoned question is taken off the screen
-    - and the confirmation cannot be given
-    - the outdated one does not install itself
+    - while a replacement preview is on the wire
+        - the answer to the abandoned question is taken off the screen
+        - and the confirmation cannot be given
+    - when the answers come back out of order
+        - the outdated one does not install itself
 
 <!-- END proof -->
 
@@ -135,12 +137,13 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/ui-vue/tests/a-price-lookup-stays-inside-its-limit.test.js`
-    - asks for nothing when there is nothing to ask about
-    - sends one request while the catalogue fits
-    - splits a catalogue larger than the cap instead of being rejected whole
-    - merges what the batches answer
-    - a consumer without the endpoint keeps the catalogue rather than breaking
-    - a failed lookup is not the same answer as an absent one
+    - loadBundlePrices
+        - asks for nothing when there is nothing to ask about
+        - sends one request while the catalogue fits
+        - splits a catalogue larger than the cap instead of being rejected whole
+        - merges what the batches answer
+        - a consumer without the endpoint keeps the catalogue rather than breaking
+        - a failed lookup is not the same answer as an absent one
 
 <!-- END proof -->
 
@@ -233,7 +236,8 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/ui-vue/tests/every-wire-date-is-hydrated.test.js`
-    - ${subject.record} → ${subject.converterName}
+    - every date a record declares is converted at the HTTP boundary
+        - ${subject.record} → ${subject.converterName}
 
 <!-- END proof -->
 

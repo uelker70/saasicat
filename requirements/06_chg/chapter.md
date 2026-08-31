@@ -147,30 +147,39 @@ _Tested by:_
         - a yearly customer choosing a monthly higher plan is told why it waits
         - the same upgrade on the same cycle happens now and says nothing
 - `packages/ui-vue-tenant/tests/component/a-later-change-is-acknowledged.test.ts`
-    - the block appears, led by what the customer does not get today
-    - it offers the alternative rather than only describing it
-    - the confirmation is locked until it is acknowledged
-    - an ordinary upgrade shows none of it
-    - a downgrade is a different sentence, not this one
-    - the heading counts the features and dates the loss
-    - every lost feature is listed, not just counted
-    - the confirmation is locked until it is acknowledged
-    - a downgrade that costs no feature says so instead of counting zero
-    - it says the rhythm changes later, and a new term starts then
-    - the confirmation is locked until it is acknowledged
-    - the effective date is set in bold, the rest is not
-    - the block disappears once the preview describes the new choice
+    - a shorter cycle defers everything, and says so first
+        - the block appears, led by what the customer does not get today
+        - it offers the alternative rather than only describing it
+        - the confirmation is locked until it is acknowledged
+        - an ordinary upgrade shows none of it
+        - a downgrade is a different sentence, not this one
+    - a downgrade names what falls away, and when
+        - the heading counts the features and dates the loss
+        - every lost feature is listed, not just counted
+        - the confirmation is locked until it is acknowledged
+        - a downgrade that costs no feature says so instead of counting zero
+    - a cycle change is acknowledged too
+        - it says the rhythm changes later, and a new term starts then
+        - the confirmation is locked until it is acknowledged
+    - the dates stand out from the sentence around them
+        - the effective date is set in bold, the rest is not
+    - keeping the yearly cycle re-asks rather than reusing the answer
+        - the block disappears once the preview describes the new choice
 - `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
-    - no plan chosen: pressing next changes nothing
-    - choosing the plan the tenant is already on is not a change
-    - a different plan advances
-    - no plan chosen: the button is disabled
-    - the plan the tenant is already on: still disabled
-    - a different plan: enabled
-    - on the preview step it follows the blockers
-    - advancing moves focus to the new heading
-    - a refused move leaves focus alone
-    - exactly one step is marked current, and it carries a word
+    - the wizard refuses a step it may not leave
+        - no plan chosen: pressing next changes nothing
+        - choosing the plan the tenant is already on is not a change
+        - a different plan advances
+    - the next button says whether it will do anything
+        - no plan chosen: the button is disabled
+        - the plan the tenant is already on: still disabled
+        - a different plan: enabled
+        - on the preview step it follows the blockers
+    - focus follows the step the tenant is now on
+        - advancing moves focus to the new heading
+        - a refused move leaves focus alone
+    - the progress list says where the tenant is without relying on colour
+        - exactly one step is marked current, and it carries a word
 
 <!-- END proof -->
 
@@ -191,16 +200,20 @@ _Tested by:_
         - a stale one is refused, and the answer carries the new date
         - no expectation still works
 - `packages/ui-vue-tenant/tests/component/plan-change-wizard.test.ts`
-    - no plan chosen: pressing next changes nothing
-    - choosing the plan the tenant is already on is not a change
-    - a different plan advances
-    - no plan chosen: the button is disabled
-    - the plan the tenant is already on: still disabled
-    - a different plan: enabled
-    - on the preview step it follows the blockers
-    - advancing moves focus to the new heading
-    - a refused move leaves focus alone
-    - exactly one step is marked current, and it carries a word
+    - the wizard refuses a step it may not leave
+        - no plan chosen: pressing next changes nothing
+        - choosing the plan the tenant is already on is not a change
+        - a different plan advances
+    - the next button says whether it will do anything
+        - no plan chosen: the button is disabled
+        - the plan the tenant is already on: still disabled
+        - a different plan: enabled
+        - on the preview step it follows the blockers
+    - focus follows the step the tenant is now on
+        - advancing moves focus to the new heading
+        - a refused move leaves focus alone
+    - the progress list says where the tenant is without relying on colour
+        - exactly one step is marked current, and it carries a word
 
 <!-- END proof -->
 

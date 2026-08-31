@@ -117,7 +117,12 @@ describe('an annotation covers what it opens', () => {
         const named = casesIn(file).filter((c) => c.id === 'SC-A-001');
         assert.deepEqual(
             named.map((c) => c.case),
-            ['one', 'two', 'three', 'a case of its own'],
+            [
+                'a block nobody annotated › one',
+                'an annotated block › two',
+                'an annotated block › three',
+                'a case of its own',
+            ],
         );
     });
 
@@ -198,7 +203,7 @@ describe('a case that does not run proves nothing', () => {
         ].join('\n');
         assert.deepEqual(
             casesIn(src).map((c) => c.case),
-            ['a real one'],
+            ['a block › a real one'],
         );
     });
 
@@ -220,7 +225,7 @@ describe('a case that does not run proves nothing', () => {
         ].join('\n');
         assert.deepEqual(
             casesIn(src).map((c) => c.case),
-            ['a real one'],
+            ['a live block › a real one'],
         );
     });
 
@@ -274,7 +279,7 @@ describe('a parameterised case is a case', () => {
         ].join('\n');
         assert.deepEqual(
             casesIn(src).map((c) => c.case),
-            ['handles %s'],
+            ['a block › handles %s'],
         );
     });
 
@@ -290,7 +295,7 @@ describe('a parameterised case is a case', () => {
         ].join('\n');
         assert.deepEqual(
             casesIn(src).map((c) => c.case),
-            ['handles %s'],
+            ['a block › handles %s'],
         );
     });
 
@@ -364,6 +369,62 @@ describe('the command refuses an annotation that names nothing standing', () => 
         // The counter-check: a rule that refused everything would pass both
         // assertions above and fail every run.
         assert.deepEqual(checkAnnotations(catalogue, tree('SC-A-002')), []);
+    });
+});
+
+describe('a case is named by its path, not by its leaf', () => {
+    // A trace whose one job is to say which case to open listed
+    // "the endpoint is required" five times under SC-UI-003, because five
+    // suites in one file each hold a case by that name.
+
+    test('the same leaf in two suites reads as two cases', () => {
+        const src = [
+            '// @requirement SC-A-001',
+            '',
+            "describe('the plan composable', () => {",
+            "    test('the endpoint is required', () => {});",
+            '});',
+            "describe('the bundle composable', () => {",
+            "    test('the endpoint is required', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            [
+                'the plan composable › the endpoint is required',
+                'the bundle composable › the endpoint is required',
+            ],
+        );
+    });
+
+    test('a nested suite keeps every level, not one', () => {
+        // An annotation on a nested block named a single level of it, so the
+        // path stopped where the annotation happened to sit rather than where
+        // the case does.
+        const src = [
+            "describe('outer', () => {",
+            "    describe('middle', () => {",
+            '        // @requirement SC-A-001',
+            "        describe('inner', () => {",
+            "            test('a case', () => {});",
+            '        });',
+            '    });',
+            '});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['outer › middle › inner › a case'],
+        );
+    });
+
+    test('a case outside any suite is named by itself', () => {
+        // The counter-check: a path that always prefixed something would put a
+        // separator in front of a top-level case.
+        const src = ['// @requirement SC-A-001', "test('on its own', () => {});"].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['on its own'],
+        );
     });
 });
 

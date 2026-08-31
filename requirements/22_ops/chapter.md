@@ -21,23 +21,27 @@ _Source:_ `CONTRIBUTING.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-booking-outlives-the-request.integration.test.js`
-    - a booking with a window keeps every part of it
-    - a booking from before those columns keeps null, not an invented window
-    - an id nobody booked answers null rather than throwing
-    - the list is the subscription’s own, not the neighbour’s
-    - a subscription with no bookings lists nothing, rather than everything
-    - a booking nobody cancelled is active
-    - a cancellation still ahead leaves it active
-    - a cancellation that has landed ends it
-    - the effective date itself is the first moment it is over
-    - asking without a moment asks about now
-    - reactivating clears both dates and the booking is active again
-    - cancelling something that is not there says so, rather than doing nothing quietly
-    - reactivating something that is not there says so too
-    - active bookings of that version are counted, across subscriptions
-    - a different version is not counted
-    - a booking whose cancellation has landed is not counted
-    - a version nobody booked counts zero
+    - what a booking carries
+        - a booking with a window keeps every part of it
+        - a booking from before those columns keeps null, not an invented window
+        - an id nobody booked answers null rather than throwing
+        - the list is the subscription’s own, not the neighbour’s
+        - a subscription with no bookings lists nothing, rather than everything
+    - what counts as active
+        - a booking nobody cancelled is active
+        - a cancellation still ahead leaves it active
+        - a cancellation that has landed ends it
+        - the effective date itself is the first moment it is over
+        - asking without a moment asks about now
+    - undoing a cancellation
+        - reactivating clears both dates and the booking is active again
+        - cancelling something that is not there says so, rather than doing nothing quietly
+        - reactivating something that is not there says so too
+    - counting what a catalogue version still owes
+        - active bookings of that version are counted, across subscriptions
+        - a different version is not counted
+        - a booking whose cancellation has landed is not counted
+        - a version nobody booked counts zero
 - `packages/nest/tests/registration-service.test.js`
     - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
     - runCleanup() without expired → deleted=0, idempotent
@@ -56,81 +60,96 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/migration-constraints.test.js`
-    - the one that appeared between the two listings
-    - nothing new means nothing to append to, even with migrations present
-    - directories that are not migrations are not candidates
-    - the newest of several, when a run somehow produced two
-    - no migrations at all is not an error, it is nothing to do
-    - the statements land after the tables
-    - it says where the copy came from
-    - running it twice appends once
-    - a migration that already has them is recognised
-    - a migration without a trailing newline still gets a separating one
-    - reads the table off each statement
-    - keeps the ones whose table is present
-    - keeps everything when every table is present
-    - a statement it cannot read is kept, not dropped
-    - nothing applicable appends nothing at all
-    - only a failure stops the command
-    - "before applying" is said exactly when the command will not apply
-    - a failure says where the SQL is, because the operator now needs it
-    - nothing to append is not a failure
-    - every outcome carries a message and a decision
+    - which migration the constraints belong to
+        - the one that appeared between the two listings
+        - nothing new means nothing to append to, even with migrations present
+        - directories that are not migrations are not candidates
+        - the newest of several, when a run somehow produced two
+        - no migrations at all is not an error, it is nothing to do
+    - appending them
+        - the statements land after the tables
+        - it says where the copy came from
+        - running it twice appends once
+        - a migration that already has them is recognised
+        - a migration without a trailing newline still gets a separating one
+    - only the constraints this schema has tables for
+        - reads the table off each statement
+        - keeps the ones whose table is present
+        - keeps everything when every table is present
+        - a statement it cannot read is kept, not dropped
+        - nothing applicable appends nothing at all
+    - what step 3 did, and whether step 4 may follow
+        - only a failure stops the command
+        - "before applying" is said exactly when the command will not apply
+        - a failure says where the SQL is, because the operator now needs it
+        - nothing to append is not a failure
+        - every outcome carries a message and a decision
 - `packages/cli/tests/schema-apply-dry-run.test.js`
-    - it names the lines, and leaves the file untouched
-    - and the real run writes exactly those lines
-    - past tense belongs to the run that did it
+    - the dry run previews what the real run writes
+        - it names the lines, and leaves the file untouched
+        - and the real run writes exactly those lines
+        - past tense belongs to the run that did it
 - `packages/cli/tests/schema-apply.test.js`
-    - finds top-level models
+    - extractModelNames
+        - finds top-level models
     - ignores commented-out models
     - does not find enum blocks
-    - block stays complete with all lines
-    - adds all models when schema is empty of platform models
-    - idempotent: existing models remain untouched
-    - returns identical schema when all models already present
-    - label appears in the header comment
     - a fragment yields its enums and its models
     - apply appends the enum above the model, once
     - an enum the consumer already declares is left alone
     - a bare model map still works, with no enums
+    - extractModelBlocks
+        - block stays complete with all lines
+    - applyFragmentBlocks
+        - adds all models when schema is empty of platform models
+        - idempotent: existing models remain untouched
+        - returns identical schema when all models already present
+        - label appears in the header comment
 - `packages/cli/tests/schema-check.test.js`
-    - reads name, type and modifiers, skips attributes and comments
+    - parseFields
+        - reads name, type and modifiers, skips attributes and comments
     - reads single-line model blocks
-    - reads members and ignores attributes
-    - reads members sharing one line
-    - separates models from enums
-    - commented-out relations are not fields
-    - identical schema has no drift
-    - consumer extensions are not drift
-    - missing field in an adopted model fails
-    - absent model is informational, not a failure
-    - missing enum value in an adopted enum fails
-    - absent enum is informational, not a failure
-    - type change is a mismatch
-    - String replaced by a locally declared enum is allowed
-    - String[] replaced by a local enum list is allowed
-    - a non-String spec type is not substitutable by an enum
-    - a consumer widening a required field to nullable is a mismatch
-    - a consumer tightening a nullable field to required is allowed
-    - list change is a mismatch
     - identical attributes produce no finding
     - a missing index is reported but does not fail the check
     - a missing unique constraint fails the check
     - a diverging @@map fails the check and names both sides
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
-    - a commented-out @@unique or @@map counts as absent, not present
-    - a brace inside a string default does not close the model early
-    - a // inside a string literal is not treated as a comment
-    - indexed field arguments are parsed past their parentheses
-    - @@map survives the comment strip
-    - blanks contents, keeps quotes and length
-    - handles escaped quotes without leaving the string early
-    - leaves a line without strings untouched
-    - is linear on pathological input
+    - parseEnumValues
+        - reads members and ignores attributes
+        - reads members sharing one line
+    - parseSchema
+        - separates models from enums
+        - commented-out relations are not fields
+    - checkSchema
+        - identical schema has no drift
+        - consumer extensions are not drift
+        - missing field in an adopted model fails
+        - absent model is informational, not a failure
+        - missing enum value in an adopted enum fails
+        - absent enum is informational, not a failure
+        - type change is a mismatch
+        - String replaced by a locally declared enum is allowed
+        - String[] replaced by a local enum list is allowed
+        - a non-String spec type is not substitutable by an enum
+        - a consumer widening a required field to nullable is a mismatch
+        - a consumer tightening a nullable field to required is allowed
+        - list change is a mismatch
+    - parser hardening (review findings)
+        - a commented-out @@unique or @@map counts as absent, not present
+        - a brace inside a string default does not close the model early
+        - a // inside a string literal is not treated as a comment
+        - indexed field arguments are parsed past their parentheses
+        - @@map survives the comment strip
+    - blankStringLiterals
+        - blanks contents, keeps quotes and length
+        - handles escaped quotes without leaving the string early
+        - leaves a line without strings untouched
+        - is linear on pathological input
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
-    - there are migrations to check
-    - ${name} runs twice, and the second time changes nothing
+    - a shipped migration survives a second run
+        - there are migrations to check
+        - ${name} runs twice, and the second time changes nothing
 
 <!-- END proof -->
 
@@ -145,29 +164,36 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/cli/tests/schema-apply.test.js`
-    - finds top-level models
+    - extractModelNames
+        - finds top-level models
     - ignores commented-out models
     - does not find enum blocks
-    - block stays complete with all lines
-    - adds all models when schema is empty of platform models
-    - idempotent: existing models remain untouched
-    - returns identical schema when all models already present
-    - label appears in the header comment
     - a fragment yields its enums and its models
     - apply appends the enum above the model, once
     - an enum the consumer already declares is left alone
     - a bare model map still works, with no enums
+    - extractModelBlocks
+        - block stays complete with all lines
+    - applyFragmentBlocks
+        - adds all models when schema is empty of platform models
+        - idempotent: existing models remain untouched
+        - returns identical schema when all models already present
+        - label appears in the header comment
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
-    - there are migrations to check
-    - ${name} runs twice, and the second time changes nothing
+    - a shipped migration survives a second run
+        - there are migrations to check
+        - ${name} runs twice, and the second time changes nothing
 - `tests/build-stamp.test.js`
-    - is stable across runs and changes with a source edit
-    - sees a deleted file and a build config, not a test
-    - a dependency edit makes the dependent stale
-    - no stamp means not current
-    - only a build through build-and-prune writes a stamp
-    - the previous stamp is gone before the build starts
-    - the lockfile is an input
+    - the build stamp
+        - is stable across runs and changes with a source edit
+        - sees a deleted file and a build config, not a test
+        - a dependency edit makes the dependent stale
+        - no stamp means not current
+    - which builds are judged at all
+        - only a build through build-and-prune writes a stamp
+    - a build that does not finish leaves no stamp
+        - the previous stamp is gone before the build starts
+        - the lockfile is an input
 
 <!-- END proof -->
 
@@ -196,15 +222,20 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/cli/tests/default-doctor-checks.test.js`
-    - error when no plans
-    - ok with plans + details contain planIds
-    - warning when snapshot empty
-    - ok with content
-    - ok when findByEmail does not throw
-    - error when findByEmail throws
-    - ok with standardPages count
-    - error when getManifest throws
-    - contains exactly 4 provider classes
+    - PlanCatalogDoctorCheck
+        - error when no plans
+        - ok with plans + details contain planIds
+    - DiscoverySnapshotDoctorCheck
+        - warning when snapshot empty
+        - ok with content
+    - UserPortDoctorCheck
+        - ok when findByEmail does not throw
+        - error when findByEmail throws
+    - AdminManifestDoctorCheck
+        - ok with standardPages count
+        - error when getManifest throws
+    - PLATFORM_DOCTOR_CHECK_PROVIDERS
+        - contains exactly 4 provider classes
 
 <!-- END proof -->
 

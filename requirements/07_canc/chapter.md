@@ -331,20 +331,27 @@ _Tested by:_
         - is not refused for having read the clock a moment earlier
         - but a date still in the future is refused
 - `packages/ui-vue-tenant/tests/component/an-ended-subscription-reads-as-ended.test.ts`
-    - says so, in the past tense
-    - and offers neither of the two acts it no longer has
-    - runs unchanged, and says that instead
-    - and the plan can still be changed
-    - says nothing about one and offers both acts
-    - is read from the only column it has
-    - follows the boundary instead of the last render
-    - reaches a boundary further away than one hop
-    - and asks for no delay the platform would truncate
-    - shows an ended subscription as cancelled, whatever its status column says
-    - and a running one keeps its badge and its billing date
-    - offers no pending version to accept once the contract is over
-    - while a running subscription is asked about it
-    - is measured from now, not from when the card was created
+    - a subscription that has ended
+        - says so, in the past tense
+        - and offers neither of the two acts it no longer has
+    - a cancellation still to come
+        - runs unchanged, and says that instead
+        - and the plan can still be changed
+    - a subscription with no cancellation
+        - says nothing about one and offers both acts
+    - a cancellation older than the fields that describe it
+        - is read from the only column it has
+    - a card left open across the moment
+        - follows the boundary instead of the last render
+        - reaches a boundary further away than one hop
+        - and asks for no delay the platform would truncate
+    - the page around the card
+        - shows an ended subscription as cancelled, whatever its status column says
+        - and a running one keeps its badge and its billing date
+        - offers no pending version to accept once the contract is over
+        - while a running subscription is asked about it
+    - a cancellation that arrives after the page did
+        - is measured from now, not from when the card was created
 
 <!-- END proof -->
 
@@ -366,27 +373,36 @@ _Tested by:_
         - and a cancellation already recorded repairs its contract too
         - and a consumer without contracts is unaffected
 - `packages/ui-vue-tenant/tests/component/a-cancelled-plan-still-runs.test.ts`
-    - the tenant is offered the act
-    - and told nothing about a cancellation
-    - the date is shown, not just the word
-    - and the subscription is described as unchanged until then
-    - the act is no longer offered
-    - changing plan still is
+    - while nothing is cancelled
+        - the tenant is offered the act
+        - and told nothing about a cancellation
+    - once it is cancelled
+        - the date is shown, not just the word
+        - and the subscription is described as unchanged until then
+        - the act is no longer offered
+        - changing plan still is
 - `packages/ui-vue-tenant/tests/component/an-ended-subscription-reads-as-ended.test.ts`
-    - says so, in the past tense
-    - and offers neither of the two acts it no longer has
-    - runs unchanged, and says that instead
-    - and the plan can still be changed
-    - says nothing about one and offers both acts
-    - is read from the only column it has
-    - follows the boundary instead of the last render
-    - reaches a boundary further away than one hop
-    - and asks for no delay the platform would truncate
-    - shows an ended subscription as cancelled, whatever its status column says
-    - and a running one keeps its badge and its billing date
-    - offers no pending version to accept once the contract is over
-    - while a running subscription is asked about it
-    - is measured from now, not from when the card was created
+    - a subscription that has ended
+        - says so, in the past tense
+        - and offers neither of the two acts it no longer has
+    - a cancellation still to come
+        - runs unchanged, and says that instead
+        - and the plan can still be changed
+    - a subscription with no cancellation
+        - says nothing about one and offers both acts
+    - a cancellation older than the fields that describe it
+        - is read from the only column it has
+    - a card left open across the moment
+        - follows the boundary instead of the last render
+        - reaches a boundary further away than one hop
+        - and asks for no delay the platform would truncate
+    - the page around the card
+        - shows an ended subscription as cancelled, whatever its status column says
+        - and a running one keeps its badge and its billing date
+        - offers no pending version to accept once the contract is over
+        - while a running subscription is asked about it
+    - a cancellation that arrives after the page did
+        - is measured from now, not from when the card was created
 
 <!-- END proof -->
 

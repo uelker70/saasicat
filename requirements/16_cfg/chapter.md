@@ -107,10 +107,11 @@ _Source:_ #217
 _Tested by:_
 
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
-    - every member is reported, flattened to the path it has in the file
-    - an empty list reads as one, rather than as nothing at all
-    - the report is read off the document, so it follows what the template writes
-    - a catalogue the platform would refuse fails here, not at the first boot
+    - what init says about the settings it wrote
+        - every member is reported, flattened to the path it has in the file
+        - an empty list reads as one, rather than as nothing at all
+        - the report is read off the document, so it follows what the template writes
+        - a catalogue the platform would refuse fails here, not at the first boot
     - names both, with the line each is on
     - the set is read off the schema, not written out beside it
     - every setting the schema names has a sentence saying where it goes
@@ -191,22 +192,29 @@ _Source:_ `docs/reference/options.md`
 _Tested by:_
 
 - `packages/cli/tests/default-doctor-checks.test.js`
-    - error when no plans
-    - ok with plans + details contain planIds
-    - warning when snapshot empty
-    - ok with content
-    - ok when findByEmail does not throw
-    - error when findByEmail throws
-    - ok with standardPages count
-    - error when getManifest throws
-    - contains exactly 4 provider classes
+    - PlanCatalogDoctorCheck
+        - error when no plans
+        - ok with plans + details contain planIds
+    - DiscoverySnapshotDoctorCheck
+        - warning when snapshot empty
+        - ok with content
+    - UserPortDoctorCheck
+        - ok when findByEmail does not throw
+        - error when findByEmail throws
+    - AdminManifestDoctorCheck
+        - ok with standardPages count
+        - error when getManifest throws
+    - PLATFORM_DOCTOR_CHECK_PROVIDERS
+        - contains exactly 4 provider classes
 - `packages/cli/tests/doctor-flow.test.js`
-    - all checks ok → overall=ok, exitCode=0
-    - one warning + ok → overall=warning, exitCode=0
-    - one error → overall=error, exitCode=4
-    - exception in check → severity=error with exception message
-    - empty check list → overall=ok
-    - shows icons per severity
+    - DoctorFlow.run
+        - all checks ok → overall=ok, exitCode=0
+        - one warning + ok → overall=warning, exitCode=0
+        - one error → overall=error, exitCode=4
+        - exception in check → severity=error with exception message
+        - empty check list → overall=ok
+    - DoctorFlow.formatReport
+        - shows icons per severity
 - `packages/nest/tests/enforcement-chain-check.test.js`
     - the message names the true cause
         - the option, when the option is what unbound the guard
@@ -244,11 +252,12 @@ _Source:_ ADR 0007
 _Tested by:_
 
 - `packages/nest/tests/enforcement-chain-warnings.test.js`
-    - warns when no plan resolver and no fallback plan are configured
-    - stays silent once defaultPlanId activates the static entitlement stack
-    - registers the coverage check instead of warning on the option alone
-    - stays silent on the default path with the guard bound
-    - the inert branch registers the check too, with the state that says so
+    - SaaSiCatModule.forRoot — enforcement-chain warnings
+        - warns when no plan resolver and no fallback plan are configured
+        - stays silent once defaultPlanId activates the static entitlement stack
+        - registers the coverage check instead of warning on the option alone
+        - stays silent on the default path with the guard bound
+        - the inert branch registers the check too, with the state that says so
 
 <!-- END proof -->
 
@@ -297,17 +306,19 @@ _Tested by:_
         - and the static path with a plan resolver boots with quota routes
         - the inert case still speaks first, so its message is the one read
 - `packages/nest/tests/enforcement-chain-refuses-boot.test.js`
-    - inert entitlement plus an annotated route: boot fails
-    - globalFeatureGuard: false plus an unguarded annotated route: boot fails
-    - globalFeatureGuard: false with the guard bound per route
-    - the platform binding its own global guard
-    - inert entitlement with nothing annotated — a catalogue-only app
-    - the V3 entitlement path, with FeatureGuard bound per route
-    - …but the same path with no feature guard at all does not
-    - …and neither does the V3 path with a quota nothing counts
-    - a quota route boots once something can resolve a plan
-    - enforcementChainCheck: false is a way out that works
-    - …and it turns off only that check
+    - an application whose enforcement chain is broken does not start
+        - inert entitlement plus an annotated route: boot fails
+        - globalFeatureGuard: false plus an unguarded annotated route: boot fails
+    - an application whose chain is intact starts
+        - globalFeatureGuard: false with the guard bound per route
+        - the platform binding its own global guard
+        - inert entitlement with nothing annotated — a catalogue-only app
+        - the V3 entitlement path, with FeatureGuard bound per route
+        - …but the same path with no feature guard at all does not
+        - …and neither does the V3 path with a quota nothing counts
+        - a quota route boots once something can resolve a plan
+        - enforcementChainCheck: false is a way out that works
+        - …and it turns off only that check
 - `packages/nest/tests/platform-configuration-rules.test.js`
     - forRoot runs the table
         - the same configuration fails through the module
@@ -334,11 +345,12 @@ _Tested by:_
         - reports an unrecognised wrapper rather than assuming it is safe
         - a quota-only route is not a guard question
 - `packages/nest/tests/enforcement-chain-warnings.test.js`
-    - warns when no plan resolver and no fallback plan are configured
-    - stays silent once defaultPlanId activates the static entitlement stack
-    - registers the coverage check instead of warning on the option alone
-    - stays silent on the default path with the guard bound
-    - the inert branch registers the check too, with the state that says so
+    - SaaSiCatModule.forRoot — enforcement-chain warnings
+        - warns when no plan resolver and no fallback plan are configured
+        - stays silent once defaultPlanId activates the static entitlement stack
+        - registers the coverage check instead of warning on the option alone
+        - stays silent on the default path with the guard bound
+        - the inert branch registers the check too, with the state that says so
 - `packages/nest/tests/saasicat-module-escape-hatches.test.js`
     - globalFeatureGuard
         - defaults to binding StaticFeatureGuard as APP_GUARD
@@ -371,63 +383,81 @@ _Source:_ release 0.27.0
 _Tested by:_
 
 - `packages/cli/tests/init.test.js`
-    - the minimum is seven files, one of them a quota provider
-    - each quota adds one provider, named after its key
-    - --skip-hasher drops the hasher and keeps the persistence bundle
-    - with a hasher the bundle wires it
-    - no file goes out with an unsubstituted token
-    - every template is reachable through some plan
-    - a multi-word key still produces valid identifiers
-    - the quota model becomes the Prisma delegate, not the model name
-    - a quota without a model counts a delegate named after the key
-    - the case helpers round-trip the shapes the plan relies on
-    - quotas land under both plans, at different limits
-    - there is no such thing as a plan without quotas
-    - nothing has a trailing space
-    - the admin module is registered, not merely imported
-    - nothing is imported that the inserted code does not use
-    - every symbol the block uses is imported
-    - what was already in the array keeps its own line
-    - the imports go after the last existing one
-    - running it twice does nothing the second time
-    - a file it cannot edit is declined, with the block to paste
-    - a one-line decorator is declined, and the reason names the shape it wants
-    - the limit filter is printed, not inserted
-    - without persistence it comments the line instead of importing nothing
-    - a generated persistence bundle is an imported one
-    - the admin module import path matches the file the plan writes
-    - each quota provider import path matches its file
-    - the block names one, so the file does not compile without it
-    - the block names the modules the platform resolves from, for the same reason
-    - and says why, where the reader is
-    - is refused before anything is planned
-    - and a valid one still plans
-    - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema's
-    - the minimum number of quotas is the schema's
-    - the classes get identifiers, the catalogue keeps the words
-    - and the file names follow the identifier, not the label
-    - every generated class name is a valid identifier
-    - for a camel-cased key, where the two used to disagree
-    - and for every spelling the schema allows
-    - stays intact, and the new imports go after it
-    - and a side-effect import is an import too, so nothing lands above it
+    - what gets written
+        - the minimum is seven files, one of them a quota provider
+        - each quota adds one provider, named after its key
+        - --skip-hasher drops the hasher and keeps the persistence bundle
+        - with a hasher the bundle wires it
+        - no file goes out with an unsubstituted token
+        - every template is reachable through some plan
+    - the names it derives
+        - a multi-word key still produces valid identifiers
+        - the quota model becomes the Prisma delegate, not the model name
+        - a quota without a model counts a delegate named after the key
+        - the case helpers round-trip the shapes the plan relies on
+    - the YAML it writes
+        - quotas land under both plans, at different limits
+        - there is no such thing as a plan without quotas
+        - nothing has a trailing space
+    - patching an existing app.module.ts
+        - the admin module is registered, not merely imported
+        - nothing is imported that the inserted code does not use
+        - every symbol the block uses is imported
+        - what was already in the array keeps its own line
+        - the imports go after the last existing one
+        - running it twice does nothing the second time
+        - a file it cannot edit is declined, with the block to paste
+        - a one-line decorator is declined, and the reason names the shape it wants
+        - the limit filter is printed, not inserted
+        - without persistence it comments the line instead of importing nothing
+    - what the plan implies for the patch
+        - a generated persistence bundle is an imported one
+        - the admin module import path matches the file the plan writes
+        - each quota provider import path matches its file
+    - the auth guard the generator cannot know
+        - the block names one, so the file does not compile without it
+        - the block names the modules the platform resolves from, for the same reason
+        - and says why, where the reader is
+    - an app key the generated files would refuse
+        - is refused before anything is planned
+        - and a valid one still plans
+        - the message carries the pattern rather than a paraphrase of it
+    - the quota rules come from the schema, not from a copy of them
+        - the quota key pattern is the schema's
+        - the minimum number of quotas is the schema's
+    - an app name a human would type
+        - the classes get identifiers, the catalogue keeps the words
+        - and the file names follow the identifier, not the label
+        - every generated class name is a valid identifier
+    - the file a quota provider is written to is the file that gets imported
+        - for a camel-cased key, where the two used to disagree
+        - and for every spelling the schema allows
+    - a root module whose last import spans several lines
+        - stays intact, and the new imports go after it
+        - and a side-effect import is an import too, so nothing lands above it
 - `packages/create-saasicat-admin/tests/scaffold.test.js`
-    - positionals + flags + tokens are separated
-    - replaces only tokens, passes other **X** strings through
-    - finds all .tpl files under templates/
-    - writes all templates into target + replaces tokens
-    - dryRun writes nothing
-    - runs through a bin symlink, as npm create / npx invoke it
+    - parseArgs
+        - positionals + flags + tokens are separated
+    - applyTokens
+        - replaces only tokens, passes other **X** strings through
+    - walkTemplates
+        - finds all .tpl files under templates/
+    - scaffold
+        - writes all templates into target + replaces tokens
+        - dryRun writes nothing
+    - bin entry point
+        - runs through a bin symlink, as npm create / npx invoke it
 - `tests/a-generated-admin-imports-every-stylesheet.test.js`
-    - the export map still publishes stylesheets
-    - ${label} imports all of them
-    - ${label} loads the theme after Quasar's stylesheet
-    - ${label} takes them from this package, not from Quasar
+    - every entry point imports the stylesheets the package publishes
+        - the export map still publishes stylesheets
+        - ${label} imports all of them
+        - ${label} loads the theme after Quasar's stylesheet
+        - ${label} takes them from this package, not from Quasar
 - `tests/templates-import-what-exists.test.js`
-    - the templates name some subpaths
-    - each one resolves through the export map
-    - and the file behind it is really there
+    - every ui-vue subpath a template or document names can be imported
+        - the templates name some subpaths
+        - each one resolves through the export map
+        - and the file behind it is really there
 
 <!-- END proof -->
 
@@ -449,79 +479,99 @@ _Source:_ #217
 _Tested by:_
 
 - `packages/cli/tests/cli-commands.test.js`
-    - names every command
-    - and every `init` example it prints actually runs
-    - an unknown command exits 1 rather than doing nothing
-    - a model the app never adopted is reported, and is not an error
-    - a field removed from an adopted model is drift, and exits 1
-    - and says nothing is missing once the fragments are applied
-    - a schema that does not exist is an error, not a stack trace
-    - appends the selected fragments and says which
-    - the enums a fragment declares arrive with its models
-    - running it twice appends nothing the second time
-    - a fragment selector that matches nothing is refused
-    - without --name it says so instead of guessing one
-    - --dry-run stops before Prisma, and says that it did
-    - scaffolds the wiring, patches the module, and names the next steps
-    - refuses to overwrite what is already there
-    - a tsconfig on the old moduleResolution is refused before any write
-    - a moduleResolution inherited through extends is refused too
-    - a key the generated files would refuse is refused here, before any write
-    - without a key it says which flag is missing
-    - --dry-run lists the files and writes none of them
-    - rewrites what moved and leaves the rest alone
-    - names what no longer has a home rather than guessing one
-    - --dry-run reports without writing
-    - it does not walk into node_modules or dist
-    - takes the key out of saas.yaml and the query, and reports the schema
-    - is idempotent, like the other two
-    - rewrites the four kinds of name and leaves the rest alone
-    - reports the token it cannot decide, and leaves it
-    - --dry-run reports and writes nothing
-    - the package rename reaches package.json, under its own indentation
-    - a second run has nothing left to do
-    - runs the import rewrite and the rename, in that order
+    - the help text
+        - names every command
+        - and every `init` example it prints actually runs
+        - an unknown command exits 1 rather than doing nothing
+    - schema check
+        - a model the app never adopted is reported, and is not an error
+        - a field removed from an adopted model is drift, and exits 1
+        - and says nothing is missing once the fragments are applied
+        - a schema that does not exist is an error, not a stack trace
+    - schema apply
+        - appends the selected fragments and says which
+        - the enums a fragment declares arrive with its models
+        - running it twice appends nothing the second time
+        - a fragment selector that matches nothing is refused
+    - schema migrate
+        - without --name it says so instead of guessing one
+        - --dry-run stops before Prisma, and says that it did
+    - init
+        - scaffolds the wiring, patches the module, and names the next steps
+        - refuses to overwrite what is already there
+        - a tsconfig on the old moduleResolution is refused before any write
+        - a moduleResolution inherited through extends is refused too
+        - a key the generated files would refuse is refused here, before any write
+        - without a key it says which flag is missing
+        - --dry-run lists the files and writes none of them
+    - codemod v1-imports
+        - rewrites what moved and leaves the rest alone
+        - names what no longer has a home rather than guessing one
+        - --dry-run reports without writing
+        - it does not walk into node_modules or dist
+    - codemod v1-project-key
+        - takes the key out of saas.yaml and the query, and reports the schema
+        - is idempotent, like the other two
+    - codemod v1-rename
+        - rewrites the four kinds of name and leaves the rest alone
+        - reports the token it cannot decide, and leaves it
+        - --dry-run reports and writes nothing
+        - the package rename reaches package.json, under its own indentation
+        - a second run has nothing left to do
+    - codemod v1
+        - runs the import rewrite and the rename, in that order
 - `packages/cli/tests/init.test.js`
-    - the minimum is seven files, one of them a quota provider
-    - each quota adds one provider, named after its key
-    - --skip-hasher drops the hasher and keeps the persistence bundle
-    - with a hasher the bundle wires it
-    - no file goes out with an unsubstituted token
-    - every template is reachable through some plan
-    - a multi-word key still produces valid identifiers
-    - the quota model becomes the Prisma delegate, not the model name
-    - a quota without a model counts a delegate named after the key
-    - the case helpers round-trip the shapes the plan relies on
-    - quotas land under both plans, at different limits
-    - there is no such thing as a plan without quotas
-    - nothing has a trailing space
-    - the admin module is registered, not merely imported
-    - nothing is imported that the inserted code does not use
-    - every symbol the block uses is imported
-    - what was already in the array keeps its own line
-    - the imports go after the last existing one
-    - running it twice does nothing the second time
-    - a file it cannot edit is declined, with the block to paste
-    - a one-line decorator is declined, and the reason names the shape it wants
-    - the limit filter is printed, not inserted
-    - without persistence it comments the line instead of importing nothing
-    - a generated persistence bundle is an imported one
-    - the admin module import path matches the file the plan writes
-    - each quota provider import path matches its file
-    - the block names one, so the file does not compile without it
-    - the block names the modules the platform resolves from, for the same reason
-    - and says why, where the reader is
-    - is refused before anything is planned
-    - and a valid one still plans
-    - the message carries the pattern rather than a paraphrase of it
-    - the quota key pattern is the schema's
-    - the minimum number of quotas is the schema's
-    - the classes get identifiers, the catalogue keeps the words
-    - and the file names follow the identifier, not the label
-    - every generated class name is a valid identifier
-    - for a camel-cased key, where the two used to disagree
-    - and for every spelling the schema allows
-    - stays intact, and the new imports go after it
-    - and a side-effect import is an import too, so nothing lands above it
+    - what gets written
+        - the minimum is seven files, one of them a quota provider
+        - each quota adds one provider, named after its key
+        - --skip-hasher drops the hasher and keeps the persistence bundle
+        - with a hasher the bundle wires it
+        - no file goes out with an unsubstituted token
+        - every template is reachable through some plan
+    - the names it derives
+        - a multi-word key still produces valid identifiers
+        - the quota model becomes the Prisma delegate, not the model name
+        - a quota without a model counts a delegate named after the key
+        - the case helpers round-trip the shapes the plan relies on
+    - the YAML it writes
+        - quotas land under both plans, at different limits
+        - there is no such thing as a plan without quotas
+        - nothing has a trailing space
+    - patching an existing app.module.ts
+        - the admin module is registered, not merely imported
+        - nothing is imported that the inserted code does not use
+        - every symbol the block uses is imported
+        - what was already in the array keeps its own line
+        - the imports go after the last existing one
+        - running it twice does nothing the second time
+        - a file it cannot edit is declined, with the block to paste
+        - a one-line decorator is declined, and the reason names the shape it wants
+        - the limit filter is printed, not inserted
+        - without persistence it comments the line instead of importing nothing
+    - what the plan implies for the patch
+        - a generated persistence bundle is an imported one
+        - the admin module import path matches the file the plan writes
+        - each quota provider import path matches its file
+    - the auth guard the generator cannot know
+        - the block names one, so the file does not compile without it
+        - the block names the modules the platform resolves from, for the same reason
+        - and says why, where the reader is
+    - an app key the generated files would refuse
+        - is refused before anything is planned
+        - and a valid one still plans
+        - the message carries the pattern rather than a paraphrase of it
+    - the quota rules come from the schema, not from a copy of them
+        - the quota key pattern is the schema's
+        - the minimum number of quotas is the schema's
+    - an app name a human would type
+        - the classes get identifiers, the catalogue keeps the words
+        - and the file names follow the identifier, not the label
+        - every generated class name is a valid identifier
+    - the file a quota provider is written to is the file that gets imported
+        - for a camel-cased key, where the two used to disagree
+        - and for every spelling the schema allows
+    - a root module whose last import spans several lines
+        - stays intact, and the new imports go after it
+        - and a side-effect import is an import too, so nothing lands above it
 
 <!-- END proof -->

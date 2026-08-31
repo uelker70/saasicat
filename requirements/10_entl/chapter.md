@@ -31,13 +31,14 @@ _Tested by:_
         - TRIAL: uses trialEntitlementPlan via DB lookup
         - Pilot with config: pilotEntitlementPlan overrides
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
-    - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
-    - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
-    - collectSubscriptionBundleFeatures: set union
-    - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
-    - aggregateLimits: canceled bundle is ignored
-    - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
-    - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
+    - SubscriptionBundle aggregation (P11.7.3)
+        - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
+        - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
+        - collectSubscriptionBundleFeatures: set union
+        - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
+        - aggregateLimits: canceled bundle is ignored
+        - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
+        - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
 
 <!-- END proof -->
 
@@ -62,13 +63,14 @@ _Tested by:_
         - canceled bundles (canceledEffectiveAt &lt; now) are not included
         - bundle quota in a quota dimension the plan does not have is passed through
 - `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
-    - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
-    - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
-    - collectSubscriptionBundleFeatures: set union
-    - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
-    - aggregateLimits: canceled bundle is ignored
-    - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
-    - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
+    - SubscriptionBundle aggregation (P11.7.3)
+        - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
+        - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
+        - collectSubscriptionBundleFeatures: set union
+        - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
+        - aggregateLimits: canceled bundle is ignored
+        - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
+        - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
 
 <!-- END proof -->
 
@@ -143,14 +145,16 @@ _Tested by:_
         - Class-level annotation applies when the handler has none
         - Handler annotation overrides class annotation
 - `packages/ui-vue/tests/feature-gate.test.js`
-    - app.provide is called with the inject key
-    - route without meta.requiresFeature always passes
-    - no entitlement bound -&gt; pass
-    - feature present -&gt; pass
-    - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next("/upgrade")
-    - array requiresFeature -&gt; logical OR
-    - loading + null snapshot + allowWhileLoading default -&gt; pass
+    - provideEntitlement
+        - app.provide is called with the inject key
+    - buildFeatureRouterGuard
+        - route without meta.requiresFeature always passes
+        - no entitlement bound -&gt; pass
+        - feature present -&gt; pass
+        - feature missing + no redirectTo -&gt; next(false)
+        - feature missing + redirectTo -&gt; next("/upgrade")
+        - array requiresFeature -&gt; logical OR
+        - loading + null snapshot + allowWhileLoading default -&gt; pass
 
 <!-- END proof -->
 
@@ -169,10 +173,11 @@ _Tested by:_
     - StaticFeatureGuard — FEATURE_NOT_LICENSED body
         - emits the full FeatureNotLicensedBody with empty offers
 - `packages/nest/tests/limit-exceeded-filter.test.js`
-    - responds with HTTP 402 + standard body shape
-    - carries the quota dimension correctly from the exception
-    - lets floating-point `used`/`max` pass through for storage
-    - robust when method/url are missing from the request
+    - LimitExceededFilter
+        - responds with HTTP 402 + standard body shape
+        - carries the quota dimension correctly from the exception
+        - lets floating-point `used`/`max` pass through for storage
+        - robust when method/url are missing from the request
 
 <!-- END proof -->
 
@@ -319,12 +324,14 @@ _Tested by:_
         - it is granted its plan
         - and a cancellation still to come changes nothing
 - `packages/ui-vue-tenant/tests/component/a-cancelled-plan-still-runs.test.ts`
-    - the tenant is offered the act
-    - and told nothing about a cancellation
-    - the date is shown, not just the word
-    - and the subscription is described as unchanged until then
-    - the act is no longer offered
-    - changing plan still is
+    - while nothing is cancelled
+        - the tenant is offered the act
+        - and told nothing about a cancellation
+    - once it is cancelled
+        - the date is shown, not just the word
+        - and the subscription is described as unchanged until then
+        - the act is no longer offered
+        - changing plan still is
 
 <!-- END proof -->
 
@@ -425,14 +432,15 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/catalog-bundle-upsell-resolver.test.js`
-    - returns published+marketed bundles that contain the missing feature
-    - non-marketed and draft bundles are not offers
-    - without requires data the cheaper price wins
-    - requires known (#35): combo bundle with dependency ranks before cheaper single bundle
-    - bundle that contains only the dependency (not the feature) is not an offer
-    - currency comes from the optional currency token, default EUR
-    - priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last
-    - empty featureKeys → no offers, no repo access
+    - CatalogBundleUpsellResolver
+        - returns published+marketed bundles that contain the missing feature
+        - non-marketed and draft bundles are not offers
+        - without requires data the cheaper price wins
+        - requires known (#35): combo bundle with dependency ranks before cheaper single bundle
+        - bundle that contains only the dependency (not the feature) is not an offer
+        - currency comes from the optional currency token, default EUR
+        - priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last
+        - empty featureKeys → no offers, no repo access
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — upsell response (#36)
         - structured 403 body: code, featureKey, featureKeys, offers, message
@@ -477,20 +485,23 @@ _Source:_ `docs/guides/build-the-admin-frontend.md`
 _Tested by:_
 
 - `packages/ui-vue/tests/feature-gate.test.js`
-    - app.provide is called with the inject key
-    - route without meta.requiresFeature always passes
-    - no entitlement bound -&gt; pass
-    - feature present -&gt; pass
-    - feature missing + no redirectTo -&gt; next(false)
-    - feature missing + redirectTo -&gt; next("/upgrade")
-    - array requiresFeature -&gt; logical OR
-    - loading + null snapshot + allowWhileLoading default -&gt; pass
+    - provideEntitlement
+        - app.provide is called with the inject key
+    - buildFeatureRouterGuard
+        - route without meta.requiresFeature always passes
+        - no entitlement bound -&gt; pass
+        - feature present -&gt; pass
+        - feature missing + no redirectTo -&gt; next(false)
+        - feature missing + redirectTo -&gt; next("/upgrade")
+        - array requiresFeature -&gt; logical OR
+        - loading + null snapshot + allowWhileLoading default -&gt; pass
 - `packages/ui-vue/tests/use-entitlement.test.js`
-    - autoLoad loads the snapshot
-    - hasFeature(key) returns a boolean
-    - hasFeature without a loaded Entitlement → false
-    - the client's auth header reaches the request untouched
-    - 500 → error set, entitlement null
-    - endpoint is required: without an endpoint useEntitlement throws
+    - useEntitlement
+        - autoLoad loads the snapshot
+        - hasFeature(key) returns a boolean
+        - hasFeature without a loaded Entitlement → false
+        - the client's auth header reaches the request untouched
+        - 500 → error set, entitlement null
+        - endpoint is required: without an endpoint useEntitlement throws
 
 <!-- END proof -->

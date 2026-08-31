@@ -54,12 +54,13 @@ _Source:_ #236 · `docs/explanation/data-model.md`
 _Tested by:_
 
 - `tests/a-key-belongs-to-the-installation.test.js`
-    - the scan reaches the repository
-    - the scan reads the shipped DDL, where the column actually lived
-    - no tracked file carries the retired identifier without declaring it
-    - the rule is not vacuous: it refuses each spelling
-    - and it does not refuse a word that merely contains one
-    - a declaration excuses the file it is in, and only in its head
+    - a key belongs to the installation, not to a project
+        - the scan reaches the repository
+        - the scan reads the shipped DDL, where the column actually lived
+        - no tracked file carries the retired identifier without declaring it
+        - the rule is not vacuous: it refuses each spelling
+        - and it does not refuse a word that merely contains one
+        - a declaration excuses the file it is in, and only in its head
 
 <!-- END proof -->
 
@@ -83,14 +84,17 @@ _Tested by:_
         - the DB-hydration path is held to it too
         - and a configuration with no catalogue at all is the other finding, not both
 - `packages/ui-vue/tests/login-branding.test.js`
-    - a complete boot response is used as-is
-    - production is not shown as an environment badge
-    - ${name}: falls back instead of throwing
-    - without boot and without app branding the card still renders
-    - empty strings from boot do not blank the card
-    - true only for an explicit production environment
-    - a malformed payload is not treated as production
-    - other environments are not production
+    - resolveLoginBranding — boot values win, app branding fills in
+        - a complete boot response is used as-is
+        - production is not shown as an environment badge
+    - resolveLoginBranding — malformed boot must not take the card down
+        - ${name}: falls back instead of throwing
+        - without boot and without app branding the card still renders
+        - empty strings from boot do not blank the card
+    - isProductionBoot — the dev-credentials guard
+        - true only for an explicit production environment
+        - a malformed payload is not treated as production
+        - other environments are not production
 
 <!-- END proof -->
 
@@ -179,12 +183,14 @@ _Source:_ ADR 0001
 _Tested by:_
 
 - `tests/license-is-consistent.test.js`
-    - there are packages to check
-    - each one has a LICENSE file
-    - and it is byte-identical to the one at the root
-    - and the license field agrees with the file, everywhere
-    - ${file} quotes it verbatim
-    - the clause is not trivially short, so the check is not trivially true
+    - every published package ships the same licence as the repository
+        - there are packages to check
+        - each one has a LICENSE file
+        - and it is byte-identical to the one at the root
+        - and the license field agrees with the file, everywhere
+    - what the docs say about the licence is what the licence says
+        - ${file} quotes it verbatim
+        - the clause is not trivially short, so the check is not trivially true
 
 <!-- END proof -->
 
@@ -200,11 +206,13 @@ _Source:_ ADR 0001 · release 0.27.0
 _Tested by:_
 
 - `tests/license-is-consistent.test.js`
-    - there are packages to check
-    - each one has a LICENSE file
-    - and it is byte-identical to the one at the root
-    - and the license field agrees with the file, everywhere
-    - ${file} quotes it verbatim
-    - the clause is not trivially short, so the check is not trivially true
+    - every published package ships the same licence as the repository
+        - there are packages to check
+        - each one has a LICENSE file
+        - and it is byte-identical to the one at the root
+        - and the license field agrees with the file, everywhere
+    - what the docs say about the licence is what the licence says
+        - ${file} quotes it verbatim
+        - the clause is not trivially short, so the check is not trivially true
 
 <!-- END proof -->

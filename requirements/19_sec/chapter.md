@@ -18,15 +18,16 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-tenant-subscription-write.test.js`
-    - the no-options default preserves the 0.6 plan-only write
-    - opening a window records the day the subscription is billed on
-    - and a change that opens none leaves it alone
-    - normalized mode binds semantic plan and active version atomically with named delegates
-    - a pending version of the same target plan is retained
-    - a failing onboarding callback rolls plan and version back together
-    - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
-    - pending PlanVersion acceptance rejects a changed CAS target and a missing target
-    - invalid validity capability combinations fail at construction
+    - PrismaTenantSubscriptionWriteAdapter
+        - the no-options default preserves the 0.6 plan-only write
+        - opening a window records the day the subscription is billed on
+        - and a change that opens none leaves it alone
+        - normalized mode binds semantic plan and active version atomically with named delegates
+        - a pending version of the same target plan is retained
+        - a failing onboarding callback rolls plan and version back together
+        - pending PlanVersion acceptance uses a CAS and reports the concurrent loser
+        - pending PlanVersion acceptance rejects a changed CAS target and a missing target
+        - invalid validity capability combinations fail at construction
 
 <!-- END proof -->
 
@@ -41,35 +42,43 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 _Tested by:_
 
 - `packages/cli/tests/cli-context.test.js`
-    - accepts --as flag
-    - falls back to env var
-    - throws NO_IDENTITY with exit code 2 when nothing is set
-    - --as overrides env var
-    - accepts SUPER_ADMIN user
-    - rejects non-existent user (USER_NOT_FOUND, exit 2)
-    - rejects deactivated user
-    - rejects non-SUPER_ADMIN (NOT_SUPER_ADMIN)
-    - Bypass: SKIP=1 + non-prod
-    - bypass NOT in production
-    - MFA_NOT_SET_UP when platform MfaService isEnabled=false
-    - MFA_FAILED on invalid code
-    - accepts valid code
-    - skips automatically in non-prod
-    - skips with yes=true in prod
-    - accepts "production" as answer
-    - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
-    - writes through platform AdminAuditService with cli actor
-    - has code, message and exitCode
+    - CliContextService.resolveIdentity
+        - accepts --as flag
+        - falls back to env var
+        - throws NO_IDENTITY with exit code 2 when nothing is set
+        - --as overrides env var
+    - CliContextService.ensureSuperAdmin
+        - accepts SUPER_ADMIN user
+        - rejects non-existent user (USER_NOT_FOUND, exit 2)
+        - rejects deactivated user
+        - rejects non-SUPER_ADMIN (NOT_SUPER_ADMIN)
+    - CliContextService.requireMfa
+        - Bypass: SKIP=1 + non-prod
+        - bypass NOT in production
+        - MFA_NOT_SET_UP when platform MfaService isEnabled=false
+        - MFA_FAILED on invalid code
+        - accepts valid code
+    - CliContextService.ensureProductionConfirmation
+        - skips automatically in non-prod
+        - skips with yes=true in prod
+        - accepts "production" as answer
+        - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
+    - CliContextService.log
+        - writes through platform AdminAuditService with cli actor
+    - CliError
+        - has code, message and exitCode
 - `packages/ui-vue/tests/admin-resource-client.test.js`
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client's header
-    - the page adds no header of its own to an unauthenticated client
+    - a mounted page issues authenticated requests
+        - every request carries the client's header
+        - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
-    - there is a corpus to scan
-    - no option named `getAuthToken` survives
-    - nothing builds a Bearer header by hand
+    - the HttpClient is the only way a request gets its auth
+        - there is a corpus to scan
+        - no option named `getAuthToken` survives
+        - nothing builds a Bearer header by hand
 
 <!-- END proof -->
 
@@ -99,28 +108,33 @@ _Tested by:_
     - createAdminResourceClient exposes every standard Admin loader and action
     - createAdminResourceClient reports failed Admin requests
 - `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - every request carries the client's header
-    - the page adds no header of its own to an unauthenticated client
+    - a mounted page issues authenticated requests
+        - every request carries the client's header
+        - the page adds no header of its own to an unauthenticated client
 - `packages/ui-vue/tests/navigation-guard.test.js`
-    - returns null when neither authGuard nor manifestGuard is set
-    - redirects to onUnauthenticated() when isAuthenticated is false
-    - lets public routes bypass the auth guard
-    - redirects to onUnauthenticated when isSuperAdmin is false
-    - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
-    - avoids redirect loop: when the current route is already errorRoute, returns true
-    - falls back to render-allow + console.error when NO errorRoute is set
-    - lets the render through when ensureLoaded resolves successfully
-    - 401 from the manifest load routes to login, not to the error page
-    - 403 is treated the same way
-    - a genuine manifest failure still fails closed to the error page
-    - an error without a status stays on the fail-closed path
-    - without an authGuard a 401 still reaches the error page
-    - first 401 offers a re-login, the second stops the circle
-    - a successful load re-arms the redirect for a later expiry
-    - concurrent navigations on one rejection share the login redirect
-    - the second attempt fails closed once the operator has seen login
-    - a cached error instance does not resurrect the login loop
-    - a later, different rejection still fails closed
+    - buildNavigationGuard — auth path
+        - returns null when neither authGuard nor manifestGuard is set
+        - redirects to onUnauthenticated() when isAuthenticated is false
+        - lets public routes bypass the auth guard
+        - redirects to onUnauthenticated when isSuperAdmin is false
+    - buildNavigationGuard — manifest fail-closed
+        - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
+        - avoids redirect loop: when the current route is already errorRoute, returns true
+        - falls back to render-allow + console.error when NO errorRoute is set
+        - lets the render through when ensureLoaded resolves successfully
+    - buildNavigationGuard — expired session vs broken manifest
+        - 401 from the manifest load routes to login, not to the error page
+        - 403 is treated the same way
+        - a genuine manifest failure still fails closed to the error page
+        - an error without a status stays on the fail-closed path
+        - without an authGuard a 401 still reaches the error page
+    - buildNavigationGuard — no login loop on a persistent manifest 401
+        - first 401 offers a re-login, the second stops the circle
+        - a successful load re-arms the redirect for a later expiry
+        - concurrent navigations on one rejection share the login redirect
+        - the second attempt fails closed once the operator has seen login
+        - a cached error instance does not resurrect the login loop
+        - a later, different rejection still fails closed
 
 <!-- END proof -->
 
@@ -167,91 +181,98 @@ _Tested by:_
     - adminManifest rejects the removed planVersions standard page
     - adminManifest rejects capability with colon notation
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`
-    - ${label} renders instead of throwing
-    - the null case still shows the documented fallbacks
+    - DiscoveryPage survives a snapshot that is not a snapshot
+        - ${label} renders instead of throwing
+        - the null case still shows the documented fallbacks
 - `packages/ui-vue/tests/http-adapters.test.js`
-    - passes a relative URL through unchanged when there is no base URL
-    - prepends the base URL, without doubling the slash
-    - leaves an absolute URL alone even with a base URL set
-    - reads the headers hook per request, so a refreshed token is picked up
-    - awaits an async headers hook
-    - asks for JSON
-    - an Accept the hook asked for is kept
-    - a per-call header wins over the hook, whatever the casing
-    - supplies a JSON content type for a body that arrived without one
-    - does not invent a content type when there is no body
-    - a non-2xx is a response, not a throw
-    - response headers are readable under any casing
-    - a failed request is marked as one, whichever way the client was built
-    - defaultHttpClient is this client with no options
-    - strips the prefix the instance already carries as its baseURL
-    - tries several prefixes in order, so the longer one is not shadowed
-    - a prefix written with a trailing slash strips the same way
-    - a query ends the path, so the prefix is still the prefix
-    - a fragment ends it too
-    - leaves a URL that does not start with the prefix alone
-    - a URL that is exactly the prefix becomes the root, not the empty string
-    - without stripPrefix the URL passes through whole
-    - no status throws — 304, 402 and 500 all arrive as responses
-    - the method is upper-cased and defaults to GET
-    - a DELETE carries its body through
-    - json() returns what axios already parsed
-    - json() parses a raw string, for an instance with transformResponse disabled
-    - every way of turning axios’s own decoding off is read as text
-    - responseType json is the one that still means decoded
-    - json() does not decode a second time what axios already decoded
-    - a decoded string that reads as JSON keeps its meaning
-    - json() throws on a raw body that is not JSON, exactly as Response.json() does
-    - a body a decoding instance could not parse is the string it kept
-    - an empty body throws whatever the instance decodes
-    - a declared decoding instance hands an empty data over as the empty string
-    - a declared raw instance still throws on an empty data
-    - transformResponse null is a pipeline that ran nothing, so the body is raw
-    - a config that merely omits transformResponse has not said anything
-    - a response carrying no config is read as already decoded
-    - text() gives a string either way
-    - response headers are readable under any casing
-    - a header that is not there reads as null, not undefined
-    - survives an instance that reports no headers at all
-    - request headers are handed to the instance untouched
-    - a rejection the instance recovers from never reaches the platform
-    - a rejection it does not recover from arrives as a response, not a throw
-    - a failure with no response stays a throw
-    - a structural instance that says nothing is not marked for it
-    - …and the way out is the one the fetch adapter uses
-    - no validateStatus is imposed on the instance
-    - a 304 with an ETag is usable by the manifest loader’s cache path
-    - a 204 arrives as a status the caller can check before reading a body
-    - json() yields what was on the wire, however the instance is configured
-    - json() yields what was on the wire when the instance declares how
-    - a rejected status is read by the same declaration
-    - an instance with its own transform is read as decoding until it says otherwise
-    - an empty body throws, whichever instance asked for it
-    - an instance that hands the body over reads `""` as the empty string
-    - a declaration recovers `""` from an instance that already decoded it
-    - `""` is the one body a decoding instance under `auto` cannot get back
-    - a body no one could decode is the text it was, where axios kept it
-    - a rejected status arrives as a response with its body readable
-    - the prefix an instance carries as its baseURL is stripped back off
-    - a browser Blob body is read through the text() it exposes
-    - what an interceptor rewrites, the adapter can no longer judge
-    - a body axios delivered as bytes reads as the value those bytes spell
-    - and the two readers of a byte body agree about it
-    - an empty byte body throws, as an empty text body does
-    - a streamed body is refused by name, not mishandled
-    - a transform returning an object still hands that object over
-    - a genuine network failure is marked
-    - a DNS failure and a timeout are the same fact and are marked too
-    - a network failure a rejection interceptor rethrows is still marked
-    - an interceptor's replacement error keeps its message
-    - …including when it carries axios’s config across, which is the shape that fooled the old
-      reading
-    - …and when it carries `request` too, which is why `isAxiosError` is read
-    - an interceptor rejecting with another request’s failure is that request’s answer
-    - a failure while setting the request up keeps its own words
-    - a request interceptor that throws is not a transport failure
-    - an answered status never reaches the brand at all
-    - the reading holds on its own, not only where the adapter calls it
+    - createFetchHttpClient
+        - passes a relative URL through unchanged when there is no base URL
+        - prepends the base URL, without doubling the slash
+        - leaves an absolute URL alone even with a base URL set
+        - reads the headers hook per request, so a refreshed token is picked up
+        - awaits an async headers hook
+        - asks for JSON
+        - an Accept the hook asked for is kept
+        - a per-call header wins over the hook, whatever the casing
+        - supplies a JSON content type for a body that arrived without one
+        - does not invent a content type when there is no body
+        - a non-2xx is a response, not a throw
+        - response headers are readable under any casing
+        - a failed request is marked as one, whichever way the client was built
+        - defaultHttpClient is this client with no options
+    - createAxiosHttpClient
+        - strips the prefix the instance already carries as its baseURL
+        - tries several prefixes in order, so the longer one is not shadowed
+        - a prefix written with a trailing slash strips the same way
+        - a query ends the path, so the prefix is still the prefix
+        - a fragment ends it too
+        - leaves a URL that does not start with the prefix alone
+        - a URL that is exactly the prefix becomes the root, not the empty string
+        - without stripPrefix the URL passes through whole
+        - no status throws — 304, 402 and 500 all arrive as responses
+        - the method is upper-cased and defaults to GET
+        - a DELETE carries its body through
+        - json() returns what axios already parsed
+        - json() parses a raw string, for an instance with transformResponse disabled
+        - every way of turning axios’s own decoding off is read as text
+        - responseType json is the one that still means decoded
+        - json() does not decode a second time what axios already decoded
+        - a decoded string that reads as JSON keeps its meaning
+        - json() throws on a raw body that is not JSON, exactly as Response.json() does
+        - a body a decoding instance could not parse is the string it kept
+        - an empty body throws whatever the instance decodes
+        - a declared decoding instance hands an empty data over as the empty string
+        - a declared raw instance still throws on an empty data
+        - transformResponse null is a pipeline that ran nothing, so the body is raw
+        - a config that merely omits transformResponse has not said anything
+        - a response carrying no config is read as already decoded
+        - text() gives a string either way
+        - response headers are readable under any casing
+        - a header that is not there reads as null, not undefined
+        - survives an instance that reports no headers at all
+        - request headers are handed to the instance untouched
+    - createAxiosHttpClient — the instance keeps its own error handling
+        - a rejection the instance recovers from never reaches the platform
+        - a rejection it does not recover from arrives as a response, not a throw
+        - a failure with no response stays a throw
+        - a structural instance that says nothing is not marked for it
+        - …and the way out is the one the fetch adapter uses
+        - no validateStatus is imposed on the instance
+    - the adapters satisfy what the platform loaders expect
+        - a 304 with an ETag is usable by the manifest loader’s cache path
+        - a 204 arrives as a status the caller can check before reading a body
+    - createAxiosHttpClient — against a real axios instance
+        - json() yields what was on the wire, however the instance is configured
+        - json() yields what was on the wire when the instance declares how
+        - a rejected status is read by the same declaration
+        - an instance with its own transform is read as decoding until it says otherwise
+        - an empty body throws, whichever instance asked for it
+        - an instance that hands the body over reads `""` as the empty string
+        - a declaration recovers `""` from an instance that already decoded it
+        - `""` is the one body a decoding instance under `auto` cannot get back
+        - a body no one could decode is the text it was, where axios kept it
+        - a rejected status arrives as a response with its body readable
+        - the prefix an instance carries as its baseURL is stripped back off
+        - a browser Blob body is read through the text() it exposes
+        - what an interceptor rewrites, the adapter can no longer judge
+        - a body axios delivered as bytes reads as the value those bytes spell
+        - and the two readers of a byte body agree about it
+        - an empty byte body throws, as an empty text body does
+        - a streamed body is refused by name, not mishandled
+        - a transform returning an object still hands that object over
+    - createAxiosHttpClient — the transport brand, against real axios
+        - a genuine network failure is marked
+        - a DNS failure and a timeout are the same fact and are marked too
+        - a network failure a rejection interceptor rethrows is still marked
+        - an interceptor's replacement error keeps its message
+        - …including when it carries axios’s config across, which is the shape that fooled the old
+          reading
+        - …and when it carries `request` too, which is why `isAxiosError` is read
+        - an interceptor rejecting with another request’s failure is that request’s answer
+        - a failure while setting the request up keeps its own words
+        - a request interceptor that throws is not a transport failure
+        - an answered status never reaches the brand at all
+        - the reading holds on its own, not only where the adapter calls it
 
 <!-- END proof -->
 

@@ -18,7 +18,8 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/core/tests/codegen-drift.test.js`
-    - ${genFile} is in sync with ${file}
+    - Q.4 Codegen drift gate
+        - ${genFile} is in sync with ${file}
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it
         - the matrix asks more of a trial than of a term
@@ -146,12 +147,14 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/ui-vue/tests/component/pilot-dialogs.test.ts`
-    - blocks submitting while required fields are missing
-    - draws the plan picker from the options passed in
-    - derives the slug from the name
-    - adopts plan, end date and note from the row
-    - draws the same plan picker as the create dialog
-    - offers preset buttons for the end date
+    - PilotCreateDialog
+        - blocks submitting while required fields are missing
+        - draws the plan picker from the options passed in
+        - derives the slug from the name
+    - PilotEditDialog
+        - adopts plan, end date and note from the row
+        - draws the same plan picker as the create dialog
+        - offers preset buttons for the end date
 
 <!-- END proof -->
 

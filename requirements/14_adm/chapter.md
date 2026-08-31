@@ -22,12 +22,13 @@ _Tested by:_
         - rejects TENANT_ADMIN
         - rejects a missing user
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and `guards` is missing
-    - accepts empty `guards: []` as an explicit auth-free choice
-    - does NOT throw when `includeManifestController: false`
-    - accepts a configured `guards` list
-    - additionally accepts `reloadGuards` for MFA protection on reload
-    - throws on missing `guards` even without an explicit includeManifestController
+    - AdminManifestModule.forRoot — guard configuration
+        - throws when the controller should be registered and `guards` is missing
+        - accepts empty `guards: []` as an explicit auth-free choice
+        - does NOT throw when `includeManifestController: false`
+        - accepts a configured `guards` list
+        - additionally accepts `reloadGuards` for MFA protection on reload
+        - throws on missing `guards` even without an explicit includeManifestController
 - `packages/nest/tests/discovery-controller.test.js`
     - DiscoveryController — GET /admin/discovery
         - returns the discovery snapshot as the body
@@ -40,9 +41,10 @@ _Tested by:_
         - is passed through to AdminManifestModule
         - defaults to mounting the manifest controller
 - `packages/ui-vue/tests/one-way-to-authenticate.test.js`
-    - there is a corpus to scan
-    - no option named `getAuthToken` survives
-    - nothing builds a Bearer header by hand
+    - the HttpClient is the only way a request gets its auth
+        - there is a corpus to scan
+        - no option named `getAuthToken` survives
+        - nothing builds a Bearer header by hand
 
 <!-- END proof -->
 
@@ -57,12 +59,13 @@ _Source:_ release 1.0.0-rc.7
 _Tested by:_
 
 - `packages/nest/tests/admin-manifest-module.test.js`
-    - throws when the controller should be registered and `guards` is missing
-    - accepts empty `guards: []` as an explicit auth-free choice
-    - does NOT throw when `includeManifestController: false`
-    - accepts a configured `guards` list
-    - additionally accepts `reloadGuards` for MFA protection on reload
-    - throws on missing `guards` even without an explicit includeManifestController
+    - AdminManifestModule.forRoot — guard configuration
+        - throws when the controller should be registered and `guards` is missing
+        - accepts empty `guards: []` as an explicit auth-free choice
+        - does NOT throw when `includeManifestController: false`
+        - accepts a configured `guards` list
+        - additionally accepts `reloadGuards` for MFA protection on reload
+        - throws on missing `guards` even without an explicit includeManifestController
 
 <!-- END proof -->
 
@@ -174,12 +177,15 @@ _Source:_ release 0.26.0
 _Tested by:_
 
 - `packages/cli/tests/mfa-setup-flow.test.js`
-    - returns secret + otpauthUri for SUPER_ADMIN
-    - audit log contains issuer in changes
-    - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
-    - accepts re-setup with force=true without prompt
-    - returns multi-line instructions with secret + URI
+    - MfaSetupFlow.run — first setup
+        - returns secret + otpauthUri for SUPER_ADMIN
+        - audit log contains issuer in changes
+    - MfaSetupFlow.run — re-setup
+        - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
+        - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
+        - accepts re-setup with force=true without prompt
+    - MfaSetupFlow.formatSetupResult
+        - returns multi-line instructions with secret + URI
 
 <!-- END proof -->
 
@@ -208,12 +214,15 @@ _Source:_ release 1.0.0-rc.4
 _Tested by:_
 
 - `packages/cli/tests/mfa-setup-flow.test.js`
-    - returns secret + otpauthUri for SUPER_ADMIN
-    - audit log contains issuer in changes
-    - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
-    - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
-    - accepts re-setup with force=true without prompt
-    - returns multi-line instructions with secret + URI
+    - MfaSetupFlow.run — first setup
+        - returns secret + otpauthUri for SUPER_ADMIN
+        - audit log contains issuer in changes
+    - MfaSetupFlow.run — re-setup
+        - rejects re-setup without confirmation (MFA_SETUP_ABORTED)
+        - accepts re-setup with "yes" answer and audits MFA_SETUP_RESET
+        - accepts re-setup with force=true without prompt
+    - MfaSetupFlow.formatSetupResult
+        - returns multi-line instructions with secret + URI
 
 <!-- END proof -->
 
@@ -254,10 +263,11 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
-    - the controller has routes, and each carries its metadata
-    - every writing route asks for the tenant administrator
-    - the three that cost money are actually among them
-    - reading and previewing stay open to every tenant user
+    - a route that costs money asks for the role
+        - the controller has routes, and each carries its metadata
+        - every writing route asks for the tenant administrator
+        - the three that cost money are actually among them
+        - reading and previewing stay open to every tenant user
 - `packages/nest/tests/tenant-billing-controller.test.js`
     - getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)
     - getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0
@@ -295,13 +305,15 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/cli/tests/whoami-flow.test.js`
-    - SUPER_ADMIN with MFA → full diagnosis
-    - user not found → isSuperAdmin=false, no crash
-    - production is detected
-    - MFA skip visible in non-prod
-    - MFA skip NOT active in production
-    - shows SUPER_ADMIN checkmark + MFA status
-    - shows bypass warning when active
+    - WhoAmIFlow.run
+        - SUPER_ADMIN with MFA → full diagnosis
+        - user not found → isSuperAdmin=false, no crash
+        - production is detected
+        - MFA skip visible in non-prod
+        - MFA skip NOT active in production
+    - WhoAmIFlow.formatResult
+        - shows SUPER_ADMIN checkmark + MFA status
+        - shows bypass warning when active
 - `packages/nest/tests/admin-guards.test.js`
     - SuperAdminGuard
         - accepts SUPER_ADMIN
@@ -321,43 +333,52 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/adapter-prisma/tests/admin-resources-mapping.test.js`
-    - defaults to exactly the names that used to be hardcoded
-    - a partial mapping leaves the rest at the defaults
-    - and names what the client does have
-    - and does not offer $connect as a candidate
-    - the adapter refuses to be built with it
-    - but an unmapped adapter is built even without those delegates
-    - the tenant list queries and reads the mapped names
-    - the detail route addresses the tenant by the mapped slug
-    - suspending writes the mapped flag
-    - the user list filters and reads the mapped names
-    - no mapping means the same queries as before
-    - the relation counter defaults to the mapped users relation
-    - an explicit tenantMetrics still wins
-    - the subscription list selects and reads the mapped tenant columns
-    - and an unmapped app still selects slug and name
-    - the tenant list reads the mapped subscription relation
-    - the detail route reads it as well
-    - the user list filters and reads the mapped tenant relation
-    - an unmapped app is unaffected in all three
+    - the mapping
+        - defaults to exactly the names that used to be hardcoded
+        - a partial mapping leaves the rest at the defaults
+    - a mapped delegate that does not exist fails at construction
+        - and names what the client does have
+        - and does not offer $connect as a candidate
+        - the adapter refuses to be built with it
+        - but an unmapped adapter is built even without those delegates
+    - an app that calls everything something else
+        - the tenant list queries and reads the mapped names
+        - the detail route addresses the tenant by the mapped slug
+        - suspending writes the mapped flag
+        - the user list filters and reads the mapped names
+    - an app that matches the convention is unaffected
+        - no mapping means the same queries as before
+    - the mapping reaches the two places it used to stop short of
+        - the relation counter defaults to the mapped users relation
+        - an explicit tenantMetrics still wins
+        - the subscription list selects and reads the mapped tenant columns
+        - and an unmapped app still selects slug and name
+    - the two relations that live on the app models
+        - the tenant list reads the mapped subscription relation
+        - the detail route reads it as well
+        - the user list filters and reads the mapped tenant relation
+        - an unmapped app is unaffected in all three
 - `packages/adapter-prisma/tests/prisma-admin-resources.test.js`
     - PrismaAdminResourcesAdapter serves every standard Admin resource
 - `packages/cli/tests/manifest-cli-flow.test.js`
-    - dump returns the manifest 1:1
-    - hash returns manifestHash
-    - hash throws when hash is missing
-    - validate ok for a clean manifest
-    - validate rejects wrong schemaVersion
-    - null for identical hash
-    - returns added/removed componentKeys
-    - clean manifest → overall=ok, all checks green
-    - wrong manifestHash pattern → error, exitCode=7
-    - per-tenant endpoint in TenantColumn → error
-    - non-/admin route → error
-    - unknown requiredCapability ref → error
-    - wrong Capability pattern → error
-    - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
-    - formatReport shows severity icons + paths
+    - ManifestCliFlow.dump / hash / validate
+        - dump returns the manifest 1:1
+        - hash returns manifestHash
+        - hash throws when hash is missing
+        - validate ok for a clean manifest
+        - validate rejects wrong schemaVersion
+    - ManifestCliFlow.diff
+        - null for identical hash
+        - returns added/removed componentKeys
+    - ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS
+        - clean manifest → overall=ok, all checks green
+        - wrong manifestHash pattern → error, exitCode=7
+        - per-tenant endpoint in TenantColumn → error
+        - non-/admin route → error
+        - unknown requiredCapability ref → error
+        - wrong Capability pattern → error
+        - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
+        - formatReport shows severity icons + paths
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
 - `packages/nest/tests/tenant-manifest.test.js`
@@ -370,85 +391,110 @@ _Tested by:_
         - tenantManifest without defaultPlanId/resolver throws
         - tenantManifest + defaultPlanId registers controller + service
 - `packages/ui-vue/tests/app-served-resources.test.js`
-    - ${c.op} calls ${c.method} ${c.url}
-    - every operation this descriptor declares has a case above
-    - ${name}.${c.op} calls ${c.method} ${c.url}
-    - ${name}: every operation has a case above
-    - ${name} sends the header with a code
-    - ${name} sends no header for an empty code
-    - users.resetPassword posts the audit reason
-    - promoCodes.detail reads one code by id
-    - reads exactly the endpoint the card declares
-    - a reading, not a rendering — the timestamp comes back unformatted
-    - a body with no recognised number reads as null, not as a failure
+    - pilotsResource — the paths a consumer already serves
+        - ${c.op} calls ${c.method} ${c.url}
+        - every operation this descriptor declares has a case above
+    - platformEmailResource and emailHistoryResource
+        - ${name}.${c.op} calls ${c.method} ${c.url}
+        - ${name}: every operation has a case above
+    - the second factor travels as a header, and only when there is one
+        - ${name} sends the header with a code
+        - ${name} sends no header for an empty code
+    - the two operations the platform ships but does not serve
+        - users.resetPassword posts the audit reason
+        - promoCodes.detail reads one code by id
+    - dashboardResource — the endpoint comes from the card, not from us
+        - reads exactly the endpoint the card declares
+        - a reading, not a rendering — the timestamp comes back unformatted
+        - a body with no recognised number reads as null, not as a failure
 - `packages/ui-vue/tests/manifest-loader.test.js`
-    - GET without If-None-Match, persists body + ETag
-    - the client's auth header reaches the request untouched
-    - storageKeyPrefix isolates caches
-    - sends If-None-Match + returns cached body on 304
-    - a 304 whose cached body is gone is repaired, not reported
-    - a cached body that no longer parses is repaired the same way
-    - a 304 to a request that carried no ETag is a server fault, and is reported
-    - a server answering 304 unconditionally is reported after one repair, not looped on
-    - 200 overwrites cache with new body + ETag
-    - deletes body + ETag from storage
-    - returns null on empty cache
-    - returns {etag, body} after a successful load
-    - a token acquired after construction reaches the next request
-    - a token that changes between requests is not cached
+    - ManifestLoader.load — first call
+        - GET without If-None-Match, persists body + ETag
+        - the client's auth header reaches the request untouched
+        - storageKeyPrefix isolates caches
+    - ManifestLoader.load — cache hit (304)
+        - sends If-None-Match + returns cached body on 304
+        - a 304 whose cached body is gone is repaired, not reported
+        - a cached body that no longer parses is repaired the same way
+        - a 304 to a request that carried no ETag is a server fault, and is reported
+        - a server answering 304 unconditionally is reported after one repair, not looped on
+    - ManifestLoader.load — refresh (200 with new ETag)
+        - 200 overwrites cache with new body + ETag
+    - ManifestLoader.clearCache
+        - deletes body + ETag from storage
+    - ManifestLoader.readCachedBody
+        - returns null on empty cache
+        - returns {etag, body} after a successful load
+    - ManifestLoader — the client authenticates, per request
+        - a token acquired after construction reaches the next request
+        - a token that changes between requests is not cached
 - `packages/ui-vue/tests/manifest-store-factory.test.js`
-    - initial: manifest=null, loaded=false, loading=false
-    - ensureLoaded triggers load + sets loaded=true
-    - ensureLoaded is idempotent — second call does not load again
-    - parallel ensureLoaded calls share the same inflight promise
-    - ensureLoaded rejects with the original error, state is still set
-    - parallel ensureLoaded calls all reject with the same error
-    - clearCache clears manifest, loaded, loader cache
-    - reload forces a re-load
-    - uses the given `id`, so parallel stores are isolated
+    - createManifestStore — Happy Path
+        - initial: manifest=null, loaded=false, loading=false
+        - ensureLoaded triggers load + sets loaded=true
+        - ensureLoaded is idempotent — second call does not load again
+        - parallel ensureLoaded calls share the same inflight promise
+    - createManifestStore — error path
+        - ensureLoaded rejects with the original error, state is still set
+        - parallel ensureLoaded calls all reject with the same error
+    - createManifestStore — clearCache + reload
+        - clearCache clears manifest, loaded, loader cache
+        - reload forces a re-load
+    - createManifestStore — store ID override
+        - uses the given `id`, so parallel stores are isolated
 - `packages/ui-vue/tests/nav-builder.test.js`
-    - lists enabled StandardPages with Capability=true
-    - rejects disabled pages
-    - rejects pages without Capability
-    - default routes from DEFAULT_STANDARD_PAGE_ROUTES
-    - does not expose the removed planVersions standard page
-    - ignores standard pages unsupported by this UI build
-    - standardPageRoutes override
-    - isStandard=true for StandardPages
-    - lists a ProjectPage without requiredCapability
-    - rejects a ProjectPage with a missing Capability
-    - lists a ProjectPage with a satisfied Capability
-    - navSection is passed through
-    - availableExtensions filters out ProjectPages with an unknown componentKey
-    - availableExtensions keeps ProjectPages with a known componentKey
-    - sectionOrder wins, the rest alphabetical
-    - sectionOrder override via second parameter
-    - items within a section without mutation
-    - returns the registered component
-    - null for an unknown key
+    - buildRoutes — StandardPages filter
+        - lists enabled StandardPages with Capability=true
+        - rejects disabled pages
+        - rejects pages without Capability
+        - default routes from DEFAULT_STANDARD_PAGE_ROUTES
+        - does not expose the removed planVersions standard page
+        - ignores standard pages unsupported by this UI build
+        - standardPageRoutes override
+        - isStandard=true for StandardPages
+    - buildRoutes — ProjectPages
+        - lists a ProjectPage without requiredCapability
+        - rejects a ProjectPage with a missing Capability
+        - lists a ProjectPage with a satisfied Capability
+        - navSection is passed through
+        - availableExtensions filters out ProjectPages with an unknown componentKey
+        - availableExtensions keeps ProjectPages with a known componentKey
+    - buildSidebar — section grouping
+        - sectionOrder wins, the rest alphabetical
+        - sectionOrder override via second parameter
+        - items within a section without mutation
+    - resolveExtension
+        - returns the registered component
+        - null for an unknown key
 - `packages/ui-vue/tests/resource-registry.test.js`
-    - refuses to be built without a client, rather than reaching for fetch
-    - the message names the two clients the package ships
-    - every platform resource builds from apiBase and locale alone
-    - and the plan list it hands out addresses the catalogue
-    - hands out the operations of the resource asked for
-    - an unknown key fails by name, listing what there is
-    - keys() reports what it can answer for
-    - asking twice gives the same operations
-    - a context getter is read per call
-    - a context override redirects one resource and leaves the others
-    - an http override sends one resource through another client
-    - one operation is wrapped and the other five stay the platform’s
-    - the wrapper may answer without calling the platform at all
-    - overriding a resource that does not exist fails at boot too
-    - an override named after an Object prototype key is still rejected
-    - an operation named after Object.prototype does not exist either
-    - overriding an operation that does not exist fails at boot, not at click
-    - is what the shell registers, and every entry is a resource
-    - the instance wrapper runs outside the app wrapper, and both run
-    - an instance context wins over the app context for that page only
-    - binding one operation leaves the others on the platform implementation
-    - an unknown resource says so instead of returning something inert
+    - createResourceRegistry — the http requirement
+        - refuses to be built without a client, rather than reaching for fetch
+        - the message names the two clients the package ships
+    - createResourceRegistry — a registry without a project to name
+        - every platform resource builds from apiBase and locale alone
+        - and the plan list it hands out addresses the catalogue
+    - createResourceRegistry — reaching a resource
+        - hands out the operations of the resource asked for
+        - an unknown key fails by name, listing what there is
+        - keys() reports what it can answer for
+        - asking twice gives the same operations
+        - a context getter is read per call
+    - createResourceRegistry — overrides
+        - a context override redirects one resource and leaves the others
+        - an http override sends one resource through another client
+        - one operation is wrapped and the other five stay the platform’s
+        - the wrapper may answer without calling the platform at all
+        - overriding a resource that does not exist fails at boot too
+        - an override named after an Object prototype key is still rejected
+        - an operation named after Object.prototype does not exist either
+        - overriding an operation that does not exist fails at boot, not at click
+    - platformResources
+        - is what the shell registers, and every entry is a resource
+    - registry.bind — an override for one page instance
+        - the instance wrapper runs outside the app wrapper, and both run
+        - an instance context wins over the app context for that page only
+        - binding one operation leaves the others on the platform implementation
+        - an unknown resource says so instead of returning something inert
 
 <!-- END proof -->
 
@@ -463,14 +509,18 @@ _Source:_ release 0.22.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/sign-out-ends-the-session.test.ts`
-    - calls the login adapter’s logout before leaving for /login
-    - says so loudly when the app supplied no way to end the session
-    - an explicit onLogout prop still wins over the default
-    - ends the session when no @logout listener is attached
-    - defers to the app when one is
-    - also defers when the listener was attached with @logout.once
-    - discards the manifest, and does so even when logout rejects
-    - a rejecting %s prop reaches Vue’s error handler
+    - AdminManifestErrorPage sign-out
+        - calls the login adapter’s logout before leaving for /login
+        - says so loudly when the app supplied no way to end the session
+        - an explicit onLogout prop still wins over the default
+    - AdminLayout sign-out
+        - ends the session when no @logout listener is attached
+        - defers to the app when one is
+        - also defers when the listener was attached with @logout.once
+    - sign-out and the cached manifest
+        - discards the manifest, and does so even when logout rejects
+    - handlers hand their promise back to Vue
+        - a rejecting %s prop reaches Vue’s error handler
 
 <!-- END proof -->
 
@@ -485,25 +535,29 @@ _Source:_ release 0.22.0
 _Tested by:_
 
 - `packages/ui-vue/tests/navigation-guard.test.js`
-    - returns null when neither authGuard nor manifestGuard is set
-    - redirects to onUnauthenticated() when isAuthenticated is false
-    - lets public routes bypass the auth guard
-    - redirects to onUnauthenticated when isSuperAdmin is false
-    - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
-    - avoids redirect loop: when the current route is already errorRoute, returns true
-    - falls back to render-allow + console.error when NO errorRoute is set
-    - lets the render through when ensureLoaded resolves successfully
-    - 401 from the manifest load routes to login, not to the error page
-    - 403 is treated the same way
-    - a genuine manifest failure still fails closed to the error page
-    - an error without a status stays on the fail-closed path
-    - without an authGuard a 401 still reaches the error page
-    - first 401 offers a re-login, the second stops the circle
-    - a successful load re-arms the redirect for a later expiry
-    - concurrent navigations on one rejection share the login redirect
-    - the second attempt fails closed once the operator has seen login
-    - a cached error instance does not resurrect the login loop
-    - a later, different rejection still fails closed
+    - buildNavigationGuard — auth path
+        - returns null when neither authGuard nor manifestGuard is set
+        - redirects to onUnauthenticated() when isAuthenticated is false
+        - lets public routes bypass the auth guard
+        - redirects to onUnauthenticated when isSuperAdmin is false
+    - buildNavigationGuard — manifest fail-closed
+        - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
+        - avoids redirect loop: when the current route is already errorRoute, returns true
+        - falls back to render-allow + console.error when NO errorRoute is set
+        - lets the render through when ensureLoaded resolves successfully
+    - buildNavigationGuard — expired session vs broken manifest
+        - 401 from the manifest load routes to login, not to the error page
+        - 403 is treated the same way
+        - a genuine manifest failure still fails closed to the error page
+        - an error without a status stays on the fail-closed path
+        - without an authGuard a 401 still reaches the error page
+    - buildNavigationGuard — no login loop on a persistent manifest 401
+        - first 401 offers a re-login, the second stops the circle
+        - a successful load re-arms the redirect for a later expiry
+        - concurrent navigations on one rejection share the login redirect
+        - the second attempt fails closed once the operator has seen login
+        - a cached error instance does not resurrect the login loop
+        - a later, different rejection still fails closed
 
 <!-- END proof -->
 
