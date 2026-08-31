@@ -1,5 +1,5 @@
-// @requirement SC-PLAN-018
-// @requirement SC-COMP-013
+// @requirement SC-PLAN-018 — The version that applies is the one valid on the day of the purchase
+// @requirement SC-COMP-013 — An installation whose store cannot hold a limit exactly does not start the enforcement
 
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

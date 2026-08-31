@@ -1,6 +1,6 @@
-// @requirement SC-MKT-013
-// @requirement SC-MKT-014
-// @requirement SC-MKT-017
+// @requirement SC-MKT-013 — What a customer selected is frozen into an offer before it becomes a contract
+// @requirement SC-MKT-014 — An offer that has expired or been used cannot become a contract
+// @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

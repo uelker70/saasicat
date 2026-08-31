@@ -1,5 +1,5 @@
-// @requirement SC-ENTL-001
-// @requirement SC-ENTL-002
+// @requirement SC-ENTL-001 — What a tenant may do is their plan plus the add-ons they booked
+// @requirement SC-ENTL-002 — An unlimited allowance beats any number, and an absent one counts as none
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

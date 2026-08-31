@@ -1,4 +1,4 @@
-// @requirement SC-CANC-018
+// @requirement SC-CANC-018 — The agreed contract ends when the subscription does, not when the customer declares
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

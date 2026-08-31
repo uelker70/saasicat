@@ -1,5 +1,5 @@
-// @requirement SC-BUN-012
-// @requirement SC-BUN-029
+// @requirement SC-BUN-012 — An add-on can never be committed past the subscription that pays for it
+// @requirement SC-BUN-029 — A move to a shorter plan rhythm is refused while a longer add-on is running
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

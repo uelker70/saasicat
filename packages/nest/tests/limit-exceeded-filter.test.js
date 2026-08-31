@@ -1,4 +1,4 @@
-// @requirement SC-ENTL-006
+// @requirement SC-ENTL-006 — A missing feature and an exhausted limit are told apart
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -88,8 +88,8 @@ function controllerFor(sub) {
 const REQ = { user: { tenantId: 't1' } };
 const ended = (err) => err.getResponse?.().code === 'SUBSCRIPTION_ENDED';
 
-// @requirement SC-BUN-022
-// @requirement SC-BUN-028
+// @requirement SC-BUN-022 — An add-on cannot be booked on a subscription that has already ended
+// @requirement SC-BUN-028 — A cancelled booking can be reinstated only before its cancellation takes effect
 describe('once the subscription has ended', () => {
     test('a bundle cannot be booked', async () => {
         const { ctrl, calls } = controllerFor(ENDED);
@@ -154,7 +154,7 @@ describe('once the subscription has ended', () => {
     });
 });
 
-// @requirement SC-BUN-014
+// @requirement SC-BUN-014 — A tenant who has already cancelled may still book an add-on for the time left
 describe('while the subscription is running', () => {
     // The premise for all five above: what closes the till is the ending, not
     // the routes. A cancellation still to come closes nothing — that customer
@@ -195,9 +195,9 @@ describe('while the subscription is running', () => {
     });
 });
 
-// @requirement SC-BUN-008
-// @requirement SC-BUN-012
-// @requirement SC-BUN-013
+// @requirement SC-BUN-008 — An add-on carries no commitment unless an operator configures one
+// @requirement SC-BUN-012 — An add-on can never be committed past the subscription that pays for it
+// @requirement SC-BUN-013 — A commitment of none stays none
 describe('what a bundle may commit to', () => {
     // The other half of the boundary, and the one that costs money rather than
     // access: a bundle cannot bind a customer past the subscription that pays
@@ -302,7 +302,7 @@ describe('what a bundle may commit to', () => {
     });
 });
 
-// @requirement SC-BUN-016
+// @requirement SC-BUN-016 — A tenant reads what a booking commits to before confirming it
 describe('what the dialog promises before the booking', () => {
     // The confirmation states the term the booking commits to, and the write
     // caps that at the parent's end. A preview that does not cap it describes a

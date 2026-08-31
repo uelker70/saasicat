@@ -1,7 +1,7 @@
-// @requirement SC-CANC-001
-// @requirement SC-CANC-002
-// @requirement SC-CANC-009
-// @requirement SC-CANC-010
+// @requirement SC-CANC-001 — A cancellation may always be declared
+// @requirement SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
+// @requirement SC-CANC-009 — A missed notice deadline moves the cancellation to the end of the next period
+// @requirement SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

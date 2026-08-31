@@ -11,8 +11,8 @@
 // customer's cancellation lands a period late and the file says something
 // nobody wrote.
 
-// @requirement SC-CFG-001
-// @requirement SC-CFG-002
+// @requirement SC-CFG-001 — A setting lives in exactly one place
+// @requirement SC-CFG-002 — Settings with a money or a legal consequence live in the configuration file
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

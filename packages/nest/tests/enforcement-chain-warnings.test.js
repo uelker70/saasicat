@@ -1,5 +1,5 @@
-// @requirement SC-CFG-007
-// @requirement SC-CFG-011
+// @requirement SC-CFG-007 — A capability that is turned off says so, once, at start-up
+// @requirement SC-CFG-011 — An application that declares nothing to enforce still starts
 
 import { describe, test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';

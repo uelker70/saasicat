@@ -1,6 +1,6 @@
-// @requirement SC-CANC-004
-// @requirement SC-CANC-011
-// @requirement SC-CANC-019
+// @requirement SC-CANC-004 — Where nothing is left to run, the cancellation lands now, never in the past
+// @requirement SC-CANC-011 — A late cancellation extends the recorded commitment to the period it bought
+// @requirement SC-CANC-019 — Recording a cancellation is never blocked by something that follows it
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

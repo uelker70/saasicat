@@ -48,11 +48,11 @@ async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
     return published;
 }
 
-// @requirement SC-BUN-008
-// @requirement SC-BUN-013
-// @requirement SC-BUN-023
-// @requirement SC-BUN-025
-// @requirement SC-BUN-027
+// @requirement SC-BUN-008 — An add-on carries no commitment unless an operator configures one
+// @requirement SC-BUN-013 — A commitment of none stays none
+// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
+// @requirement SC-BUN-025 — An add-on may be restricted to particular plans
+// @requirement SC-BUN-027 — The same add-on cannot be booked twice on one subscription
 describe('SubscriptionBundlesService — addBundleToSubscription', () => {
     test('a booking commits the tenant to nothing unless somebody says so', async () => {
         // The rule, not the number: an add-on can be cancelled at any time up
@@ -229,9 +229,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
     });
 });
 
-// @requirement SC-BUN-009
-// @requirement SC-BUN-010
-// @requirement SC-BUN-028
+// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-010 — The period an add-on ends at is its own, not the plan's
+// @requirement SC-BUN-028 — A cancelled booking can be reinstated only before its cancellation takes effect
 describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
     test('canceledEffectiveAt = currentPeriodEnd when the minimum term has already elapsed', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
@@ -328,7 +328,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
     });
 });
 
-// @requirement SC-BUN-026
+// @requirement SC-BUN-026 — An add-on that is not sold self-service says so and says who to ask
 describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
     test('sales-only bundle throws 422 BUNDLE_NOT_SELF_SERVICE', async () => {
         const bv = await createPublishedBundle({ key: 'ENTERPRISE_PACK' });

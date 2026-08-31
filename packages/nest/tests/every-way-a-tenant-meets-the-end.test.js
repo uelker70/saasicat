@@ -1,5 +1,5 @@
-// @requirement SC-ENTL-015
-// @requirement SC-CANC-016
+// @requirement SC-ENTL-015 — The end of a subscription is seen on every enforcement path
+// @requirement SC-CANC-016 — A subscription is in one of three states, not two
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

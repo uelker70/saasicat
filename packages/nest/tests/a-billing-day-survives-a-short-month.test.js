@@ -1,5 +1,5 @@
-// @requirement SC-SUB-004
-// @requirement SC-SUB-005
+// @requirement SC-SUB-004 — A short month does not move the billing day
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,6 +1,6 @@
-// @requirement SC-PLAN-002
-// @requirement SC-PLAN-003
-// @requirement SC-PLAN-005
+// @requirement SC-PLAN-002 — A plan has at most one unpublished draft at a time
+// @requirement SC-PLAN-003 — A plan has at most one live version at a time
+// @requirement SC-PLAN-005 — A version somebody has already bought cannot be edited
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

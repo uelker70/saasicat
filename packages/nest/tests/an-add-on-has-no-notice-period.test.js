@@ -1,4 +1,4 @@
-// @requirement SC-BUN-011
+// @requirement SC-BUN-011 — An add-on has no notice period
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

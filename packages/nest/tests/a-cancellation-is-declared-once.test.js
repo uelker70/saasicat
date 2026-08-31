@@ -1,6 +1,6 @@
-// @requirement SC-CANC-012
-// @requirement SC-CANC-013
-// @requirement SC-CANC-014
+// @requirement SC-CANC-012 — Declaring the same cancellation twice does not move it
+// @requirement SC-CANC-013 — Two cancellations arriving at once produce one
+// @requirement SC-CANC-014 — A repeated cancellation does not explain itself with figures it cannot know
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

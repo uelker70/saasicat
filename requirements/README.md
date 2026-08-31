@@ -148,14 +148,21 @@ A test names the promise it proves, in a comment at the start of a line. Where i
 it covers:
 
 ```js
-// @requirement SC-PLAN-004      ← above the imports: every case in the file
+// @requirement SC-PLAN-004 — A published version freezes once it applies
+                                    ↑ above the imports: every case in the file
 
-// @requirement SC-BUN-003
+// @requirement SC-BUN-003 — The first period of a booking is short, and charged …
 describe('what the short first period costs', () => {   ← this block's cases
 
-    // @requirement SC-PRIC-002
+    // @requirement SC-PRIC-002 — A part-period is charged by days
     test('charges by days, not by whole months', () => {   ← this one case
 ```
+
+Write the identifier; `pnpm run requirements:update` writes the title after it, so a reader of the
+test learns what it answers for without opening the catalogue. Never type the title — a copy in
+hundreds of files goes stale the first time somebody rewords a requirement, and then it misleads
+exactly the reader it was added for. A test holds every annotation against what its requirement
+says.
 
 Put it on the narrowest thing that is true. A file-level annotation claims every case in the file
 proves that promise, which is usually more than anybody meant.

@@ -1,6 +1,6 @@
-// @requirement SC-CHG-002
-// @requirement SC-CHG-003
-// @requirement SC-CHG-005
+// @requirement SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
+// @requirement SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
+// @requirement SC-CHG-005 — A downgrade takes effect at the end of the term
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

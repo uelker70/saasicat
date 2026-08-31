@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
 
 import { parseChapter, readCatalogue } from './parse.mjs';
-import { scanTests, unproven } from './proof.mjs';
+import { scanTests, unproven, withTitles } from './proof.mjs';
 import { render, withChapterTable, withProofs } from './render.mjs';
 import { check } from './check.mjs';
 
@@ -56,6 +56,19 @@ export async function renderCatalogue(root = ROOT) {
     }
     catalogue.chapters = chapters;
     catalogue.entries = chapters.flatMap((chapter) => chapter.entries);
+
+    // The annotations carry their requirement's title, so a reader of the test
+    // learns what it answers for without opening the catalogue. Written here
+    // rather than typed: a title copied by hand into hundreds of files goes
+    // stale the first time somebody rewords a requirement, and then it misleads
+    // exactly the reader it was added for.
+    const titleOf = (id) => catalogue.entries.find((entry) => entry.id === id)?.title;
+    for (const [, where] of [...named].flatMap(([, files]) => files.map((f) => [0, f]))) {
+        if (files.some((file) => file.where === where)) continue;
+        const before = readFileSync(join(root, where), 'utf8');
+        const after = withTitles(before, titleOf);
+        if (after !== before) files.push({ where, text: after });
+    }
 
     const preamble = [];
     for (const file of catalogue.preamble) {

@@ -1,7 +1,7 @@
-// @requirement SC-CANC-005
-// @requirement SC-CANC-006
-// @requirement SC-CANC-007
-// @requirement SC-CANC-008
+// @requirement SC-CANC-005 — There is no notice period until an installation names one
+// @requirement SC-CANC-006 — A notice period belongs to a rhythm, not to an installation
+// @requirement SC-CANC-007 — The rhythm that decides the notice is the subscription's, not the plan's
+// @requirement SC-CANC-008 — No upper limit is placed on a notice period
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

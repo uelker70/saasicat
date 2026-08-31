@@ -1,6 +1,6 @@
-// @requirement SC-CHG-011
-// @requirement SC-CHG-014
-// @requirement SC-SUB-013
+// @requirement SC-CHG-011 — A decision taken against one state is not written into another
+// @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
+// @requirement SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

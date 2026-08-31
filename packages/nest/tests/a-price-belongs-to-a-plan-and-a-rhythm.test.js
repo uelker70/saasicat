@@ -1,5 +1,5 @@
-// @requirement SC-BUN-019
-// @requirement SC-MKT-011
+// @requirement SC-BUN-019 — What an add-on costs depends on the plan beside it and the rhythm it is billed in
+// @requirement SC-MKT-011 — The public catalogue shows base prices only
 
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

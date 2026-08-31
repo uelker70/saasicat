@@ -40,6 +40,38 @@ import { join } from 'node:path';
 const ANNOTATION =
     /^[ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+(SC-[A-Z0-9]+-\d{3})(?![\w-])/gm;
 
+/**
+ * An annotation line, split into the identifier and whatever follows it.
+ *
+ * What follows is the requirement's title, written there so that a reader of
+ * the test learns what it answers for without opening the catalogue. It is
+ * written by `requirements:update` and checked, never typed: a title copied by
+ * hand into hundreds of files is a title that goes stale the first time
+ * somebody rewords a requirement, and then it misleads exactly the reader it
+ * was added for.
+ */
+export const ANNOTATION_PARTS =
+    /^([ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+)(SC-[A-Z0-9]+-\d{3})(?![\w-])(.*)$/u;
+
+/**
+ * Every annotation line rewritten to carry its requirement's title.
+ *
+ * Returns the text unchanged where nothing is out of date, so a caller can tell
+ * whether anything moved without comparing the whole file itself.
+ */
+export function withTitles(text, titleOf) {
+    return text
+        .split('\n')
+        .map((line) => {
+            const parts = ANNOTATION_PARTS.exec(line);
+            if (!parts) return line;
+            const [, head, id] = parts;
+            const title = titleOf(id);
+            return title ? `${head}${id} — ${title}` : `${head}${id}`;
+        })
+        .join('\n');
+}
+
 /** The same, one line at a time, for reading a file's structure. */
 const ANNOTATION_LINE =
     /^[ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+(SC-[A-Z0-9]+-\d{3})(?![\w-])/u;

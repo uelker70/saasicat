@@ -1,5 +1,5 @@
-// @requirement SC-ENTL-012
-// @requirement SC-ENTL-015
+// @requirement SC-ENTL-012 — A cancellation that has taken effect grants nothing
+// @requirement SC-ENTL-015 — The end of a subscription is seen on every enforcement path
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

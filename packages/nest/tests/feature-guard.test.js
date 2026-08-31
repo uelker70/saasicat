@@ -1,5 +1,5 @@
-// @requirement SC-ENTL-005
-// @requirement SC-ENTL-009
+// @requirement SC-ENTL-005 — A request for something the contract does not include is refused
+// @requirement SC-ENTL-009 — The declarative check is a guard, not a guarantee
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

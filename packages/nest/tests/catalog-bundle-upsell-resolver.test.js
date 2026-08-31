@@ -1,4 +1,4 @@
-// @requirement SC-ENTL-018
+// @requirement SC-ENTL-018 — An offer shown alongside a refusal is one the tenant could actually buy
 
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,7 +1,7 @@
 // Tests for @saasicat/nest/billing — period boundary calculation.
 // UTC-stable, DST-immune.
 
-// @requirement SC-SUB-006
+// @requirement SC-SUB-006 — Billing dates do not move when the clock does
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

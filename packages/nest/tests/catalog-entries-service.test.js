@@ -1,7 +1,7 @@
-// @requirement SC-CAT-006
-// @requirement SC-CAT-007
-// @requirement SC-CAT-008
-// @requirement SC-CAT-010
+// @requirement SC-CAT-006 — Approval needs a scan to compare against
+// @requirement SC-CAT-007 — A catalogue entry moves along a fixed path
+// @requirement SC-CAT-008 — An approved entry whose code definition changes goes back for review
+// @requirement SC-CAT-010 — Labels an operator has written are never overwritten by the scan
 
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

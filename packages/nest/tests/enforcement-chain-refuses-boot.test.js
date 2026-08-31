@@ -1,4 +1,4 @@
-// @requirement SC-CFG-010
+// @requirement SC-CFG-010 — An installation that declares a protection and enforces nothing does not start
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

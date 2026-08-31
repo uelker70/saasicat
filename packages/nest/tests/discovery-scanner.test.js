@@ -1,5 +1,5 @@
-// @requirement SC-CAT-001
-// @requirement SC-CAT-012
+// @requirement SC-CAT-001 — What the application can do is declared next to the code that does it
+// @requirement SC-CAT-012 — A new declaration appears for review after the application restarts
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

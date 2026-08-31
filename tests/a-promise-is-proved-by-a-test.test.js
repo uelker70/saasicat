@@ -14,9 +14,17 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
-import { annotationsIn, casesIn, isTestPath, unproven } from '../scripts/requirements/proof.mjs';
+import {
+    annotationsIn,
+    casesIn,
+    isTestPath,
+    unproven,
+    withTitles,
+} from '../scripts/requirements/proof.mjs';
 import { ROOT, coverage, listing } from '../scripts/requirements/index.mjs';
 import { readCatalogue } from '../scripts/requirements/parse.mjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { scanTests } from '../scripts/requirements/proof.mjs';
 import { ratchet } from '../scripts/requirements/guard.mjs';
 
@@ -164,6 +172,44 @@ describe('coverage counts what is owed a proof', () => {
         const seen = coverage(listing(ROOT));
         assert.ok(seen.owed > 300, `only ${seen.owed} promises owed a proof`);
         assert.ok(seen.proved > 0, 'nothing is proved, so the number cannot be read');
+    });
+});
+
+describe('an annotation carries the title of what it names', () => {
+    // So a reader of the test learns what it answers for without opening the
+    // catalogue. Written by `requirements:update` and checked here, never
+    // typed: a title copied by hand into hundreds of files goes stale the first
+    // time somebody rewords a requirement, and then it misleads exactly the
+    // reader it was added for.
+    const catalogue = readCatalogue(ROOT);
+    const titleOf = (id) => catalogue.entries.find((entry) => entry.id === id)?.title;
+
+    test('every annotation in the tree says what its requirement says', () => {
+        const stale = [];
+        for (const [, files] of scanTests(ROOT)) {
+            for (const where of new Set(files)) {
+                const text = readFileSync(join(ROOT, where), 'utf8');
+                if (withTitles(text, titleOf) !== text) stale.push(where);
+            }
+        }
+        assert.deepEqual([...new Set(stale)], [], 'run: pnpm run requirements:update');
+    });
+
+    test('a stale title is rewritten rather than left', () => {
+        const line = '// @requirement SC-A-001 — what it used to say';
+        assert.equal(
+            withTitles(line, () => 'what it says now'),
+            '// @requirement SC-A-001 — what it says now',
+        );
+    });
+
+    test('an identifier nobody knows is left bare', () => {
+        // The check that it exists is a separate one, and inventing a title for
+        // it here would hide that.
+        assert.equal(
+            withTitles('// @requirement SC-A-404 — invented', () => undefined),
+            '// @requirement SC-A-404',
+        );
     });
 });
 

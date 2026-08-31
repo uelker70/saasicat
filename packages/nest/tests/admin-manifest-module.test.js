@@ -1,5 +1,5 @@
-// @requirement SC-ADM-001
-// @requirement SC-ADM-002
+// @requirement SC-ADM-001 — Only a platform administrator reaches the administration surface
+// @requirement SC-ADM-002 — A tenant-facing endpoint with no access rules configured refuses, it does not open
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

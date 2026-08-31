@@ -1,6 +1,6 @@
-// @requirement SC-BUN-009
-// @requirement SC-BUN-010
-// @requirement SC-PRIC-003
+// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-010 — The period an add-on ends at is its own, not the plan's
+// @requirement SC-PRIC-003 — This platform never pays money back
 
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

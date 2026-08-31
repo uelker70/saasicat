@@ -1,5 +1,5 @@
-// @requirement SC-ENTL-015
-// @requirement SC-ENTL-009
+// @requirement SC-ENTL-015 — The end of a subscription is seen on every enforcement path
+// @requirement SC-ENTL-009 — The declarative check is a guard, not a guarantee
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

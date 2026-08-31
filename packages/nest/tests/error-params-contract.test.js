@@ -1,5 +1,5 @@
-// @requirement SC-LANG-006
-// @requirement SC-LANG-008
+// @requirement SC-LANG-006 — Text a customer reads carries its values beside its code, not inside a sentence
+// @requirement SC-LANG-008 — A refusal is identified by a stable code; only its wording may change
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
