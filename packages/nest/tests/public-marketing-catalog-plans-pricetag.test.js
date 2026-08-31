@@ -107,3 +107,99 @@ describe('PublicMarketingCatalogService — Plan priceTag (#47)', () => {
         assert.equal(cat.plans[0].priceTag, null);
     });
 });
+
+// @requirement SC-MKT-022 — A catalogue offers at most one recommended plan, and the language decides which
+describe('PublicMarketingCatalogService — the recommended plan', () => {
+    const projection = (targetVersionId, locale, extra = {}) => ({
+        targetType: 'PLAN',
+        targetVersionId,
+        locale,
+        displayLabel: 'A plan',
+        description: '',
+        highlight: false,
+        priority: 0,
+        ...extra,
+    });
+
+    const recommended = (catalog) => catalog.plans.filter((plan) => plan.highlight);
+
+    test('one is one', async () => {
+        await seedLivePlan({ planKey: 'A', planVersionId: 'pv-a' });
+        await seedLivePlan({ planKey: 'B', planVersionId: 'pv-b' });
+        marketingRepo.set(projection('pv-a', 'de', { highlight: true }));
+        marketingRepo.set(projection('pv-b', 'de'));
+
+        const cat = await service.getCatalog('de', 'EUR', 19, ASOF);
+        assert.deepEqual(
+            recommended(cat).map((p) => p.planKey),
+            ['A'],
+        );
+    });
+
+    test('a plan reaching the page through the fallback loses to one written for the language', async () => {
+        // A is recommended in the default language and has no English row, so
+        // it reaches the English catalogue through the fallback. B is
+        // recommended in English. Each row is correct on its own.
+        await seedLivePlan({ planKey: 'A', planVersionId: 'pv-a' });
+        await seedLivePlan({ planKey: 'B', planVersionId: 'pv-b' });
+        marketingRepo.set(projection('pv-a', 'de', { highlight: true }));
+        marketingRepo.set(projection('pv-b', 'de'));
+        marketingRepo.set(projection('pv-b', 'en', { highlight: true }));
+
+        const english = await service.getCatalog('en', 'EUR', 19, ASOF);
+        assert.deepEqual(
+            recommended(english).map((p) => p.planKey),
+            ['B'],
+        );
+        // And the default language is unaffected: there A is the only one.
+        const german = await service.getCatalog('de', 'EUR', 19, ASOF);
+        assert.deepEqual(
+            recommended(german).map((p) => p.planKey),
+            ['A'],
+        );
+    });
+
+    test('two rows in the same language leave the one the catalogue offers first', async () => {
+        await seedLivePlan({ planKey: 'A', planVersionId: 'pv-a' });
+        await seedLivePlan({ planKey: 'B', planVersionId: 'pv-b' });
+        marketingRepo.set(projection('pv-a', 'de', { highlight: true, priority: 1 }));
+        marketingRepo.set(projection('pv-b', 'de', { highlight: true, priority: 9 }));
+
+        const cat = await service.getCatalog('de', 'EUR', 19, ASOF);
+        assert.deepEqual(
+            recommended(cat).map((p) => p.planKey),
+            ['B'],
+        );
+    });
+
+    test('the one that loses the mark keeps its card', async () => {
+        await seedLivePlan({ planKey: 'A', planVersionId: 'pv-a' });
+        await seedLivePlan({ planKey: 'B', planVersionId: 'pv-b' });
+        marketingRepo.set(projection('pv-a', 'de', { highlight: true }));
+        marketingRepo.set(projection('pv-b', 'de', { highlight: true }));
+
+        const cat = await service.getCatalog('de', 'EUR', 19, ASOF);
+        assert.deepEqual(cat.plans.map((p) => p.planKey).sort(), ['A', 'B']);
+    });
+
+    test('a catalogue that recommends nothing recommends nothing', async () => {
+        await seedLivePlan({ planKey: 'A', planVersionId: 'pv-a' });
+        marketingRepo.set(projection('pv-a', 'de'));
+
+        const cat = await service.getCatalog('de', 'EUR', 19, ASOF);
+        assert.deepEqual(recommended(cat), []);
+    });
+
+    test('a single fallback row still recommends its plan', async () => {
+        // Nothing to outrank it: the rule takes a mark away, it does not
+        // require one to have been written in the language asked for.
+        await seedLivePlan({ planKey: 'A', planVersionId: 'pv-a' });
+        marketingRepo.set(projection('pv-a', 'de', { highlight: true }));
+
+        const cat = await service.getCatalog('en', 'EUR', 19, ASOF);
+        assert.deepEqual(
+            recommended(cat).map((p) => p.planKey),
+            ['A'],
+        );
+    });
+});

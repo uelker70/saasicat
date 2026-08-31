@@ -149,8 +149,8 @@ function builtinNav(locale: SaLocale | undefined): SaNavMessages {
 }
 
 /**
- * Localized default section names in drawer order (Übersicht → Produktkatalog
- * → Kunden → System). Pass the result to `buildSidebar()` when building routes
+ * Localized default section names in drawer order (Overview → Product catalog
+ * → Customers → System). Pass the result to `buildSidebar()` when building routes
  * with a non-default locale, or hand it the resolved `nav` catalog directly —
  * section names are compared as strings, so both sides must come from the same
  * source.
@@ -252,8 +252,8 @@ export interface SidebarSection {
  *   2. Sections from `sectionOrder` in exactly this order.
  *   3. Remaining sections alphabetically.
  *
- * The default order matches the plan simulation layout (Übersicht →
- * Produktkatalog → Kunden → System); consumers can override it.
+ * The default order matches the plan simulation layout (Overview → Product
+ * catalog → Customers → System); consumers can override it.
  */
 export function buildSidebar(
     routes: BuildRouteEntry[],

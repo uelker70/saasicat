@@ -264,6 +264,25 @@ frozen rather than being turned into a target nobody would meet:
 Only a current, delivered promise is owed a proof. A draft is not a promise yet, a retired one is
 not one any more, and one that is decided but not built has nothing to prove until it is.
 
+## An absolute says where it stops
+
+"Never", "every", "only", "uniformly" — the words that make a promise worth having are the ones
+easiest to get slightly wrong, and they were the most common defect in the documents this catalogue
+came out of. The sentence reads well, nobody argues with it, and the case it does not cover is
+found by a customer.
+
+So an entry that claims every case answers for it in one of two ways, and either is enough:
+
+- **a test names it.** An absolute is the easiest kind of promise to test — there is nothing to
+  argue about at the edge.
+- **the entry names its exception.** Where the absolute is not quite true, say where it stops:
+  `SC-ENTL-021` names the one catalogue edit that reaches a running contract, `SC-LANG-002` names
+  the two defaults that disagree. Both are more useful than the absolute would have been.
+
+The rest is debt and is frozen exactly like the proof debt above, with the same fungible credit: a
+promise that genuinely admits no exception and has no test worth writing can still be added by
+answering one already owed. `requirements:guard` prints the number beside the unproven one.
+
 ## What runs, and when
 
 | When                    | What                                                                        |

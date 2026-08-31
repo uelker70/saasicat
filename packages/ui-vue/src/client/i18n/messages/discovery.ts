@@ -1,3 +1,4 @@
+// translation-catalogue: the German half of this file is German on purpose.
 import { defineMessages } from '../define.js';
 
 export const discoveryMessages = defineMessages(
@@ -18,7 +19,7 @@ export const discoveryMessages = defineMessages(
         noQuotasDeclared: 'Keine Quotas im Code deklariert.',
         orphansTitle: 'Capabilities ohne Feature',
         noOwner: 'Ohne Owner',
-        owner: 'Owner',
+        owner: 'Besitzer',
         unit: 'Einheit',
         replacedBy: 'ersetzt durch {key}',
         replaces: 'ersetzt: {keys}',
@@ -26,7 +27,11 @@ export const discoveryMessages = defineMessages(
         capList: {
             orphanFeature:
                 'Feature im Katalog ohne implementierende Capability — blockiert im blocking-Strict-Mode das Plan-Publish.',
+            flagNew: 'neu',
+            flagExperimental: 'experimentell',
+            flagDeprecated: 'veraltet',
             removedFromCode: 'aus Code entfernt',
+            implementedAt: 'implementiert in',
         },
         kpi: {
             featuresTotal: 'Features gesamt',
@@ -92,15 +97,6 @@ export const discoveryMessages = defineMessages(
             outdatedBanner:
                 'Die code-abgeleiteten Quota-Fakten (Einheit/Enforcement/Provider) haben sich seit der letzten Freigabe geändert — bitte prüfen und',
         },
-        caps: {
-            emptyHint:
-                'Feature im Katalog ohne implementierende Capability — blockiert im blocking-Strict-Mode das Plan-Publish.',
-            flagNew: 'neu',
-            flagExperimental: 'experimental',
-            flagDeprecated: 'deprecated',
-            flagRemoved: 'aus Code entfernt',
-            implementedAt: 'impl',
-        },
         trans: {
             sourceBadge: 'Source',
             fieldLabel: 'Label',
@@ -137,7 +133,11 @@ export const discoveryMessages = defineMessages(
         capList: {
             orphanFeature:
                 'Feature in the catalog without an implementing capability — blocks plan publishing in blocking strict mode.',
+            flagNew: 'new',
+            flagExperimental: 'experimental',
+            flagDeprecated: 'deprecated',
             removedFromCode: 'removed from code',
+            implementedAt: 'implemented at',
         },
         kpi: {
             featuresTotal: 'Features total',
@@ -199,15 +199,6 @@ export const discoveryMessages = defineMessages(
                 'A hard quota without a UsageProvider is not deployable (preflight).',
             outdatedBanner:
                 'The code-derived quota facts (unit/enforcement/provider) have changed since the last approval — please review and',
-        },
-        caps: {
-            emptyHint:
-                'Feature in the catalog without an implementing capability — blocks the plan publish in blocking strict mode.',
-            flagNew: 'new',
-            flagExperimental: 'experimental',
-            flagDeprecated: 'deprecated',
-            flagRemoved: 'removed from code',
-            implementedAt: 'impl',
         },
         trans: {
             sourceBadge: 'Source',

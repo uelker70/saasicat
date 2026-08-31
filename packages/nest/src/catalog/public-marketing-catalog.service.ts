@@ -24,6 +24,7 @@ import {
     type PublicComparisonRow,
     type PublicMarketingBundle,
     type PublicMarketingCatalogResponse,
+    keepOneRecommended,
     type PublicMarketingPlan,
     type PublicMarketingPromo,
 } from '@saasicat/core';
@@ -115,16 +116,23 @@ export class PublicMarketingCatalogService {
         ]);
         const out: PublicMarketingPlan[] = [];
 
+        // Which plans were described in the language that was asked for, rather
+        // than through the fallback. Read below, where at most one of them may
+        // stay the recommended one.
+        const inRequestedLocale = new Set<string>();
+
         for (const plan of plans) {
             const live = await resolveVersion(plan.planKey);
             if (!live) continue;
 
+            const own = await this.marketingRepo.findByTarget('PLAN', live.id, locale);
             const marketing =
-                (await this.marketingRepo.findByTarget('PLAN', live.id, locale)) ??
+                own ??
                 (locale === DEFAULT_LOCALE
                     ? null
                     : await this.marketingRepo.findByTarget('PLAN', live.id, DEFAULT_LOCALE));
             if (!marketing || marketing.visible === false) continue;
+            if (own) inRequestedLocale.add(plan.planKey);
 
             const monthlyNet = toNumber(live.monthlyNet);
             const yearlyNet = toNumber(live.yearlyNet);
@@ -161,6 +169,10 @@ export class PublicMarketingCatalogService {
         }
 
         out.sort((a, b) => b.priority - a.priority);
+        // At most one card carries the mark, and the language that was asked
+        // for decides which — the rule is in `@saasicat/core` because the
+        // SuperAdmin's preview of this page answers the same question.
+        keepOneRecommended(out, inRequestedLocale);
         // requiresFeatures (#35): index built once per request from the loaded
         // FeatureCatalogEntries — empty without a CatalogEntryRepository → [].
         const requiresIndex = buildFeatureRequiresIndex(

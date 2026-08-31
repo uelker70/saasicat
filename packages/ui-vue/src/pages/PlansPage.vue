@@ -412,10 +412,10 @@ const {
 } = composable;
 
 // ─── View mode + selection ───
-// Plan simulation flow: list → cockpit (plan detail); editor ("Draft
-// bearbeiten") → "Weiter · Review" → review ("Review & Publish").
+// Plan simulation flow: list → cockpit (plan detail); editing a draft opens
+// the editor, confirming the editor opens the review ("Review & Publish").
 // The editor does NOT persist — saving happens only in the review screen
-// (via "Als Draft speichern" or "Publish").
+// (by saving the draft there, or publishing it).
 // `editor` and `review` are gone: they are routes now, and a mode nothing
 // assigns is a branch nothing reaches.
 type Mode = 'list' | 'matrix' | 'cockpit';
@@ -649,7 +649,7 @@ async function onNewVersionFromList(plan: PlanRow, basis: PlanVersionRow): Promi
     });
 }
 
-// "Draft bearbeiten" from the list sub-row: loads the cockpit composable
+// Editing a draft from the list sub-row: loads the cockpit composable
 // for the Plan (so persistDraft → updateDraft uses the correct planVersions
 // instance) and opens the editor in edit mode (editingId set).
 async function onEditDraftFromList(plan: PlanRow, draft: PlanVersionRow): Promise<void> {
@@ -804,7 +804,7 @@ function describeDraftSaveError(err: unknown): string {
         return msg.value.page.errorDraftRegression;
     }
     if (status === 422 && body?.message) {
-        // e.g. "Plan 'BASIC' hat bereits eine Draft-Version v4 …"
+        // e.g. "Plan 'BASIC' already has a draft version v4 …"
         return body.message;
     }
     if (status !== undefined) {
@@ -895,14 +895,14 @@ async function persistDraft(): Promise<PlanVersionRow | null> {
     } else {
         result = await planVersions.value.createDraft(body);
         // Draft now has an ID — remember it in case it's published right
-        // after (otherwise a second createDraft → "hat bereits eine Draft").
+        // after (otherwise a second createDraft is refused as a duplicate).
         draftEditing.value = { ...draftEditing.value, editingId: result.planVersion.id };
     }
     await reloadCockpitVersions();
     return result.planVersion;
 }
 
-// "Als Draft speichern" — persists the draft and leaves the wizard
+// The review screen's save action — persists the draft and leaves the wizard
 // (back to the plan detail) without publishing.
 async function onReviewSaveExit(): Promise<boolean> {
     if (draftSaving.value || publishing.value) return false;

@@ -17,7 +17,7 @@ const manifestStore = useManifestStore();
 const options = computed<TenantDetailPageOptions>(() => ({
     backRoute: '/admin/tenants',
     manifest: manifestStore.manifest,
-    verbrauchFields: [
+    usageFields: [
         { label: 'Notes', key: 'notes' },
         { label: 'Users', key: 'users' },
     ],
@@ -25,7 +25,7 @@ const options = computed<TenantDetailPageOptions>(() => ({
         { name: 'email', label: 'E-Mail', field: 'email', align: 'left' },
         {
             name: 'createdAt',
-            label: 'Angelegt',
+            label: 'Created',
             field: (row: Record<string, unknown>) => String(row.createdAt ?? '').slice(0, 10),
             align: 'left',
         },

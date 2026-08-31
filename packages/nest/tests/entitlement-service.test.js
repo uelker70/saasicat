@@ -170,7 +170,7 @@ describe('EntitlementService — computeLimits + Cache', () => {
 });
 
 // @requirement SC-ENTL-001 — What a tenant may do is their plan plus the add-ons they booked
-// @requirement SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
+// @requirement SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
 describe('EntitlementService — deriveLimits + Resolution', () => {
     test('TRIAL: uses trialEntitlementPlan via DB lookup', async () => {
         const { svc, subRepo } = buildHarness({
@@ -199,7 +199,7 @@ describe('EntitlementService — deriveLimits + Resolution', () => {
     });
 });
 
-// @requirement SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
+// @requirement SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
 // @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 describe('EntitlementService — V3 ContractLineItems', () => {
     test('reads entitlements from active contract snapshot without catalog join', async () => {
@@ -591,6 +591,134 @@ describe('EntitlementService.enforceLimit — transactional', () => {
                 return true;
             },
         );
+    });
+});
+
+// @requirement SC-ENTL-003 — A feature declared as not yet rolled out is never granted
+describe('EntitlementService — a feature the catalog says is not built yet', () => {
+    // `API_ACCESS` is `plannedOnly: true` in CATALOG. Every path below hands
+    // it to the tenant from somewhere the aggregator does not see, which is
+    // how it used to reach them: the filter sat in the aggregator, and a
+    // frozen contract does not go through one.
+
+    test('a contract snapshot that carries it grants everything else instead', async () => {
+        const { svc, subRepo, contractRepo } = buildContractHarness();
+        subRepo.set(buildSub());
+        await contractRepo.create({
+            tenantId: 't1',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            entitlementSnapshot: {
+                plan: 'STANDARD',
+                quotas: { users: 1 },
+                features: ['CASHBOOK', 'API_ACCESS'],
+            },
+            lineItems: [],
+        });
+        const limits = await svc.computeLimits('t1', NOW);
+        assert.deepEqual([...limits.features], ['CASHBOOK']);
+    });
+
+    test('a contract line item that carries it is treated the same', async () => {
+        const { svc, subRepo, contractRepo } = buildContractHarness();
+        subRepo.set(buildSub());
+        await contractRepo.create({
+            tenantId: 't1',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            lineItems: [
+                {
+                    kind: 'plan',
+                    sourceKey: 'STANDARD',
+                    sourceVersionId: null,
+                    titleSnapshot: 'Standard',
+                    descriptionSnapshot: null,
+                    quantity: 1,
+                    unit: null,
+                    priceNet: 49,
+                    priceGross: 58.31,
+                    billingCycle: 'monthly',
+                    minimumTermUntil: null,
+                    featuresSnapshot: ['CASHBOOK', 'API_ACCESS'],
+                    quotaEffectsSnapshot: { users: 1 },
+                    metadata: null,
+                },
+            ],
+        });
+        const limits = await svc.computeLimits('t1', NOW);
+        assert.deepEqual([...limits.features], ['CASHBOOK']);
+    });
+
+    test('a successor reached through a replaces chain does not slip past it', async () => {
+        const subRepo = new FakeSubscriptionRepository();
+        const pvRepo = new FakePlanVersionRepository();
+        pvRepo.set(STANDARD_PV);
+        const svc = new EntitlementService(
+            CATALOG,
+            subRepo,
+            pvRepo,
+            new FakeTransactionRunner(),
+            null,
+            null,
+            null,
+            null,
+            { features: [{ featureKey: 'API_ACCESS', replaces: ['CASHBOOK'] }] },
+        );
+        subRepo.set(buildSub());
+        const limits = await svc.computeLimits('t1', NOW);
+        assert.deepEqual([...limits.features], ['CASHBOOK']);
+    });
+
+    test('a successor that is built is still granted through the same chain', async () => {
+        const subRepo = new FakeSubscriptionRepository();
+        const pvRepo = new FakePlanVersionRepository();
+        pvRepo.set(STANDARD_PV);
+        const svc = new EntitlementService(
+            CATALOG,
+            subRepo,
+            pvRepo,
+            new FakeTransactionRunner(),
+            null,
+            null,
+            null,
+            null,
+            { features: [{ featureKey: 'DMS', replaces: ['CASHBOOK'] }] },
+        );
+        subRepo.set(buildSub());
+        const limits = await svc.computeLimits('t1', NOW);
+        assert.deepEqual([...limits.features].sort(), ['CASHBOOK', 'DMS']);
+    });
+
+    test('a contract keeps everything the catalog does say is built', async () => {
+        const { svc, subRepo, contractRepo } = buildContractHarness();
+        subRepo.set(buildSub());
+        await contractRepo.create({
+            tenantId: 't1',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            entitlementSnapshot: {
+                plan: 'STANDARD',
+                quotas: { users: 1 },
+                features: ['CASHBOOK', 'DMS'],
+            },
+            lineItems: [],
+        });
+        const limits = await svc.computeLimits('t1', NOW);
+        assert.deepEqual([...limits.features].sort(), ['CASHBOOK', 'DMS']);
+    });
+
+    test('a feature the catalog has never heard of is left alone', async () => {
+        const { svc, subRepo, contractRepo } = buildContractHarness();
+        subRepo.set(buildSub());
+        await contractRepo.create({
+            tenantId: 't1',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            entitlementSnapshot: {
+                plan: 'STANDARD',
+                quotas: { users: 1 },
+                features: ['CASHBOOK', 'SOMETHING_THE_APP_ADDED'],
+            },
+            lineItems: [],
+        });
+        const limits = await svc.computeLimits('t1', NOW);
+        assert.deepEqual([...limits.features].sort(), ['CASHBOOK', 'SOMETHING_THE_APP_ADDED']);
     });
 });
 

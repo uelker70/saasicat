@@ -124,6 +124,32 @@ _Tested by:_
         - a trailer names several, however they are separated
         - several commits each contribute their own
         - the word inside a sentence is not a trailer
+- `tests/an-absolute-promise-names-its-boundary.test.js`
+    - an absolute is recognised wherever it stands
+        - in the promise under the heading
+        - and in the heading itself, where nineteen entries keep their whole promise
+        - a word that merely contains one does not count
+        - an ordinary promise claims nothing of the kind
+    - an exception is recognised the same way
+        - the words an entry says it with
+        - and nothing else
+        - a denial of the noun is not a boundary
+        - and the word that denies it has to stand directly in front of it
+    - what the debt counts
+        - an absolute with neither a test nor an exception
+        - a test settles it
+        - a named exception settles it
+        - a draft owes nothing — it is a proposal, not a promise
+        - one decided but not delivered owes nothing until it is built
+        - a retired one owes nothing either
+    - the ratchet moves one way
+        - an unqualified absolute arriving with nothing to pay for it is refused
+        - one arriving while another gains its boundary is allowed
+        - nothing arriving is always allowed
+        - retiring an old absolute does not pay for a new one
+    - the two lists say what they are for
+        - every absolute is a word about all cases, not an emphatic one
+        - every exception is a word that opens a boundary
 - `tests/requirements-are-generated.test.js`
     - the requirements document is generated, not maintained
         - the sources yield a catalogue worth checking
@@ -262,6 +288,11 @@ _Source:_ internal engineering guidelines
 
 _Tested by:_
 
+- `tests/a-source-that-names-a-file-names-a-real-one.test.js`
+    - a source that names a file names a real one
+        - there are sources to look at — otherwise nothing below looks at anything
+        - every path a source names is a tracked file
+        - the reader of a source line tells a path from the rest of it
 - `tests/docs-links-resolve.test.js`
     - documentation links resolve
         - the sweep found the documentation

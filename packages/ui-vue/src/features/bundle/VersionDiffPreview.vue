@@ -46,7 +46,7 @@ import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n
 const props = defineProps<{
     changes?: VersionChange[] | null;
     /**
-     * Optional: field labels (e.g. `{ 'quotas.users': 'Max. Benutzer' }`).
+     * Optional: field labels (e.g. `{ 'quotas.users': 'Max. users' }`).
      * Apps name their own quota fields here; without one a quota row falls
      * back to its key, which is all the platform knows about it.
      */

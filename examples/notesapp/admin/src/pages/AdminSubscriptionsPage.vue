@@ -7,5 +7,5 @@ import PlatformSubscriptionsPage from '@saasicat/ui-vue/pages/SubscriptionsPage.
 
 // Live subscriptions — tenant, plan, status and the current period end from the
 // seeded Subscription rows.
-const options = { subtitle: 'Aktive Subscriptions je Mandant.' };
+const options = { subtitle: 'Active subscriptions, one row per tenant.' };
 </script>

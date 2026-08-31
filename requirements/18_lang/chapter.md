@@ -260,6 +260,12 @@ _Source:_ release 0.18.0
 
 _Tested by:_
 
+- `packages/ui-vue/tests/component/a-code-flag-follows-the-language.test.ts`
+    - a code flag follows the language that was chosen
+        - English reads English
+        - German reads German
+        - the flag a status raises follows it too
+        - and so does the sentence for a feature with nothing behind it
 - `packages/ui-vue/tests/i18n.test.js`
     - i18n locales
         - German is the default locale
@@ -398,18 +404,12 @@ _Source:_ #243
 
 _Tested by:_
 
-- `packages/ui-vue/tests/error-facts-are-declared.test.js`
-    - the platform brand is on every class it decides for
-        - there are error classes to look at — otherwise nothing below looks at anything
-        - each status-carrying class calls markPlatformError(this)
-        - the brands are counted independently, against a floor that moves with the sources
-    - the empty-body sentinel is declared at its throw site
-        - every status-0 platform error is marked as one
-        - nothing else claims to be one
-    - a seam whose answer can be "no body" first asks whether one arrived
-        - the helpers are discoverable
-        - each one calls requireServerAnswer before it reads a body
-        - every file that raises the sentinel also runs the guard
+- `tests/a-refusal-code-is-a-constant.test.js`
+    - a refusal code is a constant, not something built
+        - there are shipped sources to look at
+        - no shipped source assembles a code
+        - the detector sees the shapes it was written for
+        - and leaves alone the shapes that are not it
 
 <!-- END proof -->
 
@@ -519,6 +519,23 @@ _Tested by:_
 🟢 Code, comments, documentation, developer-facing errors, release notes and the command-line tools.
 
 _Source:_ #150 · release 0.22.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/what-ships-is-written-in-english.test.js`
+    - what ships is written in English
+        - there are shipped files to look at — otherwise nothing below looks at anything
+        - none of them carries a German word
+        - a catalogue declares itself, and only in its head
+        - a catalogue is exempt in its values and read everywhere else
+        - only Markdown may declare that it names the German it removes
+        - the test tree and the published history are out of scope, the rest is in
+        - the reader finds a German word wherever it stands, and only a whole one
+        - a word that is also English is not on the list
+
+<!-- END proof -->
 
 ### SC-LANG-012 — SaaSiCat carries no vocabulary from anybody's business
 

@@ -65,7 +65,7 @@ const props = defineProps<{
     cycle: BillingCycleStr;
     /** quotaKeys to display, in order. */
     catalogQuotaKeys: string[];
-    /** Current subscription, optional — when set, the plan card is marked with "Aktuell". */
+    /** Current subscription, optional — when set, that plan card is marked as the current one. */
     currentPlanId?: string | null;
     formatCurrency: (n: number) => string;
     /** Formats a single Quota value (`-1` → ∞, otherwise number + unit). */

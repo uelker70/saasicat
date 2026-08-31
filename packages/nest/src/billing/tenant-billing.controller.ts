@@ -407,7 +407,7 @@ export class TenantBillingController {
             });
         }
         const changedUnderneath = {
-            code: 'SUBSCRIPTION_CHANGED',
+            code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
             message: 'This subscription changed while the request was being decided. Reload it.',
         };
 
@@ -633,7 +633,7 @@ export class TenantBillingController {
             // broke, when what happened is that their subscription moved.
             if (claimLost) {
                 throw new ConflictException({
-                    code: 'SUBSCRIPTION_CHANGED',
+                    code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
                     message:
                         'This subscription changed while onboarding was being applied. Reload it.',
                 });
@@ -656,7 +656,7 @@ export class TenantBillingController {
             });
             if (!planResult.claimed) {
                 throw new ConflictException({
-                    code: 'SUBSCRIPTION_CHANGED',
+                    code: BILLING_ERROR_CODES.SUBSCRIPTION_CHANGED,
                     message:
                         'This subscription changed while onboarding was being applied. Reload it.',
                 });
@@ -848,7 +848,7 @@ export class TenantBillingController {
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
         if (!sub) {
             throw new NotFoundException({
-                code: 'NO_SUBSCRIPTION',
+                code: BILLING_ERROR_CODES.NO_SUBSCRIPTION,
                 message: 'This tenant has no subscription to cancel.',
             });
         }
@@ -928,7 +928,7 @@ export class TenantBillingController {
                 : expected.getTime() !== decision.effectiveAt.getTime());
         if (disagrees) {
             throw new ConflictException({
-                code: 'CANCELLATION_TERMS_CHANGED',
+                code: BILLING_ERROR_CODES.CANCELLATION_TERMS_CHANGED,
                 message: 'The effective date changed since it was shown. Confirm the new one.',
                 effectiveAt: decision.effectiveAt,
                 termEndsAt: decision.termEndsAt,

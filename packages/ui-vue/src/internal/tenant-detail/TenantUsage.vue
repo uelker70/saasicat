@@ -11,18 +11,18 @@
 
 <script setup lang="ts">
 import KvBlock from '../../ui/data/KvBlock.vue';
-import type { TenantDetailData, VerbrauchField } from './types.js';
+import type { TenantDetailData, UsageField } from './types.js';
 
 // Usage counters. A field either names a key in `data.counts` or brings its own
 // getter, so a consumer can surface a number the platform knows nothing about.
 const props = defineProps<{
     data: TenantDetailData;
-    fields: readonly VerbrauchField[];
+    fields: readonly UsageField[];
 }>();
 
 const EMPTY = '—';
 
-function resolve(field: VerbrauchField): string {
+function resolve(field: UsageField): string {
     if (field.getter) return String(field.getter(props.data));
     if (!field.key) return EMPTY;
     const value = props.data.counts?.[field.key];

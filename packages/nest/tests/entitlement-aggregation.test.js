@@ -248,7 +248,7 @@ describe('hasFeature / hasAnyFeature', () => {
     });
 });
 
-// @requirement SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
+// @requirement SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
 describe('toEffectiveLimitsSnapshot', () => {
     test('set becomes sorted array (deterministic)', () => {
         const snap = toEffectiveLimitsSnapshot({

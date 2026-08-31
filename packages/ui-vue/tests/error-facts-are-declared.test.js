@@ -15,7 +15,6 @@
 // none of them is a list somebody has to remember to extend.
 
 // @requirement SC-LANG-006 — Text a customer reads carries its values beside its code, not inside a sentence
-// @requirement SC-LANG-007 — A refusal code never encodes its own subject
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -14,6 +14,36 @@ beforeEach(() => {
     service = new MarketingProjectionsService(repo);
 });
 
+const OTHER_VERSION = '22222222-2222-2222-2222-222222222222';
+
+// @requirement SC-MKT-022 — A catalogue offers at most one recommended plan, and the language decides which
+describe('MarketingProjectionsService — the recommended mark is not decided here', () => {
+    // Deliberately: a check at the write path sees neither which version is
+    // live nor the default-language fallback, so it would refuse on rows the
+    // editor does not show and still let two cards through. The catalogue
+    // decides, and this pins that the editor does not.
+    const plan = (targetVersionId, extra = {}) => ({
+        targetType: 'PLAN',
+        targetVersionId,
+        displayLabel: 'Plan',
+        description: 'A plan',
+        ...extra,
+    });
+
+    test('a second recommended projection in the same language is accepted', async () => {
+        await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const second = await service.create(plan(OTHER_VERSION, { highlight: true }));
+        assert.equal(second.highlight, true);
+    });
+
+    test('and so is recommending one by edit while another already is', async () => {
+        await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const second = await service.create(plan(OTHER_VERSION));
+        const updated = await service.update(second.id, { highlight: true });
+        assert.equal(updated.highlight, true);
+    });
+});
+
 // @requirement SC-MKT-004 — Marketing text belongs to one version and one language
 // @requirement SC-MKT-006 — Marketing edits take effect at once and are not versioned
 // @requirement SC-MKT-008 — An installation has exactly one set of marketing settings

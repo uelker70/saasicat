@@ -38,7 +38,7 @@ export function getPlanOrThrow(catalog: PlanCatalog, planId: PlanId): PlanDef {
 /**
  * Returns all marketed plans (`marketed: true` or undefined). Order as in the
  * catalog. ENTERPRISE and other `marketed: false` plans are NOT included —
- * these can only be activated via `ahp paket apply` / special contract and do
+ * these are activated by a catalogue apply or a special contract, and do
  * not belong in self-service onboarding lists.
  */
 export function getMarketedPlans(catalog: PlanCatalog): PlanDef[] {

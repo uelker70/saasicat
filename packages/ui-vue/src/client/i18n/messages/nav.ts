@@ -1,3 +1,4 @@
+// translation-catalogue: the German half of this file is German on purpose.
 // Navigation labels consumed by the nav-builder: standard-page labels and the
 // default drawer section names. Section VALUES double as section identifiers
 // in `navSection` / `sectionOrder`, so builder options and catalog must come

@@ -95,7 +95,7 @@ import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 // PlanCreateDialog — step 1 of the "new plan" flow from the plan
 // simulation. Collects the plan master data (key, label, description) plus the
 // basis for the first draft version (empty or a clone of an existing plan).
-// On "Weiter" the dialog emits the complete submit payload; the
+// On confirming the step the dialog emits the complete submit payload; the
 // hosting page (PlansPage) creates the plan and opens the V2 editor
 // with the cloned initial form.
 

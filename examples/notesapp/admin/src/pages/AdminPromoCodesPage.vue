@@ -11,7 +11,7 @@ import type { PromoCodesPageOptions } from '@saasicat/ui-vue/pages/PromoCodesPag
 // this app decides: the wording, which plans a code may apply to, and which of
 // the four flows its operators are offered.
 const options: PromoCodesPageOptions = {
-    subtitle: 'Rabattcodes für das Onboarding-Checkout.',
+    subtitle: 'Discount codes for the onboarding checkout.',
     planOptions: [
         { key: 'STARTER', label: 'Starter' },
         { key: 'PRO', label: 'Pro' },

@@ -37,6 +37,10 @@ export interface PublicMarketingPlan {
     badge: string;
     /** Teaser / description text. */
     description: string;
+    /**
+     * The recommended plan, and at most one card in a catalogue carries it —
+     * see `keepOneRecommended`, which decides it per language served.
+     */
     highlight: boolean;
     /**
      * Formatted pricing tag from the MarketingProjection (#47, e.g.

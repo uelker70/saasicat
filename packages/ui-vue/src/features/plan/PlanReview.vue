@@ -366,8 +366,8 @@ const hasMonthly = computed(() => {
     return props.version.monthlyNet !== '' && Number.isFinite(n) && n >= 0;
 });
 
-// "Gültig ab" must lie strictly after the "Gültig ab" of the predecessor
-// version — otherwise the publish endpoint rejects.
+// `validFrom` must lie strictly after the predecessor version's `validFrom` —
+// otherwise the publish endpoint rejects.
 const validFromAfterPredecessor = computed(() => {
     const prev = props.predecessor;
     if (!prev?.validFrom || !props.version.validFrom) return true;

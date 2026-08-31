@@ -1,3 +1,4 @@
+// translation-catalogue: the German half of this file is German on purpose.
 import { defineMessages } from '../define.js';
 
 export const bundlesMessages = defineMessages(

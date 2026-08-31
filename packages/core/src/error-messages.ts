@@ -155,6 +155,11 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_NOT_SELF_SERVICE:
         '{planName} is only activated via a special contract. Please contact the contract manager.',
     PLAN_CHANGE_BLOCKED: 'Plan change during onboarding is blocked.',
+    SUBSCRIPTION_CHANGED:
+        'This subscription changed while the request was being decided. Reload it.',
+    NO_SUBSCRIPTION: 'This tenant has no subscription to cancel.',
+    CANCELLATION_TERMS_CHANGED:
+        'The effective date changed since it was shown. Confirm the new one.',
     SUBSCRIPTION_ENDED: 'This subscription has ended. Its plan can no longer be changed.',
     PLAN_LOCKED:
         'Active {planName} special contract — please contact the contract manager to change plans.',
@@ -171,6 +176,12 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'A monthly {planName} cannot start inside the yearly term you are in. The upgrade takes effect when that term ends; to have it today, keep the yearly cycle.',
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
         'A yearly bundle is booked until {until}. A monthly plan cannot carry it — cancel the bundle first, or keep the yearly cycle.',
+    REDUNDANT_FEATURES:
+        'The plan or another booked bundle already includes {count} of the features in this bundle — booking it pays for them twice.',
+    MINIMUM_TERM_BINDS:
+        'The minimum term extends beyond the end of the period — the cancellation only takes effect when the minimum term ends.',
+    BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED:
+        'The bundle requires [{features}] — present neither in the plan nor in the active bundles.',
     NO_PENDING_PLAN_VERSION: 'There is no pending plan version awaiting confirmation.',
     ONBOARDING_CREATE_FAILED: 'The account could not be created. Please try again.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:

@@ -10,10 +10,10 @@ document, but an executable set of guarantees.
 Each scenario is a YAML file with the structure:
 
 ```yaml
-scenario: 'Kurzbeschreibung des Verhaltens (1 Satz)'
+scenario: 'What the behaviour is, in one sentence'
 description: |
-    Längere Beschreibung — was wird hier abgesichert, warum ist es wichtig.
-    Verweise auf SPEC-Sektion oder offene Frage.
+    The longer version — what this holds, and why it matters.
+    Point at the SPEC section, or at the question still open.
 
 setup: # state setup via Admin API calls
     - createTenant: { slug: '...', email: '...' }

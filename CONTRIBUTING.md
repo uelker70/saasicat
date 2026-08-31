@@ -192,6 +192,11 @@ Nothing was backfilled; the guard freezes the debt instead — a new promise bri
 promise already owed one gains a test. Retiring an unproven promise makes the debt smaller and buys
 nothing, and a promise that had a proof may not lose it.
 
+A second ratchet runs beside it, over the same population and with the same fungible credit: a
+promise that claims every case — "never", "every", "only", "uniformly" — either has a test or says
+in the entry where the absolute stops. That was the most common defect in the documents this
+catalogue came out of, and an unbounded absolute is the one somebody finds by falling outside it.
+
 [`requirements/README.md`](requirements/README.md) is the short form for whoever is editing;
 [`docs/explanation/requirements-as-sources.md`](docs/explanation/requirements-as-sources.md) is the
 long one, including every rule the checker enforces and the ones no checker can.
