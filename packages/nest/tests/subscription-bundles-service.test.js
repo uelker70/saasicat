@@ -48,6 +48,11 @@ async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
     return published;
 }
 
+// @requirement SC-BUN-008
+// @requirement SC-BUN-013
+// @requirement SC-BUN-023
+// @requirement SC-BUN-025
+// @requirement SC-BUN-027
 describe('SubscriptionBundlesService — addBundleToSubscription', () => {
     test('a booking commits the tenant to nothing unless somebody says so', async () => {
         // The rule, not the number: an add-on can be cancelled at any time up
@@ -224,6 +229,9 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
     });
 });
 
+// @requirement SC-BUN-009
+// @requirement SC-BUN-010
+// @requirement SC-BUN-028
 describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
     test('canceledEffectiveAt = currentPeriodEnd when the minimum term has already elapsed', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
@@ -320,6 +328,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
     });
 });
 
+// @requirement SC-BUN-026
 describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
     test('sales-only bundle throws 422 BUNDLE_NOT_SELF_SERVICE', async () => {
         const bv = await createPublishedBundle({ key: 'ENTERPRISE_PACK' });

@@ -46,6 +46,7 @@ beforeEach(() => {
 // Master operations
 // ─────────────────────────────────────────────────────────────────
 
+// @requirement SC-BUN-032
 describe('BundlesService — Master operations', () => {
     test('createBundle creates a new bundle master record', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
@@ -105,6 +106,8 @@ describe('BundlesService — Master operations', () => {
 // Version lifecycle: createDraft / updateDraft / publish
 // ─────────────────────────────────────────────────────────────────
 
+// @requirement SC-BUN-024
+// @requirement SC-BUN-023
 describe('BundlesService — Version lifecycle', () => {
     test('createBundleDraft creates v1 with baseVersionId=null', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
@@ -408,6 +411,7 @@ describe('BundlesService — Strict mode check', () => {
     });
 });
 
+// @requirement SC-BUN-024
 describe('BundlesService — Editability annotation (Pack 2c)', () => {
     const FUTURE = '2099-01-01';
     const FUTURE_NEXT = '2099-06-01';

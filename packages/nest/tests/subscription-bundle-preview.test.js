@@ -112,6 +112,11 @@ async function createPublishedBundle({
     });
 }
 
+// @requirement SC-BUN-016
+// @requirement SC-BUN-020
+// @requirement SC-BUN-021
+// @requirement SC-BUN-026
+// @requirement SC-PRIC-002
 describe('SubscriptionBundlePreviewService — previewAdd', () => {
     test('proration: prorated amount until period end + next-period price', async () => {
         const bv = await createPublishedBundle({ key: 'B1', monthlyNet: '31.00' });
@@ -288,6 +293,8 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
     });
 });
 
+// @requirement SC-BUN-009
+// @requirement SC-BUN-028
 describe('SubscriptionBundlePreviewService — previewCancel', () => {
     test('effectiveAt = period end when minimum term expired', async () => {
         const bv = await createPublishedBundle({ key: 'B1', monthlyNet: '31.00' });
@@ -364,6 +371,8 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
     });
 });
 
+// @requirement SC-BUN-005
+// @requirement SC-BUN-010
 describe('a bundle billed in its own rhythm', () => {
     // The booking route has taken a `billingCycle` since bundles gained a
     // rhythm of their own; the preview did not, and quoted the plan's. A tenant
