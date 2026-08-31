@@ -197,19 +197,44 @@ function appendQuotaChanges(
     oldQuotas: Record<string, number>,
     newQuotas: Record<string, number>,
 ): void {
-    const at = (quotas: Record<string, number>, key: string) =>
+    const at = (quotas: Record<string, number>, key: string): unknown =>
         Object.hasOwn(quotas, key) ? quotas[key] : 0;
     const allKeys = new Set([...Object.keys(oldQuotas), ...Object.keys(newQuotas)]);
     for (const key of allKeys) {
-        const oldValue = at(oldQuotas, key);
-        const newValue = at(newQuotas, key);
+        const oldRaw = at(oldQuotas, key);
+        const newRaw = at(newQuotas, key);
+        // Identical, whatever shape they are in: no change to report.
+        if (oldRaw === newRaw) continue;
+        const oldValue = toQuotaNumber(oldRaw);
+        const newValue = toQuotaNumber(newRaw);
+        // `"100"` against `100` is the same allowance written twice.
         if (oldValue === newValue) continue;
         const direction = directionFromQuotaCmp(oldValue, newValue);
         out.push({ field: `quotas.${key}`, oldValue, newValue, direction });
     }
 }
 
+/**
+ * A quota as a number, whatever shape it arrived in.
+ *
+ * The type says `number` and the boundary now insists on one, but rows written
+ * before it did are still in the database: `quotas` is a JSON column, and the
+ * DTO validated only the container. Compared as they stood, `"50"` against
+ * `"100"` is a *string* comparison — `'5' > '1'` — so halving an allowance read
+ * as an improvement and published with nothing asked. Everything that is not a
+ * number is read as one here, and what cannot be is `NaN`, which the direction
+ * below refuses to call an improvement.
+ */
+function toQuotaNumber(value: unknown): number {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string' && value.trim() !== '') return Number(value);
+    return Number.NaN;
+}
+
 function directionFromQuotaCmp(oldValue: number, newValue: number): VersionChangeDirection {
+    // A value nothing can read is not evidence of an improvement, and the
+    // confirmation an operator has to give is the safe side of not knowing.
+    if (Number.isNaN(oldValue) || Number.isNaN(newValue)) return 'REGRESSION';
     if (oldValue === -1 && newValue !== -1) return 'REGRESSION';
     if (newValue === -1 && oldValue !== -1) return 'IMPROVEMENT';
     return newValue > oldValue ? 'IMPROVEMENT' : 'REGRESSION';

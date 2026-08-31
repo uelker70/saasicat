@@ -1257,6 +1257,10 @@ _Tested by:_
         - unlimited replaced by a finite number → REGRESSION
         - a key that names something on Object.prototype is still read as a quota
         - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
         - a finite number replaced by unlimited → IMPROVEMENT
 - `packages/nest/tests/version-publish.test.js`
     - assertDraftPublishable
@@ -1297,6 +1301,10 @@ _Tested by:_
         - unlimited replaced by a finite number → REGRESSION
         - a key that names something on Object.prototype is still read as a quota
         - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
         - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->
@@ -1313,6 +1321,16 @@ _Source:_ current practice
 
 _Tested by:_
 
+- `packages/nest/tests/a-quota-arrives-as-a-number.test.js`
+    - a quota arrives as a number or it does not arrive
+        - integers are accepted, and so is -1 for unlimited
+        - an empty record is accepted — a version may carry no quota at all
+        - a numeric string is refused, and the message names the key
+        - "-1" is refused too — it is the value that would lock a tenant out
+        - a fraction, a negative below -1, null and a nested object are refused
+        - an array is not a quota record
+        - the update DTO holds the same line, and leaving quotas out is still allowed
+        - an add-on version is held to it as well — it is the same comparison
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - publishPlanVersion: lowering an installation's own quota → 422
@@ -1330,6 +1348,10 @@ _Tested by:_
         - unlimited replaced by a finite number → REGRESSION
         - a key that names something on Object.prototype is still read as a quota
         - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
         - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->

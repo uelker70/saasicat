@@ -139,6 +139,45 @@ describe('classifyPlanDiff — quotas', () => {
         });
     });
 
+    test('a value written as a string is read as the number it is', () => {
+        // The type says `number` and the boundary now insists on one, but rows
+        // written before it did are still in the JSON column. Compared as they
+        // stood, `"50"` against `"100"` is a *string* comparison — `'5'` against
+        // `'1'` — so halving an allowance read as an improvement.
+        const oldV = { ...base, quotas: { notesMax: '100' } };
+        const newV = { ...oldV, quotas: { notesMax: '50' } };
+        const result = classifyPlanDiff(oldV, newV);
+        assert.equal(result.nonRegressive, false);
+        assert.deepEqual(result.changes[0], {
+            field: 'quotas.notesMax',
+            oldValue: 100,
+            newValue: 50,
+            direction: 'REGRESSION',
+        });
+    });
+
+    test('the same allowance written twice is not a change', () => {
+        const oldV = { ...base, quotas: { notesMax: '100' } };
+        const newV = { ...oldV, quotas: { notesMax: 100 } };
+        assert.deepEqual(classifyPlanDiff(oldV, newV).changes, []);
+    });
+
+    test('"-1" is unlimited, and losing it is a regression', () => {
+        const oldV = { ...base, quotas: { notesMax: '-1' } };
+        const newV = { ...oldV, quotas: { notesMax: 10_000 } };
+        const result = classifyPlanDiff(oldV, newV);
+        assert.equal(result.nonRegressive, false);
+        assert.equal(result.changes[0].direction, 'REGRESSION');
+    });
+
+    test('a value nothing can read is not evidence of an improvement', () => {
+        const oldV = { ...base, quotas: { notesMax: 'unbegrenzt' } };
+        const newV = { ...oldV, quotas: { notesMax: 10_000 } };
+        const result = classifyPlanDiff(oldV, newV);
+        assert.equal(result.nonRegressive, false);
+        assert.equal(result.changes[0].direction, 'REGRESSION');
+    });
+
     test('a finite number replaced by unlimited → IMPROVEMENT', () => {
         const oldV = { ...base, quotas: { notesMax: 10_000 } };
         const newV = { ...oldV, quotas: { notesMax: -1 } };
