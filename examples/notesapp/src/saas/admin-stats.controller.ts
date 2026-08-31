@@ -24,7 +24,7 @@ export class AdminStatsController {
             this.prisma.tenant.count(),
             this.prisma.tenant.count({ where: { isActive: true } }),
         ]);
-        return { value: total, sub: `${active} aktiv` };
+        return { value: total, sub: `${active} active` };
     }
 
     @Get('notes')

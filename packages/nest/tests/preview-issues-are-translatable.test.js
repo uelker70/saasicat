@@ -1,15 +1,14 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN } from '@saasicat/core';
 
-// Every blocker and warning the plan-change preview can emit has to be
-// translatable, and that means two things a build can check: its code is in
-// both shipped catalogues, and the template names no value the issue does not
-// carry.
+// Every blocker and warning a preview can emit has to be translatable, and that
+// means two things a build can check: its code is in both shipped catalogues,
+// and the template names no value the issue does not carry.
 //
 // This was not true until 1.0.0-rc.8. The sentences were built server-side with
 // the numbers inside them, so a tenant read them in English whatever language
@@ -19,16 +18,19 @@ import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN } from '@saasicat/core';
 // against that, and no guard could check one. Collapsing them is what makes
 // this test possible at all.
 //
-// The expectation is derived from the service source rather than listed here: a
+// The expectation is derived from the service sources rather than listed here: a
 // list would be the same defect one level up, and the code that is forgotten is
 // the one nobody added to it.
+//
+// Both previews are read, because reading one was itself the defect: while this
+// file watched the plan change, the bundle preview shipped `REDUNDANT_FEATURES`
+// and `MINIMUM_TERM_BINDS` into a tenant's screen with no catalogue on either
+// side of the wire able to name them. A guard that covers one of two identical
+// surfaces reports on the half nobody was worried about.
 
-const SERVICE = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    'src',
-    'billing',
-    'plan-change-preview.service.ts',
+const BILLING_SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'billing');
+const SERVICES = ['plan-change-preview.service.ts', 'subscription-bundle-preview.service.ts'].map(
+    (file) => join(BILLING_SRC, file),
 );
 
 /**
@@ -66,11 +68,18 @@ function issueBlocks(source) {
     return blocks;
 }
 
-/** The code an issue block carries, whether named or written out. */
+/**
+ * The code an issue block carries, whether named or written out.
+ *
+ * Any `*_ERROR_CODES.` group, not `BILLING_ERROR_CODES.` alone: a code moved
+ * between groups, or one pushed from the catalogue group, would otherwise drop
+ * out of the scan without a single assertion turning red.
+ */
 function codeOf(block) {
-    const named = block.indexOf('BILLING_ERROR_CODES.');
+    const GROUP = '_ERROR_CODES.';
+    const named = block.indexOf(GROUP);
     if (named !== -1) {
-        const rest = block.slice(named + 'BILLING_ERROR_CODES.'.length);
+        const rest = block.slice(named + GROUP.length);
         const end = rest.search(/[^A-Z_]/);
         return end === -1 ? rest : rest.slice(0, end);
     }
@@ -110,7 +119,11 @@ function placeholdersOf(text) {
     return new Set(Array.from(text.matchAll(/\{(\w+)\}/g), (m) => m[1]));
 }
 
-const BLOCKS = issueBlocks(readFileSync(SERVICE, 'utf8'));
+const BLOCKS_PER_SERVICE = SERVICES.map((path) => [
+    basename(path),
+    issueBlocks(readFileSync(path, 'utf8')),
+]);
+const BLOCKS = BLOCKS_PER_SERVICE.flatMap(([, blocks]) => blocks);
 
 function emittedCodes() {
     return [...new Set(BLOCKS.map(codeOf).filter(Boolean))].sort();
@@ -132,12 +145,20 @@ describe('a preview issue can be read in the reader’s language', () => {
 
     test('the scan finds the codes at all', () => {
         // Every assertion below is vacuously true on an empty list, and the
-        // whole value of this file is that it reads the service.
-        assert.ok(codes.length >= 7, `only found ${codes.length}: ${codes.join(', ')}`);
+        // whole value of this file is that it reads the services.
+        assert.ok(codes.length >= 18, `only found ${codes.length}: ${codes.join(', ')}`);
         assert.ok(
             codes.includes('QUOTA_OVER_TARGET'),
             'the collapsed quota code is not in the scan',
         );
+        // Per service rather than in total: a rename, a moved file or a changed
+        // push idiom takes one source out of the scan while the other keeps the
+        // count above the floor, and the half that stopped being read is
+        // precisely the half nobody would look at again.
+        const silent = BLOCKS_PER_SERVICE.filter(([, blocks]) => blocks.length === 0).map(
+            ([name]) => name,
+        );
+        assert.deepEqual(silent, [], 'a preview source contributed no issues — is it still read?');
     });
 
     for (const locale of ['en', 'de']) {

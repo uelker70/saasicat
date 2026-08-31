@@ -114,8 +114,6 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' gibt es bereits",
     MARKETING_PROJECTION_ALREADY_EXISTS:
         'Für {targetType}/{targetVersionId}/{locale} gibt es bereits eine Marketing-Projektion — bearbeite sie per PATCH',
-    MARKETING_HIGHLIGHT_TAKEN:
-        'Projektion {holderId} ist für {locale} bereits die empfohlene {targetType} — nimm dort zuerst die Empfehlung weg',
     PLAN_DRAFT_ALREADY_EXISTS:
         "Plan '{planKey}' hat bereits die Entwurfsversion v{draftVersion}; veröffentliche oder verwirf sie zuerst",
     BUNDLE_DRAFT_ALREADY_EXISTS:
@@ -156,6 +154,11 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_NOT_SELF_SERVICE:
         '{planName} wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.',
     PLAN_CHANGE_BLOCKED: 'Während des Onboardings ist ein Planwechsel gesperrt.',
+    SUBSCRIPTION_CHANGED:
+        'Dieses Abonnement hat sich geändert, während die Anfrage entschieden wurde. Bitte lade es neu.',
+    NO_SUBSCRIPTION: 'Dieser Mandant hat kein Abonnement, das gekündigt werden kann.',
+    CANCELLATION_TERMS_CHANGED:
+        'Das Wirksamkeitsdatum hat sich seit der Anzeige geändert. Bitte bestätige das neue Datum.',
     SUBSCRIPTION_ENDED:
         'Dieses Abonnement ist beendet. Sein Paket kann nicht mehr gewechselt werden.',
     PLAN_LOCKED:
@@ -173,6 +176,12 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Ein monatlich abgerechnetes {planName} kann nicht innerhalb der laufenden Jahreslaufzeit beginnen. Das Upgrade greift zum Ende dieser Laufzeit; wer es sofort möchte, behält den jährlichen Rhythmus.',
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE:
         'Ein jährlich abgerechnetes Bundle ist bis {until} gebucht. Ein monatlich abgerechnetes Paket kann es nicht tragen — kündigen Sie das Bundle zuerst, oder behalten Sie den jährlichen Rhythmus.',
+    REDUNDANT_FEATURES:
+        'Der Plan oder ein anderes gebuchtes Bundle enthält bereits {count} der Funktionen aus diesem Bundle — mit der Buchung werden sie doppelt bezahlt.',
+    MINIMUM_TERM_BINDS:
+        'Die Mindestlaufzeit reicht über das Ende der Periode hinaus — die Kündigung wird erst zum Ende der Mindestlaufzeit wirksam.',
+    BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED:
+        'Das Bundle setzt [{features}] voraus — weder im Plan noch in den aktiven Bundles vorhanden.',
     NO_PENDING_PLAN_VERSION: 'Es wartet keine Planversion auf eine Bestätigung.',
     ONBOARDING_CREATE_FAILED:
         'Das Konto konnte nicht angelegt werden. Bitte versuche es noch einmal.',

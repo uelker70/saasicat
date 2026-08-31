@@ -59,7 +59,7 @@ import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i
 export interface FeatureMeta {
     /** Display name; fallback = featureKey. */
     label?: string;
-    /** Library bucket (e.g. "Communication", "Finance"). Default "Allgemein". */
+    /** Library bucket (e.g. "Communication", "Finance"). Default "General". */
     group?: string;
 }
 

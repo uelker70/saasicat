@@ -33,13 +33,13 @@
                 <!-- Master data -->
                 <AdminSection
                     :title="labels.masterData"
-                    :subtitle="options?.stammdatenSub"
+                    :subtitle="options?.masterDataSub"
                     class="q-mb-md"
                 >
                     <template #actions>
                         <slot name="card-actions" :data="data" :reload="load" />
                     </template>
-                    <slot name="stammdaten" :data="data">
+                    <slot name="master-data" :data="data">
                         <TenantMasterData
                             :data="data"
                             :labels="labels"
@@ -47,18 +47,18 @@
                             :yes="common.yes"
                             :no="common.no"
                         >
-                            <slot name="extra-stammdaten" :data="data" />
+                            <slot name="extra-master-data" :data="data" />
                         </TenantMasterData>
                     </slot>
                 </AdminSection>
 
                 <!-- Usage -->
                 <AdminSection
-                    v-if="(options?.verbrauchFields?.length ?? 0) > 0"
+                    v-if="(options?.usageFields?.length ?? 0) > 0"
                     :title="labels.usage"
                     class="q-mb-md"
                 >
-                    <TenantUsage :data="data" :fields="options?.verbrauchFields ?? []" />
+                    <TenantUsage :data="data" :fields="options?.usageFields ?? []" />
                 </AdminSection>
 
                 <!-- Users -->
@@ -107,7 +107,7 @@ import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { tenantsResource } from '../client/resources/tenants.resource.js';
-import type { TenantDetailData, VerbrauchField } from '../internal/tenant-detail/types.js';
+import type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
@@ -120,7 +120,7 @@ import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDia
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
-export type { TenantDetailData, VerbrauchField } from '../internal/tenant-detail/types.js';
+export type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
 
 /**
  * What an app may change about this page.
@@ -138,21 +138,21 @@ export interface TenantDetailPageOptions {
     backRoute?: RouteLocationRaw;
     /** Manifest source for the suspend/reactivate card actions. */
     manifest?: AdminManifest | null;
-    verbrauchFields?: VerbrauchField[];
+    usageFields?: UsageField[];
     userColumns?: QTableColumn[];
     showUsers?: boolean;
     backLabel?: string;
     titleLabel?: string;
     slugLabel?: string;
-    stammdatenLabel?: string;
-    stammdatenSub?: string;
+    masterDataLabel?: string;
+    masterDataSub?: string;
     planLabel?: string;
     statusLabel?: string;
     pilotLabel?: string;
     trialEndLabel?: string;
     pilotEndLabel?: string;
     vatIdLabel?: string;
-    verbrauchLabel?: string;
+    usageLabel?: string;
     usersLabel?: string;
 }
 
@@ -182,14 +182,14 @@ const labels = computed(() => ({
     back: props.options?.backLabel ?? msg.value.detail.backToList,
     title: props.options?.titleLabel ?? msg.value.tenant,
     slug: props.options?.slugLabel ?? msg.value.detail.slug,
-    masterData: props.options?.stammdatenLabel ?? msg.value.detail.masterData,
+    masterData: props.options?.masterDataLabel ?? msg.value.detail.masterData,
     plan: props.options?.planLabel ?? msg.value.plan,
     status: props.options?.statusLabel ?? common.value.status,
     pilot: props.options?.pilotLabel ?? msg.value.detail.pilot,
     trialEnd: props.options?.trialEndLabel ?? msg.value.detail.trialEnd,
     pilotEnd: props.options?.pilotEndLabel ?? msg.value.detail.pilotEnd,
     vatId: props.options?.vatIdLabel ?? msg.value.detail.vatId,
-    usage: props.options?.verbrauchLabel ?? msg.value.detail.usage,
+    usage: props.options?.usageLabel ?? msg.value.detail.usage,
     users: props.options?.usersLabel ?? msg.value.detail.users,
 }));
 

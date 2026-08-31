@@ -331,7 +331,7 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             {
                 id: 'myapp.report',
                 path: '/admin/report',
-                label: 'Auswertung',
+                label: 'Reports',
                 icon: 'analytics',
                 requiredCapability: 'reports.read',
                 component: 'MyAppReportPage', // resolved in the UI via lazy loader
@@ -343,7 +343,7 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
         kpiCards: [
             {
                 id: 'platform.tenants.active',
-                label: 'Aktive Mandanten',
+                label: 'Active tenants',
                 endpoint: '/api/v1/admin/stats/dashboard',
                 displayHint: { type: 'value+delta', icon: 'business' },
                 slotPriority: 90,
@@ -355,7 +355,7 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
     tenantActions: [
         {
             id: 'myapp.tenants.export',
-            label: 'Daten exportieren',
+            label: 'Export data',
             endpoint: '/api/v1/admin/tenants/:slug/export',
             method: 'POST',
             requiresMfa: true,
@@ -408,7 +408,7 @@ import { RequireFeature } from '@saasicat/nest/billing';
 export class DmsController {
     @Post('upload')
     @ImplementsCapability('dms.upload', {
-        label: 'Dokument ins DMS hochladen',
+        label: 'Upload a document to the DMS',
         feature: 'DMS',
         kind: 'endpoint',
         owner: 'dms',

@@ -162,14 +162,14 @@ const props = withDefaults(
         /** Error message from the last save attempt, e.g. the text for PLAN_DRAFT_ALREADY_EXISTS. */
         saveError?: string | null;
         /**
-         * Predecessor version (currently live) that "Diff vs. Vorgänger"
+         * Predecessor version (currently live) that the diff button
          * compares against. `null` for v1 — the button is then disabled.
          */
         predecessorVersion?: PredecessorVersion | null;
     }>(),
     {
         planDisplayName: undefined,
-        catalogUrl: 'app.local/preise',
+        catalogUrl: 'app.local/pricing',
         tenantImpactCount: 0,
         saveError: null,
         predecessorVersion: null,
@@ -205,14 +205,14 @@ const baseline: DraftForm = cloneForm(props.initialForm);
 onMounted(() => {
     searchTerm.value = '';
     activeTab.value = 'features';
-    // Always prefill "Gültig ab": if missing (e.g. legacy data without a start date)
+    // Always prefill `validFrom`: if missing (e.g. legacy data without a start date)
     // → default start date; if before the predecessor → first permitted day.
     if (!form.validFrom || form.validFrom.slice(0, 10) <= prevValidFromDay.value) {
         form.validFrom = defaultValidFrom.value;
     }
 });
 
-// "Gültig ab" day of the predecessor version (YYYY-MM-DD) or '' if none.
+// `validFrom` day of the predecessor version (YYYY-MM-DD) or '' if none.
 const prevValidFromDay = computed(() =>
     props.predecessorVersion?.validFrom ? props.predecessorVersion.validFrom.slice(0, 10) : '',
 );
@@ -443,8 +443,8 @@ const yearlySavingsLabel = computed(() => {
 
 // ── Validation ──────────────────────────────────────────────────────
 
-// "Gültig ab" must be strictly after the "Gültig ab" of the predecessor
-// version — otherwise the version timeline is wrong.
+// `validFrom` must be strictly after the predecessor version's `validFrom` —
+// otherwise the version timeline is wrong.
 // ISO date strings (YYYY-MM-DD) are lexicographically comparable.
 const validFromError = computed<string | null>(() => {
     const prev = props.predecessorVersion;
@@ -461,7 +461,7 @@ const validFromError = computed<string | null>(() => {
     return null;
 });
 
-// First valid start day = day after the "Gültig ab" of the predecessor version.
+// First valid start day = the day after the predecessor version's `validFrom`.
 // Bound as `min` to the date field → earlier days are greyed out in the
 // native date picker.
 const minValidFrom = computed<string | undefined>(() => {
@@ -473,7 +473,7 @@ const minValidFrom = computed<string | undefined>(() => {
     return d.toISOString().slice(0, 10);
 });
 
-// Default start date when "Gültig ab" is missing or cleared: first
+// Default start date when `validFrom` is missing or cleared: first
 // permitted day (successor) or today (initial version). This keeps validFrom
 // from ever being NULL — no new legacy-data gap (an invisible plan in the catalog) arises.
 const defaultValidFrom = computed<string>(

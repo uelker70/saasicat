@@ -91,11 +91,6 @@ export const CATALOG_ERROR_CODES = {
     PLAN_ALREADY_EXISTS: 'PLAN_ALREADY_EXISTS',
     BUNDLE_ALREADY_EXISTS: 'BUNDLE_ALREADY_EXISTS',
     MARKETING_PROJECTION_ALREADY_EXISTS: 'MARKETING_PROJECTION_ALREADY_EXISTS',
-    /**
-     * Another projection of the same kind and language is already the
-     * recommended one. Carries `targetType`, `locale` and the id holding it.
-     */
-    MARKETING_HIGHLIGHT_TAKEN: 'MARKETING_HIGHLIGHT_TAKEN',
     /** A draft already exists — publish or discard it before creating another. */
     PLAN_DRAFT_ALREADY_EXISTS: 'PLAN_DRAFT_ALREADY_EXISTS',
     BUNDLE_DRAFT_ALREADY_EXISTS: 'BUNDLE_DRAFT_ALREADY_EXISTS',
@@ -144,12 +139,33 @@ export const BILLING_ERROR_CODES = {
     PLAN_NOT_SELF_SERVICE: 'PLAN_NOT_SELF_SERVICE',
     /** Plan change refused. Carries `blockers[]` with their own codes. */
     PLAN_CHANGE_BLOCKED: 'PLAN_CHANGE_BLOCKED',
+    /**
+     * The subscription moved between the read a request was decided on and the
+     * write it attempted, so nothing was written. The caller reloads and asks
+     * again.
+     */
+    SUBSCRIPTION_CHANGED: 'SUBSCRIPTION_CHANGED',
+    /**
+     * The tenant has no subscription to act on.
+     *
+     * `SUBSCRIPTION_NOT_FOUND` states the same fact on the read routes. Both
+     * are already on the wire and a code is renamed only deliberately, so both
+     * are named here rather than one being dropped behind a consumer's back.
+     */
+    NO_SUBSCRIPTION: 'NO_SUBSCRIPTION',
+    /**
+     * The cancellation date the reader was shown is no longer the one the rules
+     * return, so the confirmation is refused rather than silently applied.
+     * Carries the recomputed dates, so the page can re-ask instead of guessing.
+     */
+    CANCELLATION_TERMS_CHANGED: 'CANCELLATION_TERMS_CHANGED',
 
-    // ── the plan-change preview's own blockers and warnings ──
+    // ── the preview routes' own blockers and warnings ──
     //
     // These travel inside a 200 response, in `blockers[]` and `warnings[]`, not
     // as thrown errors — but they are read by a person and so belong in the same
-    // catalogue. Each carries `params` with the values its sentence names.
+    // catalogue. Each carries `params` with the values its sentence names. Two
+    // routes emit them: the plan-change preview and the bundle preview.
     //
     // Three of them used to construct their code from the subject:
     // `VEHICLES_OVER_TARGET`, `ENTERPRISE_LOCKED`, `PRO_NOT_SELF_SERVICE`. That
@@ -182,6 +198,27 @@ export const BILLING_ERROR_CODES = {
      * someone who is only about to book. One template cannot serve both.
      */
     BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE: 'BUNDLE_BOOKING_OUTLASTS_TARGET_CYCLE',
+    /**
+     * Features of the previewed bundle are already covered by the plan or by
+     * another booked bundle. A warning rather than a blocker: paying twice is
+     * the customer's decision, and the preview only has to say so first.
+     */
+    REDUNDANT_FEATURES: 'REDUNDANT_FEATURES',
+    /**
+     * A booking's minimum term outlasts the period being cancelled, so the
+     * cancellation takes effect at the end of the term, not of the period.
+     */
+    MINIMUM_TERM_BINDS: 'MINIMUM_TERM_BINDS',
+    /**
+     * The previewed bundle requires features that neither the plan nor an
+     * active booking provides.
+     *
+     * The same string is a `StrictModeWarningCode` in `bundle.types.ts`, where
+     * it names the catalogue-authoring reading of the rule and travels with its
+     * own message. This declaration is the booking preview's blocker, which a
+     * tenant reads and therefore needs a shipped text for.
+     */
+    BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED: 'BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED',
     NO_PENDING_PLAN_VERSION: 'NO_PENDING_PLAN_VERSION',
     ONBOARDING_CREATE_FAILED: 'ONBOARDING_CREATE_FAILED',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS: 'BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS',

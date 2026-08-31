@@ -15,6 +15,8 @@
 //     says where it stops. `SC-ENTL-021` names the one catalogue edit that does
 //     reach a running contract; `SC-LANG-002` names the two defaults that
 //     disagree. Both are more useful than the absolute would have been.
+//     "There are no exceptions" is not one of these: it carries the word and
+//     names nothing, so the word standing before it is read too.
 //
 // What is left over — an absolute nothing measures and nothing qualifies — is
 // debt, and it is frozen rather than paid off. Backfilling would be a week of
@@ -85,9 +87,39 @@ export function promiseOf(entry) {
     return `${entry.title} ${entry.text}`;
 }
 
+/**
+ * Words that turn the noun into the claim that there is no boundary.
+ *
+ * "There are no exceptions" and "without exception" name nothing and assert
+ * the opposite, but they carry the word, so a reader of the word alone files
+ * the entry as answered — and the strongest absolutes are the ones phrased
+ * that way.
+ *
+ * Only the noun can be turned around like this, and only by the word directly
+ * in front of it. `never`, `none` and `nothing` are deliberately absent: in
+ * "never, except on Sundays" they are the absolute, not a denial of the
+ * boundary that follows.
+ */
+const NEGATORS = ['no', 'without'];
+const NEGATABLE = new Set(['exception', 'exceptions']);
+
 function saysAnyOf(entry, phrases) {
     const words = wordsOf(promiseOf(entry));
-    return phrases.some((phrase) => words.includes(` ${phrase} `));
+    return phrases.some((phrase) => {
+        if (!NEGATABLE.has(phrase)) return words.includes(` ${phrase} `);
+        let at = words.indexOf(` ${phrase} `);
+        while (at !== -1) {
+            if (!isDenied(words, at)) return true;
+            at = words.indexOf(` ${phrase} `, at + 1);
+        }
+        return false;
+    });
+}
+
+/** Whether the word standing directly before this one takes the boundary back. */
+function isDenied(words, at) {
+    const before = words.slice(0, at);
+    return NEGATORS.includes(before.slice(before.lastIndexOf(' ') + 1));
 }
 
 /** Whether an entry claims every case. */

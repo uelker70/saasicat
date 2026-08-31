@@ -27,7 +27,7 @@ Optional but strongly recommended integration for ops workflows.
     ],
     providers: [
         // App-specific commands:
-        PaketApplyCommand,
+        CatalogApplyCommand,
         PilotCreateCommand,
         // Platform flow wrappers:
         AdminMfaSetupCommand, // wraps MfaSetupFlow

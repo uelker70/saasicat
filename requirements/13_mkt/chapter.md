@@ -165,24 +165,49 @@ _Tested by:_
 
 ### SC-MKT-009 — At most one plan is marked as the recommended one
 
-🟢
+🔵 _(Superseded on 2026-08-31 by `SC-MKT-022`.)_
 
-_Source:_ `docs/reference/error-codes.md`
+_Source:_ `docs/reference/options.md`
+
+### SC-MKT-022 — A catalogue offers at most one recommended plan, and the language decides which
+
+🟢 The mark belongs to a projection, and a projection belongs to one plan version and one language,
+so no single row can keep this promise: two rows in the same language can carry it, and one carried
+in the default language reaches another language through the fallback that fills in a missing
+translation. The catalogue is where all three — the live versions, the language asked for, and the
+fallback — are known at once, so that is where it is decided. A row written for the language that
+was asked for wins over one inherited from the default; failing that, the first plan the catalogue
+offers. The others keep their card and lose the mark.
+
+_Source:_ #255
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
+- `packages/core/tests/recommended-plan.test.js`
+    - keepOneRecommended
+        - one is left alone
+        - none stays none, and the answer is null
+        - a row written for the language beats one inherited from the default
+        - and it wins from anywhere in the list, not only from the front
+        - with none written for the language, the first the caller offers wins
+        - with every one written for it, the first still wins
+        - a plan that is not recommended is never made one
+        - an empty catalogue answers null rather than throwing
+        - only the mark is touched — every card stays
 - `packages/nest/tests/marketing-projections-service.test.js`
-    - MarketingProjectionsService — the recommended one
-        - the first highlight is accepted
-        - a second one is refused, and the refusal names the one holding it
-        - highlighting a second one by edit is refused the same way
-        - the one that already holds it may be edited without losing it
-        - clearing the first one frees it for the second
-        - an add-on may be recommended while a plan already is
-        - another language may recommend a different plan
-        - creating without a highlight is never refused
+    - MarketingProjectionsService — the recommended mark is not decided here
+        - a second recommended projection in the same language is accepted
+        - and so is recommending one by edit while another already is
+- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
+    - PublicMarketingCatalogService — the recommended plan
+        - one is one
+        - a plan reaching the page through the fallback loses to one written for the language
+        - two rows in the same language leave the one the catalogue offers first
+        - the one that loses the mark keeps its card
+        - a catalogue that recommends nothing recommends nothing
+        - a single fallback row still recommends its plan
 
 <!-- END proof -->
 

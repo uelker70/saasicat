@@ -15,19 +15,19 @@
                 <div class="sa-caps-row__titlerow">
                     <code class="sa-caps-row__key">{{ cap.capabilityKey }}</code>
                     <span v-if="isNew(cap)" class="sa-caps-row__flag sa-caps-row__flag--new">
-                        neu
+                        {{ msg.capList.flagNew }}
                     </span>
                     <span
                         v-if="cap.codeStatus === 'experimental'"
                         class="sa-caps-row__flag sa-caps-row__flag--exp"
                     >
-                        experimental
+                        {{ msg.capList.flagExperimental }}
                     </span>
                     <span
                         v-if="cap.codeStatus === 'deprecated'"
                         class="sa-caps-row__flag sa-caps-row__flag--dep"
                     >
-                        deprecated
+                        {{ msg.capList.flagDeprecated }}
                         <template v-if="cap.replacementKey">
                             → <code>{{ cap.replacementKey }}</code>
                         </template>
@@ -42,11 +42,11 @@
                 <div class="sa-caps-row__meta">
                     <span v-if="cap.label">{{ cap.label }}</span>
                     <span v-if="declaredAtByKey[cap.capabilityKey]">
-                        <span class="sa-muted">impl</span>
+                        <span class="sa-muted">{{ msg.capList.implementedAt }}</span>
                         <code>{{ declaredAtByKey[cap.capabilityKey] }}</code>
                     </span>
                     <span v-if="cap.owner">
-                        <span class="sa-muted">Owner</span>
+                        <span class="sa-muted">{{ msg.owner }}</span>
                         <code>{{ cap.owner }}</code>
                     </span>
                 </div>

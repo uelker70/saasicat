@@ -23,6 +23,10 @@
 // it arrives from an app's `@DefinesQuota` at boot. That case stays a review
 // question, and `RULES.md` §10.4 asks for it to be named instead of pretended.
 //
+// Nor does it measure the neighbouring promise: that every code a client meets
+// is one the shipped catalogue can name. Five are not — saasicat#258 carries
+// them and the derived guard that would close it.
+//
 // Read as text rather than parsed. The shape being refused is visible on one
 // line, and the two markers — a backtick opening the value, a `+` inside it —
 // are found by scanning. A pattern for "the value up to the comma" needs two

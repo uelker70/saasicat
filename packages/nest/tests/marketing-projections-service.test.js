@@ -16,8 +16,12 @@ beforeEach(() => {
 
 const OTHER_VERSION = '22222222-2222-2222-2222-222222222222';
 
-// @requirement SC-MKT-009 — At most one plan is marked as the recommended one
-describe('MarketingProjectionsService — the recommended one', () => {
+// @requirement SC-MKT-022 — A catalogue offers at most one recommended plan, and the language decides which
+describe('MarketingProjectionsService — the recommended mark is not decided here', () => {
+    // Deliberately: a check at the write path sees neither which version is
+    // live nor the default-language fallback, so it would refuse on rows the
+    // editor does not show and still let two cards through. The catalogue
+    // decides, and this pins that the editor does not.
     const plan = (targetVersionId, extra = {}) => ({
         targetType: 'PLAN',
         targetVersionId,
@@ -26,77 +30,17 @@ describe('MarketingProjectionsService — the recommended one', () => {
         ...extra,
     });
 
-    test('the first highlight is accepted', async () => {
-        const row = await service.create(plan(TARGET_VERSION, { highlight: true }));
-        assert.equal(row.highlight, true);
+    test('a second recommended projection in the same language is accepted', async () => {
+        await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const second = await service.create(plan(OTHER_VERSION, { highlight: true }));
+        assert.equal(second.highlight, true);
     });
 
-    test('a second one is refused, and the refusal names the one holding it', async () => {
-        const first = await service.create(plan(TARGET_VERSION, { highlight: true }));
-        await assert.rejects(
-            () => service.create(plan(OTHER_VERSION, { highlight: true })),
-            (err) => {
-                assert.equal(err.status, 409);
-                assert.equal(err.response?.code, 'MARKETING_HIGHLIGHT_TAKEN');
-                assert.equal(err.response?.params?.holderId, first.id);
-                assert.equal(err.response?.params?.targetType, 'PLAN');
-                assert.equal(err.response?.params?.locale, 'de');
-                return true;
-            },
-        );
-    });
-
-    test('highlighting a second one by edit is refused the same way', async () => {
+    test('and so is recommending one by edit while another already is', async () => {
         await service.create(plan(TARGET_VERSION, { highlight: true }));
         const second = await service.create(plan(OTHER_VERSION));
-        await assert.rejects(
-            () => service.update(second.id, { highlight: true }),
-            (err) => {
-                assert.equal(err.response?.code, 'MARKETING_HIGHLIGHT_TAKEN');
-                return true;
-            },
-        );
-    });
-
-    test('the one that already holds it may be edited without losing it', async () => {
-        const first = await service.create(plan(TARGET_VERSION, { highlight: true }));
-        const updated = await service.update(first.id, { highlight: true, badge: 'Popular' });
-        assert.equal(updated.highlight, true);
-        assert.equal(updated.badge, 'Popular');
-    });
-
-    test('clearing the first one frees it for the second', async () => {
-        const first = await service.create(plan(TARGET_VERSION, { highlight: true }));
-        const second = await service.create(plan(OTHER_VERSION));
-        await service.update(first.id, { highlight: false });
         const updated = await service.update(second.id, { highlight: true });
         assert.equal(updated.highlight, true);
-    });
-
-    test('an add-on may be recommended while a plan already is', async () => {
-        await service.create(plan(TARGET_VERSION, { highlight: true }));
-        const bundle = await service.create({
-            targetType: 'BUNDLE',
-            targetVersionId: OTHER_VERSION,
-            displayLabel: 'Bundle',
-            description: 'An add-on',
-            highlight: true,
-        });
-        assert.equal(bundle.highlight, true);
-    });
-
-    test('another language may recommend a different plan', async () => {
-        await service.create(plan(TARGET_VERSION, { highlight: true }));
-        const english = await service.create(
-            plan(OTHER_VERSION, { highlight: true, locale: 'en' }),
-        );
-        assert.equal(english.highlight, true);
-    });
-
-    test('creating without a highlight is never refused', async () => {
-        await service.create(plan(TARGET_VERSION, { highlight: true }));
-        const second = await service.create(plan(OTHER_VERSION));
-        assert.equal(second.highlight, false);
     });
 });
 

@@ -1,3 +1,5 @@
+// @requirement SC-READ-006 — A reference a reader cannot follow is not made
+
 // Guard: a `_Source:_` line that names a path names a file that is in the tree.
 //
 // Every requirement says where its decision came from, and a source is the one

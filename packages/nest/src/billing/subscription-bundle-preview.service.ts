@@ -76,6 +76,12 @@ import {
 export interface SubscriptionBundlePreviewIssue {
     code: string;
     message: string;
+    /**
+     * The values the sentence names, beside it rather than inside it — the same
+     * contract `PlanChangePreviewIssue` carries, so one consumer mechanism
+     * resolves the issues of both previews.
+     */
+    params?: Record<string, string | number>;
 }
 
 /** Subscription context — the controller reads it from the SubscriptionUsagePort. */
@@ -255,6 +261,7 @@ export class SubscriptionBundlePreviewService {
             blockers.push({
                 code: 'BUNDLE_ALREADY_SUBSCRIBED',
                 message: 'This bundle is already actively booked.',
+                params: { subscriptionId: ctx.subscriptionId },
             });
         }
 
@@ -267,11 +274,12 @@ export class SubscriptionBundlePreviewService {
         );
         if (redundantFeatures.length > 0) {
             warnings.push({
-                code: 'REDUNDANT_FEATURES',
+                code: BILLING_ERROR_CODES.REDUNDANT_FEATURES,
                 message:
                     `${redundantFeatures.length} feature${redundantFeatures.length === 1 ? ' is' : 's are'} ` +
                     'already included in the plan or another booked bundle — ' +
                     'the bundle would be paid for twice.',
+                params: { count: redundantFeatures.length },
             });
         }
 
@@ -282,10 +290,11 @@ export class SubscriptionBundlePreviewService {
         );
         if (missingRequires.length > 0) {
             blockers.push({
-                code: 'BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED',
+                code: BILLING_ERROR_CODES.BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED,
                 message:
                     `The bundle requires [${missingRequires.join(', ')}] — present neither in the plan ` +
                     'nor in the active bundles.',
+                params: { features: missingRequires.join(', ') },
             });
         }
 
@@ -302,6 +311,7 @@ export class SubscriptionBundlePreviewService {
                 message:
                     `This bundle has no ${billingCycle.toLowerCase()} price for the ` +
                     `${ctx.currentPlanKey} plan, so it cannot be booked from here.`,
+                params: { billingCycle, planKey: ctx.currentPlanKey },
             });
         }
         // Resolved by the one function the booking route uses, so the two cannot
@@ -396,6 +406,7 @@ export class SubscriptionBundlePreviewService {
             blockers.push({
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED,
                 message: 'This bundle booking is already cancelled.',
+                params: { subscriptionBundleId: existing.id },
             });
         }
 
@@ -416,7 +427,7 @@ export class SubscriptionBundlePreviewService {
             existing.minimumTermEndsAt.getTime() > periodEnd.getTime()
         ) {
             warnings.push({
-                code: 'MINIMUM_TERM_BINDS',
+                code: BILLING_ERROR_CODES.MINIMUM_TERM_BINDS,
                 message:
                     'The minimum term extends beyond the end of the period — the ' +
                     'cancellation only takes effect when the minimum term ends.',
@@ -454,12 +465,14 @@ export class SubscriptionBundlePreviewService {
             blockers.push({
                 code: 'BUNDLE_VERSION_NOT_PUBLISHED',
                 message: 'This bundle version is not published and cannot be booked.',
+                params: { bundleVersionId: bundleVersion.id },
             });
         }
         if (bundleVersion.supersededAt !== null) {
             blockers.push({
                 code: 'BUNDLE_VERSION_SUPERSEDED',
                 message: 'This bundle version has been superseded by a newer one.',
+                params: { bundleVersionId: bundleVersion.id },
             });
         }
         const planIds = bundleVersion.compatibility?.planIds ?? [];
@@ -469,6 +482,11 @@ export class SubscriptionBundlePreviewService {
                 message:
                     `The bundle is not compatible with plan '${currentPlanKey}'. ` +
                     `Allowed: [${planIds.join(', ')}].`,
+                params: {
+                    bundleVersionId: bundleVersion.id,
+                    planKey: currentPlanKey,
+                    allowedPlanKeys: planIds.join(', '),
+                },
             });
         }
         if (this.blockedBundles?.bundleKeys?.includes(bundleVersion.bundleKey)) {
@@ -477,6 +495,7 @@ export class SubscriptionBundlePreviewService {
                 message:
                     `Bundle '${bundleVersion.bundleKey}' is only activated via a special contract. ` +
                     'Please contact the contract manager.',
+                params: { bundleKey: bundleVersion.bundleKey },
             });
         }
     }

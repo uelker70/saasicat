@@ -162,7 +162,7 @@ const props = withDefaults(
         standardPageRoutes?: Partial<Record<StandardPageKey, string>>;
         /**
          * Override for `navSection` per StandardPage. The platform default follows
-         * the plan-simulation layout (Übersicht / Produktkatalog / Kunden /
+         * the plan-simulation layout (Overview / Product catalog / Customers /
          * System) and usually needs no adjustment.
          */
         standardPageNavSection?: Partial<Record<StandardPageKey, string>>;

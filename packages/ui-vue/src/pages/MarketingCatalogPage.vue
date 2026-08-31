@@ -627,7 +627,7 @@ const catalogVersion = computed<string>(() => {
 // Decorative browser chrome above the preview. The application names itself
 // in one place, so the mock domain is built from that rather than from a
 // second identifier kept for the purpose.
-const previewUrl = computed(() => `${slugOf(manifest?.project?.displayName ?? 'app')}.de/preise`);
+const previewUrl = computed(() => `${slugOf(manifest?.project?.displayName ?? 'app')}.com/pricing`);
 
 // Split-and-join rather than a trim regex: `/^-+|-+$/` is a quantifier that
 // can match one input several ways, which is the shape that turns a long

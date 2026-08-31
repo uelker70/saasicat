@@ -360,7 +360,7 @@ model MarketingProjection {
     // not appear on the pricing page.
     visible Boolean @default(true)
 
-    // Optional badge at the top of the card ('Beliebt', 'Neu'). '' = no badge.
+    // Optional badge at the top of the card ('Popular', 'New'). '' = no badge.
     badge String @default("")
 
     // Top features for the public catalog card: [{ label, strong }].
@@ -371,7 +371,7 @@ model MarketingProjection {
     trialEnabled Boolean @default(false)
     trialDays    Int     @default(30)
 
-    // Optional formatted pricing tag (e.g. "€ 9,90 / Monat" or "auf Anfrage").
+    // Optional formatted pricing tag (e.g. "EUR 9.90 / month" or "on request").
     // If null: pricing is formatted automatically from PlanVersion.monthlyNet
     // etc. at public-catalog render time.
     priceTag String?
@@ -382,7 +382,7 @@ model MarketingProjection {
     // Sort order in the public list (DESC). Higher values first.
     priority Int @default(0)
 
-    // "Empfohlen" star / featured highlight in the UI.
+    // The recommended plan: a star, or a featured card, in the UI.
     highlight Boolean @default(false)
 
     createdAt DateTime @default(now())

@@ -411,10 +411,10 @@ const {
 } = composable;
 
 // ─── View mode + selection ───
-// Plan simulation flow: list → cockpit (plan detail); editor ("Draft
-// bearbeiten") → "Weiter · Review" → review ("Review & Publish").
+// Plan simulation flow: list → cockpit (plan detail); editing a draft opens
+// the editor, confirming the editor opens the review ("Review & Publish").
 // The editor does NOT persist — saving happens only in the review screen
-// (via "Als Draft speichern" or "Publish").
+// (by saving the draft there, or publishing it).
 // `editor` and `review` are gone: they are routes now, and a mode nothing
 // assigns is a branch nothing reaches.
 type Mode = 'list' | 'matrix' | 'cockpit';
@@ -648,7 +648,7 @@ async function onNewVersionFromList(plan: PlanRow, basis: PlanVersionRow): Promi
     });
 }
 
-// "Draft bearbeiten" from the list sub-row: loads the cockpit composable
+// Editing a draft from the list sub-row: loads the cockpit composable
 // for the Plan (so persistDraft → updateDraft uses the correct planVersions
 // instance) and opens the editor in edit mode (editingId set).
 async function onEditDraftFromList(plan: PlanRow, draft: PlanVersionRow): Promise<void> {
@@ -901,7 +901,7 @@ async function persistDraft(): Promise<PlanVersionRow | null> {
     return result.planVersion;
 }
 
-// "Als Draft speichern" — persists the draft and leaves the wizard
+// The review screen's save action — persists the draft and leaves the wizard
 // (back to the plan detail) without publishing.
 async function onReviewSaveExit(): Promise<boolean> {
     if (draftSaving.value || publishing.value) return false;

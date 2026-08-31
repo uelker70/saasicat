@@ -328,7 +328,7 @@ interface Props {
     formatCurrency: (n: number) => string;
     formatDate: (iso: string) => string;
     /**
-     * Optional: combined label-+-value ("200 Mitglieder"). No longer used
+     * Optional: combined label-+-value ("200 members"). No longer used
      * internally since step 1 was switched to `<PlanGrid>` with `quotaLabel` +
      * `formatQuotaValue` (P10.2.1). Kept in the prop list for backward-
      * compatibility reasons — consumers that configured it earlier keep working

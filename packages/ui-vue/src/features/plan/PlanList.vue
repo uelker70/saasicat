@@ -352,7 +352,7 @@ const props = withDefaults(
         versionsByPlanId: Record<string, PlanVersionRow[]>;
         tenantCountsByPlanKey?: Record<string, number>;
         planAccents?: Record<string, string>;
-        /** Plan key that was last created/updated — gets the NEU highlight. */
+        /** Plan key that was last created/updated — gets the "NEW" badge and the row flash. */
         highlightPlanKey?: string | null;
     }>(),
     {

@@ -150,7 +150,7 @@ import type { BillingCycleStr, CatalogBundle } from '@saasicat/ui-vue';
 import PlanCycleToggle from '../plan/PlanCycleToggle.vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
 
-// TenantBundleStore — bundle sales on "Paket & Verbrauch" (#15):
+// TenantBundleStore — bundle sales on the "Plan & usage" section (#15):
 // lists booked (cancelable) and available (bookable) catalog bundles.
 // Source: `/billing/subscription-bundles` (booked) + `/billing/bundles`
 // (catalog). Price/label of booked bundles are joined against the

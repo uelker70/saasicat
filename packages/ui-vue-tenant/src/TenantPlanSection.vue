@@ -314,7 +314,7 @@ interface Props {
      */
     formatQuotaValue?: (key: string, value: number) => string;
 
-    /** Localized label for a QuotaKey (e.g. 'users' → 'Benutzer'). */
+    /** Localized label for a QuotaKey (e.g. 'maxUsers' → 'Max. users'). */
     quotaLabel?: (key: string) => string;
     /** Localized label for a FeatureKey. */
     featureLabel?: (key: string) => string;

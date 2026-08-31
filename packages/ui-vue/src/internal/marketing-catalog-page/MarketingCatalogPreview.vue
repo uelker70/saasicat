@@ -42,7 +42,10 @@
                     v-for="row in visibleRows"
                     :key="row.plan.id"
                     class="sa-marketing-card"
-                    :class="{ featured: row.m.highlight, 'has-promo': !!promoOf(row) }"
+                    :class="{
+                        featured: row.plan.id === recommendedPlanId,
+                        'has-promo': !!promoOf(row),
+                    }"
                 >
                     <div
                         v-if="promoOf(row)"
@@ -146,12 +149,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { MarketingTopFeature, PromotionResult, PromotionRow } from '@saasicat/core';
+import { keepOneRecommended } from '@saasicat/core';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { MarketingRow } from './types.js';
 
-defineProps<{
+const props = defineProps<{
     visibleRows: MarketingRow[];
     previewUrl: string;
     monthlyOf: (row: MarketingRow) => number;
@@ -168,4 +173,21 @@ defineProps<{
 }>();
 
 const msg = useSaMessages('marketing');
+
+/**
+ * The plan this page would actually mark as recommended.
+ *
+ * The toggle in the editor is per row, so an operator can switch two on. The
+ * published catalogue leaves the mark on one of them, and a mock-up that
+ * showed both would be previewing a page nobody will see. Same rule, from
+ * `@saasicat/core`, over a copy — the rows this component is given belong to
+ * the editor beside it.
+ */
+const recommendedPlanId = computed<string | null>(() => {
+    const cards = props.visibleRows.map((row) => ({
+        planKey: row.plan.id,
+        highlight: row.m.highlight,
+    }));
+    return keepOneRecommended(cards, new Set())?.planKey ?? null;
+});
 </script>

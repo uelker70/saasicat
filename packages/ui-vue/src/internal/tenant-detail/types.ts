@@ -12,11 +12,11 @@ export interface TenantDetailData {
         pilotEndsAt?: string | null;
     } | null;
     users?: Array<Record<string, unknown> & { id: string }>;
-    /** Freely selectable usage numbers — the page renders them via `verbrauchFields`. */
+    /** Freely selectable usage numbers — the page renders them via `usageFields`. */
     counts?: Record<string, number | string>;
 }
 
-export interface VerbrauchField {
+export interface UsageField {
     label: string;
     /** Lookup key in `data.counts`. */
     key?: string;

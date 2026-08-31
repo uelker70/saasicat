@@ -1,3 +1,5 @@
+// @requirement SC-READ-003 — A statement about the software is part of it
+
 // An absolute nobody measured and nobody bounded is the one that breaks.
 //
 // "Never", "every", "only" was the most common defect across the requirement
@@ -66,6 +68,30 @@ describe('an exception is recognised the same way', () => {
     test('and nothing else', () => {
         const [only] = entries(entry('SC-A-001', 'A title', 'Never, but sometimes.'));
         assert.equal(namesAnException(only), false);
+    });
+
+    test('a denial of the noun is not a boundary', () => {
+        for (const text of [
+            'Every request is rejected; there are no exceptions.',
+            'This holds without exception.',
+        ]) {
+            const [only] = entries(entry('SC-A-001', 'A title', text));
+            assert.equal(namesAnException(only), false, text);
+        }
+    });
+
+    test('and the word that denies it has to stand directly in front of it', () => {
+        // In "never, except …" the absolute stands before the boundary; that
+        // is the form the entry is supposed to take, not a denial of it.
+        for (const text of [
+            'Never, except on Sundays.',
+            'Nothing is written, other than the identifier.',
+            'No exceptions, unless the operator says so.',
+            'Never, with one exception: the operator.',
+        ]) {
+            const [only] = entries(entry('SC-A-001', 'A title', text));
+            assert.equal(namesAnException(only), true, text);
+        }
     });
 });
 

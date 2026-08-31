@@ -119,7 +119,7 @@ properties it has while doing it.
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
 | 12  | Self-registration                            | `SC-REG-…`   | 20      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 21      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 22      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 19      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 400 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
-🔵 1 superseded, 🔴 0 withdrawn.
+Of 401 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
+🔵 2 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-PLAN-025](#sc-plan-025--every-quota-a-version-carries-counts-as-a-limit-that-can-be-lowered),
@@ -148,9 +148,10 @@ Of 400 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
 
-🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do)
+🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
+[SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 400 requirements. Do not edit by hand:
+Generated from `requirements/` — 401 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -6334,24 +6335,49 @@ _Tested by:_
 
 ### SC-MKT-009 — At most one plan is marked as the recommended one
 
-🟢
+🔵 _(Superseded on 2026-08-31 by `SC-MKT-022`.)_
 
-_Source:_ `docs/reference/error-codes.md`
+_Source:_ `docs/reference/options.md`
+
+### SC-MKT-022 — A catalogue offers at most one recommended plan, and the language decides which
+
+🟢 The mark belongs to a projection, and a projection belongs to one plan version and one language,
+so no single row can keep this promise: two rows in the same language can carry it, and one carried
+in the default language reaches another language through the fallback that fills in a missing
+translation. The catalogue is where all three — the live versions, the language asked for, and the
+fallback — are known at once, so that is where it is decided. A row written for the language that
+was asked for wins over one inherited from the default; failing that, the first plan the catalogue
+offers. The others keep their card and lose the mark.
+
+_Source:_ #255
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
+- `packages/core/tests/recommended-plan.test.js`
+    - keepOneRecommended
+        - one is left alone
+        - none stays none, and the answer is null
+        - a row written for the language beats one inherited from the default
+        - and it wins from anywhere in the list, not only from the front
+        - with none written for the language, the first the caller offers wins
+        - with every one written for it, the first still wins
+        - a plan that is not recommended is never made one
+        - an empty catalogue answers null rather than throwing
+        - only the mark is touched — every card stays
 - `packages/nest/tests/marketing-projections-service.test.js`
-    - MarketingProjectionsService — the recommended one
-        - the first highlight is accepted
-        - a second one is refused, and the refusal names the one holding it
-        - highlighting a second one by edit is refused the same way
-        - the one that already holds it may be edited without losing it
-        - clearing the first one frees it for the second
-        - an add-on may be recommended while a plan already is
-        - another language may recommend a different plan
-        - creating without a highlight is never refused
+    - MarketingProjectionsService — the recommended mark is not decided here
+        - a second recommended projection in the same language is accepted
+        - and so is recommending one by edit while another already is
+- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
+    - PublicMarketingCatalogService — the recommended plan
+        - one is one
+        - a plan reaching the page through the fallback loses to one written for the language
+        - two rows in the same language leave the one the catalogue offers first
+        - the one that loses the mark keeps its card
+        - a catalogue that recommends nothing recommends nothing
+        - a single fallback row still recommends its plan
 
 <!-- END proof -->
 
@@ -10042,6 +10068,12 @@ _Source:_ release 0.18.0
 
 _Tested by:_
 
+- `packages/ui-vue/tests/component/a-code-flag-follows-the-language.test.ts`
+    - a code flag follows the language that was chosen
+        - English reads English
+        - German reads German
+        - the flag a status raises follows it too
+        - and so does the sentence for a feature with nothing behind it
 - `packages/ui-vue/tests/i18n.test.js`
     - i18n locales
         - German is the default locale
@@ -10304,8 +10336,10 @@ _Tested by:_
     - what ships is written in English
         - there are shipped files to look at — otherwise nothing below looks at anything
         - none of them carries a German word
-        - a catalogue that declares itself is skipped, and one that does not is not
-        - the test tree and the release history are out of scope, the rest is in
+        - a catalogue declares itself, and only in its head
+        - a catalogue is exempt in its values and read everywhere else
+        - only Markdown may declare that it names the German it removes
+        - the test tree and the published history are out of scope, the rest is in
         - the reader finds a German word wherever it stands, and only a whole one
         - a word that is also English is not on the list
 
@@ -12343,6 +12377,32 @@ _Tested by:_
         - a trailer names several, however they are separated
         - several commits each contribute their own
         - the word inside a sentence is not a trailer
+- `tests/an-absolute-promise-names-its-boundary.test.js`
+    - an absolute is recognised wherever it stands
+        - in the promise under the heading
+        - and in the heading itself, where nineteen entries keep their whole promise
+        - a word that merely contains one does not count
+        - an ordinary promise claims nothing of the kind
+    - an exception is recognised the same way
+        - the words an entry says it with
+        - and nothing else
+        - a denial of the noun is not a boundary
+        - and the word that denies it has to stand directly in front of it
+    - what the debt counts
+        - an absolute with neither a test nor an exception
+        - a test settles it
+        - a named exception settles it
+        - a draft owes nothing — it is a proposal, not a promise
+        - one decided but not delivered owes nothing until it is built
+        - a retired one owes nothing either
+    - the ratchet moves one way
+        - an unqualified absolute arriving with nothing to pay for it is refused
+        - one arriving while another gains its boundary is allowed
+        - nothing arriving is always allowed
+        - retiring an old absolute does not pay for a new one
+    - the two lists say what they are for
+        - every absolute is a word about all cases, not an emphatic one
+        - every exception is a word that opens a boundary
 - `tests/requirements-are-generated.test.js`
     - the requirements document is generated, not maintained
         - the sources yield a catalogue worth checking
@@ -12481,6 +12541,11 @@ _Source:_ internal engineering guidelines
 
 _Tested by:_
 
+- `tests/a-source-that-names-a-file-names-a-real-one.test.js`
+    - a source that names a file names a real one
+        - there are sources to look at — otherwise nothing below looks at anything
+        - every path a source names is a tracked file
+        - the reader of a source line tells a path from the rest of it
 - `tests/docs-links-resolve.test.js`
     - documentation links resolve
         - the sweep found the documentation

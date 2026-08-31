@@ -260,6 +260,12 @@ _Source:_ release 0.18.0
 
 _Tested by:_
 
+- `packages/ui-vue/tests/component/a-code-flag-follows-the-language.test.ts`
+    - a code flag follows the language that was chosen
+        - English reads English
+        - German reads German
+        - the flag a status raises follows it too
+        - and so does the sentence for a feature with nothing behind it
 - `packages/ui-vue/tests/i18n.test.js`
     - i18n locales
         - German is the default locale
@@ -522,8 +528,10 @@ _Tested by:_
     - what ships is written in English
         - there are shipped files to look at — otherwise nothing below looks at anything
         - none of them carries a German word
-        - a catalogue that declares itself is skipped, and one that does not is not
-        - the test tree and the release history are out of scope, the rest is in
+        - a catalogue declares itself, and only in its head
+        - a catalogue is exempt in its values and read everywhere else
+        - only Markdown may declare that it names the German it removes
+        - the test tree and the published history are out of scope, the rest is in
         - the reader finds a German word wherever it stands, and only a whole one
         - a word that is also English is not on the list
 

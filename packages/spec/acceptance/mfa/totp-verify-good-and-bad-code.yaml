@@ -18,26 +18,26 @@ cases:
     - name: 'valid TOTP code'
       request:
           method: POST
-          path: /api/v1/admin/tenants/test-mandant/suspend
+          path: /api/v1/admin/tenants/test-tenant/suspend
           auth: { as: 'super@platform.example' }
           headers:
               X-Mfa-Code: '{{generateTotpFor: super@platform.example}}'
           body: { reason: 'test reason' }
       pre:
-          - createTenant: { slug: 'test-mandant', email: 'x@test-mandant.example' }
+          - createTenant: { slug: 'test-tenant', email: 'x@test-tenant.example' }
       then:
           status: 200
 
     - name: 'invalid TOTP code'
       request:
           method: POST
-          path: /api/v1/admin/tenants/test-mandant/suspend
+          path: /api/v1/admin/tenants/test-tenant/suspend
           auth: { as: 'super@platform.example' }
           headers:
               X-Mfa-Code: '000000'
           body: { reason: 'test reason' }
       pre:
-          - createTenant: { slug: 'test-mandant-2', email: 'y@test-mandant-2.example' }
+          - createTenant: { slug: 'test-tenant-2', email: 'y@test-tenant-2.example' }
       then:
           status: 401
           body:
@@ -46,11 +46,11 @@ cases:
     - name: 'missing TOTP header'
       request:
           method: POST
-          path: /api/v1/admin/tenants/test-mandant-3/suspend
+          path: /api/v1/admin/tenants/test-tenant-3/suspend
           auth: { as: 'super@platform.example' }
           body: { reason: 'test reason' }
       pre:
-          - createTenant: { slug: 'test-mandant-3', email: 'z@test-mandant-3.example' }
+          - createTenant: { slug: 'test-tenant-3', email: 'z@test-tenant-3.example' }
       then:
           status: 401
           body:
