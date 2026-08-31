@@ -193,6 +193,22 @@ Never edit that block; `pnpm run requirements:update` writes it, and an entry no
 none. It is a fact about the tests rather than part of the promise, so it is cut out again before a
 change is compared — annotating a test does not read as rewriting a requirement.
 
+Four ways to ask:
+
+```bash
+pnpm run requirements          # check the sources; is the page up to date
+pnpm run requirements:list     # every requirement, its state, whether a test names it
+pnpm run requirements:gaps     # only the ones nothing covers yet
+pnpm run requirements:cases    # every requirement with the cases beneath it
+```
+
+`--risk money` or `--risk tenancy` narrows any of them to what a breach would cost, which is the
+question worth asking when the list is long:
+
+```bash
+node scripts/requirements/index.mjs --list --owed --risk tenancy
+```
+
 `pnpm run requirements:cases` prints the same thing for the whole catalogue:
 
 ```text

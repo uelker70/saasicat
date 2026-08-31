@@ -149,6 +149,28 @@ what changed.
 - NestJS 11 backend; Prisma + PostgreSQL for the ready-made adapters (other stacks via custom port adapters)
 - Vue 3 + Quasar + Vite for the admin frontend
 
+## What the product promises, and what checks it
+
+Everything SaaSiCat promises is written down once, in
+[`docs/requirements.md`](docs/requirements.md) — numbered, stable identifiers, written from the
+side of the people it does it to. Each entry says what state it is in, what breaking it would cost,
+and which tests cover it.
+
+```bash
+pnpm run requirements        # check the sources and the generated page
+pnpm run requirements:gaps   # every promise nothing tests yet
+pnpm run requirements:cases  # every promise with the test cases that cover it
+```
+
+The trace runs both ways: a test names the promises it answers for
+(`// @requirement SC-PLAN-004 — …`), and each requirement lists the cases that name it. Retiring a
+requirement therefore names the tests that go stale with it, and coverage is reported against what
+a breach would cost rather than as one number.
+
+[`requirements/README.md`](requirements/README.md) is how to add or change one;
+[`docs/explanation/requirements-as-sources.md`](docs/explanation/requirements-as-sources.md) is why
+it is built this way.
+
 ## Contributing
 
 Issues and pull requests are welcome at

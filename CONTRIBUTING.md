@@ -168,9 +168,25 @@ while being retired, and a retired promise brought back. Where the words changed
 not, say so in the commit that makes the change — `Editorial: SC-PLAN-004`, naming each identifier
 it covers. The branch is judged commit by commit, so the claim covers that commit and no other.
 
-A test names the promise it proves, as `@requirement SC-PLAN-004` in a comment. Nothing was
-backfilled; the guard freezes the debt instead — a new promise brings its test, or a promise already
-owed one gains a test. Retiring an unproven promise makes the debt smaller and buys nothing.
+**A test names the promises it answers for.** Put the annotation on the narrowest thing that is
+true — one case, one `describe` block, or the whole file only where the whole file answers for it:
+
+```js
+// @requirement SC-BUN-003
+describe('what the short first period costs', () => {
+```
+
+Write the identifier; `pnpm run requirements:update` writes the requirement's title after it and
+the list of covering cases into the requirement itself. Never type either by hand — a copy in
+hundreds of files goes stale the first time somebody rewords a requirement.
+
+That is what makes a change tractable: retiring a requirement names the tests that go stale with
+it, and `pnpm run requirements:gaps` names the promises nothing covers. Coverage is reported
+against what a breach would cost, not as one number.
+
+Nothing was backfilled; the guard freezes the debt instead — a new promise brings its test, or a
+promise already owed one gains a test. Retiring an unproven promise makes the debt smaller and buys
+nothing, and a promise that had a proof may not lose it.
 
 [`requirements/README.md`](requirements/README.md) is the short form for whoever is editing;
 [`docs/explanation/requirements-as-sources.md`](docs/explanation/requirements-as-sources.md) is the

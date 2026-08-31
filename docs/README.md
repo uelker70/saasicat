@@ -21,6 +21,8 @@ side of the people it does it to — a tenant, an operator, a developer
 integrating it. Not a page to read through; a page to look a decision up in when
 the question is "is it supposed to work like that, and why". Each requirement
 carries a stable id, and where its reason is not obvious the reason is in it.
+Each also says what state it is in, what breaking it would cost, and which test
+cases cover it — `pnpm run requirements:gaps` lists the ones nothing covers yet.
 
 ## Tutorial
 

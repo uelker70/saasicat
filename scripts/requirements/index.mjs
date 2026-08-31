@@ -138,7 +138,17 @@ export function listing(root) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const write = process.argv.includes('--write');
     if (process.argv.includes('--list')) {
-        const rows = listing(ROOT);
+        // Filters, because the question is rarely "show me all 399". It is
+        // "what still needs a test", and more often "what still needs one and
+        // costs something if it breaks".
+        const wanted = (row) => {
+            if (process.argv.includes('--owed') && row.proof !== 'owed') return false;
+            const at = process.argv.indexOf('--risk');
+            if (at === -1) return true;
+            const asked = process.argv[at + 1];
+            return row.risk === asked || row.risk === RISKS[asked];
+        };
+        const rows = listing(ROOT).filter(wanted);
         const deep = process.argv.includes('--cases');
         for (const row of rows) {
             process.stdout.write(
@@ -156,7 +166,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
                 for (const name of cases) process.stdout.write(`                  - ${name}\n`);
             }
         }
-        const seen = coverage(rows);
+        const seen = coverage(listing(ROOT));
         process.stdout.write(
             `\n${seen.proved} of ${seen.owed} standing promises are named by a test ` +
                 `(${seen.percent}%), and ${seen.exempt} are owed no proof yet\n`,
@@ -164,8 +174,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         // By what a breach costs, because that is what decides which gap to
         // close first. A single number says how much is covered and nothing
         // about whether the covered part is the part that matters.
+        // Always over the whole catalogue, filter or no filter: a summary that
+        // measured only what was asked for would report nought per cent
+        // whenever somebody asked to see the gaps.
         for (const [name, mark] of Object.entries(RISKS)) {
-            const at = coverage(rows, mark);
+            const at = coverage(listing(ROOT), mark);
             if (at.owed === 0) continue;
             process.stdout.write(
                 `  ${mark} ${name}: ${at.proved} of ${at.owed} (${at.percent}%), ` +
