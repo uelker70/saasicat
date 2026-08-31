@@ -495,12 +495,10 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
-- `packages/nest/tests/discovery-scanner.test.js`
-    - DiscoveryScanner — edge cases
-        - multiple declaration of the same capability: first wins
-        - app info is carried into the snapshot
-        - default app info when nothing is injected
-        - rebuildSnapshot overwrites the cache
+- `packages/nest/tests/plan-versions-strict-mode.test.js`
+    - PlanVersionsService — strict mode integration
+        - blocking without snapshot source → degrades to warn-only instead of crashing (#25)
+        - warn-only without snapshot → no check, warnings=[]
 
 <!-- END proof -->
 

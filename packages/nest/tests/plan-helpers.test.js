@@ -1,7 +1,6 @@
 // Tests for plan-helpers.ts — pure-function wrappers over PlanCatalog.
 
 // @requirement SC-PLAN-001 — A plan is an identity; a version carries what it costs and includes
-// @requirement SC-PLAN-010 — One regressive change makes the whole version regressive
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

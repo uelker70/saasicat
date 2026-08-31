@@ -188,35 +188,8 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/adapter-drizzle/tests/integration/a-catalogue-remembers-its-versions.integration.test.js`
-    - an operator manages a bundle
-        - a new bundle comes back with its defaults filled in
-        - it is findable by its key as well as its id
-        - a key nobody took has no bundle
-        - an update changes what it names and leaves the rest alone
-        - a field can be cleared on purpose, which is not the same as leaving it out
-        - updating a bundle that is not there says so
-        - a retired bundle drops out of the list but stays readable
-        - …and can be listed deliberately
-        - the list is ordered by sort order, then by key
-        - a bundle key cannot be claimed twice
-    - drafting a version
-        - the first draft is v1, and the next one after publishing is v2
-        - a second draft beside an unpublished one is refused, and names the one in the way
-        - the draft is the one findable as current, and only while it is a draft
-        - an edit changes what it names and leaves the rest standing
-        - a price can be taken away, which an omitted field would not do
-        - editing a version that is not there says so
-        - every version of the bundle is listed, oldest first
-        - a version id nobody created answers null
     - discarding a draft
-        - an unpublished draft is gone afterwards
         - a published version is refused — it is what somebody may have booked
-        - discarding something that is already gone is a no-op, not an error
-    - which version is live
-        - the newest published one that has not been superseded
-        - a bundle with only a draft has nothing live
-    - reading inside a transaction stays on its connection
-        - every transaction-aware read answers with a pool of one
 
 <!-- END proof -->
 
@@ -382,29 +355,6 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
-- `packages/nest/tests/plan-helpers.test.js`
-    - findPlan returns a plan for a known ID
-    - findPlan returns undefined for an unknown ID
-    - getPlanOrThrow throws a typed error for an unknown ID
-    - getMarketedPlans excludes marketed: false
-    - getMarketedPlans treats undefined as marketed=true
-    - getPlanPriceNet MONTHLY for a marketed plan
-    - getPlanPriceNet YEARLY for a marketed plan
-    - getPlanPriceNet for an unknown plan → null
-    - getPlanPriceNet for ENTERPRISE (marketed: false) → null
-    - getPlanPriceGross MONTHLY = net * 1.19
-    - getPlanPriceGross with override vatRate
-    - getPlanPriceGross for ENTERPRISE → null
-    - getPlanQuota returns a concrete value
-    - getPlanQuota returns -1 for unlimited ENTERPRISE quotas
-    - getPlanQuota for an unknown plan/key → undefined
-    - isFeatureInPlan: true when the feature is directly in the plan
-    - isFeatureInPlan: false when the feature is not in the plan
-    - isFeatureInPlan: false for an unknown plan
-    - getActiveFeatureKeys excludes plannedOnly
-    - isFeaturePlannedOnly: true for a declared plannedOnly key
-    - isFeaturePlannedOnly: false for a declared production key
-    - isFeaturePlannedOnly: false for an unknown key (conservative)
 - `packages/nest/tests/version-diff.test.js`
     - classifyPlanDiff — identical versions → no changes, nonRegressive=true
     - classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true
@@ -560,56 +510,10 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
-- `packages/adapter-drizzle/tests/integration/a-catalogue-remembers-its-versions.integration.test.js`
-    - an operator manages a bundle
-        - a new bundle comes back with its defaults filled in
-        - it is findable by its key as well as its id
-        - a key nobody took has no bundle
-        - an update changes what it names and leaves the rest alone
-        - a field can be cleared on purpose, which is not the same as leaving it out
-        - updating a bundle that is not there says so
-        - a retired bundle drops out of the list but stays readable
-        - …and can be listed deliberately
-        - the list is ordered by sort order, then by key
-        - a bundle key cannot be claimed twice
-    - drafting a version
-        - the first draft is v1, and the next one after publishing is v2
-        - a second draft beside an unpublished one is refused, and names the one in the way
-        - the draft is the one findable as current, and only while it is a draft
-        - an edit changes what it names and leaves the rest standing
-        - a price can be taken away, which an omitted field would not do
-        - editing a version that is not there says so
-        - every version of the bundle is listed, oldest first
-        - a version id nobody created answers null
-    - discarding a draft
-        - an unpublished draft is gone afterwards
-        - a published version is refused — it is what somebody may have booked
-        - discarding something that is already gone is a no-op, not an error
-    - which version is live
-        - the newest published one that has not been superseded
-        - a bundle with only a draft has nothing live
-    - reading inside a transaction stays on its connection
-        - every transaction-aware read answers with a pool of one
 - `packages/nest/tests/plans-service.test.js`
     - PlansService — root operations
-        - createPlan + listPlans + getPlan happy path
-        - createPlan: duplicate planKey → UnprocessableEntity
-        - createPlan: a plan key is taken once for the installation
-        - updatePlan changes label + sortOrder
-        - updatePlan: NotFound for unknown ID
-        - softDeletePlan without versions sets deletedAt + disappears from list
-        - softDeletePlan idempotent (second call without throw)
-        - softDeletePlan: NotFound for unknown ID
         - softDeletePlan: live version → 422 PLAN_HAS_PUBLISHED_VERSIONS
         - softDeletePlan: superseded version (no live anymore) → 422 PLAN_HAS_PUBLISHED_VERSIONS
-        - softDeletePlan: only draft (nothing published) → allowed
-        - hardDeletePlan: without versions → plan is gone from list
-        - hardDeletePlan: with draft → 422 PLAN_HAS_DRAFTS
-        - hardDeletePlan: with published version → 422 PLAN_HAS_PUBLISHED_VERSIONS
-        - hardDeletePlan: NotFound for unknown ID
-        - listPlans returns every plan of the installation
-        - listPlans onlyPublished: only plans with a live version
-        - listPlans onlyPublished: superseded version does not count as live
 
 <!-- END proof -->
 

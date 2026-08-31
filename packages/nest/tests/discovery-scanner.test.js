@@ -355,7 +355,6 @@ describe('DiscoveryScanner — Quotas', () => {
 // Scanner: edge cases — multiple declaration, app info
 // ─────────────────────────────────────────────────────────────────
 
-// @requirement SC-CAT-015 — A missing scan degrades the check, it does not stop the application
 describe('DiscoveryScanner — edge cases', () => {
     test('multiple declaration of the same capability: first wins', () => {
         const scanner = buildScanner({

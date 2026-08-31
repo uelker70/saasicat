@@ -189,6 +189,7 @@ describe('PlanVersionsService — strict mode integration', () => {
         assert.equal(result.warnings.length, 0);
     });
 
+    // @requirement SC-CAT-015 — A missing scan degrades the check, it does not stop the application
     test('blocking without snapshot source → degrades to warn-only instead of crashing (#25)', async () => {
         // Previously the guard threw here (→ boot-crash outage). Now: no throw,
         // degradation to warn-only — a mutation goes through (no 422).
@@ -280,6 +281,7 @@ describe('PlanVersionsService — strict mode integration', () => {
         );
     });
 
+    // @requirement SC-CAT-015 — A missing scan degrades the check, it does not stop the application
     test('warn-only without snapshot → no check, warnings=[]', async () => {
         const { versions, plan } = await setupService({ snapshot: null, mode: 'warn-only' });
         const result = await versions.createPlanDraft({
