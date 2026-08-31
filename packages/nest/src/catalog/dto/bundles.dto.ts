@@ -14,6 +14,8 @@ import {
     MinLength,
     ValidateIf,
 } from 'class-validator';
+
+import { IsQuotaRecord } from './quota-record.validator.js';
 import { applyDecorators } from '@nestjs/common';
 
 // DTOs for `BundlesController` — class-validator validation at the HTTP
@@ -143,6 +145,7 @@ export class UpdateBundleDto {
 export class BundleVersionDraftFieldsDto {
     @IsOptional()
     @IsObject()
+    @IsQuotaRecord()
     quotas?: Record<string, number>;
 
     @IsOptional()

@@ -11,6 +11,8 @@ import {
     ValidateIf,
 } from 'class-validator';
 
+import { IsQuotaRecord } from './quota-record.validator.js';
+
 // DTOs for PlanVersionsController — class-validator validation at the
 // HTTP boundary. (validFrom/validUntil).
 //
@@ -44,6 +46,7 @@ export class CreatePlanVersionDraftDto {
     bundles?: string[];
 
     @IsObject()
+    @IsQuotaRecord()
     quotas!: Record<string, number>;
 
     @Matches(DECIMAL_PATTERN, {
@@ -99,6 +102,7 @@ export class UpdatePlanVersionDraftDto {
 
     @IsOptional()
     @IsObject()
+    @IsQuotaRecord()
     quotas?: Record<string, number>;
 
     @IsOptional()

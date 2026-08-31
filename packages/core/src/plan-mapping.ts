@@ -9,6 +9,7 @@
 // row carries a numeric string; both reach `String()`, which is what each
 // adapter did on its own.
 
+import { readQuotaValue } from './quota-value.js';
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
 import type { PlanRow } from './plan-stem.types.js';
 import type { PlanVersionRow } from './plan-version-row.types.js';
@@ -125,13 +126,23 @@ function toFeatureKeys(value: unknown): FeatureKey[] {
     return value.filter((entry): entry is FeatureKey => typeof entry === 'string');
 }
 
+/**
+ * The quotas of a catalogue row, keeping every key the column carries.
+ *
+ * Unlike everything that computes with a quota, this row is read by the version
+ * diff, and the diff has to tell "the plan did not have this quota" from "the
+ * plan had something nobody can read". Dropping the second made it the first,
+ * and replacing a legacy `"100"` with 50 then classified as an improvement.
+ * What cannot be read stays as `NaN`, which the diff refuses to call an
+ * improvement and reports as the value that was actually there.
+ */
 function toQuotaEffects(value: unknown): Record<QuotaKey, number> {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
         return {} as Record<QuotaKey, number>;
     }
     const quotas: Record<string, number> = {};
     for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-        if (typeof entry === 'number') quotas[key] = entry;
+        quotas[key] = readQuotaValue(entry) ?? Number.NaN;
     }
     return quotas as Record<QuotaKey, number>;
 }

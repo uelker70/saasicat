@@ -132,11 +132,10 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 399 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
+Of 399 entries: 🟢 388 stand today, 🟡 11 decided but not yet delivered, ⚪ 0 drafts,
 🔵 0 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
-[SC-PLAN-025](#sc-plan-025--every-quota-a-version-carries-counts-as-a-limit-that-can-be-lowered),
 [SC-PRIC-015](#sc-pric-015--an-amount-records-the-currency-it-was-booked-in),
 [SC-PRIC-017](#sc-pric-017--the-tax-rate-and-the-tax-amount-are-recorded-not-re-derived),
 [SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),
@@ -996,6 +995,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -1062,6 +1064,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -1132,6 +1137,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -1232,14 +1240,31 @@ _Tested by:_
 
 - `packages/nest/tests/version-diff.test.js`
     - classifyPlanDiff — identical versions → no changes, nonRegressive=true
-    - classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true
-    - classifyPlanDiff — limit decrease → REGRESSION, nonRegressive=false
     - classifyPlanDiff — price increase → REGRESSION
     - classifyPlanDiff — price decrease → IMPROVEMENT
     - classifyPlanDiff — feature removed → REGRESSION
     - classifyPlanDiff — feature added → IMPROVEMENT
     - classifyPlanDiff — mixed: 1 improvement + 1 regression → nonRegressive=false
     - classifyPlanDiff — Decimal-like object with toNumber() accepted
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
+        - a finite number replaced by unlimited → IMPROVEMENT
 - `packages/nest/tests/version-publish.test.js`
     - assertDraftPublishable
         - accepts a fresh draft
@@ -1262,25 +1287,94 @@ _Tested by:_
 
 - `packages/nest/tests/version-diff.test.js`
     - classifyPlanDiff — identical versions → no changes, nonRegressive=true
-    - classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true
-    - classifyPlanDiff — limit decrease → REGRESSION, nonRegressive=false
     - classifyPlanDiff — price increase → REGRESSION
     - classifyPlanDiff — price decrease → IMPROVEMENT
     - classifyPlanDiff — feature removed → REGRESSION
     - classifyPlanDiff — feature added → IMPROVEMENT
     - classifyPlanDiff — mixed: 1 improvement + 1 regression → nonRegressive=false
     - classifyPlanDiff — Decimal-like object with toNumber() accepted
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
+        - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->
 
 ### SC-PLAN-025 — Every quota a version carries counts as a limit that can be lowered
 
-🟡 _(Decided, not yet delivered.)_ A plan version is compared on `users`, `vehicles` and `storageGb`
-alone, so a quota an installation defines for itself — NotesApp's `notesMax`, for instance — can be
-lowered and published without the confirmation SC-PLAN-009 asks for. Add-on versions are already
-compared on every quota they carry.
+🟢 Not only the three keys the platform once knew by name: which quotas exist is the installation's
+decision, and one of its own being lowered is the same event to the customer it belongs to.
+Add-on versions are compared the same way.
 
 _Source:_ current practice
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-quota-is-read-one-way.test.js`
+    - a quota is read the same way everywhere
+        - a number is itself
+        - a number written as a string is that number
+        - anything that is not a finite number reads as nothing
+        - and so does a number too large to be one
+        - a record reads what it can and keeps the rest as uncountable
+        - a declared quota stays declared, whatever it says
+        - and what it reads survives a round trip through a JSON column
+        - and anything that is not a record reads as an empty one
+        - a key inherited from the prototype is not a quota
+- `packages/nest/tests/a-quota-arrives-as-a-number.test.js`
+    - a quota arrives as a number or it does not arrive
+        - integers are accepted, and so is -1 for unlimited
+        - an empty record is accepted — a version may carry no quota at all
+        - a numeric string is refused, and the message names the key
+        - "-1" is refused too — it is the value that would lock a tenant out
+        - a fraction, a negative below -1, null and a nested object are refused
+        - an array is not a quota record
+        - the update DTO holds the same line, and leaving quotas out is still allowed
+        - an add-on version is held to it as well — it is the same comparison
+- `packages/nest/tests/plan-versions-service.test.js`
+    - PlanVersionsService — Lifecycle
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
+- `packages/nest/tests/version-diff.test.js`
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
+        - a finite number replaced by unlimited → IMPROVEMENT
+
+<!-- END proof -->
 
 ### SC-PLAN-011 — A published version says which day it applies from
 
@@ -5061,13 +5155,9 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/entitlement-service.test.js`
-    - EntitlementService.enforceLimit — transactional
-        - insert runs when under the limit
-        - LimitExceededError when insert would exceed the limit
-        - delta&gt;1 for STORAGE: insert of 6 GB against 5 GB limit blocks
-        - -1 (unlimited) never blocks
-        - NotFound when subscription is missing
-        - Error for unknown quota dimension
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 
 <!-- END proof -->
 
@@ -5101,6 +5191,10 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 - `packages/nest/tests/saasicat-module.test.js`
     - StaticEntitlementService (via StaticPlanResolver)
         - snapshot returns features+quotas from the plan catalog
@@ -5119,6 +5213,10 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService.enforceLimit — a limit nobody can read
+        - a dimension the plan does not declare is a misconfiguration
+        - a declared quota that cannot be read lets the request through
 - `packages/nest/tests/feature-guard.test.js`
     - FeatureGuard — config hooks
         - tenantContextRunner wraps the computeLimits call (RLS consumers)
@@ -11863,6 +11961,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record
@@ -11877,6 +11977,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/saasicat-persistence.test.js`
     - SaaSiCatModule persistence bundle
         - forRoot wires from a bundle without individual adapters
@@ -12003,6 +12105,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record
@@ -12017,6 +12121,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/create-saasicat-test-module.test.js`
     - createSaaSiCatTestModule
         - returns a DynamicModule with a test host

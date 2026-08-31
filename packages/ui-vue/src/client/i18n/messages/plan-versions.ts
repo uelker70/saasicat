@@ -33,8 +33,7 @@ export const planVersionsMessages = defineMessages(
         diffFields: {
             featuresAdded: 'Hinzugefügte Features',
             featuresRemoved: 'Entfernte Features',
-            maxUsers: 'Max. Benutzer',
-            maxStorageGb: 'Speicher (GB)',
+            quota: 'Kontingent „{key}"',
             monthlyNet: 'Preis monatlich (netto)',
             yearlyNet: 'Preis jährlich (netto)',
             unitSize: 'Einheitsgröße',
@@ -85,8 +84,7 @@ export const planVersionsMessages = defineMessages(
         diffFields: {
             featuresAdded: 'Added features',
             featuresRemoved: 'Removed features',
-            maxUsers: 'Max. users',
-            maxStorageGb: 'Storage (GB)',
+            quota: 'Quota "{key}"',
             monthlyNet: 'Price monthly (net)',
             yearlyNet: 'Price yearly (net)',
             unitSize: 'Unit size',

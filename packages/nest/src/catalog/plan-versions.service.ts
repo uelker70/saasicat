@@ -344,15 +344,9 @@ export class PlanVersionsService {
             PLAN_VERSION_WINDOW_CODES,
         );
 
-        // classifyPlanDiff expects flat fields (legacy form: maxUsers,
-        // maxVehicles, maxStorageGb). PlanVersionRow.quotas is generic;
-        // we map the three standard keys, other quota keys are (still)
-        // ignored by the diff — Pack 2c generalizes classifyPlanDiff.
         const fieldsFor = (v: PlanVersionRow) => ({
             features: v.features,
-            maxUsers: v.quotas?.['users'] ?? 0,
-            maxVehicles: v.quotas?.['vehicles'] ?? 0,
-            maxStorageGb: v.quotas?.['storageGb'] ?? 0,
+            quotas: v.quotas ?? {},
             monthlyNet: v.monthlyNet,
             yearlyNet: v.yearlyNet,
         });
