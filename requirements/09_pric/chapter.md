@@ -63,13 +63,11 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
-    - commits to nothing and runs to the plan’s billing day
-    - cancelling lands at the end of the period it is in
-    - cancelling on the last day of the period still lands on that day
-    - commits to nothing and ends with the plan period that pays for it
-    - cancelling lands at that same end, not a year after the booking
-    - binds inside it, and still cannot outlast the plan
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a prorated upgrade never asks for less than nothing
+        - a cheaper target after a price cut is free rather than a credit
+        - an ordinary upgrade still costs what it costs
+        - a change that costs exactly nothing is not a free upgrade
 
 <!-- END proof -->
 
@@ -79,6 +77,18 @@ _Tested by:_
 nothing because the two plans are priced alike, and somebody deciding is owed the difference.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a prorated upgrade never asks for less than nothing
+        - a cheaper target after a price cut is free rather than a credit
+        - an ordinary upgrade still costs what it costs
+        - a change that costs exactly nothing is not a free upgrade
+
+<!-- END proof -->
 
 ### SC-PRIC-005 — There is no proration during a trial
 

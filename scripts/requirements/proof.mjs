@@ -107,6 +107,8 @@ export function casesIn(text) {
         const names = [];
         for (let i = at + 1; i < lines.length; i++) {
             if (lines[i].trim() && indent(lines[i]) <= depth) break;
+            // `test(` and not `test.skip(` — deliberately, not by accident of
+            // the pattern. A skipped case is a case that does not run.
             if (/^\s*(?:test|it)\(/.test(lines[i])) {
                 const name = titleOf(lines[i]);
                 if (name) names.push(name);
@@ -136,13 +138,15 @@ export function casesIn(text) {
         if (title && pending.length > 0) {
             const ids = pending;
             pending = [];
-            const names = /^\s*describe\(/.test(line) ? casesUnder(at) : [title];
+            // A block with no live case under it proves nothing, and must not
+            // stand in for one: a suite whose cases are all skipped would
+            // otherwise read as covered, which is the one thing a coverage
+            // number must never say.
+            const block = /^\s*describe\(/.test(line);
+            const names = block ? casesUnder(at) : [title];
             for (const id of ids) {
-                for (const name of names.length ? names : [title]) {
-                    found.push({
-                        id,
-                        case: /^\s*describe\(/.test(line) ? `${title} › ${name}` : name,
-                    });
+                for (const name of names) {
+                    found.push({ id, case: block ? `${title} › ${name}` : name });
                 }
             }
             opened = true;
@@ -203,11 +207,12 @@ export function scanTests(root, groups = GROUPS) {
             if (!insideTests && !IS_TEST.test(name)) continue;
             const source = readFileSync(path, 'utf8');
             const where = path.slice(root.length + 1);
-            for (const id of annotationsIn(source)) {
-                if (!found.has(id)) found.set(id, []);
-                found.get(id).push(where);
-            }
+            // A requirement counts as proved when a case that runs names it —
+            // not when a file mentions it. An annotation over a suite whose
+            // cases are all skipped mentions it and proves nothing.
             for (const { id, case: name } of casesIn(source)) {
+                if (!found.has(id)) found.set(id, []);
+                if (!found.get(id).includes(where)) found.get(id).push(where);
                 if (!cases.has(id)) cases.set(id, []);
                 cases.get(id).push({ file: where, case: name });
             }

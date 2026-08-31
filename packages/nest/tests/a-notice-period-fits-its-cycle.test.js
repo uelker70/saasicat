@@ -1,8 +1,3 @@
-// @requirement SC-CANC-005 — There is no notice period until an installation names one
-// @requirement SC-CANC-006 — A notice period belongs to a rhythm, not to an installation
-// @requirement SC-CANC-007 — The rhythm that decides the notice is the subscription's, not the plan's
-// @requirement SC-CANC-008 — No upper limit is placed on a notice period
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -37,6 +32,7 @@ const decide = (declaredOn, noticePeriodDays, overrides = {}) =>
 
 const daysBetween = (from, to) => Math.round((to.getTime() - at(from).getTime()) / DAY);
 
+// @requirement SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
 describe('a notice longer than the period is served, not approximated', () => {
     // The three rows of the measurement, and the promise each has to keep.
     for (const declaredOn of ['2026-03-01', '2026-03-15', '2026-03-30']) {
@@ -67,6 +63,7 @@ describe('a notice longer than the period is served, not approximated', () => {
     });
 });
 
+// @requirement SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
 describe('a port that does not store the billing day', () => {
     // `billingAnchorDay` is optional on the usage port, and a consumer's own
     // implementation may omit it. Without it every step reads its day from the
@@ -113,6 +110,7 @@ describe('a port that does not store the billing day', () => {
     });
 });
 
+// @requirement SC-CANC-009 — A missed notice deadline moves the cancellation to the end of the next period
 describe('a notice shorter than the period behaves as it always did', () => {
     test('declared in time, it ends with the period', () => {
         const decision = decide('2026-03-01', 14);
@@ -151,6 +149,7 @@ describe('a notice shorter than the period behaves as it always did', () => {
     });
 });
 
+// @requirement SC-CANC-008 — No upper limit is placed on a notice period
 describe('a year of notice on a yearly contract', () => {
     test('is served by one step, because a year of period covers it', () => {
         const decision = decideCancellation({
@@ -166,6 +165,8 @@ describe('a year of notice on a yearly contract', () => {
     });
 });
 
+// @requirement SC-CANC-006 — A notice period belongs to a rhythm, not to an installation
+// @requirement SC-CANC-007 — The rhythm that decides the notice is the subscription's, not the plan's
 describe('which of the two numbers applies', () => {
     // The rhythm of the contract decides, not of the plan somebody is looking
     // at: the same plan may be sold both ways.

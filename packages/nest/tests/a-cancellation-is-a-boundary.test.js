@@ -1,7 +1,3 @@
-// @requirement SC-CHG-011 — A decision taken against one state is not written into another
-// @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
-// @requirement SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -122,6 +118,8 @@ const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 const changeTo = (controller) =>
     controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
 
+// @requirement SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
+// @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
 describe('a subscription that has ended', () => {
     const ended = {
         ...SUBSCRIPTION,
@@ -151,6 +149,8 @@ describe('a subscription that has ended', () => {
     });
 });
 
+// @requirement SC-ENTL-013 — A cancellation that is merely declared changes nothing
+// @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
 describe('a cancellation still to come', () => {
     const ending = {
         ...SUBSCRIPTION,
@@ -183,6 +183,7 @@ describe('a cancellation still to come', () => {
     });
 });
 
+// @requirement SC-CHG-015 — A cancelled subscription cannot change its billing rhythm
 describe('a cycle change while a cancellation is outstanding', () => {
     /**
      * The preview over a monthly subscription that is cancelled but running.
@@ -318,6 +319,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
     });
 });
 
+// @requirement SC-CHG-011 — A decision taken against one state is not written into another
 describe('a cancellation arriving while a plan change is being decided', () => {
     // The route reads the subscription, computes a preview, decides three
     // things from the cancellation — whether to refuse, whether the cycle may
@@ -361,6 +363,7 @@ describe('a cancellation arriving while a plan change is being decided', () => {
     });
 });
 
+// @requirement SC-CHG-011 — A decision taken against one state is not written into another
 describe('a boundary that passes while the request is being decided', () => {
     // The landed check runs when the subscription is read; the preview runs
     // after it, and can take a while. A cancellation recorded BEFORE the
@@ -407,6 +410,7 @@ describe('a boundary that passes while the request is being decided', () => {
     });
 });
 
+// @requirement SC-CANC-013 — Two cancellations arriving at once produce one
 describe('two declarations arriving at once', () => {
     // The route checks, then writes, and those are two moments. Straddling a
     // notice deadline the second declaration recomputes against a later `now`
@@ -428,6 +432,8 @@ describe('two declarations arriving at once', () => {
     });
 });
 
+// @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
+// @requirement SC-SUB-015 — A scheduled change that comes due after the customer has left is declined and recorded
 describe('a change scheduled before the customer cancelled', () => {
     const dueChange = (overrides) => ({
         tenantId: 't1',

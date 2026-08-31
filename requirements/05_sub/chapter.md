@@ -20,6 +20,17 @@ operator configures one for an add-on.
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - when the term and the period disagree
+        - the later of the two decides
+        - a subscription with no term at all falls back to the period
+
+<!-- END proof -->
+
 ### SC-SUB-003 — A term renews by itself unless it was cancelled first
 
 🟢 The commitment renews with the period, because the commitment is the period.
@@ -41,26 +52,27 @@ _Source:_ #220 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
-    - comes back to the 31st after February
-    - and without an anchor it never comes back — the case this exists for
-    - is billed on the 30th in a 31-day month
-    - and on the 28th in February, then back to the 30th
-    - is billed on the 28th in ordinary years and the 29th when one comes round
-    - keeps the anchor across every step it takes
-    - and reaches the anchor day itself where the month is long enough
-    - and an explicit anchor overrides the start it was given
-    - rolls back onto the day the customer is billed on
-    - and without a stored anchor keeps the day it landed on
-    - is billed on that day in every month, long or short
-    - and the first of the month is not confused with the last of the one before
-    - stays on the 31st, because the month is the same one every year
-    - and the day the customer is billed on moves with it
-    - ${impossible} is treated as absent, not as a day
-    - while a possible one is used
-    - buys the period the customer is billed for, to its day
-    - and without a stored anchor keeps the old, shorter answer
-    - while an on-time cancellation does not reach the step at all
-    - is treated as absent for the whole walk, not for each step
+    - a subscription billed on the 31st
+        - comes back to the 31st after February
+        - and without an anchor it never comes back — the case this exists for
+    - a subscription billed on the 30th
+        - is billed on the 30th in a 31-day month
+        - and on the 28th in February, then back to the 30th
+    - a yearly subscription starting on a leap day
+        - is billed on the 28th in ordinary years and the 29th when one comes round
+    - a renewal that has already been through a February
+        - rolls back onto the day the customer is billed on
+        - and without a stored anchor keeps the day it landed on
+    - a yearly subscription billed on the 31st
+        - stays on the 31st, because the month is the same one every year
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - a period boundary on a month end stays on a month end
+        - 31 January plus a month is the end of February
+        - and in a leap year, the 29th
+        - 31 March plus a month is 30 April
+        - 29 February plus a year is 28 February
+        - a day that exists in both months is untouched
+        - December rolls into the next year
 
 <!-- END proof -->
 
@@ -75,26 +87,23 @@ _Source:_ #220
 _Tested by:_
 
 - `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
-    - comes back to the 31st after February
-    - and without an anchor it never comes back — the case this exists for
-    - is billed on the 30th in a 31-day month
-    - and on the 28th in February, then back to the 30th
-    - is billed on the 28th in ordinary years and the 29th when one comes round
-    - keeps the anchor across every step it takes
-    - and reaches the anchor day itself where the month is long enough
-    - and an explicit anchor overrides the start it was given
-    - rolls back onto the day the customer is billed on
-    - and without a stored anchor keeps the day it landed on
-    - is billed on that day in every month, long or short
-    - and the first of the month is not confused with the last of the one before
-    - stays on the 31st, because the month is the same one every year
-    - and the day the customer is billed on moves with it
-    - ${impossible} is treated as absent, not as a day
-    - while a possible one is used
-    - buys the period the customer is billed for, to its day
-    - and without a stored anchor keeps the old, shorter answer
-    - while an on-time cancellation does not reach the step at all
-    - is treated as absent for the whole walk, not for each step
+    - iterating to the next boundary
+        - keeps the anchor across every step it takes
+        - and reaches the anchor day itself where the month is long enough
+        - and an explicit anchor overrides the start it was given
+    - a renewal that has already been through a February
+        - rolls back onto the day the customer is billed on
+        - and without a stored anchor keeps the day it landed on
+    - a subscription billed on an ordinary day
+        - is billed on that day in every month, long or short
+        - and the first of the month is not confused with the last of the one before
+    - a plan change reopens the window
+        - and the day the customer is billed on moves with it
+    - an anchor that cannot be a day of a month
+        - ${impossible} is treated as absent, not as a day
+        - while a possible one is used
+    - an impossible anchor handed to the iteration
+        - is treated as absent for the whole walk, not for each step
 
 <!-- END proof -->
 
@@ -143,17 +152,51 @@ a status check placed one line too early would refuse it.
 
 _Source:_ #218
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a tenant whose payment failed
+        - can still cancel, and lands at the same date as anybody else
+
+<!-- END proof -->
+
 ### SC-SUB-010 — A subscription that has ended can no longer change plan
 
 🟢 Nor complete onboarding, accept a pending version, or book an add-on.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - activating a subscription that has already ended
+        - is refused on the atomic path, which is the preferred one
+        - while a running subscription is activated as before
+        - and the write carries what the route read, so a late cancellation wins
+
+<!-- END proof -->
+
 ### SC-SUB-011 — A subscription with nothing left to run is recorded as ended
 
 🟢 Rather than left looking active for good, because nothing downstream would ever have moved it.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - activating a subscription that has already ended
+        - is refused on the atomic path, which is the preferred one
+        - while a running subscription is activated as before
+        - and the write carries what the route read, so a late cancellation wins
+
+<!-- END proof -->
 
 ### SC-SUB-012 — A new version of a plan does not move a customer who already bought one
 
@@ -162,6 +205,18 @@ next renewal; one that takes something away only takes effect if the tenant acce
 otherwise dropped when its date arrives.
 
 _Source:_ release 1.0.0-rc.6 · `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a plan version published before the customer left
+        - does not roll onto a subscription whose term is over
+        - while a cancellation still to come stops nothing
+        - and an uncancelled subscription rolls as before
+
+<!-- END proof -->
 
 ### SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
 
@@ -174,24 +229,14 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
-    - refuses a plan change instead of charging for one
-    - while a running one still changes plans
-    - lets the plan change, and does not sell a term it cuts short
-    - while an uncancelled subscription does get a fresh term
-    - the preview says so before the reader has decided anything
-    - and an ended subscription is refused outright, not merely locked
-    - and says nothing when the cycle stays
-    - is refused, because the ending was calculated in the old rhythm
-    - while the plan still moves on the cycle it was sold in
-    - and an uncancelled subscription may change cycle freely
-    - the immediate change is refused rather than written over it
-    - and so is the scheduled one
-    - while an unchanged subscription is written as decided
-    - is refused rather than written a moment late
-    - the second one reports the first one rather than replacing it
-    - is declined once the cancellation has taken effect
-    - but a cancellation still to come declines nothing
-    - and an uncancelled subscription is applied as before
+    - a subscription that has ended
+        - refuses a plan change instead of charging for one
+        - while a running one still changes plans
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a plan version published before the customer left
+        - does not roll onto a subscription whose term is over
+        - while a cancellation still to come stops nothing
+        - and an uncancelled subscription rolls as before
 
 <!-- END proof -->
 
@@ -200,6 +245,17 @@ _Tested by:_
 🟢 And accepting one when none is pending is refused rather than silently accepted.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - accepting a version after the subscription ended
+        - is refused rather than recorded against a dead contract
+        - while a running subscription accepts as before
+
+<!-- END proof -->
 
 ### SC-SUB-015 — A scheduled change that comes due after the customer has left is declined and recorded
 
@@ -211,6 +267,15 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - a change scheduled before the customer cancelled
+        - is declined once the cancellation has taken effect
+        - but a cancellation still to come declines nothing
+        - and an uncancelled subscription is applied as before
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - accepting a version after the subscription ended
+        - is refused rather than recorded against a dead contract
+        - while a running subscription accepts as before
 - `packages/nest/tests/pending-plan-materialization.test.js`
     - materializes all due pending plan changes and invalidates each tenant
     - defaults to MONTHLY cycle when pendingBillingCycle is null

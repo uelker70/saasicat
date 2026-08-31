@@ -25,17 +25,9 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - the matrix is complete
-    - ${label} takes effect ${expected ?
-    - the matrix asks more of a trial than of a term
-    - on trial, ${label} takes effect ${expected ?
-    - a yearly customer choosing a monthly higher plan is told why it waits
-    - the same upgrade on the same cycle happens now and says nothing
-    - a cheaper target after a price cut is free rather than a credit
-    - an ordinary upgrade still costs what it costs
-    - a change that costs exactly nothing is not a free upgrade
-    - the later of period end and minimum term is the effective date
-    - without a commitment the period end still decides
+    - an immediate change may not shorten the term
+        - the matrix is complete
+        - ${label} takes effect ${expected ?
 
 <!-- END proof -->
 
@@ -51,18 +43,13 @@ _Source:_ #212
 
 _Tested by:_
 
+- `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
+    - a plan change reopens the window
+        - and the day the customer is billed on moves with it
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - the matrix is complete
-    - ${label} takes effect ${expected ?
-    - the matrix asks more of a trial than of a term
-    - on trial, ${label} takes effect ${expected ?
-    - a yearly customer choosing a monthly higher plan is told why it waits
-    - the same upgrade on the same cycle happens now and says nothing
-    - a cheaper target after a price cut is free rather than a credit
-    - an ordinary upgrade still costs what it costs
-    - a change that costs exactly nothing is not a free upgrade
-    - the later of period end and minimum term is the effective date
-    - without a commitment the period end still decides
+    - an immediate change may not shorten the term
+        - the matrix is complete
+        - ${label} takes effect ${expected ?
 
 <!-- END proof -->
 
@@ -72,6 +59,17 @@ _Tested by:_
 the yearly term they are inside. It is offered later rather than refused.
 
 _Source:_ #212 · `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - the deferred upgrade explains itself
+        - a yearly customer choosing a monthly higher plan is told why it waits
+        - the same upgrade on the same cycle happens now and says nothing
+
+<!-- END proof -->
 
 ### SC-CHG-005 — A downgrade takes effect at the end of the term
 
@@ -84,17 +82,9 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - the matrix is complete
-    - ${label} takes effect ${expected ?
-    - the matrix asks more of a trial than of a term
-    - on trial, ${label} takes effect ${expected ?
-    - a yearly customer choosing a monthly higher plan is told why it waits
-    - the same upgrade on the same cycle happens now and says nothing
-    - a cheaper target after a price cut is free rather than a credit
-    - an ordinary upgrade still costs what it costs
-    - a change that costs exactly nothing is not a free upgrade
-    - the later of period end and minimum term is the effective date
-    - without a commitment the period end still decides
+    - a deferred change waits for the commitment, not just the period
+        - the later of period end and minimum term is the effective date
+        - without a commitment the period end still decides
 
 <!-- END proof -->
 
@@ -109,6 +99,10 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a deferred change waits for the commitment, not just the period
+        - the later of period end and minimum term is the effective date
+        - without a commitment the period end still decides
 - `packages/nest/tests/pending-plan-materialization.test.js`
     - materializes all due pending plan changes and invalidates each tenant
     - defaults to MONTHLY cycle when pendingBillingCycle is null
@@ -130,6 +124,17 @@ something they did not read, and a line among the warnings is exactly where a re
 look. An acknowledgement of one date is not an acknowledgement of the next one.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - the deferred upgrade explains itself
+        - a yearly customer choosing a monthly higher plan is told why it waits
+        - the same upgrade on the same cycle happens now and says nothing
+
+<!-- END proof -->
 
 ### SC-CHG-009 — The date the tenant was shown is the date the change is made on
 
@@ -157,24 +162,12 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
-    - refuses a plan change instead of charging for one
-    - while a running one still changes plans
-    - lets the plan change, and does not sell a term it cuts short
-    - while an uncancelled subscription does get a fresh term
-    - the preview says so before the reader has decided anything
-    - and an ended subscription is refused outright, not merely locked
-    - and says nothing when the cycle stays
-    - is refused, because the ending was calculated in the old rhythm
-    - while the plan still moves on the cycle it was sold in
-    - and an uncancelled subscription may change cycle freely
-    - the immediate change is refused rather than written over it
-    - and so is the scheduled one
-    - while an unchanged subscription is written as decided
-    - is refused rather than written a moment late
-    - the second one reports the first one rather than replacing it
-    - is declined once the cancellation has taken effect
-    - but a cancellation still to come declines nothing
-    - and an uncancelled subscription is applied as before
+    - a cancellation arriving while a plan change is being decided
+        - the immediate change is refused rather than written over it
+        - and so is the scheduled one
+        - while an unchanged subscription is written as decided
+    - a boundary that passes while the request is being decided
+        - is refused rather than written a moment late
 
 <!-- END proof -->
 
@@ -206,24 +199,20 @@ _Source:_ #219 · release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
-    - refuses a plan change instead of charging for one
-    - while a running one still changes plans
-    - lets the plan change, and does not sell a term it cuts short
-    - while an uncancelled subscription does get a fresh term
-    - the preview says so before the reader has decided anything
-    - and an ended subscription is refused outright, not merely locked
-    - and says nothing when the cycle stays
-    - is refused, because the ending was calculated in the old rhythm
-    - while the plan still moves on the cycle it was sold in
-    - and an uncancelled subscription may change cycle freely
-    - the immediate change is refused rather than written over it
-    - and so is the scheduled one
-    - while an unchanged subscription is written as decided
-    - is refused rather than written a moment late
-    - the second one reports the first one rather than replacing it
-    - is declined once the cancellation has taken effect
-    - but a cancellation still to come declines nothing
-    - and an uncancelled subscription is applied as before
+    - a subscription that has ended
+        - refuses a plan change instead of charging for one
+        - while a running one still changes plans
+    - a cancellation still to come
+        - lets the plan change, and does not sell a term it cuts short
+        - while an uncancelled subscription does get a fresh term
+    - a change scheduled before the customer cancelled
+        - is declined once the cancellation has taken effect
+        - but a cancellation still to come declines nothing
+        - and an uncancelled subscription is applied as before
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a change and a cancellation on the same day
+        - the ending wins, exactly at the moment they meet
+        - and a minute earlier the change still happens
 
 <!-- END proof -->
 
@@ -233,6 +222,21 @@ _Tested by:_
 was calculated in.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - a cycle change while a cancellation is outstanding
+        - the preview says so before the reader has decided anything
+        - and an ended subscription is refused outright, not merely locked
+        - and says nothing when the cycle stays
+        - is refused, because the ending was calculated in the old rhythm
+        - while the plan still moves on the cycle it was sold in
+        - and an uncancelled subscription may change cycle freely
+
+<!-- END proof -->
 
 ### SC-CHG-016 — A plan cannot be changed while onboarding is still running
 

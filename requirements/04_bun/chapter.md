@@ -184,6 +184,20 @@ confirmation later shows the right amount.
 
 _Source:_ #234
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - the price a booking is billed at
+        - follows the rhythm the booking was made in
+        - a monthly booking beside a yearly plan is billed monthly
+        - a booking from before the rhythm was recorded takes the plan’s
+        - a plan-specific override is what the tenant on that plan is billed
+        - a booking whose version has vanished reports no price rather than a wrong one
+
+<!-- END proof -->
+
 ### SC-BUN-007 — An add-on with no price in the chosen rhythm is shown as unavailable
 
 🟢 Rather than as a button the server will refuse.
@@ -194,6 +208,13 @@ _Source:_ #234
 
 _Tested by:_
 
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - the prices a store is shown
+        - are resolved for the plan, in both rhythms
+        - carry an override the public catalogue cannot know about
+        - a bundle sold in one rhythm only says so for the other
+        - an id nobody knows is left out rather than answered with nulls
+        - asking for nothing costs nothing
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - a tenant books a bundle
         - on a running plan it gets a window on the plan’s day
@@ -214,6 +235,9 @@ _Source:_ #239
 
 _Tested by:_
 
+- `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
+    - a commitment an operator did configure
+        - binds inside it, and still cannot outlast the plan
 - `packages/nest/tests/subscription-bundles-service.test.js`
     - SubscriptionBundlesService — addBundleToSubscription
         - a booking commits the tenant to nothing unless somebody says so
@@ -251,12 +275,20 @@ _Tested by:_
         - a minimum term still outranks the period when it runs longer
         - and the parent’s end still caps both
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
-    - commits to nothing and runs to the plan’s billing day
-    - cancelling lands at the end of the period it is in
-    - cancelling on the last day of the period still lands on that day
-    - commits to nothing and ends with the plan period that pays for it
-    - cancelling lands at that same end, not a year after the booking
-    - binds inside it, and still cannot outlast the plan
+    - a monthly add-on beside a yearly plan
+        - commits to nothing and runs to the plan’s billing day
+        - cancelling lands at the end of the period it is in
+        - cancelling on the last day of the period still lands on that day
+    - a yearly add-on beside a yearly plan
+        - commits to nothing and ends with the plan period that pays for it
+        - cancelling lands at that same end, not a year after the booking
+- `packages/nest/tests/an-add-on-has-no-notice-period.test.js`
+    - cancelling an add-on
+        - on the last day of the period still ends with that period
+        - on the first day of the period ends with the same period
+        - a minimum term still binds, because that is what was committed to
+        - and the plan ending first caps it, because the add-on cannot outlive it
+        - a booking with no period of its own ends when it was declared
 - `packages/nest/tests/subscription-bundle-preview.test.js`
     - SubscriptionBundlePreviewService — previewCancel
         - effectiveAt = period end when minimum term expired
@@ -290,12 +322,10 @@ _Tested by:_
         - a minimum term still outranks the period when it runs longer
         - and the parent’s end still caps both
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
-    - commits to nothing and runs to the plan’s billing day
-    - cancelling lands at the end of the period it is in
-    - cancelling on the last day of the period still lands on that day
-    - commits to nothing and ends with the plan period that pays for it
-    - cancelling lands at that same end, not a year after the booking
-    - binds inside it, and still cannot outlast the plan
+    - a monthly add-on beside a yearly plan
+        - commits to nothing and runs to the plan’s billing day
+        - cancelling lands at the end of the period it is in
+        - cancelling on the last day of the period still lands on that day
 - `packages/nest/tests/subscription-bundle-preview.test.js`
     - a bundle billed in its own rhythm
         - a monthly bundle on a yearly plan is quoted monthly, over its own month
@@ -327,13 +357,15 @@ _Source:_ #230 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/an-add-on-has-no-notice-period.test.js`
-    - no source file on that path names anything that carries one
-    - the effective date is decided from the booking alone
-    - on the last day of the period still ends with that period
-    - on the first day of the period ends with the same period
-    - a minimum term still binds, because that is what was committed to
-    - and the plan ending first caps it, because the add-on cannot outlive it
-    - a booking with no period of its own ends when it was declared
+    - the bundle path does not consult a notice period
+        - no source file on that path names anything that carries one
+        - the effective date is decided from the booking alone
+    - cancelling an add-on
+        - on the last day of the period still ends with that period
+        - on the first day of the period ends with the same period
+        - a minimum term still binds, because that is what was committed to
+        - and the plan ending first caps it, because the add-on cannot outlive it
+        - a booking with no period of its own ends when it was declared
 
 <!-- END proof -->
 
@@ -360,6 +392,9 @@ _Tested by:_
     - a consumer without the bundle module is not blocked by bookings it cannot have
     - moving to a LONGER cycle with a monthly add-on is fine
     - the date falls back to the minimum term where no period is stored
+- `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
+    - a commitment an operator did configure
+        - binds inside it, and still cannot outlast the plan
 - `packages/nest/tests/the-till-closes-with-the-subscription.test.js`
     - what a bundle may commit to
         - never past the parent, when the parent ends first
@@ -514,20 +549,12 @@ _Source:_ #234
 _Tested by:_
 
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
-    - follows the rhythm the booking was made in
-    - a monthly booking beside a yearly plan is billed monthly
-    - a booking from before the rhythm was recorded takes the plan’s
-    - a plan-specific override is what the tenant on that plan is billed
-    - a booking whose version has vanished reports no price rather than a wrong one
-    - are resolved for the plan, in both rhythms
-    - carry an override the public catalogue cannot know about
-    - a bundle sold in one rhythm only says so for the other
-    - an id nobody knows is left out rather than answered with nulls
-    - asking for nothing costs nothing
-    - a draft is not priced, because it was never on offer
-    - a superseded version is not priced either
-    - a live version among dead ones still answers
-    - is not priced, though its version is still live
+    - the price a booking is billed at
+        - follows the rhythm the booking was made in
+        - a monthly booking beside a yearly plan is billed monthly
+        - a booking from before the rhythm was recorded takes the plan’s
+        - a plan-specific override is what the tenant on that plan is billed
+        - a booking whose version has vanished reports no price rather than a wrong one
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - an operator publishes a bundle
         - a base price is enough
@@ -636,6 +663,13 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - which bundles a tenant may ask the price of
+        - a draft is not priced, because it was never on offer
+        - a superseded version is not priced either
+        - a live version among dead ones still answers
+    - a bundle the operator retired
+        - is not priced, though its version is still live
 - `packages/nest/tests/bundles-service.test.js`
     - BundlesService — Version lifecycle
         - createBundleDraft creates v1 with baseVersionId=null
@@ -667,6 +701,9 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - a bundle the operator retired
+        - is not priced, though its version is still live
 - `packages/nest/tests/bundles-service.test.js`
     - BundlesService — Version lifecycle
         - createBundleDraft creates v1 with baseVersionId=null

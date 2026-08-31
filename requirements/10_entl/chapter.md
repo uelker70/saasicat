@@ -76,30 +76,16 @@ _Source:_ `README.md` · `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/feature-guard.test.js`
-    - lets routes without @RequireFeature pass unchecked
-    - @RequireFeature with an empty array passes unchecked
-    - lets the tenant through when the feature is active in the plan
-    - blocks with ForbiddenException when the feature is missing
-    - Logical OR: multiple features, one suffices (second matches)
-    - Logical OR: none match → Forbidden with all keys in the message
-    - Class-level annotation applies when the handler has none
-    - Handler annotation overrides class annotation
-    - SUPER_ADMIN bypasses the feature check
-    - SUPER_ADMIN via
-    - missing user → Forbidden (
-    - missing tenantId → Forbidden (
-    - tenantId from request.tenantId takes precedence over user.tenantId
-    - tenantContextRunner wraps the computeLimits call (RLS consumers)
-    - userRoleResolver allows a project-specific role source
-    - tenantIdResolver can fetch tenantId from an alternative field
-    - is a Symbol.for token (process-wide registry)
-    - structured 403 body: code, featureKey, featureKeys, offers, message
-    - Logical OR: featureKeys carries all required keys, featureKey the first
-    - Resolver error degrades to offers: [] instead of 500
-    - Resolver is not called for a licensed feature
-    - without a resolver: full body with empty offers
-    - emits the full FeatureNotLicensedBody with empty offers
-    - is a Symbol.for token (process-wide registry)
+    - FeatureGuard — annotation evaluation
+        - lets routes without @RequireFeature pass unchecked
+        - @RequireFeature with an empty array passes unchecked
+    - FeatureGuard — feature set matching
+        - lets the tenant through when the feature is active in the plan
+        - blocks with ForbiddenException when the feature is missing
+        - Logical OR: multiple features, one suffices (second matches)
+        - Logical OR: none match → Forbidden with all keys in the message
+        - Class-level annotation applies when the handler has none
+        - Handler annotation overrides class annotation
 
 <!-- END proof -->
 
@@ -114,6 +100,9 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/feature-guard.test.js`
+    - StaticFeatureGuard — FEATURE_NOT_LICENSED body
+        - emits the full FeatureNotLicensedBody with empty offers
 - `packages/nest/tests/limit-exceeded-filter.test.js`
     - responds with HTTP 402 + standard body shape
     - carries the quota dimension correctly from the exception
@@ -148,38 +137,10 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
-    - grants nothing once the cancellation has landed
-    - grants the configured floor instead, where one is configured
-    - while a cancellation still to come grants everything
-    - and an uncancelled subscription is unaffected
-    - is not served past the moment it ends
-    - and is still served inside its ordinary lifetime
 - `packages/nest/tests/feature-guard.test.js`
-    - lets routes without @RequireFeature pass unchecked
-    - @RequireFeature with an empty array passes unchecked
-    - lets the tenant through when the feature is active in the plan
-    - blocks with ForbiddenException when the feature is missing
-    - Logical OR: multiple features, one suffices (second matches)
-    - Logical OR: none match → Forbidden with all keys in the message
-    - Class-level annotation applies when the handler has none
-    - Handler annotation overrides class annotation
-    - SUPER_ADMIN bypasses the feature check
-    - SUPER_ADMIN via
-    - missing user → Forbidden (
-    - missing tenantId → Forbidden (
-    - tenantId from request.tenantId takes precedence over user.tenantId
-    - tenantContextRunner wraps the computeLimits call (RLS consumers)
-    - userRoleResolver allows a project-specific role source
-    - tenantIdResolver can fetch tenantId from an alternative field
-    - is a Symbol.for token (process-wide registry)
-    - structured 403 body: code, featureKey, featureKeys, offers, message
-    - Logical OR: featureKeys carries all required keys, featureKey the first
-    - Resolver error degrades to offers: [] instead of 500
-    - Resolver is not called for a licensed feature
-    - without a resolver: full body with empty offers
-    - emits the full FeatureNotLicensedBody with empty offers
-    - is a Symbol.for token (process-wide registry)
+    - FeatureGuard — annotation evaluation
+        - lets routes without @RequireFeature pass unchecked
+        - @RequireFeature with an empty array passes unchecked
 
 <!-- END proof -->
 
@@ -196,6 +157,18 @@ _Source:_ release 1.0.0-rc.6
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/feature-guard.test.js`
+    - FeatureGuard — config hooks
+        - tenantContextRunner wraps the computeLimits call (RLS consumers)
+        - userRoleResolver allows a project-specific role source
+        - tenantIdResolver can fetch tenantId from an alternative field
+
+<!-- END proof -->
+
 ### SC-ENTL-012 — A cancellation that has taken effect grants nothing
 
 🟢 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier was
@@ -208,15 +181,12 @@ _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
-    - it is granted its plan
-    - and a cancellation still to come changes nothing
-    - nothing is granted
-    - the plan is still named, so a page can say which one ended
-    - a configured floor is granted instead
-    - and the floor does not inherit what was bought on top
-    - a contract signed earlier does not outlive it
-    - is read from the only column it has
-    - and a legacy row whose date is still to come keeps everything
+    - once the cancellation has taken effect
+        - nothing is granted
+        - the plan is still named, so a page can say which one ended
+        - a configured floor is granted instead
+        - and the floor does not inherit what was bought on top
+        - a contract signed earlier does not outlive it
 
 <!-- END proof -->
 
@@ -227,6 +197,21 @@ term ends.
 
 _Source:_ #219
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - a cancellation still to come
+        - lets the plan change, and does not sell a term it cuts short
+        - while an uncancelled subscription does get a fresh term
+- `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
+    - while a subscription is running
+        - it is granted its plan
+        - and a cancellation still to come changes nothing
+
+<!-- END proof -->
+
 ### SC-ENTL-014 — An installation may name a floor a cancelled subscription falls back to
 
 🟢 A read-only tier a former customer can export from, or a free plan, instead of nothing. Add-on
@@ -234,6 +219,20 @@ bookings and negotiated limits are not carried into it, because those belonged t
 that ended.
 
 _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
+    - once the cancellation has taken effect
+        - nothing is granted
+        - the plan is still named, so a page can say which one ended
+        - a configured floor is granted instead
+        - and the floor does not inherit what was bought on top
+        - a contract signed earlier does not outlive it
+
+<!-- END proof -->
 
 ### SC-ENTL-015 — The end of a subscription is seen on every enforcement path
 
@@ -247,39 +246,20 @@ _Source:_ #219
 _Tested by:_
 
 - `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
-    - it is granted its plan
-    - and a cancellation still to come changes nothing
-    - nothing is granted
-    - the plan is still named, so a page can say which one ended
-    - a configured floor is granted instead
-    - and the floor does not inherit what was bought on top
-    - a contract signed earlier does not outlive it
-    - is read from the only column it has
-    - and a legacy row whose date is still to come keeps everything
+    - a cancellation older than the fields that describe it
+        - is read from the only column it has
+        - and a legacy row whose date is still to come keeps everything
 - `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
-    - grants nothing once the cancellation has landed
-    - grants the configured floor instead, where one is configured
-    - while a cancellation still to come grants everything
-    - and an uncancelled subscription is unaffected
-    - is not served past the moment it ends
-    - and is still served inside its ordinary lifetime
+    - the default enforcement stack
+        - grants nothing once the cancellation has landed
+        - grants the configured floor instead, where one is configured
+        - while a cancellation still to come grants everything
+        - and an uncancelled subscription is unaffected
 - `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
-    - can still cancel, and lands at the same date as anybody else
-    - cancels immediately, because nothing was ever committed
-    - and one that did get a period keeps it
-    - the ending wins, exactly at the moment they meet
-    - and a minute earlier the change still happens
-    - does not roll onto a subscription whose term is over
-    - while a cancellation still to come stops nothing
-    - and an uncancelled subscription rolls as before
-    - is refused on the atomic path, which is the preferred one
-    - while a running subscription is activated as before
-    - and the write carries what the route read, so a late cancellation wins
-    - is refused rather than recorded against a dead contract
-    - while a running subscription accepts as before
-    - the frozen contract is ended on the same date
-    - and a cancellation already recorded repairs its contract too
-    - and a consumer without contracts is unaffected
+    - what else ends when the subscription does
+        - the frozen contract is ended on the same date
+        - and a cancellation already recorded repairs its contract too
+        - and a consumer without contracts is unaffected
 
 <!-- END proof -->
 
@@ -289,6 +269,17 @@ _Tested by:_
 itself.
 
 _Source:_ #219
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
+    - a cached answer at the cancellation boundary
+        - is not served past the moment it ends
+        - and is still served inside its ordinary lifetime
+
+<!-- END proof -->
 
 ### SC-ENTL-017 — A feature that was renamed keeps working for customers who bought the old name
 
@@ -318,6 +309,15 @@ _Tested by:_
     - currency comes from the optional currency token, default EUR
     - priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last
     - empty featureKeys → no offers, no repo access
+- `packages/nest/tests/feature-guard.test.js`
+    - FeatureGuard — upsell response (#36)
+        - structured 403 body: code, featureKey, featureKeys, offers, message
+        - Logical OR: featureKeys carries all required keys, featureKey the first
+        - Resolver error degrades to offers: [] instead of 500
+        - Resolver is not called for a licensed feature
+        - without a resolver: full body with empty offers
+    - UPSELL_OFFER_RESOLVER_TOKEN
+        - is a Symbol.for token (process-wide registry)
 
 <!-- END proof -->
 
@@ -326,6 +326,20 @@ _Tested by:_
 🟢 Support can act on a tenant's behalf without the tenant having bought the feature being used.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/feature-guard.test.js`
+    - FeatureGuard — auth paths
+        - SUPER_ADMIN bypasses the feature check
+        - SUPER_ADMIN via
+        - missing user → Forbidden (
+        - missing tenantId → Forbidden (
+        - tenantId from request.tenantId takes precedence over user.tenantId
+
+<!-- END proof -->
 
 ### SC-ENTL-020 — Hiding a control is not protection
 

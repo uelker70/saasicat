@@ -1,8 +1,3 @@
-// @requirement SC-CANC-001 — A cancellation may always be declared
-// @requirement SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
-// @requirement SC-CANC-009 — A missed notice deadline moves the cancellation to the end of the next period
-// @requirement SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -36,6 +31,8 @@ const base = (overrides = {}) => ({
     ...overrides,
 });
 
+// @requirement SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
+// @requirement SC-CANC-005 — There is no notice period until an installation names one
 describe('with no notice period, which is the default', () => {
     test('a cancellation lands at the end of the term', () => {
         const decision = decideCancellation(base());
@@ -52,6 +49,8 @@ describe('with no notice period, which is the default', () => {
     });
 });
 
+// @requirement SC-CANC-009 — A missed notice deadline moves the cancellation to the end of the next period
+// @requirement SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
 describe('with a notice period configured', () => {
     const withNotice = (now) => decideCancellation(base({ now, noticePeriodDays: 14 }));
 
@@ -90,6 +89,8 @@ describe('with a notice period configured', () => {
     });
 });
 
+// @requirement SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
+// @requirement SC-SUB-002 — The minimum term is the billing period that was chosen, and it starts at activation
 describe('when the term and the period disagree', () => {
     test('the later of the two decides', () => {
         // They part company once a notice period has pushed a term past the
@@ -108,6 +109,7 @@ describe('when the term and the period disagree', () => {
     });
 });
 
+// @requirement SC-CANC-004 — Where nothing is left to run, the cancellation lands now, never in the past
 describe('when nothing is left to run', () => {
     test('a term already past lands the cancellation now', () => {
         // Deferring to a date in the past would report something the reader has
@@ -127,6 +129,7 @@ describe('when nothing is left to run', () => {
     });
 });
 
+// @requirement SC-SUB-004 — A short month does not move the billing day
 describe('a period boundary on a month end stays on a month end', () => {
     // `setUTCMonth` does not clamp, it overflows: 31 January plus one month is
     // 3 March. Pre-existing, and invisible while the result was only a period
@@ -165,6 +168,8 @@ describe('a period boundary on a month end stays on a month end', () => {
     });
 });
 
+// @requirement SC-SPEC-002 — Cancelling during a trial ends the trial, and no sooner
+// @requirement SC-SPEC-003 — A notice period never applies to a trial
 describe('a trial has an end, not a term', () => {
     // A trial has a period end like every other subscription — the visual
     // fixture in this repository sets one — and reading it as a term makes the

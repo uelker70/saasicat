@@ -1,6 +1,3 @@
-// @requirement SC-ENTL-005 — A request for something the contract does not include is refused
-// @requirement SC-ENTL-009 — The declarative check is a guard, not a guarantee
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Reflector } from '@nestjs/core';
@@ -52,6 +49,8 @@ function buildEntitlementsStub(features = []) {
     };
 }
 
+// @requirement SC-ENTL-005 — A request for something the contract does not include is refused
+// @requirement SC-ENTL-009 — The declarative check is a guard, not a guarantee
 describe('FeatureGuard — annotation evaluation', () => {
     test('lets routes without @RequireFeature pass unchecked', async () => {
         const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub());
@@ -70,6 +69,7 @@ describe('FeatureGuard — annotation evaluation', () => {
     });
 });
 
+// @requirement SC-ENTL-005 — A request for something the contract does not include is refused
 describe('FeatureGuard — feature set matching', () => {
     test('lets the tenant through when the feature is active in the plan', async () => {
         const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['WHATSAPP']));
@@ -136,6 +136,7 @@ describe('FeatureGuard — feature set matching', () => {
     });
 });
 
+// @requirement SC-ENTL-019 — A platform administrator is not blocked by a tenant's entitlements
 describe('FeatureGuard — auth paths', () => {
     test('SUPER_ADMIN bypasses the feature check', async () => {
         const ents = buildEntitlementsStub([]); // no features at all
@@ -191,6 +192,7 @@ describe('FeatureGuard — auth paths', () => {
     });
 });
 
+// @requirement SC-ENTL-011 — Enforcing a limit nobody declared is the installation's fault, not the tenant's
 describe('FeatureGuard — config hooks', () => {
     test('tenantContextRunner wraps the computeLimits call (RLS consumers)', async () => {
         const calls = [];
@@ -283,6 +285,7 @@ describe('FEATURE_GUARD_CONFIG_TOKEN', () => {
 // Upsell response (#36): the 403 is always machine-readable — code,
 // featureKey(s), offers. Without a resolver the shape stays identical, only
 // `offers` is empty.
+// @requirement SC-ENTL-018 — An offer shown alongside a refusal is one the tenant could actually buy
 describe('FeatureGuard — upsell response (#36)', () => {
     function buildGuard({ features = [], resolver = null, config = null } = {}) {
         return new FeatureGuard(new Reflector(), buildEntitlementsStub(features), config, resolver);
@@ -406,6 +409,8 @@ describe('FeatureGuard — upsell response (#36)', () => {
 
 // The static quickstart guard answers on the same contract — it has no
 // resolver at all, so its body is the one the FeatureGuard emits without one.
+// @requirement SC-ENTL-006 — A missing feature and an exhausted limit are told apart
+// @requirement SC-LANG-008 — A refusal is identified by a stable code; only its wording may change
 describe('StaticFeatureGuard — FEATURE_NOT_LICENSED body', () => {
     function buildStaticContext(features) {
         const handler = function handlerStub() {};
@@ -444,6 +449,7 @@ describe('StaticFeatureGuard — FEATURE_NOT_LICENSED body', () => {
 
 // Symbol.for is mandatory (the CJS bundle duplicates shared modules per entry —
 // a plain Symbol would be a different object per entry, cf. outage 2026-06-09).
+// @requirement SC-ENTL-018 — An offer shown alongside a refusal is one the tenant could actually buy
 describe('UPSELL_OFFER_RESOLVER_TOKEN', () => {
     test('is a Symbol.for token (process-wide registry)', () => {
         assert.equal(UPSELL_OFFER_RESOLVER_TOKEN, Symbol.for('saasicat/nest/UpsellOfferResolver'));

@@ -1,7 +1,3 @@
-// @requirement SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
-// @requirement SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
-// @requirement SC-CHG-005 — A downgrade takes effect at the end of the term
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -129,6 +125,8 @@ function shouldBeImmediate({ fromPlan, fromCycle, toPlan, toCycle }) {
     return planGoesUp && !cycleGetsShorter;
 }
 
+// @requirement SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
+// @requirement SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 describe('an immediate change may not shorten the term', () => {
     const rows = everyCombination();
 
@@ -158,6 +156,7 @@ describe('an immediate change may not shorten the term', () => {
     }
 });
 
+// @requirement SC-SPEC-001 — A trial commits to nothing, so a plan change during one takes effect at once
 describe('a trial commits to nothing, so nothing is deferred to protect it', () => {
     // The first half of the rule is about the service and applies everywhere.
     // The second half is about a commitment, and a trial has none: its cycle
@@ -199,6 +198,8 @@ describe('a trial commits to nothing, so nothing is deferred to protect it', () 
     }
 });
 
+// @requirement SC-CHG-004 — A yearly customer moving to a monthly higher plan gets it at the term end
+// @requirement SC-CHG-008 — A change that arrives later is the headline, and has to be acknowledged
 describe('the deferred upgrade explains itself', () => {
     test('a yearly customer choosing a monthly higher plan is told why it waits', async () => {
         const dto = await preview('STARTER', 'YEARLY', 'STANDARD', 'MONTHLY');
@@ -224,6 +225,8 @@ describe('the deferred upgrade explains itself', () => {
     });
 });
 
+// @requirement SC-PRIC-003 — This platform never pays money back
+// @requirement SC-PRIC-004 — "Free upgrade" and "costs nothing" are two different sentences
 describe('a prorated upgrade never asks for less than nothing', () => {
     test('a cheaper target after a price cut is free rather than a credit', async () => {
         // The raw arithmetic is `(target - current) * remaining / period`, and
@@ -276,6 +279,8 @@ describe('a prorated upgrade never asks for less than nothing', () => {
     });
 });
 
+// @requirement SC-CHG-005 — A downgrade takes effect at the end of the term
+// @requirement SC-CHG-006 — A deferred change lands at the later of the period end and the commitment
 describe('a deferred change waits for the commitment, not just the period', () => {
     test('the later of period end and minimum term is the effective date', async () => {
         // They coincide until a notice period pushes the term past the period.

@@ -175,6 +175,45 @@ describe('coverage counts what is owed a proof', () => {
     });
 });
 
+describe('a case that does not run proves nothing', () => {
+    // The one thing a coverage number must never say. A suite whose cases are
+    // all skipped mentions the requirement and proves nothing about it, and
+    // counting the mention would report coverage that no test performs.
+
+    test('a skipped case is not a case', () => {
+        const src = [
+            '// @requirement SC-A-001',
+            "describe('a block', () => {",
+            "    test.skip('a skipped one', () => {});",
+            "    test('a real one', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['a real one'],
+        );
+    });
+
+    test('a block with nothing live under it stands in for nothing', () => {
+        // The block title used to be pushed as a case of its own where no case
+        // was found, so annotating a suite of skipped tests read as covered.
+        const src = [
+            '// @requirement SC-A-001',
+            "describe('a block of skipped cases', () => {",
+            "    test.skip('one', () => {});",
+            "    test.skip('two', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(casesIn(src), []);
+    });
+
+    test('and the requirement is owed a proof again', () => {
+        // The counter-proof at the level that matters: what the ratchet counts.
+        const entries = [{ id: 'SC-A-001', status: 'current', delivered: true }];
+        assert.deepEqual(unproven(entries, new Map()), ['SC-A-001']);
+    });
+});
+
 describe('an annotation carries the title of what it names', () => {
     // So a reader of the test learns what it answers for without opening the
     // catalogue. Written by `requirements:update` and checked here, never

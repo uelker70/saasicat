@@ -19,25 +19,10 @@ _Source:_ `docs/explanation/capability-to-contract.md`
 _Tested by:_
 
 - `packages/nest/tests/discovery-scanner.test.js`
-    - returns the same hash for identical inputs
-    - ignores scannedAt and app.version (stability across boot restarts)
-    - is sort-order independent for object keys
-    - returns different hashes for different capability sets
-    - aggregates capabilities with the same feature into a DiscoveredFeature
-    - capabilities without a feature do not end up in feature aggregates
-    - snapshot contains no bundles field (bundles only from SuperAdmin UI)
-    - reads @DefinesQuota at the class level
-    - cross-references @EnforceQuota on capabilities with the quota
-    - multiple declaration of the same capability: first wins
-    - app info is carried into the snapshot
-    - default app info when nothing is injected
-    - rebuildSnapshot overwrites the cache
-    - capability without requires/replaces carries null (default)
-    - requires/replaces are deduplicated + sorted through
-    - feature aggregation: union of capability requires minus its own featureKey
-    - feature aggregation: replaces as union over the capabilities
-    - quota carries replaces from @DefinesQuota
-    - requires change changes the snapshot hash
+    - DiscoveryScanner — capability/feature aggregation
+        - aggregates capabilities with the same feature into a DiscoveredFeature
+        - capabilities without a feature do not end up in feature aggregates
+        - snapshot contains no bundles field (bundles only from SuperAdmin UI)
 
 <!-- END proof -->
 
@@ -267,6 +252,18 @@ and a developer refactor the code without repricing anything.
 
 _Source:_ `docs/explanation/concepts.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — capability/feature aggregation
+        - aggregates capabilities with the same feature into a DiscoveredFeature
+        - capabilities without a feature do not end up in feature aggregates
+        - snapshot contains no bundles field (bundles only from SuperAdmin UI)
+
+<!-- END proof -->
+
 ### SC-CAT-012 — A new declaration appears for review after the application restarts
 
 🟢 The scan happens when the application starts. An operator who cannot see a colleague's new
@@ -274,39 +271,23 @@ capability is waiting for a deployment, not looking in the wrong place.
 
 _Source:_ `docs/guides/wire-the-backend.md`
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/discovery-scanner.test.js`
-    - returns the same hash for identical inputs
-    - ignores scannedAt and app.version (stability across boot restarts)
-    - is sort-order independent for object keys
-    - returns different hashes for different capability sets
-    - aggregates capabilities with the same feature into a DiscoveredFeature
-    - capabilities without a feature do not end up in feature aggregates
-    - snapshot contains no bundles field (bundles only from SuperAdmin UI)
-    - reads @DefinesQuota at the class level
-    - cross-references @EnforceQuota on capabilities with the quota
-    - multiple declaration of the same capability: first wins
-    - app info is carried into the snapshot
-    - default app info when nothing is injected
-    - rebuildSnapshot overwrites the cache
-    - capability without requires/replaces carries null (default)
-    - requires/replaces are deduplicated + sorted through
-    - feature aggregation: union of capability requires minus its own featureKey
-    - feature aggregation: replaces as union over the capabilities
-    - quota carries replaces from @DefinesQuota
-    - requires change changes the snapshot hash
-
-<!-- END proof -->
-
 ### SC-CAT-013 — A quota key is named in exactly one place
 
 🟢 The declaration in code. It cannot be introduced in a configuration file, and it cannot contain a
 separator that would make it ambiguous where a plan lists it.
 
 _Source:_ release 0.2.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — Quotas
+        - reads @DefinesQuota at the class level
+        - cross-references @EnforceQuota on capabilities with the quota
+
+<!-- END proof -->
 
 ### SC-CAT-014 — An unsatisfied dependency between features is advice, not a refusal
 
@@ -317,12 +298,40 @@ is decidable.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — requires/replaces (#35/#39)
+        - capability without requires/replaces carries null (default)
+        - requires/replaces are deduplicated + sorted through
+        - feature aggregation: union of capability requires minus its own featureKey
+        - feature aggregation: replaces as union over the capabilities
+        - quota carries replaces from @DefinesQuota
+        - requires change changes the snapshot hash
+
+<!-- END proof -->
+
 ### SC-CAT-015 — A missing scan degrades the check, it does not stop the application
 
 🟢 Where the strictest setting is configured but nothing can be compared against, the installation
 warns loudly and keeps running. Crashing there once caused a production outage.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — edge cases
+        - multiple declaration of the same capability: first wins
+        - app info is carried into the snapshot
+        - default app info when nothing is injected
+        - rebuildSnapshot overwrites the cache
+
+<!-- END proof -->
 
 ### SC-CAT-016 — The check that runs before a deployment always blocks
 

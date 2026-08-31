@@ -83,20 +83,12 @@ _Source:_ #234
 _Tested by:_
 
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
-    - follows the rhythm the booking was made in
-    - a monthly booking beside a yearly plan is billed monthly
-    - a booking from before the rhythm was recorded takes the plan’s
-    - a plan-specific override is what the tenant on that plan is billed
-    - a booking whose version has vanished reports no price rather than a wrong one
-    - are resolved for the plan, in both rhythms
-    - carry an override the public catalogue cannot know about
-    - a bundle sold in one rhythm only says so for the other
-    - an id nobody knows is left out rather than answered with nulls
-    - asking for nothing costs nothing
-    - a draft is not priced, because it was never on offer
-    - a superseded version is not priced either
-    - a live version among dead ones still answers
-    - is not priced, though its version is still live
+    - the prices a store is shown
+        - are resolved for the plan, in both rhythms
+        - carry an override the public catalogue cannot know about
+        - a bundle sold in one rhythm only says so for the other
+        - an id nobody knows is left out rather than answered with nulls
+        - asking for nothing costs nothing
 
 <!-- END proof -->
 
@@ -118,23 +110,18 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
-    - create creates an open offer
-    - update customizes an open offer
-    - create requires bundle line items for specific bundle versions
-    - create freezes bundle versions, promotions and promo code into the offer
-    - create adds the discounted price as a negative discount line item
-    - consume freezes the offer
-    - consume blocks a no-longer-bookable bundle version
-    - update on a consumed offer throws Conflict
-    - update on an expired offer throws Conflict
-    - double consume throws Conflict
-    - getById throws for an unknown offer
-    - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
-    - create accepts when a second bundle covers the requires
-    - create accepts when the plan covers the requires
-    - update validates the changed bundle selection against requires
-    - without a CatalogEntryRepository no validation happens (graceful)
-    - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+    - CheckoutOfferService
+        - create creates an open offer
+        - update customizes an open offer
+        - create requires bundle line items for specific bundle versions
+        - create freezes bundle versions, promotions and promo code into the offer
+        - create adds the discounted price as a negative discount line item
+        - consume freezes the offer
+        - consume blocks a no-longer-bookable bundle version
+        - update on a consumed offer throws Conflict
+        - update on an expired offer throws Conflict
+        - double consume throws Conflict
+        - getById throws for an unknown offer
 
 <!-- END proof -->
 
@@ -149,23 +136,18 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
-    - create creates an open offer
-    - update customizes an open offer
-    - create requires bundle line items for specific bundle versions
-    - create freezes bundle versions, promotions and promo code into the offer
-    - create adds the discounted price as a negative discount line item
-    - consume freezes the offer
-    - consume blocks a no-longer-bookable bundle version
-    - update on a consumed offer throws Conflict
-    - update on an expired offer throws Conflict
-    - double consume throws Conflict
-    - getById throws for an unknown offer
-    - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
-    - create accepts when a second bundle covers the requires
-    - create accepts when the plan covers the requires
-    - update validates the changed bundle selection against requires
-    - without a CatalogEntryRepository no validation happens (graceful)
-    - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+    - CheckoutOfferService
+        - create creates an open offer
+        - update customizes an open offer
+        - create requires bundle line items for specific bundle versions
+        - create freezes bundle versions, promotions and promo code into the offer
+        - create adds the discounted price as a negative discount line item
+        - consume freezes the offer
+        - consume blocks a no-longer-bookable bundle version
+        - update on a consumed offer throws Conflict
+        - update on an expired offer throws Conflict
+        - double consume throws Conflict
+        - getById throws for an unknown offer
 
 <!-- END proof -->
 
@@ -175,6 +157,21 @@ _Tested by:_
 it. A customer is not sold a combination that cannot work.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/checkout-offer-service.test.js`
+    - CheckoutOfferService — requires validation (#35 P6)
+        - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
+        - create accepts when a second bundle covers the requires
+        - create accepts when the plan covers the requires
+        - update validates the changed bundle selection against requires
+        - without a CatalogEntryRepository no validation happens (graceful)
+        - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+
+<!-- END proof -->
 
 ### SC-MKT-016 — An offer cannot be turned into a contract if part of it is no longer on sale
 
@@ -193,23 +190,18 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
-    - create creates an open offer
-    - update customizes an open offer
-    - create requires bundle line items for specific bundle versions
-    - create freezes bundle versions, promotions and promo code into the offer
-    - create adds the discounted price as a negative discount line item
-    - consume freezes the offer
-    - consume blocks a no-longer-bookable bundle version
-    - update on a consumed offer throws Conflict
-    - update on an expired offer throws Conflict
-    - double consume throws Conflict
-    - getById throws for an unknown offer
-    - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
-    - create accepts when a second bundle covers the requires
-    - create accepts when the plan covers the requires
-    - update validates the changed bundle selection against requires
-    - without a CatalogEntryRepository no validation happens (graceful)
-    - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+    - CheckoutOfferService
+        - create creates an open offer
+        - update customizes an open offer
+        - create requires bundle line items for specific bundle versions
+        - create freezes bundle versions, promotions and promo code into the offer
+        - create adds the discounted price as a negative discount line item
+        - consume freezes the offer
+        - consume blocks a no-longer-bookable bundle version
+        - update on a consumed offer throws Conflict
+        - update on an expired offer throws Conflict
+        - double consume throws Conflict
+        - getById throws for an unknown offer
 
 <!-- END proof -->
 
@@ -230,6 +222,17 @@ _Source:_ `docs/reference/error-codes.md`
 🟢 Otherwise the ending would last exactly until the next plan change.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-ends-when-the-subscription-does.test.js`
+    - a contract frozen after the cancellation
+        - inherits the ending rather than starting open
+        - while a subscription with no ending freezes open, as before
+
+<!-- END proof -->
 
 ### SC-MKT-021 — A tenant can read back the package they were sold
 

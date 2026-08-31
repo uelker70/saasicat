@@ -1,7 +1,3 @@
-// @requirement SC-CANC-004 — Where nothing is left to run, the cancellation lands now, never in the past
-// @requirement SC-CANC-011 — A late cancellation extends the recorded commitment to the period it bought
-// @requirement SC-CANC-019 — Recording a cancellation is never blocked by something that follows it
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -107,6 +103,7 @@ const NO_TERM = {
     minimumTermUntil: null,
 };
 
+// @requirement SC-CANC-004 — Where nothing is left to run, the cancellation lands now, never in the past
 describe('a cancellation with nothing left to run', () => {
     test('ends the subscription instead of leaving it active', async () => {
         const port = recordingWritePort();
@@ -125,6 +122,8 @@ describe('a cancellation with nothing left to run', () => {
     });
 });
 
+// @requirement SC-CANC-015 — A tenant who has cancelled is told from which date
+// @requirement SC-CANC-017 — The period a cancellation lands in is stated before the tenant confirms it
 describe('confirming a cancellation that lands immediately', () => {
     // The page states the date before the customer confirms, and sends it back
     // so the route can refuse a date they never saw. Where the answer IS the
@@ -163,6 +162,8 @@ describe('confirming a cancellation that lands immediately', () => {
     });
 });
 
+// @requirement SC-CANC-011 — A late cancellation extends the recorded commitment to the period it bought
+// @requirement SC-CANC-019 — Recording a cancellation is never blocked by something that follows it
 describe('a cancellation inside a running term', () => {
     // The premise for the pair above: if the flag were simply always true, this
     // would end a subscription the customer is still paying for.
@@ -186,6 +187,7 @@ describe('a cancellation inside a running term', () => {
     });
 });
 
+// @requirement SC-CANC-014 — A repeated cancellation does not explain itself with figures it cannot know
 describe('a cancellation older than the fields that describe it', () => {
     // The old adapter had one column and wrote the effective date into it. The
     // renewal and the cancel route both read that row correctly; the projection
@@ -210,6 +212,8 @@ describe('a cancellation older than the fields that describe it', () => {
     });
 });
 
+// @requirement SC-CANC-009 — A missed notice deadline moves the cancellation to the end of the next period
+// @requirement SC-CANC-011 — A late cancellation extends the recorded commitment to the period it bought
 describe('a declaration made after the notice window closed', () => {
     // Term ends in five days, notice is fourteen: the door shut nine days ago.
     const closingSoon = {

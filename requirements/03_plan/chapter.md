@@ -26,37 +26,33 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/plan-versions-service.test.js`
-    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
-    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
-    - createPlanDraft: unknown plan → NotFound
-    - updatePlanDraft: changes features + quotas
-    - createPlanDraft: bundles default to [] when not provided
-    - createPlanDraft + updatePlanDraft: bundles are persisted
-    - updatePlanDraft: published version → UnprocessableEntity
-    - publishPlanVersion: first version → publishedAt + nonRegressive=true
-    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
-    - publishPlanVersion: second version sets previous to supersededAt
-    - publishPlanVersion: validFrom must be strictly after predecessor → 422
-    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
-    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
-    - publishPlanVersion: forceRegressive lets regressive version through
-    - getPlanVersion: NotFound for unknown ID
-    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
-    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
-    - discardPlanDraft: NotFound for unknown ID
-    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
-    - terminatePlanVersion: live version gets endsAt set
-    - terminatePlanVersion: idempotent — second call overwrites
-    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
-    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
-    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
-    - terminatePlanVersion: NotFound for unknown ID
-    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
-    - updatePlanDraft allows published-but-future version (latest, 0 subs)
-    - updatePlanDraft blocks published-but-future version with subscription
-    - updatePlanDraft blocks published version that is not latest-in-chain
-    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
-    - updatePlanDraft fail-closed without SubscriptionRepository
+    - PlanVersionsService — Lifecycle
+        - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+        - createPlanDraft: unknown plan → NotFound
+        - updatePlanDraft: changes features + quotas
+        - createPlanDraft: bundles default to [] when not provided
+        - createPlanDraft + updatePlanDraft: bundles are persisted
+        - updatePlanDraft: published version → UnprocessableEntity
+        - publishPlanVersion: first version → publishedAt + nonRegressive=true
+        - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+        - publishPlanVersion: second version sets previous to supersededAt
+        - publishPlanVersion: validFrom must be strictly after predecessor → 422
+        - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+        - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+        - publishPlanVersion: forceRegressive lets regressive version through
+        - getPlanVersion: NotFound for unknown ID
+        - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+        - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+        - discardPlanDraft: NotFound for unknown ID
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - terminatePlanVersion: live version gets endsAt set
+        - terminatePlanVersion: idempotent — second call overwrites
+        - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+        - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+        - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+        - terminatePlanVersion: NotFound for unknown ID
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
 
 <!-- END proof -->
 
@@ -72,37 +68,33 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/nest/tests/plan-versions-service.test.js`
-    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
-    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
-    - createPlanDraft: unknown plan → NotFound
-    - updatePlanDraft: changes features + quotas
-    - createPlanDraft: bundles default to [] when not provided
-    - createPlanDraft + updatePlanDraft: bundles are persisted
-    - updatePlanDraft: published version → UnprocessableEntity
-    - publishPlanVersion: first version → publishedAt + nonRegressive=true
-    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
-    - publishPlanVersion: second version sets previous to supersededAt
-    - publishPlanVersion: validFrom must be strictly after predecessor → 422
-    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
-    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
-    - publishPlanVersion: forceRegressive lets regressive version through
-    - getPlanVersion: NotFound for unknown ID
-    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
-    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
-    - discardPlanDraft: NotFound for unknown ID
-    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
-    - terminatePlanVersion: live version gets endsAt set
-    - terminatePlanVersion: idempotent — second call overwrites
-    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
-    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
-    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
-    - terminatePlanVersion: NotFound for unknown ID
-    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
-    - updatePlanDraft allows published-but-future version (latest, 0 subs)
-    - updatePlanDraft blocks published-but-future version with subscription
-    - updatePlanDraft blocks published version that is not latest-in-chain
-    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
-    - updatePlanDraft fail-closed without SubscriptionRepository
+    - PlanVersionsService — Lifecycle
+        - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+        - createPlanDraft: unknown plan → NotFound
+        - updatePlanDraft: changes features + quotas
+        - createPlanDraft: bundles default to [] when not provided
+        - createPlanDraft + updatePlanDraft: bundles are persisted
+        - updatePlanDraft: published version → UnprocessableEntity
+        - publishPlanVersion: first version → publishedAt + nonRegressive=true
+        - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+        - publishPlanVersion: second version sets previous to supersededAt
+        - publishPlanVersion: validFrom must be strictly after predecessor → 422
+        - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+        - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+        - publishPlanVersion: forceRegressive lets regressive version through
+        - getPlanVersion: NotFound for unknown ID
+        - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+        - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+        - discardPlanDraft: NotFound for unknown ID
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - terminatePlanVersion: live version gets endsAt set
+        - terminatePlanVersion: idempotent — second call overwrites
+        - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+        - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+        - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+        - terminatePlanVersion: NotFound for unknown ID
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
 
 <!-- END proof -->
 
@@ -127,37 +119,33 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/plan-versions-service.test.js`
-    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
-    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
-    - createPlanDraft: unknown plan → NotFound
-    - updatePlanDraft: changes features + quotas
-    - createPlanDraft: bundles default to [] when not provided
-    - createPlanDraft + updatePlanDraft: bundles are persisted
-    - updatePlanDraft: published version → UnprocessableEntity
-    - publishPlanVersion: first version → publishedAt + nonRegressive=true
-    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
-    - publishPlanVersion: second version sets previous to supersededAt
-    - publishPlanVersion: validFrom must be strictly after predecessor → 422
-    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
-    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
-    - publishPlanVersion: forceRegressive lets regressive version through
-    - getPlanVersion: NotFound for unknown ID
-    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
-    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
-    - discardPlanDraft: NotFound for unknown ID
-    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
-    - terminatePlanVersion: live version gets endsAt set
-    - terminatePlanVersion: idempotent — second call overwrites
-    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
-    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
-    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
-    - terminatePlanVersion: NotFound for unknown ID
-    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
-    - updatePlanDraft allows published-but-future version (latest, 0 subs)
-    - updatePlanDraft blocks published-but-future version with subscription
-    - updatePlanDraft blocks published version that is not latest-in-chain
-    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
-    - updatePlanDraft fail-closed without SubscriptionRepository
+    - PlanVersionsService — Lifecycle
+        - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+        - createPlanDraft: unknown plan → NotFound
+        - updatePlanDraft: changes features + quotas
+        - createPlanDraft: bundles default to [] when not provided
+        - createPlanDraft + updatePlanDraft: bundles are persisted
+        - updatePlanDraft: published version → UnprocessableEntity
+        - publishPlanVersion: first version → publishedAt + nonRegressive=true
+        - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+        - publishPlanVersion: second version sets previous to supersededAt
+        - publishPlanVersion: validFrom must be strictly after predecessor → 422
+        - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+        - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+        - publishPlanVersion: forceRegressive lets regressive version through
+        - getPlanVersion: NotFound for unknown ID
+        - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+        - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+        - discardPlanDraft: NotFound for unknown ID
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - terminatePlanVersion: live version gets endsAt set
+        - terminatePlanVersion: idempotent — second call overwrites
+        - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+        - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+        - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+        - terminatePlanVersion: NotFound for unknown ID
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
 
 <!-- END proof -->
 
@@ -167,6 +155,20 @@ _Tested by:_
 the assumption that it is unsold.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - PlanVersionsService — published-but-future editing (Pack 2c)
+        - updatePlanDraft allows published-but-future version (latest, 0 subs)
+        - updatePlanDraft blocks published-but-future version with subscription
+        - updatePlanDraft blocks published version that is not latest-in-chain
+        - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
+        - updatePlanDraft fail-closed without SubscriptionRepository
+
+<!-- END proof -->
 
 ### SC-PLAN-007 — Publishing says what changed
 
@@ -260,6 +262,20 @@ _Source:_ `docs/reference/error-codes.md`
 🟢 Ending a version stops new bookings on it. It does not move anybody who is already on it.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - PlanVersionsService — published-but-future editing (Pack 2c)
+        - updatePlanDraft allows published-but-future version (latest, 0 subs)
+        - updatePlanDraft blocks published-but-future version with subscription
+        - updatePlanDraft blocks published version that is not latest-in-chain
+        - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
+        - updatePlanDraft fail-closed without SubscriptionRepository
+
+<!-- END proof -->
 
 ### SC-PLAN-017 — Publishing happens in the administration, never in a seed
 

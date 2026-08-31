@@ -1,7 +1,3 @@
-// @requirement SC-PLAN-002 — A plan has at most one unpublished draft at a time
-// @requirement SC-PLAN-003 — A plan has at most one live version at a time
-// @requirement SC-PLAN-005 — A version somebody has already bought cannot be edited
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -28,6 +24,9 @@ async function setupWithPlan(planKey = 'STARTER', subscriptions = null) {
     return { repo, stem, versions, plan, subscriptions };
 }
 
+// @requirement SC-PLAN-002 — A plan has at most one unpublished draft at a time
+// @requirement SC-PLAN-003 — A plan has at most one live version at a time
+// @requirement SC-PLAN-005 — A version somebody has already bought cannot be edited
 describe('PlanVersionsService — Lifecycle', () => {
     test('createPlanDraft + listPlanVersions returns v1 with publishedAt=null', async () => {
         const { versions, plan } = await setupWithPlan();
@@ -653,6 +652,8 @@ describe('PlanVersionsService — Lifecycle', () => {
     });
 });
 
+// @requirement SC-PLAN-006 — Where it cannot be established that nobody is on a version, it stays frozen
+// @requirement SC-PLAN-016 — A version can be given an end date, and it lies in the future
 describe('PlanVersionsService — published-but-future editing (Pack 2c)', () => {
     // Day in the far future so tests always land in the "validFrom > now"
     // range regardless of the real date.

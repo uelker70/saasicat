@@ -90,6 +90,9 @@ _Tested by:_
     - the sources contain coded throw sites at all
     - every throw site supplies the placeholders its message template names
     - all throw sites for one code agree on their params key names
+- `packages/nest/tests/feature-guard.test.js`
+    - StaticFeatureGuard — FEATURE_NOT_LICENSED body
+        - emits the full FeatureNotLicensedBody with empty offers
 
 <!-- END proof -->
 

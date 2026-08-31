@@ -249,25 +249,10 @@ _Source:_ `docs/explanation/capability-to-contract.md`
 _Tested by:_
 
 - `packages/nest/tests/discovery-scanner.test.js`
-    - returns the same hash for identical inputs
-    - ignores scannedAt and app.version (stability across boot restarts)
-    - is sort-order independent for object keys
-    - returns different hashes for different capability sets
-    - aggregates capabilities with the same feature into a DiscoveredFeature
-    - capabilities without a feature do not end up in feature aggregates
-    - snapshot contains no bundles field (bundles only from SuperAdmin UI)
-    - reads @DefinesQuota at the class level
-    - cross-references @EnforceQuota on capabilities with the quota
-    - multiple declaration of the same capability: first wins
-    - app info is carried into the snapshot
-    - default app info when nothing is injected
-    - rebuildSnapshot overwrites the cache
-    - capability without requires/replaces carries null (default)
-    - requires/replaces are deduplicated + sorted through
-    - feature aggregation: union of capability requires minus its own featureKey
-    - feature aggregation: replaces as union over the capabilities
-    - quota carries replaces from @DefinesQuota
-    - requires change changes the snapshot hash
+    - DiscoveryScanner — capability/feature aggregation
+        - aggregates capabilities with the same feature into a DiscoveredFeature
+        - capabilities without a feature do not end up in feature aggregates
+        - snapshot contains no bundles field (bundles only from SuperAdmin UI)
 
 <!-- END proof -->
 
@@ -497,6 +482,18 @@ and a developer refactor the code without repricing anything.
 
 _Source:_ `docs/explanation/concepts.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — capability/feature aggregation
+        - aggregates capabilities with the same feature into a DiscoveredFeature
+        - capabilities without a feature do not end up in feature aggregates
+        - snapshot contains no bundles field (bundles only from SuperAdmin UI)
+
+<!-- END proof -->
+
 ### SC-CAT-012 — A new declaration appears for review after the application restarts
 
 🟢 The scan happens when the application starts. An operator who cannot see a colleague's new
@@ -504,39 +501,23 @@ capability is waiting for a deployment, not looking in the wrong place.
 
 _Source:_ `docs/guides/wire-the-backend.md`
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/discovery-scanner.test.js`
-    - returns the same hash for identical inputs
-    - ignores scannedAt and app.version (stability across boot restarts)
-    - is sort-order independent for object keys
-    - returns different hashes for different capability sets
-    - aggregates capabilities with the same feature into a DiscoveredFeature
-    - capabilities without a feature do not end up in feature aggregates
-    - snapshot contains no bundles field (bundles only from SuperAdmin UI)
-    - reads @DefinesQuota at the class level
-    - cross-references @EnforceQuota on capabilities with the quota
-    - multiple declaration of the same capability: first wins
-    - app info is carried into the snapshot
-    - default app info when nothing is injected
-    - rebuildSnapshot overwrites the cache
-    - capability without requires/replaces carries null (default)
-    - requires/replaces are deduplicated + sorted through
-    - feature aggregation: union of capability requires minus its own featureKey
-    - feature aggregation: replaces as union over the capabilities
-    - quota carries replaces from @DefinesQuota
-    - requires change changes the snapshot hash
-
-<!-- END proof -->
-
 ### SC-CAT-013 — A quota key is named in exactly one place
 
 🟢 The declaration in code. It cannot be introduced in a configuration file, and it cannot contain a
 separator that would make it ambiguous where a plan lists it.
 
 _Source:_ release 0.2.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — Quotas
+        - reads @DefinesQuota at the class level
+        - cross-references @EnforceQuota on capabilities with the quota
+
+<!-- END proof -->
 
 ### SC-CAT-014 — An unsatisfied dependency between features is advice, not a refusal
 
@@ -547,12 +528,40 @@ is decidable.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — requires/replaces (#35/#39)
+        - capability without requires/replaces carries null (default)
+        - requires/replaces are deduplicated + sorted through
+        - feature aggregation: union of capability requires minus its own featureKey
+        - feature aggregation: replaces as union over the capabilities
+        - quota carries replaces from @DefinesQuota
+        - requires change changes the snapshot hash
+
+<!-- END proof -->
+
 ### SC-CAT-015 — A missing scan degrades the check, it does not stop the application
 
 🟢 Where the strictest setting is configured but nothing can be compared against, the installation
 warns loudly and keeps running. Crashing there once caused a production outage.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/discovery-scanner.test.js`
+    - DiscoveryScanner — edge cases
+        - multiple declaration of the same capability: first wins
+        - app info is carried into the snapshot
+        - default app info when nothing is injected
+        - rebuildSnapshot overwrites the cache
+
+<!-- END proof -->
 
 ### SC-CAT-016 — The check that runs before a deployment always blocks
 
@@ -587,37 +596,33 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/plan-versions-service.test.js`
-    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
-    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
-    - createPlanDraft: unknown plan → NotFound
-    - updatePlanDraft: changes features + quotas
-    - createPlanDraft: bundles default to [] when not provided
-    - createPlanDraft + updatePlanDraft: bundles are persisted
-    - updatePlanDraft: published version → UnprocessableEntity
-    - publishPlanVersion: first version → publishedAt + nonRegressive=true
-    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
-    - publishPlanVersion: second version sets previous to supersededAt
-    - publishPlanVersion: validFrom must be strictly after predecessor → 422
-    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
-    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
-    - publishPlanVersion: forceRegressive lets regressive version through
-    - getPlanVersion: NotFound for unknown ID
-    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
-    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
-    - discardPlanDraft: NotFound for unknown ID
-    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
-    - terminatePlanVersion: live version gets endsAt set
-    - terminatePlanVersion: idempotent — second call overwrites
-    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
-    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
-    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
-    - terminatePlanVersion: NotFound for unknown ID
-    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
-    - updatePlanDraft allows published-but-future version (latest, 0 subs)
-    - updatePlanDraft blocks published-but-future version with subscription
-    - updatePlanDraft blocks published version that is not latest-in-chain
-    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
-    - updatePlanDraft fail-closed without SubscriptionRepository
+    - PlanVersionsService — Lifecycle
+        - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+        - createPlanDraft: unknown plan → NotFound
+        - updatePlanDraft: changes features + quotas
+        - createPlanDraft: bundles default to [] when not provided
+        - createPlanDraft + updatePlanDraft: bundles are persisted
+        - updatePlanDraft: published version → UnprocessableEntity
+        - publishPlanVersion: first version → publishedAt + nonRegressive=true
+        - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+        - publishPlanVersion: second version sets previous to supersededAt
+        - publishPlanVersion: validFrom must be strictly after predecessor → 422
+        - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+        - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+        - publishPlanVersion: forceRegressive lets regressive version through
+        - getPlanVersion: NotFound for unknown ID
+        - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+        - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+        - discardPlanDraft: NotFound for unknown ID
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - terminatePlanVersion: live version gets endsAt set
+        - terminatePlanVersion: idempotent — second call overwrites
+        - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+        - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+        - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+        - terminatePlanVersion: NotFound for unknown ID
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
 
 <!-- END proof -->
 
@@ -633,37 +638,33 @@ _Source:_ `docs/explanation/data-model.md`
 _Tested by:_
 
 - `packages/nest/tests/plan-versions-service.test.js`
-    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
-    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
-    - createPlanDraft: unknown plan → NotFound
-    - updatePlanDraft: changes features + quotas
-    - createPlanDraft: bundles default to [] when not provided
-    - createPlanDraft + updatePlanDraft: bundles are persisted
-    - updatePlanDraft: published version → UnprocessableEntity
-    - publishPlanVersion: first version → publishedAt + nonRegressive=true
-    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
-    - publishPlanVersion: second version sets previous to supersededAt
-    - publishPlanVersion: validFrom must be strictly after predecessor → 422
-    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
-    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
-    - publishPlanVersion: forceRegressive lets regressive version through
-    - getPlanVersion: NotFound for unknown ID
-    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
-    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
-    - discardPlanDraft: NotFound for unknown ID
-    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
-    - terminatePlanVersion: live version gets endsAt set
-    - terminatePlanVersion: idempotent — second call overwrites
-    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
-    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
-    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
-    - terminatePlanVersion: NotFound for unknown ID
-    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
-    - updatePlanDraft allows published-but-future version (latest, 0 subs)
-    - updatePlanDraft blocks published-but-future version with subscription
-    - updatePlanDraft blocks published version that is not latest-in-chain
-    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
-    - updatePlanDraft fail-closed without SubscriptionRepository
+    - PlanVersionsService — Lifecycle
+        - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+        - createPlanDraft: unknown plan → NotFound
+        - updatePlanDraft: changes features + quotas
+        - createPlanDraft: bundles default to [] when not provided
+        - createPlanDraft + updatePlanDraft: bundles are persisted
+        - updatePlanDraft: published version → UnprocessableEntity
+        - publishPlanVersion: first version → publishedAt + nonRegressive=true
+        - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+        - publishPlanVersion: second version sets previous to supersededAt
+        - publishPlanVersion: validFrom must be strictly after predecessor → 422
+        - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+        - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+        - publishPlanVersion: forceRegressive lets regressive version through
+        - getPlanVersion: NotFound for unknown ID
+        - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+        - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+        - discardPlanDraft: NotFound for unknown ID
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - terminatePlanVersion: live version gets endsAt set
+        - terminatePlanVersion: idempotent — second call overwrites
+        - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+        - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+        - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+        - terminatePlanVersion: NotFound for unknown ID
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
 
 <!-- END proof -->
 
@@ -688,37 +689,33 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/plan-versions-service.test.js`
-    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
-    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
-    - createPlanDraft: unknown plan → NotFound
-    - updatePlanDraft: changes features + quotas
-    - createPlanDraft: bundles default to [] when not provided
-    - createPlanDraft + updatePlanDraft: bundles are persisted
-    - updatePlanDraft: published version → UnprocessableEntity
-    - publishPlanVersion: first version → publishedAt + nonRegressive=true
-    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
-    - publishPlanVersion: second version sets previous to supersededAt
-    - publishPlanVersion: validFrom must be strictly after predecessor → 422
-    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
-    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
-    - publishPlanVersion: forceRegressive lets regressive version through
-    - getPlanVersion: NotFound for unknown ID
-    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
-    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
-    - discardPlanDraft: NotFound for unknown ID
-    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
-    - terminatePlanVersion: live version gets endsAt set
-    - terminatePlanVersion: idempotent — second call overwrites
-    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
-    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
-    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
-    - terminatePlanVersion: NotFound for unknown ID
-    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
-    - updatePlanDraft allows published-but-future version (latest, 0 subs)
-    - updatePlanDraft blocks published-but-future version with subscription
-    - updatePlanDraft blocks published version that is not latest-in-chain
-    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
-    - updatePlanDraft fail-closed without SubscriptionRepository
+    - PlanVersionsService — Lifecycle
+        - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+        - createPlanDraft: unknown plan → NotFound
+        - updatePlanDraft: changes features + quotas
+        - createPlanDraft: bundles default to [] when not provided
+        - createPlanDraft + updatePlanDraft: bundles are persisted
+        - updatePlanDraft: published version → UnprocessableEntity
+        - publishPlanVersion: first version → publishedAt + nonRegressive=true
+        - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+        - publishPlanVersion: second version sets previous to supersededAt
+        - publishPlanVersion: validFrom must be strictly after predecessor → 422
+        - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+        - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+        - publishPlanVersion: forceRegressive lets regressive version through
+        - getPlanVersion: NotFound for unknown ID
+        - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+        - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+        - discardPlanDraft: NotFound for unknown ID
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - terminatePlanVersion: live version gets endsAt set
+        - terminatePlanVersion: idempotent — second call overwrites
+        - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+        - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+        - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+        - terminatePlanVersion: NotFound for unknown ID
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
 
 <!-- END proof -->
 
@@ -728,6 +725,20 @@ _Tested by:_
 the assumption that it is unsold.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - PlanVersionsService — published-but-future editing (Pack 2c)
+        - updatePlanDraft allows published-but-future version (latest, 0 subs)
+        - updatePlanDraft blocks published-but-future version with subscription
+        - updatePlanDraft blocks published version that is not latest-in-chain
+        - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
+        - updatePlanDraft fail-closed without SubscriptionRepository
+
+<!-- END proof -->
 
 ### SC-PLAN-007 — Publishing says what changed
 
@@ -821,6 +832,20 @@ _Source:_ `docs/reference/error-codes.md`
 🟢 Ending a version stops new bookings on it. It does not move anybody who is already on it.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - PlanVersionsService — published-but-future editing (Pack 2c)
+        - updatePlanDraft allows published-but-future version (latest, 0 subs)
+        - updatePlanDraft blocks published-but-future version with subscription
+        - updatePlanDraft blocks published version that is not latest-in-chain
+        - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
+        - updatePlanDraft fail-closed without SubscriptionRepository
+
+<!-- END proof -->
 
 ### SC-PLAN-017 — Publishing happens in the administration, never in a seed
 
@@ -1127,6 +1152,20 @@ confirmation later shows the right amount.
 
 _Source:_ #234
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - the price a booking is billed at
+        - follows the rhythm the booking was made in
+        - a monthly booking beside a yearly plan is billed monthly
+        - a booking from before the rhythm was recorded takes the plan’s
+        - a plan-specific override is what the tenant on that plan is billed
+        - a booking whose version has vanished reports no price rather than a wrong one
+
+<!-- END proof -->
+
 ### SC-BUN-007 — An add-on with no price in the chosen rhythm is shown as unavailable
 
 🟢 Rather than as a button the server will refuse.
@@ -1137,6 +1176,13 @@ _Source:_ #234
 
 _Tested by:_
 
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - the prices a store is shown
+        - are resolved for the plan, in both rhythms
+        - carry an override the public catalogue cannot know about
+        - a bundle sold in one rhythm only says so for the other
+        - an id nobody knows is left out rather than answered with nulls
+        - asking for nothing costs nothing
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - a tenant books a bundle
         - on a running plan it gets a window on the plan’s day
@@ -1157,6 +1203,9 @@ _Source:_ #239
 
 _Tested by:_
 
+- `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
+    - a commitment an operator did configure
+        - binds inside it, and still cannot outlast the plan
 - `packages/nest/tests/subscription-bundles-service.test.js`
     - SubscriptionBundlesService — addBundleToSubscription
         - a booking commits the tenant to nothing unless somebody says so
@@ -1194,12 +1243,20 @@ _Tested by:_
         - a minimum term still outranks the period when it runs longer
         - and the parent’s end still caps both
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
-    - commits to nothing and runs to the plan’s billing day
-    - cancelling lands at the end of the period it is in
-    - cancelling on the last day of the period still lands on that day
-    - commits to nothing and ends with the plan period that pays for it
-    - cancelling lands at that same end, not a year after the booking
-    - binds inside it, and still cannot outlast the plan
+    - a monthly add-on beside a yearly plan
+        - commits to nothing and runs to the plan’s billing day
+        - cancelling lands at the end of the period it is in
+        - cancelling on the last day of the period still lands on that day
+    - a yearly add-on beside a yearly plan
+        - commits to nothing and ends with the plan period that pays for it
+        - cancelling lands at that same end, not a year after the booking
+- `packages/nest/tests/an-add-on-has-no-notice-period.test.js`
+    - cancelling an add-on
+        - on the last day of the period still ends with that period
+        - on the first day of the period ends with the same period
+        - a minimum term still binds, because that is what was committed to
+        - and the plan ending first caps it, because the add-on cannot outlive it
+        - a booking with no period of its own ends when it was declared
 - `packages/nest/tests/subscription-bundle-preview.test.js`
     - SubscriptionBundlePreviewService — previewCancel
         - effectiveAt = period end when minimum term expired
@@ -1233,12 +1290,10 @@ _Tested by:_
         - a minimum term still outranks the period when it runs longer
         - and the parent’s end still caps both
 - `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
-    - commits to nothing and runs to the plan’s billing day
-    - cancelling lands at the end of the period it is in
-    - cancelling on the last day of the period still lands on that day
-    - commits to nothing and ends with the plan period that pays for it
-    - cancelling lands at that same end, not a year after the booking
-    - binds inside it, and still cannot outlast the plan
+    - a monthly add-on beside a yearly plan
+        - commits to nothing and runs to the plan’s billing day
+        - cancelling lands at the end of the period it is in
+        - cancelling on the last day of the period still lands on that day
 - `packages/nest/tests/subscription-bundle-preview.test.js`
     - a bundle billed in its own rhythm
         - a monthly bundle on a yearly plan is quoted monthly, over its own month
@@ -1270,13 +1325,15 @@ _Source:_ #230 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/an-add-on-has-no-notice-period.test.js`
-    - no source file on that path names anything that carries one
-    - the effective date is decided from the booking alone
-    - on the last day of the period still ends with that period
-    - on the first day of the period ends with the same period
-    - a minimum term still binds, because that is what was committed to
-    - and the plan ending first caps it, because the add-on cannot outlive it
-    - a booking with no period of its own ends when it was declared
+    - the bundle path does not consult a notice period
+        - no source file on that path names anything that carries one
+        - the effective date is decided from the booking alone
+    - cancelling an add-on
+        - on the last day of the period still ends with that period
+        - on the first day of the period ends with the same period
+        - a minimum term still binds, because that is what was committed to
+        - and the plan ending first caps it, because the add-on cannot outlive it
+        - a booking with no period of its own ends when it was declared
 
 <!-- END proof -->
 
@@ -1303,6 +1360,9 @@ _Tested by:_
     - a consumer without the bundle module is not blocked by bookings it cannot have
     - moving to a LONGER cycle with a monthly add-on is fine
     - the date falls back to the minimum term where no period is stored
+- `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
+    - a commitment an operator did configure
+        - binds inside it, and still cannot outlast the plan
 - `packages/nest/tests/the-till-closes-with-the-subscription.test.js`
     - what a bundle may commit to
         - never past the parent, when the parent ends first
@@ -1457,20 +1517,12 @@ _Source:_ #234
 _Tested by:_
 
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
-    - follows the rhythm the booking was made in
-    - a monthly booking beside a yearly plan is billed monthly
-    - a booking from before the rhythm was recorded takes the plan’s
-    - a plan-specific override is what the tenant on that plan is billed
-    - a booking whose version has vanished reports no price rather than a wrong one
-    - are resolved for the plan, in both rhythms
-    - carry an override the public catalogue cannot know about
-    - a bundle sold in one rhythm only says so for the other
-    - an id nobody knows is left out rather than answered with nulls
-    - asking for nothing costs nothing
-    - a draft is not priced, because it was never on offer
-    - a superseded version is not priced either
-    - a live version among dead ones still answers
-    - is not priced, though its version is still live
+    - the price a booking is billed at
+        - follows the rhythm the booking was made in
+        - a monthly booking beside a yearly plan is billed monthly
+        - a booking from before the rhythm was recorded takes the plan’s
+        - a plan-specific override is what the tenant on that plan is billed
+        - a booking whose version has vanished reports no price rather than a wrong one
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - an operator publishes a bundle
         - a base price is enough
@@ -1579,6 +1631,13 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - which bundles a tenant may ask the price of
+        - a draft is not priced, because it was never on offer
+        - a superseded version is not priced either
+        - a live version among dead ones still answers
+    - a bundle the operator retired
+        - is not priced, though its version is still live
 - `packages/nest/tests/bundles-service.test.js`
     - BundlesService — Version lifecycle
         - createBundleDraft creates v1 with baseVersionId=null
@@ -1610,6 +1669,9 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - a bundle the operator retired
+        - is not priced, though its version is still live
 - `packages/nest/tests/bundles-service.test.js`
     - BundlesService — Version lifecycle
         - createBundleDraft creates v1 with baseVersionId=null
@@ -1897,6 +1959,17 @@ operator configures one for an add-on.
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - when the term and the period disagree
+        - the later of the two decides
+        - a subscription with no term at all falls back to the period
+
+<!-- END proof -->
+
 ### SC-SUB-003 — A term renews by itself unless it was cancelled first
 
 🟢 The commitment renews with the period, because the commitment is the period.
@@ -1918,26 +1991,27 @@ _Source:_ #220 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
-    - comes back to the 31st after February
-    - and without an anchor it never comes back — the case this exists for
-    - is billed on the 30th in a 31-day month
-    - and on the 28th in February, then back to the 30th
-    - is billed on the 28th in ordinary years and the 29th when one comes round
-    - keeps the anchor across every step it takes
-    - and reaches the anchor day itself where the month is long enough
-    - and an explicit anchor overrides the start it was given
-    - rolls back onto the day the customer is billed on
-    - and without a stored anchor keeps the day it landed on
-    - is billed on that day in every month, long or short
-    - and the first of the month is not confused with the last of the one before
-    - stays on the 31st, because the month is the same one every year
-    - and the day the customer is billed on moves with it
-    - ${impossible} is treated as absent, not as a day
-    - while a possible one is used
-    - buys the period the customer is billed for, to its day
-    - and without a stored anchor keeps the old, shorter answer
-    - while an on-time cancellation does not reach the step at all
-    - is treated as absent for the whole walk, not for each step
+    - a subscription billed on the 31st
+        - comes back to the 31st after February
+        - and without an anchor it never comes back — the case this exists for
+    - a subscription billed on the 30th
+        - is billed on the 30th in a 31-day month
+        - and on the 28th in February, then back to the 30th
+    - a yearly subscription starting on a leap day
+        - is billed on the 28th in ordinary years and the 29th when one comes round
+    - a renewal that has already been through a February
+        - rolls back onto the day the customer is billed on
+        - and without a stored anchor keeps the day it landed on
+    - a yearly subscription billed on the 31st
+        - stays on the 31st, because the month is the same one every year
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - a period boundary on a month end stays on a month end
+        - 31 January plus a month is the end of February
+        - and in a leap year, the 29th
+        - 31 March plus a month is 30 April
+        - 29 February plus a year is 28 February
+        - a day that exists in both months is untouched
+        - December rolls into the next year
 
 <!-- END proof -->
 
@@ -1952,26 +2026,23 @@ _Source:_ #220
 _Tested by:_
 
 - `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
-    - comes back to the 31st after February
-    - and without an anchor it never comes back — the case this exists for
-    - is billed on the 30th in a 31-day month
-    - and on the 28th in February, then back to the 30th
-    - is billed on the 28th in ordinary years and the 29th when one comes round
-    - keeps the anchor across every step it takes
-    - and reaches the anchor day itself where the month is long enough
-    - and an explicit anchor overrides the start it was given
-    - rolls back onto the day the customer is billed on
-    - and without a stored anchor keeps the day it landed on
-    - is billed on that day in every month, long or short
-    - and the first of the month is not confused with the last of the one before
-    - stays on the 31st, because the month is the same one every year
-    - and the day the customer is billed on moves with it
-    - ${impossible} is treated as absent, not as a day
-    - while a possible one is used
-    - buys the period the customer is billed for, to its day
-    - and without a stored anchor keeps the old, shorter answer
-    - while an on-time cancellation does not reach the step at all
-    - is treated as absent for the whole walk, not for each step
+    - iterating to the next boundary
+        - keeps the anchor across every step it takes
+        - and reaches the anchor day itself where the month is long enough
+        - and an explicit anchor overrides the start it was given
+    - a renewal that has already been through a February
+        - rolls back onto the day the customer is billed on
+        - and without a stored anchor keeps the day it landed on
+    - a subscription billed on an ordinary day
+        - is billed on that day in every month, long or short
+        - and the first of the month is not confused with the last of the one before
+    - a plan change reopens the window
+        - and the day the customer is billed on moves with it
+    - an anchor that cannot be a day of a month
+        - ${impossible} is treated as absent, not as a day
+        - while a possible one is used
+    - an impossible anchor handed to the iteration
+        - is treated as absent for the whole walk, not for each step
 
 <!-- END proof -->
 
@@ -2020,17 +2091,51 @@ a status check placed one line too early would refuse it.
 
 _Source:_ #218
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a tenant whose payment failed
+        - can still cancel, and lands at the same date as anybody else
+
+<!-- END proof -->
+
 ### SC-SUB-010 — A subscription that has ended can no longer change plan
 
 🟢 Nor complete onboarding, accept a pending version, or book an add-on.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - activating a subscription that has already ended
+        - is refused on the atomic path, which is the preferred one
+        - while a running subscription is activated as before
+        - and the write carries what the route read, so a late cancellation wins
+
+<!-- END proof -->
+
 ### SC-SUB-011 — A subscription with nothing left to run is recorded as ended
 
 🟢 Rather than left looking active for good, because nothing downstream would ever have moved it.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - activating a subscription that has already ended
+        - is refused on the atomic path, which is the preferred one
+        - while a running subscription is activated as before
+        - and the write carries what the route read, so a late cancellation wins
+
+<!-- END proof -->
 
 ### SC-SUB-012 — A new version of a plan does not move a customer who already bought one
 
@@ -2039,6 +2144,18 @@ next renewal; one that takes something away only takes effect if the tenant acce
 otherwise dropped when its date arrives.
 
 _Source:_ release 1.0.0-rc.6 · `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a plan version published before the customer left
+        - does not roll onto a subscription whose term is over
+        - while a cancellation still to come stops nothing
+        - and an uncancelled subscription rolls as before
+
+<!-- END proof -->
 
 ### SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
 
@@ -2051,24 +2168,14 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
-    - refuses a plan change instead of charging for one
-    - while a running one still changes plans
-    - lets the plan change, and does not sell a term it cuts short
-    - while an uncancelled subscription does get a fresh term
-    - the preview says so before the reader has decided anything
-    - and an ended subscription is refused outright, not merely locked
-    - and says nothing when the cycle stays
-    - is refused, because the ending was calculated in the old rhythm
-    - while the plan still moves on the cycle it was sold in
-    - and an uncancelled subscription may change cycle freely
-    - the immediate change is refused rather than written over it
-    - and so is the scheduled one
-    - while an unchanged subscription is written as decided
-    - is refused rather than written a moment late
-    - the second one reports the first one rather than replacing it
-    - is declined once the cancellation has taken effect
-    - but a cancellation still to come declines nothing
-    - and an uncancelled subscription is applied as before
+    - a subscription that has ended
+        - refuses a plan change instead of charging for one
+        - while a running one still changes plans
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a plan version published before the customer left
+        - does not roll onto a subscription whose term is over
+        - while a cancellation still to come stops nothing
+        - and an uncancelled subscription rolls as before
 
 <!-- END proof -->
 
@@ -2077,6 +2184,17 @@ _Tested by:_
 🟢 And accepting one when none is pending is refused rather than silently accepted.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - accepting a version after the subscription ended
+        - is refused rather than recorded against a dead contract
+        - while a running subscription accepts as before
+
+<!-- END proof -->
 
 ### SC-SUB-015 — A scheduled change that comes due after the customer has left is declined and recorded
 
@@ -2088,6 +2206,15 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - a change scheduled before the customer cancelled
+        - is declined once the cancellation has taken effect
+        - but a cancellation still to come declines nothing
+        - and an uncancelled subscription is applied as before
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - accepting a version after the subscription ended
+        - is refused rather than recorded against a dead contract
+        - while a running subscription accepts as before
 - `packages/nest/tests/pending-plan-materialization.test.js`
     - materializes all due pending plan changes and invalidates each tenant
     - defaults to MONTHLY cycle when pendingBillingCycle is null
@@ -2121,17 +2248,9 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - the matrix is complete
-    - ${label} takes effect ${expected ?
-    - the matrix asks more of a trial than of a term
-    - on trial, ${label} takes effect ${expected ?
-    - a yearly customer choosing a monthly higher plan is told why it waits
-    - the same upgrade on the same cycle happens now and says nothing
-    - a cheaper target after a price cut is free rather than a credit
-    - an ordinary upgrade still costs what it costs
-    - a change that costs exactly nothing is not a free upgrade
-    - the later of period end and minimum term is the effective date
-    - without a commitment the period end still decides
+    - an immediate change may not shorten the term
+        - the matrix is complete
+        - ${label} takes effect ${expected ?
 
 <!-- END proof -->
 
@@ -2147,18 +2266,13 @@ _Source:_ #212
 
 _Tested by:_
 
+- `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
+    - a plan change reopens the window
+        - and the day the customer is billed on moves with it
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - the matrix is complete
-    - ${label} takes effect ${expected ?
-    - the matrix asks more of a trial than of a term
-    - on trial, ${label} takes effect ${expected ?
-    - a yearly customer choosing a monthly higher plan is told why it waits
-    - the same upgrade on the same cycle happens now and says nothing
-    - a cheaper target after a price cut is free rather than a credit
-    - an ordinary upgrade still costs what it costs
-    - a change that costs exactly nothing is not a free upgrade
-    - the later of period end and minimum term is the effective date
-    - without a commitment the period end still decides
+    - an immediate change may not shorten the term
+        - the matrix is complete
+        - ${label} takes effect ${expected ?
 
 <!-- END proof -->
 
@@ -2168,6 +2282,17 @@ _Tested by:_
 the yearly term they are inside. It is offered later rather than refused.
 
 _Source:_ #212 · `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - the deferred upgrade explains itself
+        - a yearly customer choosing a monthly higher plan is told why it waits
+        - the same upgrade on the same cycle happens now and says nothing
+
+<!-- END proof -->
 
 ### SC-CHG-005 — A downgrade takes effect at the end of the term
 
@@ -2180,17 +2305,9 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - the matrix is complete
-    - ${label} takes effect ${expected ?
-    - the matrix asks more of a trial than of a term
-    - on trial, ${label} takes effect ${expected ?
-    - a yearly customer choosing a monthly higher plan is told why it waits
-    - the same upgrade on the same cycle happens now and says nothing
-    - a cheaper target after a price cut is free rather than a credit
-    - an ordinary upgrade still costs what it costs
-    - a change that costs exactly nothing is not a free upgrade
-    - the later of period end and minimum term is the effective date
-    - without a commitment the period end still decides
+    - a deferred change waits for the commitment, not just the period
+        - the later of period end and minimum term is the effective date
+        - without a commitment the period end still decides
 
 <!-- END proof -->
 
@@ -2205,6 +2322,10 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a deferred change waits for the commitment, not just the period
+        - the later of period end and minimum term is the effective date
+        - without a commitment the period end still decides
 - `packages/nest/tests/pending-plan-materialization.test.js`
     - materializes all due pending plan changes and invalidates each tenant
     - defaults to MONTHLY cycle when pendingBillingCycle is null
@@ -2226,6 +2347,17 @@ something they did not read, and a line among the warnings is exactly where a re
 look. An acknowledgement of one date is not an acknowledgement of the next one.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - the deferred upgrade explains itself
+        - a yearly customer choosing a monthly higher plan is told why it waits
+        - the same upgrade on the same cycle happens now and says nothing
+
+<!-- END proof -->
 
 ### SC-CHG-009 — The date the tenant was shown is the date the change is made on
 
@@ -2253,24 +2385,12 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
-    - refuses a plan change instead of charging for one
-    - while a running one still changes plans
-    - lets the plan change, and does not sell a term it cuts short
-    - while an uncancelled subscription does get a fresh term
-    - the preview says so before the reader has decided anything
-    - and an ended subscription is refused outright, not merely locked
-    - and says nothing when the cycle stays
-    - is refused, because the ending was calculated in the old rhythm
-    - while the plan still moves on the cycle it was sold in
-    - and an uncancelled subscription may change cycle freely
-    - the immediate change is refused rather than written over it
-    - and so is the scheduled one
-    - while an unchanged subscription is written as decided
-    - is refused rather than written a moment late
-    - the second one reports the first one rather than replacing it
-    - is declined once the cancellation has taken effect
-    - but a cancellation still to come declines nothing
-    - and an uncancelled subscription is applied as before
+    - a cancellation arriving while a plan change is being decided
+        - the immediate change is refused rather than written over it
+        - and so is the scheduled one
+        - while an unchanged subscription is written as decided
+    - a boundary that passes while the request is being decided
+        - is refused rather than written a moment late
 
 <!-- END proof -->
 
@@ -2302,24 +2422,20 @@ _Source:_ #219 · release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
-    - refuses a plan change instead of charging for one
-    - while a running one still changes plans
-    - lets the plan change, and does not sell a term it cuts short
-    - while an uncancelled subscription does get a fresh term
-    - the preview says so before the reader has decided anything
-    - and an ended subscription is refused outright, not merely locked
-    - and says nothing when the cycle stays
-    - is refused, because the ending was calculated in the old rhythm
-    - while the plan still moves on the cycle it was sold in
-    - and an uncancelled subscription may change cycle freely
-    - the immediate change is refused rather than written over it
-    - and so is the scheduled one
-    - while an unchanged subscription is written as decided
-    - is refused rather than written a moment late
-    - the second one reports the first one rather than replacing it
-    - is declined once the cancellation has taken effect
-    - but a cancellation still to come declines nothing
-    - and an uncancelled subscription is applied as before
+    - a subscription that has ended
+        - refuses a plan change instead of charging for one
+        - while a running one still changes plans
+    - a cancellation still to come
+        - lets the plan change, and does not sell a term it cuts short
+        - while an uncancelled subscription does get a fresh term
+    - a change scheduled before the customer cancelled
+        - is declined once the cancellation has taken effect
+        - but a cancellation still to come declines nothing
+        - and an uncancelled subscription is applied as before
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a change and a cancellation on the same day
+        - the ending wins, exactly at the moment they meet
+        - and a minute earlier the change still happens
 
 <!-- END proof -->
 
@@ -2329,6 +2445,21 @@ _Tested by:_
 was calculated in.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - a cycle change while a cancellation is outstanding
+        - the preview says so before the reader has decided anything
+        - and an ended subscription is refused outright, not merely locked
+        - and says nothing when the cycle stays
+        - is refused, because the ending was calculated in the old rhythm
+        - while the plan still moves on the cycle it was sold in
+        - and an uncancelled subscription may change cycle freely
+
+<!-- END proof -->
 
 ### SC-CHG-016 — A plan cannot be changed while onboarding is still running
 
@@ -2364,34 +2495,6 @@ not leave.
 
 _Source:_ #212
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
-    - a cancellation lands at the end of the term
-    - the last day of the term is still in time
-    - before the window closes, nothing changes
-    - on the deadline itself, still in time
-    - one second later, a whole period later
-    - a monthly term moves by a month, not by a year
-    - the later of the two decides
-    - a subscription with no term at all falls back to the period
-    - a term already past lands the cancellation now
-    - no dates at all is the same answer
-    - 31 January plus a month is the end of February
-    - and in a leap year, the 29th
-    - 31 March plus a month is 30 April
-    - 29 February plus a year is 28 February
-    - a day that exists in both months is untouched
-    - December rolls into the next year
-    - the cancellation lands when the trial does
-    - a notice period does not buy a billing cycle
-    - and a paid term five days out still does
-    - a trial with no dates at all still lands now
-
-<!-- END proof -->
-
 ### SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
 
 🟢 They coincide unless a notice period has pushed one past the other.
@@ -2403,26 +2506,12 @@ _Source:_ #212
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
-    - a cancellation lands at the end of the term
-    - the last day of the term is still in time
-    - before the window closes, nothing changes
-    - on the deadline itself, still in time
-    - one second later, a whole period later
-    - a monthly term moves by a month, not by a year
-    - the later of the two decides
-    - a subscription with no term at all falls back to the period
-    - a term already past lands the cancellation now
-    - no dates at all is the same answer
-    - 31 January plus a month is the end of February
-    - and in a leap year, the 29th
-    - 31 March plus a month is 30 April
-    - 29 February plus a year is 28 February
-    - a day that exists in both months is untouched
-    - December rolls into the next year
-    - the cancellation lands when the trial does
-    - a notice period does not buy a billing cycle
-    - and a paid term five days out still does
-    - a trial with no dates at all still lands now
+    - with no notice period, which is the default
+        - a cancellation lands at the end of the term
+        - the last day of the term is still in time
+    - when the term and the period disagree
+        - the later of the two decides
+        - a subscription with no term at all falls back to the period
 
 <!-- END proof -->
 
@@ -2444,17 +2533,21 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - when nothing is left to run
+        - a term already past lands the cancellation now
+        - no dates at all is the same answer
 - `packages/nest/tests/a-cancellation-writes-what-it-decided.test.js`
-    - ends the subscription instead of leaving it active
-    - and the date it lands on is the declaration itself
-    - is not refused for having read the clock a moment earlier
-    - but a date still in the future is refused
-    - leaves the subscription running
-    - and does not touch the commitment
-    - still reports when it lands
-    - and an uncancelled subscription still reports nothing
-    - extends the stored commitment to the period it bought
-    - so a plan change cannot be scheduled inside that period
+    - a cancellation with nothing left to run
+        - ends the subscription instead of leaving it active
+        - and the date it lands on is the declaration itself
+- `packages/nest/tests/a-contract-ends-when-the-subscription-does.test.js`
+    - a cancellation that lands at once
+        - ends the contract now, status and all
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a tenant still waiting on sales
+        - cancels immediately, because nothing was ever committed
+        - and one that did get a period keeps it
 
 <!-- END proof -->
 
@@ -2472,22 +2565,10 @@ _Source:_ #212 · #217
 
 _Tested by:_
 
-- `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
-    - declaring on ${declaredOn} still buys 60 days
-    - and it lands on a billing boundary, not sixty days from today
-    - the anchor survives the extra steps
-    - the fallback day is read once, not at every step
-    - and a single step is unaffected, which is why this hid so long
-    - a stored anchor still wins over the fallback
-    - declared in time, it ends with the period
-    - declared too late, it ends one period on — which already serves it
-    - the deadline is a real date, reachable by declaring earlier
-    - no notice at all ends with the period, whenever it is declared
-    - a term already over ends now, not at a date in the past
-    - is served by one step, because a year of period covers it
-    - a monthly subscription is owed the monthly notice
-    - a yearly subscription is owed the yearly notice
-    - an explicit zero is a zero, not an absence
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - with no notice period, which is the default
+        - a cancellation lands at the end of the term
+        - the last day of the term is still in time
 
 <!-- END proof -->
 
@@ -2507,21 +2588,10 @@ _Source:_ #230 · #217 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
-    - declaring on ${declaredOn} still buys 60 days
-    - and it lands on a billing boundary, not sixty days from today
-    - the anchor survives the extra steps
-    - the fallback day is read once, not at every step
-    - and a single step is unaffected, which is why this hid so long
-    - a stored anchor still wins over the fallback
-    - declared in time, it ends with the period
-    - declared too late, it ends one period on — which already serves it
-    - the deadline is a real date, reachable by declaring earlier
-    - no notice at all ends with the period, whenever it is declared
-    - a term already over ends now, not at a date in the past
-    - is served by one step, because a year of period covers it
-    - a monthly subscription is owed the monthly notice
-    - a yearly subscription is owed the yearly notice
-    - an explicit zero is a zero, not an absence
+    - which of the two numbers applies
+        - a monthly subscription is owed the monthly notice
+        - a yearly subscription is owed the yearly notice
+        - an explicit zero is a zero, not an absence
 
 <!-- END proof -->
 
@@ -2537,21 +2607,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
-    - declaring on ${declaredOn} still buys 60 days
-    - and it lands on a billing boundary, not sixty days from today
-    - the anchor survives the extra steps
-    - the fallback day is read once, not at every step
-    - and a single step is unaffected, which is why this hid so long
-    - a stored anchor still wins over the fallback
-    - declared in time, it ends with the period
-    - declared too late, it ends one period on — which already serves it
-    - the deadline is a real date, reachable by declaring earlier
-    - no notice at all ends with the period, whenever it is declared
-    - a term already over ends now, not at a date in the past
-    - is served by one step, because a year of period covers it
-    - a monthly subscription is owed the monthly notice
-    - a yearly subscription is owed the yearly notice
-    - an explicit zero is a zero, not an absence
+    - which of the two numbers applies
+        - a monthly subscription is owed the monthly notice
+        - a yearly subscription is owed the yearly notice
+        - an explicit zero is a zero, not an absence
 
 <!-- END proof -->
 
@@ -2568,21 +2627,8 @@ _Source:_ #230 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
-    - declaring on ${declaredOn} still buys 60 days
-    - and it lands on a billing boundary, not sixty days from today
-    - the anchor survives the extra steps
-    - the fallback day is read once, not at every step
-    - and a single step is unaffected, which is why this hid so long
-    - a stored anchor still wins over the fallback
-    - declared in time, it ends with the period
-    - declared too late, it ends one period on — which already serves it
-    - the deadline is a real date, reachable by declaring earlier
-    - no notice at all ends with the period, whenever it is declared
-    - a term already over ends now, not at a date in the past
-    - is served by one step, because a year of period covers it
-    - a monthly subscription is owed the monthly notice
-    - a yearly subscription is owed the yearly notice
-    - an explicit zero is a zero, not an absence
+    - a year of notice on a yearly contract
+        - is served by one step, because a year of period covers it
 
 <!-- END proof -->
 
@@ -2597,27 +2643,28 @@ _Source:_ #212
 
 _Tested by:_
 
+- `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
+    - a cancellation that arrives after the notice window
+        - buys the period the customer is billed for, to its day
+        - and without a stored anchor keeps the old, shorter answer
+        - while an on-time cancellation does not reach the step at all
 - `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
-    - a cancellation lands at the end of the term
-    - the last day of the term is still in time
-    - before the window closes, nothing changes
-    - on the deadline itself, still in time
-    - one second later, a whole period later
-    - a monthly term moves by a month, not by a year
-    - the later of the two decides
-    - a subscription with no term at all falls back to the period
-    - a term already past lands the cancellation now
-    - no dates at all is the same answer
-    - 31 January plus a month is the end of February
-    - and in a leap year, the 29th
-    - 31 March plus a month is 30 April
-    - 29 February plus a year is 28 February
-    - a day that exists in both months is untouched
-    - December rolls into the next year
-    - the cancellation lands when the trial does
-    - a notice period does not buy a billing cycle
-    - and a paid term five days out still does
-    - a trial with no dates at all still lands now
+    - with a notice period configured
+        - before the window closes, nothing changes
+        - on the deadline itself, still in time
+        - one second later, a whole period later
+        - a monthly term moves by a month, not by a year
+- `packages/nest/tests/a-cancellation-writes-what-it-decided.test.js`
+    - a declaration made after the notice window closed
+        - extends the stored commitment to the period it bought
+        - so a plan change cannot be scheduled inside that period
+- `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
+    - a notice shorter than the period behaves as it always did
+        - declared in time, it ends with the period
+        - declared too late, it ends one period on — which already serves it
+        - the deadline is a real date, reachable by declaring earlier
+        - no notice at all ends with the period, whenever it is declared
+        - a term already over ends now, not at a date in the past
 
 <!-- END proof -->
 
@@ -2635,26 +2682,20 @@ _Source:_ #230
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
-    - a cancellation lands at the end of the term
-    - the last day of the term is still in time
-    - before the window closes, nothing changes
-    - on the deadline itself, still in time
-    - one second later, a whole period later
-    - a monthly term moves by a month, not by a year
-    - the later of the two decides
-    - a subscription with no term at all falls back to the period
-    - a term already past lands the cancellation now
-    - no dates at all is the same answer
-    - 31 January plus a month is the end of February
-    - and in a leap year, the 29th
-    - 31 March plus a month is 30 April
-    - 29 February plus a year is 28 February
-    - a day that exists in both months is untouched
-    - December rolls into the next year
-    - the cancellation lands when the trial does
-    - a notice period does not buy a billing cycle
-    - and a paid term five days out still does
-    - a trial with no dates at all still lands now
+    - with a notice period configured
+        - before the window closes, nothing changes
+        - on the deadline itself, still in time
+        - one second later, a whole period later
+        - a monthly term moves by a month, not by a year
+- `packages/nest/tests/a-notice-period-fits-its-cycle.test.js`
+    - a notice longer than the period is served, not approximated
+        - declaring on ${declaredOn} still buys 60 days
+        - and it lands on a billing boundary, not sixty days from today
+        - the anchor survives the extra steps
+    - a port that does not store the billing day
+        - the fallback day is read once, not at every step
+        - and a single step is unaffected, which is why this hid so long
+        - a stored anchor still wins over the fallback
 
 <!-- END proof -->
 
@@ -2670,16 +2711,12 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-writes-what-it-decided.test.js`
-    - ends the subscription instead of leaving it active
-    - and the date it lands on is the declaration itself
-    - is not refused for having read the clock a moment earlier
-    - but a date still in the future is refused
-    - leaves the subscription running
-    - and does not touch the commitment
-    - still reports when it lands
-    - and an uncancelled subscription still reports nothing
-    - extends the stored commitment to the period it bought
-    - so a plan change cannot be scheduled inside that period
+    - a cancellation inside a running term
+        - leaves the subscription running
+        - and does not touch the commitment
+    - a declaration made after the notice window closed
+        - extends the stored commitment to the period it bought
+        - so a plan change cannot be scheduled inside that period
 
 <!-- END proof -->
 
@@ -2696,12 +2733,12 @@ _Source:_ #212 · release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-declared-once.test.js`
-    - the second request writes nothing and returns the first answer
-    - a first cancellation still writes
-    - the date, and nothing it cannot know
-    - while a first cancellation explains itself in full
-    - stops the renewal
-    - and a repeat of it is recognised as one
+    - cancelling twice does not move the date
+        - the second request writes nothing and returns the first answer
+        - a first cancellation still writes
+- `packages/nest/tests/a-contract-ends-when-the-subscription-does.test.js`
+    - a cancellation that was already recorded
+        - is repaired on the next attempt rather than reported and left
 
 <!-- END proof -->
 
@@ -2716,13 +2753,9 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/a-cancellation-is-declared-once.test.js`
-    - the second request writes nothing and returns the first answer
-    - a first cancellation still writes
-    - the date, and nothing it cannot know
-    - while a first cancellation explains itself in full
-    - stops the renewal
-    - and a repeat of it is recognised as one
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - two declarations arriving at once
+        - the second one reports the first one rather than replacing it
 
 <!-- END proof -->
 
@@ -2738,12 +2771,16 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-is-declared-once.test.js`
-    - the second request writes nothing and returns the first answer
-    - a first cancellation still writes
-    - the date, and nothing it cannot know
-    - while a first cancellation explains itself in full
-    - stops the renewal
-    - and a repeat of it is recognised as one
+    - what a repeat may say about the first cancellation
+        - the date, and nothing it cannot know
+        - while a first cancellation explains itself in full
+    - a cancellation older than the fields that describe it
+        - stops the renewal
+        - and a repeat of it is recognised as one
+- `packages/nest/tests/a-cancellation-writes-what-it-decided.test.js`
+    - a cancellation older than the fields that describe it
+        - still reports when it lands
+        - and an uncancelled subscription still reports nothing
 
 <!-- END proof -->
 
@@ -2755,6 +2792,17 @@ have.
 
 _Source:_ #219
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-writes-what-it-decided.test.js`
+    - confirming a cancellation that lands immediately
+        - is not refused for having read the clock a moment earlier
+        - but a date still in the future is refused
+
+<!-- END proof -->
+
 ### SC-CANC-016 — A subscription is in one of three states, not two
 
 🟢 Running; running with a cancellation still to come; over. The middle one is the one that gets
@@ -2763,35 +2811,22 @@ effective moment on a timer rather than on the last render.
 
 _Source:_ #219 · release 1.0.0-rc.6
 
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
-    - can still cancel, and lands at the same date as anybody else
-    - cancels immediately, because nothing was ever committed
-    - and one that did get a period keeps it
-    - the ending wins, exactly at the moment they meet
-    - and a minute earlier the change still happens
-    - does not roll onto a subscription whose term is over
-    - while a cancellation still to come stops nothing
-    - and an uncancelled subscription rolls as before
-    - is refused on the atomic path, which is the preferred one
-    - while a running subscription is activated as before
-    - and the write carries what the route read, so a late cancellation wins
-    - is refused rather than recorded against a dead contract
-    - while a running subscription accepts as before
-    - the frozen contract is ended on the same date
-    - and a cancellation already recorded repairs its contract too
-    - and a consumer without contracts is unaffected
-
-<!-- END proof -->
-
 ### SC-CANC-017 — The period a cancellation lands in is stated before the tenant confirms it
 
 🟢 Not afterwards, and not on a receipt.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-writes-what-it-decided.test.js`
+    - confirming a cancellation that lands immediately
+        - is not refused for having read the clock a moment earlier
+        - but a date still in the future is refused
+
+<!-- END proof -->
 
 ### SC-CANC-018 — The agreed contract ends when the subscription does, not when the customer declares
 
@@ -2806,13 +2841,16 @@ _Source:_ #218 · release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-contract-ends-when-the-subscription-does.test.js`
-    - leaves the contract findable until that date
-    - and not one moment past it
-    - ends the contract now, status and all
-    - is not an error
-    - inherits the ending rather than starting open
-    - while a subscription with no ending freezes open, as before
-    - is repaired on the next attempt rather than reported and left
+    - a cancellation that lands at the end of the term
+        - leaves the contract findable until that date
+        - and not one moment past it
+    - a cancellation that lands at once
+        - ends the contract now, status and all
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - what else ends when the subscription does
+        - the frozen contract is ended on the same date
+        - and a cancellation already recorded repairs its contract too
+        - and a consumer without contracts is unaffected
 
 <!-- END proof -->
 
@@ -2828,16 +2866,12 @@ _Source:_ release 1.0.0-rc.6
 _Tested by:_
 
 - `packages/nest/tests/a-cancellation-writes-what-it-decided.test.js`
-    - ends the subscription instead of leaving it active
-    - and the date it lands on is the declaration itself
-    - is not refused for having read the clock a moment earlier
-    - but a date still in the future is refused
-    - leaves the subscription running
-    - and does not touch the commitment
-    - still reports when it lands
-    - and an uncancelled subscription still reports nothing
-    - extends the stored commitment to the period it bought
-    - so a plan change cannot be scheduled inside that period
+    - a cancellation inside a running term
+        - leaves the subscription running
+        - and does not touch the commitment
+- `packages/nest/tests/a-contract-ends-when-the-subscription-does.test.js`
+    - a tenant with no contract at all
+        - is not an error
 
 <!-- END proof -->
 
@@ -2854,6 +2888,17 @@ mode is a rule written for the ordinary case being applied to one of these.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a trial commits to nothing, so nothing is deferred to protect it
+        - the matrix asks more of a trial than of a term
+        - on trial, ${label} takes effect ${expected ?
+
+<!-- END proof -->
+
 ### SC-SPEC-002 — Cancelling during a trial ends the trial, and no sooner
 
 🟢 It lands when the trial does. Ending it on the spot would take the trial away as the price of
@@ -2862,11 +2907,37 @@ yearly-cycle trial bought a year.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - a trial has an end, not a term
+        - the cancellation lands when the trial does
+        - a notice period does not buy a billing cycle
+        - and a paid term five days out still does
+        - a trial with no dates at all still lands now
+
+<!-- END proof -->
+
 ### SC-SPEC-003 — A notice period never applies to a trial
 
 🟢 The window exists so a term cannot be left at the last moment, and a trial has no term to leave.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - a trial has an end, not a term
+        - the cancellation lands when the trial does
+        - a notice period does not buy a billing cycle
+        - and a paid term five days out still does
+        - a trial with no dates at all still lands now
+
+<!-- END proof -->
 
 ### SC-SPEC-004 — Switching plans during a trial carries the remaining trial time over
 
@@ -2907,6 +2978,17 @@ _Source:_ release 1.0.0-rc.6
 running to see out.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a tenant still waiting on sales
+        - cancels immediately, because nothing was ever committed
+        - and one that did get a period keeps it
+
+<!-- END proof -->
 
 ## 9. Prices, proration, tax and money
 
@@ -2971,13 +3053,11 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
-    - commits to nothing and runs to the plan’s billing day
-    - cancelling lands at the end of the period it is in
-    - cancelling on the last day of the period still lands on that day
-    - commits to nothing and ends with the plan period that pays for it
-    - cancelling lands at that same end, not a year after the booking
-    - binds inside it, and still cannot outlast the plan
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a prorated upgrade never asks for less than nothing
+        - a cheaper target after a price cut is free rather than a credit
+        - an ordinary upgrade still costs what it costs
+        - a change that costs exactly nothing is not a free upgrade
 
 <!-- END proof -->
 
@@ -2987,6 +3067,18 @@ _Tested by:_
 nothing because the two plans are priced alike, and somebody deciding is owed the difference.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a prorated upgrade never asks for less than nothing
+        - a cheaper target after a price cut is free rather than a credit
+        - an ordinary upgrade still costs what it costs
+        - a change that costs exactly nothing is not a free upgrade
+
+<!-- END proof -->
 
 ### SC-PRIC-005 — There is no proration during a trial
 
@@ -3179,30 +3271,16 @@ _Source:_ `README.md` · `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/feature-guard.test.js`
-    - lets routes without @RequireFeature pass unchecked
-    - @RequireFeature with an empty array passes unchecked
-    - lets the tenant through when the feature is active in the plan
-    - blocks with ForbiddenException when the feature is missing
-    - Logical OR: multiple features, one suffices (second matches)
-    - Logical OR: none match → Forbidden with all keys in the message
-    - Class-level annotation applies when the handler has none
-    - Handler annotation overrides class annotation
-    - SUPER_ADMIN bypasses the feature check
-    - SUPER_ADMIN via
-    - missing user → Forbidden (
-    - missing tenantId → Forbidden (
-    - tenantId from request.tenantId takes precedence over user.tenantId
-    - tenantContextRunner wraps the computeLimits call (RLS consumers)
-    - userRoleResolver allows a project-specific role source
-    - tenantIdResolver can fetch tenantId from an alternative field
-    - is a Symbol.for token (process-wide registry)
-    - structured 403 body: code, featureKey, featureKeys, offers, message
-    - Logical OR: featureKeys carries all required keys, featureKey the first
-    - Resolver error degrades to offers: [] instead of 500
-    - Resolver is not called for a licensed feature
-    - without a resolver: full body with empty offers
-    - emits the full FeatureNotLicensedBody with empty offers
-    - is a Symbol.for token (process-wide registry)
+    - FeatureGuard — annotation evaluation
+        - lets routes without @RequireFeature pass unchecked
+        - @RequireFeature with an empty array passes unchecked
+    - FeatureGuard — feature set matching
+        - lets the tenant through when the feature is active in the plan
+        - blocks with ForbiddenException when the feature is missing
+        - Logical OR: multiple features, one suffices (second matches)
+        - Logical OR: none match → Forbidden with all keys in the message
+        - Class-level annotation applies when the handler has none
+        - Handler annotation overrides class annotation
 
 <!-- END proof -->
 
@@ -3217,6 +3295,9 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/feature-guard.test.js`
+    - StaticFeatureGuard — FEATURE_NOT_LICENSED body
+        - emits the full FeatureNotLicensedBody with empty offers
 - `packages/nest/tests/limit-exceeded-filter.test.js`
     - responds with HTTP 402 + standard body shape
     - carries the quota dimension correctly from the exception
@@ -3251,38 +3332,10 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
-    - grants nothing once the cancellation has landed
-    - grants the configured floor instead, where one is configured
-    - while a cancellation still to come grants everything
-    - and an uncancelled subscription is unaffected
-    - is not served past the moment it ends
-    - and is still served inside its ordinary lifetime
 - `packages/nest/tests/feature-guard.test.js`
-    - lets routes without @RequireFeature pass unchecked
-    - @RequireFeature with an empty array passes unchecked
-    - lets the tenant through when the feature is active in the plan
-    - blocks with ForbiddenException when the feature is missing
-    - Logical OR: multiple features, one suffices (second matches)
-    - Logical OR: none match → Forbidden with all keys in the message
-    - Class-level annotation applies when the handler has none
-    - Handler annotation overrides class annotation
-    - SUPER_ADMIN bypasses the feature check
-    - SUPER_ADMIN via
-    - missing user → Forbidden (
-    - missing tenantId → Forbidden (
-    - tenantId from request.tenantId takes precedence over user.tenantId
-    - tenantContextRunner wraps the computeLimits call (RLS consumers)
-    - userRoleResolver allows a project-specific role source
-    - tenantIdResolver can fetch tenantId from an alternative field
-    - is a Symbol.for token (process-wide registry)
-    - structured 403 body: code, featureKey, featureKeys, offers, message
-    - Logical OR: featureKeys carries all required keys, featureKey the first
-    - Resolver error degrades to offers: [] instead of 500
-    - Resolver is not called for a licensed feature
-    - without a resolver: full body with empty offers
-    - emits the full FeatureNotLicensedBody with empty offers
-    - is a Symbol.for token (process-wide registry)
+    - FeatureGuard — annotation evaluation
+        - lets routes without @RequireFeature pass unchecked
+        - @RequireFeature with an empty array passes unchecked
 
 <!-- END proof -->
 
@@ -3299,6 +3352,18 @@ _Source:_ release 1.0.0-rc.6
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/feature-guard.test.js`
+    - FeatureGuard — config hooks
+        - tenantContextRunner wraps the computeLimits call (RLS consumers)
+        - userRoleResolver allows a project-specific role source
+        - tenantIdResolver can fetch tenantId from an alternative field
+
+<!-- END proof -->
+
 ### SC-ENTL-012 — A cancellation that has taken effect grants nothing
 
 🟢 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier was
@@ -3311,15 +3376,12 @@ _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
 _Tested by:_
 
 - `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
-    - it is granted its plan
-    - and a cancellation still to come changes nothing
-    - nothing is granted
-    - the plan is still named, so a page can say which one ended
-    - a configured floor is granted instead
-    - and the floor does not inherit what was bought on top
-    - a contract signed earlier does not outlive it
-    - is read from the only column it has
-    - and a legacy row whose date is still to come keeps everything
+    - once the cancellation has taken effect
+        - nothing is granted
+        - the plan is still named, so a page can say which one ended
+        - a configured floor is granted instead
+        - and the floor does not inherit what was bought on top
+        - a contract signed earlier does not outlive it
 
 <!-- END proof -->
 
@@ -3330,6 +3392,21 @@ term ends.
 
 _Source:_ #219
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - a cancellation still to come
+        - lets the plan change, and does not sell a term it cuts short
+        - while an uncancelled subscription does get a fresh term
+- `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
+    - while a subscription is running
+        - it is granted its plan
+        - and a cancellation still to come changes nothing
+
+<!-- END proof -->
+
 ### SC-ENTL-014 — An installation may name a floor a cancelled subscription falls back to
 
 🟢 A read-only tier a former customer can export from, or a free plan, instead of nothing. Add-on
@@ -3337,6 +3414,20 @@ bookings and negotiated limits are not carried into it, because those belonged t
 that ended.
 
 _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
+    - once the cancellation has taken effect
+        - nothing is granted
+        - the plan is still named, so a page can say which one ended
+        - a configured floor is granted instead
+        - and the floor does not inherit what was bought on top
+        - a contract signed earlier does not outlive it
+
+<!-- END proof -->
 
 ### SC-ENTL-015 — The end of a subscription is seen on every enforcement path
 
@@ -3350,39 +3441,20 @@ _Source:_ #219
 _Tested by:_
 
 - `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
-    - it is granted its plan
-    - and a cancellation still to come changes nothing
-    - nothing is granted
-    - the plan is still named, so a page can say which one ended
-    - a configured floor is granted instead
-    - and the floor does not inherit what was bought on top
-    - a contract signed earlier does not outlive it
-    - is read from the only column it has
-    - and a legacy row whose date is still to come keeps everything
+    - a cancellation older than the fields that describe it
+        - is read from the only column it has
+        - and a legacy row whose date is still to come keeps everything
 - `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
-    - grants nothing once the cancellation has landed
-    - grants the configured floor instead, where one is configured
-    - while a cancellation still to come grants everything
-    - and an uncancelled subscription is unaffected
-    - is not served past the moment it ends
-    - and is still served inside its ordinary lifetime
+    - the default enforcement stack
+        - grants nothing once the cancellation has landed
+        - grants the configured floor instead, where one is configured
+        - while a cancellation still to come grants everything
+        - and an uncancelled subscription is unaffected
 - `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
-    - can still cancel, and lands at the same date as anybody else
-    - cancels immediately, because nothing was ever committed
-    - and one that did get a period keeps it
-    - the ending wins, exactly at the moment they meet
-    - and a minute earlier the change still happens
-    - does not roll onto a subscription whose term is over
-    - while a cancellation still to come stops nothing
-    - and an uncancelled subscription rolls as before
-    - is refused on the atomic path, which is the preferred one
-    - while a running subscription is activated as before
-    - and the write carries what the route read, so a late cancellation wins
-    - is refused rather than recorded against a dead contract
-    - while a running subscription accepts as before
-    - the frozen contract is ended on the same date
-    - and a cancellation already recorded repairs its contract too
-    - and a consumer without contracts is unaffected
+    - what else ends when the subscription does
+        - the frozen contract is ended on the same date
+        - and a cancellation already recorded repairs its contract too
+        - and a consumer without contracts is unaffected
 
 <!-- END proof -->
 
@@ -3392,6 +3464,17 @@ _Tested by:_
 itself.
 
 _Source:_ #219
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
+    - a cached answer at the cancellation boundary
+        - is not served past the moment it ends
+        - and is still served inside its ordinary lifetime
+
+<!-- END proof -->
 
 ### SC-ENTL-017 — A feature that was renamed keeps working for customers who bought the old name
 
@@ -3421,6 +3504,15 @@ _Tested by:_
     - currency comes from the optional currency token, default EUR
     - priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last
     - empty featureKeys → no offers, no repo access
+- `packages/nest/tests/feature-guard.test.js`
+    - FeatureGuard — upsell response (#36)
+        - structured 403 body: code, featureKey, featureKeys, offers, message
+        - Logical OR: featureKeys carries all required keys, featureKey the first
+        - Resolver error degrades to offers: [] instead of 500
+        - Resolver is not called for a licensed feature
+        - without a resolver: full body with empty offers
+    - UPSELL_OFFER_RESOLVER_TOKEN
+        - is a Symbol.for token (process-wide registry)
 
 <!-- END proof -->
 
@@ -3429,6 +3521,20 @@ _Tested by:_
 🟢 Support can act on a tenant's behalf without the tenant having bought the feature being used.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/feature-guard.test.js`
+    - FeatureGuard — auth paths
+        - SUPER_ADMIN bypasses the feature check
+        - SUPER_ADMIN via
+        - missing user → Forbidden (
+        - missing tenantId → Forbidden (
+        - tenantId from request.tenantId takes precedence over user.tenantId
+
+<!-- END proof -->
 
 ### SC-ENTL-020 — Hiding a control is not protection
 
@@ -3803,20 +3909,12 @@ _Source:_ #234
 _Tested by:_
 
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
-    - follows the rhythm the booking was made in
-    - a monthly booking beside a yearly plan is billed monthly
-    - a booking from before the rhythm was recorded takes the plan’s
-    - a plan-specific override is what the tenant on that plan is billed
-    - a booking whose version has vanished reports no price rather than a wrong one
-    - are resolved for the plan, in both rhythms
-    - carry an override the public catalogue cannot know about
-    - a bundle sold in one rhythm only says so for the other
-    - an id nobody knows is left out rather than answered with nulls
-    - asking for nothing costs nothing
-    - a draft is not priced, because it was never on offer
-    - a superseded version is not priced either
-    - a live version among dead ones still answers
-    - is not priced, though its version is still live
+    - the prices a store is shown
+        - are resolved for the plan, in both rhythms
+        - carry an override the public catalogue cannot know about
+        - a bundle sold in one rhythm only says so for the other
+        - an id nobody knows is left out rather than answered with nulls
+        - asking for nothing costs nothing
 
 <!-- END proof -->
 
@@ -3838,23 +3936,18 @@ _Source:_ `docs/explanation/concepts.md`
 _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
-    - create creates an open offer
-    - update customizes an open offer
-    - create requires bundle line items for specific bundle versions
-    - create freezes bundle versions, promotions and promo code into the offer
-    - create adds the discounted price as a negative discount line item
-    - consume freezes the offer
-    - consume blocks a no-longer-bookable bundle version
-    - update on a consumed offer throws Conflict
-    - update on an expired offer throws Conflict
-    - double consume throws Conflict
-    - getById throws for an unknown offer
-    - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
-    - create accepts when a second bundle covers the requires
-    - create accepts when the plan covers the requires
-    - update validates the changed bundle selection against requires
-    - without a CatalogEntryRepository no validation happens (graceful)
-    - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+    - CheckoutOfferService
+        - create creates an open offer
+        - update customizes an open offer
+        - create requires bundle line items for specific bundle versions
+        - create freezes bundle versions, promotions and promo code into the offer
+        - create adds the discounted price as a negative discount line item
+        - consume freezes the offer
+        - consume blocks a no-longer-bookable bundle version
+        - update on a consumed offer throws Conflict
+        - update on an expired offer throws Conflict
+        - double consume throws Conflict
+        - getById throws for an unknown offer
 
 <!-- END proof -->
 
@@ -3869,23 +3962,18 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
-    - create creates an open offer
-    - update customizes an open offer
-    - create requires bundle line items for specific bundle versions
-    - create freezes bundle versions, promotions and promo code into the offer
-    - create adds the discounted price as a negative discount line item
-    - consume freezes the offer
-    - consume blocks a no-longer-bookable bundle version
-    - update on a consumed offer throws Conflict
-    - update on an expired offer throws Conflict
-    - double consume throws Conflict
-    - getById throws for an unknown offer
-    - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
-    - create accepts when a second bundle covers the requires
-    - create accepts when the plan covers the requires
-    - update validates the changed bundle selection against requires
-    - without a CatalogEntryRepository no validation happens (graceful)
-    - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+    - CheckoutOfferService
+        - create creates an open offer
+        - update customizes an open offer
+        - create requires bundle line items for specific bundle versions
+        - create freezes bundle versions, promotions and promo code into the offer
+        - create adds the discounted price as a negative discount line item
+        - consume freezes the offer
+        - consume blocks a no-longer-bookable bundle version
+        - update on a consumed offer throws Conflict
+        - update on an expired offer throws Conflict
+        - double consume throws Conflict
+        - getById throws for an unknown offer
 
 <!-- END proof -->
 
@@ -3895,6 +3983,21 @@ _Tested by:_
 it. A customer is not sold a combination that cannot work.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/checkout-offer-service.test.js`
+    - CheckoutOfferService — requires validation (#35 P6)
+        - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
+        - create accepts when a second bundle covers the requires
+        - create accepts when the plan covers the requires
+        - update validates the changed bundle selection against requires
+        - without a CatalogEntryRepository no validation happens (graceful)
+        - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+
+<!-- END proof -->
 
 ### SC-MKT-016 — An offer cannot be turned into a contract if part of it is no longer on sale
 
@@ -3913,23 +4016,18 @@ _Source:_ `docs/reference/error-codes.md`
 _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
-    - create creates an open offer
-    - update customizes an open offer
-    - create requires bundle line items for specific bundle versions
-    - create freezes bundle versions, promotions and promo code into the offer
-    - create adds the discounted price as a negative discount line item
-    - consume freezes the offer
-    - consume blocks a no-longer-bookable bundle version
-    - update on a consumed offer throws Conflict
-    - update on an expired offer throws Conflict
-    - double consume throws Conflict
-    - getById throws for an unknown offer
-    - create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires
-    - create accepts when a second bundle covers the requires
-    - create accepts when the plan covers the requires
-    - update validates the changed bundle selection against requires
-    - without a CatalogEntryRepository no validation happens (graceful)
-    - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
+    - CheckoutOfferService
+        - create creates an open offer
+        - update customizes an open offer
+        - create requires bundle line items for specific bundle versions
+        - create freezes bundle versions, promotions and promo code into the offer
+        - create adds the discounted price as a negative discount line item
+        - consume freezes the offer
+        - consume blocks a no-longer-bookable bundle version
+        - update on a consumed offer throws Conflict
+        - update on an expired offer throws Conflict
+        - double consume throws Conflict
+        - getById throws for an unknown offer
 
 <!-- END proof -->
 
@@ -3950,6 +4048,17 @@ _Source:_ `docs/reference/error-codes.md`
 🟢 Otherwise the ending would last exactly until the next plan change.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-ends-when-the-subscription-does.test.js`
+    - a contract frozen after the cancellation
+        - inherits the ending rather than starting open
+        - while a subscription with no ending freezes open, as before
+
+<!-- END proof -->
 
 ### SC-MKT-021 — A tenant can read back the package they were sold
 
@@ -4303,13 +4412,10 @@ _Source:_ #217
 _Tested by:_
 
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
-    - the notice period reaches the token from the catalogue
-    - the blocked plans reach their token from the catalogue
-    - a second catalogue gives a second answer — nothing is baked in
-    - ${option} is refused, and the message says where it went
-    - both at once are named together, so the fix is one pass
-    - an explicitly undefined option is not a passed option
-    - names the field and the file rather than throwing a TypeError
+    - the value the code runs on is the value in the file
+        - the notice period reaches the token from the catalogue
+        - the blocked plans reach their token from the catalogue
+        - a second catalogue gives a second answer — nothing is baked in
 
 <!-- END proof -->
 
@@ -4327,13 +4433,10 @@ _Source:_ #217
 _Tested by:_
 
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
-    - the notice period reaches the token from the catalogue
-    - the blocked plans reach their token from the catalogue
-    - a second catalogue gives a second answer — nothing is baked in
-    - ${option} is refused, and the message says where it went
-    - both at once are named together, so the fix is one pass
-    - an explicitly undefined option is not a passed option
-    - names the field and the file rather than throwing a TypeError
+    - the value the code runs on is the value in the file
+        - the notice period reaches the token from the catalogue
+        - the blocked plans reach their token from the catalogue
+        - a second catalogue gives a second answer — nothing is baked in
 
 <!-- END proof -->
 
@@ -4345,6 +4448,18 @@ value an operator set is the one they believe is running, so the application wou
 would work, differently, until a customer's cancellation landed a period late.
 
 _Source:_ #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-setting-comes-from-the-file.test.js`
+    - an option that moved refuses the boot
+        - ${option} is refused, and the message says where it went
+        - both at once are named together, so the fix is one pass
+        - an explicitly undefined option is not a passed option
+
+<!-- END proof -->
 
 ### SC-CFG-017 — A required setting is required member by member, not as a block
 
@@ -4361,6 +4476,16 @@ and the file says them out loud rather than by leaving a line out.
 
 _Source:_ #217
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-setting-comes-from-the-file.test.js`
+    - a catalogue assembled in code without the section
+        - names the field and the file rather than throwing a TypeError
+
+<!-- END proof -->
+
 ### SC-CFG-019 — A migration tool reports a setting that moved; it does not delete it
 
 🟢 The value is a term somebody agreed. Removing it from the code without writing it into the file
@@ -4370,6 +4495,18 @@ than lax is [SC-CFG-016](#sc-cfg-016--a-setting-that-moved-out-of-code-is-remove
 the boot refusal means the report cannot be acted on halfway.
 
 _Source:_ #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-setting-comes-from-the-file.test.js`
+    - an option that moved refuses the boot
+        - ${option} is refused, and the message says where it went
+        - both at once are named together, so the fix is one pass
+        - an explicitly undefined option is not a passed option
+
+<!-- END proof -->
 
 ### SC-CFG-003 — A setting that must change without a deployment is kept out of the file entirely
 
@@ -4390,11 +4527,35 @@ _Source:_ #217
 
 _Source:_ #217 · `docs/reference/options.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/enforcement-chain-check.test.js`
+    - the message names the true cause
+        - the option, when the option is what unbound the guard
+        - and the entitlement path, when the app never set it
+        - both name the way out of what the check cannot see
+
+<!-- END proof -->
+
 ### SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
 
 🟢 Each problem named and linked to what it means. Fixing them is one restart, not one per line.
 
 _Source:_ `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/enforcement-chain-check.test.js`
+    - the message names the true cause
+        - the option, when the option is what unbound the guard
+        - and the entitlement path, when the app never set it
+        - both name the way out of what the check cannot see
+
+<!-- END proof -->
 
 ### SC-CFG-007 — A capability that is turned off says so, once, at start-up
 
@@ -4446,26 +4607,20 @@ _Source:_ `docs/guides/upgrade-to-1.0.md` · release 0.27.0
 _Tested by:_
 
 - `packages/nest/tests/enforcement-chain-check.test.js`
-    - boots when every annotated route has a feature guard
-    - refuses to boot and names the route when one is unguarded
-    - is not fooled by a guard that merely shares the name
-    - ignores helper methods that inherit a class-level requirement
-    - reports an unrecognised wrapper rather than assuming it is safe
-    - a quota-only route is not a guard question
-    - refuses to boot when a route requires a feature
-    - refuses to boot for a quota annotation too
-    - a guard in front of the route does not make it enforceable
-    - boots when no route is annotated at all
-    - says nothing, whatever the routes look like
-    - the option, when the option is what unbound the guard
-    - and the entitlement path, when the app never set it
-    - both name the way out of what the check cannot see
-    - a quota route on the V3 path refuses the boot
-    - the message names every way out, including the opt-out
-    - a guarded quota route on the V3 path is refused too
-    - a feature-only route on the V3 path still boots when it is guarded
-    - and the static path with a plan resolver boots with quota routes
-    - the inert case still speaks first, so its message is the one read
+    - nothing can resolve a plan — the annotations are inert
+        - refuses to boot when a route requires a feature
+        - refuses to boot for a quota annotation too
+        - a guard in front of the route does not make it enforceable
+        - boots when no route is annotated at all
+    - the platform bound its own guard
+        - says nothing, whatever the routes look like
+    - quotas are a second runtime, and the V3 path does not carry it
+        - a quota route on the V3 path refuses the boot
+        - the message names every way out, including the opt-out
+        - a guarded quota route on the V3 path is refused too
+        - a feature-only route on the V3 path still boots when it is guarded
+        - and the static path with a plan resolver boots with quota routes
+        - the inert case still speaks first, so its message is the one read
 - `packages/nest/tests/enforcement-chain-refuses-boot.test.js`
     - inert entitlement plus an annotated route: boot fails
     - globalFeatureGuard: false plus an unguarded annotated route: boot fails
@@ -4491,6 +4646,14 @@ _Source:_ release 0.27.0
 
 _Tested by:_
 
+- `packages/nest/tests/enforcement-chain-check.test.js`
+    - globalFeatureGuard: false — the app binds its own
+        - boots when every annotated route has a feature guard
+        - refuses to boot and names the route when one is unguarded
+        - is not fooled by a guard that merely shares the name
+        - ignores helper methods that inherit a class-level requirement
+        - reports an unrecognised wrapper rather than assuming it is safe
+        - a quota-only route is not a guard question
 - `packages/nest/tests/enforcement-chain-warnings.test.js`
     - warns when no plan resolver and no fallback plan are configured
     - stays silent once defaultPlanId activates the static entitlement stack
@@ -4704,6 +4867,9 @@ _Tested by:_
     - the sources contain coded throw sites at all
     - every throw site supplies the placeholders its message template names
     - all throw sites for one code agree on their params key names
+- `packages/nest/tests/feature-guard.test.js`
+    - StaticFeatureGuard — FEATURE_NOT_LICENSED body
+        - emits the full FeatureNotLicensedBody with empty offers
 
 <!-- END proof -->
 

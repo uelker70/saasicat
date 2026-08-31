@@ -13,6 +13,17 @@ mode is a rule written for the ordinary case being applied to one of these.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - a trial commits to nothing, so nothing is deferred to protect it
+        - the matrix asks more of a trial than of a term
+        - on trial, ${label} takes effect ${expected ?
+
+<!-- END proof -->
+
 ### SC-SPEC-002 — Cancelling during a trial ends the trial, and no sooner
 
 🟢 It lands when the trial does. Ending it on the spot would take the trial away as the price of
@@ -21,11 +32,37 @@ yearly-cycle trial bought a year.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - a trial has an end, not a term
+        - the cancellation lands when the trial does
+        - a notice period does not buy a billing cycle
+        - and a paid term five days out still does
+        - a trial with no dates at all still lands now
+
+<!-- END proof -->
+
 ### SC-SPEC-003 — A notice period never applies to a trial
 
 🟢 The window exists so a term cannot be left at the last moment, and a trial has no term to leave.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - a trial has an end, not a term
+        - the cancellation lands when the trial does
+        - a notice period does not buy a billing cycle
+        - and a paid term five days out still does
+        - a trial with no dates at all still lands now
+
+<!-- END proof -->
 
 ### SC-SPEC-004 — Switching plans during a trial carries the remaining trial time over
 
@@ -66,3 +103,14 @@ _Source:_ release 1.0.0-rc.6
 running to see out.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - a tenant still waiting on sales
+        - cancels immediately, because nothing was ever committed
+        - and one that did get a period keeps it
+
+<!-- END proof -->

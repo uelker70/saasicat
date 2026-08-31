@@ -11,9 +11,6 @@
 // customer's cancellation lands a period late and the file says something
 // nobody wrote.
 
-// @requirement SC-CFG-001 — A setting lives in exactly one place
-// @requirement SC-CFG-002 — Settings with a money or a legal consequence live in the configuration file
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
@@ -83,6 +80,8 @@ async function boot(catalog, tenantBillingExtras = {}) {
     }).compile();
 }
 
+// @requirement SC-CFG-001 — A setting lives in exactly one place
+// @requirement SC-CFG-002 — Settings with a money or a legal consequence live in the configuration file
 describe('the value the code runs on is the value in the file', () => {
     test('the notice period reaches the token from the catalogue', async () => {
         const app = await boot(
@@ -117,6 +116,8 @@ describe('the value the code runs on is the value in the file', () => {
     });
 });
 
+// @requirement SC-CFG-016 — A setting that moved out of code is removed, not deprecated
+// @requirement SC-CFG-019 — A migration tool reports a setting that moved; it does not delete it
 describe('an option that moved refuses the boot', () => {
     for (const [option, value] of [
         ['cancellationNoticeDays', { monthly: 30, yearly: 30 }],
@@ -176,6 +177,7 @@ describe('an option that moved refuses the boot', () => {
     });
 });
 
+// @requirement SC-CFG-018 — An empty list and a zero are values an operator wrote, not omissions
 describe('a catalogue assembled in code without the section', () => {
     // Reachable: `dbCatalog` and `planCatalog` both take an object, and only
     // the file path runs through the loader. Without this the failure is

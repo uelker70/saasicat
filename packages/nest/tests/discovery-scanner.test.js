@@ -1,6 +1,3 @@
-// @requirement SC-CAT-001 — What the application can do is declared next to the code that does it
-// @requirement SC-CAT-012 — A new declaration appears for review after the application restarts
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -197,6 +194,8 @@ describe('computeSnapshotHash', () => {
 // SuperAdmin UI.)
 // ─────────────────────────────────────────────────────────────────
 
+// @requirement SC-CAT-001 — What the application can do is declared next to the code that does it
+// @requirement SC-CAT-011 — Four words with four meanings, kept apart
 describe('DiscoveryScanner — capability/feature aggregation', () => {
     test('aggregates capabilities with the same feature into a DiscoveredFeature', () => {
         const scanner = buildScanner({
@@ -286,6 +285,7 @@ describe('DiscoveryScanner — capability/feature aggregation', () => {
 // Scanner: quotas + cross-reference EnforceQuota → DiscoveredQuota.enforcedBy
 // ─────────────────────────────────────────────────────────────────
 
+// @requirement SC-CAT-013 — A quota key is named in exactly one place
 describe('DiscoveryScanner — Quotas', () => {
     test('reads @DefinesQuota at the class level', () => {
         const scanner = buildScanner({
@@ -355,6 +355,7 @@ describe('DiscoveryScanner — Quotas', () => {
 // Scanner: edge cases — multiple declaration, app info
 // ─────────────────────────────────────────────────────────────────
 
+// @requirement SC-CAT-015 — A missing scan degrades the check, it does not stop the application
 describe('DiscoveryScanner — edge cases', () => {
     test('multiple declaration of the same capability: first wins', () => {
         const scanner = buildScanner({
@@ -423,6 +424,7 @@ describe('DiscoveryScanner — edge cases', () => {
 // requires/replaces — discovery metadata (#35/#39)
 // ─────────────────────────────────────────────────────────────────
 
+// @requirement SC-CAT-014 — An unsatisfied dependency between features is advice, not a refusal
 describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
     function providerWithCaps(ctorName, caps) {
         const methodMeta = {};
