@@ -94,12 +94,29 @@ export const WITHDRAWN = /^(?:([⚪🔵🔴🟡])\s+)?_\(Withdrawn\s+on\s+(\d{4}
 // entry proposed a year ago and never decided reads exactly like one proposed
 // last week, and only one of the two is still somebody's intention.
 export const DRAFT = /^(?:([⚪🔵🔴🟡])\s+)?_\(Draft\s+since\s+(\d{4}-\d{2}-\d{2})\.\)_\s?/u;
+
+/**
+ * The ordinary state, written down like every other.
+ *
+ * It carries no words because it qualifies nothing — no date, no successor —
+ * and "this is an ordinary requirement" is what the absence of anything else
+ * already said. What it does carry is a mark, so that no state has to be read
+ * out of a blank: reading absence is how a marker wrapped across a line went a
+ * day unnoticed, counted as a promise the product keeps.
+ *
+ * Or the end of the text, because nineteen entries state their whole promise in
+ * the heading and have nothing under it but this.
+ */
+export const CURRENT = /^(🟢)(?:\s+|$)/u;
 export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
 // Every gap is `\s`, not a space. These files are wrapped by hand at a hundred
 // columns, and two committed entries wrap this marker across the break — so
 // they read as delivered, vanished from the index of what is not built yet, and
 // nothing asked why they had no colour.
 export const PENDING = /\s?(?:([⚪🔵🔴🟡])\s+)?_\(Decided,\s+not\s+yet\s+delivered\.\)_/u;
+
+/** The same marker where an entry opens with it, which is where it belongs. */
+export const PENDING_OPENS = /^(🟡)\s+_\(Decided,\s+not\s+yet\s+delivered\.\)_\s*/u;
 
 /** Every identifier mentioned in a piece of prose. */
 export const REFERENCES = /\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g;
@@ -210,10 +227,17 @@ function finishEntry(entry) {
     // marker without one does not match, so `_(Draft.)_` stays prose and the
     // check for a near-miss state catches it. Nothing reads the value, and a
     // field nobody reads is a field that stops being true unnoticed.
+    // What the entry opens with, before anything is stripped. Every entry opens
+    // with exactly one state marker, so that no state is read out of a blank.
+    const opensWith = [CURRENT, SUPERSEDED, WITHDRAWN, DRAFT, PENDING_OPENS]
+        .map((pattern) => pattern.exec(text)?.[1])
+        .find(Boolean);
+
     let icon;
     const superseded = SUPERSEDED.exec(text);
     const withdrawn = WITHDRAWN.exec(text);
     const draft = DRAFT.exec(text);
+    const current = CURRENT.exec(text);
     if (superseded) {
         status = 'superseded';
         [, icon, , supersededBy] = superseded;
@@ -226,6 +250,9 @@ function finishEntry(entry) {
         status = 'draft';
         [, icon] = draft;
         text = text.slice(draft[0].length);
+    } else if (current) {
+        [, icon] = current;
+        text = text.slice(current[0].length);
     }
     // Stripped, not just detected. Delivering a promise is not a change to the
     // promise: leaving the marker in the text would make the edit that removes
@@ -241,6 +268,7 @@ function finishEntry(entry) {
         source: sources[0],
         text,
         status,
+        opensWith,
         icon,
         pendingIcon: pending?.[1],
         supersededBy,

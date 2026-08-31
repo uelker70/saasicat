@@ -129,6 +129,7 @@ export const NOT_A_PROMISE = [
     // Typography of the state, held against the words by `check.mjs`.
     'icon',
     'pendingIcon',
+    'opensWith',
     // Read out of `text`, so already covered by comparing it.
     'references',
 ];

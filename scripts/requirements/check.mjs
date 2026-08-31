@@ -257,21 +257,20 @@ function checkState(entry, say) {
                 'That claim belongs to a promise that stands.',
         );
     }
-    // A colour that disagrees with its words is worse than no colour: it is
-    // read faster than the words are, so the reader who trusts it is the one
-    // who is misled. Missing is refused for the same reason — a retired entry
-    // with no colour reads as ordinary in a scan.
-    if (status !== 'current' && entry.icon !== ICONS[status]) {
+    // Every entry opens with exactly one state marker, and that marker is the
+    // state. The ordinary case wears one too: a state read out of a blank is a
+    // state nobody checked, which is how a marker wrapped across a line went a
+    // day unnoticed and counted as a promise the product keeps. A colour that
+    // disagrees with its words is refused for the older reason — it is read
+    // faster than the words, so whoever trusts it is the one misled.
+    const expected =
+        status === 'current' ? ICONS[entry.delivered ? 'current' : 'pending'] : ICONS[status];
+    if (entry.opensWith !== expected) {
+        const reads = status === 'current' && !entry.delivered ? 'not yet delivered' : status;
         say(
             where,
-            `'${entry.id}' is ${status} but opens with ${entry.icon ?? 'no colour'}, not ${ICONS[status]}`,
-        );
-    }
-    if (!entry.delivered && entry.pendingIcon !== ICONS.pending) {
-        say(
-            where,
-            `'${entry.id}' is not yet delivered but marks it with ` +
-                `${entry.pendingIcon ?? 'no colour'}, not ${ICONS.pending}`,
+            `'${entry.id}' opens with ${entry.opensWith ?? 'no state'} and is ${reads}, ` +
+                `which opens with ${expected}`,
         );
     }
 

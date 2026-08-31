@@ -109,19 +109,28 @@ The claim covers that commit and no other, so commit the fix and let the commit 
 
 ## What state an entry is in
 
-An ordinary entry carries no marker. The others open with one, so that a reader arriving from an
-old link learns in the first few words that it does not apply.
+**Every entry opens with exactly one state marker**, the ordinary case included.
 
-| State                                    | Written as                                     |
+| State                                    | Opens with                                     |
 | ---------------------------------------- | ---------------------------------------------- |
-| 🟢 Current — it holds                    | nothing                                        |
+| 🟢 Current — it holds                    | `🟢`                                           |
+| 🟡 Decided, not built yet                | `🟡 _(Decided, not yet delivered.)_`           |
 | ⚪ Draft — proposed, not decided         | `⚪ _(Draft since YYYY-MM-DD.)_`               |
 | 🔵 Superseded — replaced, follow the id  | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` |
 | 🔴 Withdrawn — gone, nothing replaces it | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              |
 
-A current entry that is decided but not built yet adds `🟡 _(Decided, not yet delivered.)_` at the
-end of its prose. No other state may — a draft is not decided, and a retired one has nothing left
-to deliver.
+Nineteen entries say everything in their heading and carry nothing under it but `🟢`. Only a
+current entry may say it is not built yet — a draft is not decided, and a retired one has nothing
+left to deliver.
+
+Marking only the exceptions would be quieter, and it would mean the ordinary state is read out of a
+blank. A state read out of a blank is a state nobody checked: a marker wrapped across a line went a
+day unnoticed here, and two requirements counted as promises the product keeps while nothing
+anywhere said otherwise.
+
+The colour is not the state — the words are, where there are words — and the checker holds the two
+together, because a colour is read faster than a sentence and a wrong one misleads whoever trusts
+it. Current carries no words because it qualifies nothing: no date, no successor.
 
 States move one way: a draft is decided or dropped; a promise that stands is superseded or
 withdrawn; nothing comes back. Two moves are refused because they look like tidying and are not:
@@ -130,9 +139,8 @@ withdrawn; nothing comes back. Two moves are refused because they look like tidy
 - **A promise that was delivered may not go back to "not yet delivered"** without a claim. If the
   product stopped keeping it, that is a bug and belongs in an issue.
 
-Green is a colour no entry wears. It would put a dot on 389 ordinary entries and hide the ten that
-are not ordinary. It appears once, in the summary under the chapter table, which counts every state
-and links every entry that is not current.
+The summary under the chapter table counts every state and links every entry that is not current.
+`pnpm run requirements:list` prints all of them, with the state and whether a test names it.
 
 ## Prove it
 

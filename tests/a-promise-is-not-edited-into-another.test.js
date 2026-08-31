@@ -29,7 +29,10 @@ import {
 } from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
-const entry = (id, text) => `### ${id} — Title\n\n${text}\n\n_Source:_ #1`;
+// Every entry opens with its state, so a fixture that does not name one is
+// given the ordinary one — the same rule the catalogue is held to.
+const opened = (text) => (/^[🟢🟡⚪🔵🔴]/u.test(text) ? text : `🟢 ${text}`);
+const entry = (id, text) => `### ${id} — Title\n\n${opened(text)}\n\n_Source:_ #1`;
 const entries = (...written) =>
     catalogueOf([['01_a', `${head()}\n${written.join('\n\n')}`]]).entries;
 

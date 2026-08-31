@@ -317,7 +317,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                             '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ One.\n\n_Source:_ #1\n\n' +
                             '### SC-A-002 — Title\n\n' +
                             '🔵 _(Superseded on 2026-09-02 by `SC-A-003`.)_ Two.\n\n_Source:_ #2\n\n' +
-                            '### SC-A-003 — Title\n\nThree.\n\n_Source:_ #3',
+                            '### SC-A-003 — Title\n\n🟢 Three.\n\n_Source:_ #3',
                     ],
                 ]),
             ),
@@ -378,7 +378,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                     [
                         '01_a',
                         `${head()}\n### SC-A-001 — Title\n\n` +
-                            'See [that](#sc-b-001--title).\n\n_Source:_ #1',
+                            '🟢 See [that](#sc-b-001--title).\n\n_Source:_ #1',
                     ],
                     ['02_b', chapter(['SC-B-001'])],
                 ]),
@@ -402,7 +402,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
-    test('a colour that disagrees with its words', () => {
+    test('a state that opens with the wrong colour', () => {
         // The colour is read faster than the words are, so a reader who trusts
         // it is the one who is misled. A wrong one is worse than none.
         complains(
@@ -413,11 +413,11 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                         '_Source:_ #1',
                 ],
             ],
-            'opens with 🔴, not ⚪',
+            'opens with 🔴 and is draft',
         );
     });
 
-    test('a retired entry with no colour at all', () => {
+    test('a retired entry that opens with no state', () => {
         // It reads as ordinary in a scan, which is the one thing a retired
         // entry must never do.
         complains(
@@ -428,11 +428,11 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                         '_Source:_ #1',
                 ],
             ],
-            'opens with no colour, not 🔴',
+            'opens with no state and is withdrawn',
         );
     });
 
-    test('an undelivered promise with no colour', () => {
+    test('an undelivered promise that opens with none', () => {
         complains(
             [
                 [
@@ -441,7 +441,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                         '_Source:_ #1',
                 ],
             ],
-            'marks it with no colour',
+            'and is not yet delivered',
         );
     });
 
@@ -631,8 +631,8 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                 catalogueOf([
                     [
                         '01_a',
-                        `${head()}\n### SC-A-001 — Title\n\nSee [that](#sc-a-002--title).\n\n` +
-                            '_Source:_ #1\n\n### SC-A-002 — Title\n\nProse.\n\n_Source:_ #2',
+                        `${head()}\n### SC-A-001 — Title\n\n🟢 See [that](#sc-a-002--title).\n\n` +
+                            '_Source:_ #1\n\n### SC-A-002 — Title\n\n🟢 Prose.\n\n_Source:_ #2',
                     ],
                 ]),
             ),
@@ -724,6 +724,6 @@ describe('the checks refuse what the conventions used to leave to care', () => {
 });
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
-const entry = (id) => `### ${id} — Title\n\nProse.\n\n_Source:_ #1`;
+const entry = (id) => `### ${id} — Title\n\n🟢 Prose.\n\n_Source:_ #1`;
 const chapter = (ids) => `${head()}\n${ids.map(entry).join('\n\n')}`;
 const parse = (body) => catalogueOf([['01_a', `${head()}\n${body}`]]).chapters[0];

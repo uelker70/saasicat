@@ -15,10 +15,14 @@ import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
 import { annotationsIn, isTestPath, unproven } from '../scripts/requirements/proof.mjs';
+import { ROOT, listing } from '../scripts/requirements/index.mjs';
 import { ratchet } from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
-const entry = (id, text) => `### ${id} — Title\n\n${text}\n\n_Source:_ #1`;
+// Every entry opens with its state, so a fixture that does not name one is
+// given the ordinary one — the same rule the catalogue is held to.
+const opened = (text) => (/^[🟢🟡⚪🔵🔴]/u.test(text) ? text : `🟢 ${text}`);
+const entry = (id, text) => `### ${id} — Title\n\n${opened(text)}\n\n_Source:_ #1`;
 const entries = (...written) =>
     catalogueOf([['01_a', `${head()}\n${written.join('\n\n')}`]]).entries;
 
@@ -65,6 +69,31 @@ describe('a test says which promise it proves', () => {
         // SC-PLAN-004.
         assert.deepEqual(annotationsIn('// the `@requirement SC-A-001` tag names it'), []);
         assert.deepEqual(annotationsIn('// as @requirement SC-A-001 shows'), []);
+    });
+});
+
+describe('every requirement can be seen with its state', () => {
+    // An ordinary entry carries no marker, which is right for a document and
+    // wrong for the question "show me all of them" — that then has to be
+    // answered by reading absence, and reading absence is how a marker wrapped
+    // across a line went unnoticed for a day.
+    const rows = listing(ROOT);
+
+    test('every requirement is listed, not only the exceptions', () => {
+        assert.ok(rows.length >= 300, `only ${rows.length} rows`);
+        assert.ok(rows.every((row) => row.id && row.state && row.proof));
+    });
+
+    test('proof has three answers, not two', () => {
+        // A promise nothing names is owed one. A draft, a retired entry and one
+        // not yet delivered are owed nothing, which is a different thing from
+        // having been proved — and collapsing the two would report coverage
+        // that nobody has.
+        const owed = rows.filter((row) => row.proof === 'owed');
+        const exempt = rows.filter((row) => row.proof === 'not owed');
+        assert.ok(owed.length > 0, 'nothing is owed a proof, which cannot be right yet');
+        assert.ok(exempt.every((row) => row.state !== 'current' || row.proof === 'not owed'));
+        assert.ok(rows.every((row) => (row.proof === 'proved') === row.tests.length > 0));
     });
 });
 
