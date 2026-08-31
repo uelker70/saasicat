@@ -45,14 +45,16 @@ _Tested by:_
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
         - discardPlanDraft: NotFound for unknown ID
-        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the
+          next day
         - terminatePlanVersion: live version gets endsAt set
         - terminatePlanVersion: idempotent — second call overwrites
         - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
         - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
         - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
         - terminatePlanVersion: NotFound for unknown ID
-        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto
+          succession)
 
 <!-- END proof -->
 
@@ -87,14 +89,16 @@ _Tested by:_
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
         - discardPlanDraft: NotFound for unknown ID
-        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the
+          next day
         - terminatePlanVersion: live version gets endsAt set
         - terminatePlanVersion: idempotent — second call overwrites
         - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
         - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
         - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
         - terminatePlanVersion: NotFound for unknown ID
-        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto
+          succession)
 
 <!-- END proof -->
 
@@ -138,14 +142,16 @@ _Tested by:_
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
         - discardPlanDraft: NotFound for unknown ID
-        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the
+          next day
         - terminatePlanVersion: live version gets endsAt set
         - terminatePlanVersion: idempotent — second call overwrites
         - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
         - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
         - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
         - terminatePlanVersion: NotFound for unknown ID
-        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto
+          succession)
 
 <!-- END proof -->
 

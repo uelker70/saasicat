@@ -715,7 +715,8 @@ _Tested by:_
     - BundlesService — Editability annotation (Pack 2c)
         - listBundleVersions sets isLatestInChain on the highest version
         - publishBundleVersion: without validFrom → 422 BUNDLE_VERSION_VALID_FROM_REQUIRED
-        - publishBundleVersion: second version sets previous to supersededAt + auto-succession validUntil
+        - publishBundleVersion: second version sets previous to supersededAt + auto-succession
+          validUntil
         - publishBundleVersion: validFrom must be strictly after predecessor → 422
         - updateBundleDraft allows published-but-future BundleVersion (latest, 0 subs)
         - updateBundleDraft blocks published-but-future validFrom in the past

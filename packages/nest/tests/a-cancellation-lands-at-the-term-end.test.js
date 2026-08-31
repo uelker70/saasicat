@@ -31,6 +31,7 @@ const base = (overrides = {}) => ({
     ...overrides,
 });
 
+// @requirement SC-CANC-001 — A cancellation may always be declared
 // @requirement SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
 // @requirement SC-CANC-005 — There is no notice period until an installation names one
 describe('with no notice period, which is the default', () => {

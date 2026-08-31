@@ -171,7 +171,7 @@ export function proofBlock(cases) {
         for (const [block, names] of blocks) {
             const indent = block ? '        ' : '    ';
             if (block) lines.push(`    - ${block}`);
-            for (const name of names) lines.push(`${indent}- ${name}`);
+            for (const name of names) lines.push(...wrapped(`${indent}- `, name));
         }
     }
     lines.push('', PROOF_END);
@@ -185,6 +185,30 @@ export function proofBlock(cases) {
  * that has lost its last test loses its block with it instead of keeping a
  * stale one.
  */
+/**
+ * A list item that outruns the width, broken with a hanging indent.
+ *
+ * Test names are written by whoever wrote the test and some are long. Shortening
+ * one here would break the only way back to the case, so the line wraps instead
+ * — which is what the rest of the documentation does and what the linter asks.
+ */
+function wrapped(prefix, text, width = 100) {
+    const hang = ' '.repeat(prefix.length);
+    const lines = [];
+    let line = prefix;
+    for (const word of text.split(' ')) {
+        const candidate = line.trimEnd() === prefix.trimEnd() ? line + word : `${line} ${word}`;
+        if (candidate.length > width && line.trimEnd() !== prefix.trimEnd()) {
+            lines.push(line);
+            line = hang + word;
+        } else {
+            line = candidate;
+        }
+    }
+    lines.push(line);
+    return lines;
+}
+
 export function withProofs(text, casesById) {
     const lines = text.split('\n');
     const out = [];

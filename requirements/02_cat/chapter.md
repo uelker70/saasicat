@@ -271,6 +271,46 @@ capability is waiting for a deployment, not looking in the wrong place.
 
 _Source:_ `docs/guides/wire-the-backend.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/catalog-entries-service.test.js`
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - approve persists the approval signature + approvedBy
+        - revoking approval (approved → pending) deletes the approval fields
+        - invalid transition (pending → outdated) is rejected
+        - approve without a snapshot is rejected
+        - reviewQuota approve uses the quota signature
+        - reviewFeature throws on an unknown key
+        - approved → outdated when the capability set changes
+        - approved stays approved when the signature is stable
+        - quota drift: a changed unit flips approved → outdated
+        - manual obsolete stays put on sync (no auto-resurrect)
+        - a requires change on a capability flips approved → outdated (#35)
+        - a vanished key with a replaces claimant gets successorKey + obsolete
+        - a vanished key without a claimant stays bare obsolete (no successorKey)
+        - a reappearing key loses its successorKey
+        - quota replaces sets successorKey on the old quota entry
+        - sync is idempotent: a second run counts no further replaced
+        - repository without setFeatureSuccessor: sync runs through without a pointer
+        - requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - syncs the injected snapshot at boot (default on)
+        - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
+        - registry does NOT overwrite existing SuperAdmin values (#12)
+        - seeds label even for an already-existing bare row (label==key) (#12)
+        - no-op when autoSyncDiscoveryAtBoot=false
+        - no-op without an injected snapshot
+        - swallows a sync error at boot (no boot crash)
+
+<!-- END proof -->
+
 ### SC-CAT-013 — A quota key is named in exactly one place
 
 🟢 The declaration in code. It cannot be introduced in a configuration file, and it cannot contain a

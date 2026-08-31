@@ -501,6 +501,46 @@ capability is waiting for a deployment, not looking in the wrong place.
 
 _Source:_ `docs/guides/wire-the-backend.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/catalog-entries-service.test.js`
+    - CatalogEntriesService
+        - sync creates new capabilities with their code status
+        - sync creates new features/quotas as pending
+        - a missing capability is retired on sync, a missing feature obsoleted
+        - internal capabilities do not appear in the catalog
+        - quota without declaredAt → usageProvider null
+        - approve persists the approval signature + approvedBy
+        - revoking approval (approved → pending) deletes the approval fields
+        - invalid transition (pending → outdated) is rejected
+        - approve without a snapshot is rejected
+        - reviewQuota approve uses the quota signature
+        - reviewFeature throws on an unknown key
+        - approved → outdated when the capability set changes
+        - approved stays approved when the signature is stable
+        - quota drift: a changed unit flips approved → outdated
+        - manual obsolete stays put on sync (no auto-resurrect)
+        - a requires change on a capability flips approved → outdated (#35)
+        - a vanished key with a replaces claimant gets successorKey + obsolete
+        - a vanished key without a claimant stays bare obsolete (no successorKey)
+        - a reappearing key loses its successorKey
+        - quota replaces sets successorKey on the old quota entry
+        - sync is idempotent: a second run counts no further replaced
+        - repository without setFeatureSuccessor: sync runs through without a pointer
+        - requires/replaces are mirrored into the feature entries
+        - setFeatureI18n persists translations
+        - syncs the injected snapshot at boot (default on)
+        - seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)
+        - registry does NOT overwrite existing SuperAdmin values (#12)
+        - seeds label even for an already-existing bare row (label==key) (#12)
+        - no-op when autoSyncDiscoveryAtBoot=false
+        - no-op without an injected snapshot
+        - swallows a sync error at boot (no boot crash)
+
+<!-- END proof -->
+
 ### SC-CAT-013 — A quota key is named in exactly one place
 
 🟢 The declaration in code. It cannot be introduced in a configuration file, and it cannot contain a
@@ -615,14 +655,16 @@ _Tested by:_
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
         - discardPlanDraft: NotFound for unknown ID
-        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the
+          next day
         - terminatePlanVersion: live version gets endsAt set
         - terminatePlanVersion: idempotent — second call overwrites
         - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
         - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
         - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
         - terminatePlanVersion: NotFound for unknown ID
-        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto
+          succession)
 
 <!-- END proof -->
 
@@ -657,14 +699,16 @@ _Tested by:_
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
         - discardPlanDraft: NotFound for unknown ID
-        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the
+          next day
         - terminatePlanVersion: live version gets endsAt set
         - terminatePlanVersion: idempotent — second call overwrites
         - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
         - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
         - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
         - terminatePlanVersion: NotFound for unknown ID
-        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto
+          succession)
 
 <!-- END proof -->
 
@@ -708,14 +752,16 @@ _Tested by:_
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
         - discardPlanDraft: NotFound for unknown ID
-        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+        - publishPlanVersion: gapless when predecessor has validUntil — successor must start the
+          next day
         - terminatePlanVersion: live version gets endsAt set
         - terminatePlanVersion: idempotent — second call overwrites
         - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
         - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
         - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
         - terminatePlanVersion: NotFound for unknown ID
-        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+        - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto
+          succession)
 
 <!-- END proof -->
 
@@ -1683,7 +1729,8 @@ _Tested by:_
     - BundlesService — Editability annotation (Pack 2c)
         - listBundleVersions sets isLatestInChain on the highest version
         - publishBundleVersion: without validFrom → 422 BUNDLE_VERSION_VALID_FROM_REQUIRED
-        - publishBundleVersion: second version sets previous to supersededAt + auto-succession validUntil
+        - publishBundleVersion: second version sets previous to supersededAt + auto-succession
+          validUntil
         - publishBundleVersion: validFrom must be strictly after predecessor → 422
         - updateBundleDraft allows published-but-future BundleVersion (latest, 0 subs)
         - updateBundleDraft blocks published-but-future validFrom in the past
@@ -2495,6 +2542,17 @@ not leave.
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - with no notice period, which is the default
+        - a cancellation lands at the end of the term
+        - the last day of the term is still in time
+
+<!-- END proof -->
+
 ### SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
 
 🟢 They coincide unless a notice period has pushed one past the other.
@@ -2810,6 +2868,18 @@ lost, and it keeps every entitlement it had until the date arrives. A page showi
 effective moment on a timer rather than on the last render.
 
 _Source:_ #219 · release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - what else ends when the subscription does
+        - the frozen contract is ended on the same date
+        - and a cancellation already recorded repairs its contract too
+        - and a consumer without contracts is unaffected
+
+<!-- END proof -->
 
 ### SC-CANC-017 — The period a cancellation lands in is stated before the tenant confirms it
 

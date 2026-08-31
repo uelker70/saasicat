@@ -213,6 +213,7 @@ function quota(key, overrides = {}) {
     };
 }
 
+// @requirement SC-CAT-012 — A new declaration appears for review after the application restarts
 describe('CatalogEntriesService', () => {
     let repo;
     let service;

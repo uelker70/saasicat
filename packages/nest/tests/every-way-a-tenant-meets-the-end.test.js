@@ -283,6 +283,7 @@ describe('accepting a version after the subscription ended', () => {
 
 // @requirement SC-ENTL-015 — The end of a subscription is seen on every enforcement path
 // @requirement SC-CANC-018 — The agreed contract ends when the subscription does, not when the customer declares
+// @requirement SC-CANC-016 — A subscription is in one of three states, not two
 describe('what else ends when the subscription does', () => {
     // The boundary is not a fact about one table. Everything a tenant was sold
     // hangs off the subscription, and each of those had its own answer to

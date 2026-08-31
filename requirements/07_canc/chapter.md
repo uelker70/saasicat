@@ -14,6 +14,17 @@ not leave.
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-lands-at-the-term-end.test.js`
+    - with no notice period, which is the default
+        - a cancellation lands at the end of the term
+        - the last day of the term is still in time
+
+<!-- END proof -->
+
 ### SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
 
 🟢 They coincide unless a notice period has pushed one past the other.
@@ -329,6 +340,18 @@ lost, and it keeps every entitlement it had until the date arrives. A page showi
 effective moment on a timer rather than on the last render.
 
 _Source:_ #219 · release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - what else ends when the subscription does
+        - the frozen contract is ended on the same date
+        - and a cancellation already recorded repairs its contract too
+        - and a consumer without contracts is unaffected
+
+<!-- END proof -->
 
 ### SC-CANC-017 — The period a cancellation lands in is stated before the tenant confirms it
 
