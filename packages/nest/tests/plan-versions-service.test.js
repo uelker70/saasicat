@@ -384,6 +384,110 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
+    // @requirement SC-PLAN-025 — Every quota a version carries counts as a limit that can be lowered
+    test("publishPlanVersion: lowering an installation's own quota → 422", async () => {
+        const { versions, plan } = await setupWithPlan();
+        const v1 = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: { notesMax: 100 },
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        });
+        await versions.publishPlanVersion(v1.planVersion.id, {
+            publishedByUserId: null,
+            validFrom: '2026-01-01',
+        });
+        const v2 = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: { notesMax: 50 },
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+            changeNote: 'Halve the note allowance',
+        });
+        await assert.rejects(
+            () =>
+                versions.publishPlanVersion(v2.planVersion.id, {
+                    publishedByUserId: null,
+                    validFrom: '2026-06-01',
+                }),
+            (err) => {
+                assert.equal(err.status, 422);
+                assert.equal(err.response?.code, 'PLAN_VERSION_REGRESSION');
+                assert.deepEqual(
+                    err.response?.changes?.map((c) => [c.field, c.direction]),
+                    [['quotas.notesMax', 'REGRESSION']],
+                );
+                return true;
+            },
+        );
+    });
+
+    // @requirement SC-PLAN-025 — Every quota a version carries counts as a limit that can be lowered
+    test("publishPlanVersion: raising an installation's own quota publishes", async () => {
+        const { versions, plan } = await setupWithPlan();
+        const v1 = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: { notesMax: 100 },
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        });
+        await versions.publishPlanVersion(v1.planVersion.id, {
+            publishedByUserId: null,
+            validFrom: '2026-01-01',
+        });
+        const v2 = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: { notesMax: 200 },
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+            changeNote: 'Double the note allowance',
+        });
+        const published = await versions.publishPlanVersion(v2.planVersion.id, {
+            publishedByUserId: null,
+            validFrom: '2026-06-01',
+        });
+        assert.notEqual(published.planVersion.publishedAt, null);
+        assert.equal(published.planVersion.nonRegressive, true);
+    });
+
+    // @requirement SC-PLAN-025 — Every quota a version carries counts as a limit that can be lowered
+    test("publishPlanVersion: forceRegressive lets an own quota's cut through", async () => {
+        const { versions, plan } = await setupWithPlan();
+        const v1 = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: { notesMax: 100 },
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        });
+        await versions.publishPlanVersion(v1.planVersion.id, {
+            publishedByUserId: null,
+            validFrom: '2026-01-01',
+        });
+        const v2 = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: { notesMax: 50 },
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+            changeNote: 'Halve it anyway',
+        });
+        const published = await versions.publishPlanVersion(v2.planVersion.id, {
+            publishedByUserId: null,
+            forceRegressive: true,
+            validFrom: '2026-06-01',
+        });
+        assert.equal(published.planVersion.nonRegressive, false);
+        assert.deepEqual(
+            (published.planVersion.publishedChanges ?? []).map((c) => c.field),
+            ['quotas.notesMax'],
+        );
+    });
+
     test('getPlanVersion: NotFound for unknown ID', async () => {
         const { versions } = await setupWithPlan();
         await assert.rejects(

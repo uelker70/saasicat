@@ -14,6 +14,7 @@ export * from './public-marketing-catalog.types.js';
 export * from './discovery.types.js';
 export * from './entitlement-snapshot.types.js';
 export * from './feature-ui-registry.types.js';
+export { readQuotaRecord, readQuotaValue } from './quota-value.js';
 export { classifyBundleVersionDiff, classifyPlanDiff } from './version-diff.js';
 export type {
     BundleVersionFields,

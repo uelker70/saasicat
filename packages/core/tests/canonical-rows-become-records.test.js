@@ -130,6 +130,25 @@ describe('a plan version row becomes a version record', () => {
         );
     });
 
+    test('a quota written as a string is the number it says', () => {
+        // The column is JSON and the boundary only started refusing a
+        // non-number now, so legacy rows carry `"100"`. Dropping it made the
+        // diff read the quota as absent, and replacing it with 50 then
+        // classified as 0 → 50: an improvement, published with nothing asked.
+        const row = toPlanVersionRow(
+            versionRow({ quotas: { users: '100', storageGb: '-1', notesMax: 5 } }),
+            'X',
+            WINDOWS,
+        );
+        assert.deepEqual(row.quotas, { users: 100, storageGb: -1, notesMax: 5 });
+    });
+
+    test('and one nothing can read stays, so the diff can tell it from absent', () => {
+        const row = toPlanVersionRow(versionRow({ quotas: { seats: 'many' } }), 'X', WINDOWS);
+        assert.ok('seats' in row.quotas, 'the key must survive');
+        assert.ok(Number.isNaN(row.quotas.seats));
+    });
+
     test('features and quotas drop entries of the wrong type', () => {
         const row = toPlanVersionRow(
             versionRow({ features: ['CORE', 7, null], quotas: { users: 5, seats: 'many' } }),
@@ -137,7 +156,8 @@ describe('a plan version row becomes a version record', () => {
             WINDOWS,
         );
         assert.deepEqual(row.features, ['CORE']);
-        assert.deepEqual(row.quotas, { users: 5 });
+        assert.equal(row.quotas.users, 5);
+        assert.ok(Number.isNaN(row.quotas.seats), 'an unreadable quota is kept, not dropped');
     });
 
     test('a JSON column holding nothing usable reads as empty, not as a crash', () => {
@@ -319,10 +339,26 @@ describe('a line item row becomes a line item record', () => {
     });
 
     test('a features snapshot of mixed types keeps only the strings', () => {
-        const record = toContractLineItemRecord(
-            lineItemRow({ featuresSnapshot: ['CORE', 3], quotaEffectsSnapshot: { users: 'five' } }),
-        );
+        const record = toContractLineItemRecord(lineItemRow({ featuresSnapshot: ['CORE', 3] }));
         assert.deepEqual(record.featuresSnapshot, ['CORE']);
-        assert.deepEqual(record.quotaEffectsSnapshot, {});
+    });
+
+    test('a quota written as a string is the number it says', () => {
+        const record = toContractLineItemRecord(
+            lineItemRow({ quotaEffectsSnapshot: { users: '5', storageGb: '-1' } }),
+        );
+        assert.deepEqual(record.quotaEffectsSnapshot, { users: 5, storageGb: -1 });
+    });
+
+    test('and one nothing can read stays declared rather than vanishing', () => {
+        // It used to be dropped, which made the quota *absent* — and absent
+        // means undeclared, which `enforceLimit` answers with a 500. A corrupt
+        // line item would have refused the tenant every operation on that
+        // dimension. `SC-ENTL-010` says a limit nothing can count blocks
+        // nobody, and -1 is that, written as data.
+        const record = toContractLineItemRecord(
+            lineItemRow({ quotaEffectsSnapshot: { users: 'five' } }),
+        );
+        assert.deepEqual(record.quotaEffectsSnapshot, { users: -1 });
     });
 });

@@ -1,3 +1,4 @@
+import { readQuotaRecord } from '@saasicat/core';
 import type { TransactionContext } from '@saasicat/core';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 
@@ -40,10 +41,7 @@ export function resolveDb(client: DrizzleClient, tx?: TransactionContext): Drizz
 
 /** Narrows a JSON column to the platform quota object; non-objects become {}. */
 export function toQuotaMap(value: unknown): Record<string, number> {
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        return value as Record<string, number>;
-    }
-    return {};
+    return readQuotaRecord(value);
 }
 
 /** Narrows a JSON column to a string array; non-arrays become []. */

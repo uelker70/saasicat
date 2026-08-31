@@ -246,6 +246,7 @@ import {
 } from '../vue/use-plans.js';
 import type { SaMessages } from '../client/i18n/index.js';
 import { formatMessage } from '../client/i18n/format.js';
+import { quotaKeyOfField } from '../client/version-change-fields.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import PlanMatrix from '../features/plan/PlanMatrix.vue';
 import PlanDetail from '../features/plan/PlanDetail.vue';
@@ -1246,15 +1247,16 @@ const REGRESSION_FIELD_KEYS: Record<string, keyof SaMessages['plans']['regressio
     yearlyNet: 'yearlyNet',
     'features.removed': 'featuresRemoved',
     'features.added': 'featuresAdded',
-    'quotas.lowered': 'quotasLowered',
-    'quotas.raised': 'quotasRaised',
     'bundles.removed': 'bundlesRemoved',
     'bundles.added': 'bundlesAdded',
 };
 
 function fieldLabel(field: string): string {
     const key = REGRESSION_FIELD_KEYS[field];
-    return key ? msg.value.regressionFields[key] : field;
+    if (key) return msg.value.regressionFields[key];
+    const quotaKey = quotaKeyOfField(field);
+    if (quotaKey) return formatMessage(msg.value.regressionFields.quota, { key: quotaKey });
+    return field;
 }
 
 function formatChangeValue(value: unknown): string {

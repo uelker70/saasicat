@@ -91,6 +91,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -157,6 +160,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -227,6 +233,9 @@ _Tested by:_
         - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
         - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
         - publishPlanVersion: forceRegressive lets regressive version through
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
         - getPlanVersion: NotFound for unknown ID
         - discardPlanDraft: draft → removed, listPlanVersions returns empty list
         - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
@@ -327,14 +336,31 @@ _Tested by:_
 
 - `packages/nest/tests/version-diff.test.js`
     - classifyPlanDiff — identical versions → no changes, nonRegressive=true
-    - classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true
-    - classifyPlanDiff — limit decrease → REGRESSION, nonRegressive=false
     - classifyPlanDiff — price increase → REGRESSION
     - classifyPlanDiff — price decrease → IMPROVEMENT
     - classifyPlanDiff — feature removed → REGRESSION
     - classifyPlanDiff — feature added → IMPROVEMENT
     - classifyPlanDiff — mixed: 1 improvement + 1 regression → nonRegressive=false
     - classifyPlanDiff — Decimal-like object with toNumber() accepted
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
+        - a finite number replaced by unlimited → IMPROVEMENT
 - `packages/nest/tests/version-publish.test.js`
     - assertDraftPublishable
         - accepts a fresh draft
@@ -357,25 +383,94 @@ _Tested by:_
 
 - `packages/nest/tests/version-diff.test.js`
     - classifyPlanDiff — identical versions → no changes, nonRegressive=true
-    - classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true
-    - classifyPlanDiff — limit decrease → REGRESSION, nonRegressive=false
     - classifyPlanDiff — price increase → REGRESSION
     - classifyPlanDiff — price decrease → IMPROVEMENT
     - classifyPlanDiff — feature removed → REGRESSION
     - classifyPlanDiff — feature added → IMPROVEMENT
     - classifyPlanDiff — mixed: 1 improvement + 1 regression → nonRegressive=false
     - classifyPlanDiff — Decimal-like object with toNumber() accepted
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
+        - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->
 
 ### SC-PLAN-025 — Every quota a version carries counts as a limit that can be lowered
 
-🟡 _(Decided, not yet delivered.)_ A plan version is compared on `users`, `vehicles` and `storageGb`
-alone, so a quota an installation defines for itself — NotesApp's `notesMax`, for instance — can be
-lowered and published without the confirmation SC-PLAN-009 asks for. Add-on versions are already
-compared on every quota they carry.
+🟢 Not only the three keys the platform once knew by name: which quotas exist is the installation's
+decision, and one of its own being lowered is the same event to the customer it belongs to.
+Add-on versions are compared the same way.
 
 _Source:_ current practice
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-quota-is-read-one-way.test.js`
+    - a quota is read the same way everywhere
+        - a number is itself
+        - a number written as a string is that number
+        - anything that is not a finite number reads as nothing
+        - and so does a number too large to be one
+        - a record reads what it can and keeps the rest as uncountable
+        - a declared quota stays declared, whatever it says
+        - and what it reads survives a round trip through a JSON column
+        - and anything that is not a record reads as an empty one
+        - a key inherited from the prototype is not a quota
+- `packages/nest/tests/a-quota-arrives-as-a-number.test.js`
+    - a quota arrives as a number or it does not arrive
+        - integers are accepted, and so is -1 for unlimited
+        - an empty record is accepted — a version may carry no quota at all
+        - a numeric string is refused, and the message names the key
+        - "-1" is refused too — it is the value that would lock a tenant out
+        - a fraction, a negative below -1, null and a nested object are refused
+        - an array is not a quota record
+        - the update DTO holds the same line, and leaving quotas out is still allowed
+        - an add-on version is held to it as well — it is the same comparison
+- `packages/nest/tests/plan-versions-service.test.js`
+    - PlanVersionsService — Lifecycle
+        - publishPlanVersion: lowering an installation's own quota → 422
+        - publishPlanVersion: raising an installation's own quota publishes
+        - publishPlanVersion: forceRegressive lets an own quota's cut through
+- `packages/nest/tests/version-diff.test.js`
+    - classifyPlanDiff — quotas
+        - a version with no quotas at all → no quota changes
+        - limit increase → IMPROVEMENT, nonRegressive=true
+        - limit decrease → REGRESSION, nonRegressive=false
+        - an installation's own quota lowered → REGRESSION
+        - an installation's own quota raised → IMPROVEMENT
+        - a quota the successor drops counts as 0 → REGRESSION
+        - a quota the successor adds counts from 0 → IMPROVEMENT
+        - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
+        - a value written as a string is read as the number it is
+        - the same allowance written twice is not a change
+        - "-1" is unlimited, and losing it is a regression
+        - a value nothing can read is not evidence of an improvement
+        - and it reaches the record as what it was, not as nothing
+        - every change survives the round trip through a JSON column
+        - a number too large to be one is a regression, not the best offer ever
+        - a finite number replaced by unlimited → IMPROVEMENT
+
+<!-- END proof -->
 
 ### SC-PLAN-011 — A published version says which day it applies from
 

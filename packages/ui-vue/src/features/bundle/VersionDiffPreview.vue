@@ -35,6 +35,8 @@
 import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/core';
 import { formatCurrency } from '../../client/i18n/currency.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { quotaKeyOfField } from '../../client/version-change-fields.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // Renders a plan-version diff as one row per changed field. Used by the
@@ -44,9 +46,9 @@ import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n
 const props = defineProps<{
     changes?: VersionChange[] | null;
     /**
-     * Optional: field labels (e.g. `{ maxUsers: 'Max. users' }`).
-     * Apps map their own quota fields here; the default covers the generic
-     * platform fields.
+     * Optional: field labels (e.g. `{ 'quotas.users': 'Max. users' }`).
+     * Apps name their own quota fields here; without one a quota row falls
+     * back to its key, which is all the platform knows about it.
      */
     fieldLabels?: Record<string, string>;
 }>();
@@ -57,8 +59,6 @@ const { locale } = useSuperAdminI18n();
 const defaultFieldLabels = computed<Record<string, string>>(() => ({
     'features.added': msg.value.diffFields.featuresAdded,
     'features.removed': msg.value.diffFields.featuresRemoved,
-    maxUsers: msg.value.diffFields.maxUsers,
-    maxStorageGb: msg.value.diffFields.maxStorageGb,
     monthlyNet: msg.value.diffFields.monthlyNet,
     yearlyNet: msg.value.diffFields.yearlyNet,
     unitSize: msg.value.diffFields.unitSize,
@@ -88,7 +88,13 @@ function rowClass(direction: VersionChange['direction']): string {
 }
 
 function humanFieldLabel(field: string): string {
-    return mergedFieldLabels.value[field] ?? field;
+    const given = mergedFieldLabels.value[field];
+    if (given) return given;
+    // A quota key is the installation's, so the shipped catalog has no word
+    // for it — `fieldLabels` is where an app supplies one.
+    const quotaKey = quotaKeyOfField(field);
+    if (quotaKey) return formatMessage(msg.value.diffFields.quota, { key: quotaKey });
+    return field;
 }
 
 /** Decimal strings the API sends for money fields (`"29.90"`). */

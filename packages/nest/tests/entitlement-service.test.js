@@ -408,6 +408,59 @@ describe('the read that decides takes the row lock', () => {
 });
 
 // @requirement SC-ENTL-008 — A single large action can be refused by a limit it would cross in one go
+// @requirement SC-ENTL-010 — A limit nothing can count does not block anybody
+// @requirement SC-ENTL-011 — Enforcing a limit nobody declared is the installation's fault, not the tenant's
+describe('EntitlementService.enforceLimit — a limit nobody can read', () => {
+    // The two cases look the same from inside `enforceLimit` and are opposite
+    // requirements. A dimension nobody declared is the installation's mistake
+    // and answers 500. A quota that IS declared and cannot be read is a corrupt
+    // row, and the tenant is not refused for it — the adapter carries it
+    // through as -1 so the request goes through rather than 500-ing.
+
+    test('a dimension the plan does not declare is a misconfiguration', async () => {
+        const { svc, subRepo } = buildHarness();
+        subRepo.set(buildSub());
+        await assert.rejects(
+            () =>
+                svc.enforceLimit({
+                    tenantId: 't1',
+                    dimension: 'notesMax',
+                    currentUsage: async () => 0,
+                    insert: async () => 'created',
+                    now: NOW,
+                }),
+            (err) => {
+                assert.equal(err.status, 500);
+                assert.equal(err.response?.code, 'QUOTA_DIMENSION_UNKNOWN');
+                return true;
+            },
+        );
+    });
+
+    test('a declared quota that cannot be read lets the request through', async () => {
+        const { svc, subRepo } = buildHarness();
+        // What a legacy row maps to: declared, and nothing can count it.
+        subRepo.set(
+            buildSub({
+                planVersion: { ...STANDARD_PV, quotas: { ...STANDARD_PV.quotas, notesMax: -1 } },
+            }),
+        );
+        let inserted = false;
+        const result = await svc.enforceLimit({
+            tenantId: 't1',
+            dimension: 'notesMax',
+            currentUsage: async () => 10_000,
+            insert: async () => {
+                inserted = true;
+                return 'created';
+            },
+            now: NOW,
+        });
+        assert.equal(result, 'created');
+        assert.equal(inserted, true, 'the tenant is not refused for a corrupt row');
+    });
+});
+
 describe('EntitlementService.enforceLimit — transactional', () => {
     test('insert runs when under the limit', async () => {
         const { svc, subRepo, txRunner } = buildHarness();

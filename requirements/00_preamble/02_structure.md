@@ -100,11 +100,10 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 401 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
+Of 401 entries: 🟢 388 stand today, 🟡 11 decided but not yet delivered, ⚪ 0 drafts,
 🔵 2 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
-[SC-PLAN-025](#sc-plan-025--every-quota-a-version-carries-counts-as-a-limit-that-can-be-lowered),
 [SC-PRIC-015](#sc-pric-015--an-amount-records-the-currency-it-was-booked-in),
 [SC-PRIC-017](#sc-pric-017--the-tax-rate-and-the-tax-amount-are-recorded-not-re-derived),
 [SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),

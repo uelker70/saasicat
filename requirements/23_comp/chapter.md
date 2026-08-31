@@ -691,6 +691,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record
@@ -705,6 +707,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/saasicat-persistence.test.js`
     - SaaSiCatModule persistence bundle
         - forRoot wires from a bundle without individual adapters
@@ -831,6 +835,8 @@ _Tested by:_
         - a schema without validity windows reads them as null, not as dates
         - a schema without endsAt omits the field rather than saying null
         - publishedChanges that is not an array reads as null
+        - a quota written as a string is the number it says
+        - and one nothing can read stays, so the diff can tell it from absent
         - features and quotas drop entries of the wrong type
         - a JSON column holding nothing usable reads as empty, not as a crash
     - a contract row becomes a contract record
@@ -845,6 +851,8 @@ _Tested by:_
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
         - a features snapshot of mixed types keeps only the strings
+        - a quota written as a string is the number it says
+        - and one nothing can read stays declared rather than vanishing
 - `packages/nest/tests/create-saasicat-test-module.test.js`
     - createSaaSiCatTestModule
         - returns a DynamicModule with a test host
