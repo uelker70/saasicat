@@ -413,6 +413,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(row.discoveryStatus, 'outdated');
         });
 
+        // @requirement SC-CAT-009 — Bringing a retired entry back is always a person's decision
         test('manual obsolete stays put on sync (no auto-resurrect)', async () => {
             const snap = snapshot({ features: ['A'] });
             const svc = new CatalogEntriesService(repo, snap);

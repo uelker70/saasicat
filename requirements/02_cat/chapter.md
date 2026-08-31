@@ -295,19 +295,9 @@ _Source:_ `docs/explanation/concepts.md`
 
 _Tested by:_
 
-- `packages/ui-vue/tests/use-discovery.test.js`
-    - useDiscovery
-        - the endpoint is required — there is no prefix the platform could guess
-        - load() adopts the snapshot and remembers the ETag
-        - the second load sends the ETag, and a 304 changes nothing
-        - reload() drops the ETag, so the server has to answer with a body
-        - a failed load lands on `error`, not on a rejection the page has to catch
-        - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
-        - a failed rescan says rescan, not discovery
-        - a client that rejects is reported as it is, not re-wrapped
-        - a client that resolves with status 0 never reached the server
-        - a client that throws a non-Error still leaves an Error behind
-        - autoLoad fetches without being asked
+- `packages/nest/tests/catalog-entries-service.test.js`
+    - CatalogEntriesService
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
 
 <!-- END proof -->
 

@@ -539,7 +539,6 @@ describe('PublicMarketingCatalogService — comparison matrix (staircase sorting
     });
 });
 
-// @requirement SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
 describe('PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)', () => {
     test('priceTag of the bundle MarketingProjection lands in the payload', async () => {
         const bv = await createLiveBundle({ bundleKey: 'FINANCE_PLUS', monthlyNet: '12.00' });

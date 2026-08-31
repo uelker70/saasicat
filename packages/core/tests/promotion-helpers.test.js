@@ -45,6 +45,7 @@ describe('promoStatus', () => {
     });
 });
 
+// @requirement SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
 describe('pickActivePromo', () => {
     test('highest priority wins on overlap', () => {
         const low = promo({ id: 'low', priority: 5 });

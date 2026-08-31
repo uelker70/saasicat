@@ -526,6 +526,70 @@ describe('a code that has been redeemed is kept', () => {
     });
 });
 
+describe('what a code promised at redemption stays with the redemption', () => {
+    // The code is an offer that changes: an operator edits its value, shortens
+    // its duration, or lets it expire. The redemption is the answer to "why did
+    // this customer pay that", and it has to keep answering after the offer has
+    // moved on — otherwise a discount granted in March is explained by the
+    // terms of a code as it reads in September.
+
+    const SUBSCRIPTION = {
+        async findById() {
+            return {
+                id: 'sub-1',
+                tenantId: 'tenant-1',
+                plan: 'STANDARD',
+                billingCycle: 'MONTHLY',
+                startedAt: null,
+            };
+        },
+    };
+
+    async function redeemThen(mutate) {
+        const promoRepo = new FakePromoRepo();
+        let written = null;
+        const svc = buildSvc({
+            promoRepo,
+            subscriptionLookup: SUBSCRIPTION,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async create(data) {
+                    written = { ...data };
+                    return { id: 'r1', ...data };
+                },
+            },
+        });
+        const created = await svc.create(BASE_INPUT);
+        await svc.redeem({ code: 'BLACKFRIDAY25', subscriptionId: 'sub-1', tenantId: 'tenant-1' });
+        await mutate(svc, created);
+        return { written, promoRepo, created };
+    }
+
+    // @requirement SC-AUD-009 — What a promotional code promised at redemption stays with the redemption
+    test('the redemption records the terms, not a pointer to them', async () => {
+        const { written, created } = await redeemThen(async () => {});
+
+        assert.equal(written.promoCodeId, created.id);
+        assert.equal(written.appliedValueType, BASE_INPUT.valueType);
+        assert.equal(Number(written.appliedValue), Number(BASE_INPUT.value));
+        assert.equal(written.appliedDurationType, BASE_INPUT.durationType);
+    });
+
+    // @requirement SC-AUD-009 — What a promotional code promised at redemption stays with the redemption
+    test('and editing the code afterwards does not rewrite them', async () => {
+        // The half that matters. A redemption holding only an id would answer
+        // with whatever the code says today, and the record of what was
+        // actually granted would be gone.
+        const { written, promoRepo, created } = await redeemThen(async (svc, code) => {
+            await svc.update(code.id, { value: 99 });
+        });
+
+        assert.equal(Number((await promoRepo.findById(created.id)).value), 99);
+        assert.equal(Number(written.appliedValue), Number(BASE_INPUT.value));
+        assert.notEqual(Number(written.appliedValue), 99);
+    });
+});
+
 describe('a redemption and its discount stand or fall together', () => {
     // Half of this leaves a customer with a discount nobody recorded, or a
     // record of one they never received — and both are found months later, by

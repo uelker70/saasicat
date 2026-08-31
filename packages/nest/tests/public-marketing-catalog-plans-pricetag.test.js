@@ -76,7 +76,6 @@ async function seedLivePlan({ planKey, planVersionId }) {
     });
 }
 
-// @requirement SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
 describe('PublicMarketingCatalogService — Plan priceTag (#47)', () => {
     test('the plan MarketingProjection priceTag lands in the payload', async () => {
         await seedLivePlan({ planKey: 'ENTERPRISE', planVersionId: 'pv-ent-1' });
@@ -94,7 +93,6 @@ describe('PublicMarketingCatalogService — Plan priceTag (#47)', () => {
         assert.equal(cat.plans[0].priceTag, 'auf Anfrage');
     });
 
-    // @requirement SC-PRIC-011 — A plan that is not marketed has no list price
     test('priceTag is null when the projection maintains none (backwards compatible)', async () => {
         await seedLivePlan({ planKey: 'STANDARD', planVersionId: 'pv-std-1' });
         marketingRepo.set({

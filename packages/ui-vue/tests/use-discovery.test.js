@@ -10,7 +10,6 @@
 // against, the way a mount would; without one Vue warns on every call.
 
 // @requirement SC-CAT-007 — A catalogue entry moves along a fixed path
-// @requirement SC-CAT-009 — Bringing a retired entry back is always a person's decision
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

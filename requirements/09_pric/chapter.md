@@ -185,9 +185,9 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
-    - PublicMarketingCatalogService — Plan priceTag (#47)
-        - priceTag is null when the projection maintains none (backwards compatible)
+- `packages/nest/tests/public-catalog-controller.test.js`
+    - listPlans returns only marketed plans in the generic format
+    - a plan sold by negotiation is left out even when a figure is on file
 
 <!-- END proof -->
 

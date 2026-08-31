@@ -113,8 +113,10 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/nest/tests/registration-service.test.js`
-    - audit: failure in AuditLogger does not crash the auth flow
+- `packages/nest/tests/promo-service.test.js`
+    - what a code promised at redemption stays with the redemption
+        - the redemption records the terms, not a pointer to them
+        - and editing the code afterwards does not rewrite them
 
 <!-- END proof -->
 

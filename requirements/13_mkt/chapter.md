@@ -18,6 +18,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
     - listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)
@@ -190,18 +191,14 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
-        - priceTag of the bundle MarketingProjection lands in the payload
-        - priceTag is null without a MarketingProjection (backward compatible)
-        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
-          FeatureCatalogEntries (incl. i18n)
-        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
-          (graceful)
-- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
-    - PublicMarketingCatalogService — Plan priceTag (#47)
-        - the plan MarketingProjection priceTag lands in the payload
-        - priceTag is null when the projection maintains none (backwards compatible)
+- `packages/core/tests/promotion-helpers.test.js`
+    - pickActivePromo
+        - highest priority wins on overlap
+        - onlyLocales filters
+        - billingCycle filters
+        - requiresCoupon promotions are not selected automatically
+        - non-matching plan → null
+        - targetType filters bundle promotions separately from plan promotions
 
 <!-- END proof -->
 
@@ -264,6 +261,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
     - listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)

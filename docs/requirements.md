@@ -663,19 +663,9 @@ _Source:_ `docs/explanation/concepts.md`
 
 _Tested by:_
 
-- `packages/ui-vue/tests/use-discovery.test.js`
-    - useDiscovery
-        - the endpoint is required — there is no prefix the platform could guess
-        - load() adopts the snapshot and remembers the ETag
-        - the second load sends the ETag, and a 304 changes nothing
-        - reload() drops the ETag, so the server has to answer with a body
-        - a failed load lands on `error`, not on a rejection the page has to catch
-        - rescan() posts, adopts the new snapshot and accepts 200 as well as 201
-        - a failed rescan says rescan, not discovery
-        - a client that rejects is reported as it is, not re-wrapped
-        - a client that resolves with status 0 never reached the server
-        - a client that throws a non-Error still leaves an Error behind
-        - autoLoad fetches without being asked
+- `packages/nest/tests/catalog-entries-service.test.js`
+    - CatalogEntriesService
+        - drift detection on sync (#20) › manual obsolete stays put on sync (no auto-resurrect)
 
 <!-- END proof -->
 
@@ -4827,9 +4817,9 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
-    - PublicMarketingCatalogService — Plan priceTag (#47)
-        - priceTag is null when the projection maintains none (backwards compatible)
+- `packages/nest/tests/public-catalog-controller.test.js`
+    - listPlans returns only marketed plans in the generic format
+    - a plan sold by negotiation is left out even when a figure is on file
 
 <!-- END proof -->
 
@@ -6275,6 +6265,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
     - listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)
@@ -6447,18 +6438,14 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
-        - priceTag of the bundle MarketingProjection lands in the payload
-        - priceTag is null without a MarketingProjection (backward compatible)
-        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
-          FeatureCatalogEntries (incl. i18n)
-        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
-          (graceful)
-- `packages/nest/tests/public-marketing-catalog-plans-pricetag.test.js`
-    - PublicMarketingCatalogService — Plan priceTag (#47)
-        - the plan MarketingProjection priceTag lands in the payload
-        - priceTag is null when the projection maintains none (backwards compatible)
+- `packages/core/tests/promotion-helpers.test.js`
+    - pickActivePromo
+        - highest priority wins on overlap
+        - onlyLocales filters
+        - billingCycle filters
+        - requiresCoupon promotions are not selected automatically
+        - non-matching plan → null
+        - targetType filters bundle promotions separately from plan promotions
 
 <!-- END proof -->
 
@@ -6521,6 +6508,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
     - listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)
@@ -10993,8 +10981,10 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/nest/tests/registration-service.test.js`
-    - audit: failure in AuditLogger does not crash the auth flow
+- `packages/nest/tests/promo-service.test.js`
+    - what a code promised at redemption stays with the redemption
+        - the redemption records the terms, not a pointer to them
+        - and editing the code afterwards does not rewrite them
 
 <!-- END proof -->
 

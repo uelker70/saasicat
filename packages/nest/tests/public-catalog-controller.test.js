@@ -66,6 +66,7 @@ const REGISTRY = {
     PLANNED: { label: 'Spaeter', description: 'Geplant', icon: 'schedule' },
 };
 
+// @requirement SC-PRIC-011 — A plan that is not marketed has no list price
 test('listPlans returns only marketed plans in the generic format', async () => {
     const ctrl = new PublicCatalogController(CATALOG, REGISTRY);
     const plans = await ctrl.listPlans();
@@ -78,6 +79,37 @@ test('listPlans returns only marketed plans in the generic format', async () => 
     assert.equal(standard.popular, true);
     assert.equal(standard.monthlyNet, 49);
     assert.deepEqual(standard.features, ['CORE_IDENTITY', 'WHATSAPP']);
+
+    assert.equal(
+        plans.some((plan) => plan.id === 'ENTERPRISE'),
+        false,
+    );
+});
+
+// @requirement SC-PRIC-011 — A plan that is not marketed has no list price
+test('a plan sold by negotiation is left out even when a figure is on file', async () => {
+    // The fixture above prices ENTERPRISE at null, so its omission could be
+    // read as "there was nothing to show". This one puts a real figure on it:
+    // the plan is still absent, and no page can invent a price for something
+    // it was never handed.
+    const priced = {
+        ...CATALOG,
+        plans: CATALOG.plans.map((plan) =>
+            plan.id === 'ENTERPRISE' ? { ...plan, monthlyNet: 999, yearlyNet: 9990 } : plan,
+        ),
+    };
+    const plans = await new PublicCatalogController(priced, REGISTRY).listPlans();
+
+    assert.equal(
+        plans.some((plan) => plan.id === 'ENTERPRISE'),
+        false,
+        'a plan sold by negotiation reached a self-service list',
+    );
+    assert.equal(
+        JSON.stringify(plans).includes('999'),
+        false,
+        'its figure reached the payload by another route',
+    );
 });
 
 test('listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo', async () => {

@@ -1154,7 +1154,6 @@ test('resume: without configured signer start() falls back to OTP resend', async
     assert.equal(ctx.delivery.sent.length, before + 1, 'OTP fallback active');
 });
 
-// @requirement SC-AUD-009 — What a promotional code promised at redemption stays with the redemption
 test('audit: failure in AuditLogger does not crash the auth flow', async () => {
     class ExplodingAudit {
         async log() {
