@@ -136,14 +136,11 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
-- `packages/ui-vue/tests/a-price-lookup-stays-inside-its-limit.test.js`
-    - loadBundlePrices
-        - asks for nothing when there is nothing to ask about
-        - sends one request while the catalogue fits
-        - splits a catalogue larger than the cap instead of being rejected whole
-        - merges what the batches answer
-        - a consumer without the endpoint keeps the catalogue rather than breaking
-        - a failed lookup is not the same answer as an absent one
+- `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
+    - a monthly plan offers no choice
+        - the card quotes the monthly price with the monthly unit
+    - a yearly plan offers both
+        - switching moves the price and the unit together
 
 <!-- END proof -->
 
@@ -172,14 +169,9 @@ _Source:_ `docs/reference/options.md`
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
-        - priceTag of the bundle MarketingProjection lands in the payload
-        - priceTag is null without a MarketingProjection (backward compatible)
-        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
-          FeatureCatalogEntries (incl. i18n)
-        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
-          (graceful)
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - the prices a store is shown
+        - a bundle sold in one rhythm only says so for the other
 
 <!-- END proof -->
 

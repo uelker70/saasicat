@@ -106,11 +106,11 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
-- `packages/cli/tests/schema-apply-dry-run.test.js`
-    - the dry run previews what the real run writes
-        - it names the lines, and leaves the file untouched
-        - and the real run writes exactly those lines
-        - past tense belongs to the run that did it
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a migration that would merge rows stops instead
+        - two project keys stop it, and the message names them
+        - and the installation is exactly as it was afterwards
+        - and the installation is exactly as it was afterwards
 
 <!-- END proof -->
 

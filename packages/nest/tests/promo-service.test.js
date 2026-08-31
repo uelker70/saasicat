@@ -385,7 +385,6 @@ describe('PromoCodesService.preview — eligibility', () => {
 
 // @requirement SC-PROMO-009 — A plan may be marked as not discountable
 // @requirement SC-PROMO-010 — A code is for first-time customers unless the operator says otherwise
-// @requirement SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
 describe('PromoCodesService.redeem — eligibility', () => {
     const SUBSCRIPTION_LOOKUP = {
         async findById() {
@@ -524,5 +523,123 @@ describe('a code that has been redeemed is kept', () => {
 
         await svc.softDelete(created.id);
         assert.ok((await promoRepo.findById(created.id)).deletedAt instanceof Date);
+    });
+});
+
+describe('a redemption and its discount stand or fall together', () => {
+    // Half of this leaves a customer with a discount nobody recorded, or a
+    // record of one they never received — and both are found months later, by
+    // somebody reading an invoice that does not add up.
+    //
+    // Two writes make the pair: the code gives up a slot, and the redemption is
+    // written. They are atomic only if both run in the *same* transaction and a
+    // failure in the second is allowed to reach the runner.
+
+    const SUBSCRIPTION = {
+        async findById() {
+            return {
+                id: 'sub-1',
+                tenantId: 'tenant-1',
+                plan: 'STANDARD',
+                billingCycle: 'MONTHLY',
+                startedAt: null,
+            };
+        },
+    };
+
+    function txRunner() {
+        const context = { marker: 'the-one-transaction' };
+        return {
+            context,
+            rolledBack: false,
+            async run(work) {
+                try {
+                    return await work(this.context);
+                } catch (error) {
+                    this.rolledBack = true;
+                    throw error;
+                }
+            },
+        };
+    }
+
+    function watchfulPromoRepo(base) {
+        base.claimedWith = [];
+        const claimSlot = base.claimSlot.bind(base);
+        base.claimSlot = async function (id, tx) {
+            base.claimedWith.push(tx);
+            return claimSlot(id, tx);
+        };
+        return base;
+    }
+
+    // @requirement SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
+    test('the slot and the record are claimed in one transaction', async () => {
+        const runner = txRunner();
+        const promoRepo = watchfulPromoRepo(new FakePromoRepo());
+        const seen = [];
+        const svc = buildSvc({
+            promoRepo,
+            transactionRunner: runner,
+            subscriptionLookup: SUBSCRIPTION,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async create(data, tx) {
+                    seen.push(tx);
+                    return { id: 'r1', ...data };
+                },
+            },
+        });
+        await svc.create(BASE_INPUT);
+
+        await svc.redeem({ code: 'BLACKFRIDAY25', subscriptionId: 'sub-1', tenantId: 'tenant-1' });
+
+        assert.deepEqual(
+            promoRepo.claimedWith,
+            [runner.context],
+            'the slot was claimed outside it',
+        );
+        assert.deepEqual(seen, [runner.context], 'the record was written outside it');
+    });
+
+    // @requirement SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
+    test('a record that cannot be written takes the slot back with it', async () => {
+        const runner = txRunner();
+        const svc = buildSvc({
+            transactionRunner: runner,
+            subscriptionLookup: SUBSCRIPTION,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async create() {
+                    throw new Error('the redemption could not be written');
+                },
+            },
+        });
+        await svc.create(BASE_INPUT);
+
+        await assert.rejects(
+            () =>
+                svc.redeem({
+                    code: 'BLACKFRIDAY25',
+                    subscriptionId: 'sub-1',
+                    tenantId: 'tenant-1',
+                }),
+            /the redemption could not be written/,
+        );
+        assert.equal(runner.rolledBack, true, 'the failure never reached the runner');
+    });
+
+    test('an ordinary redemption is not rolled back', async () => {
+        // The counter-check: a service that rolled everything back would pass
+        // the case above and record nothing at all.
+        const runner = txRunner();
+        const svc = buildSvc({
+            transactionRunner: runner,
+            subscriptionLookup: SUBSCRIPTION,
+        });
+        await svc.create(BASE_INPUT);
+
+        await svc.redeem({ code: 'BLACKFRIDAY25', subscriptionId: 'sub-1', tenantId: 'tenant-1' });
+        assert.equal(runner.rolledBack, false);
     });
 });

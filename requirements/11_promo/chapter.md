@@ -258,10 +258,9 @@ _Source:_ `docs/reference/options.md`
 _Tested by:_
 
 - `packages/nest/tests/promo-service.test.js`
-    - PromoCodesService.redeem — eligibility
-        - enforces firstTimeCustomersOnly also at the final redeem with email
-        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
-        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+    - a redemption and its discount stand or fall together
+        - the slot and the record are claimed in one transaction
+        - a record that cannot be written takes the slot back with it
 
 <!-- END proof -->
 

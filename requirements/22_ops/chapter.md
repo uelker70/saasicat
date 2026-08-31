@@ -150,6 +150,10 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a migration that would merge rows stops instead
+        - two project keys stop it, and the message names them
+        - and the installation is exactly as it was afterwards
+        - one project key goes through
 
 <!-- END proof -->
 
@@ -183,6 +187,10 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a migration that would merge rows stops instead
+        - two project keys stop it, and the message names them
+        - and the installation is exactly as it was afterwards
+        - one project key goes through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

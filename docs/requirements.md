@@ -4771,14 +4771,11 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
-- `packages/ui-vue/tests/a-price-lookup-stays-inside-its-limit.test.js`
-    - loadBundlePrices
-        - asks for nothing when there is nothing to ask about
-        - sends one request while the catalogue fits
-        - splits a catalogue larger than the cap instead of being rejected whole
-        - merges what the batches answer
-        - a consumer without the endpoint keeps the catalogue rather than breaking
-        - a failed lookup is not the same answer as an absent one
+- `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
+    - a monthly plan offers no choice
+        - the card quotes the monthly price with the monthly unit
+    - a yearly plan offers both
+        - switching moves the price and the unit together
 
 <!-- END proof -->
 
@@ -4807,14 +4804,9 @@ _Source:_ `docs/reference/options.md`
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
-        - priceTag of the bundle MarketingProjection lands in the payload
-        - priceTag is null without a MarketingProjection (backward compatible)
-        - featureLabels (#48): labels for bundle features ∪ requiresFeatures from the
-          FeatureCatalogEntries (incl. i18n)
-        - featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository
-          (graceful)
+- `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
+    - the prices a store is shown
+        - a bundle sold in one rhythm only says so for the other
 
 <!-- END proof -->
 
@@ -5731,10 +5723,9 @@ _Source:_ `docs/reference/options.md`
 _Tested by:_
 
 - `packages/nest/tests/promo-service.test.js`
-    - PromoCodesService.redeem — eligibility
-        - enforces firstTimeCustomersOnly also at the final redeem with email
-        - blocks firstTimeCustomersOnly at the final redeem without email, fail-closed
-        - lets firstTimeCustomersOnly be redeemed for a first-time customer
+    - a redemption and its discount stand or fall together
+        - the slot and the record are claimed in one transaction
+        - a record that cannot be written takes the slot back with it
 
 <!-- END proof -->
 
@@ -11030,11 +11021,11 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
-- `packages/cli/tests/schema-apply-dry-run.test.js`
-    - the dry run previews what the real run writes
-        - it names the lines, and leaves the file untouched
-        - and the real run writes exactly those lines
-        - past tense belongs to the run that did it
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a migration that would merge rows stops instead
+        - two project keys stop it, and the message names them
+        - and the installation is exactly as it was afterwards
+        - and the installation is exactly as it was afterwards
 
 <!-- END proof -->
 
@@ -11327,6 +11318,10 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a migration that would merge rows stops instead
+        - two project keys stop it, and the message names them
+        - and the installation is exactly as it was afterwards
+        - one project key goes through
 
 <!-- END proof -->
 
@@ -11360,6 +11355,10 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a migration that would merge rows stops instead
+        - two project keys stop it, and the message names them
+        - and the installation is exactly as it was afterwards
+        - one project key goes through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

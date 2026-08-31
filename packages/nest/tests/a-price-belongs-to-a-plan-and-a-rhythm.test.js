@@ -149,7 +149,11 @@ describe('the prices a store is shown', () => {
         });
     });
 
+    // @requirement SC-PRIC-010 — A yearly price is a price per year, not a monthly price with a discount attached
     test('a bundle sold in one rhythm only says so for the other', async () => {
+        // The yearly figure is its own number. Derived from the monthly one it
+        // could never be absent, and an add-on offered monthly only would be
+        // sold by the year at a price nobody set.
         const bv = await publishBundle({ key: 'S3', yearlyNet: null });
         assert.deepEqual((await service.resolvePricesFor(STARTER, [bv.id]))[bv.id], {
             monthlyNet: 9.9,
