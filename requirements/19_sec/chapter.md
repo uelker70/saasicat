@@ -34,44 +34,9 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
-- `packages/cli/tests/cli-context.test.js`
-    - CliContextService.resolveIdentity
-        - accepts --as flag
-        - falls back to env var
-        - throws NO_IDENTITY with exit code 2 when nothing is set
-        - --as overrides env var
-    - CliContextService.ensureSuperAdmin
-        - accepts SUPER_ADMIN user
-        - rejects non-existent user (USER_NOT_FOUND, exit 2)
-        - rejects deactivated user
-        - rejects non-SUPER_ADMIN (NOT_SUPER_ADMIN)
-    - CliContextService.requireMfa
-        - Bypass: SKIP=1 + non-prod
-        - bypass NOT in production
-        - MFA_NOT_SET_UP when platform MfaService isEnabled=false
-        - MFA_FAILED on invalid code
-        - accepts valid code
-    - CliContextService.ensureProductionConfirmation
-        - skips automatically in non-prod
-        - skips with yes=true in prod
-        - accepts "production" as answer
-        - rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)
-    - CliContextService.log
-        - writes through platform AdminAuditService with cli actor
-    - CliError
-        - has code, message and exitCode
-- `packages/ui-vue/tests/admin-resource-client.test.js`
-    - createAdminResourceClient exposes every standard Admin loader and action
-    - createAdminResourceClient reports failed Admin requests
-- `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - a mounted page issues authenticated requests
-        - every request carries the client's header
-        - the page adds no header of its own to an unauthenticated client
-- `packages/ui-vue/tests/one-way-to-authenticate.test.js`
-    - the HttpClient is the only way a request gets its auth
-        - there is a corpus to scan
-        - no option named `getAuthToken` survives
-        - nothing builds a Bearer header by hand
+- `packages/nest/tests/tenant-billing-controller.test.js`
+    - the tenant is taken from the session, not from what the caller sent
+    - and a session that names none is refused rather than falling back
 
 <!-- END proof -->
 
@@ -97,37 +62,6 @@ _Tested by:_
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards
         - unmarked controllers stay protected
-- `packages/ui-vue/tests/admin-resource-client.test.js`
-    - createAdminResourceClient exposes every standard Admin loader and action
-    - createAdminResourceClient reports failed Admin requests
-- `packages/ui-vue/tests/component/the-client-authenticates-every-request.test.ts`
-    - a mounted page issues authenticated requests
-        - every request carries the client's header
-        - the page adds no header of its own to an unauthenticated client
-- `packages/ui-vue/tests/navigation-guard.test.js`
-    - buildNavigationGuard — auth path
-        - returns null when neither authGuard nor manifestGuard is set
-        - redirects to onUnauthenticated() when isAuthenticated is false
-        - lets public routes bypass the auth guard
-        - redirects to onUnauthenticated when isSuperAdmin is false
-    - buildNavigationGuard — manifest fail-closed
-        - redirects to errorRoute when ensureLoaded rejects and errorRoute is set
-        - avoids redirect loop: when the current route is already errorRoute, returns true
-        - falls back to render-allow + console.error when NO errorRoute is set
-        - lets the render through when ensureLoaded resolves successfully
-    - buildNavigationGuard — expired session vs broken manifest
-        - 401 from the manifest load routes to login, not to the error page
-        - 403 is treated the same way
-        - a genuine manifest failure still fails closed to the error page
-        - an error without a status stays on the fail-closed path
-        - without an authGuard a 401 still reaches the error page
-    - buildNavigationGuard — no login loop on a persistent manifest 401
-        - first 401 offers a re-login, the second stops the circle
-        - a successful load re-arms the redirect for a later expiry
-        - concurrent navigations on one rejection share the login redirect
-        - the second attempt fails closed once the operator has seen login
-        - a cached error instance does not resurrect the login loop
-        - a later, different rejection still fails closed
 
 <!-- END proof -->
 

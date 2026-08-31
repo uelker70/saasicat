@@ -144,17 +144,6 @@ _Tested by:_
         - Logical OR: none match → Forbidden with all keys in the message
         - Class-level annotation applies when the handler has none
         - Handler annotation overrides class annotation
-- `packages/ui-vue/tests/feature-gate.test.js`
-    - provideEntitlement
-        - app.provide is called with the inject key
-    - buildFeatureRouterGuard
-        - route without meta.requiresFeature always passes
-        - no entitlement bound -&gt; pass
-        - feature present -&gt; pass
-        - feature missing + no redirectTo -&gt; next(false)
-        - feature missing + redirectTo -&gt; next("/upgrade")
-        - array requiresFeature -&gt; logical OR
-        - loading + null snapshot + allowWhileLoading default -&gt; pass
 
 <!-- END proof -->
 
@@ -480,24 +469,8 @@ _Source:_ `docs/guides/build-the-admin-frontend.md`
 
 _Tested by:_
 
-- `packages/ui-vue/tests/feature-gate.test.js`
-    - provideEntitlement
-        - app.provide is called with the inject key
-    - buildFeatureRouterGuard
-        - route without meta.requiresFeature always passes
-        - no entitlement bound -&gt; pass
-        - feature present -&gt; pass
-        - feature missing + no redirectTo -&gt; next(false)
-        - feature missing + redirectTo -&gt; next("/upgrade")
-        - array requiresFeature -&gt; logical OR
-        - loading + null snapshot + allowWhileLoading default -&gt; pass
-- `packages/ui-vue/tests/use-entitlement.test.js`
-    - useEntitlement
-        - autoLoad loads the snapshot
-        - hasFeature(key) returns a boolean
-        - hasFeature without a loaded Entitlement → false
-        - the client's auth header reaches the request untouched
-        - 500 → error set, entitlement null
-        - endpoint is required: without an endpoint useEntitlement throws
+- `packages/nest/tests/feature-guard.test.js`
+    - FeatureGuard — feature set matching
+        - blocks with ForbiddenException when the feature is missing
 
 <!-- END proof -->

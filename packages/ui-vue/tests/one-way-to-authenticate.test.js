@@ -14,7 +14,6 @@
 // and absence cannot be observed by calling something.
 
 // @requirement SC-ADM-001 — Only a platform administrator reaches the administration surface
-// @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';

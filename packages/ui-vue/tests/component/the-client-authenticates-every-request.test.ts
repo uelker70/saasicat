@@ -13,9 +13,6 @@
 // request instead of going through the client it was handed, which is what the
 // second test below would catch.
 
-// @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
-// @requirement SC-SEC-004 — Every decision that matters is made where the request is served
-
 import { describe, expect, test } from 'vitest';
 
 import DashboardPage from '../../src/pages/DashboardPage.vue';

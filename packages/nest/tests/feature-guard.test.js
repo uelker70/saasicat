@@ -80,7 +80,14 @@ describe('FeatureGuard — feature set matching', () => {
         assert.equal(await guard.canActivate(ctx), true);
     });
 
+    // @requirement SC-ENTL-020 — Hiding a control is not protection
     test('blocks with ForbiddenException when the feature is missing', async () => {
+        // The guard reads the tenant's entitlements and nothing the caller
+        // sent. That is what makes the refusal a protection: a request built
+        // by hand, past whatever the interface chose to show, arrives here
+        // like any other and is answered the same way. A client-side gate
+        // proves the hiding, which is the half the requirement calls
+        // insufficient.
         const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['CORE_IDENTITY']));
         const ctx = buildContext({
             user: { tenantId: 't1', role: 'TENANT_ADMIN' },

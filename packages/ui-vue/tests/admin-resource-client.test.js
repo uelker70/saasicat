@@ -1,6 +1,3 @@
-// @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
-// @requirement SC-SEC-004 — Every decision that matters is made where the request is served
-
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createAdminResourceClient } from '../dist/client/index.js';

@@ -1,5 +1,3 @@
-// @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CliContextService, CliError } from '../dist/index.js';
