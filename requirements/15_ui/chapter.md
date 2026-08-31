@@ -974,59 +974,13 @@ _Source:_ internal engineering guidelines · release 0.26.0
 _Tested by:_
 
 - `packages/ui-vue/tests/component/roster-primitives.test.ts`
-    - AdminBanner carries meaning without relying on colour
-        - each tone brings its own icon, so the shape differs before the hue does
-        - an explicit `icon: false` renders none — for a body that carries its own
-        - the close button is only there when the caller asked for it
-    - AdminErrorBanner is bound unconditionally and decides for itself
-        - a null error renders nothing at all — no empty box above the body
-        - a rejection becomes a sentence, not "[object Object]"
-        - retry is offered only when there is something to retry
-    - AdminFormDialog owns the submit lifecycle
-        - a failed submit keeps the dialog open and shows the reason
-        - a successful submit closes it and says so once
-    - AdminConfirmDialog escalates the irreversible ones
-        - typing the wrong name leaves the confirming button unusable
-        - the typed answer does not survive a reopen
-    - AdminRowActions
-        - a hidden action is not rendered — a row shows what it is eligible for
-        - a disabled action stays visible, so the row does not change shape
-    - AdminField associates what it shows
-        - the error is announced, and it replaces the hint rather than joining it
-        - the slot is handed the id to point `aria-describedby` at
-    - AdminToolbar
-        - the end group is pushed away from the start one, not centred
-        - with no end content there is no empty end group to space against
-        - sticky is opt-in — a toolbar that follows the scroll is a decision
     - AdminFieldGrid
         - the column count reaches the DOM, because the layout is CSS
         - a field carries its span, so one wide input can sit in a narrow grid
-    - AdminEmptyState
-        - the title is the message; description and actions are optional
-        - inline and block are different treatments, not the same one twice
-    - AdminStatusPill
-        - the tone is a class, so the theme decides what it looks like
-        - the label is always there — colour never carries the status alone
 - `packages/ui-vue/tests/flex-direction-override.test.js`
     - a rule that changes flex-direction states its own main-axis alignment
         - the sweep found the stylesheets
         - no rule flips flex-direction while inheriting justify-content
-- `tests/px-to-scale.test.js`
-    - pixels snap to the nearest rung
-        - an exact value takes its own token
-        - a midpoint rounds down
-        - a value nearer one rung takes it, up or down
-        - radii use their names, not their numbers
-        - a negative keeps its sign in a calc
-        - tracking is converted rather than snapped
-    - what the codemod leaves alone
-        - a property no scale answers for
-        - a declaration that already reads a token
-        - a token definition
-        - every value in a shorthand moves together
-        - a zero stays a zero
-    - rewriting a file
-        - touches declarations and nothing else
 
 <!-- END proof -->
 

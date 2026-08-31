@@ -272,22 +272,9 @@ _Source:_ release 0.24.2
 
 _Tested by:_
 
-- `tests/px-to-scale.test.js`
-    - pixels snap to the nearest rung
-        - an exact value takes its own token
-        - a midpoint rounds down
-        - a value nearer one rung takes it, up or down
-        - radii use their names, not their numbers
-        - a negative keeps its sign in a calc
-        - tracking is converted rather than snapped
-    - what the codemod leaves alone
-        - a property no scale answers for
-        - a declaration that already reads a token
-        - a token definition
-        - every value in a shorthand moves together
-        - a zero stays a zero
-    - rewriting a file
-        - touches declarations and nothing else
+- `packages/ui-vue/tests/wide-content-reaches-its-edge.test.js`
+    - wide content reaches its edge rather than being cut off
+        - every table either scrolls or is bound to its container
 
 <!-- END proof -->
 

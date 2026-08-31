@@ -6,9 +6,6 @@
 // so it is stated here — and the file stays after the migration, because the
 // same mapping is what a consumer reaches for when they move their own CSS.
 
-// @requirement SC-UI-012 — The interface works on desktop, tablet and phone
-// @requirement SC-A11Y-010 — Wide content scrolls rather than being cut off
-
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
