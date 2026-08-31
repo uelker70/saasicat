@@ -28,6 +28,8 @@ import {
     ID,
     LOOKS_LIKE_AN_ID,
     MARKER_LIKE,
+    PROOF_BEGIN,
+    PROOF_END,
     proseOf,
     SOURCE,
 } from './parse.mjs';
@@ -44,6 +46,9 @@ const STATES = new Set(['draft', 'current', 'superseded', 'withdrawn']);
 // asks for none, which is what makes the malformed form visible instead of
 // silently ignored.
 const NEARLY_A_STATE = /^(?:\p{Extended_Pictographic}\uFE0F?\s*)?_\(/u;
+
+/** A pictograph opening the promise that no marker consumed. */
+const NEARLY_A_MARK = /^\p{Extended_Pictographic}\uFE0F?\s/u;
 
 /**
  * A state word inside an entry that has already given up its markers.
@@ -75,6 +80,7 @@ export function check(catalogue) {
     for (const chapter of catalogue.chapters) {
         for (const entry of chapter.entries) checkEntry(entry, chapter, byId, say);
         checkNumbering(chapter, say);
+        checkProofMarkers(chapter, say);
     }
     checkReferences(catalogue, byId, say);
     checkFragments(catalogue, say);
@@ -257,22 +263,28 @@ function checkState(entry, say) {
                 'That claim belongs to a promise that stands.',
         );
     }
-    // A colour that disagrees with its words is worse than no colour: it is
-    // read faster than the words are, so the reader who trusts it is the one
-    // who is misled. Missing is refused for the same reason — a retired entry
-    // with no colour reads as ordinary in a scan.
-    if (status !== 'current' && entry.icon !== ICONS[status]) {
+    // Every entry opens with exactly one state marker, and that marker is the
+    // state. The ordinary case wears one too: a state read out of a blank is a
+    // state nobody checked, which is how a marker wrapped across a line went a
+    // day unnoticed and counted as a promise the product keeps. A colour that
+    // disagrees with its words is refused for the older reason — it is read
+    // faster than the words, so whoever trusts it is the one misled.
+    const expected =
+        status === 'current' ? ICONS[entry.delivered ? 'current' : 'pending'] : ICONS[status];
+    if (entry.opensWith !== expected) {
+        const reads = status === 'current' && !entry.delivered ? 'not yet delivered' : status;
         say(
             where,
-            `'${entry.id}' is ${status} but opens with ${entry.icon ?? 'no colour'}, not ${ICONS[status]}`,
+            `'${entry.id}' opens with ${entry.opensWith ?? 'no state'} and is ${reads}, ` +
+                `which opens with ${expected}`,
         );
     }
-    if (!entry.delivered && entry.pendingIcon !== ICONS.pending) {
-        say(
-            where,
-            `'${entry.id}' is not yet delivered but marks it with ` +
-                `${entry.pendingIcon ?? 'no colour'}, not ${ICONS.pending}`,
-        );
+
+    // A mark before the promise that is neither a state nor a risk. Same
+    // failure as the near-miss state: it reads as meaning something and the
+    // parser read past it, so the entry carries a claim nothing understood.
+    if (NEARLY_A_MARK.test(entry.text)) {
+        say(where, `'${entry.id}' opens with a mark that is neither a state nor a risk`);
     }
 
     // A state marker that nearly matches is the dangerous one. `_(Draft.)_`
@@ -345,6 +357,37 @@ function checkRetired(entry, byId, say) {
  * where it should have been superseded, or a number about to be handed out
  * twice.
  */
+/**
+ * Every generated proof region opens once and closes once.
+ *
+ * An unclosed `<!-- BEGIN proof -->` used to take the rest of the chapter with
+ * it: the renderer dropped from the marker to the end of the file and wrote the
+ * result, so the command that maintains the catalogue deleted part of it. A
+ * merge conflict resolved badly is all it takes. Nothing deletes on a malformed
+ * marker any more, and this refuses the file so the damage is reported instead
+ * of written — the checker runs before anything is written, which is the only
+ * reason a refusal here is enough.
+ */
+function checkProofMarkers(chapter, say) {
+    const where = (at) => `${chapter.where}:${chapter.offset + at}`;
+    let opened = null;
+    chapter.body.split('\n').forEach((line, at) => {
+        const marker = line.trim();
+        if (marker === PROOF_BEGIN) {
+            if (opened !== null)
+                say(
+                    where(at),
+                    `'${PROOF_BEGIN}' opens inside the one at line ${chapter.offset + opened}`,
+                );
+            opened = at;
+        } else if (marker === PROOF_END) {
+            if (opened === null) say(where(at), `'${PROOF_END}' closes nothing`);
+            opened = null;
+        }
+    });
+    if (opened !== null) say(where(opened), `'${PROOF_BEGIN}' is never closed`);
+}
+
 function checkNumbering(chapter, say) {
     const numbers = chapter.entries.map((entry) => entry.number).filter((n) => n !== null);
     const sorted = [...numbers].sort((a, b) => a - b);

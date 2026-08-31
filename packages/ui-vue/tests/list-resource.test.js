@@ -6,6 +6,9 @@
 // is read. Written once, it needs one set of cases — and the cases are the
 // values that decide differently, not a sample of ordinary ones.
 
+// @requirement SC-UI-011 — A list says how many rows there are, or says it is showing what it received
+// @requirement SC-UI-007 — Loading, empty and error are handled deliberately on every screen
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -14,6 +14,8 @@
 // merely English everywhere would also pass a "no German" check while still
 // being the wrong text to show.
 
+// @requirement SC-LANG-010 — Diagnostics an integrator reads are English and are not translated
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from 'vue';

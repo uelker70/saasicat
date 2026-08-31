@@ -10,6 +10,8 @@
 // Each check derives its expectation from the sources. A hand-written list of
 // "the packages we have" in a test would be the same defect one level up.
 
+// @requirement SC-READ-007 — Reference documentation is generated from the implementation
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';

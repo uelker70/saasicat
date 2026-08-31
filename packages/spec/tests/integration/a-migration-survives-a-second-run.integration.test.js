@@ -29,6 +29,9 @@
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
+// @requirement SC-OPS-002 — A migration is safe on a partially adopted schema
+// @requirement SC-OPS-003 — An operator can list what a migration will touch before running it
+
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -140,4 +143,99 @@ describe('a shipped migration survives a second run', () => {
             );
         });
     }
+});
+
+describe('a migration that would merge rows stops instead', () => {
+    // The 1.0 migration drops `projectKey` and puts a unique index where it
+    // was. On an installation that only ever used one key that is a rename; on
+    // one that used two it is a merge, and which of two colliding rows survives
+    // is not a decision a migration takes on its own.
+    //
+    // Against the database rather than against the file: the file can be read
+    // for a `RAISE`, but only a run shows that the condition finds the case and
+    // that a single-key installation still goes through.
+
+    const MIGRATION = '1.0-remove-project-key.postgres.sql';
+
+    /**
+     * The state a consumer is in *before* 1.0 runs.
+     *
+     * The ground is the schema as it is today, which is the migration's result
+     * — so the column has to be put back, and the unique index it replaced
+     * taken off, or there is nothing here for the migration to decide about.
+     */
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query('DROP INDEX IF EXISTS "plans_planKey_key"');
+        await client.query('ALTER TABLE "plans" ADD COLUMN "projectKey" TEXT');
+    }
+
+    const seedPlan = (key, planKey) =>
+        client.query(
+            'INSERT INTO "plans" ("id", "projectKey", "planKey", "label", "updatedAt") ' +
+                'VALUES ($1, $2, $3, $4, NOW())',
+            [`plan-${key}-${planKey}`, key, planKey, planKey],
+        );
+
+    // @requirement SC-PRIV-009 — A migration that would destroy data stops and says what it found
+    test('two project keys stop it, and the message names them', async () => {
+        await beforeTheMigration();
+        await seedPlan('alpha', 'STARTER');
+        await seedPlan('beta', 'STARTER');
+
+        await assert.rejects(
+            () => apply(MIGRATION),
+            (error) => {
+                const said = String(error.message);
+                assert.match(said, /2 different project keys/);
+                assert.match(said, /alpha/);
+                assert.match(said, /beta/, 'it stopped without saying what it found');
+                assert.match(said, /plans:/, 'it did not say which table held them');
+                return true;
+            },
+        );
+    });
+
+    // @requirement SC-PRIV-009 — A migration that would destroy data stops and says what it found
+    // @requirement SC-PRIV-009 — A migration that would destroy data stops and says what it found
+    test('and the installation is exactly as it was afterwards', async () => {
+        // Stopping halfway would be the worst of the three outcomes: the column
+        // gone and the operator with no way back to the state they were asked
+        // to decide about. The whole file is one script in one transaction,
+        // which is what makes the refusal a refusal rather than a half-run.
+        await beforeTheMigration();
+        await seedPlan('alpha', 'STARTER');
+        await seedPlan('beta', 'STARTER');
+
+        await apply(MIGRATION).catch(() => {});
+        await client.query('ROLLBACK').catch(() => {});
+
+        const { rows } = await client.query(
+            'SELECT column_name FROM information_schema.columns ' +
+                "WHERE table_name = 'plans' AND column_name = 'projectKey'",
+        );
+        assert.equal(rows.length, 1, 'the column it was asked about is already gone');
+        const { rows: kept } = await client.query('SELECT "projectKey" FROM "plans" ORDER BY 1');
+        assert.deepEqual(
+            kept.map((row) => row.projectKey),
+            ['alpha', 'beta'],
+            'rows the operator was asked to decide about were already merged',
+        );
+    });
+
+    test('one project key goes through', async () => {
+        // The counter-check: a guard that refused every installation would pass
+        // both cases above and stop every consumer from ever migrating.
+        await beforeTheMigration();
+        await seedPlan('alpha', 'STARTER');
+        await seedPlan('alpha', 'PRO');
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            'SELECT column_name FROM information_schema.columns ' +
+                "WHERE table_name = 'plans' AND column_name = 'projectKey'",
+        );
+        assert.equal(rows.length, 0, 'the migration did not run');
+    });
 });

@@ -45,6 +45,7 @@ function exitRecorder() {
     };
 }
 
+// @requirement SC-PLAN-017 — Publishing happens in the administration, never in a seed
 describe('runSeedGateFromFile', () => {
     test('report-only without snapshot → null + warning, no exit', () => {
         const { lines, sink } = capture();

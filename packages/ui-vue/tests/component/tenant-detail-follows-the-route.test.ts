@@ -5,6 +5,8 @@
 // first tenant under the second URL — whose hero actions would then suspend
 // or reactivate the wrong one.
 
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
 

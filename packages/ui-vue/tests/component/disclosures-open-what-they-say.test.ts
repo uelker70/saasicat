@@ -11,6 +11,9 @@
 // belongs to it. `admin-accordion.test.ts` proves the component; this proves
 // these two call sites are wired to it.
 
+// @requirement SC-UI-019 — A row that opens is a control
+// @requirement SC-A11Y-004 — Every control can be reached and operated from the keyboard
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { reactive, ref } from 'vue';
 import type { PlanVersionRow, PromotionRow } from '@saasicat/core';

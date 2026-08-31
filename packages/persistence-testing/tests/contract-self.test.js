@@ -1,3 +1,5 @@
+// @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
+
 import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES } from '@saasicat/core';
 import { persistenceAdapterContract } from '../dist/index.js';
 

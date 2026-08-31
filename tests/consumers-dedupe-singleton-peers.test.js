@@ -1,3 +1,5 @@
+// @requirement SC-COMP-001 — All packages carry one version number and move together
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';

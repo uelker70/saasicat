@@ -321,6 +321,8 @@ function baseInput(overrides = {}) {
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
+// @requirement SC-REG-002 — A half-finished registration is never counted as a customer
+// @requirement SC-REG-011 — The steps come in order
 test('start() creates PendingRegistration and sends OTP', async () => {
     const ctx = makeService();
     const result = await ctx.service.start(baseInput());
@@ -344,6 +346,8 @@ test('start() creates PendingRegistration and sends OTP', async () => {
     assert.match(ctx.delivery.sent[0].code, /^\d{6}$/);
 });
 
+// @requirement SC-PRIV-003 — Passwords and verification codes cannot be read back out of storage
+// @requirement SC-PRIV-004 — The record of a registration carries no address, password or code in the clear
 test('start() stores OTP only as a hash, never in plaintext', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -353,6 +357,8 @@ test('start() stores OTP only as a hash, never in plaintext', async () => {
     assert.equal(stored.otpHash, hashOtpCode(sentCode));
 });
 
+// @requirement SC-REG-001 — Starting a registration reveals nothing about who already has an account
+// @requirement SC-REG-004 — Somebody who has already verified their address is not asked to verify it again
 test('start() with active user → no PendingRegistration created', async () => {
     const ctx = makeService({
         userLookup: new FakeUserLookup(['max@example.com']),
@@ -379,6 +385,7 @@ test('start() with explicit tenantSlug adopts it when available', async () => {
     assert.equal(stored.tenantSlug, 'fc-bayern');
 });
 
+// @requirement SC-REG-001 — Starting a registration reveals nothing about who already has an account
 test('start() email normalization: trim + lowercase', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: '  MAX@Example.COM  ' }));
@@ -386,6 +393,8 @@ test('start() email normalization: trim + lowercase', async () => {
     assert.ok(stored);
 });
 
+// @requirement SC-REG-005 — Restarting an unverified registration issues a new code and keeps the stored data
+// @requirement SC-REG-010 — A registration expires, and so does the link that resumes it
 test('start() with expired PendingRegistration → deletes + creates new', async () => {
     const ctx = makeService();
     // Manually create the first registration with an expired expiresAt.
@@ -414,6 +423,7 @@ test('start() with expired PendingRegistration → deletes + creates new', async
     assert.equal(count, 1);
 });
 
+// @requirement SC-REG-005 — Restarting an unverified registration issues a new code and keeps the stored data
 test('start() with existing PENDING_EMAIL_VERIFICATION → OTP is regenerated', async () => {
     const ctx = makeService();
     const future = new Date(Date.now() + 3600_000);
@@ -457,6 +467,7 @@ test('verifyOtp() success → EMAIL_VERIFIED + nextStep 3', async () => {
     assert.ok(stored.emailVerifiedAt instanceof Date);
 });
 
+// @requirement SC-REG-006 — A verification code expires, and says so
 test('verifyOtp() expired OTP → OTP_EXPIRED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -498,6 +509,7 @@ async function exhaustOtpAttempts(ctx, email = 'max@example.com') {
     }
 }
 
+// @requirement SC-REG-007 — After five wrong verification codes the attempt is locked
 test('verifyOtp() after 5 failed attempts → OTP_LOCKED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -511,6 +523,8 @@ test('verifyOtp() after 5 failed attempts → OTP_LOCKED', async () => {
     );
 });
 
+// @requirement SC-REG-007 — After five wrong verification codes the attempt is locked
+// @requirement SC-REG-008 — A locked verification tells the person to request a new code
 test('verifyOtp() correct code after lockout → still OTP_LOCKED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -540,6 +554,7 @@ test('verifyOtp() correct code under the limit → success', async () => {
     assert.equal(result.status, 'EMAIL_VERIFIED');
 });
 
+// @requirement SC-REG-007 — After five wrong verification codes the attempt is locked
 test('verifyOtp() parallel failed attempts with stale counter → atomic increment locks', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -574,6 +589,7 @@ test('verifyOtp() parallel failed attempts with stale counter → atomic increme
     );
 });
 
+// @requirement SC-REG-008 — A locked verification tells the person to request a new code
 test('resendOtp() after lockout → new code unlocks (counter reset)', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -621,6 +637,7 @@ test('resendOtp() success → new OTP is sent', async () => {
     assert.notEqual(ctx.delivery.sent[1].code, firstCode);
 });
 
+// @requirement SC-REG-009 — Repeated attempts are rate-limited, and the answer says how long to wait
 test('resendOtp() rate limit kicks in → silently dropped after 3 sends', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput()); // send 1
@@ -630,6 +647,7 @@ test('resendOtp() rate limit kicks in → silently dropped after 3 sends', async
     assert.equal(ctx.delivery.sent.length, 3);
 });
 
+// @requirement SC-REG-001 — Starting a registration reveals nothing about who already has an account
 test('resendOtp() unknown email → neutral response, no throw', async () => {
     const ctx = makeService();
     const result = await ctx.service.resendOtp('unknown@example.com');
@@ -671,6 +689,7 @@ test('selectPlan() unknown PendingRegistration → PENDING_REGISTRATION_NOT_FOUN
     );
 });
 
+// @requirement SC-REG-011 — The steps come in order
 test('selectPlan() without email verification (PENDING_EMAIL_VERIFICATION) → INVALID_REGISTRATION_STATE', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -681,6 +700,7 @@ test('selectPlan() without email verification (PENDING_EMAIL_VERIFICATION) → I
     );
 });
 
+// @requirement SC-REG-013 — A plan that does not exist and one that is not on offer answer the same
 test('selectPlan() non-catalogued plan → PLAN_NOT_AVAILABLE', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
@@ -694,6 +714,7 @@ test('selectPlan() non-catalogued plan → PLAN_NOT_AVAILABLE', async () => {
     );
 });
 
+// @requirement SC-REG-012 — The plan can be changed freely up to the moment of payment
 test('selectPlan() plan change in status PLAN_SELECTED is allowed', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
@@ -708,6 +729,8 @@ test('selectPlan() plan change in status PLAN_SELECTED is allowed', async () => 
     assert.equal(second.selectedPlanId, 'PROFESSIONAL');
 });
 
+// @requirement SC-REG-013 — A plan that does not exist and one that is not on offer answer the same
+// @requirement SC-MKT-002 — Only plans an operator marked as marketed appear in self-service
 test('listPublicPlans() passes the plan list through', async () => {
     const ctx = makeService();
     const plans = await ctx.service.listPublicPlans();
@@ -744,6 +767,7 @@ test('startCheckout() success → status CHECKOUT_STARTED + url + sessionId', as
     assert.ok(stored.checkoutStartedAt instanceof Date);
 });
 
+// @requirement SC-REG-011 — The steps come in order
 test('startCheckout() without plan selection → PLAN_NOT_SELECTED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -773,6 +797,8 @@ test('startCheckout() unknown Pending → PENDING_REGISTRATION_NOT_FOUND', async
     );
 });
 
+// @requirement SC-REG-014 — Prices in the sign-up flow are worked out by the server
+// @requirement SC-REG-018 — Whether a payment confirmation is genuine is the integrator's to verify
 test('startCheckout() calls provider with correct params', async () => {
     const ctx = makeService();
     const pendingId = await startVerifyPlan(ctx, 'p@example.com', 'PROFESSIONAL');
@@ -816,6 +842,7 @@ async function startThroughCheckout(ctx, email = 'pay@example.com') {
     return { pendingId, sessionId: checkout.checkoutSessionId };
 }
 
+// @requirement SC-REG-016 — The account, the tenant and the subscription are created together or not at all
 test('handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription created', async () => {
     const ctx = makeService();
     const { pendingId, sessionId } = await startThroughCheckout(ctx);
@@ -833,6 +860,9 @@ test('handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription cr
     assert.equal(await ctx.repo.findById(pendingId), null, 'PendingRegistration was deleted');
 });
 
+// @requirement SC-REG-019 — The same payment event applied twice changes nothing
+// @requirement SC-OPS-001 — An operator can retry a failed deployment
+// @requirement SC-OPS-006 — Applying the same external event twice changes nothing
 test('handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation', async () => {
     const ctx = makeService();
     const { sessionId } = await startThroughCheckout(ctx);
@@ -855,6 +885,7 @@ test('handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second a
     assert.equal(ctx.activationOrchestrator.calls.length, 1, 'Activated only once');
 });
 
+// @requirement SC-REG-019 — The same payment event applied twice changes nothing
 test('handlePaymentEvent() FAILED → no activation, but event claimed', async () => {
     const ctx = makeService();
     const { pendingId, sessionId } = await startThroughCheckout(ctx);
@@ -885,6 +916,7 @@ test('handlePaymentEvent() unknown session → PENDING_REGISTRATION_NOT_FOUND', 
     assert.equal(result.reason, 'PENDING_REGISTRATION_NOT_FOUND');
 });
 
+// @requirement SC-REG-018 — Whether a payment confirmation is genuine is the integrator's to verify
 test('handlePaymentEvent() without sessionId → MISSING_SESSION_ID', async () => {
     const ctx = makeService();
     const result = await ctx.service.handlePaymentEvent({
@@ -905,6 +937,8 @@ function ageExpiry(repo, id, expiresAt) {
     row.expiresAt = expiresAt;
 }
 
+// @requirement SC-REG-010 — A registration expires, and so does the link that resumes it
+// @requirement SC-PRIV-007 — An abandoned registration is removed rather than kept in a reduced form
 test('runCleanup() deletes expired, leaves active alone', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: 'expired@example.com' }));
@@ -919,6 +953,7 @@ test('runCleanup() deletes expired, leaves active alone', async () => {
     assert.ok(await ctx.repo.findByEmail('active@example.com'));
 });
 
+// @requirement SC-OPS-001 — An operator can retry a failed deployment
 test('runCleanup() without expired → deleted=0, idempotent', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: 'live@example.com' }));
@@ -946,6 +981,7 @@ test('runCleanup() honors batch limit → moreAvailable=true on full run', async
     assert.equal(second.moreAvailable, false);
 });
 
+// @requirement SC-PRIV-007 — An abandoned registration is removed rather than kept in a reduced form
 test('runCleanup() frees the email again after deletion → repeated start() works', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: 'reuse@example.com' }));
@@ -962,6 +998,7 @@ test('runCleanup() frees the email again after deletion → repeated start() wor
 
 // ─── Phase 3.3: Audit-Logging ───────────────────────────────────────────────
 
+// @requirement SC-AUD-001 — Every administrative action records who did it, from where, and when
 test('audit: start() logs REGISTRATION_STARTED + pendingId', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput(), { ipHash: 'ip-abc', userAgent: 'curl/1.0' });
@@ -981,6 +1018,8 @@ test('audit: start() with active user → REGISTRATION_NEUTRAL_ACTIVE_USER, no P
     assert.equal(evs[0].pendingRegistrationId, null);
 });
 
+// @requirement SC-PRIV-008 — Failed attempts are part of the record, not only successful ones
+// @requirement SC-AUD-001 — Every administrative action records who did it, from where, and when
 test('audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
@@ -998,6 +1037,8 @@ test('audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED', a
     assert.equal(ctx.audit.byType('OTP_VERIFIED').length, 1);
 });
 
+// @requirement SC-AUD-001 — Every administrative action records who did it, from where, and when
+// @requirement SC-REG-019 — The same payment event applied twice changes nothing
 test('audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate → PAYMENT_DUPLICATE_IGNORED', async () => {
     const ctx = makeService();
     const { sessionId } = await startThroughCheckout(ctx);
@@ -1050,6 +1091,7 @@ test('resume: start() with PENDING_EMAIL_VERIFICATION still OTP resend (case B u
     assert.equal(ctx.resumeDelivery.sent.length, 0, 'no resume link in case B');
 });
 
+// @requirement SC-REG-020 — A resumed registration never carries a password or a verification code with it
 test('resume: resumeWithToken() success → returns pending ID + nextStep + snapshot', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
@@ -1080,6 +1122,8 @@ test('signResumeToken() returns a token that is resolvable via resumeWithToken',
     assert.equal(result.snapshot.email, 'login-resume@example.com');
 });
 
+// @requirement SC-REG-010 — A registration expires, and so does the link that resumes it
+// @requirement SC-REG-020 — A resumed registration never carries a password or a verification code with it
 test('resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID', async () => {
     const ctx = makeService();
     await assert.rejects(
@@ -1088,6 +1132,7 @@ test('resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID', async (
     );
 });
 
+// @requirement SC-REG-010 — A registration expires, and so does the link that resumes it
 test('resume: resumeWithToken() token points to deleted Pending → RESUME_TOKEN_INVALID', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);

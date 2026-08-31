@@ -10,6 +10,8 @@
 // a package that becomes measurable and is not measured fails here rather than
 // disappearing from a number nobody reads twice.
 
+// @requirement SC-READ-002 — A gap is named rather than papered over
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

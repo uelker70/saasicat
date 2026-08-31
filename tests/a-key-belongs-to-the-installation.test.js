@@ -1,7 +1,11 @@
+// @requirement SC-SCOPE-002 — One installation serves one application
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+
+import { PROOF_BEGIN, PROOF_END } from '../scripts/requirements/parse.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,6 +51,29 @@ const TEXT = /\.(ts|mts|cts|js|mjs|cjs|vue|md|json|ya?ml|tpl|prisma|sql|css|scss
 const HISTORY_BY_ROLE = (path) =>
     path.endsWith('CHANGELOG.md') || path.startsWith('.changeset/') || path === 'pnpm-lock.yaml';
 const DECLARATION_WINDOW = 20;
+
+/**
+ * The generated list of tests that cover a requirement, cut out before reading.
+ *
+ * It names test files, and one of them is the codemod that renames the retired
+ * identifier — so the block carries the word without carrying the concept. This
+ * rule is about the vocabulary the product uses, not about what a file is
+ * called, and a rule that refused a generated reference to a legitimate file
+ * would be one nobody could satisfy.
+ */
+export function withoutGeneratedProof(text) {
+    const lines = text.split('\n');
+    const kept = [];
+    let inside = false;
+    for (const line of lines) {
+        if (line.trim() === PROOF_BEGIN) inside = true;
+        // The line count has to survive, or every reported line number after a
+        // block would point somewhere else.
+        kept.push(inside ? '' : line);
+        if (line.trim() === PROOF_END) inside = false;
+    }
+    return kept.join('\n');
+}
 
 /** Whether a file declares, in its head, that the retired identifier is its subject. */
 export function declaresProjectKeyHistory(text) {
@@ -109,7 +136,7 @@ describe('a key belongs to the installation, not to a project', () => {
         const offenders = [];
         let declared = 0;
         for (const path of files) {
-            const text = readFileSync(join(ROOT, path), 'utf8');
+            const text = withoutGeneratedProof(readFileSync(join(ROOT, path), 'utf8'));
             if (declaresProjectKeyHistory(text)) {
                 declared += 1;
                 continue;

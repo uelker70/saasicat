@@ -114,6 +114,9 @@ function fakeBundleRepo(rows) {
     };
 }
 
+// @requirement SC-MKT-013 — What a customer selected is frozen into an offer before it becomes a contract
+// @requirement SC-MKT-014 — An offer that has expired or been used cannot become a contract
+// @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 describe('CheckoutOfferService', () => {
     let repo;
     let service;
@@ -301,6 +304,7 @@ describe('CheckoutOfferService', () => {
 // #35 P6 — server-side requires validation on create/update: the
 // dependencies of all features (plan ∪ selected bundles) must be covered
 // within the selection. requires source = curated FeatureCatalogEntries.
+// @requirement SC-MKT-015 — An offer whose selection does not cover its own dependencies is refused
 describe('CheckoutOfferService — requires validation (#35 P6)', () => {
     const PLAN_VERSION = { id: 'pv-1', planId: 'STANDARD', features: ['DASHBOARD'] };
     const TURNIERE_BV = { id: 'bv-turniere', features: ['TOURNAMENT_MANAGEMENT'] };

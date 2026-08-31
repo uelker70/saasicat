@@ -9,6 +9,8 @@
 // decision is made: someone adds one asset, and the one asset is the thing they
 // can still fix before committing. The message says how.
 
+// @requirement SC-READ-001 — Someone deciding whether to depend on SaaSiCat can judge what is tested
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

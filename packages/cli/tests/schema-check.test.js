@@ -1,3 +1,6 @@
+// @requirement SC-COMP-007 — A change that would otherwise be silent breaks the integrator's build instead
+// @requirement SC-OPS-002 — A migration is safe on a partially adopted schema
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

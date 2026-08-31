@@ -5,6 +5,8 @@
 // old heading, and the first run that noticed was vereinsfux's, against
 // 1.0.0-rc.2. This test mounts the page with distributions and asks the
 // suite's own question of it.
+// @requirement SC-UI-011 — A list says how many rows there are, or says it is showing what it received
+
 import { describe, expect, test } from 'vitest';
 
 import DashboardPage from '../../src/pages/DashboardPage.vue';

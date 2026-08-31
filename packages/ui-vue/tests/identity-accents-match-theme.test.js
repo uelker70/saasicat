@@ -1,3 +1,6 @@
+// @requirement SC-UI-015 — One colour makes the administration look like the integrator's product
+// @requirement SC-UI-016 — Light and dark are both shipped, and a person can pick
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

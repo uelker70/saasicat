@@ -39,6 +39,7 @@ function walk(firstEnd, cycle, anchor, steps) {
     return seen;
 }
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
 describe('a monthly bundle on a yearly plan ending on the 31st', () => {
     // The maintainer's first worked example, end to end.
     const first = bundleFirstPeriodEnd({
@@ -64,6 +65,7 @@ describe('a monthly bundle on a yearly plan ending on the 31st', () => {
     });
 });
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
 describe('a monthly bundle on a yearly plan ending on the 17th', () => {
     // The second example: an anchor no month is too short for, so nothing is
     // ever clamped and the first period crosses a month boundary.
@@ -89,6 +91,8 @@ describe('a monthly bundle on a yearly plan ending on the 17th', () => {
     });
 });
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
+// @requirement SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
 describe('a bundle booked on the plan day itself', () => {
     test('gets a whole period rather than an empty one', () => {
         // Booked ON the anchor: the day has passed for this month, so the first
@@ -116,6 +120,7 @@ describe('a bundle booked on the plan day itself', () => {
     });
 });
 
+// @requirement SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
 describe('booked anywhere inside a plan period', () => {
     // The first period is short by however much of the plan's period is left,
     // and the three positions where that could go wrong are its ends and its
@@ -147,6 +152,7 @@ describe('booked anywhere inside a plan period', () => {
     });
 });
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
 describe('a plan whose periods do not end at midnight', () => {
     // Nothing says a plan's boundaries fall at 00:00 — a subscription started at
     // 14:00 has its periods end at 14:00. Reading the boundary as midnight makes
@@ -187,6 +193,7 @@ describe('a plan whose periods do not end at midnight', () => {
     });
 });
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
 describe('a yearly bundle', () => {
     test('meets the plan on its own boundary, month and day together', () => {
         // A day of the month says nothing about which month, so a yearly bundle
@@ -213,6 +220,7 @@ describe('a yearly bundle', () => {
     });
 });
 
+// @requirement SC-BUN-031 — An add-on booked against a plan that has no period yet gets no invented one
 describe('a plan with no period at all', () => {
     test('gives the bundle no period either, rather than an invented one', () => {
         // A trial, or a subscription still waiting for sales. There is no
@@ -229,6 +237,7 @@ describe('a plan with no period at all', () => {
     });
 });
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
 describe('a plan whose anchor is not stored', () => {
     test('falls back to the day its period ends on', () => {
         // The additive half: a row written before the anchor column exists
@@ -244,6 +253,8 @@ describe('a plan whose anchor is not stored', () => {
     });
 });
 
+// @requirement SC-BUN-004 — A tenant on a monthly plan cannot book a yearly add-on
+// @requirement SC-BUN-029 — A move to a shorter plan rhythm is refused while a longer add-on is running
 describe('which cycles a bundle may be sold on', () => {
     // A bundle may run in a shorter rhythm than its plan, never a longer one.
     // A yearly bundle on a monthly plan has no boundary to meet: the plan's
@@ -270,6 +281,7 @@ describe('which cycles a bundle may be sold on', () => {
     }
 });
 
+// @requirement SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
 describe('booking one, through the service that writes it', () => {
     // The rule above proved in isolation; this is the booking a tenant makes,
     // with the window and the term it is actually stored with.
@@ -366,6 +378,7 @@ describe('booking one, through the service that writes it', () => {
     });
 });
 
+// @requirement SC-BUN-017 — An add-on without a price cannot be published
 describe('a bundle nobody can be charged for is not booked', () => {
     // The preview reports this as a blocker, and a blocker the mutation does
     // not enforce is enforcement in the client: a caller that posts straight to
@@ -459,6 +472,8 @@ describe('a bundle nobody can be charged for is not booked', () => {
     });
 });
 
+// @requirement SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
+// @requirement SC-PRIC-002 — A part-period is charged by days
 describe('what the short first period costs', () => {
     // A short period is charged pro rata against a WHOLE cycle, and a whole
     // cycle is only measurable from both of its ends. The plan's period is the
@@ -540,6 +555,7 @@ describe('what the short first period costs', () => {
     });
 });
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
 describe('rolling a booking on, period after period', () => {
     // The columns are written at booking; something has to move them. This is
     // the decision half — the consumer's cron does the reading and writing, the
@@ -853,6 +869,8 @@ describe('rolling a booking on, period after period', () => {
     });
 });
 
+// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-010 — The period an add-on ends at is its own, not the plan's
 describe('cancelling one, against its own period', () => {
     // A cancellation takes effect at the end of the period being paid for. For
     // a monthly bundle beside a yearly plan those are months apart, and reading
@@ -949,6 +967,7 @@ describe('cancelling one, against its own period', () => {
     });
 });
 
+// @requirement SC-BUN-002 — An add-on's periods end on the day the plan's do
 describe('one answer for the plan’s billing day', () => {
     // The field that decides whether a preview and a booking describe the same
     // contract. Resolved in one place so they cannot disagree — they did: the

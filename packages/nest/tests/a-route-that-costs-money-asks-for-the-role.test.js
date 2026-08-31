@@ -1,3 +1,5 @@
+// @requirement SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

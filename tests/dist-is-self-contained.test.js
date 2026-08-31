@@ -1,3 +1,5 @@
+// @requirement SC-COMP-008 — An implementation offers only what it can actually answer
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';

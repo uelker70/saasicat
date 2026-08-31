@@ -13,6 +13,8 @@
 // contain them, because the handlers inside that page are no longer what the
 // operator reaches.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';

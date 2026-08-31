@@ -1,3 +1,5 @@
+// @requirement SC-BUN-027 — The same add-on cannot be booked twice on one subscription
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PrismaBundleRepository } from '../dist/index.js';

@@ -14,6 +14,8 @@
 // plugin was installed, because the import is the module singleton. That
 // version of this test was written first and passed against the defect.
 
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, expect, test } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { Notify } from 'quasar';

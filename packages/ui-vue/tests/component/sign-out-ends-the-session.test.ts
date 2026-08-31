@@ -11,6 +11,8 @@
 // navigation to `/admin` walked straight back in — the operator saw a login
 // form and was still signed in.
 
+// @requirement SC-ADM-016 — Signing out ends the session
+
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { createRouter, createMemoryHistory } from 'vue-router';
 

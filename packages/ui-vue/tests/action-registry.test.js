@@ -1,3 +1,6 @@
+// @requirement SC-UI-008 — Equivalent actions behave the same everywhere
+// @requirement SC-UI-010 — An action sits with the object it acts on
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ActionDefNotInManifestError, ActionRegistry, MissingHandlerError } from '../dist/index.js';

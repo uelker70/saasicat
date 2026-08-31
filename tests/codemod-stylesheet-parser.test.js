@@ -1,3 +1,5 @@
+// @requirement SC-COMP-004 — The upgrade command reports what it cannot decide rather than guessing
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 

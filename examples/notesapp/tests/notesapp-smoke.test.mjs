@@ -3,6 +3,8 @@
 // createSaaSiCatTestModule and assert static entitlement resolves the
 // example plan catalog. Runs in CI without a database.
 
+// @requirement SC-COMP-014 — The example application is kept in step with the platform
+
 import 'reflect-metadata';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

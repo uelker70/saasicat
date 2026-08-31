@@ -1,3 +1,5 @@
+// @requirement SC-COMP-001 — All packages carry one version number and move together
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';

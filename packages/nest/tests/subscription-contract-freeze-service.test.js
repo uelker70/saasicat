@@ -167,6 +167,8 @@ const monthlyAddOn = (priceNet) => ({
     metadata: null,
 });
 
+// @requirement SC-PRIC-012 — A contract mixing rhythms totals one period of its own rhythm
+// @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 describe('a yearly contract holding a monthly add-on', () => {
     test('counts the add-on as often as it falls due', async () => {
         const { calls, service } = makeService({

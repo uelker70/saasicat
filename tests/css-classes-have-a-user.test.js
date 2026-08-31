@@ -20,6 +20,8 @@
 // a class nobody here uses and nothing documents cannot be told apart from one
 // that was left behind, and the reader who finds it cannot either.
 
+// @requirement SC-READ-008 — There is one way to do each thing, not two right answers
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

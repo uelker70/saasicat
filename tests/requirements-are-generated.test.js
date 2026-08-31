@@ -13,6 +13,8 @@
 // correct one does, and there is no way to tell the two apart by watching it
 // succeed.
 
+// @requirement SC-READ-003 — A statement about the software is part of it
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -24,7 +26,7 @@ import {
     frontMatter,
     readCatalogue,
 } from '../scripts/requirements/parse.mjs';
-import { BEGIN, END } from '../scripts/requirements/render.mjs';
+import { BEGIN, END, proofBlock, withProofs } from '../scripts/requirements/render.mjs';
 import { check } from '../scripts/requirements/check.mjs';
 import { ROOT, TARGET, renderCatalogue } from '../scripts/requirements/index.mjs';
 
@@ -111,6 +113,134 @@ describe('the requirements document is generated, not maintained', () => {
 
     test('the sources satisfy every rule the checker can state', () => {
         assert.deepEqual(check(readCatalogue(ROOT)), []);
+    });
+});
+
+describe('what a breach costs is marked where it is more than ordinary', () => {
+    // Three values and not five: a scale nobody can apply is a scale everybody
+    // applies differently. Money and law are one bucket because both are
+    // somebody's real loss; tenant separation and access are the other. An
+    // entry without a mark is not unassessed, it is ordinary — marking every
+    // entry would say nothing, the same way marking none did.
+
+    test('a risk opens the promise, behind the state', () => {
+        const [entry] = parse(
+            '### SC-A-001 — T\n\n🟢 💰 Money is at stake.\n\n_Source:_ #1',
+        ).entries;
+        assert.equal(entry.risk, '💰');
+        assert.equal(entry.text, 'Money is at stake.');
+    });
+
+    test('and behind the delivery marker where that opens it', () => {
+        // A pending entry opens with its own marker, so the risk sits behind
+        // that rather than in front of it — reading them the other way round
+        // left the mark in the promise and the checker calling it unknown.
+        const [entry] = parse(
+            '### SC-A-001 — T\n\n🟡 _(Decided, not yet delivered.)_ 💰 Later.\n\n_Source:_ #1',
+        ).entries;
+        assert.equal(entry.risk, '💰');
+        assert.equal(entry.text, 'Later.');
+    });
+
+    test('an entry without one is ordinary, not unmarked', () => {
+        const [plain] = parse('### SC-A-001 — T\n\n🟢 Prose.\n\n_Source:_ #1').entries;
+        assert.equal(plain.risk, undefined);
+        assert.deepEqual(check(catalogueOf([['01_a', `${head()}\n${entry('SC-A-001')}`]])), []);
+    });
+
+    test('a mark that is neither a state nor a risk is refused', () => {
+        // Same failure as the near-miss state: it reads as meaning something
+        // and the parser read past it, so the entry carries a claim nothing
+        // understood.
+        const problems = check(
+            catalogueOf([
+                ['01_a', `${head()}\n### SC-A-001 — Title\n\n🟢 ⚠️ Prose.\n\n_Source:_ #1`],
+            ]),
+        );
+        assert.ok(
+            problems.some((problem) => problem.includes('neither a state nor a risk')),
+            JSON.stringify(problems),
+        );
+    });
+});
+
+describe('the tests an entry names are written under it', () => {
+    // At the requirement, because that is where the question is asked. A
+    // command printing the same list answers it somewhere else, and somewhere
+    // else is where nobody is standing when they need it.
+
+    test('the block is generated, and the page carries it', async () => {
+        const { text } = await rendered();
+        assert.match(text, /^_Tested by:_$/m);
+    });
+
+    test('it is not part of the promise', () => {
+        // A fact about the tests, not about what was promised — so annotating a
+        // test must not read as rewriting a requirement.
+        const withBlock = parse(
+            '### SC-A-001 — T\n\n🟢 A promise.\n\n_Source:_ #1\n\n' +
+                '<!-- BEGIN proof -->\n\n_Tested by:_\n\n- `x.test.js`\n\n<!-- END proof -->',
+        ).entries[0];
+        const without = parse('### SC-A-001 — T\n\n🟢 A promise.\n\n_Source:_ #1').entries[0];
+        assert.equal(withBlock.text, without.text);
+        assert.equal(withBlock.source, without.source);
+    });
+
+    test('an entry nothing tests carries no block', () => {
+        // An empty heading over nothing would say something false about a
+        // requirement nobody has covered.
+        const { text } = { text: proofBlock([]) };
+        assert.equal(text, '');
+    });
+});
+
+describe('a generated region that lost its close destroys nothing', () => {
+    // A merge resolved badly is all it takes, and the command that maintains
+    // the catalogue was the one deleting it: the strip ran from the marker to
+    // whatever closed next. Two ways that ended, both silent — to the end of
+    // the file, or to the *next* entry's close, eating the requirement in
+    // between and leaving a shorter catalogue that still numbers contiguously.
+
+    const proved = (id) =>
+        `### ${id} — Title\n\n🟢 Prose.\n\n_Source:_ #1\n\n` +
+        '<!-- BEGIN proof -->\n\n_Tested by:_\n\n- `x.test.js`\n\n<!-- END proof -->';
+
+    test('an unclosed marker keeps the requirement after it', () => {
+        const text =
+            `${head()}\n${proved('SC-A-001').replace('\n<!-- END proof -->', '')}` +
+            `\n\n${proved('SC-A-002')}`;
+        const after = withProofs(text, new Map());
+        assert.match(after, /SC-A-002/, 'the next requirement was eaten');
+        assert.match(after, /BEGIN proof/, 'the damage was hidden rather than left to be seen');
+    });
+
+    test('an unclosed marker at the end keeps the rest of the file', () => {
+        const text = `${head()}\n${entry('SC-A-001')}\n\n<!-- BEGIN proof -->\n\nTrailing prose.`;
+        assert.match(withProofs(text, new Map()), /Trailing prose\./);
+    });
+
+    test('and the checker refuses the file so nothing is written', () => {
+        const text = `${head()}\n${proved('SC-A-001').replace('\n<!-- END proof -->', '')}`;
+        const problems = check(catalogueOf([['01_a', text]]));
+        assert.ok(
+            problems.some((problem) => problem.includes('is never closed')),
+            JSON.stringify(problems),
+        );
+    });
+
+    test('a close that opens nothing is refused too', () => {
+        const text = `${head()}\n${entry('SC-A-001')}\n\n<!-- END proof -->`;
+        const problems = check(catalogueOf([['01_a', text]]));
+        assert.ok(
+            problems.some((problem) => problem.includes('closes nothing')),
+            JSON.stringify(problems),
+        );
+    });
+
+    test('a well-formed chapter is not refused', () => {
+        // The counter-check: a rule that refused everything would pass the four
+        // above and fail the catalogue.
+        assert.deepEqual(check(catalogueOf([['01_a', `${head()}\n${proved('SC-A-001')}`]])), []);
     });
 });
 
@@ -317,7 +447,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                             '🔵 _(Superseded on 2026-09-01 by `SC-A-002`.)_ One.\n\n_Source:_ #1\n\n' +
                             '### SC-A-002 — Title\n\n' +
                             '🔵 _(Superseded on 2026-09-02 by `SC-A-003`.)_ Two.\n\n_Source:_ #2\n\n' +
-                            '### SC-A-003 — Title\n\nThree.\n\n_Source:_ #3',
+                            '### SC-A-003 — Title\n\n🟢 Three.\n\n_Source:_ #3',
                     ],
                 ]),
             ),
@@ -378,7 +508,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                     [
                         '01_a',
                         `${head()}\n### SC-A-001 — Title\n\n` +
-                            'See [that](#sc-b-001--title).\n\n_Source:_ #1',
+                            '🟢 See [that](#sc-b-001--title).\n\n_Source:_ #1',
                     ],
                     ['02_b', chapter(['SC-B-001'])],
                 ]),
@@ -402,7 +532,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         );
     });
 
-    test('a colour that disagrees with its words', () => {
+    test('a state that opens with the wrong colour', () => {
         // The colour is read faster than the words are, so a reader who trusts
         // it is the one who is misled. A wrong one is worse than none.
         complains(
@@ -413,11 +543,11 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                         '_Source:_ #1',
                 ],
             ],
-            'opens with 🔴, not ⚪',
+            'opens with 🔴 and is draft',
         );
     });
 
-    test('a retired entry with no colour at all', () => {
+    test('a retired entry that opens with no state', () => {
         // It reads as ordinary in a scan, which is the one thing a retired
         // entry must never do.
         complains(
@@ -428,11 +558,11 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                         '_Source:_ #1',
                 ],
             ],
-            'opens with no colour, not 🔴',
+            'opens with no state and is withdrawn',
         );
     });
 
-    test('an undelivered promise with no colour', () => {
+    test('an undelivered promise that opens with none', () => {
         complains(
             [
                 [
@@ -441,7 +571,7 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                         '_Source:_ #1',
                 ],
             ],
-            'marks it with no colour',
+            'and is not yet delivered',
         );
     });
 
@@ -631,8 +761,8 @@ describe('the checks refuse what the conventions used to leave to care', () => {
                 catalogueOf([
                     [
                         '01_a',
-                        `${head()}\n### SC-A-001 — Title\n\nSee [that](#sc-a-002--title).\n\n` +
-                            '_Source:_ #1\n\n### SC-A-002 — Title\n\nProse.\n\n_Source:_ #2',
+                        `${head()}\n### SC-A-001 — Title\n\n🟢 See [that](#sc-a-002--title).\n\n` +
+                            '_Source:_ #1\n\n### SC-A-002 — Title\n\n🟢 Prose.\n\n_Source:_ #2',
                     ],
                 ]),
             ),
@@ -724,6 +854,6 @@ describe('the checks refuse what the conventions used to leave to care', () => {
 });
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
-const entry = (id) => `### ${id} — Title\n\nProse.\n\n_Source:_ #1`;
+const entry = (id) => `### ${id} — Title\n\n🟢 Prose.\n\n_Source:_ #1`;
 const chapter = (ids) => `${head()}\n${ids.map(entry).join('\n\n')}`;
 const parse = (body) => catalogueOf([['01_a', `${head()}\n${body}`]]).chapters[0];

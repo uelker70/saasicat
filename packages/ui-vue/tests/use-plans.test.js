@@ -5,6 +5,8 @@
 // this one pins what they do with the answer, which is the half a rebuild onto
 // the resource descriptors could quietly change.
 
+// @requirement SC-PLAN-024 — The order plans appear in is set by moving them, not by typing numbers
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

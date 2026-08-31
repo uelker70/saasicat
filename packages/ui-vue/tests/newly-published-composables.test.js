@@ -13,6 +13,8 @@
 // loads, where a barrel that forgot to re-export one of them looks exactly like
 // a barrel that never had it.
 
+// @requirement SC-PLAN-011 — A published version says which day it applies from
+
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

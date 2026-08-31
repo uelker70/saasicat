@@ -9,6 +9,8 @@
 // project-page-host.test.js — the composable also works without a mount,
 // as long as an inject scope exists.
 
+// @requirement SC-UI-008 — Equivalent actions behave the same everywhere
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp, ref } from 'vue';

@@ -1,3 +1,6 @@
+// @requirement SC-ADM-011 — The first administrator is set up with a second factor immediately
+// @requirement SC-ADM-008 — A password that cannot be retrieved again is shown without a way to dismiss it
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CliError, MfaSetupFlow } from '../dist/index.js';

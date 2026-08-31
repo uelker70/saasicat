@@ -3,6 +3,9 @@
 // stub implementation. The guard in front of the route is covered separately
 // at the bottom of this file (wire contract of its 429).
 
+// @requirement SC-PROMO-006 — A discount runs for at most 24 months or billing periods
+// @requirement SC-PROMO-016 — A code past its validity stops working without anybody having to run anything
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PromoCodePublicController, PromoCodeRateLimitGuard } from '../dist/promo/index.js';

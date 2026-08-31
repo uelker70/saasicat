@@ -1,3 +1,5 @@
+// @requirement SC-CHG-008 — A change that arrives later is the headline, and has to be acknowledged
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';

@@ -50,6 +50,7 @@ const VALID_DRAFT = {
     validUntil: null,
 };
 
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
 describe('CreateBundleDto', () => {
     test('accepts a complete bundle', () => {
         assert.deepEqual(refusedProperties(CreateBundleDto, VALID_BUNDLE), []);
@@ -86,6 +87,7 @@ describe('CreateBundleDto', () => {
     });
 });
 
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
 describe('UpdateBundleDto', () => {
     test('accepts an empty patch', () => {
         // Every field is optional: an update that changes one thing sends one
@@ -102,6 +104,7 @@ describe('UpdateBundleDto', () => {
     });
 });
 
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
 describe('CreateBundleVersionDraftDto', () => {
     test('accepts a complete draft', () => {
         assert.deepEqual(refusedProperties(CreateBundleVersionDraftDto, VALID_DRAFT), []);
@@ -151,6 +154,7 @@ describe('CreateBundleVersionDraftDto', () => {
     });
 });
 
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
 describe('UpdateBundleVersionDraftDto', () => {
     test('accepts an empty patch and the same shapes as create', () => {
         assert.deepEqual(refusedProperties(UpdateBundleVersionDraftDto, {}), []);

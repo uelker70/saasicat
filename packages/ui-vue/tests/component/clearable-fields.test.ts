@@ -9,6 +9,8 @@
 // This checks the source rather than mounting: the hazard is a type claim, and
 // there is no cheap way to render every filter on every page.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 

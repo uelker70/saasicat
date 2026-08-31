@@ -21,6 +21,8 @@ beforeEach(() => {
     repo = new FakeSubscriptionBundleRepository();
 });
 
+// @requirement SC-BUN-027 — The same add-on cannot be booked twice on one subscription
+// @requirement SC-BUN-028 — A cancelled booking can be reinstated only before its cancellation takes effect
 describe('SubscriptionBundleRepository — lifecycle', () => {
     test('add + listBySubscription returns the new booking', async () => {
         const startedAt = new Date('2026-01-01T00:00:00Z');

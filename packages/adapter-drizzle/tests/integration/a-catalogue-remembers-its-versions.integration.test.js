@@ -226,6 +226,7 @@ describe('discarding a draft', () => {
         assert.ok(await repository.createDraft({ bundleId: bundle.id, features: ['OTHER'] }));
     });
 
+    // @requirement SC-PLAN-004 — A published version is never deleted
     test('a published version is refused — it is what somebody may have booked', async () => {
         const bundle = await createBundle();
         const draft = await repository.createDraft({ bundleId: bundle.id, features: ['REPORTS'] });

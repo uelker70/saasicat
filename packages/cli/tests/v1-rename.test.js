@@ -1,3 +1,6 @@
+// @requirement SC-COMP-003 — There is one deliberate break on the way to 1.0, and one guide for it
+// @requirement SC-COMP-004 — The upgrade command reports what it cannot decide rather than guessing
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

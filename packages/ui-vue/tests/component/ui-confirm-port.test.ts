@@ -7,6 +7,10 @@
 // app that provides its own implementation must actually be the one asked, or
 // the port is decoration.
 
+// @requirement SC-UI-009 — A destructive action says what it will destroy, by name
+// @requirement SC-UI-017 — A confirmation shows the answer to the question actually being asked
+// @requirement SC-UI-018 — Where two answers are outstanding, the current question's answer wins
+
 import { describe, expect, test } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { mount } from '@vue/test-utils';

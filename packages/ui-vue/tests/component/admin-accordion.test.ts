@@ -1,3 +1,5 @@
+// @requirement SC-UI-019 — A row that opens is a control
+
 import { describe, expect, test } from 'vitest';
 import { h } from 'vue';
 

@@ -1,3 +1,5 @@
+// @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -53,4 +55,20 @@ test('plan-version validity, termination and lookup index are in the reference s
     assert.match(planVersionsTable, /"validUntil" TIMESTAMP\(3\)/);
     assert.match(planVersionsTable, /"endsAt" TIMESTAMP\(3\)/);
     assert.match(sql, /plan_versions_planId_validFrom_idx/);
+});
+
+// @requirement SC-SUB-001 — A tenant has one subscription
+test('the reference schema makes one subscription per tenant impossible to break', () => {
+    // Cardinality is a schema fact, so this is where it is either kept or not.
+    // An adapter test cannot show it: a fake store holding one row assumes the
+    // rule rather than enforcing it, and would pass with the index dropped.
+    const schema = readFileSync(
+        new URL('../sql/reference-schema.postgres.sql', import.meta.url),
+        'utf8',
+    );
+    assert.match(
+        schema,
+        /CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"\("tenantId"\)/,
+        'the unique index on subscriptions.tenantId is gone — a tenant could hold two',
+    );
 });

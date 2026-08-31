@@ -9,6 +9,8 @@
 // all. Both are behaviour a page depends on and neither had a test, so the
 // boundary of the change is pinned here rather than left to be re-derived.
 
+// @requirement SC-PLAN-012 — There is no gap and no overlap between two versions of a plan
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nextTick, ref } from 'vue';

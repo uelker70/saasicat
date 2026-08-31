@@ -1,3 +1,5 @@
+// @requirement SC-READ-005 — The product has one spelling of its own name
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

@@ -7,6 +7,8 @@
 // expected a wrapper object — the table stayed empty despite HTTP 200 +
 // 3 tenants in the body.
 
+// @requirement SC-UI-011 — A list says how many rows there are, or says it is showing what it received
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nextTick } from 'vue';

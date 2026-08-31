@@ -1,3 +1,6 @@
+// @requirement SC-CFG-015 — Set-up commands print what they wrote, with the values and the path
+// @requirement SC-CFG-013 — A generated application does not compile until the integrator names their access rules
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';

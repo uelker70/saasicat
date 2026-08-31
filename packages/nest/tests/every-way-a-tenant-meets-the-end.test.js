@@ -40,6 +40,7 @@ const cancellable = (overrides = {}) => ({
     ...overrides,
 });
 
+// @requirement SC-SUB-009 — A tenant in arrears can still cancel
 describe('a tenant whose payment failed', () => {
     test('can still cancel, and lands at the same date as anybody else', () => {
         // The one cancellation that must never be refused. Somebody in arrears
@@ -53,6 +54,8 @@ describe('a tenant whose payment failed', () => {
     });
 });
 
+// @requirement SC-CANC-004 — Where nothing is left to run, the cancellation lands now, never in the past
+// @requirement SC-SPEC-009 — A subscription waiting on a negotiated contract falls back to a named interim plan
 describe('a tenant still waiting on sales', () => {
     test('cancels immediately, because nothing was ever committed', () => {
         // PENDING_SALES has no period and no term: there is nothing to run out.
@@ -84,6 +87,7 @@ describe('a tenant still waiting on sales', () => {
     });
 });
 
+// @requirement SC-CHG-014 — Nothing starts after the end, and nothing sells a period the end cuts short
 describe('a change and a cancellation on the same day', () => {
     // The ordinary shape: a downgrade scheduled for the term end, then a
     // cancellation, which also lands at the term end. Both are due in the same
@@ -129,6 +133,8 @@ describe('a change and a cancellation on the same day', () => {
     });
 });
 
+// @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+// @requirement SC-SUB-013 — Nothing rolls forward onto a subscription whose cancellation has landed
 describe('a plan version published before the customer left', () => {
     const version = (overrides = {}) => ({
         pendingPlanVersionId: 'pv2',
@@ -205,6 +211,8 @@ function routes(subscription) {
     };
 }
 
+// @requirement SC-SUB-011 — A subscription with nothing left to run is recorded as ended
+// @requirement SC-SUB-010 — A subscription that has ended can no longer change plan
 describe('activating a subscription that has already ended', () => {
     // Onboarding is a first activation, and a contract that is over is not one.
     // Its own guard rather than the plan route's: they are two routes, and only
@@ -244,6 +252,8 @@ describe('activating a subscription that has already ended', () => {
     });
 });
 
+// @requirement SC-SUB-014 — Accepting the same pending version twice changes nothing
+// @requirement SC-SUB-015 — A scheduled change that comes due after the customer has left is declined and recorded
 describe('accepting a version after the subscription ended', () => {
     const withPendingVersion = (base) =>
         usageRecord({
@@ -271,6 +281,9 @@ describe('accepting a version after the subscription ended', () => {
     });
 });
 
+// @requirement SC-ENTL-015 — The end of a subscription is seen on every enforcement path
+// @requirement SC-CANC-018 — The agreed contract ends when the subscription does, not when the customer declares
+// @requirement SC-CANC-016 — A subscription is in one of three states, not two
 describe('what else ends when the subscription does', () => {
     // The boundary is not a fact about one table. Everything a tenant was sold
     // hangs off the subscription, and each of those had its own answer to

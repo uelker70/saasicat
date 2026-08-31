@@ -4,6 +4,9 @@
 // silently. Template logic like that is what the unit tests against `dist/`
 // cannot reach.
 
+// @requirement SC-LANG-001 — A person reads the interface in the language they chose
+// @requirement SC-LANG-003 — Which languages an application offers is the application's decision
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { ref } from 'vue';
 

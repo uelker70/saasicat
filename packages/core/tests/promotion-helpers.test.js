@@ -1,3 +1,6 @@
+// @requirement SC-PROMO-013 — A code works whatever case the customer typed it in
+// @requirement SC-PROMO-014 — A code is 4 to 32 characters of upper-case letters, digits, hyphen and underscore
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -42,6 +45,7 @@ describe('promoStatus', () => {
     });
 });
 
+// @requirement SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
 describe('pickActivePromo', () => {
     test('highest priority wins on overlap', () => {
         const low = promo({ id: 'low', priority: 5 });

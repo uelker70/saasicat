@@ -11,6 +11,8 @@
 // tested against the very thing it exists to do without. `node --test` gives
 // each file its own process, which is what makes that separation real.
 
+// @requirement SC-COMP-009 — Shipped source stays within a language level an integrator's toolchain can read
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

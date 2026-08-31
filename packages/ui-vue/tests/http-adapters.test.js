@@ -5,6 +5,8 @@
 // depend on — a 304 that means "cache hit", a header read under the other
 // casing, a 204 with no body, a DELETE that carries one.
 
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';

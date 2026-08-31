@@ -13,6 +13,8 @@
 // `admin-error.test.js`; here they appear only where a caller's local state
 // must survive them.
 
+// @requirement SC-UI-003 — Replacing one operation that does not exist is refused at start-up
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from 'vue';

@@ -9,6 +9,8 @@
 // `runWithContext` gives the composable's `inject()` an app to resolve
 // against, the way a mount would; without one Vue warns on every call.
 
+// @requirement SC-CAT-007 — A catalogue entry moves along a fixed path
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from 'vue';

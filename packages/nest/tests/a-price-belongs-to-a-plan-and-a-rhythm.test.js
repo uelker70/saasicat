@@ -48,6 +48,8 @@ async function publishBundle({ key, monthlyNet = '9.90', yearlyNet = '99.00', pr
     });
 }
 
+// @requirement SC-BUN-019 — What an add-on costs depends on the plan beside it and the rhythm it is billed in
+// @requirement SC-BUN-006 — The price an add-on is advertised at is the price it is booked at
 describe('the price a booking is billed at', () => {
     test('follows the rhythm the booking was made in', async () => {
         const bv = await publishBundle({ key: 'B1' });
@@ -116,6 +118,8 @@ describe('the price a booking is billed at', () => {
     });
 });
 
+// @requirement SC-MKT-011 — The public catalogue shows base prices only
+// @requirement SC-BUN-007 — An add-on with no price in the chosen rhythm is shown as unavailable
 describe('the prices a store is shown', () => {
     test('are resolved for the plan, in both rhythms', async () => {
         const bv = await publishBundle({ key: 'S1' });
@@ -145,7 +149,11 @@ describe('the prices a store is shown', () => {
         });
     });
 
+    // @requirement SC-PRIC-010 — A yearly price is a price per year, not a monthly price with a discount attached
     test('a bundle sold in one rhythm only says so for the other', async () => {
+        // The yearly figure is its own number. Derived from the monthly one it
+        // could never be absent, and an add-on offered monthly only would be
+        // sold by the year at a price nobody set.
         const bv = await publishBundle({ key: 'S3', yearlyNet: null });
         assert.deepEqual((await service.resolvePricesFor(STARTER, [bv.id]))[bv.id], {
             monthlyNet: 9.9,
@@ -164,6 +172,7 @@ describe('the prices a store is shown', () => {
     });
 });
 
+// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
 describe('which bundles a tenant may ask the price of', () => {
     test('a draft is not priced, because it was never on offer', async () => {
         // The caller names ids. An authenticated tenant can name one that never
@@ -215,6 +224,8 @@ describe('which bundles a tenant may ask the price of', () => {
     });
 });
 
+// @requirement SC-BUN-023 — Only a published, current version of an add-on can be booked
+// @requirement SC-BUN-024 — An add-on version somebody has already booked cannot be edited
 describe('a bundle the operator retired', () => {
     test('is not priced, though its version is still live', async () => {
         // Retiring soft-deletes the stem and leaves the published version

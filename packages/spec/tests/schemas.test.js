@@ -2,6 +2,8 @@
 // Checks: all JSON schemas are syntactically valid JSON Schema 2020-12,
 // and simple example payloads validate successfully.
 
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Ajv2020 from 'ajv/dist/2020.js';

@@ -9,6 +9,9 @@
 // The release stamps it (`pnpm run release:version` → `scripts/stamp-spec-version.mjs`),
 // so this test is the gate on that step rather than a chore for the author.
 
+// @requirement SC-COMP-001 — All packages carry one version number and move together
+// @requirement SC-COMP-008 — An implementation offers only what it can actually answer
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

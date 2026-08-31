@@ -13,6 +13,9 @@
 // defects before `1.0.0-rc.2` came from. Saying so here rather than implying
 // coverage this file does not have.
 
+// @requirement SC-COMP-014 — The example application is kept in step with the platform
+// @requirement SC-READ-001 — Someone deciding whether to depend on SaaSiCat can judge what is tested
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';

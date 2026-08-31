@@ -13,6 +13,8 @@
 // package's own entry point and the wiring from the factory's source, so a new
 // repository is covered the moment it is exported.
 
+// @requirement SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

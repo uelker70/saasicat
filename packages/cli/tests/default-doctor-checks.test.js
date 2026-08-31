@@ -1,3 +1,5 @@
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

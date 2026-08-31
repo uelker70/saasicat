@@ -20,6 +20,8 @@
 // `admin-error.test.js`: same diagnostic in both locales, and the sentence a
 // user sees coming from the catalog.
 
+// @requirement SC-LANG-010 — Diagnostics an integrator reads are English and are not translated
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

@@ -3,6 +3,8 @@
 // keeps showing — and the next form keeps being built from — what was there
 // before the save. Same class as the discovery page's translations.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+
 import { afterEach, describe, expect, test } from 'vitest';
 
 import BundlesPage from '../../src/pages/BundlesPage.vue';

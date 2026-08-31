@@ -12,18 +12,23 @@ most valuable part of the entry.
 An entry says one of four things, and which one it says decides what a reader may do with it. The
 question behind the table is always the same: **may somebody rely on this?**
 
-| State         | Written as                                     | May somebody rely on it?                |
-| ------------- | ---------------------------------------------- | --------------------------------------- |
-| 🟢 Current    | nothing — this is the ordinary entry           | Yes                                     |
-| ⚪ Draft      | `⚪ _(Draft since YYYY-MM-DD.)_`               | No — not decided, and it may not happen |
-| 🔵 Superseded | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` | No — follow the successor it names      |
-| 🔴 Withdrawn  | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              | No, and nothing replaces it             |
+| State                         | Opens with                                     | May somebody rely on it?                |
+| ----------------------------- | ---------------------------------------------- | --------------------------------------- |
+| 🟢 Current                    | `🟢`                                           | Yes                                     |
+| 🟡 Decided, not yet delivered | `🟡 _(Decided, not yet delivered.)_`           | It is settled, and it is not true yet   |
+| ⚪ Draft                      | `⚪ _(Draft since YYYY-MM-DD.)_`               | No — not decided, and it may not happen |
+| 🔵 Superseded                 | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` | No — follow the successor it names      |
+| 🔴 Withdrawn                  | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              | No, and nothing replaces it             |
 
-The colour is not the state — the words are. It is there so that scrolling this page shows where
-the ordinary entries stop, which reading the words one at a time does not. Green has a colour and
-no entry wears it: marking the ordinary case would put a dot on three hundred and eighty-nine
-entries and hide the ten that are not ordinary among them. It appears once, in the line under the
-chapter table, where somebody looks the vocabulary up.
+**Every entry opens with exactly one of these**, the ordinary case included. Marking only the
+exceptions would be quieter, and it would mean the ordinary state is read out of a blank — and a
+state read out of a blank is a state nobody checked. That is not theory: a marker wrapped across a
+line break went a day unnoticed here, and two requirements counted as promises the product keeps
+while nothing anywhere said otherwise.
+
+The colour is not the state — the words are, where there are words — and the checker holds the two
+together, because a colour is read faster than a sentence and a wrong one misleads whoever trusts
+it. Current carries no words because it qualifies nothing: no date, no successor.
 
 Superseded and withdrawn look alike to whoever writes them and not at all alike to whoever reads
 them: one hands a reader arriving from an old reference somewhere to go, the other tells them there
@@ -32,6 +37,17 @@ is nowhere. That is why they are two states and not one.
 A state carries a date because the risk each one runs is time. A draft opened a year ago and never
 decided reads exactly like one opened last week, and only one of the two is still somebody's
 intention.
+
+Behind the state, an entry may say what a breach of it would cost:
+
+| Mark | What it costs                                        |
+| ---- | ---------------------------------------------------- |
+| 💰   | Money or law — wrong amounts, wrong dates, wrong tax |
+| 🔒   | Tenant separation, access, or somebody's data        |
+
+Most entries carry neither, which is the ordinary case and stays quiet. Three values rather than
+five, because a scale nobody can apply is a scale everybody applies differently — and an entry
+without a mark is not unassessed, it is ordinary.
 
 Beside its state, an entry that stands may say it is not true yet:
 

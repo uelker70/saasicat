@@ -9,6 +9,9 @@
 // The defect is invisible with one row, which is what a fixture reaches for by
 // default. This one renders four.
 
+// @requirement SC-A11Y-011 — A dialog does not stack on top of itself
+// @requirement SC-UI-010 — An action sits with the object it acts on
+
 import { afterEach, describe, expect, test } from 'vitest';
 
 import UsersPage from '../../src/pages/UsersPage.vue';

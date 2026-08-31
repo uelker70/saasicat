@@ -4,6 +4,8 @@
 // consumer sets `errorRoute`. This test prevents the drift of
 // `.catch(() => undefined)` slipping back into the path.
 
+// @requirement SC-ADM-017 — An expired session offers a fresh sign-in once, not in a loop
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildNavigationGuard } from '../dist/index.js';

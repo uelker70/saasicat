@@ -75,6 +75,7 @@ function writePort() {
 
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 
+// @requirement SC-CANC-012 — Declaring the same cancellation twice does not move it
 describe('cancelling twice does not move the date', () => {
     test('the second request writes nothing and returns the first answer', async () => {
         const port = writePort();
@@ -103,6 +104,7 @@ describe('cancelling twice does not move the date', () => {
     });
 });
 
+// @requirement SC-CANC-014 — A repeated cancellation does not explain itself with figures it cannot know
 describe('what a repeat may say about the first cancellation', () => {
     // The date is stored, so the repeat reports it. The three fields that
     // EXPLAIN that date are not: the decision was taken once, against a `now`
@@ -136,6 +138,7 @@ describe('what a repeat may say about the first cancellation', () => {
     });
 });
 
+// @requirement SC-CANC-014 — A repeated cancellation does not explain itself with figures it cannot know
 describe('a cancellation older than the fields that describe it', () => {
     const legacy = {
         currentPeriodEnd: new Date('2026-04-01'),

@@ -60,6 +60,8 @@
 //   - Anything in a `.vue` file outside its `<script>` blocks, which are the
 //     only part handed to the parser.
 
+// @requirement SC-COMP-001 — All packages carry one version number and move together
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';

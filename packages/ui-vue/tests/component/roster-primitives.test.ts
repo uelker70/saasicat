@@ -228,6 +228,7 @@ describe('AdminToolbar', () => {
     });
 });
 
+// @requirement SC-UI-012 — The interface works on desktop, tablet and phone
 describe('AdminFieldGrid', () => {
     test('the column count reaches the DOM, because the layout is CSS', () => {
         expect(mountWithQuasar(AdminFieldGrid).attributes('data-columns')).toBe('2');

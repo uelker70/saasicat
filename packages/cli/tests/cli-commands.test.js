@@ -2,6 +2,8 @@
 // identifier, because removing it is what that command does.
 // naming-history: the codemod cases below carry the pre-1.0 spellings on
 // purpose — they are what the command rewrites.
+// @requirement SC-CFG-015 — Set-up commands print what they wrote, with the values and the path
+
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';

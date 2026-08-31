@@ -1,6 +1,10 @@
 // i18n core — locale registry, catalog resolution, interpolation and the
 // locale-aware navigation defaults.
 
+// @requirement SC-LANG-001 — A person reads the interface in the language they chose
+// @requirement SC-LANG-004 — A missing translation is never an empty line
+// @requirement SC-LANG-005 — Every string on a screen follows the language that was chosen
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -1,3 +1,6 @@
+// @requirement SC-A11Y-006 — Information is never carried by colour alone
+// @requirement SC-UI-005 — A failure appears where the person was looking
+
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 

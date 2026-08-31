@@ -189,6 +189,8 @@ async function bootWithBookings(bookings) {
     return { moduleRef, repo };
 }
 
+// @requirement SC-CHG-010 — Every refusal the preview shows is also enforced where the change is made
+// @requirement SC-BUN-029 — A move to a shorter plan rhythm is refused while a longer add-on is running
 describe('the plan-change rule reaches the bookings in a real container', () => {
     test('a yearly add-on blocks a move to monthly when the module is composed normally', async () => {
         const { moduleRef, repo } = await bootWithBookings([YEARLY_BOOKING]);

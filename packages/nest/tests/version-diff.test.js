@@ -1,6 +1,9 @@
 // Tests for @saasicat/nest/billing — version diff classification.
 // Spec: ROADMAP_PLANS_AND_ENTITLEMENT.md §2 No. 2 (regression rule).
 
+// @requirement SC-PLAN-009 — Publishing something that takes away has to be confirmed
+// @requirement SC-PLAN-010 — One regressive change makes the whole version regressive
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyPlanDiff } from '../dist/billing/index.js';

@@ -112,6 +112,11 @@ async function createPublishedBundle({
     });
 }
 
+// @requirement SC-BUN-016 — A tenant reads what a booking commits to before confirming it
+// @requirement SC-BUN-020 — An add-on whose contents a tenant already has raises a warning, not a refusal
+// @requirement SC-BUN-021 — An add-on whose own dependencies nothing covers cannot be booked
+// @requirement SC-BUN-026 — An add-on that is not sold self-service says so and says who to ask
+// @requirement SC-PRIC-002 — A part-period is charged by days
 describe('SubscriptionBundlePreviewService — previewAdd', () => {
     test('proration: prorated amount until period end + next-period price', async () => {
         const bv = await createPublishedBundle({ key: 'B1', monthlyNet: '31.00' });
@@ -288,6 +293,8 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
     });
 });
 
+// @requirement SC-BUN-009 — An add-on can be cancelled at any time and ends with the period it is in
+// @requirement SC-BUN-028 — A cancelled booking can be reinstated only before its cancellation takes effect
 describe('SubscriptionBundlePreviewService — previewCancel', () => {
     test('effectiveAt = period end when minimum term expired', async () => {
         const bv = await createPublishedBundle({ key: 'B1', monthlyNet: '31.00' });
@@ -364,6 +371,8 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
     });
 });
 
+// @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
+// @requirement SC-BUN-010 — The period an add-on ends at is its own, not the plan's
 describe('a bundle billed in its own rhythm', () => {
     // The booking route has taken a `billingCycle` since bundles gained a
     // rhythm of their own; the preview did not, and quoted the plan's. A tenant

@@ -87,6 +87,10 @@ const codeOf = (err) => err.getResponse?.().code;
 
 // ─── 1. An operator puts a bundle in the catalogue ────────────────────────
 
+// @requirement SC-BUN-017 — An add-on without a price cannot be published
+// @requirement SC-BUN-030 — An add-on price of exactly zero has to be meant
+// @requirement SC-BUN-025 — An add-on may be restricted to particular plans
+// @requirement SC-BUN-019 — What an add-on costs depends on the plan beside it and the rhythm it is billed in
 describe('an operator publishes a bundle', () => {
     test('a base price is enough', async () => {
         const published = await publish(await draft({ monthlyNet: '9.90' }));
@@ -226,6 +230,7 @@ describe('an operator publishes a bundle', () => {
 
 // ─── 2. A tenant books one ────────────────────────────────────────────────
 
+// @requirement SC-BUN-032 — An add-on's key never changes
 describe('a key an operator has retired', () => {
     // The unique index does not exclude retired rows, so the key is still
     // taken. What decides whether the operator learns that as a sentence or as
@@ -266,6 +271,9 @@ describe('a key an operator has retired', () => {
     });
 });
 
+// @requirement SC-BUN-001 — An add-on is bought on top of a plan, never instead of one
+// @requirement SC-BUN-007 — An add-on with no price in the chosen rhythm is shown as unavailable
+// @requirement SC-BUN-031 — An add-on booked against a plan that has no period yet gets no invented one
 describe('a tenant books a bundle', () => {
     const version = (fields = {}) => ({
         id: 'bv-1',
@@ -354,6 +362,7 @@ describe('a tenant books a bundle', () => {
 
 // ─── 3. What the HTTP boundary lets through ───────────────────────────────
 
+// @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
 describe('the request bodies a tenant can send', () => {
     // The platform does not install the validation pipe — the consumer does —
     // so a decorator dropped in a refactor removes a check silently. These ask

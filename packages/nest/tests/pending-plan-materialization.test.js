@@ -2,6 +2,9 @@
 // scheduled plan changes via changePlanImmediate, invalidates the
 // entitlement cache per tenant, and is non-fatal per tenant.
 
+// @requirement SC-SUB-015 — A scheduled change that comes due after the customer has left is declined and recorded
+// @requirement SC-CHG-006 — A deferred change lands at the later of the period end and the commitment
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PendingPlanMaterializationService } from '../dist/billing/index.js';

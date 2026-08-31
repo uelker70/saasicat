@@ -1,3 +1,6 @@
+// @requirement SC-UI-014 — The administration brings its own UI framework
+// @requirement SC-UI-015 — One colour makes the administration look like the integrator's product
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';

@@ -78,6 +78,7 @@ function service(contracts) {
     );
 }
 
+// @requirement SC-CANC-018 — The agreed contract ends when the subscription does, not when the customer declares
 describe('a cancellation that lands at the end of the term', () => {
     const landsIn20Days = new Date(Date.now() + 20 * DAY);
 
@@ -104,6 +105,8 @@ describe('a cancellation that lands at the end of the term', () => {
     });
 });
 
+// @requirement SC-CANC-004 — Where nothing is left to run, the cancellation lands now, never in the past
+// @requirement SC-CANC-018 — The agreed contract ends when the subscription does, not when the customer declares
 describe('a cancellation that lands at once', () => {
     test('ends the contract now, status and all', async () => {
         // Nothing left to run — a trial, or a term already over. There is no
@@ -118,6 +121,7 @@ describe('a cancellation that lands at once', () => {
     });
 });
 
+// @requirement SC-CANC-019 — Recording a cancellation is never blocked by something that follows it
 describe('a tenant with no contract at all', () => {
     test('is not an error', async () => {
         // The premise: the port is optional and most installations have no
@@ -131,6 +135,7 @@ describe('a tenant with no contract at all', () => {
     });
 });
 
+// @requirement SC-MKT-020 — A contract agreed after a cancellation ends when that cancellation does
 describe('a contract frozen after the cancellation', () => {
     // A plan change on a cancelled subscription is allowed, and every plan
     // change supersedes the contract with a fresh one. Left uncapped, that
@@ -158,6 +163,7 @@ describe('a contract frozen after the cancellation', () => {
     });
 });
 
+// @requirement SC-CANC-012 — Declaring the same cancellation twice does not move it
 describe('a cancellation that was already recorded', () => {
     // Two ways to arrive here, and neither reaches the hook on the write path:
     // a row written before that hook existed, and a retry after the

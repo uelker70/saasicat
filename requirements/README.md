@@ -109,19 +109,33 @@ The claim covers that commit and no other, so commit the fix and let the commit 
 
 ## What state an entry is in
 
-An ordinary entry carries no marker. The others open with one, so that a reader arriving from an
-old link learns in the first few words that it does not apply.
+**Every entry opens with exactly one state marker**, the ordinary case included.
 
-| State                                    | Written as                                     |
+| State                                    | Opens with                                     |
 | ---------------------------------------- | ---------------------------------------------- |
-| 🟢 Current — it holds                    | nothing                                        |
+| 🟢 Current — it holds                    | `🟢`                                           |
+| 🟡 Decided, not built yet                | `🟡 _(Decided, not yet delivered.)_`           |
 | ⚪ Draft — proposed, not decided         | `⚪ _(Draft since YYYY-MM-DD.)_`               |
 | 🔵 Superseded — replaced, follow the id  | ``🔵 _(Superseded on YYYY-MM-DD by `SC-…`.)_`` |
 | 🔴 Withdrawn — gone, nothing replaces it | `🔴 _(Withdrawn on YYYY-MM-DD.)_`              |
 
-A current entry that is decided but not built yet adds `🟡 _(Decided, not yet delivered.)_` at the
-end of its prose. No other state may — a draft is not decided, and a retired one has nothing left
-to deliver.
+Nineteen entries say everything in their heading and carry nothing under it but `🟢`.
+
+Behind the state, an entry may carry what a breach of it would cost — `💰` for money or law, `🔒`
+for tenant separation, access or somebody's data. Most carry neither, which is the ordinary case.
+It is what decides which untested promise to cover first, so `pnpm run requirements:list` reports
+coverage against each. Only a
+current entry may say it is not built yet — a draft is not decided, and a retired one has nothing
+left to deliver.
+
+Marking only the exceptions would be quieter, and it would mean the ordinary state is read out of a
+blank. A state read out of a blank is a state nobody checked: a marker wrapped across a line went a
+day unnoticed here, and two requirements counted as promises the product keeps while nothing
+anywhere said otherwise.
+
+The colour is not the state — the words are, where there are words — and the checker holds the two
+together, because a colour is read faster than a sentence and a wrong one misleads whoever trusts
+it. Current carries no words because it qualifies nothing: no date, no successor.
 
 States move one way: a draft is decided or dropped; a promise that stands is superseded or
 withdrawn; nothing comes back. Two moves are refused because they look like tidying and are not:
@@ -130,22 +144,117 @@ withdrawn; nothing comes back. Two moves are refused because they look like tidy
 - **A promise that was delivered may not go back to "not yet delivered"** without a claim. If the
   product stopped keeping it, that is a bug and belongs in an issue.
 
-Green is a colour no entry wears. It would put a dot on 389 ordinary entries and hide the ten that
-are not ordinary. It appears once, in the summary under the chapter table, which counts every state
-and links every entry that is not current.
+The summary under the chapter table counts every state and links every entry that is not current.
+`pnpm run requirements:list` prints all of them, with the state and whether a test names it.
 
 ## Prove it
 
-A test names the promise it proves, in a comment at the start of a line:
+A test names the promise it proves, in a comment at the start of a line. Where it sits decides what
+it covers:
 
 ```js
-/** @requirement SC-PLAN-004 */
+// @requirement SC-PLAN-004 — A published version freezes once it applies
+                                    ↑ above the imports: every case in the file
+
+// @requirement SC-BUN-003 — The first period of a booking is short, and charged …
+describe('what the short first period costs', () => {   ← this block's cases
+
+    // @requirement SC-PRIC-002 — A part-period is charged by days
+    test('charges by days, not by whole months', () => {   ← this one case
 ```
+
+Write the identifier; `pnpm run requirements:update` writes the title after it, so a reader of the
+test learns what it answers for without opening the catalogue. Never type the title — a copy in
+hundreds of files goes stale the first time somebody rewords a requirement, and then it misleads
+exactly the reader it was added for. A test holds every annotation against what its requirement
+says.
+
+Put it on the narrowest thing that is true. A file-level annotation claims every case in the file
+proves that promise, which is usually more than anybody meant.
+
+The cases are written under the requirement itself, between markers, by the same command that
+builds the page — so the question "which tests cover this" is answered where it is asked:
+
+```markdown
+_Source:_ #222
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-bundle-preview.test.js`
+    - SubscriptionBundlePreviewService — previewAdd
+        - the preview quotes no commitment, because a booking makes none
+
+<!-- END proof -->
+```
+
+Never edit that block; `pnpm run requirements:update` writes it, and an entry nothing tests carries
+none. It is a fact about the tests rather than part of the promise, so it is cut out again before a
+change is compared — annotating a test does not read as rewriting a requirement.
+
+### What the checks cannot tell you
+
+They verify that an annotation names a requirement that exists and still stands.
+They cannot verify that the test proves it — nothing can, short of reading both.
+
+That gap is not theoretical. Eleven annotations in this catalogue named a
+requirement they did not prove, and every one of them looked right from a
+distance: a date test claimed exact money, a drag-handle test claimed a
+promotional lifecycle, a dry run claimed a migration that stops. Each was the
+only proof its requirement had, so the coverage figure counted it and the
+ratchet treated the requirement as settled.
+
+Two habits keep it out:
+
+- **Annotate the narrowest thing that is true** — one case, or one `describe`,
+  and the whole file only where the whole file answers for the requirement. A
+  file-level annotation on a broad file is where a wrong claim hides.
+- **Read the requirement, then the case name, and ask whether one is evidence
+  for the other.** `pnpm run requirements:cases` prints them side by side for
+  exactly this. A requirement resting on a single file is where the question
+  matters most, because there is nothing else holding it up.
+
+Four ways to ask:
+
+```bash
+pnpm run requirements          # check the sources; is the page up to date
+pnpm run requirements:list     # every requirement, its state, whether a test names it
+pnpm run requirements:gaps     # only the ones nothing covers yet
+pnpm run requirements:cases    # every requirement with the cases beneath it
+```
+
+`--risk money` or `--risk tenancy` narrows any of them to what a breach would cost, which is the
+question worth asking when the list is long:
+
+```bash
+node scripts/requirements/index.mjs --list --owed --risk tenancy
+```
+
+`pnpm run requirements:cases` prints the same thing for the whole catalogue:
+
+```text
+SC-BUN-003    current    proved    The first period of a booking is short, and charged for …
+                packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js
+                  - a bundle booked on the plan day itself › gets a whole period rather than an empty one
+                  - booked anywhere inside a plan period › in the middle it runs to the same day
+```
+
+**A case is identified by its name**, which is what the test runner prints and what you search for.
+It carries no separate identifier: one that is written by hand goes stale across a thousand cases,
+and one derived from the name changes when the name does, so it is no more stable than the name and
+buys nothing.
 
 The link goes this way round because in the test it sits next to the thing it describes, and moves
 when that moves.
 
-**389 promises stand today with nothing naming them.** None of that was backfilled, and the debt is
+`pnpm run requirements:list` prints every requirement with its state, whether a test names it, and
+which tests those are. The link runs both ways: from a requirement to the tests that prove it, and
+from a test to the promises it answers for — so retiring a requirement names the test scripts that
+go stale with it, rather than leaving them to be found later.
+
+**Coverage is reported by the same command**, over the promises that stand and are delivered,
+because those are the only ones owed a proof. None of that was backfilled, and the debt is
 frozen rather than being turned into a target nobody would meet:
 
 - A new promise brings its test — **or** a promise that was already owed one gains a test instead.

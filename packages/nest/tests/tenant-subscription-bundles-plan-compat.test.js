@@ -3,6 +3,9 @@
 // `currentPlanKey` — NOT the `planVersion.planId` UUID.
 // `compatibility.planIds` is key-based (STARTER/STANDARD/…); a UUID never
 // matches there and leads to the wrong "bundle not compatible with plan".
+// @requirement SC-BUN-025 — An add-on may be restricted to particular plans
+// @requirement SC-BUN-029 — A move to a shorter plan rhythm is refused while a longer add-on is running
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTenantSubscriptionBundlesController } from '../dist/billing/index.js';

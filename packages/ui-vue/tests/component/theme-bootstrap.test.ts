@@ -1,3 +1,6 @@
+// @requirement SC-UI-016 — Light and dark are both shipped, and a person can pick
+// @requirement SC-A11Y-001 — Text is legible in both themes
+
 import { describe, expect, test, afterEach, beforeEach } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 import { Dark } from 'quasar';

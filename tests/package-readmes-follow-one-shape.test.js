@@ -12,6 +12,8 @@
 // find, which is the same defect as one that documents a subpath it never
 // shipped.
 
+// @requirement SC-READ-001 — Someone deciding whether to depend on SaaSiCat can judge what is tested
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

@@ -17,6 +17,8 @@
 // check cannot ask this question — the defect is what renders, not what is
 // written — so each case mounts the page with no options at all.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+
 import { afterEach, describe, expect, test } from 'vitest';
 
 import PromoCodesPage from '../../src/pages/PromoCodesPage.vue';

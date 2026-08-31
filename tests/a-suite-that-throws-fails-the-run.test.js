@@ -1,3 +1,5 @@
+// @requirement SC-READ-002 — A gap is named rather than papered over
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';

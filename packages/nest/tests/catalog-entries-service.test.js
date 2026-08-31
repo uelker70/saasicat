@@ -1,3 +1,8 @@
+// @requirement SC-CAT-006 — Approval needs a scan to compare against
+// @requirement SC-CAT-007 — A catalogue entry moves along a fixed path
+// @requirement SC-CAT-008 — An approved entry whose code definition changes goes back for review
+// @requirement SC-CAT-010 — Labels an operator has written are never overwritten by the scan
+
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -208,6 +213,7 @@ function quota(key, overrides = {}) {
     };
 }
 
+// @requirement SC-CAT-012 — A new declaration appears for review after the application restarts
 describe('CatalogEntriesService', () => {
     let repo;
     let service;
@@ -407,6 +413,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(row.discoveryStatus, 'outdated');
         });
 
+        // @requirement SC-CAT-009 — Bringing a retired entry back is always a person's decision
         test('manual obsolete stays put on sync (no auto-resurrect)', async () => {
             const snap = snapshot({ features: ['A'] });
             const svc = new CatalogEntriesService(repo, snap);

@@ -1,3 +1,6 @@
+// @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
+// @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -325,6 +328,7 @@ describe('PrismaMfaAdapter', () => {
 });
 
 describe('PrismaAuditAdapter', () => {
+    // @requirement SC-AUD-002 — An action that belongs to no single tenant says so
     test('write maps actor to userId + actorTag on audit_logs', async () => {
         const p = fakePrisma();
         const a = new PrismaAuditAdapter(p);
@@ -337,6 +341,11 @@ describe('PrismaAuditAdapter', () => {
         });
         assert.equal(p.state.auditLogs.length, 1);
         const row = p.state.auditLogs[0];
+        // A SuperAdmin action belongs to the platform, not to a tenant, and
+        // the row says so rather than leaving the column out — a missing field
+        // and a deliberate null read the same to a consumer that only checks
+        // for truthiness.
+        assert.ok('tenantId' in row);
         assert.equal(row.tenantId, null);
         assert.equal(row.userId, 'u1');
         assert.equal(row.actorTag, 'cli:x@y.z:host');

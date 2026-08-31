@@ -19,6 +19,8 @@
 // This is the class, not the instance: any page whose props arrive from an
 // unvalidated HTTP boundary has to survive a shape that is not its type.
 
+// @requirement SC-SEC-005 — Data arriving from outside is validated at the boundary
+
 import { describe, expect, test } from 'vitest';
 
 import type { FeatureCatalogEntryRow } from '@saasicat/core';

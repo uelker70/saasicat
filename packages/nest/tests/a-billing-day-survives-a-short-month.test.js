@@ -37,6 +37,7 @@ function walk(from, cycle, steps, anchorDay) {
     return seen;
 }
 
+// @requirement SC-SUB-004 — A short month does not move the billing day
 describe('a subscription billed on the 31st', () => {
     const anchor = 31;
 
@@ -55,6 +56,7 @@ describe('a subscription billed on the 31st', () => {
     });
 });
 
+// @requirement SC-SUB-004 — A short month does not move the billing day
 describe('a subscription billed on the 30th', () => {
     // The distinction the maintainer drew: an anchor is a day number, not "the
     // end of the month". Both readings agree on the 31st and part company here.
@@ -71,6 +73,7 @@ describe('a subscription billed on the 30th', () => {
     });
 });
 
+// @requirement SC-SUB-004 — A short month does not move the billing day
 describe('a yearly subscription starting on a leap day', () => {
     test('is billed on the 28th in ordinary years and the 29th when one comes round', () => {
         const years = walk('2028-02-29T00:00:00.000Z', 'YEARLY', 4, 29);
@@ -79,6 +82,7 @@ describe('a yearly subscription starting on a leap day', () => {
     });
 });
 
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 describe('iterating to the next boundary', () => {
     test('keeps the anchor across every step it takes', () => {
         // `periodEndAfter` is where a renewal asks "when is the next one", and
@@ -116,6 +120,8 @@ describe('iterating to the next boundary', () => {
     });
 });
 
+// @requirement SC-SUB-004 — A short month does not move the billing day
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 describe('a renewal that has already been through a February', () => {
     // Where the anchor is actually lost in production: the roll takes the new
     // window from the previous period END, and that end has been clamped. Each
@@ -149,6 +155,7 @@ describe('a renewal that has already been through a February', () => {
     });
 });
 
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 describe('a subscription billed on an ordinary day', () => {
     // The premise for every clamp above: most subscriptions never meet one, and
     // the anchor must not move them either.
@@ -167,6 +174,7 @@ describe('a subscription billed on an ordinary day', () => {
     });
 });
 
+// @requirement SC-SUB-004 — A short month does not move the billing day
 describe('a yearly subscription billed on the 31st', () => {
     test('stays on the 31st, because the month is the same one every year', () => {
         const years = walk('2026-01-31T00:00:00.000Z', 'YEARLY', 3, 31);
@@ -175,6 +183,8 @@ describe('a yearly subscription billed on the 31st', () => {
     });
 });
 
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
+// @requirement SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 describe('a plan change reopens the window', () => {
     test('and the day the customer is billed on moves with it', () => {
         // A change on the 5th makes the 5th the billing day. The window that
@@ -188,6 +198,7 @@ describe('a plan change reopens the window', () => {
     });
 });
 
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 describe('an anchor that cannot be a day of a month', () => {
     // The column is a plain nullable integer, and a consumer's own backfill
     // fills it. Zero is what an `EXTRACT` over a missing date can leave behind.
@@ -214,6 +225,7 @@ describe('an anchor that cannot be a day of a month', () => {
     });
 });
 
+// @requirement SC-CANC-009 — A missed notice deadline moves the cancellation to the end of the next period
 describe('a cancellation that arrives after the notice window', () => {
     // The hard cut lands one period past the term end, and that step used to
     // take its day from the term end alone. After a February the term end has
@@ -272,6 +284,7 @@ describe('a cancellation that arrives after the notice window', () => {
     });
 });
 
+// @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
 describe('an impossible anchor handed to the iteration', () => {
     // Normalising inside each step is not enough: `??` keeps a zero, and a zero
     // passed down is rejected by every step individually — each then falling

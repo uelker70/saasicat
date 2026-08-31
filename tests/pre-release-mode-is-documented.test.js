@@ -1,3 +1,6 @@
+// @requirement SC-COMP-002 — A break is deliberate, documented, and belongs to a release that says it is breaking
+// @requirement SC-COMP-003 — There is one deliberate break on the way to 1.0, and one guide for it
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';

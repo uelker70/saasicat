@@ -12,6 +12,9 @@
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
+// @requirement SC-OPS-001 — An operator can retry a failed deployment
+// @requirement SC-BUN-027 — The same add-on cannot be booked twice on one subscription
+
 import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';

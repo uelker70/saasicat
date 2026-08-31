@@ -1,3 +1,5 @@
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BootLoadError, BootLoader } from '../dist/index.js';

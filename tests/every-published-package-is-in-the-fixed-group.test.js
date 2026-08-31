@@ -15,6 +15,8 @@
 // a `package.json` under `packages/` that is not `private`. Adding one and
 // forgetting the group is what this fails on.
 
+// @requirement SC-COMP-001 — All packages carry one version number and move together
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';

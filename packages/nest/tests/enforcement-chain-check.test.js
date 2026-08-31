@@ -187,6 +187,7 @@ const QUOTA_ONLY = makeController('QuotaOnlyController', {
     routes: { create: { quota: 'notes.count' } },
 });
 
+// @requirement SC-CFG-011 — An application that declares nothing to enforce still starts
 describe('globalFeatureGuard: false — the app binds its own', () => {
     test('boots when every annotated route has a feature guard', () => {
         assert.equal(
@@ -250,6 +251,7 @@ describe('globalFeatureGuard: false — the app binds its own', () => {
     });
 });
 
+// @requirement SC-CFG-010 — An installation that declares a protection and enforces nothing does not start
 describe('nothing can resolve a plan — the annotations are inert', () => {
     test('refuses to boot when a route requires a feature', () => {
         const error = bootWith([UNCOVERED], INERT);
@@ -286,6 +288,7 @@ describe('nothing can resolve a plan — the annotations are inert', () => {
     });
 });
 
+// @requirement SC-CFG-010 — An installation that declares a protection and enforces nothing does not start
 describe('the platform bound its own guard', () => {
     test('says nothing, whatever the routes look like', () => {
         // Every annotated route is covered by the global APP_GUARD, so an
@@ -294,6 +297,8 @@ describe('the platform bound its own guard', () => {
     });
 });
 
+// @requirement SC-CFG-005 — A missing required setting stops the installation, naming the file and the field
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
 describe('the message names the true cause', () => {
     test('the option, when the option is what unbound the guard', () => {
         const error = bootWith([UNCOVERED], OWN_GUARDS);
@@ -319,6 +324,7 @@ describe('the message names the true cause', () => {
     });
 });
 
+// @requirement SC-CFG-010 — An installation that declares a protection and enforces nothing does not start
 describe('quotas are a second runtime, and the V3 path does not carry it', () => {
     // Found by review, after this check had already shipped once and been
     // reviewed twice. `entitlementActive` was one flag for two questions:

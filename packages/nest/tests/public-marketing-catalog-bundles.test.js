@@ -103,6 +103,8 @@ async function createLiveBundle({
     });
 }
 
+// @requirement SC-MKT-003 — A plan or add-on with no marketing entry, or one marked hidden, is not shown
+// @requirement SC-MKT-011 — The public catalogue shows base prices only
 describe('PublicMarketingCatalogService — Bundles', () => {
     test('getCatalog returns empty bundles[] without a BundleRepository', async () => {
         const svc = new PublicMarketingCatalogService(
@@ -343,6 +345,8 @@ function seedPlanVersion(
     });
 }
 
+// @requirement SC-PLAN-011 — A published version says which day it applies from
+// @requirement SC-PLAN-018 — The version that applies is the one valid on the day of the purchase
 describe('PublicMarketingCatalogService — Plans (validFrom tolerance)', () => {
     test('live plan version with validFrom=NULL appears in the catalog', async () => {
         planRepo.seed({
@@ -397,6 +401,8 @@ describe('PublicMarketingCatalogService — Plans (validFrom tolerance)', () => 
 // (validUntil = today) — otherwise a "dead day" would gape open at the succession
 // cutoff (predecessor validUntil=today already dark, successor only from tomorrow).
 // ASOF = 2026-06-03T12:00:00Z.
+// @requirement SC-PLAN-013 — A version is still valid on its own last day
+// @requirement SC-PLAN-016 — A version can be given an end date, and it lies in the future
 describe('PublicMarketingCatalogService — Plans (validUntil day-inclusive)', () => {
     test('single-day version (validFrom=validUntil=today) is active today', async () => {
         seedPlanVersion(planRepo, {
@@ -463,6 +469,8 @@ describe('PublicMarketingCatalogService — Plans (validUntil day-inclusive)', (
 // Staircase sorting of the comparison matrix: frontends render the rows in
 // payload order — so the staircase (widest coverage on top, then leading
 // columns, then label) has to be produced here in the service.
+// @requirement SC-MKT-009 — At most one plan is marked as the recommended one
+// @requirement SC-PLAN-024 — The order plans appear in is set by moving them, not by typing numbers
 describe('PublicMarketingCatalogService — comparison matrix (staircase sorting)', () => {
     test('feature rows: widest coverage first, on a tie the leading plan column', async () => {
         planRepo.seed({

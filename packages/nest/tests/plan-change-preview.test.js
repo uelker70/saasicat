@@ -1,6 +1,10 @@
 // Smoke tests for PlanChangePreviewService — data-driven limits map,
 // catalog order as plan rank, self-service blocks.
 
+// @requirement SC-PRIC-006 — The preview and the booking describe the same contract
+// @requirement SC-CHG-010 — Every refusal the preview shows is also enforced where the change is made
+// @requirement SC-CHG-012 — A tenant cannot move to a plan whose limits their usage already exceeds
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PlanChangePreviewService } from '../dist/billing/index.js';

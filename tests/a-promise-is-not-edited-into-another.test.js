@@ -14,6 +14,9 @@
 // was promised. Without that, one retired entry would force every entry
 // mentioning it to be retired too, and the rule would eat the chapter.
 
+// @requirement SC-READ-003 — A statement about the software is part of it
+// @requirement SC-COMP-006 — An identifier a consumer may have written down is not renamed again
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -29,7 +32,10 @@ import {
 } from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
-const entry = (id, text) => `### ${id} — Title\n\n${text}\n\n_Source:_ #1`;
+// Every entry opens with its state, so a fixture that does not name one is
+// given the ordinary one — the same rule the catalogue is held to.
+const opened = (text) => (/^[🟢🟡⚪🔵🔴]/u.test(text) ? text : `🟢 ${text}`);
+const entry = (id, text) => `### ${id} — Title\n\n${opened(text)}\n\n_Source:_ #1`;
 const entries = (...written) =>
     catalogueOf([['01_a', `${head()}\n${written.join('\n\n')}`]]).entries;
 

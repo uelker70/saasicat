@@ -6,6 +6,9 @@
 // Drizzle numeric string, a JSON column holding something other than what it
 // should, a schema without the validity columns at all.
 
+// @requirement SC-COMP-010 — An integrator's own data access translates; it does not decide
+// @requirement SC-COMP-011 — Every data-access implementation is held to the same executable contract
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -248,6 +251,50 @@ describe('a line item row becomes a line item record', () => {
                 .priceGross,
             23.68,
         );
+    });
+
+    /** The amount as it arrives at a consumer: through the mapping, then the wire. */
+    const carried = (amount) => {
+        const record = toContractLineItemRecord(lineItemRow({ priceNet: amount }));
+        return JSON.parse(JSON.stringify(record)).priceNet;
+    };
+
+    // @requirement SC-PRIC-013 — Amounts of money cross the wire exactly, not as approximations
+    test('an amount arrives with the cent it left with', () => {
+        // The column is DECIMAL(10,2) and this is where it stops being one:
+        // Prisma hands over a Decimal, Drizzle a numeric string, and both go
+        // through `Number()`. Ten digits at two decimals fit a double exactly,
+        // so the amounts worth pinning are both ends of the declared range and
+        // the ones where binary floating point is known to drift.
+        //
+        // Asserted on the value and not on `toFixed(2)` of it: re-rounding to
+        // the scale it started at reproduces the original text over an amount
+        // that was approximated on the way, which is the one failure this has
+        // to see. And through `JSON` rather than beside it, because the
+        // requirement is about crossing a wire, and that is the crossing.
+        for (const amount of [
+            '0.01',
+            '0.10',
+            '0.29',
+            '19.99',
+            '70.70',
+            '1234567.89',
+            '99999999.99',
+        ]) {
+            assert.equal(carried(amount), Number(amount), `${amount} did not survive the crossing`);
+            assert.equal(carried(amount).toFixed(2), amount, `${amount} came back reading wrong`);
+        }
+    });
+
+    test('and the guarantee stops where the column does', () => {
+        // The counter-check, and it took two attempts to find one that
+        // discriminates. It holds *because* the column is ten digits at two
+        // decimals — inside that a double is exact, and outside it is not. A
+        // test that only ever passed amounts that survive would be describing
+        // `Number()`, which keeps no such promise for a wider figure.
+        for (const wider of ['999999999999999.99', '12345678901234567.89']) {
+            assert.notEqual(String(carried(wider)), wider, `${wider} was carried after all`);
+        }
     });
 
     test('the commitment date and the metadata survive both ways round', () => {

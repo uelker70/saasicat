@@ -10,6 +10,8 @@
 //   - that `useSuperAdminManifest()` returns `null` without a provided accessor.
 // Render cases are covered by the consumer's app build against the live DOM.
 
+// @requirement SC-UI-013 — A tenant-facing section can be embedded without adopting a UI framework
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp, defineComponent } from 'vue';

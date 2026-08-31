@@ -69,6 +69,8 @@ plans:
     quotas: { users: 10, members: 1000 }
 `;
 
+// @requirement SC-PLAN-017 — Publishing happens in the administration, never in a seed
+// @requirement SC-PLAN-022 — Everything wrong with an uploaded catalogue is reported at once
 describe('PlanCatalogImporterService', () => {
     test('importFromYaml: first round → all created', async () => {
         const sink = new FakeSink();

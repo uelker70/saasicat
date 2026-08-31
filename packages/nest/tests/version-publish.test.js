@@ -8,6 +8,7 @@ import {
     assertOptimisticLockHeld,
 } from '../dist/billing/index.js';
 
+// @requirement SC-PLAN-007 — Publishing says what changed
 describe('assertChangeNote', () => {
     test('accepts a non-empty note (trimmed)', () => {
         assert.equal(assertChangeNote('  Preis-Update  '), 'Preis-Update');
@@ -30,6 +31,8 @@ describe('assertChangeNote', () => {
     });
 });
 
+// @requirement SC-PLAN-002 — A plan has at most one unpublished draft at a time
+// @requirement SC-PLAN-009 — Publishing something that takes away has to be confirmed
 describe('assertDraftPublishable', () => {
     const ok = {
         id: 'pv-1',
@@ -59,6 +62,7 @@ describe('assertDraftPublishable', () => {
     });
 });
 
+// @requirement SC-PLAN-020 — A draft built on a version that has since been retired has to be rebased
 describe('assertBaseVersionFresh', () => {
     const ok = {
         id: 'pv-base',
@@ -90,6 +94,7 @@ describe('assertBaseVersionFresh', () => {
     });
 });
 
+// @requirement SC-PLAN-019 — Two operators cannot publish the same draft
 describe('assertOptimisticLockHeld', () => {
     test('accepts exactly 1 update', () => {
         assert.doesNotThrow(() => assertOptimisticLockHeld(1, 'pv-1'));
@@ -108,6 +113,7 @@ describe('assertOptimisticLockHeld', () => {
     });
 });
 
+// @requirement SC-LANG-008 — A refusal is identified by a stable code; only its wording may change
 describe('PublishValidationError', () => {
     test('has name + code', () => {
         const e = new PublishValidationError('NOT_FOUND', 'msg');

@@ -1,6 +1,10 @@
 // Tests for @saasicat/nest/promo — calculator + math.
 // Pure-function tests; no DB, no NestJS DI.
 
+// @requirement SC-PROMO-013 — A code works whatever case the customer typed it in
+// @requirement SC-PROMO-014 — A code is 4 to 32 characters of upper-case letters, digits, hyphen and underscore
+// @requirement SC-PROMO-015 — What a code promised when it was redeemed stays with the redemption
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

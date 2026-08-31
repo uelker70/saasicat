@@ -9,6 +9,8 @@
 // `setup`'s unwrapping does not reach them — which is what a caller sees unless
 // it destructures first, and the wizard does destructure.
 
+// @requirement SC-UI-004 — Nothing is written until the person saves or publishes
+
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

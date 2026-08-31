@@ -11,7 +11,7 @@
 // faithfully, and the only honest way to have no such gap is to have no
 // transformation.
 
-import { anchor, ICONS } from './parse.mjs';
+import { anchor, HEADING, ICONS, PROOF_BEGIN, PROOF_END, SOURCE } from './parse.mjs';
 
 export const BEGIN =
     '<!-- BEGIN chapters — generated, do not edit: node scripts/requirements/index.mjs --write -->';
@@ -133,6 +133,134 @@ function wrap(prefix, items, width = 100) {
     }
     lines.push(line);
     return lines;
+}
+
+/**
+ * The cases that prove one entry, written under it.
+ *
+ * At the requirement, because that is where the question is asked: a command
+ * that prints the same list answers it somewhere else, and somewhere else is
+ * where nobody is standing when they need it. Grouped by file, since that is
+ * what a reader opens, and named exactly as the test runner prints them so the
+ * name is the way back to the case.
+ */
+/**
+ * A case name as Markdown, with its angle brackets made safe.
+ *
+ * Test names quote the markup they are about — `renders no <main>` — and
+ * Markdown reads that as an HTML tag, which the linter refuses in prose. The
+ * escape renders to the same characters a reader sees, so the name still says
+ * what the test runner prints.
+ */
+const escaped = (name) => name.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+export function proofBlock(cases) {
+    if (cases.length === 0) return '';
+
+    // File, then block, then case — three levels rather than one, because the
+    // block title repeated on every case is most of the line and none of the
+    // information, and the lines then outrun the width the rest of the
+    // documentation keeps.
+    const byFile = new Map();
+    for (const one of cases) {
+        const [block, name] = one.case.includes(' › ')
+            ? [
+                  one.case.slice(0, one.case.indexOf(' › ')),
+                  one.case.slice(one.case.indexOf(' › ') + 3),
+              ]
+            : ['', one.case];
+        if (!byFile.has(one.file)) byFile.set(one.file, new Map());
+        const blocks = byFile.get(one.file);
+        if (!blocks.has(block)) blocks.set(block, []);
+        blocks.get(block).push(name);
+    }
+
+    const lines = [PROOF_BEGIN, '', '_Tested by:_', ''];
+    for (const [file, blocks] of byFile) {
+        lines.push(`- \`${file}\``);
+        for (const [block, names] of blocks) {
+            const indent = block ? '        ' : '    ';
+            if (block) lines.push(`    - ${escaped(block)}`);
+            for (const name of names) lines.push(...wrapped(`${indent}- `, escaped(name)));
+        }
+    }
+    lines.push('', PROOF_END);
+    return lines.join('\n');
+}
+
+/**
+ * A chapter with every entry's proof block rewritten from the annotations.
+ *
+ * The block is cut out and put back rather than edited in place, so an entry
+ * that has lost its last test loses its block with it instead of keeping a
+ * stale one.
+ */
+/**
+ * A list item that outruns the width, broken with a hanging indent.
+ *
+ * Test names are written by whoever wrote the test and some are long. Shortening
+ * one here would break the only way back to the case, so the line wraps instead
+ * — which is what the rest of the documentation does and what the linter asks.
+ */
+function wrapped(prefix, text, width = 100) {
+    const hang = ' '.repeat(prefix.length);
+    const lines = [];
+    let line = prefix;
+    for (const word of text.split(' ')) {
+        const candidate = line.trimEnd() === prefix.trimEnd() ? line + word : `${line} ${word}`;
+        if (candidate.length > width && line.trimEnd() !== prefix.trimEnd()) {
+            lines.push(line);
+            line = hang + word;
+        } else {
+            line = candidate;
+        }
+    }
+    lines.push(line);
+    return lines;
+}
+
+export function withProofs(text, casesById) {
+    const lines = text.split('\n');
+    const out = [];
+    let id = null;
+
+    for (let at = 0; at < lines.length; at++) {
+        const line = lines[at];
+        const heading = HEADING.exec(line);
+        if (heading) id = heading[1];
+
+        if (line.trim() === PROOF_BEGIN) {
+            // Drop the old block; the fresh one is written after `_Source:_`.
+            // A generated region never spans a heading, so the search stops
+            // at one. Without that bound an unclosed marker was closed by the
+            // *next* entry's `END` and the requirement between them was eaten
+            // — a shortened catalogue that still numbers contiguously, which
+            // is exactly what no check would notice. Running instead to the
+            // end of the file dropped everything after the marker. Both wrote
+            // the result: the command that maintains the catalogue deleting
+            // the catalogue. Left alone, the damage stays visible and
+            // `check.mjs` refuses to write anything.
+            let to = at;
+            while (to < lines.length && lines[to].trim() !== PROOF_END && !HEADING.test(lines[to]))
+                to++;
+            if (to === lines.length || lines[to].trim() !== PROOF_END) {
+                out.push(line);
+                continue;
+            }
+            at = to;
+            // And the blank line that separated it.
+            if (out.at(-1) === '') out.pop();
+            continue;
+        }
+
+        out.push(line);
+        if (!SOURCE.test(line) || !id) continue;
+        const block = proofBlock(casesById.get(id) ?? []);
+        if (block) out.push('', block);
+        id = null;
+    }
+
+    return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
 export function withChapterTable(text, chapters) {

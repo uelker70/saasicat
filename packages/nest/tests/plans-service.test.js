@@ -12,6 +12,8 @@ function makeService() {
     return { service: new PlansService(repo), repo };
 }
 
+// @requirement SC-PLAN-001 — A plan is an identity; a version carries what it costs and includes
+// @requirement SC-PLAN-015 — A plan with an open draft is not removed
 describe('PlansService — root operations', () => {
     test('createPlan + listPlans + getPlan happy path', async () => {
         const { service } = makeService();
@@ -126,6 +128,7 @@ describe('PlansService — root operations', () => {
         );
     });
 
+    // @requirement SC-PLAN-014 — A plan that has ever been published is kept
     test('softDeletePlan: live version → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
         const versionsService = new PlanVersionsService(repo, null, {
@@ -158,6 +161,7 @@ describe('PlansService — root operations', () => {
         );
     });
 
+    // @requirement SC-PLAN-014 — A plan that has ever been published is kept
     test('softDeletePlan: superseded version (no live anymore) → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
         const versionsService = new PlanVersionsService(repo, null, {

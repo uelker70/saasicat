@@ -125,6 +125,8 @@ function paramsPerCode() {
     return byCode;
 }
 
+// @requirement SC-LANG-006 — Text a customer reads carries its values beside its code, not inside a sentence
+// @requirement SC-LANG-009 — An integrator resolves their own refusals and SaaSiCat's through one mechanism
 describe('a preview issue can be read in the reader’s language', () => {
     const codes = emittedCodes();
 

@@ -1,3 +1,5 @@
+// @requirement SC-UI-018 — Where two answers are outstanding, the current question's answer wins
+
 import { describe, expect, test } from 'vitest';
 
 import { latestAnswerWins } from '../../src/latest-answer-wins.js';

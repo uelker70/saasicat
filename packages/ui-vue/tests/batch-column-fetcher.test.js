@@ -1,3 +1,5 @@
+// @requirement SC-UI-011 — A list says how many rows there are, or says it is showing what it received
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BatchColumnDriftError, BatchColumnFetcher } from '../dist/index.js';

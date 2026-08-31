@@ -40,6 +40,7 @@ const nothing = (limits, why) => {
     assert.deepEqual([...limits.features], [], why);
 };
 
+// @requirement SC-ENTL-013 — A cancellation that is merely declared changes nothing
 describe('while a subscription is running', () => {
     test('it is granted its plan', async () => {
         const limits = await limitsFor(subscription());
@@ -65,6 +66,8 @@ describe('while a subscription is running', () => {
     });
 });
 
+// @requirement SC-ENTL-012 — A cancellation that has taken effect grants nothing
+// @requirement SC-ENTL-014 — An installation may name a floor a cancelled subscription falls back to
 describe('once the cancellation has taken effect', () => {
     const ended = subscription({ canceledAt: new Date('2025-06-01'), canceledEffectiveAt: LANDED });
 
@@ -123,6 +126,7 @@ describe('once the cancellation has taken effect', () => {
     });
 });
 
+// @requirement SC-ENTL-015 — The end of a subscription is seen on every enforcement path
 describe('a cancellation older than the fields that describe it', () => {
     test('is read from the only column it has', async () => {
         // The pre-split row: `canceledAt` IS the effective date and the second

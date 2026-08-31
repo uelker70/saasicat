@@ -30,6 +30,8 @@ function snapshot({ features = [], quotas = [] } = {}) {
     };
 }
 
+// @requirement SC-PLAN-017 — Publishing happens in the administration, never in a seed
+// @requirement SC-CAT-003 — Only approved features and quotas may be put in a plan or a bundle
 describe('validateSeedAgainstSnapshot', () => {
     test('all seeded features discovered → overall ok', () => {
         const report = validateSeedAgainstSnapshot({

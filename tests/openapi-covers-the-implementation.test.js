@@ -17,6 +17,9 @@
 // honest in both directions: an app-served operation the platform does serve
 // is as wrong as a platform operation nobody implements.
 
+// @requirement SC-COMP-008 — An implementation offers only what it can actually answer
+// @requirement SC-READ-007 — Reference documentation is generated from the implementation
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';

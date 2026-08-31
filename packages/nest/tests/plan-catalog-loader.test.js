@@ -1,5 +1,8 @@
 // Tests for plan-catalog-loader.ts — YAML loading + schema + cross-field validation.
 
+// @requirement SC-PLAN-022 — Everything wrong with an uploaded catalogue is reported at once
+// @requirement SC-PLAN-023 — A catalogue that cannot be read is the caller's mistake, not a server failure
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, unlinkSync, mkdtempSync } from 'node:fs';

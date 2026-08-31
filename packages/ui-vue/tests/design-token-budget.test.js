@@ -1,3 +1,6 @@
+// @requirement SC-UI-015 — One colour makes the administration look like the integrator's product
+// @requirement SC-A11Y-003 — A colour used as a fill is not the same colour used as text
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

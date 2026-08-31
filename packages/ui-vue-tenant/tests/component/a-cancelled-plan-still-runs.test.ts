@@ -1,3 +1,6 @@
+// @requirement SC-CANC-016 — A subscription is in one of three states, not two
+// @requirement SC-ENTL-013 — A cancellation that is merely declared changes nothing
+
 import { describe, expect, test } from 'vitest';
 import { mount } from '@vue/test-utils';
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';

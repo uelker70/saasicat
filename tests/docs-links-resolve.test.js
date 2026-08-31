@@ -1,3 +1,5 @@
+// @requirement SC-READ-006 — A reference a reader cannot follow is not made
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';

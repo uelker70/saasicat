@@ -1,3 +1,6 @@
+// @requirement SC-BUN-008 — An add-on carries no commitment unless an operator configures one
+// @requirement SC-BUN-013 — A commitment of none stays none
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

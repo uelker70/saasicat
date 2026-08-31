@@ -2,6 +2,9 @@
 // Direct instantiation without NestJS bootstrap — mocks for EntitlementService,
 // SubscriptionUsagePort, UsageSnapshotPort. Auth guard is tested in isolation.
 
+// @requirement SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
+// @requirement SC-PRIC-019 — A tenant can see their own account
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ComposedTenantAuthGuard, TenantBillingController } from '../dist/billing/index.js';
@@ -147,6 +150,54 @@ test('getUsage throws NotFoundException when the Subscription is missing', async
         () => 't404',
     );
     await assert.rejects(() => ctrl.getUsage({ user: { tenantId: 't404' } }), /No subscription/);
+});
+
+// @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
+test('the tenant is taken from the session, not from what the caller sent', async () => {
+    // The request carries a tenant in three places a caller controls and one
+    // it does not. Reading any of the three would let a tenant name somebody
+    // else's data and be served it, which is the whole of what this refuses.
+    let asked = null;
+    const ctrl = new TenantBillingController(
+        buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
+        null,
+        {
+            findForTenant: async (tenantId) => {
+                asked = tenantId;
+                return buildSub();
+            },
+        },
+        { snapshot: async () => ({}) },
+        null,
+    );
+
+    await ctrl.getUsage({
+        user: { tenantId: 'the-session' },
+        body: { tenantId: 'the-body' },
+        query: { tenantId: 'the-query' },
+        params: { tenantId: 'the-path' },
+    });
+
+    assert.equal(asked, 'the-session');
+});
+
+// @requirement SC-SEC-002 — Which tenant a request belongs to is derived from the authenticated session
+test('and a session that names none is refused rather than falling back', async () => {
+    // The counter-check that matters: refusing is only right if there is no
+    // second place to look. A resolver that fell through to the body would
+    // pass the case above and hand over another tenant's data here.
+    const ctrl = new TenantBillingController(
+        buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
+        null,
+        { findForTenant: async () => buildSub() },
+        { snapshot: async () => ({}) },
+        null,
+    );
+
+    await assert.rejects(
+        () => ctrl.getUsage({ body: { tenantId: 'the-body' }, query: { tenantId: 'the-query' } }),
+        /No tenant ID found on the request/,
+    );
 });
 
 test('getUsage throws NotFoundException when tenantIdResolver yields no ID', async () => {

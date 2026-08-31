@@ -28,6 +28,7 @@ const LANDED = new Date('2026-01-01');
 
 const repository = (sub) => ({ findByTenantId: async () => sub });
 
+// @requirement SC-ENTL-015 — The end of a subscription is seen on every enforcement path
 describe('the default enforcement stack', () => {
     // What `StaticFeatureGuard` and `EnforceQuotaInterceptor` resolve through.
     const resolve = (sub, floor = null) =>
@@ -64,6 +65,7 @@ describe('the default enforcement stack', () => {
     });
 });
 
+// @requirement SC-ENTL-016 — An answer computed before an end date arrives is not served after it
 describe('a cached answer at the cancellation boundary', () => {
     const LANDS = new Date('2026-08-25T12:00:00.000Z');
     const ending = subscription({

@@ -2,6 +2,8 @@
 // `BootLoader` + `ManifestLoader` from a single `endpoints` constant,
 // respecting both default derivation and explicit overrides.
 
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BootLoader, ManifestLoader, createPlatformLoaders } from '../dist/index.js';

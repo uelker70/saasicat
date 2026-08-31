@@ -201,6 +201,9 @@ function buildSvc(overrides = {}) {
     );
 }
 
+// @requirement SC-PROMO-001 — A code is redeemed at most once per subscription
+// @requirement SC-PROMO-002 — A code with a redemption limit cannot be over-redeemed
+// @requirement SC-PROMO-003 — A redemption limit can be raised, never lowered
 describe('PromoCodesService.create — validation', () => {
     test('accepts a valid code', async () => {
         const svc = buildSvc();
@@ -301,6 +304,9 @@ describe('PromoCodesService.create — validation', () => {
     });
 });
 
+// @requirement SC-PROMO-006 — A discount runs for at most 24 months or billing periods
+// @requirement SC-PROMO-007 — A one-off discount carries no duration and applies to the first invoice only
+// @requirement SC-PROMO-008 — An absolute discount stays below the lowest price it can apply to
 describe('PromoCodesService.preview — eligibility', () => {
     test('NOT_FOUND when no code exists', async () => {
         const svc = buildSvc();
@@ -377,6 +383,8 @@ describe('PromoCodesService.preview — eligibility', () => {
     });
 });
 
+// @requirement SC-PROMO-009 — A plan may be marked as not discountable
+// @requirement SC-PROMO-010 — A code is for first-time customers unless the operator says otherwise
 describe('PromoCodesService.redeem — eligibility', () => {
     const SUBSCRIPTION_LOOKUP = {
         async findById() {
@@ -451,5 +459,251 @@ describe('PromoCodesService.redeem — eligibility', () => {
         });
         assert.equal(redemption.subscriptionId, 'sub-1');
         assert.equal(redemption.tenantId, 'tenant-1');
+    });
+});
+
+describe('a code that has been redeemed is kept', () => {
+    // Deleting one would take the explanation of somebody's discount with it:
+    // the redemptions point at the code, and a customer asking why they paid
+    // what they paid has to be answerable. So the code is paused, not removed.
+
+    // @requirement SC-PROMO-004 — A code that has been redeemed is never deleted; it is paused
+    test('a soft delete is refused while a redemption points at it', async () => {
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({
+            promoRepo,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async countByPromoCode() {
+                    return 1;
+                },
+            },
+        });
+        const created = await svc.create(BASE_INPUT);
+
+        await assert.rejects(
+            () => svc.softDelete(created.id),
+            (error) => {
+                assert.equal(error.response.code, 'PROMO_CODE_HAS_REDEMPTIONS');
+                assert.equal(error.response.params.redemptions, 1);
+                return true;
+            },
+        );
+        assert.ok(!((await promoRepo.findById(created.id)).deletedAt instanceof Date));
+    });
+
+    // @requirement SC-PROMO-004 — A code that has been redeemed is never deleted; it is paused
+    test('and pausing it instead is allowed', async () => {
+        // The other half of the promise. Refusing the delete is only right if
+        // there is something the operator can do instead.
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({
+            promoRepo,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async countByPromoCode() {
+                    return 1;
+                },
+            },
+        });
+        const created = await svc.create(BASE_INPUT);
+
+        await svc.update(created.id, { status: 'PAUSED' });
+        const after = await promoRepo.findById(created.id);
+        assert.equal(after.status, 'PAUSED');
+        assert.ok(!(after.deletedAt instanceof Date));
+    });
+
+    test('a code nobody redeemed is deleted as asked', async () => {
+        // The counter-check: a rule that refused every delete would pass both
+        // assertions above and break the operator's ordinary case.
+        const promoRepo = new FakePromoRepo();
+        const svc = buildSvc({ promoRepo });
+        const created = await svc.create(BASE_INPUT);
+
+        await svc.softDelete(created.id);
+        assert.ok((await promoRepo.findById(created.id)).deletedAt instanceof Date);
+    });
+});
+
+describe('what a code promised at redemption stays with the redemption', () => {
+    // The code is an offer that changes: an operator edits its value, shortens
+    // its duration, or lets it expire. The redemption is the answer to "why did
+    // this customer pay that", and it has to keep answering after the offer has
+    // moved on — otherwise a discount granted in March is explained by the
+    // terms of a code as it reads in September.
+
+    const SUBSCRIPTION = {
+        async findById() {
+            return {
+                id: 'sub-1',
+                tenantId: 'tenant-1',
+                plan: 'STANDARD',
+                billingCycle: 'MONTHLY',
+                startedAt: null,
+            };
+        },
+    };
+
+    async function redeemThen(mutate) {
+        const promoRepo = new FakePromoRepo();
+        let written = null;
+        const svc = buildSvc({
+            promoRepo,
+            subscriptionLookup: SUBSCRIPTION,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async create(data) {
+                    written = { ...data };
+                    return { id: 'r1', ...data };
+                },
+            },
+        });
+        const created = await svc.create(BASE_INPUT);
+        await svc.redeem({ code: 'BLACKFRIDAY25', subscriptionId: 'sub-1', tenantId: 'tenant-1' });
+        await mutate(svc, created);
+        return { written, promoRepo, created };
+    }
+
+    // @requirement SC-AUD-009 — What a promotional code promised at redemption stays with the redemption
+    test('the redemption records the terms, not a pointer to them', async () => {
+        const { written, created } = await redeemThen(async () => {});
+
+        assert.equal(written.promoCodeId, created.id);
+        assert.equal(written.appliedValueType, BASE_INPUT.valueType);
+        assert.equal(Number(written.appliedValue), Number(BASE_INPUT.value));
+        assert.equal(written.appliedDurationType, BASE_INPUT.durationType);
+    });
+
+    // @requirement SC-AUD-009 — What a promotional code promised at redemption stays with the redemption
+    test('and editing the code afterwards does not rewrite them', async () => {
+        // The half that matters. A redemption holding only an id would answer
+        // with whatever the code says today, and the record of what was
+        // actually granted would be gone.
+        const { written, promoRepo, created } = await redeemThen(async (svc, code) => {
+            await svc.update(code.id, { value: 99 });
+        });
+
+        assert.equal(Number((await promoRepo.findById(created.id)).value), 99);
+        assert.equal(Number(written.appliedValue), Number(BASE_INPUT.value));
+        assert.notEqual(Number(written.appliedValue), 99);
+    });
+});
+
+describe('a redemption and its discount stand or fall together', () => {
+    // Half of this leaves a customer with a discount nobody recorded, or a
+    // record of one they never received — and both are found months later, by
+    // somebody reading an invoice that does not add up.
+    //
+    // Two writes make the pair: the code gives up a slot, and the redemption is
+    // written. They are atomic only if both run in the *same* transaction and a
+    // failure in the second is allowed to reach the runner.
+
+    const SUBSCRIPTION = {
+        async findById() {
+            return {
+                id: 'sub-1',
+                tenantId: 'tenant-1',
+                plan: 'STANDARD',
+                billingCycle: 'MONTHLY',
+                startedAt: null,
+            };
+        },
+    };
+
+    function txRunner() {
+        const context = { marker: 'the-one-transaction' };
+        return {
+            context,
+            rolledBack: false,
+            async run(work) {
+                try {
+                    return await work(this.context);
+                } catch (error) {
+                    this.rolledBack = true;
+                    throw error;
+                }
+            },
+        };
+    }
+
+    function watchfulPromoRepo(base) {
+        base.claimedWith = [];
+        const claimSlot = base.claimSlot.bind(base);
+        base.claimSlot = async function (id, tx) {
+            base.claimedWith.push(tx);
+            return claimSlot(id, tx);
+        };
+        return base;
+    }
+
+    // @requirement SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
+    test('the slot and the record are claimed in one transaction', async () => {
+        const runner = txRunner();
+        const promoRepo = watchfulPromoRepo(new FakePromoRepo());
+        const seen = [];
+        const svc = buildSvc({
+            promoRepo,
+            transactionRunner: runner,
+            subscriptionLookup: SUBSCRIPTION,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async create(data, tx) {
+                    seen.push(tx);
+                    return { id: 'r1', ...data };
+                },
+            },
+        });
+        await svc.create(BASE_INPUT);
+
+        await svc.redeem({ code: 'BLACKFRIDAY25', subscriptionId: 'sub-1', tenantId: 'tenant-1' });
+
+        assert.deepEqual(
+            promoRepo.claimedWith,
+            [runner.context],
+            'the slot was claimed outside it',
+        );
+        assert.deepEqual(seen, [runner.context], 'the record was written outside it');
+    });
+
+    // @requirement SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
+    test('a record that cannot be written takes the slot back with it', async () => {
+        const runner = txRunner();
+        const svc = buildSvc({
+            transactionRunner: runner,
+            subscriptionLookup: SUBSCRIPTION,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async create() {
+                    throw new Error('the redemption could not be written');
+                },
+            },
+        });
+        await svc.create(BASE_INPUT);
+
+        await assert.rejects(
+            () =>
+                svc.redeem({
+                    code: 'BLACKFRIDAY25',
+                    subscriptionId: 'sub-1',
+                    tenantId: 'tenant-1',
+                }),
+            /the redemption could not be written/,
+        );
+        assert.equal(runner.rolledBack, true, 'the failure never reached the runner');
+    });
+
+    test('an ordinary redemption is not rolled back', async () => {
+        // The counter-check: a service that rolled everything back would pass
+        // the case above and record nothing at all.
+        const runner = txRunner();
+        const svc = buildSvc({
+            transactionRunner: runner,
+            subscriptionLookup: SUBSCRIPTION,
+        });
+        await svc.create(BASE_INPUT);
+
+        await svc.redeem({ code: 'BLACKFRIDAY25', subscriptionId: 'sub-1', tenantId: 'tenant-1' });
+        assert.equal(runner.rolledBack, false);
     });
 });

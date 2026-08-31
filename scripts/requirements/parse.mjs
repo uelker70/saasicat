@@ -58,6 +58,17 @@ export const HEADING_LIKE = /^### .*$/;
 export const MARKER_LIKE = /^_[^_]*:_/;
 
 export const SOURCE = /^_Source:_ (.+)$/;
+
+/**
+ * The generated block naming the cases that prove an entry.
+ *
+ * Written by the generator, never by hand, and cut out again before an entry is
+ * read — it is a fact about the tests rather than part of the promise, so it
+ * must not reach the text a change is compared against. Otherwise annotating a
+ * test would read as rewriting a requirement.
+ */
+export const PROOF_BEGIN = '<!-- BEGIN proof -->';
+export const PROOF_END = '<!-- END proof -->';
 /**
  * One colour per state, in the entry and in the index that lists them.
  *
@@ -94,12 +105,49 @@ export const WITHDRAWN = /^(?:([⚪🔵🔴🟡])\s+)?_\(Withdrawn\s+on\s+(\d{4}
 // entry proposed a year ago and never decided reads exactly like one proposed
 // last week, and only one of the two is still somebody's intention.
 export const DRAFT = /^(?:([⚪🔵🔴🟡])\s+)?_\(Draft\s+since\s+(\d{4}-\d{2}-\d{2})\.\)_\s?/u;
+
+/**
+ * The ordinary state, written down like every other.
+ *
+ * It carries no words because it qualifies nothing — no date, no successor —
+ * and "this is an ordinary requirement" is what the absence of anything else
+ * already said. What it does carry is a mark, so that no state has to be read
+ * out of a blank: reading absence is how a marker wrapped across a line went a
+ * day unnoticed, counted as a promise the product keeps.
+ *
+ * Or the end of the text, because nineteen entries state their whole promise in
+ * the heading and have nothing under it but this.
+ */
+export const CURRENT = /^(🟢)(?:\s+|$)/u;
+
+/**
+ * What a breach of this promise costs, where it costs more than the ordinary.
+ *
+ * Three values and not five, because a scale nobody can apply is a scale
+ * everybody applies differently. Money and law are one bucket: both are
+ * somebody's real loss and both are argued in the same room. Tenant separation
+ * and access are the other. Everything else carries no mark, which is the
+ * common case and should stay quiet.
+ *
+ * It is optional and it is not the state — an entry without one is not
+ * unassessed, it is ordinary. Marking every entry would say nothing, the same
+ * way marking none did.
+ *
+ * Or the end of the text, because an entry whose whole promise is its heading
+ * carries nothing under it but its state and this.
+ */
+export const RISKS = { money: '💰', tenancy: '🔒' };
+
+export const RISK = /^([💰🔒])(?:\s+|$)/u;
 export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
 // Every gap is `\s`, not a space. These files are wrapped by hand at a hundred
 // columns, and two committed entries wrap this marker across the break — so
 // they read as delivered, vanished from the index of what is not built yet, and
 // nothing asked why they had no colour.
 export const PENDING = /\s?(?:([⚪🔵🔴🟡])\s+)?_\(Decided,\s+not\s+yet\s+delivered\.\)_/u;
+
+/** The same marker where an entry opens with it, which is where it belongs. */
+export const PENDING_OPENS = /^(🟡)\s+_\(Decided,\s+not\s+yet\s+delivered\.\)_\s*/u;
 
 /** Every identifier mentioned in a piece of prose. */
 export const REFERENCES = /\bSC-[A-Z0-9]+-\d{3}(?![\w-])/g;
@@ -192,8 +240,24 @@ export function entriesIn(body, where, startLine) {
     return { intro: trim(intro).join('\n'), entries: entries.map(finishEntry) };
 }
 
+/**
+ * Everything outside the generated proof block, which is the entry as written.
+ *
+ * An unclosed marker keeps every line. Slicing to the end of the entry read the
+ * rest of the promise as generated and dropped it, which is the one direction
+ * this must never fail in: a promise that disappears takes its fingerprint with
+ * it and the guard sees a change nobody made. Left in, the junk is visible,
+ * `check.mjs` refuses the file, and nothing is written.
+ */
+function withoutProof(lines) {
+    const from = lines.findIndex((line) => line.trim() === PROOF_BEGIN);
+    if (from === -1) return lines;
+    const to = lines.findIndex((line, at) => at > from && line.trim() === PROOF_END);
+    return to === -1 ? lines : [...lines.slice(0, from), ...lines.slice(to + 1)];
+}
+
 function finishEntry(entry) {
-    const lines = trim(entry.lines);
+    const lines = trim(withoutProof(entry.lines));
     const sources = [];
     const body = [];
     for (const line of lines) {
@@ -210,10 +274,17 @@ function finishEntry(entry) {
     // marker without one does not match, so `_(Draft.)_` stays prose and the
     // check for a near-miss state catches it. Nothing reads the value, and a
     // field nobody reads is a field that stops being true unnoticed.
+    // What the entry opens with, before anything is stripped. Every entry opens
+    // with exactly one state marker, so that no state is read out of a blank.
+    const opensWith = [CURRENT, SUPERSEDED, WITHDRAWN, DRAFT, PENDING_OPENS]
+        .map((pattern) => pattern.exec(text)?.[1])
+        .find(Boolean);
+
     let icon;
     const superseded = SUPERSEDED.exec(text);
     const withdrawn = WITHDRAWN.exec(text);
     const draft = DRAFT.exec(text);
+    const current = CURRENT.exec(text);
     if (superseded) {
         status = 'superseded';
         [, icon, , supersededBy] = superseded;
@@ -226,6 +297,9 @@ function finishEntry(entry) {
         status = 'draft';
         [, icon] = draft;
         text = text.slice(draft[0].length);
+    } else if (current) {
+        [, icon] = current;
+        text = text.slice(current[0].length);
     }
     // Stripped, not just detected. Delivering a promise is not a change to the
     // promise: leaving the marker in the text would make the edit that removes
@@ -234,6 +308,12 @@ function finishEntry(entry) {
     const pending = PENDING.exec(text);
     if (pending) text = text.replace(PENDING, '').trim();
 
+    // After whatever opened the entry — a state or the delivery marker — and
+    // before the promise. Read last because a pending entry opens with its own
+    // marker, and the risk sits behind that rather than in front of it.
+    const risk = RISK.exec(text);
+    if (risk) text = text.slice(risk[0].length);
+
     return {
         ...entry,
         lines,
@@ -241,6 +321,8 @@ function finishEntry(entry) {
         source: sources[0],
         text,
         status,
+        opensWith,
+        risk: risk?.[1],
         icon,
         pendingIcon: pending?.[1],
         supersededBy,
@@ -264,6 +346,7 @@ export function parseChapter(text, directory) {
         where,
         directory,
         number: named ? Number(named[1]) : null,
+        offset,
         prefix: named?.[2],
         title: fields.title,
         intro,

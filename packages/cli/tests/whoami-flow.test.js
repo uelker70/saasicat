@@ -1,3 +1,5 @@
+// @requirement SC-ADM-014 — An administrator identity may live in the platform's tables or the application's
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { WhoAmIFlow } from '../dist/index.js';

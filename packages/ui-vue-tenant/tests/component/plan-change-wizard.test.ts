@@ -1,3 +1,6 @@
+// @requirement SC-CHG-008 — A change that arrives later is the headline, and has to be acknowledged
+// @requirement SC-CHG-009 — The date the tenant was shown is the date the change is made on
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';

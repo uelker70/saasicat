@@ -1,6 +1,8 @@
 // The colour-scheme context: what 'system' resolves to, who owns the value,
 // and what is remembered.
 
+// @requirement SC-UI-016 — Light and dark are both shipped, and a person can pick
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

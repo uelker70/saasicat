@@ -63,6 +63,8 @@ function buildController(snapshot = SNAPSHOT) {
     return new ControllerClass(makeFakeScanner(snapshot));
 }
 
+// @requirement SC-ADM-001 — Only a platform administrator reaches the administration surface
+// @requirement SC-CAT-012 — A new declaration appears for review after the application restarts
 describe('DiscoveryController — GET /admin/discovery', () => {
     test('returns the discovery snapshot as the body', () => {
         const controller = buildController();

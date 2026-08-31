@@ -1,3 +1,5 @@
+// @requirement SC-UI-015 — One colour makes the administration look like the integrator's product
+
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

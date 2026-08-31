@@ -5,6 +5,10 @@
 // rejection, one of the package's own `*ApiError` classes, a bare `Error`, a
 // string. The point of the type is that none of them reaches page code.
 
+// @requirement SC-UI-005 — A failure appears where the person was looking
+// @requirement SC-UI-006 — What a person is shown after a failure is what the failing side said
+// @requirement SC-LANG-013 — A message says what to do next, not only what went wrong
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';

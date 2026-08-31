@@ -47,6 +47,8 @@ const MARKETING = {
     ],
 };
 
+// @requirement SC-MKT-002 — Only plans an operator marked as marketed appear in self-service
+// @requirement SC-MKT-003 — A plan or add-on with no marketing entry, or one marked hidden, is not shown
 describe('ConfiguratorCatalogBuilder', () => {
     test('maps marketed live PlanVersions onto models (incl. quota normalization)', async () => {
         const catalog = await new ConfiguratorCatalogBuilder().build({

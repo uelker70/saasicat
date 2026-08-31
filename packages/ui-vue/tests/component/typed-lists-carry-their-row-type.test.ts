@@ -10,6 +10,8 @@
 // The `@ts-expect-error` lines are the guard, not decoration: each one fails
 // the typecheck the day the call it marks starts compiling.
 
+// @requirement SC-UI-011 — A list says how many rows there are, or says it is showing what it received
+
 import type { TenantDto } from '@saasicat/core';
 import { createApp } from 'vue';
 import { describe, expect, it } from 'vitest';

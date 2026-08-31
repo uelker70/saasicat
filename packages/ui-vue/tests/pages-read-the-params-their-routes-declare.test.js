@@ -14,6 +14,8 @@
  * compared directly: the paths in `STANDARD_ADMIN_ROUTES` and the `params.…`
  * reads in the page each path names.
  */
+// @requirement SC-UI-002 — Mounting a shipped screen costs no wiring
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';

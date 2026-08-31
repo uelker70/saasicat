@@ -10,6 +10,8 @@
 // on the wire. It fails if they ever disagree — in either direction, whichever
 // side moved.
 
+// @requirement SC-UI-003 — Replacing one operation that does not exist is refused at start-up
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -1,3 +1,5 @@
+// @requirement SC-COMP-012 — Where one implementation cannot do what another can, the gap is recorded
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';

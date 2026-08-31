@@ -10,6 +10,9 @@
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
+// @requirement SC-PLAN-017 — Publishing happens in the administration, never in a seed
+// @requirement SC-PLAN-022 — Everything wrong with an uploaded catalogue is reported at once
+
 import { after, before, beforeEach, describe, test } from 'node:test';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';

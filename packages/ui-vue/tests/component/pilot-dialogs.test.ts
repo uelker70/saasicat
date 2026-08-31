@@ -3,6 +3,8 @@
 // end date with its presets — before their styles move into a shared
 // stylesheet.
 
+// @requirement SC-SPEC-007 — Granting, withdrawing or extending a pilot is a deliberate operator act
+
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, ref } from 'vue';
 

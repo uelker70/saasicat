@@ -1,3 +1,5 @@
+// @requirement SC-BUN-005 — A tenant on a yearly plan chooses the rhythm each add-on is billed in
+
 import { afterEach, describe, expect, test } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
@@ -75,6 +77,7 @@ describe('a monthly plan offers no choice', () => {
         expect(toggle(mountStore()).exists()).toBe(false);
     });
 
+    // @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
     test('the card quotes the monthly price with the monthly unit', () => {
         expect(cardPrice(mountStore())).toContain('10.00 EUR');
         expect(cardPrice(mountStore())).toContain('net/month');
@@ -95,7 +98,11 @@ describe('a yearly plan offers both', () => {
         expect(cardPrice(wrapper)).toContain('net/year');
     });
 
+    // @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
     test('switching moves the price and the unit together', async () => {
+        // The fixture is priced 10 monthly and 100 yearly on purpose. A page
+        // deriving the year from the month would show 120, or 108 with a
+        // discount attached; it shows what was sent.
         const wrapper = mountStore({ planCycle: 'YEARLY' });
         wrapper.findComponent({ name: 'PlanCycleToggle' }).vm.$emit('update:modelValue', 'MONTHLY');
         await nextTick();
