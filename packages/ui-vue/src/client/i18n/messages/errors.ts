@@ -1,3 +1,4 @@
+// translation-catalogue: the German half of this file is German on purpose.
 // What to tell a user when a request failed and the failing side said nothing
 // itself. Each key answers one question — "what went wrong" — so none of them
 // names an action; `common.errorLoadFailed` and its siblings do that.

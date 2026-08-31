@@ -89,12 +89,30 @@ _Tested by:_
     - filterPlannedOnlyFeatures
         - plannedOnly features are filtered out
         - unknown features (not in catalog) stay in
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — a feature the catalog says is not built yet
+        - a contract snapshot that carries it grants everything else instead
+        - a contract line item that carries it is treated the same
+        - a successor reached through a replaces chain does not slip past it
+        - a successor that is built is still granted through the same chain
+        - a contract keeps everything the catalog does say is built
+        - a feature the catalog has never heard of is left alone
 
 <!-- END proof -->
 
 ### SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
 
-🟢 Catalogue edits do not reach a running contract.
+🔵 _(Superseded on 2026-08-31 by `SC-ENTL-021`.)_ Catalogue edits do not reach a running contract.
+
+_Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
+
+### SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
+
+🟢 What was sold stays sold: a price, a quota or a feature set changed in the catalogue leaves an
+agreed contract alone. The one edit that does reach it is a feature marked as not yet rolled out,
+because that is not a statement about the offer but about whether the capability exists —
+`SC-ENTL-003` holds there too, and granting a feature with no code behind it would only weaken the
+guard in front of it.
 
 _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
 

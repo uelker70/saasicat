@@ -37,6 +37,7 @@ import {
     aggregateLimits,
     contractBundleVersionIds,
     contractLimits,
+    filterPlannedOnlyFeatures,
     mergeSubscriptionBundlesIntoLimits,
 } from './aggregation.js';
 import {
@@ -203,7 +204,7 @@ export class EntitlementService {
                 return { plan: sub.plan, quotas: {}, features: new Set() };
             }
             const floorVersion = await this.findActivePlanVersionOrFallback(floor, now, tx);
-            return this.withReplacedFeatureAliases(
+            return this.asGrantable(
                 aggregateLimits(
                     {
                         plan: floor,
@@ -223,7 +224,7 @@ export class EntitlementService {
             // immediately — otherwise the purchase stays without consequence
             // until something re-freezes the contract.
             const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
-            return this.withReplacedFeatureAliases(
+            return this.asGrantable(
                 mergeSubscriptionBundlesIntoLimits(
                     contractLimits(contract),
                     bundles,
@@ -242,7 +243,7 @@ export class EntitlementService {
 
         const subscriptionBundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
 
-        return this.withReplacedFeatureAliases(
+        return this.asGrantable(
             aggregateLimits(
                 {
                     plan: effectivePlan,
@@ -257,11 +258,37 @@ export class EntitlementService {
     }
 
     /**
+     * The last thing every path does, so that no path can skip it.
+     *
+     * Two steps, in this order. Grandfathering (#39): granted old feature keys
+     * transitively grant their successors from the `replaces` chains of the
+     * discovery snapshot — a no-op without a snapshot or without replaces
+     * declarations. Then `plannedOnly` features come out.
+     *
+     * The filter sits here rather than in each branch because it used to sit
+     * in each branch and one of them did not have it: limits read from a
+     * frozen contract were handed over as they stood, so a feature the
+     * catalogue says has no code behind it was granted to whoever had signed
+     * before it was marked. A successor pulled in by an alias could arrive the
+     * same way. `SC-ENTL-003` says "never … wherever it comes from", and one
+     * place is what makes that answerable.
+     */
+    private asGrantable(limits: EffectiveLimits): EffectiveLimits {
+        return {
+            ...limits,
+            features: filterPlannedOnlyFeatures(
+                this.replaceFeatureAliases(limits).features,
+                this.catalog,
+            ),
+        };
+    }
+
+    /**
      * Grandfathering (#39): granted old feature keys transitively grant
      * their successors from the `replaces` chains of the discovery snapshot.
      * A no-op without a snapshot or without replaces declarations.
      */
-    private withReplacedFeatureAliases(limits: EffectiveLimits): EffectiveLimits {
+    private replaceFeatureAliases(limits: EffectiveLimits): EffectiveLimits {
         if (!this.discoverySnapshot) return limits;
         if (!this.replacedByIndex) {
             this.replacedByIndex = buildReplacedByIndex(this.discoverySnapshot.features);

@@ -1,3 +1,4 @@
+// translation-catalogue: the German half of this file is German on purpose.
 // Shared terms used across pages and components. Area namespaces must not
 // duplicate these — check here before adding a key elsewhere.
 

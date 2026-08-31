@@ -191,6 +191,32 @@ any more, and one decided but not delivered has nothing to prove until it is bui
 would ask for tests of things that are not true, and the number would stop meaning anything the
 moment somebody wrote one.
 
+## An absolute answers for itself
+
+A second ratchet counts a different debt over the same population. A promise that claims every case
+— "never", "every", "only", "uniformly" — either has a test naming it, or says in the entry where
+the absolute stops. Anything with neither is counted, and the count may not rise.
+
+The reason is the same one that put the first ratchet there, in a different place. An absolute is
+what makes a requirement worth having and it is the easiest thing to get slightly wrong: the
+sentence reads well, nobody argues with it in review, and the one case it does not cover is
+discovered by a customer. It was the most common defect across the documents this catalogue was
+assembled from.
+
+Naming the exception is not a weaker answer than testing it — usually it is the better one.
+`SC-ENTL-021` names the single catalogue edit that does reach a running contract, and
+`SC-LANG-002` names the two defaults that disagree with each other; a reader learns more from
+either than from the unqualified version. What is refused is the third option, which is to claim
+everything and measure nothing.
+
+The word lists are written out in `scripts/requirements/absolutes.mjs` rather than derived, because
+there is no source in this repository for which words are absolute. They are deliberately short:
+each entry claims _all_ cases, and nothing is listed for being merely emphatic. A shorter list that
+is right beats a longer one that fires on ordinary prose and gets switched off.
+
+This one cannot see everything either. A promise whose absolute hides in a synonym passes, and so
+does one whose named exception is wrong. Both are review questions.
+
 **What is not enforced, and is written here as prose because it is prose:** the intended rule is
 that every standing requirement has at least one test of its correctness, and beyond that the
 positive and negative cases that its own boundaries imply — a refusal with its code, the value

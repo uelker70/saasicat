@@ -91,6 +91,11 @@ export const CATALOG_ERROR_CODES = {
     PLAN_ALREADY_EXISTS: 'PLAN_ALREADY_EXISTS',
     BUNDLE_ALREADY_EXISTS: 'BUNDLE_ALREADY_EXISTS',
     MARKETING_PROJECTION_ALREADY_EXISTS: 'MARKETING_PROJECTION_ALREADY_EXISTS',
+    /**
+     * Another projection of the same kind and language is already the
+     * recommended one. Carries `targetType`, `locale` and the id holding it.
+     */
+    MARKETING_HIGHLIGHT_TAKEN: 'MARKETING_HIGHLIGHT_TAKEN',
     /** A draft already exists — publish or discard it before creating another. */
     PLAN_DRAFT_ALREADY_EXISTS: 'PLAN_DRAFT_ALREADY_EXISTS',
     BUNDLE_DRAFT_ALREADY_EXISTS: 'BUNDLE_DRAFT_ALREADY_EXISTS',

@@ -167,15 +167,22 @@ _Tested by:_
 
 🟢
 
-_Source:_ `docs/reference/options.md`
+_Source:_ `docs/reference/error-codes.md`
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — comparison matrix (staircase sorting)
-        - feature rows: widest coverage first, on a tie the leading plan column
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — the recommended one
+        - the first highlight is accepted
+        - a second one is refused, and the refusal names the one holding it
+        - highlighting a second one by edit is refused the same way
+        - the one that already holds it may be edited without losing it
+        - clearing the first one frees it for the second
+        - an add-on may be recommended while a plan already is
+        - another language may recommend a different plan
+        - creating without a highlight is never refused
 
 <!-- END proof -->
 

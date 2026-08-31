@@ -803,7 +803,7 @@ function describeDraftSaveError(err: unknown): string {
         return msg.value.page.errorDraftRegression;
     }
     if (status === 422 && body?.message) {
-        // e.g. "Plan 'BASIC' hat bereits eine Draft-Version v4 …"
+        // e.g. "Plan 'BASIC' already has a draft version v4 …"
         return body.message;
     }
     if (status !== undefined) {
@@ -894,7 +894,7 @@ async function persistDraft(): Promise<PlanVersionRow | null> {
     } else {
         result = await planVersions.value.createDraft(body);
         // Draft now has an ID — remember it in case it's published right
-        // after (otherwise a second createDraft → "hat bereits eine Draft").
+        // after (otherwise a second createDraft is refused as a duplicate).
         draftEditing.value = { ...draftEditing.value, editingId: result.planVersion.id };
     }
     await reloadCockpitVersions();

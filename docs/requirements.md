@@ -116,7 +116,7 @@ properties it has while doing it.
 | 7   | Cancelling                                   | `SC-CANC-…`  | 19      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 21      |
-| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 20      |
+| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
 | 12  | Self-registration                            | `SC-REG-…`   | 20      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 21      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 399 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
-🔵 0 superseded, 🔴 0 withdrawn.
+Of 400 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
+🔵 1 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-PLAN-025](#sc-plan-025--every-quota-a-version-carries-counts-as-a-limit-that-can-be-lowered),
@@ -148,7 +148,9 @@ Of 399 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
 
-Generated from `requirements/` — 399 requirements. Do not edit by hand:
+🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do)
+
+Generated from `requirements/` — 400 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -4948,12 +4950,30 @@ _Tested by:_
     - filterPlannedOnlyFeatures
         - plannedOnly features are filtered out
         - unknown features (not in catalog) stay in
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — a feature the catalog says is not built yet
+        - a contract snapshot that carries it grants everything else instead
+        - a contract line item that carries it is treated the same
+        - a successor reached through a replaces chain does not slip past it
+        - a successor that is built is still granted through the same chain
+        - a contract keeps everything the catalog does say is built
+        - a feature the catalog has never heard of is left alone
 
 <!-- END proof -->
 
 ### SC-ENTL-004 — Once a contract is agreed, it is the truth about what the tenant may do
 
-🟢 Catalogue edits do not reach a running contract.
+🔵 _(Superseded on 2026-08-31 by `SC-ENTL-021`.)_ Catalogue edits do not reach a running contract.
+
+_Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
+
+### SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
+
+🟢 What was sold stays sold: a price, a quota or a feature set changed in the catalogue leaves an
+agreed contract alone. The one edit that does reach it is a feature marked as not yet rolled out,
+because that is not a statement about the offer but about whether the capability exists —
+`SC-ENTL-003` holds there too, and granting a feature with no code behind it would only weaken the
+guard in front of it.
 
 _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
 
@@ -6316,15 +6336,22 @@ _Tested by:_
 
 🟢
 
-_Source:_ `docs/reference/options.md`
+_Source:_ `docs/reference/error-codes.md`
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
-- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
-    - PublicMarketingCatalogService — comparison matrix (staircase sorting)
-        - feature rows: widest coverage first, on a tie the leading plan column
+- `packages/nest/tests/marketing-projections-service.test.js`
+    - MarketingProjectionsService — the recommended one
+        - the first highlight is accepted
+        - a second one is refused, and the refusal names the one holding it
+        - highlighting a second one by edit is refused the same way
+        - the one that already holds it may be edited without losing it
+        - clearing the first one frees it for the second
+        - an add-on may be recommended while a plan already is
+        - another language may recommend a different plan
+        - creating without a highlight is never refused
 
 <!-- END proof -->
 
@@ -10153,18 +10180,12 @@ _Source:_ #243
 
 _Tested by:_
 
-- `packages/ui-vue/tests/error-facts-are-declared.test.js`
-    - the platform brand is on every class it decides for
-        - there are error classes to look at — otherwise nothing below looks at anything
-        - each status-carrying class calls markPlatformError(this)
-        - the brands are counted independently, against a floor that moves with the sources
-    - the empty-body sentinel is declared at its throw site
-        - every status-0 platform error is marked as one
-        - nothing else claims to be one
-    - a seam whose answer can be "no body" first asks whether one arrived
-        - the helpers are discoverable
-        - each one calls requireServerAnswer before it reads a body
-        - every file that raises the sentinel also runs the guard
+- `tests/a-refusal-code-is-a-constant.test.js`
+    - a refusal code is a constant, not something built
+        - there are shipped sources to look at
+        - no shipped source assembles a code
+        - the detector sees the shapes it was written for
+        - and leaves alone the shapes that are not it
 
 <!-- END proof -->
 
@@ -10274,6 +10295,21 @@ _Tested by:_
 🟢 Code, comments, documentation, developer-facing errors, release notes and the command-line tools.
 
 _Source:_ #150 · release 0.22.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `tests/what-ships-is-written-in-english.test.js`
+    - what ships is written in English
+        - there are shipped files to look at — otherwise nothing below looks at anything
+        - none of them carries a German word
+        - a catalogue that declares itself is skipped, and one that does not is not
+        - the test tree and the release history are out of scope, the rest is in
+        - the reader finds a German word wherever it stands, and only a whole one
+        - a word that is also English is not on the list
+
+<!-- END proof -->
 
 ### SC-LANG-012 — SaaSiCat carries no vocabulary from anybody's business
 

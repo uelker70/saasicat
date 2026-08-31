@@ -33,6 +33,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { absoluteRatchet, unqualified } from './absolutes.mjs';
 import { readCatalogue } from './parse.mjs';
 import { casesIn, isTestPath, scanTests, standing, unproven } from './proof.mjs';
 
@@ -546,7 +547,14 @@ export function guard(root, base, head) {
     const tip = head ?? 'HEAD';
     const merged = git(root, 'merge-base', base, tip).trim();
     if (!catalogueAt(root, merged)) {
-        return { baseline: merged, problems: [], entries: 0, unproven: 0, judged: 0 };
+        return {
+            baseline: merged,
+            problems: [],
+            entries: 0,
+            unproven: 0,
+            unqualified: 0,
+            judged: 0,
+        };
     }
 
     // Every revision in the range, not the first-parent chain. A merge from
@@ -583,22 +591,36 @@ export function guard(root, base, head) {
     // mentions. Counting annotations would let a new requirement arrive with a
     // comment over a skipped suite and clear the debt without a test — which is
     // the one thing this gate exists to refuse.
-    const owed = unproven(after.entries, head ? provedAt(root, head) : scanTests(root).proved);
+    const provedNow = head ? provedAt(root, head) : scanTests(root).proved;
+    const owed = unproven(after.entries, provedNow);
     const baseline = catalogueAt(root, merged);
+    const provedThen = provedAt(root, merged);
+    // Read from the same two readings the proof debt is: an absolute settles
+    // by gaining a test as readily as by naming its boundary, so the two
+    // ratchets have to agree on what counts as proved.
+    const unqualifiedNow = unqualified(after.entries, provedNow);
     return {
         baseline: merged,
         entries: after.entries.length,
         unproven: owed.length,
+        unqualified: unqualifiedNow.length,
         judged: revisions.length,
         problems: [
             ...judge(steps).map((problem) => problem.message),
             ...newSuccessors(baseline.entries, after.entries),
             ...ratchet(
                 {
-                    debt: unproven(baseline.entries, provedAt(root, merged)),
+                    debt: unproven(baseline.entries, provedThen),
                     standing: standing(baseline.entries),
                 },
                 { debt: owed, standing: standing(after.entries) },
+            ),
+            ...absoluteRatchet(
+                {
+                    debt: unqualified(baseline.entries, provedThen),
+                    standing: standing(baseline.entries),
+                },
+                { debt: unqualifiedNow, standing: standing(after.entries) },
             ),
         ],
     };
@@ -614,7 +636,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     // commit GitHub synthesises, and judging that against itself is how a check
     // comes to prove nothing.
     const head = flag('--head', undefined);
-    const { baseline, entries, unproven: owed, problems } = guard(ROOT, base, head);
+    const {
+        baseline,
+        entries,
+        unproven: owed,
+        unqualified: bare,
+        problems,
+    } = guard(ROOT, base, head);
 
     if (entries === 0) {
         process.stdout.write(`no catalogue at ${base} — nothing to compare against\n`);
@@ -622,7 +650,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         for (const problem of problems) process.stderr.write(`${problem}\n\n`);
         process.stdout.write(
             `${entries} requirements at ${baseline.slice(0, 8)}, ` +
-                `${owed} standing with nothing proving them: ` +
+                `${owed} standing with nothing proving them, ` +
+                `${bare} claiming every case with neither a test nor an exception: ` +
                 `${problems.length || 'no'} problem(s)\n`,
         );
         if (problems.length) process.exitCode = 1;

@@ -1,3 +1,4 @@
+// translation-catalogue: the German half of this file is German on purpose.
 // German counterpart of `ERROR_MESSAGES_EN`, shipped so a German-speaking
 // consumer needs no translation pass of its own. Same keys, same order, same
 // placeholders — the keys because the shared `Record<PlatformErrorCode, string>`
@@ -113,6 +114,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' gibt es bereits",
     MARKETING_PROJECTION_ALREADY_EXISTS:
         'Für {targetType}/{targetVersionId}/{locale} gibt es bereits eine Marketing-Projektion — bearbeite sie per PATCH',
+    MARKETING_HIGHLIGHT_TAKEN:
+        'Projektion {holderId} ist für {locale} bereits die empfohlene {targetType} — nimm dort zuerst die Empfehlung weg',
     PLAN_DRAFT_ALREADY_EXISTS:
         "Plan '{planKey}' hat bereits die Entwurfsversion v{draftVersion}; veröffentliche oder verwirf sie zuerst",
     BUNDLE_DRAFT_ALREADY_EXISTS:

@@ -14,6 +14,92 @@ beforeEach(() => {
     service = new MarketingProjectionsService(repo);
 });
 
+const OTHER_VERSION = '22222222-2222-2222-2222-222222222222';
+
+// @requirement SC-MKT-009 — At most one plan is marked as the recommended one
+describe('MarketingProjectionsService — the recommended one', () => {
+    const plan = (targetVersionId, extra = {}) => ({
+        targetType: 'PLAN',
+        targetVersionId,
+        displayLabel: 'Plan',
+        description: 'A plan',
+        ...extra,
+    });
+
+    test('the first highlight is accepted', async () => {
+        const row = await service.create(plan(TARGET_VERSION, { highlight: true }));
+        assert.equal(row.highlight, true);
+    });
+
+    test('a second one is refused, and the refusal names the one holding it', async () => {
+        const first = await service.create(plan(TARGET_VERSION, { highlight: true }));
+        await assert.rejects(
+            () => service.create(plan(OTHER_VERSION, { highlight: true })),
+            (err) => {
+                assert.equal(err.status, 409);
+                assert.equal(err.response?.code, 'MARKETING_HIGHLIGHT_TAKEN');
+                assert.equal(err.response?.params?.holderId, first.id);
+                assert.equal(err.response?.params?.targetType, 'PLAN');
+                assert.equal(err.response?.params?.locale, 'de');
+                return true;
+            },
+        );
+    });
+
+    test('highlighting a second one by edit is refused the same way', async () => {
+        await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const second = await service.create(plan(OTHER_VERSION));
+        await assert.rejects(
+            () => service.update(second.id, { highlight: true }),
+            (err) => {
+                assert.equal(err.response?.code, 'MARKETING_HIGHLIGHT_TAKEN');
+                return true;
+            },
+        );
+    });
+
+    test('the one that already holds it may be edited without losing it', async () => {
+        const first = await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const updated = await service.update(first.id, { highlight: true, badge: 'Popular' });
+        assert.equal(updated.highlight, true);
+        assert.equal(updated.badge, 'Popular');
+    });
+
+    test('clearing the first one frees it for the second', async () => {
+        const first = await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const second = await service.create(plan(OTHER_VERSION));
+        await service.update(first.id, { highlight: false });
+        const updated = await service.update(second.id, { highlight: true });
+        assert.equal(updated.highlight, true);
+    });
+
+    test('an add-on may be recommended while a plan already is', async () => {
+        await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const bundle = await service.create({
+            targetType: 'BUNDLE',
+            targetVersionId: OTHER_VERSION,
+            displayLabel: 'Bundle',
+            description: 'An add-on',
+            highlight: true,
+        });
+        assert.equal(bundle.highlight, true);
+    });
+
+    test('another language may recommend a different plan', async () => {
+        await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const english = await service.create(
+            plan(OTHER_VERSION, { highlight: true, locale: 'en' }),
+        );
+        assert.equal(english.highlight, true);
+    });
+
+    test('creating without a highlight is never refused', async () => {
+        await service.create(plan(TARGET_VERSION, { highlight: true }));
+        const second = await service.create(plan(OTHER_VERSION));
+        assert.equal(second.highlight, false);
+    });
+});
+
 // @requirement SC-MKT-004 — Marketing text belongs to one version and one language
 // @requirement SC-MKT-006 — Marketing edits take effect at once and are not versioned
 // @requirement SC-MKT-008 — An installation has exactly one set of marketing settings

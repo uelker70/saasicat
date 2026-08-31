@@ -1,3 +1,4 @@
+// translation-catalogue: the German half of this file is German on purpose.
 // Default i18n map for the tenant plan section. Consumers override individual
 // keys via the `i18n` prop or pass their own map through (build a vue-i18n
 // resolver on top of this shape). The map that a component falls back to is

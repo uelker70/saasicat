@@ -27,7 +27,7 @@ for the audit log:
 - Without an identity → writing commands are rejected with exit code `2`
   (see §6).
 
-Read commands (e.g. `… mandant list`) are allowed without an identity, but
+Read commands (e.g. `… tenant list`) are allowed without an identity, but
 write `actor=anonymous` to the local log.
 
 ## 2. Mandatory MFA for Critical Operations
@@ -35,9 +35,9 @@ write `actor=anonymous` to the local log.
 The following operations **MUST** prompt for a TOTP code
 (Google Authenticator) before execution:
 
-- `… paket apply` (PlanCatalog mutation)
+- `… plans apply` (PlanCatalog mutation)
 - `… pilot create|grant|revoke` (pilot override)
-- `… mandant suspend|impersonate` (tenant security operations)
+- `… tenant suspend|impersonate` (tenant security operations)
 - `… plan-version publish` (PlanVersion publication)
 - `… user reassign-admin` (last-admin escalation)
 - `… admin mfa-reset` (MFA reset of another SUPER_ADMIN)
@@ -57,12 +57,12 @@ is not `NODE_ENV=development` and not a localhost DB), every
 writing command must be confirmed interactively:
 
 ```text
-? Tippe production zur Bestätigung: production
+? Type production to confirm: production
 ```
 
 - Alternative: `--yes` / `-y` skips the confirmation (for CI/CD).
 - Plus `--dry-run` is the default for destructive commands like
-  `… paket apply` and `… rabatt delete`. Only `--apply` or
+  `… plans apply` and `… discounts delete`. Only `--apply` or
   `--yes` applies.
 
 `production` detection should run through the consumer's implementation of the
@@ -110,11 +110,11 @@ redefine them, because cron/CI scripts pattern-match on them:
 | 4    | Connectivity error (DB unreachable, sidecar service down)                                                                            |
 | 5    | Permission error (user is not allowed to perform this operation — e.g. a SUPER_ADMIN operation, but the user is only a TENANT_ADMIN) |
 | 6    | Conflict (optimistic-lock mismatch, idempotency violation)                                                                           |
-| 7    | Drift detected (e.g. `paket diff` finds differences; `manifest check` finds inconsistencies)                                         |
+| 7    | Drift detected (e.g. `plans diff` finds differences; `manifest check` finds inconsistencies)                                         |
 | 99   | Internal error (uncaught exception, bug reports welcome)                                                                             |
 
 Read commands return `0` even for an empty result set (no drift =
-no error). Drift-detection commands (`paket diff`, `manifest check`)
+no error). Drift-detection commands (`plans diff`, `manifest check`)
 return `7` when drift is found — CI gates can react to that.
 
 ## 7. Consumer Plugin API
@@ -136,23 +136,23 @@ Plugin commands automatically inherit:
 
 ```bash
 # Read operation, no identity required
-$ myapp mandant list --output=json | jq '.[] | select(.status=="ACTIVE")'
+$ myapp tenant list --output=json | jq '.[] | select(.status=="ACTIVE")'
 
 # Writing with identity, dry-run as default
-$ myapp paket apply config/plans.yaml
-ℹ Diff: 2 Pläne aktualisiert, 1 Bundle neu.
-ℹ Dry-run — nutze --apply zum Schreiben.
+$ myapp plans apply config/plans.yaml
+ℹ Diff: 2 plans updated, 1 bundle added.
+ℹ Dry run — pass --apply to write.
 
 # Writing with mandatory MFA
-$ myapp paket apply config/plans.yaml --apply
-ℹ Erfordert MFA-Bestätigung.
-? TOTP-Code: 482 159
-✓ PlanCatalog aktualisiert. AuditLog: PLAN_CATALOG_UPDATE.
+$ myapp plans apply config/plans.yaml --apply
+ℹ MFA confirmation required.
+? TOTP code: 482 159
+✓ PlanCatalog updated. AuditLog: PLAN_CATALOG_UPDATE.
 
 # Production confirm
 $ NODE_ENV=production myapp pilot grant pilot-schmidt --as=admin@example.com
-? Tippe production zur Bestätigung: production
-ℹ Erfordert MFA-Bestätigung.
-? TOTP-Code: 217 998
-✓ Pilot-Grant gespeichert.
+? Type production to confirm: production
+ℹ MFA confirmation required.
+? TOTP code: 217 998
+✓ Pilot grant stored.
 ```

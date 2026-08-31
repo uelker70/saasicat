@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 145 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 146 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -88,6 +88,7 @@ Plans, versions, bundles, marketing entries.
 | `DISCOVERY_NOT_INITIALIZED`                    | Approval requires a discovery snapshot — discovery is not initialised (#25)                                                                                                                                                                             |
 | `DISCOVERY_STATUS_TRANSITION_INVALID`          | Transition '{from}' → '{to}' is not allowed                                                                                                                                                                                                             |
 | `FEATURE_NOT_FOUND`                            | Feature '{featureKey}' not found                                                                                                                                                                                                                        |
+| `MARKETING_HIGHLIGHT_TAKEN`                    | Projection {holderId} is already the recommended {targetType} for {locale} — clear its highlight first                                                                                                                                                  |
 | `MARKETING_PROJECTION_ALREADY_EXISTS`          | Marketing projection for {targetType}/{targetVersionId}/{locale} already exists — use PATCH to edit it                                                                                                                                                  |
 | `MARKETING_PROJECTION_NOT_FOUND`               | MarketingProjection '{projectionId}' not found                                                                                                                                                                                                          |
 | `PLAN_ALREADY_EXISTS`                          | Plan '{planKey}' already exists                                                                                                                                                                                                                         |

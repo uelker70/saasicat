@@ -84,7 +84,7 @@ properties it has while doing it.
 | 7   | Cancelling                                   | `SC-CANC-…`  | 19      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 21      |
-| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 20      |
+| 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
 | 12  | Self-registration                            | `SC-REG-…`   | 20      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 21      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 399 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
-🔵 0 superseded, 🔴 0 withdrawn.
+Of 400 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪ 0 drafts,
+🔵 1 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
 [SC-PLAN-025](#sc-plan-025--every-quota-a-version-carries-counts-as-a-limit-that-can-be-lowered),
@@ -115,5 +115,7 @@ Of 399 entries: 🟢 387 stand today, 🟡 12 decided but not yet delivered, ⚪
 [SC-CFG-009](#sc-cfg-009--a-configuration-change-is-noticed-and-reported),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
+
+🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do)
 
 <!-- END chapters -->

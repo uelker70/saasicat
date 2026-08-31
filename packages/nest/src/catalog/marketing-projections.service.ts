@@ -12,6 +12,7 @@ import type {
     MarketingProjectionFilter,
     MarketingProjectionRepository,
     MarketingProjectionRow,
+    MarketingTargetType,
     UpdateMarketingProjectionData,
 } from '@saasicat/core';
 
@@ -58,6 +59,7 @@ export class MarketingProjectionsService {
                 },
             });
         }
+        if (data.highlight) await this.assertHighlightIsFree(data.targetType, locale, null);
         return this.repo.create({ ...data, locale });
     }
 
@@ -70,7 +72,39 @@ export class MarketingProjectionsService {
                 params: { projectionId: id },
             });
         }
+        if (data.highlight) {
+            await this.assertHighlightIsFree(existing.targetType, existing.locale, id);
+        }
         return this.repo.update(id, data);
+    }
+
+    /**
+     * One recommended entry per kind and language, and the operator says which.
+     *
+     * Refused rather than moved: clearing somebody else's highlight is a change
+     * they did not ask for, and it happens on a row they are not looking at.
+     * The refusal names the projection that holds it, so the next step is one
+     * click away.
+     *
+     * The scope is (`targetType`, `locale`) because a recommended plan and a
+     * recommended add-on are two independent choices, and a pricing page in one
+     * language says nothing about the same page in another.
+     */
+    private async assertHighlightIsFree(
+        targetType: MarketingTargetType,
+        locale: string,
+        exceptId: string | null,
+    ): Promise<void> {
+        const siblings = await this.repo.list({ targetType, locale });
+        const holder = siblings.find((row) => row.highlight && row.id !== exceptId);
+        if (!holder) return;
+        throw new ConflictException({
+            code: CATALOG_ERROR_CODES.MARKETING_HIGHLIGHT_TAKEN,
+            message:
+                `Projection ${holder.id} is already the recommended ${targetType} ` +
+                `for ${locale} — clear its highlight first`,
+            params: { targetType, locale, holderId: holder.id },
+        });
     }
 
     async delete(id: string): Promise<void> {

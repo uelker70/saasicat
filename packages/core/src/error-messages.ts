@@ -115,6 +115,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' already exists",
     MARKETING_PROJECTION_ALREADY_EXISTS:
         'Marketing projection for {targetType}/{targetVersionId}/{locale} already exists — use PATCH to edit it',
+    MARKETING_HIGHLIGHT_TAKEN:
+        'Projection {holderId} is already the recommended {targetType} for {locale} — clear its highlight first',
     PLAN_DRAFT_ALREADY_EXISTS:
         "Plan '{planKey}' already has a draft version v{draftVersion}; publish or discard it first",
     BUNDLE_DRAFT_ALREADY_EXISTS:
