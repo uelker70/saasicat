@@ -153,7 +153,13 @@ A test names the promise it proves, in a comment at the start of a line:
 The link goes this way round because in the test it sits next to the thing it describes, and moves
 when that moves.
 
-**389 promises stand today with nothing naming them.** None of that was backfilled, and the debt is
+`pnpm run requirements:list` prints every requirement with its state, whether a test names it, and
+which tests those are. The link runs both ways: from a requirement to the tests that prove it, and
+from a test to the promises it answers for — so retiring a requirement names the test scripts that
+go stale with it, rather than leaving them to be found later.
+
+**Coverage is reported by the same command**, over the promises that stand and are delivered,
+because those are the only ones owed a proof. None of that was backfilled, and the debt is
 frozen rather than being turned into a target nobody would meet:
 
 - A new promise brings its test — **or** a promise that was already owed one gains a test instead.

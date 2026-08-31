@@ -1,3 +1,7 @@
+// @requirement SC-BUN-009
+// @requirement SC-BUN-010
+// @requirement SC-PRIC-003
+
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 

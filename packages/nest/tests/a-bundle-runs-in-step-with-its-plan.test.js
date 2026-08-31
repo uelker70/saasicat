@@ -1,3 +1,6 @@
+// @requirement SC-BUN-002
+// @requirement SC-BUN-004
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

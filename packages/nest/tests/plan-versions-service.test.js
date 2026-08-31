@@ -1,3 +1,7 @@
+// @requirement SC-PLAN-002
+// @requirement SC-PLAN-003
+// @requirement SC-PLAN-005
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

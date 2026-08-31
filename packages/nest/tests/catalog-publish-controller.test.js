@@ -4,6 +4,9 @@
 // instead of NestJS bootstrap — the controller is a pure mapping layer,
 // no request lifecycle needed (analogous to public-catalog-controller.test.js).
 
+// @requirement SC-PLAN-008
+// @requirement SC-BUN-030
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

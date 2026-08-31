@@ -1,3 +1,6 @@
+// @requirement SC-ENTL-005
+// @requirement SC-ENTL-009
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Reflector } from '@nestjs/core';

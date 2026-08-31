@@ -1,3 +1,8 @@
+// @requirement SC-CANC-001
+// @requirement SC-CANC-002
+// @requirement SC-CANC-009
+// @requirement SC-CANC-010
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

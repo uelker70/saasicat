@@ -1,3 +1,6 @@
+// @requirement SC-ADM-001
+// @requirement SC-ADM-002
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AdminManifestModule } from '../dist/admin/index.js';

@@ -1,3 +1,7 @@
+// @requirement SC-CHG-002
+// @requirement SC-CHG-003
+// @requirement SC-CHG-005
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

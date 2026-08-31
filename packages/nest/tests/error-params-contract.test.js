@@ -1,3 +1,6 @@
+// @requirement SC-LANG-006
+// @requirement SC-LANG-008
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';

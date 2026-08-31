@@ -15,7 +15,9 @@ import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
 import { annotationsIn, isTestPath, unproven } from '../scripts/requirements/proof.mjs';
-import { ROOT, listing } from '../scripts/requirements/index.mjs';
+import { ROOT, coverage, listing } from '../scripts/requirements/index.mjs';
+import { readCatalogue } from '../scripts/requirements/parse.mjs';
+import { scanTests } from '../scripts/requirements/proof.mjs';
 import { ratchet } from '../scripts/requirements/guard.mjs';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
@@ -69,6 +71,73 @@ describe('a test says which promise it proves', () => {
         // SC-PLAN-004.
         assert.deepEqual(annotationsIn('// the `@requirement SC-A-001` tag names it'), []);
         assert.deepEqual(annotationsIn('// as @requirement SC-A-001 shows'), []);
+    });
+});
+
+describe('coverage counts what is owed a proof', () => {
+    // A measurement, not a target. What keeps it from falling is the ratchet;
+    // a percentage nobody can fail is a percentage nobody reads.
+    const rows = (...proofs) => proofs.map((proof, i) => ({ id: `SC-A-00${i}`, proof }));
+
+    test('only promises owed a proof are counted', () => {
+        // Counting drafts, retired entries and things not built yet would move
+        // the number when nothing had been proved.
+        const seen = coverage(rows('proved', 'owed', 'not owed', 'not owed'));
+        assert.deepEqual(
+            { proved: seen.proved, owed: seen.owed, exempt: seen.exempt, percent: seen.percent },
+            { proved: 1, owed: 2, exempt: 2, percent: 50 },
+        );
+    });
+
+    test('nothing owed is not nothing proved', () => {
+        // A catalogue of drafts would otherwise read as zero per cent covered,
+        // which says something false about work nobody owes.
+        assert.equal(coverage(rows('not owed', 'not owed')).owed, 0);
+        assert.equal(coverage(rows('not owed', 'not owed')).percent, 0);
+    });
+
+    test('the real catalogue reports a number that moves', () => {
+        const seen = coverage(listing(ROOT));
+        assert.ok(seen.owed > 300, `only ${seen.owed} promises owed a proof`);
+        assert.ok(seen.proved > 0, 'nothing is proved, so the number cannot be read');
+    });
+});
+
+describe('an annotation names a promise that is there to prove', () => {
+    // The link runs both ways, so it can rot from either end. A test naming an
+    // identifier that never existed proves nothing and says it does; one naming
+    // an identifier that has since been retired proves something nobody is owed
+    // any more, and quietly stops counting where the debt is measured.
+    //
+    // A typo is the ordinary case rather than the exotic one — the whole point
+    // of annotating is that somebody types an identifier by hand — which is why
+    // this runs over the tree rather than over a diff.
+    const catalogue = readCatalogue(ROOT);
+    const byId = new Map(catalogue.entries.map((entry) => [entry.id, entry]));
+    const named = scanTests(ROOT);
+
+    test('every annotated identifier exists', () => {
+        const missing = [...named].filter(([id]) => !byId.has(id));
+        assert.deepEqual(
+            missing.map(([id, files]) => `${id} (${files.join(', ')})`),
+            [],
+        );
+    });
+
+    test('every annotated requirement still stands', () => {
+        const retired = [...named]
+            .filter(([id]) => byId.get(id) && byId.get(id).status !== 'current')
+            .map(([id, files]) => `${id} is ${byId.get(id).status} (${files.join(', ')})`);
+        assert.deepEqual(retired, []);
+    });
+
+    test('the scan is looking at the annotations, not at nothing', () => {
+        // Vacuously true on an empty map, which is what a moved directory or a
+        // broken pattern produces — and both assertions above would hold.
+        assert.ok(
+            named.size > 0,
+            'no test names a requirement; the two assertions above prove nothing',
+        );
     });
 });
 

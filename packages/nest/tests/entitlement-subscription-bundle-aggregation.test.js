@@ -1,3 +1,6 @@
+// @requirement SC-ENTL-001
+// @requirement SC-ENTL-002
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

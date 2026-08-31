@@ -1,3 +1,6 @@
+// @requirement SC-CAT-001
+// @requirement SC-CAT-012
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

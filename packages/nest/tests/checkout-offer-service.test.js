@@ -1,3 +1,7 @@
+// @requirement SC-MKT-013
+// @requirement SC-MKT-014
+// @requirement SC-MKT-017
+
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 

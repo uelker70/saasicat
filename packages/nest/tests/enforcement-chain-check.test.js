@@ -1,3 +1,5 @@
+// @requirement SC-CFG-010
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';

@@ -1,3 +1,8 @@
+// @requirement SC-CAT-006
+// @requirement SC-CAT-007
+// @requirement SC-CAT-008
+// @requirement SC-CAT-010
+
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 

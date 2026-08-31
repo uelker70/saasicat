@@ -68,6 +68,27 @@ export async function renderCatalogue(root = ROOT) {
  * draft, a retired entry and one not yet delivered are owed nothing, which is a
  * different thing from having been proved.
  */
+/**
+ * How much of what the product promises is named by a test.
+ *
+ * Over the promises that stand and are delivered, because those are the only
+ * ones owed a proof — counting drafts, retired entries and things not built yet
+ * would report a number that moves when nothing has been proved.
+ *
+ * It is a measurement, not a target. The ratchet in `guard.mjs` is what keeps
+ * it from falling; a percentage nobody can fail is a percentage nobody reads.
+ */
+export function coverage(rows) {
+    const owed = rows.filter((row) => row.proof !== 'not owed');
+    const proved = owed.filter((row) => row.proof === 'proved');
+    return {
+        proved: proved.length,
+        owed: owed.length,
+        exempt: rows.length - owed.length,
+        percent: owed.length ? Math.round((proved.length / owed.length) * 1000) / 10 : 0,
+    };
+}
+
 export function listing(root) {
     const catalogue = readCatalogue(root);
     const named = scanTests(root);
@@ -84,12 +105,18 @@ export function listing(root) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const write = process.argv.includes('--write');
     if (process.argv.includes('--list')) {
-        for (const row of listing(ROOT)) {
+        const rows = listing(ROOT);
+        for (const row of rows) {
             process.stdout.write(
                 `${row.id.padEnd(14)}${row.state.padEnd(11)}${row.proof.padEnd(10)}` +
                     `${row.tests.join(' ') || row.title}\n`,
             );
         }
+        const seen = coverage(rows);
+        process.stdout.write(
+            `\n${seen.proved} of ${seen.owed} standing promises are named by a test ` +
+                `(${seen.percent}%), and ${seen.exempt} are owed no proof yet\n`,
+        );
         process.exit(0);
     }
 
@@ -119,7 +146,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     }
     if (!problems.length) {
         process.stdout.write(
-            `${catalogue.entries.length} requirements in ${catalogue.chapters.length} chapters\n`,
+            `${catalogue.entries.length} requirements in ${catalogue.chapters.length} chapters, ${coverage(listing(ROOT)).percent}% of them named by a test\n`,
         );
     }
 }

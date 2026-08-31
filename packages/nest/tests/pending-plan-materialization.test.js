@@ -2,6 +2,9 @@
 // scheduled plan changes via changePlanImmediate, invalidates the
 // entitlement cache per tenant, and is non-fatal per tenant.
 
+// @requirement SC-SUB-015
+// @requirement SC-CHG-006
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PendingPlanMaterializationService } from '../dist/billing/index.js';

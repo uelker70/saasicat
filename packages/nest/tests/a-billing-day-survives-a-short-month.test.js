@@ -1,3 +1,6 @@
+// @requirement SC-SUB-004
+// @requirement SC-SUB-005
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 

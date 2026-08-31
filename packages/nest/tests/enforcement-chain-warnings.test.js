@@ -1,3 +1,6 @@
+// @requirement SC-CFG-007
+// @requirement SC-CFG-011
+
 import { describe, test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Logger } from '@nestjs/common';

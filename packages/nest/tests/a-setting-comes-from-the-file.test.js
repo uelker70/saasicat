@@ -11,6 +11,9 @@
 // customer's cancellation lands a period late and the file says something
 // nobody wrote.
 
+// @requirement SC-CFG-001
+// @requirement SC-CFG-002
+
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';

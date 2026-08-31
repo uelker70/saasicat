@@ -1,5 +1,8 @@
 // Tests for plan-catalog-loader.ts — YAML loading + schema + cross-field validation.
 
+// @requirement SC-PLAN-022
+// @requirement SC-PLAN-023
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, unlinkSync, mkdtempSync } from 'node:fs';
