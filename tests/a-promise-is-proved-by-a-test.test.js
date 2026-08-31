@@ -23,7 +23,8 @@ import {
 } from '../scripts/requirements/proof.mjs';
 import { ROOT, coverage, listing } from '../scripts/requirements/index.mjs';
 import { readCatalogue } from '../scripts/requirements/parse.mjs';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { scanTests } from '../scripts/requirements/proof.mjs';
 import { ratchet } from '../scripts/requirements/guard.mjs';
@@ -194,6 +195,40 @@ describe('a case that does not run proves nothing', () => {
         );
     });
 
+    test('a case inside a skipped suite is not a case', () => {
+        // A suite is skipped by its own line, not by its cases'. Reading only
+        // `test.skip` let a `describe.skip` hold a dozen ordinary cases and
+        // report every one of them as proof.
+        const src = [
+            '// @requirement SC-A-001',
+            "describe.skip('a skipped block', () => {",
+            "    test('looks ordinary', () => {});",
+            "    describe('nested', () => {",
+            "        test('also looks ordinary', () => {});",
+            '    });',
+            '});',
+            "describe('a live block', () => {",
+            "    test('a real one', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['a real one'],
+        );
+    });
+
+    test('a skipped suite named directly proves nothing', () => {
+        const src = [
+            "describe.skip('a skipped block', () => {",
+            '    // @requirement SC-A-001',
+            "    describe('inner', () => {",
+            "        test('looks ordinary', () => {});",
+            '    });',
+            '});',
+        ].join('\n');
+        assert.deepEqual(casesIn(src), []);
+    });
+
     test('a block with nothing live under it stands in for nothing', () => {
         // The block title used to be pushed as a case of its own where no case
         // was found, so annotating a suite of skipped tests read as covered.
@@ -214,6 +249,94 @@ describe('a case that does not run proves nothing', () => {
     });
 });
 
+describe('a parameterised case is a case', () => {
+    // `test.each([…])('name', …)` runs once per row and Prettier puts the table
+    // on its own lines, so the name is not on the line that opens the call.
+    // Reading only the opening line left every parameterised case in the
+    // repository invisible to the trace while running perfectly well.
+
+    test('the name is read from the line that closes the table', () => {
+        const src = [
+            "describe('a block', () => {",
+            '    // @requirement SC-A-001',
+            '    test.each([',
+            "        ['one', 1],",
+            "        ['two', 2],",
+            "    ])('handles %s', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['handles %s'],
+        );
+    });
+
+    test('a block named above one is read with the block', () => {
+        const src = [
+            '// @requirement SC-A-001',
+            '',
+            "describe('a block', () => {",
+            '    test.each([',
+            "        ['one', 1],",
+            "    ])('handles %s', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['handles %s'],
+        );
+    });
+
+    test('a table written on one line reads the same', () => {
+        const src = ['// @requirement SC-A-001', "test.each([1, 2])('handles %i', () => {});"].join(
+            '\n',
+        );
+        assert.deepEqual(
+            casesIn(src).map((c) => c.case),
+            ['handles %i'],
+        );
+    });
+
+    test('a parameterised case inside a skipped suite still proves nothing', () => {
+        const src = [
+            '// @requirement SC-A-001',
+            "describe.skip('a skipped block', () => {",
+            "    test.each([1])('handles %i', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(casesIn(src), []);
+    });
+});
+
+describe('an annotation is read whatever it turned out to cover', () => {
+    // Coverage is strict on purpose, but the checks that reject an unknown or a
+    // retired identifier, and the rewriter that keeps the titles current, have
+    // to see *every* annotation — otherwise they read past exactly the ones
+    // that went wrong. A mistyped identifier over a skipped case was invisible
+    // to the check written to catch it.
+    const root = mkdtempSync(join(tmpdir(), 'annotations-'));
+    mkdirSync(join(root, 'tests'), { recursive: true });
+    writeFileSync(
+        join(root, 'tests', 'skipped.test.js'),
+        [
+            '// @requirement SC-A-001',
+            "describe.skip('a skipped block', () => {",
+            "    test('looks ordinary', () => {});",
+            '});',
+        ].join('\n'),
+    );
+    const scanned = scanTests(root, ['tests']);
+
+    test('the annotation is found', () => {
+        assert.deepEqual([...scanned.annotated.keys()], ['SC-A-001']);
+    });
+
+    test('and it proves nothing', () => {
+        assert.deepEqual([...scanned.proved.keys()], []);
+        assert.deepEqual([...scanned.cases.keys()], []);
+    });
+});
+
 describe('an annotation carries the title of what it names', () => {
     // So a reader of the test learns what it answers for without opening the
     // catalogue. Written by `requirements:update` and checked here, never
@@ -225,13 +348,38 @@ describe('an annotation carries the title of what it names', () => {
 
     test('every annotation in the tree says what its requirement says', () => {
         const stale = [];
-        for (const [, files] of scanTests(ROOT)) {
+        for (const [, files] of scanTests(ROOT).annotated) {
             for (const where of new Set(files)) {
                 const text = readFileSync(join(ROOT, where), 'utf8');
                 if (withTitles(text, titleOf) !== text) stale.push(where);
             }
         }
         assert.deepEqual([...new Set(stale)], [], 'run: pnpm run requirements:update');
+    });
+
+    test('a one-line block comment keeps its terminator', () => {
+        // The form the documentation shows first. Replacing everything after
+        // the identifier takes `*/` with it and comments out the rest of the
+        // file — the tool that maintains the tests would break them.
+        assert.equal(
+            withTitles('/** @requirement SC-A-001 */', () => 'what it says'),
+            '/** @requirement SC-A-001 — what it says */',
+        );
+        assert.equal(
+            withTitles('/** @requirement SC-A-001 — old */', () => 'new'),
+            '/** @requirement SC-A-001 — new */',
+        );
+        assert.equal(
+            withTitles('/** @requirement SC-A-404 */', () => undefined),
+            '/** @requirement SC-A-404 */',
+        );
+    });
+
+    test('a line that does not close a comment gains no terminator', () => {
+        assert.equal(
+            withTitles(' * @requirement SC-A-001', () => 'what it says'),
+            ' * @requirement SC-A-001 — what it says',
+        );
     });
 
     test('a stale title is rewritten rather than left', () => {
@@ -263,7 +411,7 @@ describe('an annotation names a promise that is there to prove', () => {
     // this runs over the tree rather than over a diff.
     const catalogue = readCatalogue(ROOT);
     const byId = new Map(catalogue.entries.map((entry) => [entry.id, entry]));
-    const named = scanTests(ROOT);
+    const named = scanTests(ROOT).annotated;
 
     test('every annotated identifier exists', () => {
         const missing = [...named].filter(([id]) => !byId.has(id));

@@ -7032,6 +7032,7 @@ _Tested by:_
     - defers to the app when one is
     - also defers when the listener was attached with @logout.once
     - discards the manifest, and does so even when logout rejects
+    - a rejecting %s prop reaches Vue’s error handler
 
 <!-- END proof -->
 
@@ -7979,6 +7980,7 @@ _Tested by:_
     - loading disables the button and marks it busy
     - the ring is added beside the label, not instead of it
     - a disabled button is not a busy one
+    - %s renders its slot inside one classed element
     - the default animation turns
     - a reduce block replaces the turn for the spinner
 - `tests/the-tenant-package-needs-no-quasar.test.js`

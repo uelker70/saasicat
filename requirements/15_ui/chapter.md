@@ -890,6 +890,7 @@ _Tested by:_
     - loading disables the button and marks it busy
     - the ring is added beside the label, not instead of it
     - a disabled button is not a busy one
+    - %s renders its slot inside one classed element
     - the default animation turns
     - a reduce block replaces the turn for the spinner
 - `tests/the-tenant-package-needs-no-quasar.test.js`

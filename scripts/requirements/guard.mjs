@@ -534,7 +534,13 @@ export function guard(root, base, head) {
         });
     }
 
-    const owed = unproven(after.entries, head ? namedAt(root, head) : scanTests(root));
+    // Annotations on both sides, never live cases on one of them. `namedAt`
+    // reads a revision through `git grep` and cannot see block structure, so
+    // the baseline can only ever be annotations; measuring the working tree
+    // more strictly would make the two sides count different populations and
+    // report a rise nobody caused. The strict reading belongs to the coverage
+    // report, which is only ever taken on one side.
+    const owed = unproven(after.entries, head ? namedAt(root, head) : scanTests(root).annotated);
     const baseline = catalogueAt(root, merged);
     return {
         baseline: merged,

@@ -41,13 +41,13 @@ export async function renderCatalogue(root = ROOT) {
     // run to converge — which somebody eventually does not do.
     // The cases that prove each entry are written under it, in the chapter file,
     // because that is where somebody asks which tests belong to a requirement.
-    const named = scanTests(root);
+    const { annotated, cases } = scanTests(root);
     const files = [];
     const chapters = [];
     for (const chapter of catalogue.chapters) {
         const path = `requirements/${chapter.directory}/chapter.md`;
         const before = readFileSync(join(root, path), 'utf8');
-        const after = await markdown(withProofs(before, named.cases ?? new Map()));
+        const after = await markdown(withProofs(before, cases));
         if (after !== before) files.push({ where: path, text: after });
         // The page is assembled from the settled text, not from what was on
         // disk before it — otherwise one run produces two outputs that
@@ -63,7 +63,7 @@ export async function renderCatalogue(root = ROOT) {
     // stale the first time somebody rewords a requirement, and then it misleads
     // exactly the reader it was added for.
     const titleOf = (id) => catalogue.entries.find((entry) => entry.id === id)?.title;
-    for (const [, where] of [...named].flatMap(([, files]) => files.map((f) => [0, f]))) {
+    for (const where of new Set([...annotated.values()].flat())) {
         if (files.some((file) => file.where === where)) continue;
         const before = readFileSync(join(root, where), 'utf8');
         const after = withTitles(before, titleOf);
@@ -122,15 +122,17 @@ export function coverage(rows, risk) {
 
 export function listing(root) {
     const catalogue = readCatalogue(root);
-    const named = scanTests(root);
-    const owed = new Set(unproven(catalogue.entries, named));
+    // Coverage is the strict reading: a case that runs, not a file that
+    // mentions. The ratchet uses the other one, and says why.
+    const { proved, cases } = scanTests(root);
+    const owed = new Set(unproven(catalogue.entries, proved));
     return catalogue.entries.map((entry) => ({
         id: entry.id,
         state: entry.status === 'current' && !entry.delivered ? 'pending' : entry.status,
-        proof: named.has(entry.id) ? 'proved' : owed.has(entry.id) ? 'owed' : 'not owed',
+        proof: proved.has(entry.id) ? 'proved' : owed.has(entry.id) ? 'owed' : 'not owed',
         risk: entry.risk,
-        tests: named.get(entry.id) ?? [],
-        cases: named.cases?.get(entry.id) ?? [],
+        tests: proved.get(entry.id) ?? [],
+        cases: cases.get(entry.id) ?? [],
         title: entry.title,
     }));
 }

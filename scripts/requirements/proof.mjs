@@ -65,9 +65,15 @@ export function withTitles(text, titleOf) {
         .map((line) => {
             const parts = ANNOTATION_PARTS.exec(line);
             if (!parts) return line;
-            const [, head, id] = parts;
+            const [, head, id, rest] = parts;
             const title = titleOf(id);
-            return title ? `${head}${id} — ${title}` : `${head}${id}`;
+            // `/** @requirement SC-A-001 */` ends on its own line. Replacing
+            // everything after the identifier would take the terminator with
+            // it and comment out the rest of the file — and this is the form
+            // the documentation shows first, so it would be the first thing a
+            // newcomer hit.
+            const closes = rest.trimEnd().endsWith('*/') ? ' */' : '';
+            return title ? `${head}${id} — ${title}${closes}` : `${head}${id}${closes}`;
         })
         .join('\n');
 }
@@ -98,8 +104,46 @@ const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
 export function casesIn(text) {
     const lines = text.split('\n');
     const indent = (line) => line.length - line.trimStart().length;
-    const titleOf = (line) => /(?:describe|test|it)\(\s*['"`]([^'"`]+)['"`]/.exec(line)?.[1];
+    const nameIn = (line) => /(?:describe|test|it)\(\s*['"`]([^'"`]+)['"`]/.exec(line)?.[1];
     const isComment = (line) => /^\s*(?:\/\/|\/\*|\*)/.test(line);
+
+    /**
+     * The name of the case a line opens, or nothing if it opens none.
+     *
+     * `test.each([…])('name', …)` runs one case per row of its table, and
+     * Prettier puts the table on its own lines — so the name is not on the line
+     * that opens the call, it follows the closing `])(`. Read only the opening
+     * line and every parameterised case in the repository is invisible to the
+     * trace while running perfectly well.
+     */
+    const caseAt = (at) => {
+        if (/^\s*(?:test|it)\(/.test(lines[at])) return nameIn(lines[at]);
+        if (!/^\s*(?:test|it)\.each\(/.test(lines[at])) return null;
+        for (let i = at; i < lines.length; i++) {
+            const named = /\]\s*\)\s*\(\s*['"`]([^'"`]+)/.exec(lines[i]);
+            if (named) return named[1];
+            if (i > at && /^\s*(?:describe|test|it)[.(]/.test(lines[i])) break;
+        }
+        return null;
+    };
+
+    // A suite is skipped by its own line, not by its cases'. Reading only
+    // `test.skip` let a `describe.skip` hold a dozen ordinary cases and report
+    // every one of them as proof — which is the one thing a coverage number
+    // must never say. Depth rather than braces, for the same reason the rest of
+    // this reads indentation: Prettier owns the formatting of every file here.
+    const skipped = new Array(lines.length).fill(false);
+    const open = [];
+    lines.forEach((line, at) => {
+        if (!line.trim()) return;
+        const depth = indent(line);
+        while (open.length > 0 && depth <= open.at(-1)) open.pop();
+        skipped[at] = open.length > 0;
+        if (/^\s*(?:describe|suite)\.skip\(/.test(line)) open.push(depth);
+    });
+
+    /** The same, but only where the case actually runs. */
+    const liveCaseAt = (at) => (skipped[at] ? null : caseAt(at));
 
     /** The cases under a block: deeper-indented, until the indentation returns. */
     const casesUnder = (at) => {
@@ -109,17 +153,13 @@ export function casesIn(text) {
             if (lines[i].trim() && indent(lines[i]) <= depth) break;
             // `test(` and not `test.skip(` — deliberately, not by accident of
             // the pattern. A skipped case is a case that does not run.
-            if (/^\s*(?:test|it)\(/.test(lines[i])) {
-                const name = titleOf(lines[i]);
-                if (name) names.push(name);
-            }
+            const name = liveCaseAt(i);
+            if (name) names.push(name);
         }
         return names;
     };
 
-    const everyCase = lines
-        .map((line) => (/^\s*(?:test|it)\(/.test(line) ? titleOf(line) : null))
-        .filter(Boolean);
+    const everyCase = lines.map((_, at) => liveCaseAt(at)).filter(Boolean);
 
     const found = [];
     let pending = [];
@@ -134,7 +174,8 @@ export function casesIn(text) {
             return;
         }
 
-        const title = titleOf(line);
+        const block = /^\s*describe\(/.test(line);
+        const title = block ? nameIn(line) : caseAt(at);
         if (title && pending.length > 0) {
             const ids = pending;
             pending = [];
@@ -142,8 +183,7 @@ export function casesIn(text) {
             // stand in for one: a suite whose cases are all skipped would
             // otherwise read as covered, which is the one thing a coverage
             // number must never say.
-            const block = /^\s*describe\(/.test(line);
-            const names = block ? casesUnder(at) : [title];
+            const names = block ? casesUnder(at) : skipped[at] ? [] : [title];
             for (const id of ids) {
                 for (const name of names) {
                     found.push({ id, case: block ? `${title} › ${name}` : name });
@@ -192,10 +232,28 @@ export function isTestPath(path) {
     return parts.includes('tests') || IS_TEST.test(parts.at(-1));
 }
 
-/** The identifiers named across the tests, mapped to the files naming them. */
+/**
+ * What the tests say about the requirements, in three separate readings.
+ *
+ * `annotated` is every annotation in the tree, whatever it turned out to
+ * cover; `proved` and `cases` are only the ones a case that runs sits under.
+ *
+ * They have to stay apart. Coverage must be strict — an annotation over a suite
+ * whose cases are all skipped mentions a requirement and proves nothing — but
+ * the checks that reject an unknown or a retired identifier, and the rewriter
+ * that keeps the titles current, have to see *every* annotation or they read
+ * past exactly the ones that went wrong. Folding the two into one map left a
+ * mistyped identifier over a skipped case invisible to the check written to
+ * catch it.
+ */
 export function scanTests(root, groups = GROUPS) {
-    const found = new Map();
+    const annotated = new Map();
+    const proved = new Map();
     const cases = new Map();
+    const note = (map, id, where) => {
+        if (!map.has(id)) map.set(id, []);
+        if (!map.get(id).includes(where)) map.get(id).push(where);
+    };
     const visit = (dir, insideTests) => {
         for (const name of readdirSync(dir)) {
             if (SKIP.has(name)) continue;
@@ -207,12 +265,9 @@ export function scanTests(root, groups = GROUPS) {
             if (!insideTests && !IS_TEST.test(name)) continue;
             const source = readFileSync(path, 'utf8');
             const where = path.slice(root.length + 1);
-            // A requirement counts as proved when a case that runs names it —
-            // not when a file mentions it. An annotation over a suite whose
-            // cases are all skipped mentions it and proves nothing.
+            for (const id of annotationsIn(source)) note(annotated, id, where);
             for (const { id, case: name } of casesIn(source)) {
-                if (!found.has(id)) found.set(id, []);
-                if (!found.get(id).includes(where)) found.get(id).push(where);
+                note(proved, id, where);
                 if (!cases.has(id)) cases.set(id, []);
                 cases.get(id).push({ file: where, case: name });
             }
@@ -227,8 +282,7 @@ export function scanTests(root, groups = GROUPS) {
             // scanner reads an older revision, where one may not exist yet.
         }
     }
-    found.cases = cases;
-    return found;
+    return { annotated, proved, cases };
 }
 
 /**

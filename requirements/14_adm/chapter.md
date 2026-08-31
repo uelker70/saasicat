@@ -469,6 +469,7 @@ _Tested by:_
     - defers to the app when one is
     - also defers when the listener was attached with @logout.once
     - discards the manifest, and does so even when logout rejects
+    - a rejecting %s prop reaches Vue’s error handler
 
 <!-- END proof -->
 
