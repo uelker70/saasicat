@@ -578,6 +578,24 @@ describe('the checks refuse what the conventions used to leave to care', () => {
         complains([['01_a', chapter(['SC-A-001'])]], 'expected exactly 1', [both, both]);
     });
 
+    test('Markdown that nothing reads', () => {
+        // A name one character off is not read, and not being read has never
+        // looked like anything: rename `01_roles.md` to `01-roles.md` and that
+        // prose leaves the published document while every check stays green.
+        const catalogue = catalogueOf([['01_a', chapter(['SC-A-001'])]]);
+        catalogue.strays = ['requirements/00_preamble/01-roles.md'];
+        assert.ok(
+            check(catalogue).some((problem) => problem.includes('nothing reads')),
+            'a file nothing reads was not reported',
+        );
+    });
+
+    test('the file that is deliberately not published is not one', () => {
+        // The counter-proof: `README.md` is the note to whoever edits, and a
+        // rule that reported it would be one nobody could satisfy.
+        assert.deepEqual(check(catalogueOf([['01_a', chapter(['SC-A-001'])]])), []);
+    });
+
     test('nothing to open the document with', () => {
         // Every chapter would render perfectly well without it, and the page
         // would begin at "## 1." with no word about what an identifier means.

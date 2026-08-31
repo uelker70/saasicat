@@ -80,6 +80,13 @@ export function check(catalogue) {
  * would fail nothing else: every chapter would still render.
  */
 function checkPreamble(catalogue, say) {
+    // Markdown that is read by nothing. A name one character off is not read,
+    // and not being read has never looked like anything — the prose leaves the
+    // published document and every check stays green.
+    for (const stray of catalogue.strays ?? []) {
+        say(stray, 'is Markdown that nothing reads — check the name against <nn>_<name>.md');
+    }
+
     if (catalogue.preamble.length === 0) {
         say('requirements/00_preamble/', 'holds no <nn>_<name>.md part to open the document with');
         return;

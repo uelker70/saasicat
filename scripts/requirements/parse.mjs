@@ -257,6 +257,7 @@ export function catalogueOf(chapters, preamble = [`# Requirements\n\n${BEGIN}\n$
         .map(([directory, text]) => parseChapter(text, directory))
         .sort((a, b) => a.number - b.number);
     return {
+        strays: [],
         preamble: preamble.map((text, number) => ({
             where: `requirements/00_preamble/${String(number).padStart(2, '0')}_part.md`,
             number,
@@ -267,6 +268,9 @@ export function catalogueOf(chapters, preamble = [`# Requirements\n\n${BEGIN}\n$
     };
 }
 
+/** The one file that is deliberately not part of the document. */
+const NOT_PUBLISHED = 'README.md';
+
 function readPreamble(base, directory) {
     return readdirSync(join(base, directory))
         .filter((entry) => PART.test(entry))
@@ -276,6 +280,31 @@ function readPreamble(base, directory) {
             number: Number(PART.exec(entry)[1]),
             text: readFileSync(join(base, directory, entry), 'utf8').trimEnd(),
         }));
+}
+
+/**
+ * Markdown that is in the tree and in nothing else.
+ *
+ * A file whose name does not match is not read, and not being read has never
+ * looked like anything: rename `01_roles.md` to `01-roles.md` and that prose
+ * leaves the published document while every check stays green. The same holds
+ * for a stray file beside a `chapter.md`. Collected here and reported by the
+ * checker, because the parser's job is to say what is there.
+ */
+function straysIn(base, directories) {
+    const strays = [];
+    for (const directory of directories) {
+        const isPreamble = Number(DIRECTORY.exec(directory)?.[1]) === PREAMBLE;
+        for (const name of readdirSync(join(base, directory))) {
+            if (!name.endsWith('.md')) continue;
+            if (isPreamble ? PART.test(name) : name === 'chapter.md') continue;
+            strays.push(`requirements/${directory}/${name}`);
+        }
+    }
+    for (const name of readdirSync(base)) {
+        if (name.endsWith('.md') && name !== NOT_PUBLISHED) strays.push(`requirements/${name}`);
+    }
+    return strays;
 }
 
 /** The whole catalogue: preamble, chapters in document order, every entry. */
@@ -295,7 +324,12 @@ export function readCatalogue(root) {
             parseChapter(readFileSync(join(base, directory, 'chapter.md'), 'utf8'), directory),
         );
 
-    return { preamble, chapters, entries: chapters.flatMap((chapter) => chapter.entries) };
+    return {
+        preamble,
+        chapters,
+        strays: straysIn(base, directories),
+        entries: chapters.flatMap((chapter) => chapter.entries),
+    };
 }
 
 /**
