@@ -27,7 +27,8 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { scanTests } from '../scripts/requirements/proof.mjs';
-import { ratchet } from '../scripts/requirements/guard.mjs';
+import { provedAt, ratchet } from '../scripts/requirements/guard.mjs';
+import { execFileSync } from 'node:child_process';
 
 const head = () => '---\ntitle: Title\n---\n\nIntro.\n';
 // Every entry opens with its state, so a fixture that does not name one is
@@ -334,6 +335,65 @@ describe('an annotation is read whatever it turned out to cover', () => {
     test('and it proves nothing', () => {
         assert.deepEqual([...scanned.proved.keys()], []);
         assert.deepEqual([...scanned.cases.keys()], []);
+    });
+});
+
+describe('a revision is read for the cases that run, not the mentions', () => {
+    // The gate's whole promise is that a new requirement arrives with a test.
+    // Reading a revision through `git grep` alone could only count mentions, so
+    // a comment over a skipped suite cleared the debt without one — the strict
+    // listing left it unproved and the ratchet let it through anyway.
+    const root = mkdtempSync(join(tmpdir(), 'proved-at-'));
+    const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+    mkdirSync(join(root, 'tests'), { recursive: true });
+    const write = (name, lines) => writeFileSync(join(root, 'tests', name), lines.join('\n'));
+
+    // First by name, so a reader that counted characters where git counts
+    // bytes would misplace every record after it.
+    write('a-umlaut.test.js', [
+        '// Grüße, größer, überprüft — three characters, six bytes.',
+        '// @requirement SC-A-001',
+        "test('runs', () => {});",
+    ]);
+    write('live.test.js', ['// @requirement SC-A-002', "test('runs', () => {});"]);
+    write('skipped.test.js', [
+        '// @requirement SC-A-003',
+        "describe.skip('a skipped block', () => {",
+        "    test('looks ordinary', () => {});",
+        '});',
+    ]);
+    git('init', '-q');
+    git('config', 'user.email', 'nobody@example.invalid');
+    git('config', 'user.name', 'nobody');
+    git('config', 'commit.gpgsign', 'false');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'the tree');
+    const named = provedAt(root, git('rev-parse', 'HEAD'));
+
+    test('a case that runs is proof', () => {
+        assert.ok(named.has('SC-A-002'));
+    });
+
+    test('an annotation over a skipped suite is not', () => {
+        assert.ok(!named.has('SC-A-003'), 'a comment cleared the debt without a test');
+    });
+
+    test('a file of multi-byte characters is read whole, and so is the next', () => {
+        assert.deepEqual([...named].sort(), ['SC-A-001', 'SC-A-002']);
+    });
+
+    test('a revision with nothing annotated reads empty rather than failing', () => {
+        const bare = mkdtempSync(join(tmpdir(), 'proved-at-bare-'));
+        const there = (...args) =>
+            execFileSync('git', args, { cwd: bare, encoding: 'utf8' }).trim();
+        writeFileSync(join(bare, 'README.md'), 'nothing here\n');
+        there('init', '-q');
+        there('config', 'user.email', 'nobody@example.invalid');
+        there('config', 'user.name', 'nobody');
+        there('config', 'commit.gpgsign', 'false');
+        there('add', '-A');
+        there('commit', '-q', '-m', 'the tree');
+        assert.deepEqual([...provedAt(bare, there('rev-parse', 'HEAD'))], []);
     });
 });
 

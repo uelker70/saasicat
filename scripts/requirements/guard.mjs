@@ -34,7 +34,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { readCatalogue } from './parse.mjs';
-import { annotationsIn, isTestPath, scanTests, standing, unproven } from './proof.mjs';
+import { casesIn, isTestPath, scanTests, standing, unproven } from './proof.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const RETIRED = new Set(['superseded', 'withdrawn']);
@@ -259,30 +259,75 @@ function git(root, ...args) {
 }
 
 /**
- * The identifiers named by tests at a revision, without checking it out.
+ * The blobs behind a list of `<ref>:<path>` requests, in one process.
+ *
+ * A `git show` each is 3s for the 313 annotated files in this repository, twice
+ * over — a pre-push gate nobody would keep running. `--batch` is 81ms.
+ *
+ * The record is `<oid> <type> <size>\n<contents>\n`, and the size is in bytes,
+ * so this reads bytes: slicing a decoded string would go wrong on the first
+ * file with an umlaut in it, and there are several. A request git cannot
+ * resolve answers `<request> missing` and is skipped rather than refused —
+ * `git grep` listed the paths, so a miss means the tree moved underneath us.
+ */
+function blobsAt(root, requests) {
+    if (requests.length === 0) return [];
+    const out = execFileSync('git', ['cat-file', '--batch'], {
+        cwd: root,
+        input: `${requests.join('\n')}\n`,
+        maxBuffer: 256 * 1024 * 1024,
+    });
+    const blobs = [];
+    let at = 0;
+    while (at < out.length) {
+        const end = out.indexOf(0x0a, at);
+        if (end === -1) break;
+        const size = Number(out.toString('utf8', at, end).split(' ')[2]);
+        at = end + 1;
+        if (!Number.isFinite(size)) continue;
+        blobs.push(out.toString('utf8', at, at + size));
+        at += size + 1;
+    }
+    return blobs;
+}
+
+/**
+ * The identifiers a case that runs proves at a revision, without checking it out.
+ *
+ * The strict reading, the same one the coverage report takes — because the
+ * ratchet's whole promise is that a new requirement arrives with a *test*, and
+ * counting annotations let one arrive with a comment over a skipped suite.
+ *
+ * It is read in two steps for a reason. `git grep` alone answers which files
+ * mention `@requirement` and nothing about the shape of the file, so an earlier
+ * version could only count mentions; fetching those files and running the same
+ * `casesIn` the working tree is walked with lifts that limit, and makes both
+ * sides of the ratchet count one population by running one function.
  *
  * `git grep` exits 1 when a pattern matches nothing, which at the revision
  * before the first annotation is the ordinary case rather than a failure.
  */
-function namedAt(root, ref) {
-    let matched;
+export function provedAt(root, ref) {
+    let listed;
     try {
-        matched = git(root, 'grep', '-F', '@requirement', ref);
+        listed = git(root, 'grep', '-l', '-F', '@requirement', ref);
     } catch {
-        // `git grep` exits 1 when a pattern matches nothing, which at the
-        // revision before the first annotation is ordinary rather than a
-        // failure.
         return new Set();
     }
-    // `ref:path:line`. The path is filtered through the same predicate the
-    // working tree is walked with, because a ratchet whose two sides count
-    // different populations reports changes nobody made.
+    // `ref:path`. The path is filtered through the same predicate the working
+    // tree is walked with, because a ratchet whose two sides count different
+    // populations reports changes nobody made.
+    const paths = listed
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => line.slice(ref.length + 1))
+        .filter(isTestPath);
     const named = new Set();
-    for (const line of matched.split('\n')) {
-        const at = line.indexOf(':', ref.length + 1);
-        if (at === -1) continue;
-        if (!isTestPath(line.slice(ref.length + 1, at))) continue;
-        for (const id of annotationsIn(line.slice(at + 1))) named.add(id);
+    for (const source of blobsAt(
+        root,
+        paths.map((path) => `${ref}:${path}`),
+    )) {
+        for (const { id } of casesIn(source)) named.add(id);
     }
     return named;
 }
@@ -534,13 +579,11 @@ export function guard(root, base, head) {
         });
     }
 
-    // Annotations on both sides, never live cases on one of them. `namedAt`
-    // reads a revision through `git grep` and cannot see block structure, so
-    // the baseline can only ever be annotations; measuring the working tree
-    // more strictly would make the two sides count different populations and
-    // report a rise nobody caused. The strict reading belongs to the coverage
-    // report, which is only ever taken on one side.
-    const owed = unproven(after.entries, head ? namedAt(root, head) : scanTests(root).annotated);
+    // The strict reading on both sides: a case that runs, never a file that
+    // mentions. Counting annotations would let a new requirement arrive with a
+    // comment over a skipped suite and clear the debt without a test — which is
+    // the one thing this gate exists to refuse.
+    const owed = unproven(after.entries, head ? provedAt(root, head) : scanTests(root).proved);
     const baseline = catalogueAt(root, merged);
     return {
         baseline: merged,
@@ -552,7 +595,7 @@ export function guard(root, base, head) {
             ...newSuccessors(baseline.entries, after.entries),
             ...ratchet(
                 {
-                    debt: unproven(baseline.entries, namedAt(root, merged)),
+                    debt: unproven(baseline.entries, provedAt(root, merged)),
                     standing: standing(baseline.entries),
                 },
                 { debt: owed, standing: standing(after.entries) },
