@@ -25,6 +25,7 @@
         "requirements:update": "node scripts/requirements/index.mjs --write",
         "requirements:guard": "node scripts/requirements/guard.mjs",
         "requirements:list": "node scripts/requirements/index.mjs --list",
+        "requirements:cases": "node scripts/requirements/index.mjs --list --cases",
         "tokens": "node scripts/token-audit.mjs",
         "tokens:update": "node packages/ui-vue/tests/design-token-budget.test.js --update"
     },

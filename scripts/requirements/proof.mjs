@@ -40,8 +40,92 @@ import { join } from 'node:path';
 const ANNOTATION =
     /^[ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+(SC-[A-Z0-9]+-\d{3})(?![\w-])/gm;
 
+/** The same, one line at a time, for reading a file's structure. */
+const ANNOTATION_LINE =
+    /^[ \t]*(?:\/\/+|\/\*+|\*)[ \t]*@requirement[ \t]+(SC-[A-Z0-9]+-\d{3})(?![\w-])/u;
+
 const SKIP = new Set(['node_modules', 'dist', '.git', 'coverage', '.worktrees', 'var']);
 const IS_TEST = /\.(test|spec)\.[cm]?[jt]sx?$/;
+
+/**
+ * The cases an annotation covers, and what they are called.
+ *
+ * Naming the file alone answered "is this proved" and not "by what" — and "by
+ * what" is the question somebody asks when a requirement changes and they have
+ * to find the cases that go with it.
+ *
+ * An annotation covers what it opens. Above the imports it speaks for the whole
+ * file; directly above a `describe` it speaks for that block's cases; directly
+ * above a `test` it speaks for that one. "Directly above" is meant literally —
+ * anything but comment and blank lines in between ends it, so an annotation
+ * cannot drift onto a block it was never written for.
+ *
+ * Blocks are followed by indentation rather than by braces, which is exact
+ * enough because Prettier owns the formatting of every file this reads.
+ */
+export function casesIn(text) {
+    const lines = text.split('\n');
+    const indent = (line) => line.length - line.trimStart().length;
+    const titleOf = (line) => /(?:describe|test|it)\(\s*['"`]([^'"`]+)['"`]/.exec(line)?.[1];
+    const isComment = (line) => /^\s*(?:\/\/|\/\*|\*)/.test(line);
+
+    /** The cases under a block: deeper-indented, until the indentation returns. */
+    const casesUnder = (at) => {
+        const depth = indent(lines[at]);
+        const names = [];
+        for (let i = at + 1; i < lines.length; i++) {
+            if (lines[i].trim() && indent(lines[i]) <= depth) break;
+            if (/^\s*(?:test|it)\(/.test(lines[i])) {
+                const name = titleOf(lines[i]);
+                if (name) names.push(name);
+            }
+        }
+        return names;
+    };
+
+    const everyCase = lines
+        .map((line) => (/^\s*(?:test|it)\(/.test(line) ? titleOf(line) : null))
+        .filter(Boolean);
+
+    const found = [];
+    let pending = [];
+    let opened = false;
+
+    lines.forEach((line, at) => {
+        const annotated = ANNOTATION_LINE.exec(line);
+        if (annotated) {
+            // Before any code, an annotation speaks for the file.
+            if (!opened) for (const name of everyCase) found.push({ id: annotated[1], case: name });
+            else pending.push(annotated[1]);
+            return;
+        }
+
+        const title = titleOf(line);
+        if (title && pending.length > 0) {
+            const ids = pending;
+            pending = [];
+            const names = /^\s*describe\(/.test(line) ? casesUnder(at) : [title];
+            for (const id of ids) {
+                for (const name of names.length ? names : [title]) {
+                    found.push({
+                        id,
+                        case: /^\s*describe\(/.test(line) ? `${title} › ${name}` : name,
+                    });
+                }
+            }
+            opened = true;
+            return;
+        }
+
+        if (line.trim() && !isComment(line)) {
+            // Anything else ends both the file's opening and a pending claim.
+            opened = true;
+            pending = [];
+        }
+    });
+
+    return found;
+}
 
 /** Every requirement a piece of source claims to prove. */
 export function annotationsIn(text) {
@@ -75,6 +159,7 @@ export function isTestPath(path) {
 /** The identifiers named across the tests, mapped to the files naming them. */
 export function scanTests(root, groups = GROUPS) {
     const found = new Map();
+    const cases = new Map();
     const visit = (dir, insideTests) => {
         for (const name of readdirSync(dir)) {
             if (SKIP.has(name)) continue;
@@ -84,9 +169,15 @@ export function scanTests(root, groups = GROUPS) {
                 continue;
             }
             if (!insideTests && !IS_TEST.test(name)) continue;
-            for (const id of annotationsIn(readFileSync(path, 'utf8'))) {
+            const source = readFileSync(path, 'utf8');
+            const where = path.slice(root.length + 1);
+            for (const id of annotationsIn(source)) {
                 if (!found.has(id)) found.set(id, []);
-                found.get(id).push(path.slice(root.length + 1));
+                found.get(id).push(where);
+            }
+            for (const { id, case: name } of casesIn(source)) {
+                if (!cases.has(id)) cases.set(id, []);
+                cases.get(id).push({ file: where, case: name });
             }
         }
     };
@@ -99,6 +190,7 @@ export function scanTests(root, groups = GROUPS) {
             // scanner reads an older revision, where one may not exist yet.
         }
     }
+    found.cases = cases;
     return found;
 }
 

@@ -14,7 +14,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { catalogueOf } from '../scripts/requirements/parse.mjs';
-import { annotationsIn, isTestPath, unproven } from '../scripts/requirements/proof.mjs';
+import { annotationsIn, casesIn, isTestPath, unproven } from '../scripts/requirements/proof.mjs';
 import { ROOT, coverage, listing } from '../scripts/requirements/index.mjs';
 import { readCatalogue } from '../scripts/requirements/parse.mjs';
 import { scanTests } from '../scripts/requirements/proof.mjs';
@@ -71,6 +71,70 @@ describe('a test says which promise it proves', () => {
         // SC-PLAN-004.
         assert.deepEqual(annotationsIn('// the `@requirement SC-A-001` tag names it'), []);
         assert.deepEqual(annotationsIn('// as @requirement SC-A-001 shows'), []);
+    });
+});
+
+describe('an annotation covers what it opens', () => {
+    // Naming the file answered "is this proved" and not "by what", and "by
+    // what" is the question somebody asks when a requirement changes and they
+    // have to find the cases that go with it.
+    const file = [
+        '// @requirement SC-A-001',
+        '',
+        "import { describe, test } from 'node:test';",
+        '',
+        "describe('a block nobody annotated', () => {",
+        "    test('one', () => {});",
+        '});',
+        '',
+        '// @requirement SC-A-002',
+        "describe('an annotated block', () => {",
+        "    test('two', () => {});",
+        "    test('three', () => {});",
+        '});',
+        '',
+        '// @requirement SC-A-003',
+        "test('a case of its own', () => {});",
+    ].join('\n');
+
+    test('above the imports it speaks for every case in the file', () => {
+        const named = casesIn(file).filter((c) => c.id === 'SC-A-001');
+        assert.deepEqual(
+            named.map((c) => c.case),
+            ['one', 'two', 'three', 'a case of its own'],
+        );
+    });
+
+    test('above a block it speaks for that block, with the block in the name', () => {
+        assert.deepEqual(
+            casesIn(file)
+                .filter((c) => c.id === 'SC-A-002')
+                .map((c) => c.case),
+            ['an annotated block › two', 'an annotated block › three'],
+        );
+    });
+
+    test('above one case it speaks for that one', () => {
+        assert.deepEqual(
+            casesIn(file)
+                .filter((c) => c.id === 'SC-A-003')
+                .map((c) => c.case),
+            ['a case of its own'],
+        );
+    });
+
+    test('code between an annotation and a block ends the claim', () => {
+        // Otherwise an annotation drifts onto a block it was never written for,
+        // and the listing names cases that answer for something else.
+        const drifted = [
+            "import { describe, test } from 'node:test';",
+            '// @requirement SC-A-004',
+            'const fixture = 1;',
+            "describe('a block further down', () => {",
+            "    test('one', () => {});",
+            '});',
+        ].join('\n');
+        assert.deepEqual(casesIn(drifted), []);
     });
 });
 

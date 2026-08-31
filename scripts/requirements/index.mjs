@@ -98,6 +98,7 @@ export function listing(root) {
         state: entry.status === 'current' && !entry.delivered ? 'pending' : entry.status,
         proof: named.has(entry.id) ? 'proved' : owed.has(entry.id) ? 'owed' : 'not owed',
         tests: named.get(entry.id) ?? [],
+        cases: named.cases?.get(entry.id) ?? [],
         title: entry.title,
     }));
 }
@@ -106,11 +107,22 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const write = process.argv.includes('--write');
     if (process.argv.includes('--list')) {
         const rows = listing(ROOT);
+        const deep = process.argv.includes('--cases');
         for (const row of rows) {
             process.stdout.write(
-                `${row.id.padEnd(14)}${row.state.padEnd(11)}${row.proof.padEnd(10)}` +
-                    `${row.tests.join(' ') || row.title}\n`,
+                `${row.id.padEnd(14)}${row.state.padEnd(11)}${row.proof.padEnd(10)}${row.title}\n`,
             );
+            if (!deep) continue;
+            // Grouped by file, because that is where somebody goes to read one.
+            const byFile = new Map();
+            for (const one of row.cases) {
+                if (!byFile.has(one.file)) byFile.set(one.file, []);
+                byFile.get(one.file).push(one.case);
+            }
+            for (const [file, cases] of byFile) {
+                process.stdout.write(`                ${file}\n`);
+                for (const name of cases) process.stdout.write(`                  - ${name}\n`);
+            }
         }
         const seen = coverage(rows);
         process.stdout.write(

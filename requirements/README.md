@@ -144,11 +144,35 @@ The summary under the chapter table counts every state and links every entry tha
 
 ## Prove it
 
-A test names the promise it proves, in a comment at the start of a line:
+A test names the promise it proves, in a comment at the start of a line. Where it sits decides what
+it covers:
 
 ```js
-/** @requirement SC-PLAN-004 */
+// @requirement SC-PLAN-004      ← above the imports: every case in the file
+
+// @requirement SC-BUN-003
+describe('what the short first period costs', () => {   ← this block's cases
+
+    // @requirement SC-PRIC-002
+    test('charges by days, not by whole months', () => {   ← this one case
 ```
+
+Put it on the narrowest thing that is true. A file-level annotation claims every case in the file
+proves that promise, which is usually more than anybody meant.
+
+`pnpm run requirements:cases` lists each requirement with the cases that answer for it:
+
+```text
+SC-BUN-003    current    proved    The first period of a booking is short, and charged for …
+                packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js
+                  - a bundle booked on the plan day itself › gets a whole period rather than an empty one
+                  - booked anywhere inside a plan period › in the middle it runs to the same day
+```
+
+**A case is identified by its name**, which is what the test runner prints and what you search for.
+It carries no separate identifier: one that is written by hand goes stale across a thousand cases,
+and one derived from the name changes when the name does, so it is no more stable than the name and
+buys nothing.
 
 The link goes this way round because in the test it sits next to the thing it describes, and moves
 when that moves.
