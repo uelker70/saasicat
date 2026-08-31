@@ -13,9 +13,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
 
-import { readCatalogue } from './parse.mjs';
+import { parseChapter, readCatalogue } from './parse.mjs';
 import { scanTests, unproven } from './proof.mjs';
-import { render, withChapterTable } from './render.mjs';
+import { render, withChapterTable, withProofs } from './render.mjs';
 import { check } from './check.mjs';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -39,7 +39,24 @@ export async function renderCatalogue(root = ROOT) {
     // settled text. Rendering the page from what was on disk instead leaves one
     // run producing two outputs that disagree, and `--write` needing a second
     // run to converge — which somebody eventually does not do.
+    // The cases that prove each entry are written under it, in the chapter file,
+    // because that is where somebody asks which tests belong to a requirement.
+    const named = scanTests(root);
     const files = [];
+    const chapters = [];
+    for (const chapter of catalogue.chapters) {
+        const path = `requirements/${chapter.directory}/chapter.md`;
+        const before = readFileSync(join(root, path), 'utf8');
+        const after = await markdown(withProofs(before, named.cases ?? new Map()));
+        if (after !== before) files.push({ where: path, text: after });
+        // The page is assembled from the settled text, not from what was on
+        // disk before it — otherwise one run produces two outputs that
+        // disagree and `--write` needs a second run to converge.
+        chapters.push(parseChapter(after, chapter.directory));
+    }
+    catalogue.chapters = chapters;
+    catalogue.entries = chapters.flatMap((chapter) => chapter.entries);
+
     const preamble = [];
     for (const file of catalogue.preamble) {
         const spliced = withChapterTable(file.text, catalogue.chapters);

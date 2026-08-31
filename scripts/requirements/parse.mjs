@@ -58,6 +58,17 @@ export const HEADING_LIKE = /^### .*$/;
 export const MARKER_LIKE = /^_[^_]*:_/;
 
 export const SOURCE = /^_Source:_ (.+)$/;
+
+/**
+ * The generated block naming the cases that prove an entry.
+ *
+ * Written by the generator, never by hand, and cut out again before an entry is
+ * read — it is a fact about the tests rather than part of the promise, so it
+ * must not reach the text a change is compared against. Otherwise annotating a
+ * test would read as rewriting a requirement.
+ */
+export const PROOF_BEGIN = '<!-- BEGIN proof -->';
+export const PROOF_END = '<!-- END proof -->';
 /**
  * One colour per state, in the entry and in the index that lists them.
  *
@@ -209,8 +220,16 @@ export function entriesIn(body, where, startLine) {
     return { intro: trim(intro).join('\n'), entries: entries.map(finishEntry) };
 }
 
+/** Everything outside the generated proof block, which is the entry as written. */
+function withoutProof(lines) {
+    const from = lines.findIndex((line) => line.trim() === PROOF_BEGIN);
+    if (from === -1) return lines;
+    const to = lines.findIndex((line, at) => at > from && line.trim() === PROOF_END);
+    return to === -1 ? lines.slice(0, from) : [...lines.slice(0, from), ...lines.slice(to + 1)];
+}
+
 function finishEntry(entry) {
-    const lines = trim(entry.lines);
+    const lines = trim(withoutProof(entry.lines));
     const sources = [];
     const body = [];
     for (const line of lines) {

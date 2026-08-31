@@ -21,6 +21,36 @@ screens describing one situation cannot quote different figures.
 
 _Source:_ #222
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-bundle-runs-in-step-with-its-plan.test.js`
+    - what the short first period costs
+        - the cycle it is charged against ends where the first period does
+        - a yearly bundle is charged against a year, not a month
+        - the anchor survives being walked backwards, the same as forwards
+        - stepping back from January lands in December of the year before
+        - a leap day retreats to the 28th, and forwards again to the 29th
+        - the start it gives back is the boundary that leads to that end
+- `packages/nest/tests/subscription-bundle-preview.test.js`
+    - SubscriptionBundlePreviewService — previewAdd
+        - proration: prorated amount until period end + next-period price
+        - YEARLY cycle uses yearlyNet, plan-specific pricing override wins
+        - TRIAL: no proration (no paid period yet)
+        - the preview quotes no commitment, because a booking makes none
+        - the preview quotes a commitment an operator configured
+        - redundancy (AK-13): feature already in plan → hint + warning
+        - redundancy: feature already in another active bundle → hint with bundleKey
+        - requires (#35): uncovered dependency → missingRequires + blocker
+        - requires: coverage by plan or active bundle → no blocker
+        - requires: without CatalogEntryRepository no check (graceful)
+        - self-service policy: sales-only bundle → blocker BUNDLE_NOT_SELF_SERVICE
+        - blocker: plan-incompatible + already booked
+        - unknown bundle version → NotFound
+
+<!-- END proof -->
+
 ### SC-PRIC-003 — This platform never pays money back
 
 🟢 A prorated fee is floored at zero. Where a change lowers the price, the upgrade is free rather
@@ -28,6 +58,20 @@ than producing a credit, and a cancellation is never refunded pro rata — the b
 and paid to the end of its period.
 
 _Source:_ #212 · release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-add-on-comes-out-at-its-period-end.test.js`
+    - commits to nothing and runs to the plan’s billing day
+    - cancelling lands at the end of the period it is in
+    - cancelling on the last day of the period still lands on that day
+    - commits to nothing and ends with the plan period that pays for it
+    - cancelling lands at that same end, not a year after the booking
+    - binds inside it, and still cannot outlast the plan
+
+<!-- END proof -->
 
 ### SC-PRIC-004 — "Free upgrade" and "costs nothing" are two different sentences
 

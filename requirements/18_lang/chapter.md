@@ -56,6 +56,17 @@ language they had chosen, and no integrator could reach it.
 
 _Source:_ #243
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/error-params-contract.test.js`
+    - the sources contain coded throw sites at all
+    - every throw site supplies the placeholders its message template names
+    - all throw sites for one code agree on their params key names
+
+<!-- END proof -->
+
 ### SC-LANG-007 — A refusal code never encodes its own subject
 
 🟢 The subject travels as a value beside the code. Building a code out of the quota or the plan it is
@@ -70,6 +81,17 @@ _Source:_ #243
 not, and which group a code is listed under is presentation only.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/error-params-contract.test.js`
+    - the sources contain coded throw sites at all
+    - every throw site supplies the placeholders its message template names
+    - all throw sites for one code agree on their params key names
+
+<!-- END proof -->
 
 ### SC-LANG-009 — An integrator resolves their own refusals and SaaSiCat's through one mechanism
 

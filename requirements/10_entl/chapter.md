@@ -13,12 +13,42 @@ paying for something they cannot use or using something they did not pay for.
 
 _Source:_ `docs/explanation/concepts.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
+    - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
+    - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
+    - collectSubscriptionBundleFeatures: set union
+    - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
+    - aggregateLimits: canceled bundle is ignored
+    - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
+    - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
+
+<!-- END proof -->
+
 ### SC-ENTL-002 — An unlimited allowance beats any number, and an absent one counts as none
 
 🟢 So a single unlimited grant cannot be diluted by adding numbers to it, and a limit nobody set is
 not silently generous.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/entitlement-subscription-bundle-aggregation.test.js`
+    - filterActiveSubscriptionBundles: canceled with a past effective date are dropped
+    - aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates
+    - collectSubscriptionBundleFeatures: set union
+    - aggregateLimits: bundle quotas add to plan quotas + bundle features are included
+    - aggregateLimits: canceled bundle is ignored
+    - aggregateLimits: -1 in a bundle quota makes the total quota unlimited
+    - aggregateLimits without subscriptionBundles → plan-only behavior unchanged
+
+<!-- END proof -->
 
 ### SC-ENTL-003 — A feature declared as not yet rolled out is never granted
 
@@ -41,12 +71,56 @@ them is enough.
 
 _Source:_ `README.md` · `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/feature-guard.test.js`
+    - lets routes without @RequireFeature pass unchecked
+    - @RequireFeature with an empty array passes unchecked
+    - lets the tenant through when the feature is active in the plan
+    - blocks with ForbiddenException when the feature is missing
+    - Logical OR: multiple features, one suffices (second matches)
+    - Logical OR: none match → Forbidden with all keys in the message
+    - Class-level annotation applies when the handler has none
+    - Handler annotation overrides class annotation
+    - SUPER_ADMIN bypasses the feature check
+    - SUPER_ADMIN via
+    - missing user → Forbidden (
+    - missing tenantId → Forbidden (
+    - tenantId from request.tenantId takes precedence over user.tenantId
+    - tenantContextRunner wraps the computeLimits call (RLS consumers)
+    - userRoleResolver allows a project-specific role source
+    - tenantIdResolver can fetch tenantId from an alternative field
+    - is a Symbol.for token (process-wide registry)
+    - structured 403 body: code, featureKey, featureKeys, offers, message
+    - Logical OR: featureKeys carries all required keys, featureKey the first
+    - Resolver error degrades to offers: [] instead of 500
+    - Resolver is not called for a licensed feature
+    - without a resolver: full body with empty offers
+    - emits the full FeatureNotLicensedBody with empty offers
+    - is a Symbol.for token (process-wide registry)
+
+<!-- END proof -->
+
 ### SC-ENTL-006 — A missing feature and an exhausted limit are told apart
 
 🟢 They are two different answers, and a client can act differently on each. An exhausted limit says
 which limit and where the tenant stands against it.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/limit-exceeded-filter.test.js`
+    - responds with HTTP 402 + standard body shape
+    - carries the quota dimension correctly from the exception
+    - lets floating-point
+    - robust when method/url are missing from the request
+
+<!-- END proof -->
 
 ### SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
 
@@ -70,6 +144,45 @@ implied.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
+    - grants nothing once the cancellation has landed
+    - grants the configured floor instead, where one is configured
+    - while a cancellation still to come grants everything
+    - and an uncancelled subscription is unaffected
+    - is not served past the moment it ends
+    - and is still served inside its ordinary lifetime
+- `packages/nest/tests/feature-guard.test.js`
+    - lets routes without @RequireFeature pass unchecked
+    - @RequireFeature with an empty array passes unchecked
+    - lets the tenant through when the feature is active in the plan
+    - blocks with ForbiddenException when the feature is missing
+    - Logical OR: multiple features, one suffices (second matches)
+    - Logical OR: none match → Forbidden with all keys in the message
+    - Class-level annotation applies when the handler has none
+    - Handler annotation overrides class annotation
+    - SUPER_ADMIN bypasses the feature check
+    - SUPER_ADMIN via
+    - missing user → Forbidden (
+    - missing tenantId → Forbidden (
+    - tenantId from request.tenantId takes precedence over user.tenantId
+    - tenantContextRunner wraps the computeLimits call (RLS consumers)
+    - userRoleResolver allows a project-specific role source
+    - tenantIdResolver can fetch tenantId from an alternative field
+    - is a Symbol.for token (process-wide registry)
+    - structured 403 body: code, featureKey, featureKeys, offers, message
+    - Logical OR: featureKeys carries all required keys, featureKey the first
+    - Resolver error degrades to offers: [] instead of 500
+    - Resolver is not called for a licensed feature
+    - without a resolver: full body with empty offers
+    - emits the full FeatureNotLicensedBody with empty offers
+    - is a Symbol.for token (process-wide registry)
+
+<!-- END proof -->
+
 ### SC-ENTL-010 — A limit nothing can count does not block anybody
 
 🟢 The request goes through and the gap is reported for review, rather than a tenant being refused
@@ -89,6 +202,23 @@ _Source:_ `docs/reference/error-codes.md`
 granted exactly what it was granted while active.
 
 _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
+    - it is granted its plan
+    - and a cancellation still to come changes nothing
+    - nothing is granted
+    - the plan is still named, so a page can say which one ended
+    - a configured floor is granted instead
+    - and the floor does not inherit what was bought on top
+    - a contract signed earlier does not outlive it
+    - is read from the only column it has
+    - and a legacy row whose date is still to come keeps everything
+
+<!-- END proof -->
 
 ### SC-ENTL-013 — A cancellation that is merely declared changes nothing
 
@@ -112,6 +242,47 @@ disagree about what a cancelled subscription keeps would be worse than either an
 
 _Source:_ #219
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-landed-cancellation-ends-what-it-granted.test.js`
+    - it is granted its plan
+    - and a cancellation still to come changes nothing
+    - nothing is granted
+    - the plan is still named, so a page can say which one ended
+    - a configured floor is granted instead
+    - and the floor does not inherit what was bought on top
+    - a contract signed earlier does not outlive it
+    - is read from the only column it has
+    - and a legacy row whose date is still to come keeps everything
+- `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
+    - grants nothing once the cancellation has landed
+    - grants the configured floor instead, where one is configured
+    - while a cancellation still to come grants everything
+    - and an uncancelled subscription is unaffected
+    - is not served past the moment it ends
+    - and is still served inside its ordinary lifetime
+- `packages/nest/tests/every-way-a-tenant-meets-the-end.test.js`
+    - can still cancel, and lands at the same date as anybody else
+    - cancels immediately, because nothing was ever committed
+    - and one that did get a period keeps it
+    - the ending wins, exactly at the moment they meet
+    - and a minute earlier the change still happens
+    - does not roll onto a subscription whose term is over
+    - while a cancellation still to come stops nothing
+    - and an uncancelled subscription rolls as before
+    - is refused on the atomic path, which is the preferred one
+    - while a running subscription is activated as before
+    - and the write carries what the route read, so a late cancellation wins
+    - is refused rather than recorded against a dead contract
+    - while a running subscription accepts as before
+    - the frozen contract is ended on the same date
+    - and a cancellation already recorded repairs its contract too
+    - and a consumer without contracts is unaffected
+
+<!-- END proof -->
+
 ### SC-ENTL-016 — An answer computed before an end date arrives is not served after it
 
 🟢 A date arriving is not a change anybody makes, so nothing would invalidate a remembered answer by
@@ -133,6 +304,22 @@ cover and then by price. A failure to work out an offer never turns a correct re
 server error.
 
 _Source:_ release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/catalog-bundle-upsell-resolver.test.js`
+    - returns published+marketed bundles that contain the missing feature
+    - non-marketed and draft bundles are not offers
+    - without requires data the cheaper price wins
+    - requires known (#35): combo bundle with dependency ranks before cheaper single bundle
+    - bundle that contains only the dependency (not the feature) is not an offer
+    - currency comes from the optional currency token, default EUR
+    - priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last
+    - empty featureKeys → no offers, no repo access
+
+<!-- END proof -->
 
 ### SC-ENTL-019 — A platform administrator is not blocked by a tenant's entitlements
 

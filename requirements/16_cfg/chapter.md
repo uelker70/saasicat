@@ -13,6 +13,21 @@ those are a single source of truth with a footnote.
 
 _Source:_ #217
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-setting-comes-from-the-file.test.js`
+    - the notice period reaches the token from the catalogue
+    - the blocked plans reach their token from the catalogue
+    - a second catalogue gives a second answer — nothing is baked in
+    - ${option} is refused, and the message says where it went
+    - both at once are named together, so the fix is one pass
+    - an explicitly undefined option is not a passed option
+    - names the field and the file rather than throwing a TypeError
+
+<!-- END proof -->
+
 ### SC-CFG-002 — Settings with a money or a legal consequence live in the configuration file
 
 🟢 Where a change goes through review and a deployment. For a value changed twice a year the
@@ -21,6 +36,21 @@ period, when, and why" better than an audit table does. Delivered for the notice
 self-service plan blocks; the settings still passed in code move in later steps.
 
 _Source:_ #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-setting-comes-from-the-file.test.js`
+    - the notice period reaches the token from the catalogue
+    - the blocked plans reach their token from the catalogue
+    - a second catalogue gives a second answer — nothing is baked in
+    - ${option} is refused, and the message says where it went
+    - both at once are named together, so the fix is one pass
+    - an explicitly undefined option is not a passed option
+    - names the field and the file rather than throwing a TypeError
+
+<!-- END proof -->
 
 ### SC-CFG-016 — A setting that moved out of code is removed, not deprecated
 
@@ -88,6 +118,19 @@ code.
 
 _Source:_ ADR 0007
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/enforcement-chain-warnings.test.js`
+    - warns when no plan resolver and no fallback plan are configured
+    - stays silent once defaultPlanId activates the static entitlement stack
+    - registers the coverage check instead of warning on the option alone
+    - stays silent on the default path with the guard bound
+    - the inert branch registers the check too, with the state that says so
+
+<!-- END proof -->
+
 ### SC-CFG-008 — An operator can see when the running configuration was applied, and from where
 
 🟡 _(Decided, not yet delivered.)_ Somebody who edited the file an hour ago otherwise has no way to
@@ -113,11 +156,64 @@ being named the same as ours.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md` · release 0.27.0
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/enforcement-chain-check.test.js`
+    - boots when every annotated route has a feature guard
+    - refuses to boot and names the route when one is unguarded
+    - is not fooled by a guard that merely shares the name
+    - ignores helper methods that inherit a class-level requirement
+    - reports an unrecognised wrapper rather than assuming it is safe
+    - a quota-only route is not a guard question
+    - refuses to boot when a route requires a feature
+    - refuses to boot for a quota annotation too
+    - a guard in front of the route does not make it enforceable
+    - boots when no route is annotated at all
+    - says nothing, whatever the routes look like
+    - the option, when the option is what unbound the guard
+    - and the entitlement path, when the app never set it
+    - both name the way out of what the check cannot see
+    - a quota route on the V3 path refuses the boot
+    - the message names every way out, including the opt-out
+    - a guarded quota route on the V3 path is refused too
+    - a feature-only route on the V3 path still boots when it is guarded
+    - and the static path with a plan resolver boots with quota routes
+    - the inert case still speaks first, so its message is the one read
+- `packages/nest/tests/enforcement-chain-refuses-boot.test.js`
+    - inert entitlement plus an annotated route: boot fails
+    - globalFeatureGuard: false plus an unguarded annotated route: boot fails
+    - globalFeatureGuard: false with the guard bound per route
+    - the platform binding its own global guard
+    - inert entitlement with nothing annotated — a catalogue-only app
+    - the V3 entitlement path, with FeatureGuard bound per route
+    - …but the same path with no feature guard at all does not
+    - …and neither does the V3 path with a quota nothing counts
+    - a quota route boots once something can resolve a plan
+    - enforcementChainCheck: false is a way out that works
+    - …and it turns off only that check
+
+<!-- END proof -->
+
 ### SC-CFG-011 — An application that declares nothing to enforce still starts
 
 🟢 A catalogue with no runtime enforcement is a real shape, not a mistake.
 
 _Source:_ release 0.27.0
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/enforcement-chain-warnings.test.js`
+    - warns when no plan resolver and no fallback plan are configured
+    - stays silent once defaultPlanId activates the static entitlement stack
+    - registers the coverage check instead of warning on the option alone
+    - stays silent on the default path with the guard bound
+    - the inert branch registers the check too, with the state that says so
+
+<!-- END proof -->
 
 ### SC-CFG-012 — Conflicting routes stop the boot
 

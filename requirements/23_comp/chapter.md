@@ -12,6 +12,20 @@ can be automated — and where it cannot be automated, it is named rather than g
 
 _Source:_ `CONTRIBUTING.md` · `README.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/cjs-entry-identity.test.js`
+    - no exported name resolves to different values across entries
+    - the shared bundle actually backs every entry
+    - a class is shared even between entries that never import each other
+- `packages/nest/tests/di-token-registry.test.js`
+    - @saasicat/nest${name ===
+    - every exported token key uses a known prefix
+
+<!-- END proof -->
+
 ### SC-COMP-002 — A break is deliberate, documented, and belongs to a release that says it is breaking
 
 🟢 It is never something a consumer discovers from a failing build after a patch release.
@@ -91,6 +105,18 @@ _Source:_ ADR 0007
 
 _Source:_ ADR 0007
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-adapter-without-a-plan-catalogue-can-sell-bundles.test.js`
+    - boots with subscriptionBundles enabled
+    - and the module is handed the repository it found
+    - an adapter with neither is still refused, by name
+    - a plan catalogue still wins where an adapter has one
+
+<!-- END proof -->
+
 ### SC-COMP-013 — An installation whose store cannot hold a limit exactly does not start the enforcement
 
 🟢 Enforcing a limit needs a store that can serialise a count and a write. An installation whose
@@ -98,6 +124,19 @@ store says it cannot is told at start-up rather than at the moment two customers
 limit.
 
 _Source:_ `docs/reference/options.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
+    - answers, using the newest live version for the redundancy hint
+    - and the same answer as a schema that does offer the lookup
+    - a bundle the plan does not cover gets no redundancy warning either way
+    - with no plan repository at all it still answers
+    - a repository that offers the lookup and throws inside it is the bug itself
+
+<!-- END proof -->
 
 ### SC-COMP-014 — The example application is kept in step with the platform
 

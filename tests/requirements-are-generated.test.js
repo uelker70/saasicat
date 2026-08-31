@@ -24,7 +24,7 @@ import {
     frontMatter,
     readCatalogue,
 } from '../scripts/requirements/parse.mjs';
-import { BEGIN, END } from '../scripts/requirements/render.mjs';
+import { BEGIN, END, proofBlock } from '../scripts/requirements/render.mjs';
 import { check } from '../scripts/requirements/check.mjs';
 import { ROOT, TARGET, renderCatalogue } from '../scripts/requirements/index.mjs';
 
@@ -111,6 +111,36 @@ describe('the requirements document is generated, not maintained', () => {
 
     test('the sources satisfy every rule the checker can state', () => {
         assert.deepEqual(check(readCatalogue(ROOT)), []);
+    });
+});
+
+describe('the tests an entry names are written under it', () => {
+    // At the requirement, because that is where the question is asked. A
+    // command printing the same list answers it somewhere else, and somewhere
+    // else is where nobody is standing when they need it.
+
+    test('the block is generated, and the page carries it', async () => {
+        const { text } = await rendered();
+        assert.match(text, /^_Tested by:_$/m);
+    });
+
+    test('it is not part of the promise', () => {
+        // A fact about the tests, not about what was promised — so annotating a
+        // test must not read as rewriting a requirement.
+        const withBlock = parse(
+            '### SC-A-001 — T\n\n🟢 A promise.\n\n_Source:_ #1\n\n' +
+                '<!-- BEGIN proof -->\n\n_Tested by:_\n\n- `x.test.js`\n\n<!-- END proof -->',
+        ).entries[0];
+        const without = parse('### SC-A-001 — T\n\n🟢 A promise.\n\n_Source:_ #1').entries[0];
+        assert.equal(withBlock.text, without.text);
+        assert.equal(withBlock.source, without.source);
+    });
+
+    test('an entry nothing tests carries no block', () => {
+        // An empty heading over nothing would say something false about a
+        // requirement nobody has covered.
+        const { text } = { text: proofBlock([]) };
+        assert.equal(text, '');
     });
 });
 

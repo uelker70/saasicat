@@ -20,6 +20,25 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - the matrix is complete
+    - ${label} takes effect ${expected ?
+    - the matrix asks more of a trial than of a term
+    - on trial, ${label} takes effect ${expected ?
+    - a yearly customer choosing a monthly higher plan is told why it waits
+    - the same upgrade on the same cycle happens now and says nothing
+    - a cheaper target after a price cut is free rather than a credit
+    - an ordinary upgrade still costs what it costs
+    - a change that costs exactly nothing is not a free upgrade
+    - the later of period end and minimum term is the effective date
+    - without a commitment the period end still decides
+
+<!-- END proof -->
+
 ### SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 
 🟢 The customer keeps the period they already paid for, the higher plan runs inside it, and only the
@@ -27,6 +46,25 @@ difference is charged for what is left of it. So an immediate upgrade never leng
 commitment.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - the matrix is complete
+    - ${label} takes effect ${expected ?
+    - the matrix asks more of a trial than of a term
+    - on trial, ${label} takes effect ${expected ?
+    - a yearly customer choosing a monthly higher plan is told why it waits
+    - the same upgrade on the same cycle happens now and says nothing
+    - a cheaper target after a price cut is free rather than a credit
+    - an ordinary upgrade still costs what it costs
+    - a change that costs exactly nothing is not a free upgrade
+    - the later of period end and minimum term is the effective date
+    - without a commitment the period end still decides
+
+<!-- END proof -->
 
 ### SC-CHG-004 — A yearly customer moving to a monthly higher plan gets it at the term end
 
@@ -41,12 +79,43 @@ _Source:_ #212 · `docs/reference/error-codes.md`
 
 _Source:_ #212
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
+    - the matrix is complete
+    - ${label} takes effect ${expected ?
+    - the matrix asks more of a trial than of a term
+    - on trial, ${label} takes effect ${expected ?
+    - a yearly customer choosing a monthly higher plan is told why it waits
+    - the same upgrade on the same cycle happens now and says nothing
+    - a cheaper target after a price cut is free rather than a credit
+    - an ordinary upgrade still costs what it costs
+    - a change that costs exactly nothing is not a free upgrade
+    - the later of period end and minimum term is the effective date
+    - without a commitment the period end still decides
+
+<!-- END proof -->
+
 ### SC-CHG-006 — A deferred change lands at the later of the period end and the commitment
 
 🟢 A commitment that outlasts the period is what a notice period produces, and a change landing at
 the period end would take effect inside it.
 
 _Source:_ #212 · release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/pending-plan-materialization.test.js`
+    - materializes all due pending plan changes and invalidates each tenant
+    - defaults to MONTHLY cycle when pendingBillingCycle is null
+    - is non-fatal per tenant — one failure does not abort the run
+    - no-op when nothing is due
+
+<!-- END proof -->
 
 ### SC-CHG-007 — A change scheduled for the term end may take any billing rhythm
 
@@ -83,6 +152,32 @@ refused and nothing is written, and the caller is told to look again.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - refuses a plan change instead of charging for one
+    - while a running one still changes plans
+    - lets the plan change, and does not sell a term it cuts short
+    - while an uncancelled subscription does get a fresh term
+    - the preview says so before the reader has decided anything
+    - and an ended subscription is refused outright, not merely locked
+    - and says nothing when the cycle stays
+    - is refused, because the ending was calculated in the old rhythm
+    - while the plan still moves on the cycle it was sold in
+    - and an uncancelled subscription may change cycle freely
+    - the immediate change is refused rather than written over it
+    - and so is the scheduled one
+    - while an unchanged subscription is written as decided
+    - is refused rather than written a moment late
+    - the second one reports the first one rather than replacing it
+    - is declined once the cancellation has taken effect
+    - but a cancellation still to come declines nothing
+    - and an uncancelled subscription is applied as before
+
+<!-- END proof -->
+
 ### SC-CHG-012 — A tenant cannot move to a plan whose limits their usage already exceeds
 
 🟢 They are told which limit and by how much, and reduce usage first.
@@ -105,6 +200,32 @@ cancellation that has not yet landed refuses nothing, though: a customer who bou
 period by cancelling late may still choose the plan they spend it on.
 
 _Source:_ #219 · release 1.0.0-rc.6
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancellation-is-a-boundary.test.js`
+    - refuses a plan change instead of charging for one
+    - while a running one still changes plans
+    - lets the plan change, and does not sell a term it cuts short
+    - while an uncancelled subscription does get a fresh term
+    - the preview says so before the reader has decided anything
+    - and an ended subscription is refused outright, not merely locked
+    - and says nothing when the cycle stays
+    - is refused, because the ending was calculated in the old rhythm
+    - while the plan still moves on the cycle it was sold in
+    - and an uncancelled subscription may change cycle freely
+    - the immediate change is refused rather than written over it
+    - and so is the scheduled one
+    - while an unchanged subscription is written as decided
+    - is refused rather than written a moment late
+    - the second one reports the first one rather than replacing it
+    - is declined once the cancellation has taken effect
+    - but a cancellation still to come declines nothing
+    - and an uncancelled subscription is applied as before
+
+<!-- END proof -->
 
 ### SC-CHG-015 — A cancelled subscription cannot change its billing rhythm
 

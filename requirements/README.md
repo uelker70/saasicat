@@ -160,7 +160,28 @@ describe('what the short first period costs', () => {   ← this block's cases
 Put it on the narrowest thing that is true. A file-level annotation claims every case in the file
 proves that promise, which is usually more than anybody meant.
 
-`pnpm run requirements:cases` lists each requirement with the cases that answer for it:
+The cases are written under the requirement itself, between markers, by the same command that
+builds the page — so the question "which tests cover this" is answered where it is asked:
+
+```markdown
+_Source:_ #222
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/subscription-bundle-preview.test.js`
+    - SubscriptionBundlePreviewService — previewAdd
+        - the preview quotes no commitment, because a booking makes none
+
+<!-- END proof -->
+```
+
+Never edit that block; `pnpm run requirements:update` writes it, and an entry nothing tests carries
+none. It is a fact about the tests rather than part of the promise, so it is cut out again before a
+change is compared — annotating a test does not read as rewriting a requirement.
+
+`pnpm run requirements:cases` prints the same thing for the whole catalogue:
 
 ```text
 SC-BUN-003    current    proved    The first period of a booking is short, and charged for …

@@ -21,12 +21,90 @@ another. Two half-written offers for one plan are a state nobody can explain to 
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+    - createPlanDraft: unknown plan → NotFound
+    - updatePlanDraft: changes features + quotas
+    - createPlanDraft: bundles default to [] when not provided
+    - createPlanDraft + updatePlanDraft: bundles are persisted
+    - updatePlanDraft: published version → UnprocessableEntity
+    - publishPlanVersion: first version → publishedAt + nonRegressive=true
+    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+    - publishPlanVersion: second version sets previous to supersededAt
+    - publishPlanVersion: validFrom must be strictly after predecessor → 422
+    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+    - publishPlanVersion: forceRegressive lets regressive version through
+    - getPlanVersion: NotFound for unknown ID
+    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+    - discardPlanDraft: NotFound for unknown ID
+    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+    - terminatePlanVersion: live version gets endsAt set
+    - terminatePlanVersion: idempotent — second call overwrites
+    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+    - terminatePlanVersion: NotFound for unknown ID
+    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+    - updatePlanDraft allows published-but-future version (latest, 0 subs)
+    - updatePlanDraft blocks published-but-future version with subscription
+    - updatePlanDraft blocks published version that is not latest-in-chain
+    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
+    - updatePlanDraft fail-closed without SubscriptionRepository
+
+<!-- END proof -->
+
 ### SC-PLAN-003 — A plan has at most one live version at a time
 
 🟢 Publishing a successor retires its predecessor in the same act, so there is never a moment in
 which two versions of one plan are both current and a purchase could land on either.
 
 _Source:_ `docs/explanation/data-model.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+    - createPlanDraft: unknown plan → NotFound
+    - updatePlanDraft: changes features + quotas
+    - createPlanDraft: bundles default to [] when not provided
+    - createPlanDraft + updatePlanDraft: bundles are persisted
+    - updatePlanDraft: published version → UnprocessableEntity
+    - publishPlanVersion: first version → publishedAt + nonRegressive=true
+    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+    - publishPlanVersion: second version sets previous to supersededAt
+    - publishPlanVersion: validFrom must be strictly after predecessor → 422
+    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+    - publishPlanVersion: forceRegressive lets regressive version through
+    - getPlanVersion: NotFound for unknown ID
+    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+    - discardPlanDraft: NotFound for unknown ID
+    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+    - terminatePlanVersion: live version gets endsAt set
+    - terminatePlanVersion: idempotent — second call overwrites
+    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+    - terminatePlanVersion: NotFound for unknown ID
+    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+    - updatePlanDraft allows published-but-future version (latest, 0 subs)
+    - updatePlanDraft blocks published-but-future version with subscription
+    - updatePlanDraft blocks published version that is not latest-in-chain
+    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
+    - updatePlanDraft fail-closed without SubscriptionRepository
+
+<!-- END proof -->
 
 ### SC-PLAN-004 — A published version is never deleted
 
@@ -43,6 +121,45 @@ _Source:_ `docs/explanation/data-model.md`
 it, and does not start until some day in the future.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-versions-service.test.js`
+    - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+    - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
+    - createPlanDraft: unknown plan → NotFound
+    - updatePlanDraft: changes features + quotas
+    - createPlanDraft: bundles default to [] when not provided
+    - createPlanDraft + updatePlanDraft: bundles are persisted
+    - updatePlanDraft: published version → UnprocessableEntity
+    - publishPlanVersion: first version → publishedAt + nonRegressive=true
+    - publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)
+    - publishPlanVersion: second version sets previous to supersededAt
+    - publishPlanVersion: validFrom must be strictly after predecessor → 422
+    - publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED
+    - publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive
+    - publishPlanVersion: forceRegressive lets regressive version through
+    - getPlanVersion: NotFound for unknown ID
+    - discardPlanDraft: draft → removed, listPlanVersions returns empty list
+    - discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED
+    - discardPlanDraft: NotFound for unknown ID
+    - publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day
+    - terminatePlanVersion: live version gets endsAt set
+    - terminatePlanVersion: idempotent — second call overwrites
+    - terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE
+    - terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED
+    - terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED
+    - terminatePlanVersion: NotFound for unknown ID
+    - publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)
+    - updatePlanDraft allows published-but-future version (latest, 0 subs)
+    - updatePlanDraft blocks published-but-future version with subscription
+    - updatePlanDraft blocks published version that is not latest-in-chain
+    - listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version
+    - updatePlanDraft fail-closed without SubscriptionRepository
+
+<!-- END proof -->
 
 ### SC-PLAN-006 — Where it cannot be established that nobody is on a version, it stays frozen
 
@@ -66,6 +183,18 @@ _Source:_ current practice
 deliberate. An accidental batch publish at 0.00 once set every tariff to free.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/catalog-publish-controller.test.js`
+    - PlanVersions.publish passes allowZeroPrice through to the service (#63)
+    - PlanVersions.publish: allowZeroPrice stays undefined without the DTO flag
+    - BundleVersions.publish passes allowZeroPrice through to the service (#63)
+    - BundleVersions.publish: allowZeroPrice stays undefined without the DTO flag
+
+<!-- END proof -->
 
 ### SC-PLAN-009 — Publishing something that takes away has to be confirmed
 
@@ -145,6 +274,19 @@ _Source:_ `docs/explanation/concepts.md`
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-preview-answers-on-an-older-schema.test.js`
+    - answers, using the newest live version for the redundancy hint
+    - and the same answer as a schema that does offer the lookup
+    - a bundle the plan does not cover gets no redundancy warning either way
+    - with no plan repository at all it still answers
+    - a repository that offers the lookup and throws inside it is the bug itself
+
+<!-- END proof -->
+
 ### SC-PLAN-019 — Two operators cannot publish the same draft
 
 🟢 The second one is told the draft has already been published rather than publishing it again.
@@ -173,12 +315,64 @@ trip at a time.
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - loadPlanCatalogFromString accepts valid example
+    - loadPlanCatalogFromString rejects schemaVersion != 1
+    - loadPlanCatalogFromString rejects missing required fields
+    - loadPlanCatalogFromString rejects addons block (#49 — no addon sales)
+    - cross-field: plan references unknown featureKey → error
+    - cross-field: duplicate plan IDs → error
+    - cross-field: plannedOnly:true allows plan reference (roadmap marker)
+    - crossFieldChecks: false skips consistency checks
+    - loadPlanCatalogFromFile reads YAML file from disk
+    - loadPlanCatalogFromFile throws for non-existent file
+    - PlanCatalogValidationError contains error list
+    - a catalogue without tenantBilling is refused, and the field is named
+    - a rhythm nobody named is refused, rather than read as zero
+    - a self-service list nobody named is refused too
+    - empty lists and zeroes are values, not omissions
+    - a negative notice period is refused
+    - a fractional notice period is refused — days are whole
+    - an unknown member of the block is refused, not ignored
+
+<!-- END proof -->
+
 ### SC-PLAN-023 — A catalogue that cannot be read is the caller's mistake, not a server failure
 
 🟢 It is answered as a rejected upload rather than as an internal error. A caller cannot otherwise
 tell a bad file from a broken server, and the one they can fix is the one that looked unfixable.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - loadPlanCatalogFromString accepts valid example
+    - loadPlanCatalogFromString rejects schemaVersion != 1
+    - loadPlanCatalogFromString rejects missing required fields
+    - loadPlanCatalogFromString rejects addons block (#49 — no addon sales)
+    - cross-field: plan references unknown featureKey → error
+    - cross-field: duplicate plan IDs → error
+    - cross-field: plannedOnly:true allows plan reference (roadmap marker)
+    - crossFieldChecks: false skips consistency checks
+    - loadPlanCatalogFromFile reads YAML file from disk
+    - loadPlanCatalogFromFile throws for non-existent file
+    - PlanCatalogValidationError contains error list
+    - a catalogue without tenantBilling is refused, and the field is named
+    - a rhythm nobody named is refused, rather than read as zero
+    - a self-service list nobody named is refused too
+    - empty lists and zeroes are values, not omissions
+    - a negative notice period is refused
+    - a fractional notice period is refused — days are whole
+    - an unknown member of the block is refused, not ignored
+
+<!-- END proof -->
 
 ### SC-PLAN-024 — The order plans appear in is set by moving them, not by typing numbers
 

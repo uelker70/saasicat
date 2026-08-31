@@ -12,11 +12,39 @@ second factor, and the roles that separate a tenant's administrator from a platf
 
 _Source:_ `docs/reference/error-codes.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-manifest-module.test.js`
+    - throws when the controller should be registered and
+    - accepts empty
+    - does NOT throw when
+    - accepts a configured
+    - additionally accepts
+    - throws on missing
+
+<!-- END proof -->
+
 ### SC-ADM-002 — A tenant-facing endpoint with no access rules configured refuses, it does not open
 
 🟢 Failing loudly is the only safe reading; waving requests through would be silent.
 
 _Source:_ release 1.0.0-rc.7
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/admin-manifest-module.test.js`
+    - throws when the controller should be registered and
+    - accepts empty
+    - does NOT throw when
+    - accepts a configured
+    - additionally accepts
+    - throws on missing
+
+<!-- END proof -->
 
 ### SC-ADM-003 — The administration requires a second factor
 
@@ -94,6 +122,18 @@ _Source:_ `SECURITY.md`
 may do. Reading stays open to everyone who is signed in.
 
 _Source:_ #212
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-route-that-costs-money-asks-for-the-role.test.js`
+    - the controller has routes, and each carries its metadata
+    - every writing route asks for the tenant administrator
+    - the three that cost money are actually among them
+    - reading and previewing stay open to every tenant user
+
+<!-- END proof -->
 
 ### SC-ADM-014 — An administrator identity may live in the platform's tables or the application's
 
