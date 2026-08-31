@@ -107,6 +107,38 @@ describe('classifyPlanDiff — quotas', () => {
         assert.equal(result.changes[0].direction, 'REGRESSION');
     });
 
+    test('a key that names something on Object.prototype is still read as a quota', () => {
+        // An installation names its own quotas. `constructor` is a legal key
+        // and a plain index read answers it from the prototype, so the side
+        // without it would compare a function against a number: every such
+        // addition a regression, and a function in the persisted diff.
+        const oldV = { ...base, quotas: {} };
+        const newV = { ...oldV, quotas: { constructor: 50 } };
+        const result = classifyPlanDiff(oldV, newV);
+        assert.equal(result.nonRegressive, true);
+        assert.deepEqual(result.changes, [
+            {
+                field: 'quotas.constructor',
+                oldValue: 0,
+                newValue: 50,
+                direction: 'IMPROVEMENT',
+            },
+        ]);
+    });
+
+    test('and dropping one is a regression like any other', () => {
+        const oldV = { ...base, quotas: { toString: 10 } };
+        const newV = { ...oldV, quotas: {} };
+        const result = classifyPlanDiff(oldV, newV);
+        assert.equal(result.nonRegressive, false);
+        assert.deepEqual(result.changes[0], {
+            field: 'quotas.toString',
+            oldValue: 10,
+            newValue: 0,
+            direction: 'REGRESSION',
+        });
+    });
+
     test('a finite number replaced by unlimited → IMPROVEMENT', () => {
         const oldV = { ...base, quotas: { notesMax: 10_000 } };
         const newV = { ...oldV, quotas: { notesMax: -1 } };

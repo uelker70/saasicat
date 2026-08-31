@@ -1255,6 +1255,8 @@ _Tested by:_
         - a quota the successor drops counts as 0 → REGRESSION
         - a quota the successor adds counts from 0 → IMPROVEMENT
         - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
         - a finite number replaced by unlimited → IMPROVEMENT
 - `packages/nest/tests/version-publish.test.js`
     - assertDraftPublishable
@@ -1293,6 +1295,8 @@ _Tested by:_
         - a quota the successor drops counts as 0 → REGRESSION
         - a quota the successor adds counts from 0 → IMPROVEMENT
         - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
         - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->
@@ -1324,6 +1328,8 @@ _Tested by:_
         - a quota the successor drops counts as 0 → REGRESSION
         - a quota the successor adds counts from 0 → IMPROVEMENT
         - unlimited replaced by a finite number → REGRESSION
+        - a key that names something on Object.prototype is still read as a quota
+        - and dropping one is a regression like any other
         - a finite number replaced by unlimited → IMPROVEMENT
 
 <!-- END proof -->

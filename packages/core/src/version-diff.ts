@@ -184,16 +184,25 @@ function buildResult(changes: VersionChange[]): DiffResult {
  * `-1` (unlimited) beats any finite number in both directions; otherwise
  * higher is better. A key missing from one side counts as 0, which is what
  * makes dropping a quota a regression rather than a change nobody sees.
+ *
+ * "Missing" means the record does not have the key itself. An installation
+ * names its own quotas, and nothing stops one being called `constructor` or
+ * `toString`: a plain index read answers those from `Object.prototype`, so the
+ * side without the quota would compare a *function* against a number — every
+ * such addition classified as a regression, and a function written into the
+ * persisted `publishedChanges`.
  */
 function appendQuotaChanges(
     out: VersionChange[],
     oldQuotas: Record<string, number>,
     newQuotas: Record<string, number>,
 ): void {
+    const at = (quotas: Record<string, number>, key: string) =>
+        Object.hasOwn(quotas, key) ? quotas[key] : 0;
     const allKeys = new Set([...Object.keys(oldQuotas), ...Object.keys(newQuotas)]);
     for (const key of allKeys) {
-        const oldValue = oldQuotas[key] ?? 0;
-        const newValue = newQuotas[key] ?? 0;
+        const oldValue = at(oldQuotas, key);
+        const newValue = at(newQuotas, key);
         if (oldValue === newValue) continue;
         const direction = directionFromQuotaCmp(oldValue, newValue);
         out.push({ field: `quotas.${key}`, oldValue, newValue, direction });

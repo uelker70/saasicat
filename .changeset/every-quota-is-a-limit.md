@@ -15,6 +15,11 @@ ones the platform happened to have heard of. Add-on versions were already
 compared on every quota they carry; plans now use the same comparison, `-1`
 (unlimited) included. `SC-PLAN-025` moves from decided to delivered.
 
+A quota key is compared by own-property lookup, so an installation may name one
+`constructor` or `toString` without the side that lacks it answering from
+`Object.prototype`. Add-on version diffs, which already used this comparison,
+gain the same correction.
+
 **Breaking.** `PlanVersionFields` now takes `quotas: Record<QuotaKey, number>`
 in place of the three flat fields, and a quota change is reported as
 `quotas.<key>` rather than `maxUsers`. Anything reading a `VersionChange.field`
