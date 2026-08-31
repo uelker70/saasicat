@@ -65,7 +65,7 @@ _Source:_ `docs/explanation/capability-to-contract.md` · `README.md`
 
 ### SC-ENTL-005 — A request for something the contract does not include is refused
 
-🟢 And the refusal may carry what would unlock it, so the tenant is told how to proceed rather than
+🟢 🔒 And the refusal may carry what would unlock it, so the tenant is told how to proceed rather than
 only that they may not. Where several features would each admit the request, having any one of
 them is enough.
 
@@ -113,7 +113,7 @@ _Tested by:_
 
 ### SC-ENTL-007 — Two simultaneous requests cannot both take the last remaining unit of a limit
 
-🟢 Counting and then writing happens as one indivisible step per tenant; otherwise two requests that
+🟢 🔒 Counting and then writing happens as one indivisible step per tenant; otherwise two requests that
 each fit both go through and the limit an operator sold is not the limit that applies.
 
 _Source:_ `docs/explanation/data-model.md` · `docs/reference/options.md`
@@ -171,7 +171,7 @@ _Tested by:_
 
 ### SC-ENTL-012 — A cancellation that has taken effect grants nothing
 
-🟢 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier was
+🟢 🔒 No features, no limits. Until this rule existed, a subscription cancelled eight months earlier was
 granted exactly what it was granted while active.
 
 _Source:_ #219 · `docs/guides/upgrade-to-1.0.md`
@@ -323,7 +323,7 @@ _Tested by:_
 
 ### SC-ENTL-019 — A platform administrator is not blocked by a tenant's entitlements
 
-🟢 Support can act on a tenant's behalf without the tenant having bought the feature being used.
+🟢 🔒 Support can act on a tenant's behalf without the tenant having bought the feature being used.
 
 _Source:_ release 1.0.0-rc.6
 
@@ -343,7 +343,7 @@ _Tested by:_
 
 ### SC-ENTL-020 — Hiding a control is not protection
 
-🟢 The interface hides what the backend would refuse; the refusal is what protects it. A tenant who
+🟢 🔒 The interface hides what the backend would refuse; the refusal is what protects it. A tenant who
 constructs the request by hand gets the same answer.
 
 _Source:_ `docs/guides/build-the-admin-frontend.md`

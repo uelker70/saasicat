@@ -114,6 +114,54 @@ describe('the requirements document is generated, not maintained', () => {
     });
 });
 
+describe('what a breach costs is marked where it is more than ordinary', () => {
+    // Three values and not five: a scale nobody can apply is a scale everybody
+    // applies differently. Money and law are one bucket because both are
+    // somebody's real loss; tenant separation and access are the other. An
+    // entry without a mark is not unassessed, it is ordinary — marking every
+    // entry would say nothing, the same way marking none did.
+
+    test('a risk opens the promise, behind the state', () => {
+        const [entry] = parse(
+            '### SC-A-001 — T\n\n🟢 💰 Money is at stake.\n\n_Source:_ #1',
+        ).entries;
+        assert.equal(entry.risk, '💰');
+        assert.equal(entry.text, 'Money is at stake.');
+    });
+
+    test('and behind the delivery marker where that opens it', () => {
+        // A pending entry opens with its own marker, so the risk sits behind
+        // that rather than in front of it — reading them the other way round
+        // left the mark in the promise and the checker calling it unknown.
+        const [entry] = parse(
+            '### SC-A-001 — T\n\n🟡 _(Decided, not yet delivered.)_ 💰 Later.\n\n_Source:_ #1',
+        ).entries;
+        assert.equal(entry.risk, '💰');
+        assert.equal(entry.text, 'Later.');
+    });
+
+    test('an entry without one is ordinary, not unmarked', () => {
+        const [plain] = parse('### SC-A-001 — T\n\n🟢 Prose.\n\n_Source:_ #1').entries;
+        assert.equal(plain.risk, undefined);
+        assert.deepEqual(check(catalogueOf([['01_a', `${head()}\n${entry('SC-A-001')}`]])), []);
+    });
+
+    test('a mark that is neither a state nor a risk is refused', () => {
+        // Same failure as the near-miss state: it reads as meaning something
+        // and the parser read past it, so the entry carries a claim nothing
+        // understood.
+        const problems = check(
+            catalogueOf([
+                ['01_a', `${head()}\n### SC-A-001 — Title\n\n🟢 ⚠️ Prose.\n\n_Source:_ #1`],
+            ]),
+        );
+        assert.ok(
+            problems.some((problem) => problem.includes('neither a state nor a risk')),
+            JSON.stringify(problems),
+        );
+    });
+});
+
 describe('the tests an entry names are written under it', () => {
     // At the requirement, because that is where the question is asked. A
     // command printing the same list answers it somewhere else, and somewhere

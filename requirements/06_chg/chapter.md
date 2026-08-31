@@ -16,7 +16,7 @@ _Source:_ #212 · release 1.0.0-rc.6
 
 ### SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
 
-🟢 Everything else waits for the term to end, which is where a shorter period may legitimately begin.
+🟢 💰 Everything else waits for the term to end, which is where a shorter period may legitimately begin.
 
 _Source:_ #212
 
@@ -33,7 +33,7 @@ _Tested by:_
 
 ### SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 
-🟢 The customer keeps the period they already paid for, the higher plan runs inside it, and only the
+🟢 💰 The customer keeps the period they already paid for, the higher plan runs inside it, and only the
 difference is charged for what is left of it. So an immediate upgrade never lengthens the
 commitment.
 
@@ -73,7 +73,7 @@ _Tested by:_
 
 ### SC-CHG-005 — A downgrade takes effect at the end of the term
 
-🟢 Never immediately.
+🟢 💰 Never immediately.
 
 _Source:_ #212
 
@@ -90,7 +90,7 @@ _Tested by:_
 
 ### SC-CHG-006 — A deferred change lands at the later of the period end and the commitment
 
-🟢 A commitment that outlasts the period is what a notice period produces, and a change landing at
+🟢 💰 A commitment that outlasts the period is what a notice period produces, and a change landing at
 the period end would take effect inside it.
 
 _Source:_ #212 · release 1.0.0-rc.6
@@ -138,7 +138,7 @@ _Tested by:_
 
 ### SC-CHG-009 — The date the tenant was shown is the date the change is made on
 
-🟢 A confirmation quoting a date that has moved since it was shown is refused rather than silently
+🟢 💰 A confirmation quoting a date that has moved since it was shown is refused rather than silently
 applied. A wrong date here is a year of somebody's money, and the page can ask again in a second.
 
 _Source:_ #212

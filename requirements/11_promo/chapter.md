@@ -65,21 +65,21 @@ _Source:_ `docs/reference/error-codes.md`
 
 ### SC-PROMO-010 — A code is for first-time customers unless the operator says otherwise
 
-🟢 That is the default, because it is the common case and the expensive mistake is the other way
+🟢 💰 That is the default, because it is the common case and the expensive mistake is the other way
 round.
 
 _Source:_ release 1.0.0-rc.7
 
 ### SC-PROMO-011 — Redeeming a code applies the discount and records the redemption, or does neither
 
-🟢 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they never
+🟢 💰 Half-applying it leaves a customer with a discount nobody recorded, or a record of one they never
 received.
 
 _Source:_ `docs/reference/options.md`
 
 ### SC-PROMO-012 — A code only applies to a subscription belonging to the person redeeming it
 
-🟢
+🟢 💰
 
 _Source:_ `docs/reference/error-codes.md`
 

@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { format, resolveConfig } from 'prettier';
 
-import { parseChapter, readCatalogue } from './parse.mjs';
+import { parseChapter, readCatalogue, RISKS } from './parse.mjs';
 import { scanTests, unproven, withTitles } from './proof.mjs';
 import { render, withChapterTable, withProofs } from './render.mjs';
 import { check } from './check.mjs';
@@ -108,13 +108,14 @@ export async function renderCatalogue(root = ROOT) {
  * It is a measurement, not a target. The ratchet in `guard.mjs` is what keeps
  * it from falling; a percentage nobody can fail is a percentage nobody reads.
  */
-export function coverage(rows) {
-    const owed = rows.filter((row) => row.proof !== 'not owed');
+export function coverage(rows, risk) {
+    const of = risk ? rows.filter((row) => row.risk === risk) : rows;
+    const owed = of.filter((row) => row.proof !== 'not owed');
     const proved = owed.filter((row) => row.proof === 'proved');
     return {
         proved: proved.length,
         owed: owed.length,
-        exempt: rows.length - owed.length,
+        exempt: of.length - owed.length,
         percent: owed.length ? Math.round((proved.length / owed.length) * 1000) / 10 : 0,
     };
 }
@@ -127,6 +128,7 @@ export function listing(root) {
         id: entry.id,
         state: entry.status === 'current' && !entry.delivered ? 'pending' : entry.status,
         proof: named.has(entry.id) ? 'proved' : owed.has(entry.id) ? 'owed' : 'not owed',
+        risk: entry.risk,
         tests: named.get(entry.id) ?? [],
         cases: named.cases?.get(entry.id) ?? [],
         title: entry.title,
@@ -159,6 +161,17 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             `\n${seen.proved} of ${seen.owed} standing promises are named by a test ` +
                 `(${seen.percent}%), and ${seen.exempt} are owed no proof yet\n`,
         );
+        // By what a breach costs, because that is what decides which gap to
+        // close first. A single number says how much is covered and nothing
+        // about whether the covered part is the part that matters.
+        for (const [name, mark] of Object.entries(RISKS)) {
+            const at = coverage(rows, mark);
+            if (at.owed === 0) continue;
+            process.stdout.write(
+                `  ${mark} ${name}: ${at.proved} of ${at.owed} (${at.percent}%), ` +
+                    `${at.owed - at.proved} unproven\n`,
+            );
+        }
         process.exit(0);
     }
 

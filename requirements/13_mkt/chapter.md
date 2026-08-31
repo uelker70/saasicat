@@ -101,7 +101,7 @@ _Source:_ release 1.0.0-rc.6
 
 ### SC-MKT-013 — What a customer selected is frozen into an offer before it becomes a contract
 
-🟢 With an expiry date that runs to the end of its last day. What they saw is what they buy.
+🟢 💰 With an expiry date that runs to the end of its last day. What they saw is what they buy.
 
 _Source:_ `docs/explanation/concepts.md`
 
@@ -175,13 +175,13 @@ _Tested by:_
 
 ### SC-MKT-016 — An offer cannot be turned into a contract if part of it is no longer on sale
 
-🟢 Every add-on in it has to still be bookable at the moment of purchase.
+🟢 💰 Every add-on in it has to still be bookable at the moment of purchase.
 
 _Source:_ `docs/reference/error-codes.md`
 
 ### SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 
-🟢 Every selected item carries its own frozen line, so what was agreed is legible item by item.
+🟢 💰 Every selected item carries its own frozen line, so what was agreed is legible item by item.
 
 _Source:_ `docs/reference/error-codes.md`
 
@@ -207,7 +207,7 @@ _Tested by:_
 
 ### SC-MKT-018 — A contract has exactly one plan line and at least one line in total
 
-🟢 And it cannot end before it starts.
+🟢 💰 And it cannot end before it starts.
 
 _Source:_ `docs/reference/error-codes.md`
 

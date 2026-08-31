@@ -113,7 +113,7 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-PLAN-005 — A version somebody has already bought cannot be edited
 
-🟢 Only a draft can be changed, or a published version that is the newest of its line, has nobody on
+🟢 💰 Only a draft can be changed, or a published version that is the newest of its line, has nobody on
 it, and does not start until some day in the future.
 
 _Source:_ `docs/reference/error-codes.md`
@@ -187,7 +187,7 @@ _Source:_ current practice
 
 ### SC-PLAN-008 — A price of exactly zero has to be meant
 
-🟢 Publishing a plan version priced at zero is refused unless the operator says explicitly that it is
+🟢 💰 Publishing a plan version priced at zero is refused unless the operator says explicitly that it is
 deliberate. An accidental batch publish at 0.00 once set every tariff to free.
 
 _Source:_ `docs/reference/error-codes.md`
@@ -292,7 +292,7 @@ _Source:_ `docs/explanation/concepts.md`
 
 ### SC-PLAN-018 — The version that applies is the one valid on the day of the purchase
 
-🟢 Not the newest one, and not the one the pricing page happened to be showing.
+🟢 💰 Not the newest one, and not the one the pricing page happened to be showing.
 
 _Source:_ `docs/reference/error-codes.md`
 

@@ -94,7 +94,7 @@ _Tested by:_
 
 ### SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
 
-🟢 It runs from the booking to the next occurrence of the plan's billing day and is charged pro rata.
+🟢 💰 It runs from the booking to the next occurrence of the plan's billing day and is charged pro rata.
 The fraction is taken against a whole cycle of the add-on's own rhythm, so a monthly add-on on a
 yearly plan is not charged a fraction of a year at a monthly price.
 
@@ -178,7 +178,7 @@ _Tested by:_
 
 ### SC-BUN-006 — The price an add-on is advertised at is the price it is booked at
 
-🟢 Including its unit. A card saying "per month" beside a yearly plan is the figure a tenant compares
+🟢 💰 Including its unit. A card saying "per month" beside a yearly plan is the figure a tenant compares
 add-ons by, and comparing by the wrong one is a decision made on wrong information even when the
 confirmation later shows the right amount.
 
@@ -532,14 +532,14 @@ _Tested by:_
 
 ### SC-BUN-018 — A yearly price is never derived from a monthly one
 
-🟢 Multiplying by twelve invents a price nobody set. If a yearly price were always twelve monthly
+🟢 💰 Multiplying by twelve invents a price nobody set. If a yearly price were always twelve monthly
 ones, there would be no reason to have two figures.
 
 _Source:_ #222
 
 ### SC-BUN-019 — What an add-on costs depends on the plan beside it and the rhythm it is billed in
 
-🟢 Not on the add-on alone. An operator may price the same add-on differently for one plan, or give
+🟢 💰 Not on the add-on alone. An operator may price the same add-on differently for one plan, or give
 it its only price there.
 
 _Source:_ #234
@@ -886,7 +886,7 @@ _Tested by:_
 
 ### SC-BUN-030 — An add-on price of exactly zero has to be meant
 
-🟢 A deliberately free add-on leaves its price unset. An explicit zero is refused unless the operator
+🟢 💰 A deliberately free add-on leaves its price unset. An explicit zero is refused unless the operator
 says it is intended, for the same reason it is on a plan.
 
 _Source:_ `docs/reference/error-codes.md`

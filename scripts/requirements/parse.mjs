@@ -119,6 +119,23 @@ export const DRAFT = /^(?:([⚪🔵🔴🟡])\s+)?_\(Draft\s+since\s+(\d{4}-\d{2
  * the heading and have nothing under it but this.
  */
 export const CURRENT = /^(🟢)(?:\s+|$)/u;
+
+/**
+ * What a breach of this promise costs, where it costs more than the ordinary.
+ *
+ * Three values and not five, because a scale nobody can apply is a scale
+ * everybody applies differently. Money and law are one bucket: both are
+ * somebody's real loss and both are argued in the same room. Tenant separation
+ * and access are the other. Everything else carries no mark, which is the
+ * common case and should stay quiet.
+ *
+ * It is optional and it is not the state — an entry without one is not
+ * unassessed, it is ordinary. Marking every entry would say nothing, the same
+ * way marking none did.
+ */
+export const RISKS = { money: '💰', tenancy: '🔒' };
+
+export const RISK = /^([💰🔒])\s+/u;
 export const NOT_DELIVERED = '_(Decided, not yet delivered.)_';
 // Every gap is `\s`, not a space. These files are wrapped by hand at a hundred
 // columns, and two committed entries wrap this marker across the break — so
@@ -280,6 +297,12 @@ function finishEntry(entry) {
     const pending = PENDING.exec(text);
     if (pending) text = text.replace(PENDING, '').trim();
 
+    // After whatever opened the entry — a state or the delivery marker — and
+    // before the promise. Read last because a pending entry opens with its own
+    // marker, and the risk sits behind that rather than in front of it.
+    const risk = RISK.exec(text);
+    if (risk) text = text.slice(risk[0].length);
+
     return {
         ...entry,
         lines,
@@ -288,6 +311,7 @@ function finishEntry(entry) {
         text,
         status,
         opensWith,
+        risk: risk?.[1],
         icon,
         pendingIcon: pending?.[1],
         supersededBy,

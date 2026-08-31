@@ -38,6 +38,17 @@ A state carries a date because the risk each one runs is time. A draft opened a 
 decided reads exactly like one opened last week, and only one of the two is still somebody's
 intention.
 
+Behind the state, an entry may say what a breach of it would cost:
+
+| Mark | What it costs                                        |
+| ---- | ---------------------------------------------------- |
+| 💰   | Money or law — wrong amounts, wrong dates, wrong tax |
+| 🔒   | Tenant separation, access, or somebody's data        |
+
+Most entries carry neither, which is the ordinary case and stays quiet. Three values rather than
+five, because a scale nobody can apply is a scale everybody applies differently — and an entry
+without a mark is not unassessed, it is ordinary.
+
 Beside its state, an entry that stands may say it is not true yet:
 
 - `🟡 _(Decided, not yet delivered.)_` — the decision is settled and recorded, the implementation is

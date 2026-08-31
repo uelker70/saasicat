@@ -27,7 +27,7 @@ _Tested by:_
 
 ### SC-CANC-002 — A cancellation takes effect at the later of the period end and the commitment
 
-🟢 They coincide unless a notice period has pushed one past the other.
+🟢 💰 They coincide unless a notice period has pushed one past the other.
 
 _Source:_ #212
 
@@ -83,7 +83,7 @@ _Tested by:_
 
 ### SC-CANC-005 — There is no notice period until an installation names one
 
-🟢 Every installation states both numbers in `config/saas.yaml`, and one that states neither does not
+🟢 💰 Every installation states both numbers in `config/saas.yaml`, and one that states neither does not
 start. Zero is what most should write: a cancellation declared on the last day of a period then
 still takes effect at the end of that period, which is the reading a customer expects and the one
 that generates no disputes. It is written down rather than defaulted, because a notice period is a
@@ -104,7 +104,7 @@ _Tested by:_
 
 ### SC-CANC-006 — A notice period belongs to a rhythm, not to an installation
 
-🟢 One number could not be right for both. A fortnight of notice on a yearly contract is unusual;
+🟢 💰 One number could not be right for both. A fortnight of notice on a yearly contract is unusual;
 three months on a monthly one is void against a consumer in Germany. Each rhythm is configured
 separately, and neither inherits the other — inferring one from the other would be inventing a
 term. A configuration naming only one of them is therefore refused rather than read as zero for
@@ -127,7 +127,7 @@ _Tested by:_
 
 ### SC-CANC-007 — The rhythm that decides the notice is the subscription's, not the plan's
 
-🟢 A customer on a yearly subscription is owed the yearly notice, even where the same plan is also
+🟢 💰 A customer on a yearly subscription is owed the yearly notice, even where the same plan is also
 sold monthly.
 
 _Source:_ `docs/guides/upgrade-to-1.0.md`
@@ -164,7 +164,7 @@ _Tested by:_
 
 ### SC-CANC-009 — A missed notice deadline moves the cancellation to the end of the next period
 
-🟢 A hard cut, not a grace period. It costs a customer real money, which is why the period a
+🟢 💰 A hard cut, not a grace period. It costs a customer real money, which is why the period a
 cancellation lands in has to be stated before they confirm it.
 
 _Source:_ #212
@@ -200,7 +200,7 @@ _Tested by:_
 
 ### SC-CANC-010 — A cancellation lands on the first period end that actually serves the notice
 
-🟢 However long the notice is. Advancing by exactly one period gave a customer between 31 and 60 days
+🟢 💰 However long the notice is. Advancing by exactly one period gave a customer between 31 and 60 days
 of a 60-day notice depending on which day they happened to declare — the operator promised sixty
 and the customer received thirty-one. A misconfiguration should cost the customer a longer wait,
 not cost the operator a promise the software cannot keep.
@@ -231,7 +231,7 @@ _Tested by:_
 
 ### SC-CANC-011 — A late cancellation extends the recorded commitment to the period it bought
 
-🟢 Every other reader of the term end looks at the commitment, so a downgrade scheduled meanwhile
+🟢 💰 Every other reader of the term end looks at the commitment, so a downgrade scheduled meanwhile
 would otherwise land inside the period the customer had just paid for.
 
 _Source:_ release 1.0.0-rc.6

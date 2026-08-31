@@ -45,6 +45,9 @@ const STATES = new Set(['draft', 'current', 'superseded', 'withdrawn']);
 // silently ignored.
 const NEARLY_A_STATE = /^(?:\p{Extended_Pictographic}\uFE0F?\s*)?_\(/u;
 
+/** A pictograph opening the promise that no marker consumed. */
+const NEARLY_A_MARK = /^\p{Extended_Pictographic}\uFE0F?\s/u;
+
 /**
  * A state word inside an entry that has already given up its markers.
  *
@@ -272,6 +275,13 @@ function checkState(entry, say) {
             `'${entry.id}' opens with ${entry.opensWith ?? 'no state'} and is ${reads}, ` +
                 `which opens with ${expected}`,
         );
+    }
+
+    // A mark before the promise that is neither a state nor a risk. Same
+    // failure as the near-miss state: it reads as meaning something and the
+    // parser read past it, so the entry carries a claim nothing understood.
+    if (NEARLY_A_MARK.test(entry.text)) {
+        say(where, `'${entry.id}' opens with a mark that is neither a state nor a risk`);
     }
 
     // A state marker that nearly matches is the dangerous one. `_(Draft.)_`

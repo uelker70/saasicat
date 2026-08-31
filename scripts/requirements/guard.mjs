@@ -130,6 +130,8 @@ export const NOT_A_PROMISE = [
     'icon',
     'pendingIcon',
     'opensWith',
+    // What a breach costs is a judgement about the promise, not the promise.
+    'risk',
     // Read out of `text`, so already covered by comparing it.
     'references',
 ];

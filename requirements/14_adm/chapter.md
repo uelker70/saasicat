@@ -8,7 +8,7 @@ second factor, and the roles that separate a tenant's administrator from a platf
 
 ### SC-ADM-001 — Only a platform administrator reaches the administration surface
 
-🟢
+🟢 🔒
 
 _Source:_ `docs/reference/error-codes.md`
 
@@ -28,7 +28,7 @@ _Tested by:_
 
 ### SC-ADM-002 — A tenant-facing endpoint with no access rules configured refuses, it does not open
 
-🟢 Failing loudly is the only safe reading; waving requests through would be silent.
+🟢 🔒 Failing loudly is the only safe reading; waving requests through would be silent.
 
 _Source:_ release 1.0.0-rc.7
 
@@ -48,7 +48,7 @@ _Tested by:_
 
 ### SC-ADM-003 — The administration requires a second factor
 
-🟢 A one-time code alongside the sign-in. A code that cannot be checked — malformed, or a stored
+🟢 🔒 A one-time code alongside the sign-in. A code that cannot be checked — malformed, or a stored
 secret that is unreadable — is treated as wrong, and the underlying cause is recorded so it can be
 diagnosed rather than leaving somebody staring at "code invalid".
 
@@ -62,7 +62,7 @@ _Source:_ `SECURITY.md`
 
 ### SC-ADM-005 — Actions with lasting consequences need the second factor and an explicit confirmation
 
-🟢 Suspending or reactivating a tenant, acting as a tenant, exporting their data, cancelling their
+🟢 🔒 Suspending or reactivating a tenant, acting as a tenant, exporting their data, cancelling their
 subscription, and granting or withdrawing a pilot. The most serious of them ask the operator to
 type the tenant's name.
 
@@ -111,14 +111,14 @@ _Source:_ release 1.0.0-rc.4
 
 ### SC-ADM-012 — Test-only bypasses are ignored in production
 
-🟢 The switches that skip the second factor and the rate limits exist for continuous integration and
+🟢 🔒 The switches that skip the second factor and the rate limits exist for continuous integration and
 are honoured only outside production. An integrator cannot add their own.
 
 _Source:_ `SECURITY.md`
 
 ### SC-ADM-013 — A tenant-facing action that costs money requires the tenant's own administrator
 
-🟢 Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant
+🟢 🔒 Changing a plan, booking an add-on and cancelling are not things any signed-in user of a tenant
 may do. Reading stays open to everyone who is signed in.
 
 _Source:_ #212
