@@ -240,10 +240,36 @@ _Source:_ #105
 
 ### SC-PRIC-015 — An amount records the currency it was booked in
 
-🟡 _(Decided, not yet delivered.)_ 💰 Even though only one is configured at a time. The record is not
-for selling in two currencies; it is so that a row written in 2026 still means what it meant.
+🟢 💰 Even though only one is configured at a time. The record is not for selling in two currencies;
+it is so that a row written in 2026 still means what it meant.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a line item row becomes a line item record
+        - the currency and the tax come back as the row recorded them
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what a frozen line records about its money
+        - every line names the currency and the rate the installation applies
+        - and the tax it names closes the gap between its own net and gross
+        - a rate of zero is recorded as zero, not left to be read as absent
+        - a currency other than the euro is the one that is recorded
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - a rate the offer states as a fraction is recorded in per cent
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+
+<!-- END proof -->
 
 ### SC-PRIC-016 — A tax rate has a validity window
 
@@ -255,6 +281,13 @@ _Source:_ #217 · #214
 
 _Tested by:_
 
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - a rate the offer states as a fraction is recorded in per cent
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
 - `packages/nest/tests/validity-window.test.js`
     - the window a version is refused for
         - no start at all
@@ -271,11 +304,45 @@ _Tested by:_
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 
-🟡 _(Decided, not yet delivered.)_ 💰 Storing net and gross leaves the rate living in the ratio
-between them, and a ratio cannot be reproduced for a rounded gross, cannot express an exempt or
-reverse-charge line, and does not survive a rate change.
+🟢 💰 Storing net and gross leaves the rate living in the ratio between them, and a ratio cannot be
+reproduced for a rounded gross, cannot express an exempt or reverse-charge line, and does not
+survive a rate change.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a line item row becomes a line item record
+        - the currency and the tax come back as the row recorded them
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what a frozen line records about its money
+        - every line names the currency and the rate the installation applies
+        - and the tax it names closes the gap between its own net and gross
+        - a rate of zero is recorded as zero, not left to be read as absent
+        - a currency other than the euro is the one that is recorded
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - a rate the offer states as a fraction is recorded in per cent
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
+    - reading the unit an offer states its VAT rate in
+        - a fraction beside totals that agree with it becomes a percentage
+        - a percentage beside totals that agree with it is left as it is
+        - zero is zero under either reading
+        - totals that prove nothing fall to the unit this platform produces
+        - a total of nothing is still read as the fraction it is
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+        - a rate no reading brings inside 0-100 stops the migration and is named
+        - a free plan frozen from the catalogue keeps its rate as it stands
+
+<!-- END proof -->
 
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 

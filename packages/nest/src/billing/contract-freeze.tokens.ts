@@ -7,7 +7,9 @@
 // is generic; only the bundle/plan-version data access
 // (`ContractFreezeSourcePort`) is consumer-specific.
 
-import type { BillingCycle, NewContractLineItemData } from '@saasicat/core';
+import type { BillingCycle } from '@saasicat/core';
+
+import type { PricedContractLineItem } from '../subscription-contract/contract-line-item-money.js';
 
 /**
  * Optional hook token: the platform `changePlan` path + the
@@ -63,7 +65,13 @@ export interface ContractFreezePort {
 
 /** Frozen bundle line items + their version ids (trace). */
 export interface ContractFreezeBundleSnapshot {
-    lineItems: NewContractLineItemData[];
+    /**
+     * Priced, but without the currency and tax rate — the platform records
+     * those from the catalogue, so a source never restates a setting it does
+     * not own. `vatRate` is still passed in below because the source needs it
+     * to price the gross.
+     */
+    lineItems: PricedContractLineItem[];
     bundleVersionIds: string[];
 }
 

@@ -28,6 +28,7 @@ const CATALOG = {
 function makeService({
     previousContract = null,
     bundles = { lineItems: [], bundleVersionIds: [] },
+    catalog = CATALOG,
 } = {}) {
     const calls = { terminated: [], created: [], invalidated: 0 };
     const entitlements = {
@@ -62,7 +63,7 @@ function makeService({
             return bundles;
         },
     };
-    const service = new SubscriptionContractFreezeService(CATALOG, entitlements, contracts, source);
+    const service = new SubscriptionContractFreezeService(catalog, entitlements, contracts, source);
     return { calls, service };
 }
 
@@ -218,5 +219,85 @@ describe('a yearly contract holding a monthly add-on', () => {
             new Date('2026-06-09T00:00:00.000Z'),
         );
         assert.equal(calls.created[0].priceSnapshot.totalNet, 59);
+    });
+});
+
+// The money facts a bookkeeping record needs, and where they come from.
+//
+// The source port prices what it sells; the currency and the rate belong to the
+// installation, so the platform records them. Asked of both kinds of line,
+// because a stamping that reaches only the one the platform builds itself is
+// the shape this would fail in.
+
+// @requirement SC-PRIC-015 — An amount records the currency it was booked in
+// @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+describe('what a frozen line records about its money', () => {
+    const addOn = {
+        kind: 'bundle',
+        sourceKey: 'SPORT',
+        sourceVersionId: 'bv-1',
+        titleSnapshot: 'Sportplatz',
+        descriptionSnapshot: null,
+        quantity: 1,
+        unit: null,
+        priceNet: 20,
+        priceGross: 23.8,
+        billingCycle: 'monthly',
+        minimumTermUntil: null,
+        featuresSnapshot: [],
+        quotaEffectsSnapshot: {},
+        metadata: null,
+    };
+
+    async function freeze(options) {
+        const { calls, service } = makeService(options);
+        await service.freezeOnPlanChange(
+            't1',
+            'STANDARD',
+            'MONTHLY',
+            new Date('2026-06-09T00:00:00.000Z'),
+        );
+        return calls.created[0];
+    }
+
+    test('every line names the currency and the rate the installation applies', async () => {
+        const contract = await freeze({
+            bundles: { lineItems: [addOn], bundleVersionIds: ['bv-1'] },
+        });
+        assert.equal(contract.lineItems.length, 2);
+        for (const line of contract.lineItems) {
+            assert.equal(line.currency, 'EUR', `${line.kind} line lost its currency`);
+            assert.equal(line.taxRate, 19, `${line.kind} line lost its rate`);
+        }
+    });
+
+    test('and the tax it names closes the gap between its own net and gross', async () => {
+        const contract = await freeze({
+            bundles: { lineItems: [addOn], bundleVersionIds: ['bv-1'] },
+        });
+        assert.equal(contract.lineItems[0].taxAmount, 9.31); // 58.31 − 49
+        assert.equal(contract.lineItems[1].taxAmount, 3.8); //  23.80 − 20
+        for (const line of contract.lineItems) {
+            assert.equal(Math.round((line.priceNet + line.taxAmount) * 100) / 100, line.priceGross);
+        }
+    });
+
+    test('a rate of zero is recorded as zero, not left to be read as absent', async () => {
+        // An installation that charges no VAT is not one whose lines forgot to
+        // say so. Zero is a fact about the line, and a reader that has to tell
+        // "no tax" from "nobody wrote it" has to guess.
+        const contract = await freeze({ catalog: { ...CATALOG, vatRate: 0 } });
+        const [planLine] = contract.lineItems;
+        assert.equal(planLine.taxRate, 0);
+        assert.equal(planLine.taxAmount, 0);
+        assert.equal(planLine.priceGross, planLine.priceNet);
+    });
+
+    test('a currency other than the euro is the one that is recorded', async () => {
+        // The value comes from the catalogue rather than a default anywhere in
+        // the path — which every case above would pass over, EUR being what
+        // this fixture already configures.
+        const contract = await freeze({ catalog: { ...CATALOG, currency: 'CHF' } });
+        assert.equal(contract.lineItems[0].currency, 'CHF');
     });
 });

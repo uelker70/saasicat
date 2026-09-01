@@ -55,6 +55,9 @@ export interface CanonicalContractLineItemRow {
     priceNet: unknown;
     priceGross: unknown;
     billingCycle: string;
+    currency: string;
+    taxRate: unknown;
+    taxAmount: unknown;
     minimumTermUntil: Date | null;
     featuresSnapshot: unknown;
     quotaEffectsSnapshot: unknown;
@@ -104,6 +107,9 @@ export function toContractLineItemRecord(
         priceNet: Number(row.priceNet),
         priceGross: Number(row.priceGross),
         billingCycle: row.billingCycle as 'monthly' | 'yearly',
+        currency: row.currency,
+        taxRate: Number(row.taxRate),
+        taxAmount: Number(row.taxAmount),
         minimumTermUntil: row.minimumTermUntil,
         featuresSnapshot: toStringArray(row.featuresSnapshot),
         quotaEffectsSnapshot: toQuotaEffects(row.quotaEffectsSnapshot),

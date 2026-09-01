@@ -20,6 +20,12 @@ import type {
 } from '@saasicat/core';
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
+import { round2 } from '../promo/math.js';
+import {
+    type PricedContractLineItem,
+    recordLineItemMoney,
+    vatPercentFromOfferRate,
+} from './contract-line-item-money.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
 import { CONTRACT_ERROR_CODES } from '@saasicat/core';
 
@@ -162,10 +168,24 @@ export class SubscriptionContractService {
             lineItems: source,
             promotionSnapshots: offer.promotionSnapshots ?? [],
             promoCodeSnapshot: offer.promoCodeSnapshot ?? null,
-        }).map((item) => this.offerLineItemToContractLineItem(item));
+        }).map((item) =>
+            // From the offer's own breakdown rather than today's catalogue: the
+            // offer froze the currency and the rate at the moment it was made,
+            // and a contract concluded at 19 % is charged 19 % for its term
+            // whatever the configured rate becomes afterwards.
+            recordLineItemMoney(
+                this.offerLineItemToContractLineItem(item),
+                offer.priceBreakdown.currency,
+                vatPercentFromOfferRate(
+                    offer.priceBreakdown.vatRate,
+                    offer.priceBreakdown.effectiveNet,
+                    offer.priceBreakdown.effectiveGross,
+                ),
+            ),
+        );
     }
 
-    private offerLineItemToContractLineItem(item: CheckoutOfferLineItem): NewContractLineItemData {
+    private offerLineItemToContractLineItem(item: CheckoutOfferLineItem): PricedContractLineItem {
         return {
             kind: item.kind,
             sourceKey: item.sourceKey,
@@ -233,6 +253,47 @@ export class SubscriptionContractService {
                 message: 'A subscription contract requires exactly one plan base item.',
             });
         }
+        // The tax a line records has to close the gap between its own net and
+        // gross. Both platform paths compute it that way, so this only ever
+        // catches a caller supplying its own line items — but a contract is
+        // append-only, so a line that disagrees with itself is a wrong number
+        // nobody can correct afterwards, and the field says in as many words
+        // that it cannot happen. An exact comparison rather than a tolerance:
+        // both amounts are already held to two places, so the gap between them
+        // is not an approximation of anything.
+        // And in the currency the contract was priced in. An installation sells
+        // in one currency, so a line in another is not a mixed-currency
+        // contract — it is a contract whose header and lines disagree, and the
+        // invoice projection would state one in its total and the other on
+        // every line. Append-only, so neither can be corrected afterwards.
+        const foreign = data.lineItems.find(
+            (item) => item.currency !== data.priceSnapshot.currency,
+        );
+        if (foreign) {
+            throw new UnprocessableEntityException({
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH,
+                message: 'A line item must be booked in the currency its contract was priced in.',
+                params: {
+                    sourceKey: foreign.sourceKey,
+                    currency: foreign.currency,
+                    expected: data.priceSnapshot.currency,
+                },
+            });
+        }
+        const contradictory = data.lineItems.find(
+            (item) => round2(item.priceGross - item.priceNet) !== round2(item.taxAmount),
+        );
+        if (contradictory) {
+            throw new UnprocessableEntityException({
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH,
+                message: "A line item's taxAmount must be exactly priceGross minus priceNet.",
+                params: {
+                    sourceKey: contradictory.sourceKey,
+                    taxAmount: contradictory.taxAmount,
+                    expected: round2(contradictory.priceGross - contradictory.priceNet),
+                },
+            });
+        }
     }
 
     private assertTerminable(
@@ -290,6 +351,9 @@ export function contractLineItemToInvoiceLineItem(
         priceNet: item.priceNet,
         priceGross: item.priceGross,
         billingCycle: item.billingCycle,
+        currency: item.currency,
+        taxRate: item.taxRate,
+        taxAmount: item.taxAmount,
         minimumTermUntil: item.minimumTermUntil,
         metadata: item.metadata,
     };

@@ -40,7 +40,11 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 - Primary keys: UUID strings.
 - Soft delete via `deletedAt` where history must survive (plans, bundles,
   promo codes, catalog entries); hard delete only for drafts.
-- Money: `Decimal(10,2)`; promo values `Decimal(8,2)`. Never floats.
+- Money: `Decimal(10,2)`; promo values `Decimal(8,2)`; tax rates `Decimal(5,2)`.
+  Never floats. An amount that was booked records the currency and the tax
+  rate beside it rather than borrowing today's configuration — an
+  installation sells in one currency at a time, and changing it is a
+  migration precisely because it must not relabel history.
 - Plan/feature/quota keys are **strings**, not DB enums; their catalog lives
   in `plans`/`feature_catalog_entries` + code decorators (`@DefinesQuota`).
 - FKs to the consumer's `Tenant`/`User` models stay consumer-owned (the
@@ -56,7 +60,7 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 | `Subscription` (`subscriptions`)              | one per tenant (`tenantId` unique) | Binds a live `PlanVersion`. Carries pending plan/version change fields, trial/pilot state, custom limits, frozen `packageSnapshot`.                                                                      |
 | `SubscriptionPaymentMethod`                   | 1:1 subscription                   | Masked payment data only.                                                                                                                                                                                |
 | `CheckoutOffer` (`checkout_offers`)           | global, no RLS                     | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`.                                                                                     |
-| `SubscriptionContract` + `ContractLineItem`   | append-only                        | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten.                                                                                     |
+| `SubscriptionContract` + `ContractLineItem`   | append-only                        | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten. Each line records its own `currency`, `taxRate` and `taxAmount`.                    |
 | `SubscriptionBundle` (`subscription_bundles`) | booking identity                   | Pins a standalone add-on booking to one concrete `BundleVersion`; runs its own billing window, aligned so its periods end on the day the plan's do; cancellation becomes effective at its stored cutoff. |
 
 ### Catalog & versioning

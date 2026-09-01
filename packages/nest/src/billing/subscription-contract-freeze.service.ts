@@ -1,9 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type {
-    BillingCycle,
-    CreateSubscriptionContractData,
-    NewContractLineItemData,
-} from '@saasicat/core';
+import type { BillingCycle, CreateSubscriptionContractData } from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -16,6 +12,11 @@ import {
     type ContractFreezePort,
     type ContractFreezeSourcePort,
 } from './contract-freeze.tokens.js';
+import {
+    type PricedContractLineItem,
+    recordLineItemMoney,
+} from '../subscription-contract/contract-line-item-money.js';
+import { grossFromNet, round2 } from '../promo/math.js';
 
 // SubscriptionContractFreezeService (#18) — on a plan change, freezes the
 // agreed service as a `SubscriptionContract` with `entitlementSnapshot`.
@@ -90,7 +91,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         const planDef = findPlan(this.catalog, newPlan);
         const planPriceNet = getPlanPriceNet(this.catalog, newPlan, billingCycle) ?? 0;
 
-        const planLineItem: NewContractLineItemData = {
+        const planLineItem: PricedContractLineItem = {
             kind: 'plan',
             sourceKey: newPlan,
             sourceVersionId: livePlanVersionId,
@@ -99,7 +100,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             quantity: 1,
             unit: null,
             priceNet: planPriceNet,
-            priceGross: round2(planPriceNet * (1 + vatRate / 100)),
+            priceGross: grossFromNet(planPriceNet, vatRate),
             billingCycle: cycle,
             minimumTermUntil: null,
             featuresSnapshot: planDef?.features ?? [],
@@ -107,7 +108,12 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             metadata: null,
         };
 
-        const lineItems: NewContractLineItemData[] = [planLineItem, ...bundles.lineItems];
+        // One stamping for every line, plan and add-on alike: the currency and
+        // the rate are the installation's, so the place that knows them writes
+        // them once rather than each source carrying its own copy.
+        const lineItems = [planLineItem, ...bundles.lineItems].map((line) =>
+            recordLineItemMoney(line, this.catalog.currency, vatRate),
+        );
         // Each line keeps the rhythm it is billed in; the total states one
         // period of the contract's own rhythm, so a line billed more often than
         // the contract counts as often as it falls due.
@@ -143,7 +149,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 discountNet: 0,
                 totalNet: subtotalNet,
                 vatRate,
-                totalGross: round2(subtotalNet * (1 + vatRate / 100)),
+                totalGross: grossFromNet(subtotalNet, vatRate),
             },
             lineItems,
         };
@@ -172,7 +178,3 @@ function priceOverOnePeriodOf(
 }
 
 const MONTHS_PER_YEAR = 12;
-
-function round2(value: number): number {
-    return Math.round(value * 100) / 100;
-}

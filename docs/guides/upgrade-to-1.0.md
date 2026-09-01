@@ -629,6 +629,129 @@ now the decision: an add-on hangs off the plan that pays for it, its commitment 
 term, and a second waiting period on top is one nobody could explain to a customer. A test refuses
 any reference to the notice machinery from the bundle path, so the rule cannot drift back in.
 
+### A contract line records the currency and the tax it was booked with
+
+`ContractLineItem` gains three required columns: `currency`, `taxRate` and `taxAmount`. An
+installation configures one currency and one rate at a time, so a line never chooses them — but a
+row has to keep meaning what it meant after either is changed, and changing a currency once
+contracts exist is a migration rather than an edit precisely because it must not relabel history.
+
+`taxRate` is stored even though net and gross both are, because the ratio between them is not the
+rate: it cannot be reproduced for a gross that was rounded, it cannot express an exempt or a
+reverse-charge line, and it does not survive a rate change. `taxAmount` is the gap between the
+line's own net and gross, so the row cannot disagree with itself and no reader has to round a
+second time.
+
+```prisma
+model ContractLineItem {
+    // …
+    currency  String                        // new: ISO 4217, as booked
+    taxRate   Decimal @db.Decimal(5, 2)     // new: per cent, as applied
+    taxAmount Decimal @db.Decimal(10, 2)    // new: priceGross − priceNet
+}
+```
+
+**Run the migration once, against your database**, and before `db push` — the columns are NOT NULL,
+which `db push` cannot add to a table that already holds rows:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-line-items-record-their-money.postgres.sql
+```
+
+It adds the columns, fills them from each line's own contract — `priceSnapshot` already records the
+currency and the VAT rate that were agreed, written in the same moment as the lines — and only then
+makes them required. It will not invent a currency: a contract whose snapshot does not state one,
+or states a rate that is not a number between 0 and 100, **stops the migration and is named**, with
+nothing half-applied. Running it again does nothing, and on a database whose schema already has the
+columns it does nothing at all.
+
+**List what it would refuse, before you run it.** An empty result means it will go through. Run it
+against the database as it stands, before the columns exist:
+
+```sql
+WITH reading AS (
+    SELECT c."id", c."tenantId", c."priceSnapshot" AS s,
+           jsonb_typeof(c."priceSnapshot" -> 'currency') = 'string'
+               AND c."priceSnapshot" ->> 'currency' <> '' AS has_currency,
+           jsonb_typeof(c."priceSnapshot" -> 'vatRate') = 'number'
+               AND jsonb_typeof(c."priceSnapshot" -> 'totalNet') = 'number'
+               AND jsonb_typeof(c."priceSnapshot" -> 'totalGross') = 'number' AS has_numbers,
+           c."originalOfferId" IS NOT NULL AS from_an_offer
+      FROM "subscription_contracts" c
+     WHERE EXISTS (SELECT 1 FROM "contract_line_items" li WHERE li."contractId" = c."id")
+), rated AS (
+    SELECT id, "tenantId", s, has_currency,
+           CASE WHEN has_numbers THEN
+               CASE WHEN round((s ->> 'totalNet')::numeric
+                                   * (1 + (s ->> 'vatRate')::numeric / 100), 2)
+                             = round((s ->> 'totalGross')::numeric, 2)
+                         AND round((s ->> 'totalNet')::numeric
+                                       * (1 + (s ->> 'vatRate')::numeric), 2)
+                             <> round((s ->> 'totalGross')::numeric, 2)
+                        THEN round((s ->> 'vatRate')::numeric, 2)
+                    WHEN round((s ->> 'totalNet')::numeric
+                                   * (1 + (s ->> 'vatRate')::numeric), 2)
+                             = round((s ->> 'totalGross')::numeric, 2)
+                         AND round((s ->> 'totalNet')::numeric
+                                       * (1 + (s ->> 'vatRate')::numeric / 100), 2)
+                             <> round((s ->> 'totalGross')::numeric, 2)
+                        THEN round((s ->> 'vatRate')::numeric * 100, 2)
+                    WHEN from_an_offer IS NOT TRUE
+                        THEN round((s ->> 'vatRate')::numeric, 2)
+                        ELSE round((s ->> 'vatRate')::numeric * 100, 2)
+               END
+           END AS rate
+      FROM reading
+)
+SELECT id, "tenantId", s -> 'currency' AS currency, s -> 'vatRate' AS stated, rate
+  FROM rated
+ WHERE has_currency IS NOT TRUE OR rate IS NULL OR rate < 0 OR rate > 100
+ ORDER BY id;
+```
+
+The `rate` column is what the migration would record, in per cent. It is worth reading even for the
+contracts the query does not report: a contract concluded from a checkout offer states its rate as a
+fraction, because that is how an offer prices its lines, so `stated` of `0.19` and `rate` of `19`
+are the same rate and the second is the one the column keeps. Where the totals cannot separate the
+two — a contract for a free plan, whose totals are zero, so every rate explains them —
+`originalOfferId` decides, because it is the record of which of the two wrote the snapshot.
+
+Repair those snapshots to say what was actually agreed — they are the record the lines are filled
+from, so a wrong value here becomes a wrong value on every line of that contract.
+
+**The rate is recorded in per cent, and the checkout path did not do that before.** A checkout offer
+prices its lines as `net * (1 + vatRate)`, so it states the rate as a fraction, while the catalogue
+states per cent. Which unit a given offer's breakdown carries is read off that breakdown's own
+totals rather than assumed, so `taxRate` is per cent whichever path wrote the row.
+`SubscriptionContractPriceSnapshot.vatRate` is untouched and still carries whichever unit the
+contract was concluded with — if you read it, `ContractLineItemRecord.taxRate` is the one that is
+always per cent.
+
+**`SubscriptionContractService.create` now refuses a line that disagrees with its contract** —
+`SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH` where `taxAmount` is not exactly
+`priceGross - priceNet`, and `SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH` where the line's
+currency is not the one the contract was priced in. Both platform paths satisfy them, so these only
+reach you if you build line items yourself and hand them to `create` — a contract is append-only,
+and an invoice stating one currency in its total and another on every line is a record nobody can
+correct afterwards.
+
+**If you implement the ports yourself, your build breaks here, on purpose.** `ContractLineItemRecord`
+and `InvoiceLineItemSnapshot` require the three fields, so a repository adapter stops compiling
+until it reads and writes them. `NewContractLineItemData` requires them too — but the one port a
+consumer supplies lines through, `ContractFreezeSourcePort.loadBookedBundles`, deliberately does
+**not**: its `lineItems` are `PricedContractLineItem`, which is the same shape without the three.
+A source prices what it sells; the platform records the installation's currency and rate. If your
+adapter annotates its result as `NewContractLineItemData[]`, drop the annotation or change it:
+
+```ts
+import type { ContractFreezeBundleSnapshot } from '@saasicat/nest';
+
+async loadBookedBundles(…): Promise<ContractFreezeBundleSnapshot> {
+    const lineItems = booked.map((booking) => ({ …, priceNet, priceGross }));
+    return { lineItems, bundleVersionIds };
+}
+```
+
 ### `projectKey` is gone from the database
 
 One installation serves one application. A plan key, a bundle key, a feature key and a quota key

@@ -1165,6 +1165,10 @@ model ContractLineItem {
     priceGross   Decimal @db.Decimal(10, 2)
     billingCycle String // monthly | yearly
 
+    currency  String
+    taxRate   Decimal @db.Decimal(5, 2)
+    taxAmount Decimal @db.Decimal(10, 2)
+
     minimumTermUntil DateTime?
 
     featuresSnapshot     Json @default("[]")

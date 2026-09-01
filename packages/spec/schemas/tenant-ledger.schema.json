@@ -1,0 +1,236 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://saasicat.dev/schemas/tenant-ledger.schema.json",
+    "title": "TenantLedgerEntry",
+    "description": "One entry in a tenant's account. Two kinds share one journal: a charge is what became due, a payment is what settled part of it. The journal is append-only — an entry is never updated, and a mistake is answered with a counter-entry rather than an edit, so the account says what happened rather than what somebody thinks today.",
+    "oneOf": [{ "$ref": "#/$defs/LedgerCharge" }, { "$ref": "#/$defs/LedgerPayment" }],
+
+    "$defs": {
+        "LedgerEntryKind": {
+            "type": "string",
+            "enum": ["charge", "payment"],
+            "description": "charge: an amount became due. payment: an amount settled."
+        },
+
+        "ChargeOrigin": {
+            "type": "string",
+            "enum": [
+                "activation",
+                "renewal",
+                "planChange",
+                "bundleBooking",
+                "credit",
+                "correction"
+            ],
+            "description": "What made the charge arise. activation: the first period of a subscription. renewal: a period renewing. planChange: the prorated difference of an immediate plan change. bundleBooking: an add-on booked. credit: a decision that reduces what is owed. correction: a counter-entry reversing an earlier one, which is how the append-only journal answers a mistake."
+        },
+
+        "Currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO 4217. Recorded per entry even though an installation configures one at a time, so that a row written in 2026 still means what it meant after the configured currency changes."
+        },
+
+        "LedgerCharge": {
+            "type": "object",
+            "title": "LedgerCharge",
+            "description": "An amount that became due. It names the period it belongs to, so the charges that make up one invoice can be found later, and it names the agreement it came from, so it can be walked back to what the tenant agreed to.",
+            "required": [
+                "id",
+                "tenantId",
+                "kind",
+                "subscriptionId",
+                "origin",
+                "originRef",
+                "periodStart",
+                "periodEnd",
+                "currency",
+                "amountNet",
+                "taxRate",
+                "taxAmount",
+                "amountGross",
+                "bookedAt",
+                "createdAt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "The entry's own identifier. Never shown to a customer as an invoice number: invoice numbering is sequential, gapless and legally constrained per country, and an identifier somebody has already seen on a screen cannot become one later without confusion."
+                },
+                "tenantId": { "type": "string" },
+                "kind": { "const": "charge" },
+                "subscriptionId": {
+                    "type": "string",
+                    "description": "The subscription the charge arose on. Part of the natural key below."
+                },
+                "origin": { "$ref": "#/$defs/ChargeOrigin" },
+                "originRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Which thing within the origin the charge is for, so that two charges of the same origin in the same period stay apart. activation and renewal: the subscription id. planChange: the id of the contract the change concluded, which differs for every change. bundleBooking: the booking id. credit and correction: the entry they answer. Never empty — the natural key (subscriptionId, origin, originRef, periodStart) is unique, and a NULL would not collide with itself, which is the one thing the key exists to prevent."
+                },
+                "periodStart": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "The billing period the charge belongs to. It is the grouping key for a later invoice: a set of individually booked amounts with nothing tying them to a period leaves 'which charges go on one invoice' to guesswork."
+                },
+                "periodEnd": { "type": "string", "format": "date-time" },
+                "contractId": {
+                    "type": ["string", "null"],
+                    "description": "The frozen agreement the charge realises. Null where none was frozen — a subscription older than the contract model, or a credit that answers no line."
+                },
+                "contractLineItemId": {
+                    "type": ["string", "null"],
+                    "description": "The contract line the charge came from. Null under the same conditions as contractId."
+                },
+                "currency": { "$ref": "#/$defs/Currency" },
+                "amountNet": {
+                    "type": "number",
+                    "description": "Held to the currency's decimal places. Negative on a credit or a correction."
+                },
+                "taxRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "The rate in percent, recorded rather than left to live in the ratio between net and gross. A ratio cannot be reproduced for a rounded gross, cannot express an exempt or reverse-charge line, and does not survive a rate change."
+                },
+                "taxAmount": {
+                    "type": "number",
+                    "description": "The tax contained in the charge. It closes the gap between amountNet and amountGross exactly, so the entry cannot disagree with itself."
+                },
+                "amountGross": { "type": "number" },
+                "bookedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When the amount became due. The account is ordered by this, not by when the row was written."
+                },
+                "createdAt": { "type": "string", "format": "date-time" }
+            }
+        },
+
+        "LedgerPayment": {
+            "type": "object",
+            "title": "LedgerPayment",
+            "description": "An amount that settled. What talks to a bank, a card processor or an invoice run is a consumer's adapter behind a port; this records only that the money arrived and which external reference it arrived under. It carries no tax split: a payment is a movement of money, and the net, the rate and the tax belong to the charges it settles — asking a payment for them would make an integrator write a number nobody knows, which the account would then read as a fact.",
+            "required": [
+                "id",
+                "tenantId",
+                "kind",
+                "externalReference",
+                "currency",
+                "amountGross",
+                "bookedAt",
+                "createdAt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "tenantId": { "type": "string" },
+                "kind": { "const": "payment" },
+                "externalReference": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The payment provider's own identifier for the settlement. It is what makes a payment reconcilable against the provider, and what a second delivery of the same provider event is recognised by."
+                },
+                "settlesEntryId": {
+                    "type": ["string", "null"],
+                    "description": "The charge this payment settles, where the provider says which. Null for a payment on account, which reduces the balance without naming a charge."
+                },
+                "currency": { "$ref": "#/$defs/Currency" },
+                "amountGross": {
+                    "type": "number",
+                    "description": "What arrived. Negative on a reversal, which is a movement the other way rather than an edit of the payment it answers."
+                },
+                "bookedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "The value date — when the money settled, which is not when the row was written."
+                },
+                "createdAt": { "type": "string", "format": "date-time" }
+            }
+        },
+
+        "TenantAccountOpenItem": {
+            "type": "object",
+            "title": "TenantAccountOpenItem",
+            "description": "A charge that is not yet settled in full.",
+            "required": [
+                "entryId",
+                "origin",
+                "periodStart",
+                "periodEnd",
+                "currency",
+                "amountGross",
+                "settledGross",
+                "openGross",
+                "dueAt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "entryId": { "type": "string", "format": "uuid" },
+                "origin": { "$ref": "#/$defs/ChargeOrigin" },
+                "periodStart": { "type": "string", "format": "date-time" },
+                "periodEnd": { "type": "string", "format": "date-time" },
+                "currency": { "$ref": "#/$defs/Currency" },
+                "amountGross": { "type": "number" },
+                "settledGross": {
+                    "type": "number",
+                    "description": "What payments naming this charge have settled so far."
+                },
+                "openGross": {
+                    "type": "number",
+                    "description": "amountGross minus settledGross."
+                },
+                "dueAt": { "type": "string", "format": "date-time" }
+            }
+        },
+
+        "TenantAccount": {
+            "type": "object",
+            "title": "TenantAccount",
+            "description": "What a tenant and an administrator both read: the balance, what is open, and the history. One shape for both, because a balance a tenant is shown and a balance an administrator is shown must not be two answers.",
+            "required": [
+                "tenantId",
+                "currency",
+                "asOf",
+                "chargedGross",
+                "paidGross",
+                "balanceGross",
+                "openItems",
+                "entries"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "tenantId": { "type": "string" },
+                "currency": { "$ref": "#/$defs/Currency" },
+                "asOf": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "A balance is only ever true at a moment, and this is the moment."
+                },
+                "chargedGross": { "type": "number" },
+                "paidGross": { "type": "number" },
+                "balanceGross": {
+                    "type": "number",
+                    "description": "chargedGross minus paidGross. Positive means the tenant owes; negative means they have paid ahead."
+                },
+                "openItems": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/TenantAccountOpenItem" }
+                },
+                "entries": {
+                    "type": "array",
+                    "description": "The history the read was asked for, newest first. The window is the caller's decision, not a property of the account.",
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#/$defs/LedgerCharge" },
+                            { "$ref": "#/$defs/LedgerPayment" }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

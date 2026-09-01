@@ -536,6 +536,8 @@ _Tested by:_
 
 - `packages/core/tests/codegen-drift.test.js`
     - Q.4 Codegen drift gate
+        - every schema has a generated file, and every generated file a schema
+        - a schema with no title is refused rather than generated as undefined
         - ${genFile} is in sync with ${file}
 - `packages/spec/tests/openapi-version-is-the-package-version.test.js`
     - the OpenAPI document carries the version this package publishes
@@ -703,6 +705,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - the currency and the tax come back as the row recorded them
+        - a discount line keeps its negative tax
         - an amount arrives with the cent it left with
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
@@ -847,6 +851,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - the currency and the tax come back as the row recorded them
+        - a discount line keeps its negative tax
         - an amount arrives with the cent it left with
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round

@@ -107,6 +107,27 @@ _Tested by:_
     - adminManifest accepts minimal valid manifest
     - adminManifest rejects the removed planVersions standard page
     - adminManifest rejects capability with colon notation
+    - every schema file is exported from both entry points
+    - and the two entry points offer the same names
+    - and the type shells name what the entry points export
+    - tenantLedger accepts a charge carrying its period, origin and money facts
+    - tenantLedger accepts a charge that names no contract
+    - tenantLedger accepts a payment, which carries no period
+    - tenantLedger accepts a payment on account, settling no named charge
+    - tenantLedger rejects a charge without an origin
+    - tenantLedger rejects an origin outside the catalogue of origins
+    - tenantLedger rejects an empty originRef, which would not collide with itself
+    - tenantLedger rejects a charge that names no period
+    - tenantLedger rejects a payment without an external reference
+    - tenantLedger rejects a payment whose external reference is empty
+    - tenantLedger rejects an entry that is neither a charge nor a payment
+    - tenantLedger rejects a charge wearing a payment field
+    - tenantLedger rejects a payment that states a tax of its own
+    - tenantLedger rejects a currency that is not an ISO 4217 code
+    - tenantLedger rejects a tax rate above 100 per cent
+    - tenantLedger accepts a credit, which is a negative charge
+    - tenantLedger accepts an account with a balance, open items and history
+    - tenantLedger rejects an account that does not say when its balance is true
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`
     - DiscoveryPage survives a snapshot that is not a snapshot
         - ${label} renders instead of throwing
