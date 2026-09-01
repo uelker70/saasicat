@@ -333,3 +333,26 @@ export const subscriptionBundles = pgTable('subscription_bundles', {
     createdAt: ts('createdAt').notNull().defaultNow(),
     updatedAt: ts('updatedAt').notNull(),
 });
+
+// The record of the applied configuration — one row per installation, held to
+// one by the `CHECK` in constraints.postgres.sql — and the changes noticed
+// between two starts. `applied_settings.id` has a database default; the
+// repository writes it anyway, because the CHECK is what decides and a caller
+// that omits the id is not the caller it exists for.
+export const appliedSettings = pgTable('applied_settings', {
+    id: text('id').primaryKey().default('installation'),
+    fingerprint: text('fingerprint').notNull(),
+    settings: jsonb('settings').notNull(),
+    source: text('source').notNull(),
+    appliedAt: ts('appliedAt').notNull(),
+});
+
+export const settingsChanges = pgTable('settings_changes', {
+    id: text('id').primaryKey(),
+    noticedAt: ts('noticedAt').notNull(),
+    source: text('source').notNull(),
+    previous: jsonb('previous').notNull(),
+    current: jsonb('current').notNull(),
+    acknowledgedAt: ts('acknowledgedAt'),
+    acknowledgedBy: text('acknowledgedBy'),
+});

@@ -5,6 +5,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     AsyncLocalRlsBypassAdapter,
+    PrismaAppliedSettingsRepository,
     PrismaAuditAdapter,
     PrismaAuditQueryAdapter,
     PrismaMfaAdapter,
@@ -860,6 +861,7 @@ describe('prismaPersistence()', () => {
         assert.ok(bundle.core.superAdminProvisioning instanceof PrismaSuperAdminBootstrapAdapter);
         assert.equal(bundle.capabilities.rowLevelSecurity, true);
         assert.ok(bundle.core.transactionRunner instanceof PrismaTransactionRunner);
+        assert.ok(bundle.core.appliedSettings instanceof PrismaAppliedSettingsRepository);
     });
 
     test('token client + hasher token → provisioning factory injecting both', () => {

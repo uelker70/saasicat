@@ -752,6 +752,43 @@ async loadBookedBundles(…): Promise<ContractFreezeBundleSnapshot> {
 }
 ```
 
+### The platform records the configuration it applied
+
+Two tables arrive, both additive: `applied_settings` holds the one row that says which settings the
+installation applied at its last start — the resolved values, a fingerprint over them, when they
+took effect and from which file — and `settings_changes` holds one row per start that found the
+fingerprint moved. `GET /admin/settings` shows both. Neither is ever read to decide behaviour: the
+record is a mirror of `config/saas.yaml`, never a source.
+
+```prisma
+model AppliedSettings {
+    id          String   @id @default("installation")
+    fingerprint String
+    settings    Json
+    source      String
+    appliedAt   DateTime
+
+    @@map("applied_settings")
+}
+```
+
+**Run `sql/1.0-the-applied-settings-are-recorded.postgres.sql`** once, before `db push` where you
+use one — the same way as the other files in this directory:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-the-applied-settings-are-recorded.postgres.sql
+```
+
+It creates both tables and the index only where they are missing, and adds the `CHECK` that holds
+`applied_settings` to one row. Safe to run again; on a database created from the reference schema it
+does nothing at all. Nothing to list beforehand: it changes no rows.
+
+On the Prisma path, `saasicat schema check` reports the two models until you copy them from
+`prisma-fragments/12-applied-settings.prisma` into your `schema.prisma`. An installation whose
+persistence adapter provides no `core.appliedSettings` port still starts — the platform says once, at
+boot, that it is not recording — so a custom adapter is not broken by this, only silent until it
+implements `AppliedSettingsPort`.
+
 ### `projectKey` is gone from the database
 
 One installation serves one application. A plan key, a bundle key, a feature key and a quota key

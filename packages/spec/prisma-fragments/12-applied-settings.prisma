@@ -1,0 +1,49 @@
+// =============================================================================
+// SaaS-Platform Prisma fragment: the applied settings, and their changes
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// `config/saas.yaml` says what should be true. These two tables say what IS
+// true: the settings the installation applied at its last start, and every
+// start that found them changed. The platform writes both at boot and reads
+// them for the read-only settings screen — and for nothing else. The record is
+// a mirror of the file, never a source: no setting is ever read out of it.
+//
+// One row per installation. An installation serves one application and owns
+// its database (see docs/explanation/data-model.md), so the row's identity is
+// the installation's, and a constant primary key is what expresses that. The
+// `CHECK` in sql/constraints.postgres.sql is what holds it to one row; the
+// default only lands a caller that omits the id on the right one.
+
+model AppliedSettings {
+    id          String   @id @default("installation")
+    // `sha256-<hex>` over the canonical JSON of `settings`.
+    fingerprint String
+    // The resolved settings subtree of the catalogue — everything but the
+    // plans and features, with environment references already substituted.
+    settings    Json
+    // The absolute path of the file, or the phrase saying they came in as code.
+    source      String
+    // When these values became the running configuration. Left alone by a
+    // start that finds them unchanged.
+    appliedAt   DateTime
+
+    @@map("applied_settings")
+}
+
+model SettingsChange {
+    id             String    @id @default(uuid())
+    // The start that found the fingerprint moved.
+    noticedAt      DateTime
+    source         String
+    previous       Json
+    current        Json
+    // Null while an operator still owes it a look.
+    acknowledgedAt DateTime?
+    // An actor tag, as the audit log writes it.
+    acknowledgedBy String?
+
+    @@index([acknowledgedAt, noticedAt])
+    @@map("settings_changes")
+}

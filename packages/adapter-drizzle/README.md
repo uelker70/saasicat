@@ -77,8 +77,8 @@ the table): transaction runner, subscription/plan-version repositories
 (row-locked `findByTenantIdLocked`), the three promo repositories with
 atomic `claimSlot`/`releaseSlot`/`markExhaustedIfFull`, audit
 write/query/stats, MFA, RLS bypass, SuperAdmin bootstrap
-(`PASSWORD_HASHER_TOKEN`), plan-catalog read/import sinks, and the
-`ZeroPromoRevenueDeductionAggregator` default. Not shipped: contracts,
+(`PASSWORD_HASHER_TOKEN`), plan-catalog read/import sinks, the record of the
+applied settings, and the `ZeroPromoRevenueDeductionAggregator` default. Not shipped: contracts,
 bundle bookings, registration, tenant-billing write ports,
 `FirstTimeCustomerCheck` — same as the Prisma adapter.
 

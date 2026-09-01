@@ -90,7 +90,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 22      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 24      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 28      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 406 entries: 🟢 395 stand today, 🟡 9 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 410 entries: 🟢 399 stand today, 🟡 9 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),

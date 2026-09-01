@@ -22,6 +22,8 @@ Verified scenarios:
 - one promo redemption per subscription (unique guard)
 - audit write → query roundtrip incl. `actorTag` wildcard filters
 - MFA secret roundtrip
+- the applied settings: one row per installation, replaced rather than duplicated;
+  changes listed newest first, acknowledged once
 
 Scenario groups gate on declared capabilities and provided slices; a
 gated-off group reports as **skipped with reason** — coverage gaps stay

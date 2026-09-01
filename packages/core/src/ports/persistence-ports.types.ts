@@ -45,6 +45,7 @@ import type {
     PromoSubscriptionLookup,
 } from './promo-ports.types.js';
 import type { PlanCatalogImportSink, PlanCatalogReadSink } from '../plan-catalog-import.types.js';
+import type { AppliedSettingsPort } from './settings-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
 export type PersistenceClassRef = abstract new (...args: never[]) => unknown;
@@ -109,6 +110,12 @@ export interface SaaSiCatPersistenceCore {
     auditQuery?: PersistenceProvider<AuditQueryPort>;
     /** Aggregation for the admin stats dashboard. */
     auditStats?: PersistenceProvider<AuditStatsPort>;
+    /**
+     * The record of the applied configuration (`SettingsModule`). Optional so
+     * an adapter written before it existed keeps working; without it the
+     * platform says once at boot that it is not recording.
+     */
+    appliedSettings?: PersistenceProvider<AppliedSettingsPort>;
 }
 
 /** Repositories for the entitlement/contract loop (`EntitlementModule`). */

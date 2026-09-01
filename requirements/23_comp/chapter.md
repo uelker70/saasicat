@@ -683,6 +683,14 @@ _Tested by:_
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
         - token client + hasher token → provisioning factory injecting both
+- `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
+    - the one row
+        - is keyed on the installation id, on create and on update alike
+        - reads back what was written, and null before anything was
+        - a JSON column that is not an object reads as no settings, not as a crash
+    - the changes
+        - a listing is newest first and passes the acknowledgement filter and the limit through
+        - an acknowledgement is one guarded update, so the first one stands
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so

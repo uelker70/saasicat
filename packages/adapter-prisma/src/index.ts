@@ -73,5 +73,6 @@ export { PrismaMarketingProjectionRepository } from './prisma-marketing-projecti
 export { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
 export { PrismaPromotionRepository } from './prisma-promotion.repository.js';
 export { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
+export { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';
 export { type PrismaModelDelegateLike } from './prisma-client-token.js';
 export * from './admin-resources-schema.js';

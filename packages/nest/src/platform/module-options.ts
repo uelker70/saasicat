@@ -18,6 +18,7 @@ import {
     type Type,
 } from '@nestjs/common';
 import type {
+    AppliedSettingsPort,
     AuditPort,
     AdminResourcesPort,
     FeatureUiRegistry,
@@ -69,6 +70,13 @@ export interface SaaSiCatAdapters {
     mfa?: ProviderSpec<MfaPort>;
     audit?: ProviderSpec<AuditPort>;
     rlsBypass?: ProviderSpec<RlsBypassPort>;
+    /**
+     * Optional. Where the record of the applied configuration is kept; the
+     * `persistence` bundle supplies it by default. Without either, the platform
+     * runs the configuration all the same and says once, at boot, that it is
+     * not recording it.
+     */
+    appliedSettings?: ProviderSpec<AppliedSettingsPort>;
     /**
      * Optional. If provided, `PlanCatalogModule` is hydrated from this sink
      * (DB read at boot). If omitted, `planCatalog` MUST be passed as a ready

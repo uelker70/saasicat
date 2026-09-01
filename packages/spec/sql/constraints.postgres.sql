@@ -36,3 +36,13 @@ ALTER TABLE marketing_settings
     DROP CONSTRAINT IF EXISTS marketing_settings_is_a_singleton;
 ALTER TABLE marketing_settings
     ADD CONSTRAINT marketing_settings_is_a_singleton CHECK ("id" = 'marketing-settings');
+
+-- `applied_settings` holds at most ONE row: the installation's.
+--
+-- Same reasoning as above, and the same two plain statements. The row mirrors
+-- the settings the installation applied at its last start, and an installation
+-- serves one application, so there is exactly one configuration to record.
+ALTER TABLE applied_settings
+    DROP CONSTRAINT IF EXISTS applied_settings_is_a_singleton;
+ALTER TABLE applied_settings
+    ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');

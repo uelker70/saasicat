@@ -117,6 +117,20 @@ has always required anyway.
 | `AuditLog` (`audit_logs`)          | —                            | `actorTag` format `web:<email>:<sessionId>` / `cli:<email>:<host>` (see `audit-event.schema.json`); `tenantId` null = platform-global action.                      |
 | `SuperAdminUser` / `SuperAdminMfa` | `email` unique / `userId` PK | Platform-owned SuperAdmin identity. `SuperAdminMfa.userId` deliberately has **no hard FK** — `MfaPort` also serves apps whose admins live in their own user table. |
 
+### Configuration
+
+| Entity                                 | Identity / uniqueness                  | Notes                                                                                                                                                                                                                  |
+| -------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppliedSettings` (`applied_settings`) | one row, `id = 'installation'` (CHECK) | The settings subtree of `config/saas.yaml` as it was resolved at the last start, a `sha256-…` fingerprint over it, `appliedAt`, and `source` — the file's absolute path or a phrase saying the values came in as code. |
+| `SettingsChange` (`settings_changes`)  | —                                      | One row per start that found the fingerprint moved: `previous`, `current`, `noticedAt`, and `acknowledgedAt`/`acknowledgedBy` once an operator has seen it.                                                            |
+
+**A mirror, never a source.** The platform writes both tables at boot and reads
+them for the read-only settings screen — and for nothing else. No setting is
+ever read out of them: the file is the one place a setting lives, and a record
+that disagrees with it is what the next start records as a change. The
+`CHECK` on `applied_settings.id` is what holds the table to one row; the column
+default only lands a caller that omits the id on the right one.
+
 ## Transactional invariants (what adapters must guarantee)
 
 These are the behaviors `@saasicat/persistence-testing` verifies against a

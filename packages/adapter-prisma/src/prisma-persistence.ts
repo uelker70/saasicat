@@ -7,6 +7,7 @@ import type {
 import type { PrismaLike } from './prisma-client-token.js';
 import type { PrismaSchemaOptions } from './prisma-plan-binding.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
+import { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';
 import { PrismaAuditAdapter } from './prisma-audit.adapter.js';
 import { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
 import { PrismaAuditStatsAdapter } from './prisma-audit-stats.adapter.js';
@@ -50,6 +51,8 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     marketingProjection: unknown;
     promotion: unknown;
     marketingSettings: unknown;
+    appliedSettings: unknown;
+    settingsChange: unknown;
 }
 
 export interface PrismaPersistenceOptions {
@@ -135,6 +138,9 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             auditQuery: provide((prisma) => new PrismaAuditQueryAdapter(prisma)),
             auditStats: provide((prisma) => new PrismaAuditStatsAdapter(prisma)),
             superAdminProvisioning: buildProvisioning(client, options.passwordHasher),
+            appliedSettings: provide(
+                (prisma) => new PrismaAppliedSettingsRepository(canonical(prisma)),
+            ),
         },
         entitlement: {
             subscriptionRepository: provide(

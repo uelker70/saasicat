@@ -247,11 +247,11 @@ describe('SaaSiCatModule persistence bundle', () => {
             }),
         );
 
-        // Base 4 + Entitlement + Catalog + PublicCatalog + TenantBilling +
+        // Base 5 + Entitlement + Catalog + PublicCatalog + TenantBilling +
         // Bundles + AdminResources + PromoCodes.
-        // Ten platform modules plus Nest's DiscoveryModule, which every
+        // Eleven platform modules plus Nest's DiscoveryModule, which every
         // configuration imports for `EnforcementChainCheck`.
-        assert.equal(mod.imports.length, 12);
+        assert.equal(mod.imports.length, 13);
         assert.ok(mod.exports.some((entry) => entry.name === 'CatalogModule'));
         assert.ok(mod.exports.some((entry) => entry.name === 'TenantBillingModule'));
         assert.ok(
