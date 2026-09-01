@@ -202,6 +202,9 @@ function lineItemRow(overrides = {}) {
         priceNet: '19.90',
         priceGross: '23.68',
         billingCycle: 'monthly',
+        currency: 'EUR',
+        taxRate: '19.00',
+        taxAmount: '3.78',
         minimumTermUntil: null,
         featuresSnapshot: ['CORE'],
         quotaEffectsSnapshot: { users: 5 },
@@ -271,6 +274,32 @@ describe('a line item row becomes a line item record', () => {
                 .priceGross,
             23.68,
         );
+    });
+
+    // @requirement SC-PRIC-015 — An amount records the currency it was booked in
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('the currency and the tax come back as the row recorded them', () => {
+        const record = toContractLineItemRecord(lineItemRow());
+        assert.equal(record.currency, 'EUR');
+        // Both adapters hand the decimal over as a string or a Decimal, and a
+        // rate read as a string sorts and compares wrongly wherever it lands.
+        assert.equal(record.taxRate, 19);
+        assert.equal(record.taxAmount, 3.78);
+        assert.equal(
+            toContractLineItemRecord(
+                lineItemRow({ taxRate: { toString: () => '8.10' }, taxAmount: '8.10' }),
+            ).taxRate,
+            8.1,
+            'a fractional rate is not an integer in disguise',
+        );
+    });
+
+    test('a discount line keeps its negative tax', () => {
+        const record = toContractLineItemRecord(
+            lineItemRow({ priceNet: '-10.00', priceGross: '-10.81', taxAmount: '-0.81' }),
+        );
+        assert.equal(record.taxAmount, -0.81);
+        assert.equal(record.priceGross, -10.81);
     });
 
     /** The amount as it arrives at a consumer: through the mapping, then the wire. */

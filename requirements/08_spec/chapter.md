@@ -19,6 +19,8 @@ _Tested by:_
 
 - `packages/core/tests/codegen-drift.test.js`
     - Q.4 Codegen drift gate
+        - every schema has a generated file, and every generated file a schema
+        - a schema with no title is refused rather than generated as undefined
         - ${genFile} is in sync with ${file}
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it

@@ -224,8 +224,12 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'A subscription contract requires exactly one plan base item.',
     SUBSCRIPTION_CONTRACT_INVALID_DATE: '{field} must be a valid date.',
     SUBSCRIPTION_CONTRACT_INVALID_WINDOW: 'effectiveUntil must be after effectiveFrom.',
+    SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH:
+        "A line item's taxAmount must be exactly priceGross minus priceNet.",
     SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START:
         'effectiveUntil must be after the effectiveFrom of the contract.',
+    SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH:
+        'A line item must be booked in the currency its contract was priced in.',
     CHECKOUT_OFFER_NOT_FOUND: "CheckoutOffer '{offerId}' not found",
     CHECKOUT_OFFER_EXPIRED: "Checkout offer '{offerId}' has expired and cannot be {action}",
     CHECKOUT_OFFER_ALREADY_CONSUMED:

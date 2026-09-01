@@ -38,13 +38,6 @@ export type ValidationResult =
     | 'MIN_AMOUNT_NOT_REACHED'
     | 'RATE_LIMITED';
 
-/**
- * PERCENT: value is a percentage (1–100). ABSOLUTE: value is a net amount in the catalog currency.
- */
-/**
- * ONCE: one-time discount. MONTHS: durationValue months from redemption. BILLING_CYCLES: durationValue billing cycles.
- */
-
 export interface CreatePromoCodeRequest {
     /**
      * Uppercase letters, digits, '-' and '_'. Checked case-insensitively, stored in UPPER.
@@ -89,13 +82,6 @@ export interface UpdatePromoCodeRequest {
     maxRedemptions?: number | null;
     campaignTag?: string | null;
 }
-
-/**
- * PERCENT: value is a percentage (1–100). ABSOLUTE: value is a net amount in the catalog currency.
- */
-/**
- * ONCE: one-time discount. MONTHS: durationValue months from redemption. BILLING_CYCLES: durationValue billing cycles.
- */
 
 export interface PromoCodeRedemption {
     id: string;

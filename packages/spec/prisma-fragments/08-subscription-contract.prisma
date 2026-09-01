@@ -75,6 +75,24 @@ model ContractLineItem {
     priceGross   Decimal @db.Decimal(10, 2)
     billingCycle String // monthly | yearly
 
+    // What this line is worth, as facts rather than as something to work out
+    // later. An installation sells in one currency and applies one rate at a
+    // time, and both are configured elsewhere — but a row has to keep saying
+    // what it meant after either is changed, and a change is a migration
+    // precisely because it must not relabel history.
+    //
+    // `taxRate` is recorded even though `priceNet` and `priceGross` are both
+    // here, because the ratio between them is not the rate: it cannot be
+    // reproduced for a gross that was rounded, it cannot express an exempt or a
+    // reverse-charge line, and it does not survive a rate change.
+    //
+    // `taxAmount` closes the gap between net and gross exactly, so the row
+    // cannot disagree with itself. Deriving it at read time instead would round
+    // a second time, once per reader.
+    currency  String
+    taxRate   Decimal @db.Decimal(5, 2)
+    taxAmount Decimal @db.Decimal(10, 2)
+
     minimumTermUntil DateTime?
 
     featuresSnapshot     Json @default("[]")

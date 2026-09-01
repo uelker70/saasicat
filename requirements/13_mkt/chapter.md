@@ -423,6 +423,9 @@ _Tested by:_
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
         - create requires a plan line item
+        - a line whose tax does not close its own gap is refused
+        - a line booked in another currency than its contract is refused
+        - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
         - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
           contract
@@ -453,6 +456,9 @@ _Tested by:_
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
         - create requires a plan line item
+        - a line whose tax does not close its own gap is refused
+        - a line booked in another currency than its contract is refused
+        - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
         - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
           contract
@@ -477,6 +483,9 @@ _Tested by:_
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
         - create requires a plan line item
+        - a line whose tax does not close its own gap is refused
+        - a line booked in another currency than its contract is refused
+        - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
         - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
           contract

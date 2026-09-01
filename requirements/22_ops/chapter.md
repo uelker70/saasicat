@@ -154,6 +154,21 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+        - and the columns come out of it required, so nothing can be written without them
+        - a second run leaves the values the first one wrote
+        - a contract with ${what} stops the migration and is named
+        - and the table is exactly as it was afterwards
+        - a rate no reading brings inside 0-100 stops the migration and is named
+        - a free plan frozen from the catalogue keeps its rate as it stands
+        - and a free plan concluded from an offer keeps its rate as the fraction it is
+        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a value already in a column is kept, and a row missing only one is still found
+        - an installation that never took the fragment is left alone
+        - a line whose contract is gone is named as itself, not as an empty space
+        - the query the guide ships finds exactly what the migration refuses
+        - a contract that records both goes through
 
 <!-- END proof -->
 
@@ -191,6 +206,21 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+        - and the columns come out of it required, so nothing can be written without them
+        - a second run leaves the values the first one wrote
+        - a contract with ${what} stops the migration and is named
+        - and the table is exactly as it was afterwards
+        - a rate no reading brings inside 0-100 stops the migration and is named
+        - a free plan frozen from the catalogue keeps its rate as it stands
+        - and a free plan concluded from an offer keeps its rate as the fraction it is
+        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a value already in a column is kept, and a row missing only one is still found
+        - an installation that never took the fragment is left alone
+        - a line whose contract is gone is named as itself, not as an empty space
+        - the query the guide ships finds exactly what the migration refuses
+        - a contract that records both goes through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

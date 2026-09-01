@@ -41,6 +41,26 @@ export interface ContractLineItemRecord {
     priceNet: number;
     priceGross: number;
     billingCycle: 'monthly' | 'yearly';
+    /**
+     * ISO 4217, as the line was booked in.
+     *
+     * An installation sells in one currency at a time, so this is never a
+     * choice the line makes — it is what keeps the line meaning what it meant
+     * after the configured currency is migrated to another one.
+     */
+    currency: string;
+    /**
+     * The tax rate in percent that was applied, recorded rather than left in
+     * the ratio between net and gross. That ratio is not the rate: it cannot be
+     * reproduced for a rounded gross, cannot express an exempt or reverse-charge
+     * line, and does not survive a rate change.
+     */
+    taxRate: number;
+    /**
+     * The tax contained in the line — exactly `priceGross - priceNet`, so the
+     * line cannot disagree with itself. Rounded once, when the line is written.
+     */
+    taxAmount: number;
     minimumTermUntil: Date | null;
     featuresSnapshot: string[];
     quotaEffectsSnapshot: Record<string, number>;
@@ -54,6 +74,18 @@ export interface SubscriptionContractPriceSnapshot {
     subtotalNet: number;
     discountNet: number;
     totalNet: number;
+    /**
+     * The rate this contract's total was computed at — in per cent where the
+     * contract was frozen from the catalogue, and as the offer stated it where
+     * it was concluded from one.
+     *
+     * A checkout offer prices its lines as `net * (1 + vatRate)`, so it states
+     * a fraction, and the value is copied here as it stands. The field
+     * therefore carries both units across a history and cannot be compared
+     * across contracts. `ContractLineItemRecord.taxRate` is always per cent and
+     * is the one to read; this is kept as written because it is the record of
+     * what the contract was concluded with.
+     */
     vatRate: number;
     totalGross: number;
 }
@@ -134,6 +166,9 @@ export interface InvoiceLineItemSnapshot {
     priceNet: number;
     priceGross: number;
     billingCycle: 'monthly' | 'yearly';
+    currency: string;
+    taxRate: number;
+    taxAmount: number;
     minimumTermUntil: Date | null;
     metadata: Record<string, unknown> | null;
 }

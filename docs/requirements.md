@@ -132,12 +132,10 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 401 entries: 🟢 388 stand today, 🟡 11 decided but not yet delivered, ⚪ 0 drafts,
-🔵 2 superseded, 🔴 0 withdrawn.
+Of 401 entries: 🟢 390 stand today, 🟡 9 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
-[SC-PRIC-015](#sc-pric-015--an-amount-records-the-currency-it-was-booked-in),
-[SC-PRIC-017](#sc-pric-017--the-tax-rate-and-the-tax-amount-are-recorded-not-re-derived),
 [SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
@@ -4440,6 +4438,8 @@ _Tested by:_
 
 - `packages/core/tests/codegen-drift.test.js`
     - Q.4 Codegen drift gate
+        - every schema has a generated file, and every generated file a schema
+        - a schema with no title is refused rather than generated as undefined
         - ${genFile} is in sync with ${file}
 - `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
     - a trial commits to nothing, so nothing is deferred to protect it
@@ -4871,10 +4871,36 @@ _Source:_ #105
 
 ### SC-PRIC-015 — An amount records the currency it was booked in
 
-🟡 _(Decided, not yet delivered.)_ 💰 Even though only one is configured at a time. The record is not
-for selling in two currencies; it is so that a row written in 2026 still means what it meant.
+🟢 💰 Even though only one is configured at a time. The record is not for selling in two currencies;
+it is so that a row written in 2026 still means what it meant.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a line item row becomes a line item record
+        - the currency and the tax come back as the row recorded them
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what a frozen line records about its money
+        - every line names the currency and the rate the installation applies
+        - and the tax it names closes the gap between its own net and gross
+        - a rate of zero is recorded as zero, not left to be read as absent
+        - a currency other than the euro is the one that is recorded
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - a rate the offer states as a fraction is recorded in per cent
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+
+<!-- END proof -->
 
 ### SC-PRIC-016 — A tax rate has a validity window
 
@@ -4886,6 +4912,13 @@ _Source:_ #217 · #214
 
 _Tested by:_
 
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - a rate the offer states as a fraction is recorded in per cent
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
 - `packages/nest/tests/validity-window.test.js`
     - the window a version is refused for
         - no start at all
@@ -4902,11 +4935,45 @@ _Tested by:_
 
 ### SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 
-🟡 _(Decided, not yet delivered.)_ 💰 Storing net and gross leaves the rate living in the ratio
-between them, and a ratio cannot be reproduced for a rounded gross, cannot express an exempt or
-reverse-charge line, and does not survive a rate change.
+🟢 💰 Storing net and gross leaves the rate living in the ratio between them, and a ratio cannot be
+reproduced for a rounded gross, cannot express an exempt or reverse-charge line, and does not
+survive a rate change.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/canonical-rows-become-records.test.js`
+    - a line item row becomes a line item record
+        - the currency and the tax come back as the row recorded them
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - what a frozen line records about its money
+        - every line names the currency and the rate the installation applies
+        - and the tax it names closes the gap between its own net and gross
+        - a rate of zero is recorded as zero, not left to be read as absent
+        - a currency other than the euro is the one that is recorded
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - the money facts a contract inherits from its offer
+        - a rate the offer states as a fraction is recorded in per cent
+        - and the rate it records explains the tax it records
+        - every line names the currency the offer froze
+        - and the tax on each closes the gap between its own net and gross
+        - the discount the offer implies carries a negative tax, not a positive one
+    - reading the unit an offer states its VAT rate in
+        - a fraction beside totals that agree with it becomes a percentage
+        - a percentage beside totals that agree with it is left as it is
+        - zero is zero under either reading
+        - totals that prove nothing fall to the unit this platform produces
+        - a total of nothing is still read as the fraction it is
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+        - a rate no reading brings inside 0-100 stops the migration and is named
+        - a free plan frozen from the catalogue keeps its rate as it stands
+
+<!-- END proof -->
 
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
@@ -6691,6 +6758,9 @@ _Tested by:_
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
         - create requires a plan line item
+        - a line whose tax does not close its own gap is refused
+        - a line booked in another currency than its contract is refused
+        - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
         - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
           contract
@@ -6721,6 +6791,9 @@ _Tested by:_
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
         - create requires a plan line item
+        - a line whose tax does not close its own gap is refused
+        - a line booked in another currency than its contract is refused
+        - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
         - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
           contract
@@ -6745,6 +6818,9 @@ _Tested by:_
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
         - create requires a plan line item
+        - a line whose tax does not close its own gap is refused
+        - a line booked in another currency than its contract is refused
+        - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
         - subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the
           contract
@@ -10673,6 +10749,27 @@ _Tested by:_
     - adminManifest accepts minimal valid manifest
     - adminManifest rejects the removed planVersions standard page
     - adminManifest rejects capability with colon notation
+    - every schema file is exported from both entry points
+    - and the two entry points offer the same names
+    - and the type shells name what the entry points export
+    - tenantLedger accepts a charge carrying its period, origin and money facts
+    - tenantLedger accepts a charge that names no contract
+    - tenantLedger accepts a payment, which carries no period
+    - tenantLedger accepts a payment on account, settling no named charge
+    - tenantLedger rejects a charge without an origin
+    - tenantLedger rejects an origin outside the catalogue of origins
+    - tenantLedger rejects an empty originRef, which would not collide with itself
+    - tenantLedger rejects a charge that names no period
+    - tenantLedger rejects a payment without an external reference
+    - tenantLedger rejects a payment whose external reference is empty
+    - tenantLedger rejects an entry that is neither a charge nor a payment
+    - tenantLedger rejects a charge wearing a payment field
+    - tenantLedger rejects a payment that states a tax of its own
+    - tenantLedger rejects a currency that is not an ISO 4217 code
+    - tenantLedger rejects a tax rate above 100 per cent
+    - tenantLedger accepts a credit, which is a negative charge
+    - tenantLedger accepts an account with a balance, open items and history
+    - tenantLedger rejects an account that does not say when its balance is true
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`
     - DiscoveryPage survives a snapshot that is not a snapshot
         - ${label} renders instead of throwing
@@ -11226,6 +11323,21 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+        - and the columns come out of it required, so nothing can be written without them
+        - a second run leaves the values the first one wrote
+        - a contract with ${what} stops the migration and is named
+        - and the table is exactly as it was afterwards
+        - a rate no reading brings inside 0-100 stops the migration and is named
+        - a free plan frozen from the catalogue keeps its rate as it stands
+        - and a free plan concluded from an offer keeps its rate as the fraction it is
+        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a value already in a column is kept, and a row missing only one is still found
+        - an installation that never took the fragment is left alone
+        - a line whose contract is gone is named as itself, not as an empty space
+        - the query the guide ships finds exactly what the migration refuses
+        - a contract that records both goes through
 
 <!-- END proof -->
 
@@ -11263,6 +11375,21 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - a line item learns the money it was booked with
+        - the values come from the contract the line belongs to
+        - and the columns come out of it required, so nothing can be written without them
+        - a second run leaves the values the first one wrote
+        - a contract with ${what} stops the migration and is named
+        - and the table is exactly as it was afterwards
+        - a rate no reading brings inside 0-100 stops the migration and is named
+        - a free plan frozen from the catalogue keeps its rate as it stands
+        - and a free plan concluded from an offer keeps its rate as the fraction it is
+        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a value already in a column is kept, and a row missing only one is still found
+        - an installation that never took the fragment is left alone
+        - a line whose contract is gone is named as itself, not as an empty space
+        - the query the guide ships finds exactly what the migration refuses
+        - a contract that records both goes through
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -11876,6 +12003,8 @@ _Tested by:_
 
 - `packages/core/tests/codegen-drift.test.js`
     - Q.4 Codegen drift gate
+        - every schema has a generated file, and every generated file a schema
+        - a schema with no title is refused rather than generated as undefined
         - ${genFile} is in sync with ${file}
 - `packages/spec/tests/openapi-version-is-the-package-version.test.js`
     - the OpenAPI document carries the version this package publishes
@@ -12043,6 +12172,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - the currency and the tax come back as the row recorded them
+        - a discount line keeps its negative tax
         - an amount arrives with the cent it left with
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round
@@ -12187,6 +12318,8 @@ _Tested by:_
         - terms that are not an object read as null
     - a line item row becomes a line item record
         - money becomes a number, from a string or from a Decimal
+        - the currency and the tax come back as the row recorded them
+        - a discount line keeps its negative tax
         - an amount arrives with the cent it left with
         - and the guarantee stops where the column does
         - the commitment date and the metadata survive both ways round

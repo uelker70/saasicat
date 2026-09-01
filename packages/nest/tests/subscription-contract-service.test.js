@@ -5,6 +5,7 @@ import {
     contractLineItemToInvoiceLineItem,
     subscriptionContractToInvoiceSnapshot,
     SubscriptionContractService,
+    vatPercentFromOfferRate,
 } from '../dist/subscription-contract/index.js';
 import { FakeSubscriptionContractRepository } from '../dist/testing/index.js';
 
@@ -32,6 +33,9 @@ const PLAN_LINE = {
     priceNet: 588,
     priceGross: 699.72,
     billingCycle: 'yearly',
+    currency: 'EUR',
+    taxRate: 19,
+    taxAmount: 111.72,
     minimumTermUntil: null,
     featuresSnapshot: ['CRM'],
     quotaEffectsSnapshot: { users: 5 },
@@ -49,6 +53,9 @@ const BUNDLE_LINE = {
     priceNet: 120,
     priceGross: 142.8,
     billingCycle: 'yearly',
+    currency: 'EUR',
+    taxRate: 19,
+    taxAmount: 22.8,
     minimumTermUntil: BUNDLE_MINIMUM_TERM_UNTIL,
     featuresSnapshot: ['FINANCE_EXPORT'],
     quotaEffectsSnapshot: { exports: 100 },
@@ -66,6 +73,9 @@ const DISCOUNT_LINE = {
     priceNet: -70.8,
     priceGross: -84.25,
     billingCycle: 'yearly',
+    currency: 'EUR',
+    taxRate: 19,
+    taxAmount: -13.45,
     minimumTermUntil: null,
     featuresSnapshot: [],
     quotaEffectsSnapshot: {},
@@ -211,6 +221,67 @@ describe('SubscriptionContractService', () => {
         );
     });
 
+    test('a line whose tax does not close its own gap is refused', () => {
+        // A contract is append-only, so a line that disagrees with itself is a
+        // wrong number nobody can correct afterwards. Both platform paths
+        // compute the tax from the line's own net and gross; this is the caller
+        // that supplies its own.
+        return assert.rejects(
+            () =>
+                service.create({
+                    tenantId: 'tenant-1',
+                    effectiveFrom: EFFECTIVE_FROM,
+                    priceSnapshot: PRICE,
+                    lineItems: [{ ...PLAN_LINE, taxAmount: 999 }],
+                }),
+            (error) => {
+                assert.equal(
+                    error.getResponse().code,
+                    'SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH',
+                );
+                assert.equal(error.getResponse().params.expected, 111.72);
+                return true;
+            },
+        );
+    });
+
+    test('a line booked in another currency than its contract is refused', () => {
+        // An installation sells in one currency, so this is not a
+        // mixed-currency contract — it is a header and a line that disagree,
+        // and the invoice projection would state one in its total and the other
+        // on every line.
+        return assert.rejects(
+            () =>
+                service.create({
+                    tenantId: 'tenant-1',
+                    effectiveFrom: EFFECTIVE_FROM,
+                    priceSnapshot: PRICE,
+                    lineItems: [{ ...PLAN_LINE, currency: 'USD' }],
+                }),
+            (error) => {
+                assert.equal(
+                    error.getResponse().code,
+                    'SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH',
+                );
+                assert.equal(error.getResponse().params.expected, 'EUR');
+                assert.equal(error.getResponse().params.currency, 'USD');
+                return true;
+            },
+        );
+    });
+
+    test('and a line whose tax does close it goes through', async () => {
+        // The counter-check: a rule that refused every line would pass the case
+        // above and stop every contract from ever being written.
+        const contract = await service.create({
+            tenantId: 'tenant-1',
+            effectiveFrom: EFFECTIVE_FROM,
+            priceSnapshot: PRICE,
+            lineItems: [PLAN_LINE],
+        });
+        assert.equal(contract.lineItems[0].taxAmount, 111.72);
+    });
+
     test('contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice', () => {
         const invoiceLine = contractLineItemToInvoiceLineItem({
             id: 'cli-discount-1',
@@ -231,6 +302,9 @@ describe('SubscriptionContractService', () => {
             priceNet: -70.8,
             priceGross: -84.25,
             billingCycle: 'yearly',
+            currency: 'EUR',
+            taxRate: 19,
+            taxAmount: -13.45,
             minimumTermUntil: null,
             metadata: { promoCode: 'START10' },
         });
@@ -297,5 +371,138 @@ describe('SubscriptionContractService', () => {
             () => service.getActiveInvoiceSnapshotForTenant('tenant-missing', EFFECTIVE_FROM),
             /No active subscription contract/,
         );
+    });
+});
+
+// What a contract concluded from an offer records about its money.
+//
+// The offer froze the currency and the rate at the moment it was made, and a
+// contract concluded at that rate is charged at it for its term — so the values
+// come from the offer's own breakdown rather than from whatever the
+// installation is configured with today.
+//
+// The rate needs its unit read rather than assumed: an offer prices its lines
+// as `net * (1 + vatRate)` and so states a fraction, while the catalogue states
+// per cent, and `taxRate` is one column. The assertion that catches a unit
+// error is the one that ties the rate to the tax — `priceNet + taxAmount ===
+// priceGross` cannot, because `recordLineItemMoney` makes it true whatever the
+// rate says.
+
+// @requirement SC-PRIC-015 — An amount records the currency it was booked in
+// @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+// @requirement SC-PRIC-016 — A tax rate has a validity window
+describe('the money facts a contract inherits from its offer', () => {
+    async function conclude(offer) {
+        const service = new SubscriptionContractService(new FakeSubscriptionContractRepository());
+        return service.createFromOffer(offer, {
+            tenantId: 'tenant-1',
+            effectiveFrom: EFFECTIVE_FROM,
+        });
+    }
+
+    /** Within a cent, because a gross is rounded once and a rate is exact. */
+    function rateExplainsTax(line) {
+        const fromRate = (line.priceNet * line.taxRate) / 100;
+        return Math.abs(fromRate - line.taxAmount) <= 0.01;
+    }
+
+    test('a rate the offer states as a fraction is recorded in per cent', async () => {
+        // The fixture is the shape this platform produces: `vatRate: 0.19`
+        // with lines priced at 19 %. Recorded as it stands, the column would
+        // say 0.19 next to a tax that is 19 % of net.
+        const contract = await conclude(consumedOffer());
+        for (const line of contract.lineItems) {
+            assert.equal(line.taxRate, 19, `${line.sourceKey} recorded the rate in the wrong unit`);
+        }
+    });
+
+    test('and the rate it records explains the tax it records', async () => {
+        // The check a unit error cannot pass. `priceNet + taxAmount ===
+        // priceGross` cannot: `recordLineItemMoney` makes that true whatever
+        // the rate says, which is why the first version of this missed it.
+        const contract = await conclude(consumedOffer());
+        for (const line of contract.lineItems) {
+            assert.ok(
+                rateExplainsTax(line),
+                `${line.sourceKey} recorded ${line.taxRate} % beside a tax of ` +
+                    `${line.taxAmount} on a net of ${line.priceNet}`,
+            );
+        }
+    });
+
+    test('every line names the currency the offer froze', async () => {
+        const offer = consumedOffer();
+        offer.priceBreakdown = { ...offer.priceBreakdown, currency: 'CHF' };
+        const contract = await conclude(offer);
+        assert.ok(contract.lineItems.length >= 2);
+        for (const line of contract.lineItems) {
+            assert.equal(line.currency, 'CHF', `${line.sourceKey} lost the offer's currency`);
+        }
+    });
+
+    test('and the tax on each closes the gap between its own net and gross', async () => {
+        const contract = await conclude(consumedOffer());
+        for (const line of contract.lineItems) {
+            assert.equal(
+                Math.round((line.priceNet + line.taxAmount) * 100) / 100,
+                line.priceGross,
+                `${line.sourceKey} does not add up`,
+            );
+        }
+    });
+
+    test('the discount the offer implies carries a negative tax, not a positive one', async () => {
+        // The discount line is appended by the platform rather than supplied,
+        // so it is the one a stamping applied only to the offer's own lines
+        // would miss — and a discount taxed the wrong way round overstates what
+        // is owed.
+        const contract = await conclude(consumedOffer());
+        const discount = contract.lineItems.find((line) => line.kind === 'discount');
+        assert.ok(discount, 'the offer carries a promotion, so a discount line is expected');
+        assert.ok(discount.priceNet < 0);
+        assert.ok(discount.taxAmount < 0, 'a discount reduces the tax as well as the price');
+        assert.ok(rateExplainsTax(discount));
+    });
+});
+
+// The unit itself, asked of the function rather than through a contract.
+//
+// Only one of the two readings is reachable end to end: `discount-line-items`
+// prices the discount it appends as `net * (1 + vatRate)`, so an offer stating
+// a percentage gets a discount line 20 times its size long before this is
+// consulted. That is a pre-existing defect of the offer arithmetic and not
+// this function's to fix — but the function still has to answer for a
+// breakdown whose own totals say per cent, because a consumer supplies the
+// breakdown and only the platform's line pricing assumes otherwise.
+
+// @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+describe('reading the unit an offer states its VAT rate in', () => {
+    test('a fraction beside totals that agree with it becomes a percentage', () => {
+        assert.equal(vatPercentFromOfferRate(0.19, 637.2, 758.27), 19);
+        assert.equal(vatPercentFromOfferRate(0.081, 100, 108.1), 8.1);
+    });
+
+    test('a percentage beside totals that agree with it is left as it is', () => {
+        assert.equal(vatPercentFromOfferRate(19, 637.2, 758.27), 19);
+        assert.equal(vatPercentFromOfferRate(8.1, 100, 108.1), 8.1);
+    });
+
+    test('zero is zero under either reading', () => {
+        assert.equal(vatPercentFromOfferRate(0, 100, 100), 0);
+    });
+
+    test('totals that prove nothing fall to the unit this platform produces', () => {
+        // A breakdown nobody here priced. The fraction is what
+        // `checkout-offer.service.ts` and `discount-line-items.ts` both assume,
+        // so it is what an unrecognised one is taken to be — the alternative is
+        // reading 0.19 as a fifth of a per cent.
+        assert.equal(vatPercentFromOfferRate(0.19, 100, 500), 19);
+    });
+
+    test('a total of nothing is still read as the fraction it is', () => {
+        // Both readings produce a gross of zero, so the totals cannot separate
+        // them. A fully discounted contract is the case, and it still has a
+        // rate.
+        assert.equal(vatPercentFromOfferRate(0.19, 0, 0), 19);
     });
 });

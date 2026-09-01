@@ -11,6 +11,7 @@ import type {
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
     toSubscriptionContractRecord,
+    type CanonicalContractLineItemRow,
     type CanonicalContractRow,
 } from '@saasicat/core';
 import {
@@ -20,26 +21,21 @@ import {
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
 
-/** DB columns this repository reads from `contract_line_items`. */
-interface ContractLineItemDbRow {
-    id: string;
-    contractId: string;
-    kind: string;
-    sourceKey: string;
-    sourceVersionId: string | null;
-    titleSnapshot: string;
-    descriptionSnapshot: string | null;
-    quantity: number;
-    unit: string | null;
+/**
+ * What this repository reads from `contract_line_items`.
+ *
+ * The columns come from the canonical row in `@saasicat/core` — the same list
+ * that maps them — and this narrows only the money ones, which Prisma hands
+ * back as `Decimal` where the canonical row says `unknown`. Written out again
+ * instead, it fell behind the moment a column was added, and the failure was
+ * the reader and the mapper disagreeing about what a row holds.
+ */
+type ContractLineItemDbRow = CanonicalContractLineItemRow & {
     priceNet: DecimalLike;
     priceGross: DecimalLike;
-    billingCycle: string;
-    minimumTermUntil: Date | null;
-    featuresSnapshot: unknown;
-    quotaEffectsSnapshot: unknown;
-    metadata: unknown;
-    createdAt: Date;
-}
+    taxRate: DecimalLike;
+    taxAmount: DecimalLike;
+};
 
 /**
  * What this repository reads back: the canonical contract row plus its lines.
@@ -172,6 +168,9 @@ function toLineItemCreate(item: NewContractLineItemData) {
         priceNet: item.priceNet,
         priceGross: item.priceGross,
         billingCycle: item.billingCycle,
+        currency: item.currency,
+        taxRate: item.taxRate,
+        taxAmount: item.taxAmount,
         minimumTermUntil: item.minimumTermUntil ?? null,
         featuresSnapshot: item.featuresSnapshot,
         quotaEffectsSnapshot: item.quotaEffectsSnapshot,

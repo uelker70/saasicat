@@ -17,13 +17,13 @@ from there.
 
 ## Entry points
 
-| Entry                         | What is in it                                                    |
-| ----------------------------- | ---------------------------------------------------------------- |
-| `.`                           | The hand-written index: constants and helpers over the schemas.  |
-| `./schemas/*.json`            | The JSON Schemas — the source of truth for every wire format.    |
-| `./prisma-fragments/*.prisma` | One fragment per table group, merged by `saasicat schema apply`. |
-| `./prisma-fragments/`         | The directory itself, for tooling that enumerates the fragments. |
-| `./sql/*.sql`                 | The constraints Prisma cannot express, and the reference schema. |
+| Entry                         | What is in it                                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `.`                           | The hand-written index: constants and helpers over the schemas.                                             |
+| `./schemas/*.json`            | The JSON Schemas — the source of truth for every wire format.                                               |
+| `./prisma-fragments/*.prisma` | One fragment per table group, merged by `saasicat schema apply`.                                            |
+| `./prisma-fragments/`         | The directory itself, for tooling that enumerates the fragments.                                            |
+| `./sql/*.sql`                 | The reference schema, the constraints Prisma cannot express, and the migrations a consumer applies by hand. |
 
 ## Contents
 
@@ -33,6 +33,7 @@ from there.
 | `schemas/plan-catalog.schema.json`      | App identity config format (`config/saas.yaml`)   |
 | `schemas/promo-code.schema.json`        | Promo code format incl. redemption lifecycle      |
 | `schemas/audit-event.schema.json`       | Audit log entry format                            |
+| `schemas/tenant-ledger.schema.json`     | A tenant's account: charges, payments, balance    |
 | `admin-api.openapi.yaml`                | NORMATIVE REST contract of the SuperAdmin backend |
 | `acceptance/`                           | HTTP test scenarios (stubs; runner planned)       |
 | `index.js` / `index.cjs` / `index.d.ts` | Re-exports for JS/TS consumers                    |

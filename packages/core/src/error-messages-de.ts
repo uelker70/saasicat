@@ -225,6 +225,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Ein Abo-Vertrag braucht genau eine Plan-Grundposition.',
     SUBSCRIPTION_CONTRACT_INVALID_DATE: '{field} muss ein gültiges Datum sein.',
     SUBSCRIPTION_CONTRACT_INVALID_WINDOW: 'effectiveUntil muss nach effectiveFrom liegen.',
+    SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH:
+        'taxAmount einer Position muss exakt priceGross minus priceNet sein.',
+    SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH:
+        'Eine Position muss in der Währung gebucht sein, in der ihr Vertrag bepreist ist.',
     SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START:
         'effectiveUntil muss nach dem effectiveFrom des Vertrags liegen.',
     CHECKOUT_OFFER_NOT_FOUND: "CheckoutOffer '{offerId}' nicht gefunden",

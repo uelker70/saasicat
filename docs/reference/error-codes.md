@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 151 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 153 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -169,25 +169,27 @@ Subscriptions, plan changes, entitlements.
 
 Checkout offers and subscription contracts.
 
-| Code                                             | Shipped English text                                                                                                         |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `CHECKOUT_OFFER_ALREADY_CONSUMED`                | Checkout offer '{offerId}' has already been consumed and cannot be {action}                                                  |
-| `CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED`      | Every selected bundle version requires a frozen bundle line item.                                                            |
-| `CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE`     | At least one bundle version from the checkout offer is no longer bookable.                                                   |
-| `CHECKOUT_OFFER_EXPIRED`                         | Checkout offer '{offerId}' has expired and cannot be {action}                                                                |
-| `CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED`  | The selected plan does not cover all feature dependencies: [{missingRequires}] are missing from the plan + selected bundles. |
-| `CHECKOUT_OFFER_LINE_ITEMS_REQUIRED`             | A checkout offer can yield only one contract, and only once its line items are frozen.                                       |
-| `CHECKOUT_OFFER_NOT_CONSUMED`                    | CheckoutOffer '{offerId}' must be consumed before the contract is created                                                    |
-| `CHECKOUT_OFFER_NOT_FOUND`                       | CheckoutOffer '{offerId}' not found                                                                                          |
-| `CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED`         | A checkout offer requires a frozen plan line item.                                                                           |
-| `NO_ACTIVE_SUBSCRIPTION_CONTRACT`                | No active subscription contract for tenant {tenantId}                                                                        |
-| `SUBSCRIPTION_CONTRACT_ALREADY_CLOSED`           | SubscriptionContract '{contractId}' is already closed                                                                        |
-| `SUBSCRIPTION_CONTRACT_INVALID_DATE`             | {field} must be a valid date.                                                                                                |
-| `SUBSCRIPTION_CONTRACT_INVALID_WINDOW`           | effectiveUntil must be after effectiveFrom.                                                                                  |
-| `SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED`      | A subscription contract requires at least one line item.                                                                     |
-| `SUBSCRIPTION_CONTRACT_NOT_FOUND`                | SubscriptionContract '{contractId}' not found                                                                                |
-| `SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED`  | A subscription contract requires exactly one plan base item.                                                                 |
-| `SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START` | effectiveUntil must be after the effectiveFrom of the contract.                                                              |
+| Code                                                | Shipped English text                                                                                                         |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `CHECKOUT_OFFER_ALREADY_CONSUMED`                   | Checkout offer '{offerId}' has already been consumed and cannot be {action}                                                  |
+| `CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED`         | Every selected bundle version requires a frozen bundle line item.                                                            |
+| `CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE`        | At least one bundle version from the checkout offer is no longer bookable.                                                   |
+| `CHECKOUT_OFFER_EXPIRED`                            | Checkout offer '{offerId}' has expired and cannot be {action}                                                                |
+| `CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED`     | The selected plan does not cover all feature dependencies: [{missingRequires}] are missing from the plan + selected bundles. |
+| `CHECKOUT_OFFER_LINE_ITEMS_REQUIRED`                | A checkout offer can yield only one contract, and only once its line items are frozen.                                       |
+| `CHECKOUT_OFFER_NOT_CONSUMED`                       | CheckoutOffer '{offerId}' must be consumed before the contract is created                                                    |
+| `CHECKOUT_OFFER_NOT_FOUND`                          | CheckoutOffer '{offerId}' not found                                                                                          |
+| `CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED`            | A checkout offer requires a frozen plan line item.                                                                           |
+| `NO_ACTIVE_SUBSCRIPTION_CONTRACT`                   | No active subscription contract for tenant {tenantId}                                                                        |
+| `SUBSCRIPTION_CONTRACT_ALREADY_CLOSED`              | SubscriptionContract '{contractId}' is already closed                                                                        |
+| `SUBSCRIPTION_CONTRACT_INVALID_DATE`                | {field} must be a valid date.                                                                                                |
+| `SUBSCRIPTION_CONTRACT_INVALID_WINDOW`              | effectiveUntil must be after effectiveFrom.                                                                                  |
+| `SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED`         | A subscription contract requires at least one line item.                                                                     |
+| `SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH` | A line item must be booked in the currency its contract was priced in.                                                       |
+| `SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH`      | A line item's taxAmount must be exactly priceGross minus priceNet.                                                           |
+| `SUBSCRIPTION_CONTRACT_NOT_FOUND`                   | SubscriptionContract '{contractId}' not found                                                                                |
+| `SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED`     | A subscription contract requires exactly one plan base item.                                                                 |
+| `SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START`    | effectiveUntil must be after the effectiveFrom of the contract.                                                              |
 
 ## Promo codes
 

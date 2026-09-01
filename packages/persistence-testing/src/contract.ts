@@ -1347,6 +1347,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         priceNet: 19.9,
                         priceGross: 23.68,
                         billingCycle: 'monthly',
+                        currency: 'EUR',
+                        taxRate: 19,
+                        taxAmount: 3.78,
                         minimumTermUntil: new Date('2027-01-01T00:00:00.000Z'),
                         featuresSnapshot: ['CORE'],
                         quotaEffectsSnapshot: { users: 5 },
@@ -1363,6 +1366,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                         priceNet: 10.0,
                         priceGross: 11.9,
                         billingCycle: 'monthly',
+                        currency: 'EUR',
+                        taxRate: 19,
+                        taxAmount: 1.9,
                         minimumTermUntil: null,
                         featuresSnapshot: [],
                         quotaEffectsSnapshot: { users: 5 },
@@ -1391,6 +1397,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 'the commitment is part of what was agreed',
             );
             assert.deepEqual(planLine.metadata, { origin: 'onboarding' });
+            assert.equal(planLine.currency, 'EUR', 'the line says what it was booked in');
+            assert.equal(planLine.taxRate, 19, 'the rate is a recorded fact, not the ratio');
+            assert.equal(planLine.taxAmount, 3.78);
+            assert.equal(
+                Math.round((planLine.priceNet + planLine.taxAmount) * 100) / 100,
+                planLine.priceGross,
+                'the tax closes the gap between net and gross',
+            );
             const bundleLine = created.lineItems.find((item) => item.kind === 'bundle');
             assert.ok(bundleLine, 'bundle line expected');
             // The nullable half of every one of those fields, so an adapter
@@ -1490,6 +1504,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 priceNet,
                 priceGross,
                 billingCycle: 'monthly',
+                currency: 'EUR',
+                taxRate: 19,
+                taxAmount: Math.round((priceGross - priceNet) * 100) / 100,
                 minimumTermUntil: null,
                 featuresSnapshot: [],
                 quotaEffectsSnapshot: {},
@@ -1586,6 +1603,94 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 ),
                 [first.id],
             );
+        });
+
+        // -------------------------------------------------------------
+        test('a line keeps the currency and the tax it was booked with', async (t) => {
+            const contracts = harness.adapter.subscriptionContractRepository;
+            if (!contracts) {
+                t.skip('adapter provides no SubscriptionContractRepository');
+                return;
+            }
+            const tenantId = 'tenant-contract-money-facts';
+            const created = await contracts.create({
+                tenantId,
+                effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+                priceSnapshot: {
+                    currency: 'CHF',
+                    billingCycle: 'monthly',
+                    subtotalNet: 100,
+                    discountNet: 10,
+                    totalNet: 90,
+                    vatRate: 8.1,
+                    totalGross: 97.29,
+                },
+                lineItems: [
+                    {
+                        kind: 'plan',
+                        sourceKey: 'STANDARD',
+                        sourceVersionId: null,
+                        titleSnapshot: 'Standard',
+                        descriptionSnapshot: null,
+                        quantity: 1,
+                        unit: null,
+                        priceNet: 100,
+                        priceGross: 108.1,
+                        billingCycle: 'monthly',
+                        // Not the installation this suite's other contracts
+                        // run under, and not a whole number of per cent —
+                        // a rate stored as an integer, or a currency taken
+                        // from a default, passes every other case here.
+                        currency: 'CHF',
+                        taxRate: 8.1,
+                        taxAmount: 8.1,
+                        minimumTermUntil: null,
+                        featuresSnapshot: [],
+                        quotaEffectsSnapshot: {},
+                        metadata: null,
+                    },
+                    {
+                        kind: 'discount',
+                        sourceKey: 'WELCOME10',
+                        sourceVersionId: null,
+                        titleSnapshot: 'Welcome discount',
+                        descriptionSnapshot: null,
+                        quantity: 1,
+                        unit: null,
+                        priceNet: -10,
+                        priceGross: -10.81,
+                        billingCycle: 'monthly',
+                        currency: 'CHF',
+                        taxRate: 8.1,
+                        taxAmount: -0.81,
+                        minimumTermUntil: null,
+                        featuresSnapshot: [],
+                        quotaEffectsSnapshot: {},
+                        metadata: null,
+                    },
+                ],
+            });
+
+            const read = await contracts.findById(created.id);
+            const plan = read?.lineItems.find((item) => item.kind === 'plan');
+            const discount = read?.lineItems.find((item) => item.kind === 'discount');
+            assert.ok(plan && discount, 'both lines expected');
+            assert.equal(plan.currency, 'CHF');
+            assert.equal(plan.taxRate, 8.1, 'a fractional rate survives the column');
+            assert.equal(plan.taxAmount, 8.1);
+            // A discount reduces the tax as well as the price, so the sign has
+            // to survive too — a column that only ever saw positive money
+            // reads the same either way until one arrives.
+            assert.equal(discount.currency, 'CHF');
+            assert.equal(discount.taxRate, 8.1);
+            assert.equal(discount.taxAmount, -0.81);
+            for (const line of [plan, discount]) {
+                assert.equal(
+                    Math.round((line.priceNet + line.taxAmount) * 100) / 100,
+                    line.priceGross,
+                    'net plus tax is gross, on every line',
+                );
+            }
         });
     });
 }
