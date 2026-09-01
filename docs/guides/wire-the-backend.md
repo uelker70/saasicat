@@ -110,13 +110,75 @@ app:
     label: MyApp Cockpit
 currency: EUR
 vatRate: 19.0
+tenantBilling:
+    cancellationNoticeDays:
+        monthly: 0
+        yearly: 0
+    selfServiceBlockedPlans:
+        asTarget: []
+        asSource: []
 marketing:
     availableLocales: [de, en]
 ```
 
+`tenantBilling:` is required, member by member — the notice period per rhythm and
+the plans self-service may not reach or leave. Both have a money or a legal
+consequence, so the file states them rather than defaulting them; see
+[the settings section of the upgrade guide](upgrade-to-1.0.md#the-settings-that-cost-money-live-in-configsaasyaml).
+
 > `features:` and `plans:` are still allowed as optional blocks in the schema —
 > only for static setups without an admin UI (tests, smoke environments).
 > In production they are deliberately NOT maintained in the YAML.
+
+### A value may name an environment variable
+
+One file, wired differently per environment: a value may be written as
+`${NAME}`, and the platform resolves it from the environment when it reads the
+file.
+
+```yaml
+app:
+    name: ${APP_NAME}
+    version: ${BUILD_NUMBER}
+vatRate: ${VAT_RATE:-19.0}
+tenantBilling:
+    cancellationNoticeDays:
+        monthly: ${NOTICE_DAYS_MONTHLY}
+        yearly: ${NOTICE_DAYS_YEARLY}
+```
+
+What holds, in the order the platform applies it:
+
+- **The reference is resolved before the schema looks.** A variable standing in
+  for `monthly` is held to `integer, minimum: 0` like a number typed into the
+  file. The resolved text is read as the type the field declares — `14` is the
+  integer 14 where the field takes an integer, and `1234` stays the string
+  `"1234"` where `version` takes a string.
+- **A variable nobody set stops the boot**, naming the variable and the field,
+  unless the file declares a default as `${NAME:-value}`. The default also
+  applies when the variable is set to nothing.
+- **A value that does not fit the field is refused**, never read as `0` or
+  `NaN`: `NOTICE_DAYS_MONTHLY=abc` names the variable, the text and the type
+  the field takes. The reading is strict — `1.5`, `1e3` and a leading space are
+  not integers.
+- **A variable named as a credential is refused** — `SECRET`, `TOKEN`,
+  `PASSWORD`, a `PRIVATE_KEY`, an `API_KEY` — whether or not it is set. A value
+  the file resolves is shown on the login page, quoted in errors and recorded
+  as the applied configuration; a secret stays in the environment and is read
+  where it is used, which is what options such as `setupTokenEnvVar` carry:
+  the name of a variable, not its value.
+- **A variable stands in for one value.** Where a field takes a list, write the
+  list in the file and refer to a variable per entry.
+
+Two things are YAML's rather than the platform's: inside a flow collection
+(`{ … }` or `[ … ]`) a bare `${X}` opens a nested mapping, so quote it there —
+`asTarget: ['${ENTERPRISE_PLAN}']` — and a `$` that does not open a
+well-formed reference is ordinary text, so `Price $5` needs no escape.
+
+References are resolved for the installation's own file only. The catalogue
+import (`POST /admin/billing/plan-catalog/import`) refuses a document that
+carries one: resolving `${DATABASE_URL}` for whoever can post a YAML body would
+hand them the server's environment.
 
 ## Loading the Plan Catalog at Boot
 
@@ -128,8 +190,10 @@ const SAAS_CONFIG_PATH = process.env.MYAPP_SAAS_CONFIG_PATH ?? 'config/saas.yaml
 const SAAS_CONFIG = loadPlanCatalogFromFile({ path: SAAS_CONFIG_PATH });
 ```
 
-`loadPlanCatalogFromFile` validates the YAML against the schema from
-`@saasicat/spec` — errors throw early at boot.
+`loadPlanCatalogFromFile` resolves the `${NAME}` references against
+`process.env` (pass `env` to resolve against something else) and validates the
+result against the schema from `@saasicat/spec` — errors throw early at boot,
+every one of them at once.
 
 ## Standard Persistence Bundle (Prisma)
 

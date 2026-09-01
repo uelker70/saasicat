@@ -261,6 +261,125 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CFG-020 — A value in the configuration file may name an environment variable
+
+🟢 Written as `${NAME}`, and resolved when the file is read — before the schema checks it, so a
+variable standing in for a number is held to the same rule as a number typed into the file. The
+resolved text is read as the type the field declares: `NOTICE_DAYS=14` is the integer 14, and a
+build number stays a string where the field is one. It is what lets one file serve local development
+and production, wired differently by the deployment rather than by a second file. A reference
+inside a YAML flow collection has to be quoted; that is the parser's rule, not this one's.
+
+_Source:_ #260
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-value-in-the-file-may-name-a-variable.test.js`
+    - a reference is resolved before the schema looks, as the type the field declares
+        - an integer field reads the variable as an integer
+        - a number, a boolean and a string field each read it as their own type
+        - a reference may sit inside a string and inside a list
+        - a dollar sign that opens no well-formed reference is ordinary text
+        - the schema still decides after the value is resolved
+        - a document without a reference is untouched
+    - the file the platform reads at boot
+        - resolves against the process environment unless told otherwise
+
+<!-- END proof -->
+
+### SC-CFG-021 — A variable the file names and nothing sets stops the installation, naming both
+
+🟢 The variable and the field, in one sentence, with the way out beside them — the default syntax
+`${NAME:-value}`, which is the one exception: a reference that declares a default is satisfied by
+it when the variable is unset or empty. Every missing variable is named at once rather than one
+per restart.
+
+_Source:_ #260
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-value-in-the-file-may-name-a-variable.test.js`
+    - a variable nobody set
+        - is refused with the variable and the field
+        - every missing variable is named at once, not one per restart
+        - a default declared in the file stands in for it
+        - a set variable wins over the default
+        - a variable set to nothing takes the default too
+        - without a default, an empty variable is a value, and the schema judges it
+
+<!-- END proof -->
+
+### SC-CFG-022 — A variable whose value does not fit the field is refused, not read as zero
+
+🟢 💰 `monthly: ${NOTICE_DAYS}` with `NOTICE_DAYS=abc` does not become `NaN` and does not fall back to
+`0`: it stops the installation, naming the variable, the text it resolved to, and the type the
+field takes. That is the silent zero the move into the file exists to end, one level down. The
+reading is strict — `1.5`, `1e3` and a leading space are not integers — because the text is what
+somebody typed into a deployment, and a lenient reading is how a typo becomes a term.
+
+_Source:_ #260
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-value-in-the-file-may-name-a-variable.test.js`
+    - a value that does not fit the field
+        - ${why} is refused for an integer field, and neither NaN nor zero gets through
+        - a whole negative number is an integer — the schema then applies its minimum
+        - a number field refuses a comma decimal
+        - a boolean field accepts only true and false
+        - a variable cannot stand in for a whole list
+
+<!-- END proof -->
+
+### SC-CFG-023 — A variable whose name says it holds a credential may not be referenced from the file
+
+🟢 🔒 A value the file resolves becomes part of the catalogue: shown on the login page, quoted in
+validation errors, recorded as the applied configuration. A secret must not take that route, so a
+reference to a variable named as one — `SECRET`, `TOKEN`, `PASSWORD`, a `PRIVATE_KEY` or an
+`API_KEY` — is refused whether or not it is set, and the refusal does not quote the value.
+Credentials stay in the environment and are read where they are used, which is what the
+`…EnvVar` options carry: the name of a variable, not its value. Where the absolute stops: the
+recognition is by name, since a value cannot be inspected for secrecy, so a credential under an
+innocuous name passes this guard, and a key is refused only when a qualifier says what kind it is.
+
+_Source:_ #260 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-value-in-the-file-may-name-a-variable.test.js`
+    - a credential named in the file
+        - \${${name}} is refused whether or not it is set
+        - \${${name}} is an ordinary variable
+
+<!-- END proof -->
+
+### SC-CFG-024 — The environment is resolved only for the installation's own configuration file
+
+🟢 🔒 A document that arrives another way — the catalogue import takes one over HTTP — has every
+reference refused, with a sentence saying why. Resolving `${DATABASE_URL}` for whoever can post a
+YAML body would hand them the server's environment one variable at a time.
+
+_Source:_ #260
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-value-in-the-file-may-name-a-variable.test.js`
+    - a document that did not come from the file
+        - has every reference refused when no environment is given
+        - the catalogue import gives none, so an upload cannot read the server environment
+
+<!-- END proof -->
+
 ### SC-CFG-008 — An operator can see when the running configuration was applied, and from where
 
 🟡 _(Decided, not yet delivered.)_ Somebody who edited the file an hour ago otherwise has no way to
