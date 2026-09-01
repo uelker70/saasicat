@@ -9388,6 +9388,7 @@ _Tested by:_
         - a set variable wins over the default
         - a variable set to nothing takes the default too
         - without a default, an empty variable is a value, and the schema judges it
+        - a name the environment only inherits is not set
 
 <!-- END proof -->
 
@@ -9412,6 +9413,7 @@ _Tested by:_
         - a number field refuses a comma decimal
         - a boolean field accepts only true and false
         - a variable cannot stand in for a whole list
+        - a string carrying several references names all of them, not the first
 
 <!-- END proof -->
 

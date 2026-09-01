@@ -177,6 +177,32 @@ describe('a variable nobody set', () => {
         const error = refusal(() => load(FILE, { ...ENV, APP_NAME: '' }));
         assert.match(error.message, /app\.name: must NOT have fewer than 1 characters/);
     });
+
+    test('a name the environment only inherits is not set', () => {
+        // `process.env` inherits from `Object.prototype`, so `${toString}` would
+        // otherwise resolve to a function and pass where a string is expected.
+        const yaml = FILE.replace('name: ${APP_NAME}', 'name: ${toString}');
+        const error = refusal(() => load(yaml, { ...ENV }));
+        assert.match(error.message, /app\.name: refers to \$\{toString\}, which is not set/);
+    });
+});
+
+describe('a document that tries to reach the prototype', () => {
+    test('a __proto__ key is refused as the additional property it is', () => {
+        // The parser hands it over as an own key; a copy by assignment would
+        // reach the prototype setter and drop it before the schema looked, so
+        // the document would pass with a member the schema forbids.
+        const yaml = `${FILE}__proto__: ${'${APP_NAME}'}\n`;
+        const error = refusal(() => load(yaml, ENV));
+        assert.match(error.message, /__proto__: must NOT have additional properties/);
+    });
+
+    test("a __proto__ mapping does not become the document's prototype", () => {
+        const yaml = `${FILE}__proto__:\n  polluted: ${'${APP_NAME}'}\n`;
+        refusal(() => load(yaml, ENV));
+        assert.equal({}.polluted, undefined);
+        assert.equal(Object.prototype.polluted, undefined);
+    });
 });
 
 // @requirement SC-CFG-022 — A variable whose value does not fit the field is refused, not read as zero
@@ -218,8 +244,17 @@ describe('a value that does not fit the field', () => {
     test('a variable cannot stand in for a whole list', () => {
         const yaml = FILE.replace("asTarget: ['${BLOCKED_PLAN}']", 'asTarget: ${BLOCKED_PLAN}');
         const error = refusal(() => load(yaml, ENV));
-        assert.match(error.message, /selfServiceBlockedPlans\.asTarget: .*takes a array/);
+        assert.match(error.message, /selfServiceBlockedPlans\.asTarget: .*takes a list/);
         assert.match(error.message, /a variable per entry/);
+    });
+
+    test('a string carrying several references names all of them, not the first', () => {
+        const yaml = FILE.replace('vatRate: ${VAT}', 'vatRate: ${VAT_WHOLE}.${VAT_FRACTION}');
+        const error = refusal(() => load(yaml, { ...ENV, VAT_WHOLE: '19', VAT_FRACTION: 'x' }));
+        assert.match(
+            error.message,
+            /vatRate: \$\{VAT_WHOLE\} and \$\{VAT_FRACTION\} resolves to "19\.x", and the field takes number/,
+        );
     });
 });
 
@@ -319,6 +354,14 @@ describe('the file the platform reads at boot', () => {
                 loadPlanCatalogFromFile({ path, env: { ...ENV, [probe]: 'Handed in' } }).app.name,
                 'Handed in',
             );
+            // And `null` means what it means for the string variant: no
+            // environment, every reference refused — not the process one.
+            const error = refusal(() => loadPlanCatalogFromFile({ path, env: null }));
+            assert.match(
+                error.message,
+                /resolved only when the platform reads its own configuration file/,
+            );
+            assert.doesNotMatch(error.message, /From the process/);
         } finally {
             delete process.env[probe];
             for (const name of Object.keys(ENV)) delete process.env[name];

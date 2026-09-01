@@ -262,6 +262,12 @@ function describeTypes(types: Set<string>): string {
     return [...types].join(' or ');
 }
 
+/** `a list`, `a block`, or both — the two shapes a single value cannot stand in for. */
+function describeStructure(types: Set<string>): string {
+    const shapes = [types.has('array') ? 'a list' : null, types.has('object') ? 'a block' : null];
+    return shapes.filter((shape) => shape !== null).join(' or ');
+}
+
 function pointer(path: string[]): string {
     return path.length === 0 ? '' : `/${path.join('/')}`;
 }
@@ -305,7 +311,18 @@ function walk(
     if (value !== null && typeof value === 'object') {
         const out: Record<string, unknown> = {};
         for (const [key, member] of Object.entries(value)) {
-            out[key] = walk(member, [...path, key], schema, env, problems);
+            // Defined, not assigned: the YAML parser hands a `__proto__:` key
+            // over as an own property, and `out[key] = …` would reach the
+            // prototype setter instead — dropping the member before Ajv sees
+            // it, or rewiring the object's prototype where it is a mapping.
+            // Defined as an own property it reaches Ajv, which refuses it as
+            // the additional property it is.
+            Object.defineProperty(out, key, {
+                value: walk(member, [...path, key], schema, env, problems),
+                enumerable: true,
+                writable: true,
+                configurable: true,
+            });
         }
         return out;
     }
@@ -326,6 +343,7 @@ function resolveString(
     if (references.length === 0) return value;
 
     const instancePath = pointer(path);
+    const named = references.map((r) => `\${${r.name}}`).join(' and ');
     if (env === null) {
         for (const { name } of references) {
             problems.push({
@@ -343,7 +361,6 @@ function resolveString(
     const types = declaredTypes(schemaAt(schema, path));
     let text = '';
     let complete = true;
-    let firstVariable = '';
 
     for (const segment of segments) {
         if ('text' in segment) {
@@ -351,7 +368,6 @@ function resolveString(
             continue;
         }
         const { name, fallback } = segment.reference;
-        firstVariable ||= name;
         if (namesACredential(name)) {
             problems.push({
                 instancePath,
@@ -364,7 +380,9 @@ function resolveString(
             complete = false;
             continue;
         }
-        const fromEnv = env[name];
+        // An own property only: `process.env` inherits from `Object.prototype`,
+        // so `${toString}` would otherwise resolve to a function nobody set.
+        const fromEnv = Object.hasOwn(env, name) ? env[name] : undefined;
         if (fromEnv !== undefined && (fromEnv !== '' || fallback === null)) {
             text += fromEnv;
         } else if (fallback !== null) {
@@ -382,12 +400,16 @@ function resolveString(
     }
     if (!complete) return value;
 
+    // The whole string is one value, so the references it carries are named
+    // together: where two of them resolve to text that does not fit, neither is
+    // the one at fault.
+    const envVar = references[0].name;
     if (types.has('array') || types.has('object')) {
         problems.push({
             instancePath,
-            params: { envVar: firstVariable },
+            params: { envVar },
             message:
-                `\${${firstVariable}} stands where the field takes a ${describeTypes(types)}. A variable ` +
+                `${named} stands where the field takes ${describeStructure(types)}. A variable ` +
                 'stands in for a single value: write the structure in the file and refer to a ' +
                 'variable per entry.',
         });
@@ -397,9 +419,9 @@ function resolveString(
     if (converted === undefined) {
         problems.push({
             instancePath,
-            params: { envVar: firstVariable },
+            params: { envVar },
             message:
-                `\${${firstVariable}} resolves to ${JSON.stringify(text)}, and the field takes ` +
+                `${named} resolves to ${JSON.stringify(text)}, and the field takes ` +
                 `${describeTypes(types)}.`,
         });
         return value;

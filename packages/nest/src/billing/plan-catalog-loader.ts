@@ -31,7 +31,7 @@ export interface AjvErrorLike {
     message?: string;
     schemaPath?: string;
     /** `envVar` names the variable behind a reference that could not be resolved. */
-    params?: { missingProperty?: string; envVar?: string };
+    params?: { missingProperty?: string; additionalProperty?: string; envVar?: string };
 }
 
 /**
@@ -45,11 +45,15 @@ export interface AjvErrorLike {
  * This is not decoration. Making `tenantBilling` required breaks every existing
  * config/saas.yaml on upgrade, so this message is the first thing every
  * integrator meets.
+ *
+ * A member the schema does not know is reported the same way: Ajv points at the
+ * parent and names the offender in `params`, and `must NOT have additional
+ * properties` without the name sends the editor hunting through the block.
  */
 function locate(error: AjvErrorLike): string {
     const segments = (error.instancePath ?? '').split('/').filter(Boolean);
-    const missing = error.params?.missingProperty;
-    if (missing) segments.push(missing);
+    const named = error.params?.missingProperty ?? error.params?.additionalProperty;
+    if (named) segments.push(named);
     return segments.length > 0 ? segments.join('.') : '(document root)';
 }
 
@@ -84,8 +88,9 @@ export interface LoadPlanCatalogOptions {
      */
     crossFieldChecks?: boolean;
     /**
-     * The variables a `${NAME}` in the file may resolve against. Defaults to
-     * `process.env`; tests hand in their own record.
+     * The variables a `${NAME}` in the file may resolve against. Left out,
+     * `process.env`; a record of their own for tests; `null` to refuse every
+     * reference, the way the string variant does without one.
      */
     env?: EnvironmentVariables;
 }
@@ -118,7 +123,9 @@ export function loadPlanCatalogFromFile(opts: LoadPlanCatalogOptions): PlanCatal
     return loadPlanCatalogFromString(raw, {
         source: absolutePath,
         crossFieldChecks: opts.crossFieldChecks ?? true,
-        env: opts.env ?? process.env,
+        // `??` would turn an explicit `null` — refuse every reference — into
+        // the process environment, the one thing that value asks not to read.
+        env: opts.env === undefined ? process.env : opts.env,
     });
 }
 

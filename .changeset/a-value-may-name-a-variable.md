@@ -36,7 +36,14 @@ uploaded body through it, cannot be used to read the server's environment. The
 refusal is a `PlanCatalogValidationError`, and the import already answers 400 to
 that. A document without a reference loads exactly as before.
 
+**A value that already contains the text `${NAME}` changes meaning.** A plan
+tagline reading `Save ${AMOUNT}` used to be that text; it is now a reference to
+a variable called `AMOUNT`, and there is no escape that writes a literal
+`${NAME}` — the boot refuses the document, naming the field and the variable,
+so the change is loud rather than silent. Rewrite the text. A `$` that opens no
+well-formed reference — `$5`, `${`, `${9}` — is ordinary text as before.
+
 Inside a YAML flow collection a bare `${X}` is a nested mapping to the parser,
-so quote it there: `asTarget: ['${ENTERPRISE_PLAN}']`. A `$` that opens no
-well-formed reference is ordinary text. See "A value may name an environment
-variable" in [`docs/guides/wire-the-backend.md`](https://github.com/uelker70/saasicat/blob/main/docs/guides/wire-the-backend.md).
+so quote it there: `asTarget: ['${ENTERPRISE_PLAN}']`. See "A value may name an
+environment variable" in
+[`docs/guides/wire-the-backend.md`](https://github.com/uelker70/saasicat/blob/main/docs/guides/wire-the-backend.md).

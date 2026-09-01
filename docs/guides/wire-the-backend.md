@@ -173,7 +173,10 @@ What holds, in the order the platform applies it:
 Two things are YAML's rather than the platform's: inside a flow collection
 (`{ … }` or `[ … ]`) a bare `${X}` opens a nested mapping, so quote it there —
 `asTarget: ['${ENTERPRISE_PLAN}']` — and a `$` that does not open a
-well-formed reference is ordinary text, so `Price $5` needs no escape.
+well-formed reference is ordinary text, so `Price $5` needs no escape. There
+is no escape the other way: a literal `${NAME}` cannot be written into a value,
+and a text that carried one before this existed is now a reference to a
+variable of that name.
 
 References are resolved for the installation's own file only. The catalogue
 import (`POST /admin/billing/plan-catalog/import`) refuses a document that
