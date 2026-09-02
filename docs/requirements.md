@@ -9613,6 +9613,7 @@ _Tested by:_
         - a boot that finds nothing changed mails nobody
         - the first boot has nothing to compare against, so it mails nobody
         - a mail that fails is logged, the others still go out, and the boot completes
+        - a send that never answers does not hold the boot
         - the boot log says once that changes are mailed
     - addresses in the file and no email port
         - the change is recorded, nobody is mailed, and the boot log says so once
@@ -9639,6 +9640,7 @@ _Tested by:_
         - a boot that finds nothing changed mails nobody
         - the first boot has nothing to compare against, so it mails nobody
         - a mail that fails is logged, the others still go out, and the boot completes
+        - a send that never answers does not hold the boot
         - the boot log says once that changes are mailed
 
 <!-- END proof -->

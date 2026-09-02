@@ -31,6 +31,14 @@ import { SettingsChangeNotifier } from './settings-change-notifier.js';
 import { fingerprintOf } from './settings-fingerprint.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.tokens.js';
 
+/** How long a boot waits for the mail to be handed over before it goes on. */
+const MAIL_BOOT_BUDGET_MS = 2_000;
+
+/** Resolves after `ms`; the timer is unreferenced, so it holds nothing open. */
+function pause(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms).unref());
+}
+
 /** What one boot did about the record. */
 export type BootOutcome =
     | { kind: 'not-recorded' }
@@ -45,10 +53,15 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
         @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
-        @Inject(SettingsChangeNotifier) private readonly notifier: SettingsChangeNotifier,
         @Optional()
         @Inject(APPLIED_SETTINGS_PORT_TOKEN)
         private readonly port: AppliedSettingsPort | null = null,
+        // Last, and optional, so that `new AppliedSettingsRecorder(catalog,
+        // source, port)` — the shape this class was published with — still
+        // records. Without a notifier nobody is mailed; the record is kept.
+        @Optional()
+        @Inject(SettingsChangeNotifier)
+        private readonly notifier: SettingsChangeNotifier | null = null,
     ) {}
 
     /** Whether this installation keeps a record at all. */
@@ -67,11 +80,13 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
             );
             return;
         }
-        this.notifier.reportModeAtBoot();
+        this.notifier?.reportModeAtBoot();
         try {
             const outcome = await this.record(this.port, new Date());
             this.report(outcome);
-            if (outcome.kind === 'changed') await this.notifier.notify(outcome.change);
+            if (outcome.kind === 'changed' && this.notifier) {
+                await this.tellSomebody(this.notifier, outcome.change);
+            }
         } catch (error) {
             this.logger.error(
                 'The applied settings could not be recorded — the configuration in ' +
@@ -79,6 +94,23 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
                 error instanceof Error ? error.stack : String(error),
             );
         }
+    }
+
+    /**
+     * Mails the change without holding the boot for it.
+     *
+     * Nest resolves `app.listen()` only once every bootstrap hook has settled,
+     * and an SMTP host that does not answer would otherwise turn a changed
+     * setting into an installation that does not start. So the boot waits a
+     * moment — long enough for a working adapter to hand the mail over, so
+     * the log reads in order — and then goes on; a slow adapter finishes on
+     * its own, and `notify()` bounds each send and logs what timed out.
+     */
+    private async tellSomebody(
+        notifier: SettingsChangeNotifier,
+        change: SettingsChangeRecord,
+    ): Promise<void> {
+        await Promise.race([notifier.notify(change), pause(MAIL_BOOT_BUDGET_MS)]);
     }
 
     /** Compares the running settings with the record and writes what follows. */

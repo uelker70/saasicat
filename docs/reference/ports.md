@@ -164,9 +164,9 @@ Narrow port for the first-run setup (interface segregation): ONLY an existence c
 
 Sends a plain-text mail to an operator.
 
-| Member                                                                        | What it does |
-| ----------------------------------------------------------------------------- | ------------ |
-| `send(message: { to: string; subject: string; text: string }): Promise<void>` | —            |
+| Member                                                                        | What it does                                                         |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `send(message: { to: string; subject: string; text: string }): Promise<void>` | Delivers one plain-text mail to one address; rejects when it cannot. |
 
 ### `MfaPort`
 

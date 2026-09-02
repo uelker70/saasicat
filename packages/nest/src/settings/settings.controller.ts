@@ -10,6 +10,7 @@ import {
     Get,
     Inject,
     NotFoundException,
+    Optional,
     Param,
     Post,
     Req,
@@ -28,7 +29,7 @@ import {
 } from '@saasicat/core';
 
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
-import { WebAuditLogger } from '../core/web-audit.js';
+import { actorTagOf, defaultActorFromRequest, WebAuditLogger } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
 import { fingerprintOf } from './settings-fingerprint.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.tokens.js';
@@ -75,7 +76,14 @@ export function buildSettingsController(guards: Array<Type<CanActivate>>): Type 
             @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
             @Inject(APPLIED_SETTINGS_PORT_TOKEN)
             private readonly port: AppliedSettingsPort | null,
-            @Inject(WebAuditLogger) private readonly audit: WebAuditLogger,
+            // Optional, like `catalog-entries.controller.ts` has it: this factory
+            // is public, and an app that mounts the controller itself should not
+            // have to know a platform-internal class to resolve it. Without the
+            // logger the acknowledgement is not audited and the actor tag comes
+            // from the request's own defaults.
+            @Optional()
+            @Inject(WebAuditLogger)
+            private readonly audit: WebAuditLogger | null = null,
         ) {}
 
         @Get('settings')
@@ -116,7 +124,8 @@ export function buildSettingsController(guards: Array<Type<CanActivate>>): Type 
             }
             const acknowledged = await this.port.acknowledgeChange(
                 id,
-                this.audit.actorTagFromRequest(request),
+                this.audit?.actorTagFromRequest(request) ??
+                    actorTagOf(defaultActorFromRequest(request)),
                 new Date(),
             );
             if (!acknowledged) {
@@ -124,7 +133,7 @@ export function buildSettingsController(guards: Array<Type<CanActivate>>): Type 
                     codedError(SETTINGS_ERROR_CODES.SETTINGS_CHANGE_NOT_FOUND),
                 );
             }
-            await this.audit.logFromRequest(
+            await this.audit?.logFromRequest(
                 request,
                 'SettingsChange',
                 id,

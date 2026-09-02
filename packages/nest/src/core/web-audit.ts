@@ -30,6 +30,27 @@ interface RequestLike {
 
 const DEFAULT_CONTEXT = 'admin';
 
+/**
+ * The actor a request describes when no resolver is bound: the JWT's subject
+ * or id, its email, the session header. What `WebAuditLogger` falls back to
+ * per field, exported so a controller without the logger derives the same tag.
+ */
+export function defaultActorFromRequest(req: unknown): AdminActor {
+    const request = req as RequestLike;
+    const sid = request.headers?.['x-session-id'];
+    return {
+        userId: request.user?.sub ?? request.user?.id ?? 'unknown',
+        email: request.user?.email ?? 'unknown',
+        source: 'web',
+        context: (Array.isArray(sid) ? sid[0] : sid) ?? DEFAULT_CONTEXT,
+    };
+}
+
+/** `web:<email>:<context>` — the origin marker as the audit log writes it. */
+export function actorTagOf(actor: AdminActor): string {
+    return `${actor.source}:${actor.email}:${actor.context}`;
+}
+
 @Injectable()
 export class WebAuditLogger {
     constructor(
@@ -86,8 +107,7 @@ export class WebAuditLogger {
      * it was.
      */
     actorTagFromRequest(req: unknown): string {
-        const actor = this.buildActor(req);
-        return `${actor.source}:${actor.email}:${actor.context}`;
+        return actorTagOf(this.buildActor(req));
     }
 
     /**

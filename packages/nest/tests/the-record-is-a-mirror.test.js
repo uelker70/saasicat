@@ -88,19 +88,29 @@ describe('the applied-settings port', () => {
         // The recorder reads the record to compare, and the controller to show.
         // Neither hands a stored value to anything that decides — which shows
         // in the imports: nothing under src/settings/ imports a token another
-        // DOMAIN decides with. The catalogue token is the one domain import,
-        // because the record mirrors the catalogue; `core/` and `errors/` are
-        // infrastructure — DI helpers, the audit logger, the error envelope —
-        // and decide nothing about a setting.
+        // DOMAIN decides with. Named file by file rather than by directory, so
+        // the next import into this directory is argued for rather than
+        // admitted by where it happens to sit:
+        //   - the catalogue token, because the record mirrors the catalogue;
+        //   - the DI helper and the email token, which decide nothing;
+        //   - the error envelope, likewise;
+        //   - the audit logger — the one hop out, into `admin/`: it WRITES the
+        //     acknowledgement to the trail through an `@Optional()` service,
+        //     and reads nothing back.
+        const ALLOWED = [
+            '/billing/plan-catalog.module.js',
+            '/core/di.js',
+            '/core/email.tokens.js',
+            '/core/web-audit.js',
+            '/errors/coded-error.js',
+        ];
         for (const file of sourceFiles(join(SRC, MIRROR_DIR))) {
             const text = readFileSync(file, 'utf8');
             const imports = [...text.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
             const foreign = imports.filter(
                 (specifier) =>
                     specifier.startsWith('../') &&
-                    !specifier.endsWith('/billing/plan-catalog.module.js') &&
-                    !specifier.startsWith('../core/') &&
-                    !specifier.startsWith('../errors/'),
+                    !ALLOWED.some((allowed) => specifier.endsWith(allowed)),
             );
             assert.deepEqual(foreign, [], `${relative(SRC, file)} imports ${foreign.join(', ')}`);
         }

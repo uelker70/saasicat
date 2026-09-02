@@ -19,7 +19,7 @@ import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { SaaSiCatModule } from '../dist/platform/index.js';
-import { fingerprintOf } from '../dist/index.js';
+import { AppliedSettingsRecorder, fingerprintOf } from '../dist/index.js';
 import { settingsSubtreeOf } from '@saasicat/core';
 
 const NOTICE = { monthly: 14, yearly: 90 };
@@ -232,6 +232,27 @@ describe('addresses in the file and an email port bound', () => {
         assert.equal(port.changes.length, 1);
     });
 
+    test('a send that never answers does not hold the boot', async () => {
+        // Nest listens only once every bootstrap hook has settled. The boot
+        // waits a moment for a working adapter and then goes on; the record is
+        // written either way.
+        const port = portWithAnOlderRecord();
+        const email = {
+            sent: [],
+            async send() {
+                await new Promise(() => {});
+            },
+        };
+        const started = Date.now();
+        app = await boot(
+            catalogWith({ notifications: { settingsChanged: ADDRESSES } }),
+            port,
+            email,
+        );
+        assert.ok(Date.now() - started < 10_000, 'the boot waited on the mail');
+        assert.equal(port.changes.length, 1, 'the change is recorded before any mail goes out');
+    });
+
     test('the boot log says once that changes are mailed', async () => {
         const { said } = await capturingLogs(async () => {
             app = await boot(
@@ -264,6 +285,20 @@ describe('addresses in the file and no email port', () => {
         assert.equal(lines.length, 1, said.warn);
         assert.match(lines[0], /notifications\.settingsChanged names 2 address/);
         assert.match(lines[0], /adapters\.email/);
+    });
+});
+
+describe('a recorder built by hand, the way it was published', () => {
+    test('three arguments still record, and nobody is mailed', async () => {
+        const port = portWithAnOlderRecord();
+        const recorder = new AppliedSettingsRecorder(
+            catalogWith(),
+            '/srv/app/config/saas.yaml',
+            port,
+        );
+        const outcome = await recorder.record(port, new Date('2026-09-02T06:00:00.000Z'));
+        assert.equal(outcome.kind, 'changed');
+        assert.equal(port.changes.length, 1);
     });
 });
 

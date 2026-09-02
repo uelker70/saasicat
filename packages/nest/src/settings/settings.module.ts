@@ -87,6 +87,7 @@ export class SettingsModule {
             exports: [
                 AppliedSettingsRecorder,
                 SettingsChangeNotifier,
+                WebAuditLogger,
                 APPLIED_SETTINGS_PORT_TOKEN,
                 EMAIL_PORT_TOKEN,
                 SETTINGS_SOURCE_TOKEN,

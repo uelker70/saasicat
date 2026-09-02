@@ -171,6 +171,7 @@ export interface PasswordHasher {
  * for a customer.
  */
 export interface EmailPort {
+    /** Delivers one plain-text mail to one address; rejects when it cannot. */
     send(message: { to: string; subject: string; text: string }): Promise<void>;
 }
 

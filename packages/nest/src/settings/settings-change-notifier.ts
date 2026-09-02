@@ -20,6 +20,35 @@ import {
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { EMAIL_PORT_TOKEN } from '../core/email.tokens.js';
 
+/**
+ * How long one send may take before it is logged as failed and the next
+ * address is tried. An adapter with no timeout of its own — a raw socket to an
+ * unreachable host — would otherwise hold the sequence for as long as the OS
+ * lets it.
+ */
+const MAIL_SEND_TIMEOUT_MS = 30_000;
+
+/** `promise`, or a rejection naming `to` once `ms` have passed without an answer. */
+function withinTime<T>(promise: Promise<T>, ms: number, to: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(
+            () => reject(new Error(`no answer from the email port within ${ms} ms for ${to}`)),
+            ms,
+        );
+        timer.unref();
+        promise.then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (error: unknown) => {
+                clearTimeout(timer);
+                reject(error instanceof Error ? error : new Error(String(error)));
+            },
+        );
+    });
+}
+
 /** What one boot's notification amounted to. */
 export type NotificationOutcome =
     | { kind: 'nobody-to-tell' }
@@ -71,7 +100,7 @@ export class SettingsChangeNotifier {
         const failed: string[] = [];
         for (const to of addresses) {
             try {
-                await this.email.send({ to, ...message });
+                await withinTime(this.email.send({ to, ...message }), MAIL_SEND_TIMEOUT_MS, to);
             } catch (error) {
                 failed.push(to);
                 this.logger.error(
