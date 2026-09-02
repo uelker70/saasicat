@@ -37,13 +37,14 @@ export function buildStandardManifestContribution(
     catalog: SaaSiCatCatalogOptions | null,
     adminResources: SaaSiCatAdminResourcesOptions | true | null,
     promoCodes: SaaSiCatPromoCodesOptions | true | null,
-    /** Whether `GET /admin/settings` is mounted — the sidebar entry follows the route. */
-    settingsRoute = true,
 ): ManifestContribution {
+    // `settings.read` does not follow `includeSettingsController`: that flag
+    // says who answers `GET /admin/settings`, not whether the page exists. An
+    // app that passes `false` serves the route itself and keeps the entry.
     const capabilities: NonNullable<ManifestContribution['capabilities']> = {
         'discovery.read': true,
+        'settings.read': true,
     };
-    if (settingsRoute) capabilities['settings.read'] = true;
 
     if (catalog && catalog.adminControllers !== false) {
         Object.assign(capabilities, {

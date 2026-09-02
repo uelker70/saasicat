@@ -171,7 +171,6 @@ export class SaaSiCatModule {
                 catalogConfig,
                 adminResourcesConfig,
                 promoCodesConfig,
-                options.includeSettingsController !== false,
             );
             lightweightProviders.push({
                 provide: STANDARD_MANIFEST_REGISTRATION_TOKEN,

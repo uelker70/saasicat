@@ -16,7 +16,6 @@ export const settingsMessages = defineMessages(
                 'Der Datensatz beschreibt eine frühere Konfiguration — der Start konnte ihn nicht schreiben. Die Werte unten sind die laufenden; siehe das Boot-Log.',
             readOnly:
                 'Nur lesen. Diese Werte leben in der Datei; eine Änderung dort greift beim nächsten Start.',
-            howToChange: 'Ändern in: {source}',
         },
         changes: {
             title: 'Änderungen zwischen zwei Starts',
@@ -33,6 +32,7 @@ export const settingsMessages = defineMessages(
         },
         values: {
             title: 'Laufende Werte',
+            value: 'Wert',
         },
         loadFailed: 'Die Einstellungen konnten nicht geladen werden.',
         acknowledgeFailed: 'Die Änderung konnte nicht als gesehen markiert werden.',
@@ -51,7 +51,6 @@ export const settingsMessages = defineMessages(
                 'The record describes an earlier configuration — the start could not write it. The values below are the running ones; see the boot log.',
             readOnly:
                 'Read-only. These values live in the file; a change there takes effect at the next start.',
-            howToChange: 'Change it in: {source}',
         },
         changes: {
             title: 'Changes between two starts',
@@ -68,6 +67,7 @@ export const settingsMessages = defineMessages(
         },
         values: {
             title: 'Running values',
+            value: 'Value',
         },
         loadFailed: 'The settings could not be loaded.',
         acknowledgeFailed: 'The change could not be marked as seen.',

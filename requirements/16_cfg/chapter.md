@@ -532,14 +532,17 @@ _Tested by:_
     - flattenSettings
         - one row per leaf, at the path the file spells, in the order it wrote them
         - a list is one leaf — one setting the operator wrote, not a row per plan
+        - an empty block is a leaf reading {}, so present-but-empty stays apart from absent
         - nothing in, nothing out
     - showSettingValue
         - a string reads as itself, everything else as JSON, so 0, "0" and [] stay apart
         - a leaf that did not exist on one side reads as the word for absent
 - `packages/ui-vue/tests/use-applied-settings.test.js`
     - loading the view
-        - reload puts the view in place and clears an earlier error
+        - loads on creation, and a reload after a failure clears the error
         - loading is on while the read is in flight, and off after
+        - a refresh that fails takes the old facts off the screen with it
+        - of two overlapping reloads, the newer answer stands even when it arrives first
 
 <!-- END proof -->
 
@@ -648,7 +651,7 @@ _Tested by:_
 - `packages/ui-vue/tests/use-applied-settings.test.js`
     - acknowledging a change
         - replaces the change in place with what the server answered
-        - marks which change is being acknowledged, so its button alone shows progress
+        - each button reports its own request: the first to answer clears only itself
         - a failure is reported through the notify port, and the change stays as it was
 
 <!-- END proof -->

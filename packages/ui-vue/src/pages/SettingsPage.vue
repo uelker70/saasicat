@@ -56,7 +56,7 @@
                             dense
                             no-caps
                             :label="msg.changes.acknowledge"
-                            :loading="acknowledging === change.id"
+                            :loading="acknowledging.has(change.id)"
                             @click="acknowledge(change.id)"
                         />
                     </header>
@@ -64,7 +64,7 @@
                         :rows="change.differences"
                         :columns="differenceColumns"
                         row-key="path"
-                        :storage-key="`settings-change-${change.id}`"
+                        storage-key="settings-changes"
                     />
                 </article>
             </AdminSection>
@@ -141,7 +141,7 @@ const runningValues = computed(() =>
 
 const valueColumns = computed(() => [
     { name: 'path', label: msg.value.changes.leaf, field: 'path', align: 'left' as const },
-    { name: 'value', label: msg.value.values.title, field: 'value', align: 'left' as const },
+    { name: 'value', label: msg.value.values.value, field: 'value', align: 'left' as const },
 ]);
 
 const differenceColumns = computed(() => [

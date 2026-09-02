@@ -19,14 +19,18 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * Every leaf of `settings`, depth first, in the order the file wrote them.
  *
  * A list is a leaf: `asTarget: [ENTERPRISE]` is one setting an operator wrote,
- * not one row per plan.
+ * not one row per plan. So is an empty block: `notifications: {}` is present on
+ * purpose, and a row reading `{}` keeps it apart from the block being absent.
  */
 export function flattenSettings(settings: Record<string, unknown>): SettingsLeaf[] {
     const leaves: SettingsLeaf[] = [];
     const walk = (value: unknown, path: string[]): void => {
         if (isPlainObject(value)) {
-            for (const [key, member] of Object.entries(value)) walk(member, [...path, key]);
-            return;
+            const members = Object.entries(value);
+            if (members.length > 0 || path.length === 0) {
+                for (const [key, member] of members) walk(member, [...path, key]);
+                return;
+            }
         }
         leaves.push({ path: path.join('.'), value });
     };

@@ -337,7 +337,8 @@ export interface SaaSiCatModuleOptions {
      * starts. Default `true`.
      *
      * Set `false` when the app serves that route itself; the record is kept
-     * and compared at boot either way, only the endpoint is left out. Note
+     * and compared at boot either way, only the endpoint is left out — the
+     * sidebar entry stays, since the page is shipped and the route answers. Note
      * what the endpoint answers: the resolved settings and the absolute path of
      * `config/saas.yaml`, behind `controller.guards` — the same guards as the
      * manifest and discovery, so an app that passes `[]` there publishes it

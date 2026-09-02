@@ -34,6 +34,14 @@ describe('flattenSettings', () => {
         ]);
     });
 
+    test('an empty block is a leaf reading {}, so present-but-empty stays apart from absent', () => {
+        assert.deepEqual(flattenSettings({ notifications: {}, currency: 'EUR' }), [
+            { path: 'notifications', value: {} },
+            { path: 'currency', value: 'EUR' },
+        ]);
+        assert.equal(showSettingValue({}, '—'), '{}');
+    });
+
     test('nothing in, nothing out', () => {
         assert.deepEqual(flattenSettings({}), []);
     });

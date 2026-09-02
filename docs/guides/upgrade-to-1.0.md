@@ -786,8 +786,8 @@ does nothing at all. Nothing to list beforehand: it changes no rows.
 **A page appears:** `SettingsPage` at `/admin/settings`, under _System_ in the sidebar, mounted
 by `standardAdminChildren()` like the others. It shows what is running, since when and from
 where, and what changed at the last start, with the one action of marking a change as seen; it
-edits nothing. The sidebar entry follows the route: an app that passes
-`includeSettingsController: false` sees neither.
+edits nothing. The sidebar entry stays whoever serves the route: an app that passes
+`includeSettingsController: false` answers `GET /admin/settings` itself and keeps the page.
 
 **A route appears:** `GET /admin/settings`, behind the same `controller.guards` as the manifest
 and discovery, answers the resolved settings and the absolute path of `config/saas.yaml`. An app
