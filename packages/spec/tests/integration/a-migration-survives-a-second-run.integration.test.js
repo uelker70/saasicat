@@ -240,6 +240,36 @@ describe('a migration that would merge rows stops instead', () => {
     });
 });
 
+// @requirement SC-CFG-028 — There is one record per installation
+describe('the applied settings hold one row, and the database is what holds them to it', () => {
+    // The repository always writes `id = 'installation'`, and a unit test says
+    // so; that is the code. The promise is about the other half: a caller that
+    // supplies another id is refused by the CHECK, so a migration that lost the
+    // constraint — or a `db push` that dropped it — fails here rather than
+    // leaving a table with two rows and a reader picking one at random.
+    const MIGRATION = '1.0-the-applied-settings-are-recorded.postgres.sql';
+    const insert = (id) =>
+        client.query(
+            'INSERT INTO "applied_settings" ("id", "fingerprint", "settings", "source", "appliedAt") ' +
+                "VALUES ($1, 'sha256-x', '{}', '/srv/app/config/saas.yaml', NOW())",
+            [id],
+        );
+
+    test('a second id is refused by the constraint, on the reference schema', async () => {
+        await freshGround();
+        await insert('installation');
+        await assert.rejects(() => insert('other'), /applied_settings_is_a_singleton/);
+    });
+
+    test('and on a database that gained the tables from the migration alone', async () => {
+        await freshGround();
+        await client.query('DROP TABLE "applied_settings", "settings_changes"');
+        await apply(MIGRATION);
+        await insert('installation');
+        await assert.rejects(() => insert('other'), /applied_settings_is_a_singleton/);
+    });
+});
+
 describe('a line item learns the money it was booked with', () => {
     // The 1.0 line-item migration adds three NOT NULL columns to a table that
     // already holds rows, which `db push` cannot do — it fills them from the

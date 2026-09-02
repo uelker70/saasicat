@@ -29,6 +29,8 @@ function createMemoryHarness() {
         mfa: new Map(),
         contracts: [],
         contractLines: [],
+        appliedSettings: null,
+        settingsChanges: [],
     });
 
     const transactionRunner = {
@@ -630,6 +632,46 @@ function createMemoryHarness() {
         },
     };
 
+    /**
+     * The record of the applied configuration: one row, replaced on every
+     * write, and a change log that keeps its first acknowledgement.
+     */
+    const appliedSettings = {
+        async readApplied() {
+            return state.appliedSettings ? structuredClone(state.appliedSettings) : null;
+        },
+        async writeApplied(record) {
+            state.appliedSettings = structuredClone(record);
+        },
+        async recordChange(change) {
+            const row = {
+                id: nextId('change'),
+                ...structuredClone(change),
+                acknowledgedAt: null,
+                acknowledgedBy: null,
+            };
+            state.settingsChanges.push(row);
+            return structuredClone(row);
+        },
+        async listChanges(filter = {}) {
+            const rows = state.settingsChanges
+                .filter(
+                    (row) =>
+                        filter.acknowledged === undefined ||
+                        (row.acknowledgedAt !== null) === filter.acknowledged,
+                )
+                .sort((a, b) => b.noticedAt - a.noticedAt || (a.id < b.id ? 1 : -1));
+            const limited = filter.limit === undefined ? rows : rows.slice(0, filter.limit);
+            return structuredClone(limited);
+        },
+        async acknowledgeChange(id, acknowledgedBy, acknowledgedAt) {
+            const row = state.settingsChanges.find((change) => change.id === id);
+            if (!row) return null;
+            if (row.acknowledgedAt === null) Object.assign(row, { acknowledgedAt, acknowledgedBy });
+            return structuredClone(row);
+        },
+    };
+
     return {
         adapter: {
             capabilities: {
@@ -652,6 +694,7 @@ function createMemoryHarness() {
             planRepository,
             bundleRepository,
             subscriptionContractRepository,
+            appliedSettings,
         },
         seed,
         async reset() {

@@ -14,6 +14,7 @@
 --   prisma-fragments/09-pending-registration.prisma
 --   prisma-fragments/10-super-admin.prisma
 --   prisma-fragments/11-subscription-bundle.prisma
+--   prisma-fragments/12-applied-settings.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -569,6 +570,30 @@ CREATE TABLE "subscription_bundles" (
     CONSTRAINT "subscription_bundles_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "applied_settings" (
+    "id" TEXT NOT NULL DEFAULT 'installation',
+    "fingerprint" TEXT NOT NULL,
+    "settings" JSONB NOT NULL,
+    "source" TEXT NOT NULL,
+    "appliedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "applied_settings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "settings_changes" (
+    "id" TEXT NOT NULL,
+    "noticedAt" TIMESTAMP(3) NOT NULL,
+    "source" TEXT NOT NULL,
+    "previous" JSONB NOT NULL,
+    "current" JSONB NOT NULL,
+    "acknowledgedAt" TIMESTAMP(3),
+    "acknowledgedBy" TEXT,
+
+    CONSTRAINT "settings_changes_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -749,6 +774,9 @@ CREATE INDEX "subscription_bundles_bundleVersionId_idx" ON "subscription_bundles
 -- CreateIndex
 CREATE INDEX "subscription_bundles_canceledEffectiveAt_idx" ON "subscription_bundles"("canceledEffectiveAt");
 
+-- CreateIndex
+CREATE INDEX "settings_changes_acknowledgedAt_noticedAt_idx" ON "settings_changes"("acknowledgedAt", "noticedAt");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -823,3 +851,13 @@ ALTER TABLE marketing_settings
     DROP CONSTRAINT IF EXISTS marketing_settings_is_a_singleton;
 ALTER TABLE marketing_settings
     ADD CONSTRAINT marketing_settings_is_a_singleton CHECK ("id" = 'marketing-settings');
+
+-- `applied_settings` holds at most ONE row: the installation's.
+--
+-- Same reasoning as above, and the same two plain statements. The row mirrors
+-- the settings the installation applied at its last start, and an installation
+-- serves one application, so there is exactly one configuration to record.
+ALTER TABLE applied_settings
+    DROP CONSTRAINT IF EXISTS applied_settings_is_a_singleton;
+ALTER TABLE applied_settings
+    ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');

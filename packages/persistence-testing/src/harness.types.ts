@@ -5,6 +5,7 @@
 // is schema-specific and therefore adapter-owned.
 
 import type {
+    AppliedSettingsPort,
     AuditPort,
     AuditQueryPort,
     BundleRepository,
@@ -67,6 +68,14 @@ export interface ContractAdapterInstances {
      * tenant, which is what makes selecting the wrong row possible at all.
      */
     promoSubscriptionLookup?: PromoSubscriptionLookup;
+    /**
+     * Enables the applied-settings scenarios: the one row an installation keeps
+     * about the configuration it runs on, and the changes noticed between
+     * starts. The singleton is the part worth a contract — two adapters that
+     * upsert differently would leave one of them with two rows and a reader
+     * picking one at random.
+     */
+    appliedSettings?: AppliedSettingsPort;
 }
 
 /** Fixture writers — implemented per adapter against its own schema. */

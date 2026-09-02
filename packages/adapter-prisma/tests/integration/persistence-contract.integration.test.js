@@ -34,6 +34,7 @@ import {
     PrismaPromoCodeRedemptionRepository,
     PrismaPromoCodeRepository,
     PrismaPromoSubscriptionLookup,
+    PrismaAppliedSettingsRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
     PrismaTenantSubscriptionWriteAdapter,
@@ -124,6 +125,8 @@ const PLATFORM_TABLES = [
     'audit_logs',
     'super_admin_mfa',
     'super_admin_users',
+    'applied_settings',
+    'settings_changes',
 ];
 
 function createHarness() {
@@ -160,6 +163,7 @@ function createHarness() {
                 },
             }),
             subscriptionContractRepository: new PrismaSubscriptionContractRepository(prisma),
+            appliedSettings: new PrismaAppliedSettingsRepository(prisma),
         },
         seed: {
             async createPlanVersion(input) {

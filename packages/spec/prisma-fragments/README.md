@@ -41,6 +41,7 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`09-pending-registration.prisma`](09-pending-registration.prisma)   | `PendingRegistration`, `PaymentEventLog` + `RegistrationStatus`      |
 | [`10-super-admin.prisma`](10-super-admin.prisma)                     | `SuperAdminUser`, `SuperAdminMfa`                                    |
 | [`11-subscription-bundle.prisma`](11-subscription-bundle.prisma)     | `SubscriptionBundle`                                                 |
+| [`12-applied-settings.prisma`](12-applied-settings.prisma)           | `AppliedSettings`, `SettingsChange`                                  |
 
 ## How the consumer uses the fragments
 

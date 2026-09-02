@@ -103,6 +103,7 @@ export class SaaSiCatModule {
             mfa: explicit.mfa ?? persistence?.core.mfa,
             audit: explicit.audit ?? persistence?.core.audit,
             rlsBypass: explicit.rlsBypass ?? persistence?.core.rlsBypass,
+            appliedSettings: explicit.appliedSettings ?? persistence?.core.appliedSettings,
             planCatalogReadSink: explicit.planCatalogReadSink ?? persistence?.planCatalogReadSink,
             planResolver: explicit.planResolver,
             subscriptionRepository:
@@ -131,7 +132,12 @@ export class SaaSiCatModule {
             // module's own quota providers and automatic plan resolver too.
             ...(options.imports ?? []),
             composePlanCatalog(options, adapters.planCatalogReadSink),
-            ...composeBaseModules(options, appInfo, { mfaPort, auditPort, rlsBypassPort }),
+            ...composeBaseModules(options, appInfo, {
+                mfaPort,
+                auditPort,
+                rlsBypassPort,
+                appliedSettingsPort: adapters.appliedSettings,
+            }),
         ];
 
         // Every enabled feature, in composer order.

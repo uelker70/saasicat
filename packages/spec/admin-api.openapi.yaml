@@ -57,6 +57,7 @@ tags:
     - name: mfa
     - name: manifest
     - name: catalog
+    - name: settings
 
 security:
     - bearerAuth: []
@@ -1347,6 +1348,24 @@ paths:
                     }
             responses: { '200': { description: Synchronized } }
 
+    # ── The applied configuration (SettingsModule, packages/nest/src/settings/*) ──
+    #
+    # Read-only. What the installation is running on — read off the loaded
+    # catalogue — and the record of it: since when, from where, and what changed
+    # between two starts. The record is a mirror of config/saas.yaml, never a
+    # source, so there is no write operation here.
+
+    /settings:
+        get:
+            tags: [settings]
+            summary: The running configuration, since when it applies, and what changed at boot
+            responses:
+                '200':
+                    description: The applied settings and their record
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AppliedSettingsView' }
+
     # ── Discovery (scan/status, outside /catalog) ──
     /discovery:
         get:
@@ -1388,6 +1407,73 @@ components:
             schema: { type: string, pattern: '^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$' }
 
     schemas:
+        # ────────── Applied settings (packages/nest/src/settings/settings.controller.ts) ──────────
+        AppliedSettingsView:
+            type: object
+            required: [source, fingerprint, settings, recorded, appliedAt, changes]
+            properties:
+                source:
+                    {
+                        type: string,
+                        description: 'Where the running settings came from: the absolute path of the file, or a phrase saying they were handed in as code',
+                    }
+                fingerprint:
+                    {
+                        type: string,
+                        description: 'sha256-<hex> over the canonical JSON of `settings`',
+                    }
+                settings:
+                    type: object
+                    additionalProperties: true
+                    description: 'The settings subtree of the catalogue as it was resolved — everything but plans and features'
+                recorded:
+                    {
+                        type: boolean,
+                        description: 'Whether this installation keeps a record at all (a persistence adapter provides the port)',
+                    }
+                appliedAt:
+                    type: [string, 'null']
+                    format: date-time
+                    description: 'When these values became the running configuration. Null where nothing is recorded, or the record describes an earlier configuration.'
+                changes:
+                    type: array
+                    description: 'Newest first; empty where nothing is recorded'
+                    items: { $ref: '#/components/schemas/SettingsChangeView' }
+
+        SettingsChangeView:
+            type: object
+            required: [id, noticedAt, source, differences, acknowledgedAt, acknowledgedBy]
+            properties:
+                id: { type: string }
+                noticedAt:
+                    {
+                        type: string,
+                        format: date-time,
+                        description: 'The start that found the fingerprint moved',
+                    }
+                source: { type: string }
+                differences:
+                    type: array
+                    items: { $ref: '#/components/schemas/SettingsDifference' }
+                acknowledgedAt: { type: [string, 'null'], format: date-time }
+                acknowledgedBy:
+                    {
+                        type: [string, 'null'],
+                        description: 'An actor tag, as the audit log writes it',
+                    }
+
+        SettingsDifference:
+            type: object
+            required: [path]
+            properties:
+                path:
+                    {
+                        type: string,
+                        description: 'Dotted, as the loader names a field: tenantBilling.cancellationNoticeDays.monthly',
+                    }
+                before: { description: 'Absent where the leaf did not exist before' }
+                after: { description: 'Absent where the leaf no longer exists' }
+
         # ────────── Catalog V2 (DTO = SSOT: packages/nest/src/catalog/dto/*) ──────────
         CatalogPlanCreate:
             type: object

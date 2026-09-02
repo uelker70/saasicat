@@ -198,6 +198,23 @@ const SAAS_CONFIG = loadPlanCatalogFromFile({ path: SAAS_CONFIG_PATH });
 result against the schema from `@saasicat/spec` — errors throw early at boot,
 every one of them at once.
 
+### What the platform records about it
+
+The file says what should be true. At every start the platform records what
+_is_ true: the settings it applied — everything in the file but the plans and
+the features, with the environment references resolved — a fingerprint over
+them, the moment they took effect and the file they came from. A start that
+finds the fingerprint unchanged leaves the record alone; one that finds it
+moved replaces the record and writes down what changed, leaf by leaf.
+`GET /admin/settings` shows all of it, so somebody who edited the file an hour
+ago can see whether it has landed.
+
+The record is a mirror, never a source: nothing reads a setting out of it. It
+lives in `applied_settings` and `settings_changes`, which `prismaPersistence()`
+and `drizzlePersistence()` both serve; a persistence adapter without the
+`core.appliedSettings` port still starts, and the boot log says once that
+nothing is being recorded.
+
 ## Standard Persistence Bundle (Prisma)
 
 On the canonical schema, do not write one forwarding provider per repository.

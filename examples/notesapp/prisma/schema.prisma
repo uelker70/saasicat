@@ -11,6 +11,7 @@
 //   07 (Promotion)
 //   08 (SubscriptionContract + ContractLineItem)
 //   10 (SuperAdmin + MFA)
+//   12 (the applied settings and their changes)
 // The platform blocks below are hand-maintained copies of the fragments, with
 // the consumer relations to Tenant/User enabled. `schema apply` seeds them —
 // enums and models — into a fresh schema, but does not update blocks that
@@ -1230,4 +1231,37 @@ model SubscriptionBundle {
     @@index([bundleVersionId])
     @@index([canceledEffectiveAt])
     @@map("subscription_bundles")
+}
+
+// =============================================================================
+// SaaS-Platform Prisma fragment: the applied settings, and their changes
+// =============================================================================
+//
+// What the installation is running on, since when, and what changed between
+// two starts. The platform writes both tables at boot and reads them for the
+// read-only settings screen — the record is a mirror of config/saas.yaml, never
+// a source. One row per installation, held to one by the CHECK the entrypoint
+// applies from @saasicat/spec/sql/constraints.postgres.sql.
+
+model AppliedSettings {
+    id          String   @id @default("installation")
+    fingerprint String
+    settings    Json
+    source      String
+    appliedAt   DateTime
+
+    @@map("applied_settings")
+}
+
+model SettingsChange {
+    id             String    @id @default(uuid())
+    noticedAt      DateTime
+    source         String
+    previous       Json
+    current        Json
+    acknowledgedAt DateTime?
+    acknowledgedBy String?
+
+    @@index([acknowledgedAt, noticedAt])
+    @@map("settings_changes")
 }

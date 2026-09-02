@@ -18,6 +18,7 @@ import {
     type Type,
 } from '@nestjs/common';
 import type {
+    AppliedSettingsPort,
     AuditPort,
     AdminResourcesPort,
     FeatureUiRegistry,
@@ -69,6 +70,13 @@ export interface SaaSiCatAdapters {
     mfa?: ProviderSpec<MfaPort>;
     audit?: ProviderSpec<AuditPort>;
     rlsBypass?: ProviderSpec<RlsBypassPort>;
+    /**
+     * Optional. Where the record of the applied configuration is kept; the
+     * `persistence` bundle supplies it by default. Without either, the platform
+     * runs the configuration all the same and says once, at boot, that it is
+     * not recording it.
+     */
+    appliedSettings?: ProviderSpec<AppliedSettingsPort>;
     /**
      * Optional. If provided, `PlanCatalogModule` is hydrated from this sink
      * (DB read at boot). If omitted, `planCatalog` MUST be passed as a ready
@@ -312,6 +320,19 @@ export interface SaaSiCatModuleOptions {
      * app can simply override.
      */
     includeManifestController?: boolean;
+    /**
+     * Mount the platform's `GET /admin/settings` controller — the running
+     * configuration, since when it applies, and what changed between two
+     * starts. Default `true`.
+     *
+     * Set `false` when the app serves that route itself; the record is kept
+     * and compared at boot either way, only the endpoint is left out. Note
+     * what the endpoint answers: the resolved settings and the absolute path of
+     * `config/saas.yaml`, behind `controller.guards` — the same guards as the
+     * manifest and discovery, so an app that passes `[]` there publishes it
+     * unauthenticated like those two.
+     */
+    includeSettingsController?: boolean;
     /**
      * Modules whose providers must be visible in the DI scope (typically:
      * `AuthModule` with the `JwtAuthGuard`).

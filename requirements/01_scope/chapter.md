@@ -29,7 +29,7 @@ _Tested by:_
         - throws when neither planCatalog nor planCatalogReadSink is set
         - quickstart path: planCatalog + 3 adapters are enough
         - Entitlement opt-in: enabled without repos -&gt; error
-        - Entitlement active with all repos -&gt; 5 sub-modules
+        - Entitlement active with all repos -&gt; 6 sub-modules
         - accepts empty guards: [] as an explicit choice
         - composes setup, admin stats, checkout offer and subscription contract
         - setup and subscription contract can derive their adapters from persistence
@@ -152,7 +152,7 @@ _Tested by:_
         - throws when neither planCatalog nor planCatalogReadSink is set
         - quickstart path: planCatalog + 3 adapters are enough
         - Entitlement opt-in: enabled without repos -&gt; error
-        - Entitlement active with all repos -&gt; 5 sub-modules
+        - Entitlement active with all repos -&gt; 6 sub-modules
         - accepts empty guards: [] as an explicit choice
         - composes setup, admin stats, checkout offer and subscription contract
         - setup and subscription contract can derive their adapters from persistence

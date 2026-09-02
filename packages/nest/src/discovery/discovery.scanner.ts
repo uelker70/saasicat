@@ -17,6 +17,7 @@ import { dirname } from 'node:path';
 
 import { Inject, Injectable, Logger, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
+import { canonicalJson } from '@saasicat/core';
 
 import {
     DEFINES_QUOTA_KEY,
@@ -370,23 +371,6 @@ export function computeSnapshotHash(snapshot: Omit<DiscoverySnapshot, 'hash'>): 
         features: snapshot.features,
         quotas: snapshot.quotas,
     };
-    const json = canonicalStringify(stableInput);
+    const json = canonicalJson(stableInput);
     return `sha256-${createHash('sha256').update(json).digest('hex')}`;
-}
-
-/**
- * JSON.stringify with alphabetically sorted object keys — so that the hash is
- * independent of insertion order.
- */
-function canonicalStringify(value: unknown): string {
-    return JSON.stringify(value, (_key, val) => {
-        if (val && typeof val === 'object' && !Array.isArray(val)) {
-            const sorted: Record<string, unknown> = {};
-            for (const k of Object.keys(val).sort()) {
-                sorted[k] = (val as Record<string, unknown>)[k];
-            }
-            return sorted;
-        }
-        return val;
-    });
 }

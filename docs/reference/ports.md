@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 16 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 17 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -169,3 +169,17 @@ Adapter for MFA secret persistence.
 | `getSecret(userId: string): Promise<string \| null>`               | Returns the stored TOTP secret or null.               |
 | `setSecret(userId: string, secret: string \| null): Promise<void>` | Persists or deletes (null) the TOTP secret.           |
 | `isEnabled(userId: string): Promise<boolean>`                      | The platform calls this during the mfa-setup command. |
+
+## Configuration
+
+### `AppliedSettingsPort`
+
+Stores what the installation applied and what changed between two boots.
+
+| Member                                                                                                                  | What it does                                                         |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `readApplied(): Promise<AppliedSettingsRecord \| null>`                                                                 | The record, or null before the first boot that could write one.      |
+| `writeApplied(record: AppliedSettingsRecord): Promise<void>`                                                            | Replaces the installation's record — there is only ever the one row. |
+| `recordChange(change: NewSettingsChange): Promise<SettingsChangeRecord>`                                                | Appends a change a boot noticed; the id is the adapter's to assign.  |
+| `listChanges(filter?: SettingsChangeFilter): Promise<SettingsChangeRecord[]>`                                           | Changes, newest first.                                               |
+| `acknowledgeChange( id: string, acknowledgedBy: string, acknowledgedAt: Date, ): Promise<SettingsChangeRecord \| null>` | Marks a change as seen.                                              |

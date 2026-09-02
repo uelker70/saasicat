@@ -122,7 +122,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 22      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 24      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 28      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 406 entries: 🟢 395 stand today, 🟡 9 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 410 entries: 🟢 399 stand today, 🟡 9 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -148,7 +148,7 @@ Of 406 entries: 🟢 395 stand today, 🟡 9 decided but not yet delivered, ⚪ 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 406 requirements. Do not edit by hand:
+Generated from `requirements/` — 410 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -180,7 +180,7 @@ _Tested by:_
         - throws when neither planCatalog nor planCatalogReadSink is set
         - quickstart path: planCatalog + 3 adapters are enough
         - Entitlement opt-in: enabled without repos -&gt; error
-        - Entitlement active with all repos -&gt; 5 sub-modules
+        - Entitlement active with all repos -&gt; 6 sub-modules
         - accepts empty guards: [] as an explicit choice
         - composes setup, admin stats, checkout offer and subscription contract
         - setup and subscription contract can derive their adapters from persistence
@@ -303,7 +303,7 @@ _Tested by:_
         - throws when neither planCatalog nor planCatalogReadSink is set
         - quickstart path: planCatalog + 3 adapters are enough
         - Entitlement opt-in: enabled without repos -&gt; error
-        - Entitlement active with all repos -&gt; 5 sub-modules
+        - Entitlement active with all repos -&gt; 6 sub-modules
         - accepts empty guards: [] as an explicit choice
         - composes setup, admin stats, checkout offer and subscription contract
         - setup and subscription contract can derive their adapters from persistence
@@ -9461,6 +9461,120 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CFG-025 — The installation records the configuration it applied, and notices when it changed
+
+🟢 At every start the platform fingerprints the settings it is running on — the resolved values, not
+the file's text, so a variable that moved in production is a change — and compares them with the
+record of the last start. No record: written. Same fingerprint: nothing happens, which is what almost
+every start is. Different: the record is replaced, and what changed is written down beside it, with
+both values of every leaf that moved. The fingerprint covers the settings and not the catalogue: a
+plan added to the file is not a configuration change. An installation whose data access keeps no
+record runs the configuration all the same, and says so once, at start.
+
+_Source:_ #260 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/settings-subtree.test.js`
+    - the settings subtree
+        - is the catalogue without its plans, features and format marker
+        - a block left out of the file is left out of the subtree, not written as undefined
+        - every excluded name is a property the schema declares
+        - a block the schema gains is a setting until somebody says otherwise
+    - the difference between two settings subtrees
+        - is empty for the same values in another order
+        - names each changed leaf by its dotted path, with both sides
+        - a list that changed is one difference, not one per element
+        - a leaf that appeared or vanished is reported with undefined on the missing side
+- `packages/nest/tests/a-boot-records-what-it-applied.test.js`
+    - the three states a boot can find the record in
+        - no record: the first boot writes one, and the log says so
+        - same fingerprint: the record is left alone, and nothing is said
+        - same fingerprint, moved file: the source follows, the moment does not
+        - different fingerprint: the record is replaced and the difference written down
+        - a change that cannot be written leaves the record alone, so the next start notices again
+        - a plan added to the catalogue is not a settings change
+    - an installation whose adapter keeps no record
+        - boots, says so once, and answers the endpoint without a record
+        - a failing port does not take the boot down, and the log names the file
+- `packages/nest/tests/the-settings-subtree-reaches-both-catalogue-paths.test.js`
+    - the database path carries every setting the schema declares
+        - the scan sees the settings, so an empty list is not a broken scan
+        - a value handed in for each of them comes out in the subtree
+
+<!-- END proof -->
+
+### SC-CFG-026 — The record of the applied configuration is a mirror, never a source
+
+🟢 💰 Nothing reads it to decide behaviour. A record that disagrees with the file changes nothing about
+what runs — the file is the one place a setting lives — and the disagreement is what the next start
+records as a change. Held two ways: a start against a record that says otherwise runs on the file's
+values, and no code outside the record's own module and its wiring reaches for the port.
+
+_Source:_ #260 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-boot-records-what-it-applied.test.js`
+    - the record is a mirror, never a source
+        - a record that disagrees with the file changes nothing about what runs
+- `packages/nest/tests/the-record-is-a-mirror.test.js`
+    - the applied-settings port
+        - the scan sees the wiring, so an empty result is not a broken scan
+        - is reached from the record and its wiring, and from nowhere else
+        - every wiring exemption is still there to be exempted
+        - the record itself never reads a setting out of what it stored
+
+<!-- END proof -->
+
+### SC-CFG-027 — The record says where the values came from
+
+🟢 The absolute path of the file the platform read, or a sentence saying the values were handed to it
+in code, where no path exists to name: an object passed as `planCatalog`, or the `dbCatalog` block.
+The platform does not invent a path it did not read.
+
+_Source:_ #260
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-boot-records-what-it-applied.test.js`
+    - where the record says the values came from
+        - the absolute path of the file the platform read
+        - a catalogue built in code says so rather than inventing a path
+
+<!-- END proof -->
+
+### SC-CFG-028 — There is one record per installation
+
+🟢 The row's identity is the installation's, because one installation serves one application and owns
+its database. A second row cannot be written — the database refuses it, not the code — and a start
+replaces the one row rather than adding to it. A notice period negotiated per tenant would be a
+different table, not a second row here.
+
+_Source:_ #260
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
+    - the one row
+        - is keyed on the installation id, on create and on update alike
+        - reads back what was written, and null before anything was
+        - a JSON column that is not an object reads as no settings, not as a crash
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
+
+<!-- END proof -->
+
 ### SC-CFG-008 — An operator can see when the running configuration was applied, and from where
 
 🟡 _(Decided, not yet delivered.)_ Somebody who edited the file an hour ago otherwise has no way to
@@ -11445,6 +11559,9 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them
@@ -11497,6 +11614,9 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them
@@ -12272,6 +12392,14 @@ _Tested by:_
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
         - token client + hasher token → provisioning factory injecting both
+- `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
+    - the one row
+        - is keyed on the installation id, on create and on update alike
+        - reads back what was written, and null before anything was
+        - a JSON column that is not an object reads as no settings, not as a crash
+    - the changes
+        - a listing is newest first and passes the acknowledgement filter and the limit through
+        - an acknowledgement is one guarded update, so the first one stands
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so

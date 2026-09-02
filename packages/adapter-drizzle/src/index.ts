@@ -41,3 +41,4 @@ export {
 } from './drizzle-super-admin-bootstrap.adapter.js';
 export { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
 export { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';
+export { DrizzleAppliedSettingsRepository } from './drizzle-applied-settings.repository.js';

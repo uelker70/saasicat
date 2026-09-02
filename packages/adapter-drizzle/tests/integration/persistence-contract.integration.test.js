@@ -33,6 +33,7 @@ import {
     saasicatSchema,
 } from '../../dist/index.js';
 import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '../../dist/index.js';
+import { DrizzleAppliedSettingsRepository } from '../../dist/index.js';
 import {
     DrizzlePlanRepository,
     DrizzleSubscriptionContractRepository,
@@ -55,6 +56,8 @@ const PLATFORM_TABLES = [
     'audit_logs',
     'super_admin_mfa',
     'super_admin_users',
+    'applied_settings',
+    'settings_changes',
 ];
 
 function createHarness() {
@@ -80,6 +83,7 @@ function createHarness() {
             planRepository: new DrizzlePlanRepository(db, { validityWindows: true }),
             tenantSubscriptionWrite: new DrizzleTenantSubscriptionWrite(db),
             subscriptionContractRepository: new DrizzleSubscriptionContractRepository(db),
+            appliedSettings: new DrizzleAppliedSettingsRepository(db),
         },
         seed: {
             async createBundleVersion(input) {

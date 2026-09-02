@@ -1692,5 +1692,192 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 );
             }
         });
+
+        // -------------------------------------------------------------
+        // The applied settings — one row per installation, and its changes
+        // -------------------------------------------------------------
+
+        const SETTINGS = {
+            app: { name: 'Demo' },
+            currency: 'EUR',
+            vatRate: 19,
+            tenantBilling: {
+                cancellationNoticeDays: { monthly: 14, yearly: 90 },
+                selfServiceBlockedPlans: { asTarget: ['ENTERPRISE'], asSource: [] },
+            },
+        };
+        const applied = (fingerprint: string, appliedAt: Date, settings = SETTINGS) => ({
+            fingerprint,
+            settings,
+            source: '/srv/app/config/saas.yaml',
+            appliedAt,
+        });
+
+        test('no record before the first boot that could write one', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            assert.equal(await port.readApplied(), null);
+            assert.deepEqual(await port.listChanges(), []);
+        });
+
+        test('the record comes back as it was written — values, source and moment', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            const appliedAt = new Date('2026-09-01T06:30:00.000Z');
+            await port.writeApplied(applied('sha256-a', appliedAt));
+
+            const read = await port.readApplied();
+            assert.ok(read, 'a record expected');
+            assert.equal(read.fingerprint, 'sha256-a');
+            assert.equal(read.source, '/srv/app/config/saas.yaml');
+            assert.equal(read.appliedAt.toISOString(), appliedAt.toISOString());
+            // Numbers stay numbers and lists keep their order through the JSON
+            // column: a notice period read back as "14" would compare unequal
+            // to the file for ever, and report a change on every boot.
+            assert.deepEqual(read.settings, SETTINGS);
+        });
+
+        test('writing again replaces the one row rather than adding a second', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            await port.writeApplied(applied('sha256-a', new Date('2026-09-01T06:30:00.000Z')));
+            const later = new Date('2026-09-02T06:30:00.000Z');
+            await port.writeApplied(applied('sha256-b', later, { ...SETTINGS, vatRate: 20 }));
+
+            const read = await port.readApplied();
+            assert.equal(read?.fingerprint, 'sha256-b');
+            assert.equal(read?.appliedAt.toISOString(), later.toISOString());
+            assert.equal((read?.settings as { vatRate: number }).vatRate, 20);
+        });
+
+        test('a change is recorded with both sides, and listed newest first', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            const first = await port.recordChange({
+                noticedAt: new Date('2026-09-01T06:30:00.000Z'),
+                source: '/srv/app/config/saas.yaml',
+                previous: SETTINGS,
+                current: { ...SETTINGS, vatRate: 20 },
+            });
+            const second = await port.recordChange({
+                noticedAt: new Date('2026-09-02T06:30:00.000Z'),
+                source: '/srv/app/config/saas.yaml',
+                previous: { ...SETTINGS, vatRate: 20 },
+                current: { ...SETTINGS, vatRate: 21 },
+            });
+            assert.ok(first.id && second.id && first.id !== second.id, 'two distinct ids');
+            assert.equal(first.acknowledgedAt, null);
+            assert.equal(first.acknowledgedBy, null);
+
+            const listed = await port.listChanges();
+            assert.deepEqual(
+                listed.map((c) => c.id),
+                [second.id, first.id],
+            );
+            assert.deepEqual(listed[1].previous, SETTINGS);
+            assert.equal((listed[1].current as { vatRate: number }).vatRate, 20);
+
+            assert.deepEqual(
+                (await port.listChanges({ limit: 1 })).map((c) => c.id),
+                [second.id],
+            );
+        });
+
+        test('two changes noticed in the same instant come back in one order, both times', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            // Several replicas of one deployment start together after one
+            // edit, and `noticedAt` is one `new Date()` per start. Which comes
+            // first is the adapter's to decide; that it decides the same way
+            // twice is the contract.
+            const instant = new Date('2026-09-01T06:30:00.000Z');
+            const a = await port.recordChange({
+                noticedAt: instant,
+                source: 'a',
+                previous: {},
+                current: { vatRate: 1 },
+            });
+            const b = await port.recordChange({
+                noticedAt: instant,
+                source: 'b',
+                previous: {},
+                current: { vatRate: 2 },
+            });
+            const first = (await port.listChanges()).map((c) => c.id);
+            const second = (await port.listChanges()).map((c) => c.id);
+            assert.deepEqual(new Set(first), new Set([a.id, b.id]));
+            assert.deepEqual(second, first);
+            assert.deepEqual(
+                (await port.listChanges({ limit: 1 })).map((c) => c.id),
+                [first[0]],
+            );
+        });
+
+        test('acknowledging a change is recorded once, and filters it out of what is owed', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            const change = await port.recordChange({
+                noticedAt: new Date('2026-09-01T06:30:00.000Z'),
+                source: '/srv/app/config/saas.yaml',
+                previous: SETTINGS,
+                current: { ...SETTINGS, vatRate: 20 },
+            });
+            const open = await port.recordChange({
+                noticedAt: new Date('2026-09-02T06:30:00.000Z'),
+                source: '/srv/app/config/saas.yaml',
+                previous: { ...SETTINGS, vatRate: 20 },
+                current: { ...SETTINGS, vatRate: 21 },
+            });
+
+            const seenAt = new Date('2026-09-03T08:00:00.000Z');
+            const acknowledged = await port.acknowledgeChange(
+                change.id,
+                'web:ops@example.com:s1',
+                seenAt,
+            );
+            assert.equal(acknowledged?.acknowledgedAt?.toISOString(), seenAt.toISOString());
+            assert.equal(acknowledged?.acknowledgedBy, 'web:ops@example.com:s1');
+
+            // A second acknowledgement keeps the first: who saw it first is the
+            // fact, and a later click must not rewrite it.
+            const again = await port.acknowledgeChange(
+                change.id,
+                'web:other@example.com:s2',
+                new Date('2026-09-04T08:00:00.000Z'),
+            );
+            assert.equal(again?.acknowledgedAt?.toISOString(), seenAt.toISOString());
+            assert.equal(again?.acknowledgedBy, 'web:ops@example.com:s1');
+
+            assert.deepEqual(
+                (await port.listChanges({ acknowledged: false })).map((c) => c.id),
+                [open.id],
+            );
+            assert.deepEqual(
+                (await port.listChanges({ acknowledged: true })).map((c) => c.id),
+                [change.id],
+            );
+            assert.equal(
+                await port.acknowledgeChange('no-such-change', 'web:ops@example.com:s1', seenAt),
+                null,
+            );
+        });
     });
 }

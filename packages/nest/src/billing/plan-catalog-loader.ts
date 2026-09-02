@@ -120,13 +120,33 @@ export interface LoadPlanCatalogFromStringOptions {
 export function loadPlanCatalogFromFile(opts: LoadPlanCatalogOptions): PlanCatalog {
     const absolutePath = resolvePath(opts.path);
     const raw = readFileSync(absolutePath, 'utf-8');
-    return loadPlanCatalogFromString(raw, {
+    const catalog = loadPlanCatalogFromString(raw, {
         source: absolutePath,
         crossFieldChecks: opts.crossFieldChecks ?? true,
         // `??` would turn an explicit `null` — refuse every reference — into
         // the process environment, the one thing that value asks not to read.
         env: opts.env === undefined ? process.env : opts.env,
     });
+    SOURCES.set(catalog, absolutePath);
+    return catalog;
+}
+
+/**
+ * Where each loaded catalogue came from, kept beside the object rather than in
+ * it: the schema closes the document (`additionalProperties: false`), so a
+ * `source` member would fail the very validation that just passed, and a
+ * consumer's `deepEqual` against the file's content would see a field the file
+ * does not have.
+ */
+const SOURCES = new WeakMap<PlanCatalog, string>();
+
+/**
+ * The absolute path `loadPlanCatalogFromFile` read `catalog` from, or null for
+ * a catalogue assembled in code — or copied: a spread of the loaded object is
+ * a new object, and this cannot follow it.
+ */
+export function catalogSource(catalog: PlanCatalog): string | null {
+    return SOURCES.get(catalog) ?? null;
 }
 
 /**

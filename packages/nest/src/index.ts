@@ -32,6 +32,7 @@ export * from './discovery/index.js';
 export * from './catalog/index.js';
 export * from './checkout-offer/index.js';
 export * from './subscription-contract/index.js';
+export * from './settings/index.js';
 
 // High-level composition is also exported from the root entry so existing
 // consumers that already inject root-entry classes can migrate incrementally

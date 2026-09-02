@@ -6,6 +6,7 @@ import type {
 } from '@saasicat/core';
 import type { DrizzleClient } from './client.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
+import { DrizzleAppliedSettingsRepository } from './drizzle-applied-settings.repository.js';
 import { DrizzleAuditAdapter } from './drizzle-audit.adapter.js';
 import { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
 import { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
@@ -109,6 +110,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             auditQuery: provide((client) => new DrizzleAuditQueryAdapter(client)),
             auditStats: provide((client) => new DrizzleAuditStatsAdapter(client)),
             superAdminProvisioning: buildProvisioning(db, options.passwordHasher),
+            appliedSettings: provide((client) => new DrizzleAppliedSettingsRepository(client)),
         },
         entitlement: {
             subscriptionRepository: provide((client) => new DrizzleSubscriptionRepository(client)),

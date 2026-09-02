@@ -1,11 +1,13 @@
-// The four modules every configuration gets, and the app identity they need.
+// The five modules every configuration gets, and the app identity they need.
 //
 // Not conditional on anything, which is why they are not among the feature
-// composers: a platform without a plan catalogue, discovery, the admin core
-// and the manifest is not a configuration anyone asked for.
+// composers: a platform without a plan catalogue, discovery, the admin core,
+// the manifest and the record of its own configuration is not a configuration
+// anyone asked for.
 
 import type { DynamicModule } from '@nestjs/common';
 import type {
+    AppliedSettingsPort,
     AuditPort,
     MfaPort,
     PlanCatalog,
@@ -15,16 +17,38 @@ import type {
 
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
 import { AdminModule } from '../../admin/admin.module.js';
+import { catalogSource } from '../../billing/plan-catalog-loader.js';
 import { PlanCatalogModule } from '../../billing/plan-catalog.module.js';
 import type { ProviderSpec } from '../../core/di.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
+import { SettingsModule } from '../../settings/settings.module.js';
 import type { SaaSiCatModuleOptions } from '../module-options.js';
 
 import { buildMinimalManifestConfig } from './manifest.js';
 
 /** Where the discovery snapshot goes unless the app names another path. */
 const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
+
+/**
+ * What the settings record says about where the values came from when the
+ * platform cannot name a file.
+ *
+ * `planCatalog` took an object — built in code, or the loaded object copied
+ * so that the loader's memory of its path does not follow it. `dbCatalog`
+ * forwards the settings from the same file the consumer read `currency` from,
+ * by convention rather than by construction, so the platform has no path to
+ * record; closing that gap means `dbCatalog` taking the file's path, which is
+ * a change to that option and has its own step.
+ */
+export const SOURCE_IN_CODE = 'the object passed to SaaSiCatModule.forRoot({ planCatalog })';
+export const SOURCE_DB_CATALOG = 'the dbCatalog block passed to SaaSiCatModule.forRoot()';
+
+/** Where the running settings came from, for the record. */
+export function resolveSettingsSource(options: SaaSiCatModuleOptions): string {
+    if (options.planCatalog) return catalogSource(options.planCatalog) ?? SOURCE_IN_CODE;
+    return SOURCE_DB_CATALOG;
+}
 
 /**
  * Who this application is, for discovery and the public catalogue.
@@ -77,14 +101,17 @@ export interface CorePorts {
     readonly mfaPort: ProviderSpec<MfaPort>;
     readonly auditPort: ProviderSpec<AuditPort>;
     readonly rlsBypassPort: ProviderSpec<RlsBypassPort>;
+    /** Optional: without it the platform runs unrecorded, and says so once. */
+    readonly appliedSettingsPort?: ProviderSpec<AppliedSettingsPort>;
 }
 
-/** Discovery, the admin core and the manifest — in that order. */
+/** Discovery, the admin core, the manifest and the settings record — in that order. */
 export function composeBaseModules(
     options: SaaSiCatModuleOptions,
     appInfo: DiscoveryAppInfo,
     ports: CorePorts,
 ): DynamicModule[] {
+    const { appliedSettingsPort, ...adminPorts } = ports;
     return [
         DiscoveryModule.forRoot({
             app: appInfo,
@@ -95,7 +122,7 @@ export function composeBaseModules(
                     ? DEFAULT_SNAPSHOT_PATH
                     : options.discoverySnapshotPath,
         }),
-        AdminModule.forRoot({ ...ports, imports: options.imports, global: true }),
+        AdminModule.forRoot({ ...adminPorts, imports: options.imports, global: true }),
         AdminManifestModule.forRoot({
             config: options.adminManifestConfig ?? buildMinimalManifestConfig(),
             extraProviders: options.adminManifestExtraProviders,
@@ -109,6 +136,13 @@ export function composeBaseModules(
             // Contributions"). Re-exporting the module from here
             // does not make that injection resolvable.
             global: true,
+        }),
+        SettingsModule.forRoot({
+            port: appliedSettingsPort,
+            source: resolveSettingsSource(options),
+            controller: { guards: options.controller.guards },
+            includeController: options.includeSettingsController,
+            imports: options.imports,
         }),
     ];
 }

@@ -23,6 +23,7 @@ const AREA = {
     'core-ports.types.ts': 'Core',
     'persistence-ports.types.ts': 'Persistence bundles',
     'promo-ports.types.ts': 'Promo codes',
+    'settings-ports.types.ts': 'Configuration',
 };
 
 /**
