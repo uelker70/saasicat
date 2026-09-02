@@ -9,6 +9,7 @@ import type { DynamicModule } from '@nestjs/common';
 import type {
     AppliedSettingsPort,
     AuditPort,
+    EmailPort,
     MfaPort,
     PlanCatalog,
     PlanCatalogReadSink,
@@ -92,6 +93,7 @@ export function composePlanCatalog(
         vatRate: dbCatalog.vatRate,
         tenantBilling: dbCatalog.tenantBilling,
         marketing: dbCatalog.marketing,
+        notifications: dbCatalog.notifications,
         sink: sink as ProviderSpec<PlanCatalogReadSink>,
         imports: options.imports,
     });
@@ -103,6 +105,8 @@ export interface CorePorts {
     readonly rlsBypassPort: ProviderSpec<RlsBypassPort>;
     /** Optional: without it the platform runs unrecorded, and says so once. */
     readonly appliedSettingsPort?: ProviderSpec<AppliedSettingsPort>;
+    /** Optional: without it the addresses in the file reach nobody, and the boot log says so once. */
+    readonly emailPort?: ProviderSpec<EmailPort>;
 }
 
 /** Discovery, the admin core, the manifest and the settings record — in that order. */
@@ -111,7 +115,7 @@ export function composeBaseModules(
     appInfo: DiscoveryAppInfo,
     ports: CorePorts,
 ): DynamicModule[] {
-    const { appliedSettingsPort, ...adminPorts } = ports;
+    const { appliedSettingsPort, emailPort, ...adminPorts } = ports;
     return [
         DiscoveryModule.forRoot({
             app: appInfo,
@@ -139,6 +143,7 @@ export function composeBaseModules(
         }),
         SettingsModule.forRoot({
             port: appliedSettingsPort,
+            email: emailPort,
             source: resolveSettingsSource(options),
             controller: { guards: options.controller.guards },
             includeController: options.includeSettingsController,

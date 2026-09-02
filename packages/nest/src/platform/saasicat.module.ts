@@ -104,6 +104,7 @@ export class SaaSiCatModule {
             audit: explicit.audit ?? persistence?.core.audit,
             rlsBypass: explicit.rlsBypass ?? persistence?.core.rlsBypass,
             appliedSettings: explicit.appliedSettings ?? persistence?.core.appliedSettings,
+            email: explicit.email,
             planCatalogReadSink: explicit.planCatalogReadSink ?? persistence?.planCatalogReadSink,
             planResolver: explicit.planResolver,
             subscriptionRepository:
@@ -137,6 +138,7 @@ export class SaaSiCatModule {
                 auditPort,
                 rlsBypassPort,
                 appliedSettingsPort: adapters.appliedSettings,
+                emailPort: adapters.email,
             }),
         ];
 

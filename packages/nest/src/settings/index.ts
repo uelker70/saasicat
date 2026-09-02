@@ -8,5 +8,10 @@ export {
     type SettingsChangeView,
 } from './settings.controller.js';
 export { SettingsModule, type SettingsModuleOptions } from './settings.module.js';
+export {
+    SettingsChangeNotifier,
+    describeChange,
+    type NotificationOutcome,
+} from './settings-change-notifier.js';
 export { fingerprintOf } from './settings-fingerprint.js';
 export { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.tokens.js';

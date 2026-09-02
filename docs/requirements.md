@@ -122,7 +122,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 22      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 28      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 31      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 410 entries: 🟢 399 stand today, 🟡 9 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 413 entries: 🟢 403 stand today, 🟡 8 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -141,14 +141,13 @@ Of 410 entries: 🟢 399 stand today, 🟡 9 decided but not yet delivered, ⚪ 
 [SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-CFG-008](#sc-cfg-008--an-operator-can-see-when-the-running-configuration-was-applied-and-from-where),
-[SC-CFG-009](#sc-cfg-009--a-configuration-change-is-noticed-and-reported),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 410 requirements. Do not edit by hand:
+Generated from `requirements/` — 413 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9582,13 +9581,110 @@ tell whether it has landed. The timestamp is the requirement, not decoration.
 
 _Source:_ #217 · #260
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-settings-endpoint.test.js`
+    - what the endpoint says about the running configuration
+        - the values, fingerprint and source come off the catalogue, the moment off the record
+        - a record that describes another configuration gives no moment, and says so by null
+        - without a port the running values are still answered, and nothing is claimed about a
+          record
+        - a change arrives with what moved, both values, and its acknowledgement
+
+<!-- END proof -->
+
 ### SC-CFG-009 — A configuration change is noticed and reported
 
-🟡 _(Decided, not yet delivered.)_ The record inside the application is unconditional; notifying
-people by mail is an addition, never a substitute. An address list that silently swallowed the
-notification because nobody wired mail would be worse than having neither.
+🟢 The record inside the application is unconditional; notifying people by mail is an addition,
+never a substitute. An address list that silently swallowed the notification because nobody wired
+mail would be worse than having neither.
 
 _Source:_ #217 · #260
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-changed-configuration-is-reported.test.js`
+    - addresses in the file and an email port bound
+        - every address is mailed what moved, and the change is recorded regardless
+        - a boot that finds nothing changed mails nobody
+        - the first boot has nothing to compare against, so it mails nobody
+        - a mail that fails is logged, the others still go out, and the boot completes
+        - the boot log says once that changes are mailed
+    - addresses in the file and no email port
+        - the change is recorded, nobody is mailed, and the boot log says so once
+
+<!-- END proof -->
+
+### SC-CFG-029 — Who is told about a change lives in the configuration file
+
+🟢 The addresses stand in `config/saas.yaml` beside the settings they are about, because the people
+who want to know are not necessarily the ones who sign in, and the person who deploys is often not
+the person who cares that the notice period moved. Each address is mailed what moved — every leaf,
+with both values — the file it came from, and when the start noticed it. A mail that cannot be sent
+is logged and does not stop the others, and the record is written before any mail goes out.
+
+_Source:_ #260 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-changed-configuration-is-reported.test.js`
+    - addresses in the file and an email port bound
+        - every address is mailed what moved, and the change is recorded regardless
+        - a boot that finds nothing changed mails nobody
+        - the first boot has nothing to compare against, so it mails nobody
+        - a mail that fails is logged, the others still go out, and the boot completes
+        - the boot log says once that changes are mailed
+
+<!-- END proof -->
+
+### SC-CFG-030 — Mail reaches nobody silently
+
+🟢 Where the file names addresses and no email port is bound, the change is recorded in the
+application and the start says so once — the addresses reach nobody, and the log is what says it.
+Where the file names nobody, in-app only is what the installation asked for, and nothing is said:
+an installation of one operator who signs in daily needs nothing else, and a warning at a correct
+configuration teaches people to skip warnings.
+
+_Source:_ #260 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-changed-configuration-is-reported.test.js`
+    - addresses in the file and no email port
+        - the change is recorded, nobody is mailed, and the boot log says so once
+    - nobody named in the file
+        - is in-app only by choice: recorded, nothing mailed, nothing said about mail
+
+<!-- END proof -->
+
+### SC-CFG-031 — A recorded change survives until an operator acknowledges it
+
+🟢 The acknowledgement records who and when, keeps its first author when repeated, and is written to
+the audit trail as the operator's action. It is the only thing anybody can do to the record, and it
+changes no setting.
+
+_Source:_ #260 · #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/the-settings-endpoint.test.js`
+    - acknowledging a change
+        - records who and when, is audited as the operator's action, and answers the record
+        - a second acknowledgement keeps the first author and answers the record as it stands
+        - an id nothing recorded is refused by name
+        - an installation that keeps no record has nothing to acknowledge
+
+<!-- END proof -->
 
 ### SC-CFG-010 — An installation that declares a protection and enforces nothing does not start
 

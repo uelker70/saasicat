@@ -80,6 +80,17 @@ export class WebAuditLogger {
     }
 
     /**
+     * The actor behind a request as the audit log writes it —
+     * `web:<email>:<context>` — for a column that records who did something.
+     * The same derivation as the log line, so the two never disagree about who
+     * it was.
+     */
+    actorTagFromRequest(req: unknown): string {
+        const actor = this.buildActor(req);
+        return `${actor.source}:${actor.email}:${actor.context}`;
+    }
+
+    /**
      * Best-effort audit log from a web request. Writes nothing and never
      * throws when no AdminAuditService is injected; write errors are
      * swallowed (an observability gap is better than an outage).

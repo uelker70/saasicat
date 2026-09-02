@@ -39,6 +39,15 @@ tenantBilling:
 marketing:
     availableLocales: [en]
 
+# Who is mailed when a start finds the settings above changed since the previous
+# start. The change is recorded in the administration either way; mail needs an
+# email port bound as `adapters.email`, and without one the boot log says once
+# that the addresses reach nobody. Nobody is named here on purpose: this example
+# binds no mail, and an installation of one operator needs nothing else.
+#
+#   notifications:
+#       settingsChanged: [ops@example.com]
+
 # The quickstart path: plans live here, and `loadPlanCatalogFromFile` reads
 # them at boot. Apps that let operators manage plans in the SuperAdmin UI drop
 # this block and pass `dbCatalog` instead — see docs/quickstart.md.

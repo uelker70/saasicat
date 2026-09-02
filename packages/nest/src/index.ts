@@ -21,6 +21,7 @@
 //   ./testing      — fake adapters (FakeSubscriptionRepository, …) for tests
 
 export * from './core/di.js';
+export * from './core/email.tokens.js';
 export * from './core/public-route.js';
 export * from './promo/index.js';
 export * from './billing/index.js';

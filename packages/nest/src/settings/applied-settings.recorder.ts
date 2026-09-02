@@ -27,6 +27,7 @@ import {
 } from '@saasicat/core';
 
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { SettingsChangeNotifier } from './settings-change-notifier.js';
 import { fingerprintOf } from './settings-fingerprint.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.tokens.js';
 
@@ -44,6 +45,7 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
         @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
+        @Inject(SettingsChangeNotifier) private readonly notifier: SettingsChangeNotifier,
         @Optional()
         @Inject(APPLIED_SETTINGS_PORT_TOKEN)
         private readonly port: AppliedSettingsPort | null = null,
@@ -65,9 +67,11 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
             );
             return;
         }
+        this.notifier.reportModeAtBoot();
         try {
             const outcome = await this.record(this.port, new Date());
             this.report(outcome);
+            if (outcome.kind === 'changed') await this.notifier.notify(outcome.change);
         } catch (error) {
             this.logger.error(
                 'The applied settings could not be recorded — the configuration in ' +

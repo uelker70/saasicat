@@ -34,6 +34,8 @@ export interface PlanCatalogBuildSettings {
     tenantBilling: PlanCatalog['tenantBilling'];
     /** App-wide marketing configuration. Optional. */
     marketing?: PlanCatalog['marketing'];
+    /** Who is told when the settings change. Optional, from the same file. */
+    notifications?: PlanCatalog['notifications'];
 }
 
 export function buildPlanCatalogFromSnapshot(
@@ -95,6 +97,7 @@ export function buildPlanCatalogFromSnapshot(
         vatRate: settings.vatRate,
         tenantBilling: settings.tenantBilling,
         ...(settings.marketing ? { marketing: settings.marketing } : {}),
+        ...(settings.notifications ? { notifications: settings.notifications } : {}),
         features,
         plans,
     };

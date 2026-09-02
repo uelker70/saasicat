@@ -158,6 +158,22 @@ export interface PasswordHasher {
     verify(hash: string, plain: string): Promise<boolean>;
 }
 
+/**
+ * Sends a plain-text mail to an operator.
+ *
+ * The platform composes the text; the adapter delivers it — over whatever the
+ * installation already sends mail with. Deliberately narrow: no templates, no
+ * locale, no HTML. The one thing the platform mails today is a diagnostic for
+ * the operator who runs the installation, and a diagnostic is English and
+ * plain, like the boot log it mirrors. Tenant-facing mail — a verification
+ * code, a resume link — goes through the registration module's own delivery
+ * ports, which carry the locale and the person's name because that mail is
+ * for a customer.
+ */
+export interface EmailPort {
+    send(message: { to: string; subject: string; text: string }): Promise<void>;
+}
+
 /** Adapter for MFA secret persistence. */
 export interface MfaPort {
     /** Returns the stored TOTP secret or null. */

@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 153 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 154 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -211,3 +211,11 @@ Redemption, validity and limits.
 | `PROMO_PLAN_NOT_DISCOUNTABLE`      | {plan}-Plan cannot be discounted.                                                                                        |
 | `PROMO_VALIDITY_WINDOW_INVALID`    | Invalid validity window.                                                                                                 |
 | `PROMO_WOULD_PRODUCE_ZERO_INVOICE` | For absolute amounts the discount must stay below the lowest applicable plan price, or allowZeroInvoice must be enabled. |
+
+## Settings
+
+The record of the applied configuration.
+
+| Code                        | Shipped English text                     |
+| --------------------------- | ---------------------------------------- |
+| `SETTINGS_CHANGE_NOT_FOUND` | No recorded settings change has this id. |

@@ -13,10 +13,13 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { AppliedSettingsPort } from '@saasicat/core';
+import type { AppliedSettingsPort, EmailPort } from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
+import { EMAIL_PORT_TOKEN } from '../core/email.tokens.js';
+import { WebAuditLogger } from '../core/web-audit.js';
 import { AppliedSettingsRecorder } from './applied-settings.recorder.js';
+import { SettingsChangeNotifier } from './settings-change-notifier.js';
 import { buildSettingsController } from './settings.controller.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.tokens.js';
 
@@ -27,6 +30,12 @@ export interface SettingsModuleOptions {
      * recording it.
      */
     port?: ProviderSpec<AppliedSettingsPort>;
+    /**
+     * How the people `config/saas.yaml#notifications.settingsChanged` names are
+     * mailed. Optional: without it the change is recorded in the application
+     * only, and the boot log says so once where the file names anybody.
+     */
+    email?: ProviderSpec<EmailPort>;
     /**
      * Where the running settings came from — the absolute path of the file, or
      * the phrase saying they were handed in as code. Recorded beside the
@@ -57,7 +66,15 @@ export class SettingsModule {
             options.port
                 ? asProvider(APPLIED_SETTINGS_PORT_TOKEN, options.port)
                 : { provide: APPLIED_SETTINGS_PORT_TOKEN, useValue: null },
+            options.email
+                ? asProvider(EMAIL_PORT_TOKEN, options.email)
+                : { provide: EMAIL_PORT_TOKEN, useValue: null },
+            SettingsChangeNotifier,
             AppliedSettingsRecorder,
+            // The acknowledgement is an operator's action and is audited like
+            // one. Best-effort: the logger writes nothing where the admin core
+            // is not in scope, and never fails the request.
+            WebAuditLogger,
         ];
         return {
             module: SettingsModule,
@@ -67,7 +84,13 @@ export class SettingsModule {
                     ? []
                     : [buildSettingsController(options.controller.guards)],
             providers,
-            exports: [AppliedSettingsRecorder, APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN],
+            exports: [
+                AppliedSettingsRecorder,
+                SettingsChangeNotifier,
+                APPLIED_SETTINGS_PORT_TOKEN,
+                EMAIL_PORT_TOKEN,
+                SETTINGS_SOURCE_TOKEN,
+            ],
         };
     }
 }

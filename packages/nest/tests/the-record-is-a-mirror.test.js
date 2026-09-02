@@ -88,7 +88,10 @@ describe('the applied-settings port', () => {
         // The recorder reads the record to compare, and the controller to show.
         // Neither hands a stored value to anything that decides — which shows
         // in the imports: nothing under src/settings/ imports a token another
-        // domain decides with.
+        // DOMAIN decides with. The catalogue token is the one domain import,
+        // because the record mirrors the catalogue; `core/` and `errors/` are
+        // infrastructure — DI helpers, the audit logger, the error envelope —
+        // and decide nothing about a setting.
         for (const file of sourceFiles(join(SRC, MIRROR_DIR))) {
             const text = readFileSync(file, 'utf8');
             const imports = [...text.matchAll(/from '([^']+)'/g)].map((m) => m[1]);
@@ -96,7 +99,8 @@ describe('the applied-settings port', () => {
                 (specifier) =>
                     specifier.startsWith('../') &&
                     !specifier.endsWith('/billing/plan-catalog.module.js') &&
-                    !specifier.endsWith('/core/di.js'),
+                    !specifier.startsWith('../core/') &&
+                    !specifier.startsWith('../errors/'),
             );
             assert.deepEqual(foreign, [], `${relative(SRC, file)} imports ${foreign.join(', ')}`);
         }

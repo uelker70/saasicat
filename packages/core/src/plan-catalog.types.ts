@@ -113,6 +113,19 @@ export interface PlanCatalogTenantBilling {
     selfServiceBlockedPlans: SelfServiceBlockedPlans;
 }
 
+/**
+ * Who is told when the settings in the file change between two starts.
+ *
+ * The record inside the application is written whether or not anybody is
+ * named here; mail is the addition, never the substitute. Mailed only where an
+ * email port is bound — without one the boot log says so once, and the change
+ * is recorded in the application only.
+ */
+export interface PlanCatalogNotifications {
+    /** Addresses mailed when a start finds the applied settings changed. */
+    settingsChanged?: string[];
+}
+
 export interface PlanCatalog {
     schemaVersion: 1;
     /** App identity (branding + version), see PlanCatalogApp. */
@@ -125,6 +138,8 @@ export interface PlanCatalog {
     tenantBilling: PlanCatalogTenantBilling;
     /** App-wide marketing configuration. Optional. */
     marketing?: PlanCatalogMarketing;
+    /** Who is told when the settings change between two starts. Optional. */
+    notifications?: PlanCatalogNotifications;
     features?: FeatureDef[];
     /**
      * Optional. When omitted, plans come exclusively from the
