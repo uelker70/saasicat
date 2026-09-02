@@ -37,6 +37,7 @@ export const navMessages: Record<SaBuiltinLocale, SaNavMessages> = defineMessage
             marketingCatalog: 'Marketing-Catalog',
             platformEmail: 'Plattform-E-Mail',
             platformEmailHistory: 'E-Mail-Verlauf',
+            settings: 'Einstellungen',
         },
         sections: {
             overview: 'Übersicht',
@@ -60,6 +61,7 @@ export const navMessages: Record<SaBuiltinLocale, SaNavMessages> = defineMessage
             marketingCatalog: 'Marketing catalog',
             platformEmail: 'Platform email',
             platformEmailHistory: 'Email history',
+            settings: 'Settings',
         },
         sections: {
             overview: 'Overview',

@@ -48,6 +48,7 @@ export * from './subscriptions.resource.js';
 export * from './audit.resource.js';
 export * from './pilots.resource.js';
 export * from './platform-email.resource.js';
+export * from './settings.resource.js';
 
 import { auditResource } from './audit.resource.js';
 import { pilotsResource } from './pilots.resource.js';
@@ -60,6 +61,7 @@ import { marketingResource } from './marketing.resource.js';
 import { planVersionsResource, plansResource } from './plans.resource.js';
 import { promoCodesResource } from './promo-codes.resource.js';
 import { promotionsResource } from './promotions.resource.js';
+import { settingsResource } from './settings.resource.js';
 import { subscriptionsResource } from './subscriptions.resource.js';
 import { tenantsResource } from './tenants.resource.js';
 import { usersResource } from './users.resource.js';
@@ -86,6 +88,7 @@ export const platformResources = {
     users: usersResource,
     subscriptions: subscriptionsResource,
     audit: auditResource,
+    settings: settingsResource,
     // ── App-served, platform-shaped ──────────────────────────────────────────
     //
     // The platform ships pages for these three and serves no route for any of

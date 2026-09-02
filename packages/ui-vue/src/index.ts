@@ -48,6 +48,7 @@ export * from './vue/use-async-data.js';
 export * from './vue/resource-registry.js';
 export * from './vue/use-resource-list.js';
 export * from './vue/use-tenants.js';
+export * from './vue/use-applied-settings.js';
 export * from './vue/use-audit-entries.js';
 export * from './vue/use-entitlement.js';
 export * from './vue/use-tenant-manifest.js';

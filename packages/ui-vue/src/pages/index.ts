@@ -45,6 +45,7 @@ export const adminPages = {
     PlatformEmailPage: () => import('./PlatformEmailPage.vue'),
     PromoCodeDetailPage: () => import('./PromoCodeDetailPage.vue'),
     PromoCodesPage: () => import('./PromoCodesPage.vue'),
+    SettingsPage: () => import('./SettingsPage.vue'),
     SubscriptionsPage: () => import('./SubscriptionsPage.vue'),
     TenantDetailPage: () => import('./TenantDetailPage.vue'),
     TenantsPage: () => import('./TenantsPage.vue'),
@@ -96,6 +97,7 @@ export const STANDARD_ADMIN_ROUTES: ReadonlyArray<{
     { path: 'pilots', page: 'PilotsPage' },
     { path: 'platform-email', page: 'PlatformEmailPage' },
     { path: 'email-history', page: 'EmailHistoryPage' },
+    { path: 'settings', page: 'SettingsPage' },
 ];
 
 /**

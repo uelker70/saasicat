@@ -18,14 +18,20 @@
             "type": "integer",
             "const": 1
         },
-
         "project": {
             "type": "object",
             "required": ["key", "displayName"],
             "additionalProperties": false,
             "properties": {
-                "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
-                "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+                "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]{1,30}$"
+                },
+                "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                },
                 "label": {
                     "type": "string",
                     "minLength": 1,
@@ -38,14 +44,19 @@
                     "maxLength": 8,
                     "description": "Short abbreviation for the logo badge (e.g. \"ma\", \"da\"). From saas.yaml#app.icon."
                 },
-                "logoUrl": { "type": "string" },
+                "logoUrl": {
+                    "type": "string"
+                },
                 "environment": {
                     "type": "string",
                     "enum": ["production", "staging", "development"]
                 },
                 "availableLocales": {
                     "type": "array",
-                    "items": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[a-z]{2}(-[A-Z]{2})?$"
+                    },
                     "minItems": 1,
                     "uniqueItems": true,
                     "description": "Locales allowed by the app catalog (saas.yaml marketing.availableLocales). First = default.."
@@ -57,18 +68,23 @@
                 }
             }
         },
-
         "build": {
             "type": "object",
             "required": ["platformPackageVersion", "appVersion", "manifestHash"],
             "additionalProperties": false,
             "properties": {
-                "platformPackageVersion": { "type": "string" },
-                "appVersion": { "type": "string" },
-                "manifestHash": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$" }
+                "platformPackageVersion": {
+                    "type": "string"
+                },
+                "appVersion": {
+                    "type": "string"
+                },
+                "manifestHash": {
+                    "type": "string",
+                    "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$"
+                }
             }
         },
-
         "planCatalogSnapshot": {
             "type": "object",
             "required": ["source", "hash", "currency", "vatRate", "plans"],
@@ -78,9 +94,19 @@
                     "type": "string",
                     "description": "Path to the source, e.g. 'config/saas.yaml'"
                 },
-                "hash": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$" },
-                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
-                "vatRate": { "type": "number", "minimum": 0, "maximum": 100 },
+                "hash": {
+                    "type": "string",
+                    "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$"
+                },
+                "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                },
+                "vatRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                },
                 "features": {
                     "type": "array",
                     "items": {
@@ -88,20 +114,28 @@
                         "required": ["key"],
                         "additionalProperties": false,
                         "properties": {
-                            "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
-                            "label": { "type": "string" },
-                            "tier": { "type": "string" }
+                            "key": {
+                                "type": "string",
+                                "pattern": "^[A-Z][A-Z0-9_]+$"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "tier": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
                 "plans": {
                     "type": "array",
-                    "items": { "$ref": "#/$defs/PlanDef" },
+                    "items": {
+                        "$ref": "#/$defs/PlanDef"
+                    },
                     "minItems": 1
                 }
             }
         },
-
         "capabilities": {
             "type": "object",
             "description": "Backend capabilities. Naming convention: domain.action or domain.resource.action. Values are boolean (true = active in the build).",
@@ -112,7 +146,6 @@
             },
             "additionalProperties": false
         },
-
         "navigation": {
             "type": "object",
             "required": ["standardPages"],
@@ -122,54 +155,88 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
-                        "dashboard": { "$ref": "#/$defs/StandardPageDef" },
-                        "tenants": { "$ref": "#/$defs/StandardPageDef" },
-                        "subscriptions": { "$ref": "#/$defs/StandardPageDef" },
-                        "promoCodes": { "$ref": "#/$defs/StandardPageDef" },
-                        "plans": { "$ref": "#/$defs/StandardPageDef" },
-                        "audit": { "$ref": "#/$defs/StandardPageDef" },
-                        "users": { "$ref": "#/$defs/StandardPageDef" },
-                        "pilots": { "$ref": "#/$defs/StandardPageDef" },
-                        "discovery": { "$ref": "#/$defs/StandardPageDef" },
-                        "bundles": { "$ref": "#/$defs/StandardPageDef" },
-                        "marketingCatalog": { "$ref": "#/$defs/StandardPageDef" },
-                        "platformEmail": { "$ref": "#/$defs/StandardPageDef" },
-                        "platformEmailHistory": { "$ref": "#/$defs/StandardPageDef" }
+                        "dashboard": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "tenants": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "subscriptions": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "promoCodes": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "plans": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "audit": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "users": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "pilots": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "discovery": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "bundles": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "marketingCatalog": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "platformEmail": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "platformEmailHistory": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        },
+                        "settings": {
+                            "$ref": "#/$defs/StandardPageDef"
+                        }
                     }
                 },
                 "projectPages": {
                     "type": "array",
-                    "items": { "$ref": "#/$defs/ProjectPageDef" }
+                    "items": {
+                        "$ref": "#/$defs/ProjectPageDef"
+                    }
                 }
             }
         },
-
         "dashboard": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
                 "kpiCards": {
                     "type": "array",
-                    "items": { "$ref": "#/$defs/KpiCardDef" }
+                    "items": {
+                        "$ref": "#/$defs/KpiCardDef"
+                    }
                 }
             }
         },
-
         "tenants": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
                 "columns": {
                     "type": "array",
-                    "items": { "$ref": "#/$defs/TenantColumnDef" }
+                    "items": {
+                        "$ref": "#/$defs/TenantColumnDef"
+                    }
                 },
                 "actions": {
                     "type": "array",
-                    "items": { "$ref": "#/$defs/TenantActionDef" }
+                    "items": {
+                        "$ref": "#/$defs/TenantActionDef"
+                    }
                 }
             }
         },
-
         "audit": {
             "type": "object",
             "additionalProperties": false,
@@ -181,8 +248,13 @@
                         "required": ["key", "label"],
                         "additionalProperties": false,
                         "properties": {
-                            "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
-                            "label": { "type": "string" },
+                            "key": {
+                                "type": "string",
+                                "pattern": "^[A-Z][A-Z0-9_]+$"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
                             "severity": {
                                 "type": "string",
                                 "enum": ["info", "low", "medium", "high"]
@@ -193,49 +265,73 @@
             }
         }
     },
-
     "$defs": {
         "CapabilityKey": {
             "type": "string",
             "pattern": "^[a-z][a-zA-Z0-9]*\\.[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)?$"
         },
-
         "StandardPageDef": {
             "type": "object",
             "required": ["enabled"],
             "additionalProperties": false,
             "properties": {
-                "enabled": { "type": "boolean" },
-                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" }
+                "enabled": {
+                    "type": "boolean"
+                },
+                "requiredCapability": {
+                    "$ref": "#/$defs/CapabilityKey"
+                }
             }
         },
-
         "ProjectPageDef": {
             "type": "object",
             "required": ["id", "label", "route", "componentKey"],
             "additionalProperties": false,
             "properties": {
-                "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9-]*$" },
-                "label": { "type": "string", "minLength": 1 },
-                "icon": { "type": "string" },
-                "route": { "type": "string", "pattern": "^/[A-Za-z0-9-/]+$" },
-                "navSection": { "type": "string" },
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9-]*$"
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "route": {
+                    "type": "string",
+                    "pattern": "^/[A-Za-z0-9-/]+$"
+                },
+                "navSection": {
+                    "type": "string"
+                },
                 "componentKey": {
                     "type": "string",
                     "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9-]*$"
                 },
-                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" },
-                "prefetchOnIdle": { "type": "boolean", "default": false }
+                "requiredCapability": {
+                    "$ref": "#/$defs/CapabilityKey"
+                },
+                "prefetchOnIdle": {
+                    "type": "boolean",
+                    "default": false
+                }
             }
         },
-
         "KpiCardDef": {
             "type": "object",
             "required": ["id", "label", "endpoint", "displayHint"],
             "additionalProperties": false,
             "properties": {
-                "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9.-]*$" },
-                "label": { "type": "string", "minLength": 1 },
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9.-]*$"
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1
+                },
                 "endpoint": {
                     "type": "string",
                     "pattern": "^/api(/v[0-9]+)?/admin/(extras|dashboard)/"
@@ -249,31 +345,47 @@
                             "type": "string",
                             "enum": ["value", "value+timestamp", "value+spark8w", "value+delta"]
                         },
-                        "icon": { "type": "string" }
+                        "icon": {
+                            "type": "string"
+                        }
                     }
                 },
-                "slotPriority": { "type": "integer", "minimum": 0, "maximum": 100 },
-                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" }
+                "slotPriority": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                },
+                "requiredCapability": {
+                    "$ref": "#/$defs/CapabilityKey"
+                }
             }
         },
-
         "TenantColumnDef": {
             "type": "object",
             "required": ["key", "label", "endpoint"],
             "additionalProperties": false,
             "properties": {
-                "key": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$" },
-                "label": { "type": "string", "minLength": 1 },
+                "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]*$"
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1
+                },
                 "endpoint": {
                     "type": "string",
                     "pattern": "^/api(/v[0-9]+)?/admin/extras/[A-Za-z0-9/-]+$",
-                    "not": { "pattern": "\\{slug\\}|\\{tenantId\\}" },
+                    "not": {
+                        "pattern": "\\{slug\\}|\\{tenantId\\}"
+                    },
                     "description": "Required: batch-capable endpoint, no tenant slug in the path. UI calls it with ?tenantIds=... See SPEC §4.4.1."
                 },
-                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" }
+                "requiredCapability": {
+                    "$ref": "#/$defs/CapabilityKey"
+                }
             }
         },
-
         "TenantActionDef": {
             "type": "object",
             "required": ["id", "label", "actionKey"],
@@ -283,42 +395,72 @@
                     "type": "string",
                     "pattern": "^[a-z][a-z0-9-]+(?:\\.[a-z][a-zA-Z0-9-]*)+$"
                 },
-                "label": { "type": "string", "minLength": 1 },
+                "label": {
+                    "type": "string",
+                    "minLength": 1
+                },
                 "actionKey": {
                     "$ref": "#/$defs/CapabilityKey",
                     "description": "Lookup in the frontend action registry. NO endpoint/method here."
                 },
-                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" },
-                "requiresMfa": { "type": "boolean" },
+                "requiredCapability": {
+                    "$ref": "#/$defs/CapabilityKey"
+                },
+                "requiresMfa": {
+                    "type": "boolean"
+                },
                 "confirmType": {
                     "type": "string",
                     "enum": ["none", "simple", "typed-slug", "typed-production", "date"]
                 }
             }
         },
-
         "PlanDef": {
             "type": "object",
             "required": ["id", "quotas", "features"],
             "additionalProperties": false,
             "properties": {
-                "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
-                "name": { "type": "string" },
-                "tagline": { "type": "string" },
-                "marketed": { "type": "boolean", "default": true },
-                "popular": { "type": "boolean", "default": false },
-                "monthlyNet": { "type": ["number", "null"], "minimum": 0 },
-                "yearlyNet": { "type": ["number", "null"], "minimum": 0 },
+                "id": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]+$"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tagline": {
+                    "type": "string"
+                },
+                "marketed": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "popular": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "monthlyNet": {
+                    "type": ["number", "null"],
+                    "minimum": 0
+                },
+                "yearlyNet": {
+                    "type": ["number", "null"],
+                    "minimum": 0
+                },
                 "quotas": {
                     "type": "object",
                     "patternProperties": {
-                        "^[a-z][A-Za-z0-9]*$": { "type": "integer" }
+                        "^[a-z][A-Za-z0-9]*$": {
+                            "type": "integer"
+                        }
                     },
                     "additionalProperties": false
                 },
                 "features": {
                     "type": "array",
-                    "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" }
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Z0-9_]+$"
+                    }
                 }
             }
         }

@@ -191,7 +191,7 @@ export const appRoutes: RouteRecordRaw[] = createAdminRoutes({
 
 Pass your own routes to `standardAdminChildren()` and yours win on a matching
 path — that is how you replace one standard page without giving up the other
-twelve:
+thirteen:
 
 ```ts
 children: standardAdminChildren([{ path: 'tenants', component: MyTenantsPage }]);

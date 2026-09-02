@@ -170,6 +170,13 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../../src/pages/SubscriptionsPage.vue'),
     }),
     visualCase({
+        id: 'settings',
+        load: () => import('../../../src/pages/SettingsPage.vue'),
+        // Reads `/api/admin/settings` from the registry: the fixture answers a
+        // recorded configuration with one unseen change, so the banner-free
+        // state, the change card and the values table are all on the screen.
+    }),
+    visualCase({
         id: 'dashboard',
         load: () => import('../../../src/pages/DashboardPage.vue'),
         // Nothing: the manifest comes from `SUPER_ADMIN_MANIFEST_KEY` and the

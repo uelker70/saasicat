@@ -84,6 +84,7 @@ export interface AdminManifest {
             marketingCatalog?: StandardPageDef;
             platformEmail?: StandardPageDef;
             platformEmailHistory?: StandardPageDef;
+            settings?: StandardPageDef;
         };
         projectPages?: ProjectPageDef[];
     };

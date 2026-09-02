@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 413 entries: 🟢 403 stand today, 🟡 8 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 413 entries: 🟢 404 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -108,7 +108,6 @@ Of 413 entries: 🟢 403 stand today, 🟡 8 decided but not yet delivered, ⚪ 
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
-[SC-CFG-008](#sc-cfg-008--an-operator-can-see-when-the-running-configuration-was-applied-and-from-where),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
 

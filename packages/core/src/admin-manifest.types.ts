@@ -83,7 +83,8 @@ export type StandardPageKey =
     | 'bundles'
     | 'marketingCatalog'
     | 'platformEmail'
-    | 'platformEmailHistory';
+    | 'platformEmailHistory'
+    | 'settings';
 
 export interface StandardPageDef {
     enabled: boolean;

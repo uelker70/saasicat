@@ -26,6 +26,7 @@ export * from './use-async-data.js';
 export * from './resource-registry.js';
 export * from './use-resource-list.js';
 export * from './use-tenants.js';
+export * from './use-applied-settings.js';
 export * from './use-audit-entries.js';
 export * from './use-entitlement.js';
 export * from './use-tenant-manifest.js';
