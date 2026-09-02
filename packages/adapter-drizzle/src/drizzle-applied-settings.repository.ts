@@ -80,7 +80,9 @@ export class DrizzleAppliedSettingsRepository implements AppliedSettingsPort {
             .select()
             .from(settingsChanges)
             .where(acknowledgement)
-            .orderBy(desc(settingsChanges.noticedAt));
+            // `id` breaks the tie between rows noticed in the same millisecond —
+            // several replicas starting together after one edit.
+            .orderBy(desc(settingsChanges.noticedAt), desc(settingsChanges.id));
         const rows = filter.limit === undefined ? await query : await query.limit(filter.limit);
         return rows.map(toChangeRecord);
     }

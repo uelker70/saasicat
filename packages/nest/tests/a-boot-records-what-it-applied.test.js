@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
+import { ModulesContainer } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 
 import { SaaSiCatModule } from '../dist/platform/index.js';
@@ -223,6 +224,44 @@ describe('the three states a boot can find the record in', () => {
         assert.match(line, /tenantBilling\.cancellationNoticeDays\.monthly: 14 → 30/);
     });
 
+    test('a change that cannot be written leaves the record alone, so the next start notices again', async () => {
+        // The two writes are not one transaction. Recording the change first
+        // means a failure here leaves the OLD record in place — and the next
+        // start finds the fingerprints differ and tries again. The other order
+        // would replace the record and then lose the change for ever.
+        const port = new FakeAppliedSettingsPort();
+        const previous = settingsSubtreeOf(catalogWith());
+        port.applied = {
+            fingerprint: fingerprintOf(previous),
+            settings: previous,
+            source: 'x',
+            appliedAt: new Date('2026-08-01T06:00:00.000Z'),
+        };
+        port.recordChange = async () => {
+            throw new Error('statement timeout');
+        };
+        const changed = catalogWith({ vatRate: 20 });
+        const errors = [];
+        const original = Logger.prototype.error;
+        Logger.prototype.error = function (message) {
+            errors.push(String(message));
+        };
+        try {
+            app = await boot(changed, persistenceWith(port));
+        } finally {
+            Logger.prototype.error = original;
+        }
+        assert.equal(
+            port.applied.fingerprint,
+            fingerprintOf(previous),
+            'the record was not replaced',
+        );
+        assert.ok(
+            errors.some((line) => /could not be recorded/.test(line)),
+            errors,
+        );
+    });
+
     test('a plan added to the catalogue is not a settings change', async () => {
         const port = new FakeAppliedSettingsPort();
         const settings = settingsSubtreeOf(catalogWith());
@@ -283,6 +322,32 @@ describe('an installation whose adapter keeps no record', () => {
             errors.some((line) => /could not be recorded/.test(line)),
             errors,
         );
+    });
+});
+
+describe('an app that serves the route itself', () => {
+    test('declines the controller and keeps the record', async () => {
+        const port = new FakeAppliedSettingsPort();
+        app = await Test.createTestingModule({
+            imports: [
+                SaaSiCatModule.forRoot({
+                    planCatalog: catalogWith(),
+                    controller: { guards: [FakeJwtGuard] },
+                    discoverySnapshotPath: null,
+                    persistence: persistenceWith(port),
+                    defaultPlanId: 'PRO',
+                    includeSettingsController: false,
+                }),
+            ],
+        }).compile();
+        await app.init();
+        // No controller class for the route is registered anywhere in the tree…
+        const controllers = [...app.get(ModulesContainer).values()].flatMap((m) =>
+            [...m.controllers.values()].map((c) => c.metatype?.name ?? ''),
+        );
+        assert.ok(!controllers.includes('GeneratedSettingsController'), controllers);
+        // …and the record is still written at boot.
+        assert.ok(port.applied, 'the record is kept whether or not the route is mounted');
     });
 });
 

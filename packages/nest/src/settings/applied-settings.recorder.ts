@@ -92,15 +92,26 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
             source: this.source,
             appliedAt: now,
         };
-        await port.writeApplied(record);
-        if (!previous) return { kind: 'first-record', record };
+        if (!previous) {
+            await port.writeApplied(record);
+            return { kind: 'first-record', record };
+        }
 
+        // The change first, then the record it supersedes. The two writes are
+        // not one transaction, so either can be the last thing that happens —
+        // and the order decides which failure is left behind. A change written
+        // and a record not replaced means the next start notices again and
+        // writes a second, duplicate change: visible, and dismissible. A record
+        // replaced and a change not written means the next start finds the
+        // fingerprints agree and says nothing, ever — the one event this exists
+        // for, lost.
         const change = await port.recordChange({
             noticedAt: now,
             source: this.source,
             previous: previous.settings,
             current: settings,
         });
+        await port.writeApplied(record);
         return { kind: 'changed', record, change };
     }
 

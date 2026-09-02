@@ -1795,6 +1795,39 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('two changes noticed in the same instant come back in one order, both times', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            // Several replicas of one deployment start together after one
+            // edit, and `noticedAt` is one `new Date()` per start. Which comes
+            // first is the adapter's to decide; that it decides the same way
+            // twice is the contract.
+            const instant = new Date('2026-09-01T06:30:00.000Z');
+            const a = await port.recordChange({
+                noticedAt: instant,
+                source: 'a',
+                previous: {},
+                current: { vatRate: 1 },
+            });
+            const b = await port.recordChange({
+                noticedAt: instant,
+                source: 'b',
+                previous: {},
+                current: { vatRate: 2 },
+            });
+            const first = (await port.listChanges()).map((c) => c.id);
+            const second = (await port.listChanges()).map((c) => c.id);
+            assert.deepEqual(new Set(first), new Set([a.id, b.id]));
+            assert.deepEqual(second, first);
+            assert.deepEqual(
+                (await port.listChanges({ limit: 1 })).map((c) => c.id),
+                [first[0]],
+            );
+        });
+
         test('acknowledging a change is recorded once, and filters it out of what is owed', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {

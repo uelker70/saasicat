@@ -17,8 +17,9 @@ import type { PlanCatalog } from './plan-catalog.types.js';
  * the one this record exists to prevent. `schemaVersion` is excluded because a
  * format change is a migration of the file, not a decision an operator took.
  *
- * `tests/the-settings-subtree-follows-the-schema.test.js` holds this list to
- * the schema: every name here has to be a property the schema declares.
+ * `tests/settings-subtree.test.js` holds this list to the schema in both
+ * directions: every name here is a property the schema declares, and every
+ * property the schema declares lands on one side.
  */
 export const CATALOGUE_KEYS: ReadonlySet<keyof PlanCatalog> = new Set<keyof PlanCatalog>([
     'schemaVersion',

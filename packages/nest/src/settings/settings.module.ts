@@ -35,6 +35,13 @@ export interface SettingsModuleOptions {
     source: string;
     /** Class-level guards for `GET /admin/settings`. Required — see the controller. */
     controller: { guards: Array<Type<CanActivate>> };
+    /**
+     * Mount the controller at all. Default `true`; `false` for an app that
+     * serves the route itself — two controllers on one path abort the boot
+     * under Fastify and shadow each other under Express. The record is kept
+     * either way.
+     */
+    includeController?: boolean;
     /** Modules whose providers the guards or the port factory resolve from. */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
 }
@@ -55,7 +62,10 @@ export class SettingsModule {
         return {
             module: SettingsModule,
             imports: options.imports ?? [],
-            controllers: [buildSettingsController(options.controller.guards)],
+            controllers:
+                options.includeController === false
+                    ? []
+                    : [buildSettingsController(options.controller.guards)],
             providers,
             exports: [AppliedSettingsRecorder, APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN],
         };

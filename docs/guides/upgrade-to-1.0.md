@@ -783,6 +783,13 @@ It creates both tables and the index only where they are missing, and adds the `
 `applied_settings` to one row. Safe to run again; on a database created from the reference schema it
 does nothing at all. Nothing to list beforehand: it changes no rows.
 
+**A route appears:** `GET /admin/settings`, behind the same `controller.guards` as the manifest
+and discovery, answers the resolved settings and the absolute path of `config/saas.yaml`. An app
+that already serves that path, or does not want the platform to, passes
+`includeSettingsController: false` — the record is kept and compared at boot either way, only
+the endpoint is left out. An app that passes `controller: { guards: [] }` publishes it
+unauthenticated, as it does the other two.
+
 On the Prisma path, `saasicat schema check` reports the two models until you copy them from
 `prisma-fragments/12-applied-settings.prisma` into your `schema.prisma`. An installation whose
 persistence adapter provides no `core.appliedSettings` port still starts — the platform says once, at

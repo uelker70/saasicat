@@ -141,6 +141,7 @@ export function composeBaseModules(
             port: appliedSettingsPort,
             source: resolveSettingsSource(options),
             controller: { guards: options.controller.guards },
+            includeController: options.includeSettingsController,
             imports: options.imports,
         }),
     ];

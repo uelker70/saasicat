@@ -29,7 +29,9 @@ a record that disagrees with the file changes nothing about what runs, and a
 test holds the port to the module that writes it and the endpoint that shows
 it. `GET /admin/settings` is that endpoint: the running settings, their
 fingerprint and source, `appliedAt` where the record matches what is running,
-and the recent changes with what moved.
+and the recent changes with what moved. It sits behind `controller.guards`
+like the manifest and discovery, and `includeSettingsController: false` leaves
+it out for an app that serves the path itself — the record is kept either way.
 
 **Two tables, one migration.** `applied_settings` holds one row — the
 installation's, held to one by a `CHECK` rather than by convention — and

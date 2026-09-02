@@ -154,6 +154,9 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them
@@ -206,6 +209,9 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them

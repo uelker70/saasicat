@@ -9493,6 +9493,7 @@ _Tested by:_
         - no record: the first boot writes one, and the log says so
         - same fingerprint: the record is left alone, and nothing is said
         - different fingerprint: the record is replaced and the difference written down
+        - a change that cannot be written leaves the record alone, so the next start notices again
         - a plan added to the catalogue is not a settings change
     - an installation whose adapter keeps no record
         - boots, says so once, and answers the endpoint without a record
@@ -9562,6 +9563,10 @@ _Tested by:_
         - is keyed on the installation id, on create and on update alike
         - reads back what was written, and null before anything was
         - a JSON column that is not an object reads as no settings, not as a crash
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
 
 <!-- END proof -->
 
@@ -11549,6 +11554,9 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them
@@ -11601,6 +11609,9 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - one project key goes through
+    - the applied settings hold one row, and the database is what holds them to it
+        - a second id is refused by the constraint, on the reference schema
+        - and on a database that gained the tables from the migration alone
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them

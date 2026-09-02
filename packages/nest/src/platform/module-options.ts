@@ -321,6 +321,19 @@ export interface SaaSiCatModuleOptions {
      */
     includeManifestController?: boolean;
     /**
+     * Mount the platform's `GET /admin/settings` controller — the running
+     * configuration, since when it applies, and what changed between two
+     * starts. Default `true`.
+     *
+     * Set `false` when the app serves that route itself; the record is kept
+     * and compared at boot either way, only the endpoint is left out. Note
+     * what the endpoint answers: the resolved settings and the absolute path of
+     * `config/saas.yaml`, behind `controller.guards` — the same guards as the
+     * manifest and discovery, so an app that passes `[]` there publishes it
+     * unauthenticated like those two.
+     */
+    includeSettingsController?: boolean;
+    /**
      * Modules whose providers must be visible in the DI scope (typically:
      * `AuthModule` with the `JwtAuthGuard`).
      */

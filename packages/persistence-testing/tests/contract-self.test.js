@@ -660,7 +660,7 @@ function createMemoryHarness() {
                         filter.acknowledged === undefined ||
                         (row.acknowledgedAt !== null) === filter.acknowledged,
                 )
-                .sort((a, b) => b.noticedAt - a.noticedAt);
+                .sort((a, b) => b.noticedAt - a.noticedAt || (a.id < b.id ? 1 : -1));
             const limited = filter.limit === undefined ? rows : rows.slice(0, filter.limit);
             return structuredClone(limited);
         },

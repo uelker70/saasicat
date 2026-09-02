@@ -131,16 +131,16 @@ describe('the changes', () => {
         const client = fakeClient();
         const repo = new PrismaAppliedSettingsRepository(client);
 
+        // `id` second: rows noticed in the same millisecond — replicas starting
+        // together — would otherwise come back in an order the database picks.
+        const ORDER = [{ noticedAt: 'desc' }, { id: 'desc' }];
         await repo.listChanges();
-        assert.deepEqual(client.calls.findMany.at(-1), {
-            where: undefined,
-            orderBy: { noticedAt: 'desc' },
-        });
+        assert.deepEqual(client.calls.findMany.at(-1), { where: undefined, orderBy: ORDER });
 
         await repo.listChanges({ acknowledged: false, limit: 5 });
         assert.deepEqual(client.calls.findMany.at(-1), {
             where: { acknowledgedAt: null },
-            orderBy: { noticedAt: 'desc' },
+            orderBy: ORDER,
             take: 5,
         });
 

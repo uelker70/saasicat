@@ -99,7 +99,11 @@ export class PrismaAppliedSettingsRepository implements AppliedSettingsPort {
                 filter.acknowledged === undefined
                     ? undefined
                     : { acknowledgedAt: filter.acknowledged ? { not: null } : null },
-            orderBy: { noticedAt: 'desc' },
+            // `id` breaks the tie: `noticedAt` is one `new Date()` per start, and
+            // several replicas starting together after one edit share the
+            // millisecond. Without it the two adapters — or one adapter twice —
+            // may answer the same rows in two orders.
+            orderBy: [{ noticedAt: 'desc' }, { id: 'desc' }],
             ...(filter.limit === undefined ? {} : { take: filter.limit }),
         });
         return rows.map(toChangeRecord);
