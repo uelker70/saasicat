@@ -21,6 +21,7 @@ import type {
     AppliedSettingsPort,
     AuditPort,
     AdminResourcesPort,
+    EmailPort,
     FeatureUiRegistry,
     FirstTimeCustomerCheck,
     MfaPort,
@@ -77,6 +78,14 @@ export interface SaaSiCatAdapters {
      * not recording it.
      */
     appliedSettings?: ProviderSpec<AppliedSettingsPort>;
+    /**
+     * Optional. How the platform mails an operator — today, the people
+     * `config/saas.yaml#notifications.settingsChanged` names when a start
+     * finds the settings changed. Not part of a persistence bundle: mail is not
+     * persistence. Without it the record is still written, and the boot log
+     * says once that the addresses in the file reach nobody.
+     */
+    email?: ProviderSpec<EmailPort>;
     /**
      * Optional. If provided, `PlanCatalogModule` is hydrated from this sink
      * (DB read at boot). If omitted, `planCatalog` MUST be passed as a ready
@@ -280,6 +289,8 @@ export interface SaaSiCatModuleOptions {
          */
         tenantBilling: PlanCatalog['tenantBilling'];
         marketing?: PlanCatalog['marketing'];
+        /** Who is told when the settings change — from the same file, like the rest. */
+        notifications?: PlanCatalog['notifications'];
     };
     /**
      * Aggregate persistence bundle from an adapter package (e.g.

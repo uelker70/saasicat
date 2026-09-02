@@ -86,6 +86,15 @@ export interface PlanCatalog {
         availableLocales: [string, ...string[]];
     };
     /**
+     * Who is told when something in this file changes between two starts. The record inside the application is written either way; mail is the addition, never the substitute. Optional: an installation of one operator who signs in daily needs nothing here.
+     */
+    notifications?: {
+        /**
+         * Addresses mailed when the settings applied at a start differ from the ones applied at the previous start. Mailed only where an email port is bound (`adapters.email`); without one the boot log says so once and the change is recorded in the application only. An empty list names nobody.
+         */
+        settingsChanged?: string[];
+    };
+    /**
      * Master list of all feature flags of the project. Plans may only reference keys declared here.
      */
     features?: FeatureDef[];

@@ -15,6 +15,7 @@ const CATALOGUES = [
     ['BILLING_ERROR_CODES', 'Billing', 'Subscriptions, plan changes, entitlements.'],
     ['CONTRACT_ERROR_CODES', 'Contracts', 'Checkout offers and subscription contracts.'],
     ['PROMO_ERROR_CODES', 'Promo codes', 'Redemption, validity and limits.'],
+    ['SETTINGS_ERROR_CODES', 'Settings', 'The record of the applied configuration.'],
 ];
 
 export const TARGET = 'docs/reference/error-codes.md';

@@ -1366,6 +1366,24 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/AppliedSettingsView' }
 
+    /settings/changes/{id}/acknowledge:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        post:
+            tags: [settings]
+            summary: Mark a recorded settings change as seen
+            description: >-
+                The record survives until this is called. The acknowledgement keeps its first
+                author — a second call changes nothing and answers the record as it stands — and
+                is written to the audit log as SETTINGS_CHANGE_ACKNOWLEDGE.
+            responses:
+                '200':
+                    description: The change, acknowledged
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/SettingsChangeView' }
+                '404':
+                    description: No recorded change has this id (`SETTINGS_CHANGE_NOT_FOUND`)
+
     # ── Discovery (scan/status, outside /catalog) ──
     /discovery:
         get:

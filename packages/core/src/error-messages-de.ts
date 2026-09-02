@@ -264,4 +264,6 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     MODEL_NOT_AVAILABLE: 'Diese Option steht nicht zur Verfügung.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Das Feature {featureKeys} ist im aktuellen Plan nicht enthalten.',
+    // ── settings ──
+    SETTINGS_CHANGE_NOT_FOUND: 'Keine aufgezeichnete Einstellungsänderung hat diese ID.',
 };

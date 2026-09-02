@@ -54,6 +54,8 @@ export interface PlanCatalogModuleOptions {
      * and from there into the admin manifest (`project.availableLocales`).
      */
     marketing?: PlanCatalog['marketing'];
+    /** Who is told when the settings change — `config/saas.yaml#notifications`. */
+    notifications?: PlanCatalog['notifications'];
     /** App-specific adapter for DB reads. */
     sink: ProviderSpec<PlanCatalogReadSink>;
     /** Modules that must be visible in the DI scope (analogous to CatalogModule). */
@@ -84,6 +86,7 @@ export class PlanCatalogModule {
                                 vatRate: options.vatRate,
                                 tenantBilling: options.tenantBilling,
                                 marketing: options.marketing,
+                                notifications: options.notifications,
                             },
                             snapshot,
                         );

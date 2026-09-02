@@ -90,7 +90,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 22      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 28      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 31      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 410 entries: 🟢 399 stand today, 🟡 9 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 413 entries: 🟢 403 stand today, 🟡 8 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -109,7 +109,6 @@ Of 410 entries: 🟢 399 stand today, 🟡 9 decided but not yet delivered, ⚪ 
 [SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-CFG-008](#sc-cfg-008--an-operator-can-see-when-the-running-configuration-was-applied-and-from-where),
-[SC-CFG-009](#sc-cfg-009--a-configuration-change-is-noticed-and-reported),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
 

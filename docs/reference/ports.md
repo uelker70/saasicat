@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 17 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 18 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -159,6 +159,14 @@ Narrow port for the first-run setup (interface segregation): ONLY an existence c
 | `listTenantUsers(tenantSlug: string): Promise<CliUserRow[]>`                                    | Lists a tenant's users (by slug) for `<app> user list`.                          |
 | `triggerPasswordReset(email: string): Promise<PasswordResetCliResult>`                          | Triggers the app's own password reset (one-time password or OTP email).          |
 | `deactivate(email: string, reason: string): Promise<PlatformUserDto>`                           | Deactivates a user (app-specific status).                                        |
+
+### `EmailPort`
+
+Sends a plain-text mail to an operator.
+
+| Member                                                                        | What it does                                                         |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `send(message: { to: string; subject: string; text: string }): Promise<void>` | Delivers one plain-text mail to one address; rejects when it cannot. |
 
 ### `MfaPort`
 

@@ -120,6 +120,22 @@
                 }
             }
         },
+        "notifications": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Who is told when something in this file changes between two starts. The record inside the application is written either way; mail is the addition, never the substitute. Optional: an installation of one operator who signs in daily needs nothing here.",
+            "properties": {
+                "settingsChanged": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "uniqueItems": true,
+                    "description": "Addresses mailed when the settings applied at a start differ from the ones applied at the previous start. Mailed only where an email port is bound (`adapters.email`); without one the boot log says so once and the change is recorded in the application only. An empty list names nobody."
+                }
+            }
+        },
         "features": {
             "type": "array",
             "items": {

@@ -215,6 +215,39 @@ and `drizzlePersistence()` both serve; a persistence adapter without the
 `core.appliedSettings` port still starts, and the boot log says once that
 nothing is being recorded.
 
+### Who is told
+
+The people who want to know that a setting moved are not necessarily the ones
+who sign in, so the file names them:
+
+```yaml
+notifications:
+    settingsChanged: [ops@example.com]
+```
+
+Each address is mailed what moved — every leaf with both values, the file, and
+when the start noticed it — through the email port you bind:
+
+```ts
+SaaSiCatModule.forRoot({
+    // …
+    adapters: { email: MySmtpEmailPort }, // implements EmailPort from @saasicat/core
+});
+```
+
+`EmailPort` is one method, `send({ to, subject, text })`, and the platform
+composes the text. The record in the application is written either way; mail is
+the addition, never the substitute. Name addresses and bind no port, and the
+boot log says once that they reach nobody. Name nobody, and nothing is said:
+in-app only is what an installation of one operator asked for.
+
+The list is itself a setting. When it moves, the mail goes to the old list and
+the new one, so an address taken off is told that once instead of going quiet.
+
+A recorded change survives in the administration until somebody acknowledges
+it — `POST /admin/settings/changes/{id}/acknowledge`, audited as the operator's
+action, keeping its first author when repeated.
+
 ## Standard Persistence Bundle (Prisma)
 
 On the canonical schema, do not write one forwarding provider per repository.

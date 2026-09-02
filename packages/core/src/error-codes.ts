@@ -331,6 +331,13 @@ export const PROMO_ERROR_CODES = {
 
 export type PromoErrorCode = (typeof PROMO_ERROR_CODES)[keyof typeof PROMO_ERROR_CODES];
 
+/** Codes of the settings record (`GET /admin/settings`, the acknowledgement). */
+export const SETTINGS_ERROR_CODES = {
+    /** No recorded change has this id, or the installation keeps no record at all. */
+    SETTINGS_CHANGE_NOT_FOUND: 'SETTINGS_CHANGE_NOT_FOUND',
+} as const;
+export type SettingsErrorCode = (typeof SETTINGS_ERROR_CODES)[keyof typeof SETTINGS_ERROR_CODES];
+
 /**
  * Every exception code the platform emits, in one object.
  *
@@ -346,6 +353,7 @@ export const PLATFORM_ERROR_CODES = {
     ...BILLING_ERROR_CODES,
     ...CONTRACT_ERROR_CODES,
     ...REGISTRATION_ERROR_CODES,
+    ...SETTINGS_ERROR_CODES,
 } as const;
 
 export type PlatformErrorCode =
@@ -355,7 +363,8 @@ export type PlatformErrorCode =
     | CatalogErrorCode
     | BillingErrorCode
     | ContractErrorCode
-    | RegistrationErrorCode;
+    | RegistrationErrorCode
+    | SettingsErrorCode;
 
 /**
  * Shape of a coded error response.
