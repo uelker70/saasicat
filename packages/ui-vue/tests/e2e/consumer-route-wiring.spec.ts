@@ -200,7 +200,8 @@ test.describe('an assembled consumer app resolves every one of its routes', () =
             //
             // This is still not fixture data and must not grow into it: the
             // shape comes from the prop type, the content stays empty.
-            const OBJECT_VALUED = /\/discovery(\/rescan)?$|\/manifest$|\/setup\/status$/;
+            const OBJECT_VALUED =
+                /\/discovery(\/rescan)?$|\/manifest$|\/setup\/status$|\/settings$/;
             await page.route('**/api/**', (route) =>
                 route.fulfill({
                     status: 200,
