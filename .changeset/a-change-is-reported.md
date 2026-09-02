@@ -39,5 +39,6 @@ when, keeps its first author when repeated, and is written to the audit trail as
 `SETTINGS_CHANGE_ACKNOWLEDGE`. It answers `404 SETTINGS_CHANGE_NOT_FOUND` for an
 id nothing recorded — and for an installation that keeps no record at all.
 
-Adding an address to the list is itself a settings change, and the new list is
-the one that is mailed about it.
+The list is itself a setting, so moving it is a change like any other — and the
+mail about it goes to both lists: an address added learns everything from then
+on, and an address taken off is told that once rather than going quiet.

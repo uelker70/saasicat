@@ -81,17 +81,10 @@ class FakeEmailPort {
     }
 }
 
-/** A port whose record says the notice period was 0, so a boot on 14 is a change. */
-function portWithAnOlderRecord() {
+/** A port whose record says `catalog` was what the previous start applied. */
+function portRecording(catalog) {
     const port = new FakeAppliedSettingsPort();
-    const previous = settingsSubtreeOf(
-        catalogWith({
-            tenantBilling: {
-                cancellationNoticeDays: { monthly: 0, yearly: 0 },
-                selfServiceBlockedPlans: BLOCKED,
-            },
-        }),
-    );
+    const previous = settingsSubtreeOf(catalog);
     port.applied = {
         fingerprint: fingerprintOf(previous),
         settings: previous,
@@ -99,6 +92,18 @@ function portWithAnOlderRecord() {
         appliedAt: new Date('2026-08-01T06:00:00.000Z'),
     };
     return port;
+}
+
+/** A port whose record says the notice period was 0, so a boot on 14 is a change. */
+function portWithAnOlderRecord() {
+    return portRecording(
+        catalogWith({
+            tenantBilling: {
+                cancellationNoticeDays: { monthly: 0, yearly: 0 },
+                selfServiceBlockedPlans: BLOCKED,
+            },
+        }),
+    );
 }
 
 const spec = {};
@@ -182,23 +187,48 @@ describe('addresses in the file and an email port bound', () => {
     });
 
     test('a boot that finds nothing changed mails nobody', async () => {
-        const port = new FakeAppliedSettingsPort();
-        const settings = settingsSubtreeOf(
-            catalogWith({ notifications: { settingsChanged: ADDRESSES } }),
-        );
-        port.applied = {
-            fingerprint: fingerprintOf(settings),
-            settings,
-            source: 'x',
-            appliedAt: new Date('2026-08-01T06:00:00.000Z'),
-        };
+        const catalog = catalogWith({ notifications: { settingsChanged: ADDRESSES } });
         const email = new FakeEmailPort();
-        app = await boot(
-            catalogWith({ notifications: { settingsChanged: ADDRESSES } }),
-            port,
-            email,
-        );
+        app = await boot(catalog, portRecording(catalog), email);
         assert.deepEqual(email.sent, []);
+    });
+
+    test('an address taken off the list is told that once, and nothing after', async () => {
+        // Whoever can edit the file can point the channel elsewhere. The people
+        // it pointed at hear about that from one last mail, not from silence.
+        const port = portRecording(catalogWith({ notifications: { settingsChanged: ADDRESSES } }));
+        const rerouted = catalogWith({
+            notifications: { settingsChanged: ['contractor@example.com'] },
+        });
+        const email = new FakeEmailPort();
+        app = await boot(rerouted, port, email);
+
+        assert.deepEqual(
+            email.sent.map((m) => m.to),
+            ['contractor@example.com', ...ADDRESSES],
+        );
+        for (const mail of email.sent) {
+            assert.match(
+                mail.text,
+                /notifications\.settingsChanged: \[.*ops@example\.com.*\] → \[.*contractor@example\.com.*\]/,
+            );
+        }
+
+        // The next start finds nothing changed, so the old list is not mailed again.
+        await app.close();
+        email.sent.length = 0;
+        app = await boot(rerouted, port, email);
+        assert.deepEqual(email.sent, []);
+    });
+
+    test('emptying the list is the last thing the old list hears about', async () => {
+        const port = portRecording(catalogWith({ notifications: { settingsChanged: ADDRESSES } }));
+        const email = new FakeEmailPort();
+        app = await boot(catalogWith(), port, email);
+        assert.deepEqual(
+            email.sent.map((m) => m.to),
+            ADDRESSES,
+        );
     });
 
     test('the first boot has nothing to compare against, so it mails nobody', async () => {

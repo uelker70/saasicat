@@ -241,6 +241,9 @@ the addition, never the substitute. Name addresses and bind no port, and the
 boot log says once that they reach nobody. Name nobody, and nothing is said:
 in-app only is what an installation of one operator asked for.
 
+The list is itself a setting. When it moves, the mail goes to the old list and
+the new one, so an address taken off is told that once instead of going quiet.
+
 A recorded change survives in the administration until somebody acknowledges
 it — `POST /admin/settings/changes/{id}/acknowledge`, audited as the operator's
 action, keeping its first author when repeated.

@@ -11,6 +11,7 @@
 
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
+    type AppliedSettingsValues,
     diffSettings,
     type EmailPort,
     type PlanCatalog,
@@ -90,9 +91,16 @@ export class SettingsChangeNotifier {
         );
     }
 
-    /** Mails every address about `change`. Never throws: a mail that fails is logged. */
+    /**
+     * Mails everybody the change concerns: the addresses the file names now,
+     * and — when the list itself is what moved — the ones it named before. An
+     * address taken off the list is told that once; otherwise whoever can edit
+     * the file could point the channel elsewhere and the people it pointed at
+     * would go quiet without a word, which is the failure this exists to
+     * prevent. Never throws: a mail that fails is logged.
+     */
     async notify(change: SettingsChangeRecord): Promise<NotificationOutcome> {
-        const addresses = this.addresses;
+        const addresses = recipientsOf(this.addresses, change.previous);
         if (addresses.length === 0) return { kind: 'nobody-to-tell' };
         if (!this.email) return { kind: 'no-email-port', addresses };
 
@@ -112,6 +120,26 @@ export class SettingsChangeNotifier {
         }
         return { kind: 'sent', addresses, failed };
     }
+}
+
+/** The running list first, then whoever the previous configuration named and this one does not. */
+function recipientsOf(
+    running: readonly string[],
+    previous: AppliedSettingsValues,
+): readonly string[] {
+    return [...new Set([...running, ...addressListIn(previous)])];
+}
+
+/**
+ * `notifications.settingsChanged` as a recorded subtree carries it. The row
+ * is data the platform wrote from a validated catalogue, but it is read back
+ * from a store, so its shape is checked rather than assumed.
+ */
+function addressListIn(settings: AppliedSettingsValues): readonly string[] {
+    const notifications = settings.notifications;
+    if (typeof notifications !== 'object' || notifications === null) return [];
+    const list: unknown = (notifications as { settingsChanged?: unknown }).settingsChanged;
+    return Array.isArray(list) ? list.filter((a): a is string => typeof a === 'string') : [];
 }
 
 /** The mail, as plain text: what moved, from which file, and when it was noticed. */

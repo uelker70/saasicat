@@ -534,6 +534,8 @@ _Tested by:_
     - addresses in the file and an email port bound
         - every address is mailed what moved, and the change is recorded regardless
         - a boot that finds nothing changed mails nobody
+        - an address taken off the list is told that once, and nothing after
+        - emptying the list is the last thing the old list hears about
         - the first boot has nothing to compare against, so it mails nobody
         - a mail that fails is logged, the others still go out, and the boot completes
         - a send that never answers does not hold the boot
@@ -561,6 +563,8 @@ _Tested by:_
     - addresses in the file and an email port bound
         - every address is mailed what moved, and the change is recorded regardless
         - a boot that finds nothing changed mails nobody
+        - an address taken off the list is told that once, and nothing after
+        - emptying the list is the last thing the old list hears about
         - the first boot has nothing to compare against, so it mails nobody
         - a mail that fails is logged, the others still go out, and the boot completes
         - a send that never answers does not hold the boot
@@ -605,6 +609,7 @@ _Tested by:_
 - `packages/nest/tests/the-settings-endpoint.test.js`
     - acknowledging a change
         - records who and when, is audited as the operator's action, and answers the record
+        - without the audit logger, the author is derived the same way — and nothing is audited
         - a second acknowledgement keeps the first author and answers the record as it stands
         - an id nothing recorded is refused by name
         - an installation that keeps no record has nothing to acknowledge

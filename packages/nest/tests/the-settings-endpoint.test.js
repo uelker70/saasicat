@@ -176,6 +176,17 @@ describe('acknowledging a change', () => {
         );
     });
 
+    test('without the audit logger, the author is derived the same way — and nothing is audited', async () => {
+        // A consumer mounting `buildSettingsController` in a module of their own
+        // has no `WebAuditLogger` to hand it; the acknowledgement still names
+        // who did it, from the same request fields the logger reads.
+        const port = fakePort({ changes: [change('c-1', { ...RUNNING, vatRate: 7 }, RUNNING)] });
+        const { controller } = controllerWith(port, null);
+        const view = await controller.acknowledge('c-1', REQUEST);
+        assert.equal(view.acknowledgedBy, 'web:ops@example.com:s-1');
+        assert.equal(port.acknowledged[0].by, 'web:ops@example.com:s-1');
+    });
+
     test('a second acknowledgement keeps the first author and answers the record as it stands', async () => {
         const first = new Date('2026-08-31T00:00:00.000Z');
         const port = fakePort({
