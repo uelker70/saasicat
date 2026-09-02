@@ -6,11 +6,21 @@ import addFormats from 'ajv-formats';
 import { planCatalogSchema } from '@saasicat/spec';
 import type { PlanCatalog } from '@saasicat/core';
 
+import {
+    EnvironmentResolutionFailure,
+    type EnvironmentVariables,
+    resolveEnvironmentReferences,
+    type SchemaNode,
+} from './plan-catalog-environment.js';
+
 // Plan catalog loader — pure function.
 //
-// Loads a YAML file, parses it as a JSON-compatible object, validates
-// it against `@saasicat/spec/schemas/plan-catalog.schema.json`,
-// returns a typed `PlanCatalog` object.
+// Loads a YAML file, parses it as a JSON-compatible object, resolves the
+// `${NAME}` references in it against the environment, validates the result
+// against `@saasicat/spec/schemas/plan-catalog.schema.json`, and returns a typed
+// `PlanCatalog` object. The order matters: references are resolved BEFORE the
+// schema check, so a variable standing in for `monthly` is held to
+// `integer, minimum: 0` like a number typed into the file would be.
 
 /**
  * Schema validation error bundling all Ajv errors — one call returns
@@ -20,7 +30,8 @@ export interface AjvErrorLike {
     instancePath?: string;
     message?: string;
     schemaPath?: string;
-    params?: { missingProperty?: string };
+    /** `envVar` names the variable behind a reference that could not be resolved. */
+    params?: { missingProperty?: string; additionalProperty?: string; envVar?: string };
 }
 
 /**
@@ -34,11 +45,15 @@ export interface AjvErrorLike {
  * This is not decoration. Making `tenantBilling` required breaks every existing
  * config/saas.yaml on upgrade, so this message is the first thing every
  * integrator meets.
+ *
+ * A member the schema does not know is reported the same way: Ajv points at the
+ * parent and names the offender in `params`, and `must NOT have additional
+ * properties` without the name sends the editor hunting through the block.
  */
 function locate(error: AjvErrorLike): string {
     const segments = (error.instancePath ?? '').split('/').filter(Boolean);
-    const missing = error.params?.missingProperty;
-    if (missing) segments.push(missing);
+    const named = error.params?.missingProperty ?? error.params?.additionalProperty;
+    if (named) segments.push(named);
     return segments.length > 0 ? segments.join('.') : '(document root)';
 }
 
@@ -72,13 +87,35 @@ export interface LoadPlanCatalogOptions {
      * cannot cover. Default: enable all (see validateConsistency).
      */
     crossFieldChecks?: boolean;
+    /**
+     * The variables a `${NAME}` in the file may resolve against. Left out,
+     * `process.env`; a record of their own for tests; `null` to refuse every
+     * reference, the way the string variant does without one.
+     */
+    env?: EnvironmentVariables;
+}
+
+export interface LoadPlanCatalogFromStringOptions {
+    /** Names the document in error messages — a path, or where the text came from. */
+    source: string;
+    crossFieldChecks?: boolean;
+    /**
+     * The variables a `${NAME}` in the document may resolve against.
+     *
+     * Left out, every reference is refused: a document handed in as text did
+     * not come from the installation's own file, and the catalogue import is
+     * one such caller. Resolving references for an uploaded body would read
+     * the server's environment for whoever can post one.
+     */
+    env?: EnvironmentVariables;
 }
 
 /**
  * Loads + validates a saas.yaml file.
  *
- * Throws `PlanCatalogValidationError` on schema violations or
- * cross-field violations. Throws `Error` on IO/YAML parse errors.
+ * Throws `PlanCatalogValidationError` on schema violations, cross-field
+ * violations, and references the environment cannot satisfy. Throws `Error`
+ * on IO/YAML parse errors.
  */
 export function loadPlanCatalogFromFile(opts: LoadPlanCatalogOptions): PlanCatalog {
     const absolutePath = resolvePath(opts.path);
@@ -86,6 +123,9 @@ export function loadPlanCatalogFromFile(opts: LoadPlanCatalogOptions): PlanCatal
     return loadPlanCatalogFromString(raw, {
         source: absolutePath,
         crossFieldChecks: opts.crossFieldChecks ?? true,
+        // `??` would turn an explicit `null` — refuse every reference — into
+        // the process environment, the one thing that value asks not to read.
+        env: opts.env === undefined ? process.env : opts.env,
     });
 }
 
@@ -95,7 +135,7 @@ export function loadPlanCatalogFromFile(opts: LoadPlanCatalogOptions): PlanCatal
  */
 export function loadPlanCatalogFromString(
     yamlContent: string,
-    opts: { source: string; crossFieldChecks?: boolean },
+    opts: LoadPlanCatalogFromStringOptions,
 ): PlanCatalog {
     const parsed = yaml.load(yamlContent);
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -107,21 +147,39 @@ export function loadPlanCatalogFromString(
         throw error;
     }
 
+    const resolved = resolveReferences(parsed, opts.source, opts.env ?? null);
+
     const ajv = new Ajv2020({ strict: false, allErrors: true });
     addFormats.default(ajv);
     const validate = ajv.compile(planCatalogSchema);
 
-    if (!validate(parsed)) {
+    if (!validate(resolved)) {
         throw new PlanCatalogValidationError(opts.source, validate.errors ?? []);
     }
 
-    const catalog = parsed as PlanCatalog;
+    const catalog = resolved as PlanCatalog;
 
     if (opts.crossFieldChecks ?? true) {
         validateConsistency(catalog, opts.source);
     }
 
     return catalog;
+}
+
+/**
+ * The document with its `${NAME}` references resolved, or a validation error
+ * that names every one that could not be — in the same shape as a schema
+ * violation, so the reader sees `field: what is wrong` either way.
+ */
+function resolveReferences(parsed: object, source: string, env: EnvironmentVariables): unknown {
+    try {
+        return resolveEnvironmentReferences(parsed, planCatalogSchema as SchemaNode, env);
+    } catch (error) {
+        if (error instanceof EnvironmentResolutionFailure) {
+            throw new PlanCatalogValidationError(source, error.problems);
+        }
+        throw error;
+    }
 }
 
 /**

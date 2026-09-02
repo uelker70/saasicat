@@ -21,6 +21,11 @@ tenantBilling:
     # Two rhythms, two numbers, and both are required. A month and a year
     # cannot share a notice period, and a rhythm left out would read as zero:
     # a commercial decision nobody made.
+    #
+    # Any value here may name an environment variable, `monthly: ${NOTICE_DAYS}`
+    # or with a default `${NOTICE_DAYS:-0}`, so one file serves every
+    # environment. It is resolved before the schema checks it, so the rules
+    # above still hold; a variable nobody set stops the boot and names itself.
     cancellationNoticeDays:
         monthly: 0
         yearly: 0

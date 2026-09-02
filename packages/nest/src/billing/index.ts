@@ -28,6 +28,7 @@ export * from './upsell.tokens.js';
 export * from './catalog-bundle-upsell-resolver.js';
 export * from './limit-exceeded.filter.js';
 export * from './plan-catalog-loader.js';
+export type { EnvironmentVariables } from './plan-catalog-environment.js';
 export * from './plan-catalog.module.js';
 export {
     buildPlanCatalogFromSnapshot,
