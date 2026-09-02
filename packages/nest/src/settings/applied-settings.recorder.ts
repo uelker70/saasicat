@@ -84,6 +84,15 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
         const previous = await port.readApplied();
 
         if (previous?.fingerprint === fingerprint) {
+            // The fingerprint covers the values, not where they came from. A
+            // file moved with its content intact — a Dockerfile that relocates
+            // `config/saas.yaml` — is not a change to report, but the record
+            // must not keep naming a path that no longer exists.
+            if (previous.source !== this.source) {
+                const relocated = { ...previous, source: this.source };
+                await port.writeApplied(relocated);
+                return { kind: 'unchanged', record: relocated };
+            }
             return { kind: 'unchanged', record: previous };
         }
         const record: AppliedSettingsRecord = {

@@ -9492,12 +9492,17 @@ _Tested by:_
     - the three states a boot can find the record in
         - no record: the first boot writes one, and the log says so
         - same fingerprint: the record is left alone, and nothing is said
+        - same fingerprint, moved file: the source follows, the moment does not
         - different fingerprint: the record is replaced and the difference written down
         - a change that cannot be written leaves the record alone, so the next start notices again
         - a plan added to the catalogue is not a settings change
     - an installation whose adapter keeps no record
         - boots, says so once, and answers the endpoint without a record
         - a failing port does not take the boot down, and the log names the file
+- `packages/nest/tests/the-settings-subtree-reaches-both-catalogue-paths.test.js`
+    - the database path carries every setting the schema declares
+        - the scan sees the settings, so an empty list is not a broken scan
+        - a value handed in for each of them comes out in the subtree
 
 <!-- END proof -->
 

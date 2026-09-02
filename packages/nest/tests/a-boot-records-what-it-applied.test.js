@@ -176,15 +176,36 @@ describe('the three states a boot can find the record in', () => {
         });
 
         // `appliedAt` keeps saying when these values took effect — a restart
-        // with the same configuration did not apply anything new.
+        // with the same configuration did not apply anything new. The source
+        // follows the running one (the file may have moved); that is its own
+        // case below.
         assert.equal(port.applied.appliedAt, appliedAt);
-        assert.equal(port.applied.source, '/elsewhere/config/saas.yaml');
+        assert.equal(port.applied.source, app.get(SETTINGS_SOURCE_TOKEN));
         assert.deepEqual(port.changes, []);
         assert.deepEqual(
             said.warn.filter((line) => /settings/i.test(line)),
             [],
             'a boot that found nothing changed must not warn about the settings',
         );
+    });
+
+    test('same fingerprint, moved file: the source follows, the moment does not', async () => {
+        // A Dockerfile that relocates config/saas.yaml with its content intact
+        // changes no setting — and the record must not go on naming a path that
+        // no longer exists.
+        const port = new FakeAppliedSettingsPort();
+        const appliedAt = new Date('2026-08-01T06:00:00.000Z');
+        const settings = settingsSubtreeOf(catalogWith());
+        port.applied = {
+            fingerprint: fingerprintOf(settings),
+            settings,
+            source: '/old/place/config/saas.yaml',
+            appliedAt,
+        };
+        app = await boot(catalogWith(), persistenceWith(port));
+        assert.notEqual(port.applied.source, '/old/place/config/saas.yaml');
+        assert.equal(port.applied.appliedAt, appliedAt, 'nothing was applied anew');
+        assert.deepEqual(port.changes, [], 'a moved file is not a changed setting');
     });
 
     test('different fingerprint: the record is replaced and the difference written down', async () => {
@@ -286,7 +307,11 @@ describe('the three states a boot can find the record in', () => {
         });
         app = await boot(morePlans, persistenceWith(port));
         assert.deepEqual(port.changes, []);
-        assert.equal(port.applied.source, 'x', 'the record was not touched');
+        assert.equal(
+            port.applied.appliedAt.toISOString(),
+            '2026-08-01T06:00:00.000Z',
+            'nothing was applied anew',
+        );
     });
 });
 

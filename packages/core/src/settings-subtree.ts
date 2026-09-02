@@ -45,7 +45,7 @@ export function settingsSubtreeOf(catalog: PlanCatalog): AppliedSettingsValues {
  * it.
  */
 export function canonicalJson(value: unknown): string {
-    return JSON.stringify(value, (_key, member: unknown) => {
+    const json = JSON.stringify(value, (_key, member: unknown) => {
         if (member && typeof member === 'object' && !Array.isArray(member)) {
             const sorted: Record<string, unknown> = {};
             for (const name of Object.keys(member).sort()) {
@@ -55,6 +55,10 @@ export function canonicalJson(value: unknown): string {
         }
         return member;
     });
+    // `JSON.stringify(undefined)` is `undefined`, not a string — and a hash
+    // over a missing value has to hash SOMETHING rather than throw in the
+    // caller. The text `undefined` is what JSON has no word for.
+    return json ?? 'undefined';
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
