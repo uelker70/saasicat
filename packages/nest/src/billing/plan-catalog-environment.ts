@@ -251,11 +251,20 @@ const NUMBER_TEXT = /^-?\d+(\.\d+)?$/;
  */
 export function readAs(text: string, types: Set<string>): unknown {
     if (types.has('string') || types.size === 0) return text;
-    if (types.has('integer') && INTEGER_TEXT.test(text)) return Number(text);
-    if (types.has('number') && NUMBER_TEXT.test(text)) return Number(text);
+    if (types.has('integer') && INTEGER_TEXT.test(text)) return finiteOrUndefined(Number(text));
+    if (types.has('number') && NUMBER_TEXT.test(text)) return finiteOrUndefined(Number(text));
     if (types.has('boolean') && (text === 'true' || text === 'false')) return text === 'true';
     if (types.has('null') && text === 'null') return null;
     return undefined;
+}
+
+/**
+ * Enough digits overflow `Number()` to `Infinity`, which is a number to the
+ * schema and not one JSON can carry — a price of infinity would have passed a
+ * field that only states a minimum.
+ */
+function finiteOrUndefined(value: number): number | undefined {
+    return Number.isFinite(value) ? value : undefined;
 }
 
 function describeTypes(types: Set<string>): string {

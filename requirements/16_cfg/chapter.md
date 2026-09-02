@@ -332,6 +332,7 @@ _Tested by:_
     - a value that does not fit the field
         - ${why} is refused for an integer field, and neither NaN nor zero gets through
         - a whole negative number is an integer — the schema then applies its minimum
+        - digits enough to overflow are refused, not read as infinity
         - a number field refuses a comma decimal
         - a boolean field accepts only true and false
         - a variable cannot stand in for a whole list

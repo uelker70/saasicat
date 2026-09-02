@@ -228,6 +228,19 @@ describe('a value that does not fit the field', () => {
         assert.match(error.message, /tenantBilling\.cancellationNoticeDays\.monthly: must be >= 0/);
     });
 
+    test('digits enough to overflow are refused, not read as infinity', () => {
+        // `Number('9'.repeat(400))` is Infinity, and Infinity is a number to
+        // the schema — a price of infinity would have passed `monthlyNet`.
+        const huge = '9'.repeat(400);
+        for (const [field, name] of [
+            ['tenantBilling.cancellationNoticeDays.monthly', 'NOTICE_DAYS'],
+            ['vatRate', 'VAT'],
+        ]) {
+            const error = refusal(() => load(FILE, { ...ENV, [name]: huge }));
+            assert.ok(error.message.includes(`${field}: \${${name}} resolves to`), error.message);
+        }
+    });
+
     test('a number field refuses a comma decimal', () => {
         const error = refusal(() => load(FILE, { ...ENV, VAT: '19,5' }));
         assert.match(
