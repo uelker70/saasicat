@@ -69,9 +69,9 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 requiredCapability: 'platformEmailHistory.read',
             },
             // The applied configuration, read-only. The platform grants
-            // `settings.read` itself wherever it mounts `GET /admin/settings`
-            // — see `compose/manifest.ts` — so an app that declines the route
-            // gets no dead sidebar entry.
+            // `settings.read` unconditionally — see `compose/manifest.ts` —
+            // because the page is mounted and the route answers either way;
+            // `includeSettingsController` only says who serves it.
             settings: { enabled: true, requiredCapability: 'settings.read' },
         },
     },

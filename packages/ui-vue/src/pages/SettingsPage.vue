@@ -34,7 +34,6 @@
                     v-for="change in view?.changes ?? []"
                     :key="change.id"
                     class="sa-settings__change"
-                    :data-acknowledged="change.acknowledgedAt ? '' : undefined"
                 >
                     <header class="sa-settings__change-head">
                         <AdminStatusPill

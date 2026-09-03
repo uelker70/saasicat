@@ -200,6 +200,12 @@ test.describe('an assembled consumer app resolves every one of its routes', () =
             //
             // This is still not fixture data and must not grow into it: the
             // shape comes from the prop type, the content stays empty.
+            //
+            // `/settings` is the one endpoint whose contract has no empty body
+            // at all — the page's resource refuses `null` — so that route is
+            // swept in its failure state on purpose: it proves the page mounts
+            // and shows its error banner, no more. The visual suite renders it
+            // with data.
             const OBJECT_VALUED =
                 /\/discovery(\/rescan)?$|\/manifest$|\/setup\/status$|\/settings$/;
             await page.route('**/api/**', (route) =>

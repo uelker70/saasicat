@@ -24,7 +24,7 @@ named as stale rather than shown as current.
 The page reads the `settings` resource — `GET /admin/settings` and
 `POST /admin/settings/changes/{id}/acknowledge` — through the registry, so it
 takes one optional prop, `resources`, and no callbacks. `settings` is a new
-`StandardPageKey`; the platform grants `settings.read` wherever it mounts the
-route, so an app that passes `includeSettingsController: false` gets no dead
-sidebar entry. Labels ship in English and German under the new `settings`
-message namespace.
+`StandardPageKey`; the platform grants `settings.read` unconditionally, so an
+app that passes `includeSettingsController: false` answers `GET /admin/settings`
+itself and keeps the sidebar entry. Labels ship in English and German under the
+new `settings` message namespace.
