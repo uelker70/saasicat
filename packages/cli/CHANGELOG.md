@@ -1,5 +1,20 @@
 # @saasicat/cli
 
+## 1.0.0-rc.10
+
+### Patch Changes
+
+- Updated dependencies [7c7b06c]
+- Updated dependencies [d4b294e]
+- Updated dependencies [e95b629]
+- Updated dependencies [5936288]
+- Updated dependencies [6d9a238]
+- Updated dependencies [c351b6b]
+- Updated dependencies [3a700a4]
+    - @saasicat/spec@1.0.0-rc.10
+    - @saasicat/core@1.0.0-rc.10
+    - @saasicat/nest@1.0.0-rc.10
+
 ## 1.0.0-rc.9
 
 ### Minor Changes

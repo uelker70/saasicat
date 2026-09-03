@@ -1,5 +1,129 @@
 # @saasicat/adapter-prisma
 
+## 1.0.0-rc.10
+
+### Major Changes
+
+- d4b294e: A contract line records the currency and the tax it was booked with
+
+    `ContractLineItem` gains three required columns — `currency`, `taxRate` and
+    `taxAmount` — and `ContractLineItemRecord`, `NewContractLineItemData` and
+    `InvoiceLineItemSnapshot` gain the matching fields. An installation configures
+    one currency and one rate at a time, so a line never chooses them; what the
+    column is for is that a row keeps meaning what it meant after either is
+    changed, which is why changing a currency once contracts exist is a migration
+    rather than an edit.
+
+    `taxRate` is stored even though net and gross both are, because the ratio
+    between them is not the rate: it cannot be reproduced for a gross that was
+    rounded, it cannot express an exempt or a reverse-charge line, and it does not
+    survive a rate change. `taxAmount` is the gap between the line's own net and
+    gross, so the row cannot disagree with itself and no reader rounds a second
+    time.
+
+    **Run `sql/1.0-line-items-record-their-money.postgres.sql` before `db push`.**
+    The columns are NOT NULL, which `db push` cannot add to a table that already
+    holds rows. The migration adds them, fills them from each line's own contract —
+    `priceSnapshot` already records the currency and the VAT rate that were agreed
+    — and only then makes them required. It refuses, naming the contract, where a
+    snapshot states no currency or a rate that is not a number between 0 and 100,
+    rather than inventing one; and it does nothing at all on a second run.
+
+    **If you implement the persistence ports, your build breaks here.** A
+    repository adapter has to read and write the three fields.
+    `ContractFreezeSourcePort.loadBookedBundles` deliberately does not: its
+    `lineItems` are now `PricedContractLineItem`, the same shape without them,
+    because a source prices what it sells and the platform records the
+    installation's currency and rate. An adapter that annotates its result as
+    `NewContractLineItemData[]` needs that annotation dropped or changed.
+
+    **The rate is recorded in per cent on both paths, which the checkout path did
+    not do before.** A checkout offer prices its lines as `net * (1 + vatRate)` and
+    so states the rate as a fraction, while the catalogue states per cent; recorded
+    as they stand, one column would hold both. Which unit an offer's breakdown
+    carries is now read off that breakdown's own totals rather than assumed.
+    `SubscriptionContractPriceSnapshot.vatRate` is unchanged and still carries
+    whichever unit the contract was concluded with — it now says so — and
+    `ContractLineItemRecord.taxRate` is the one that is always per cent.
+
+    **`SubscriptionContractService.create` refuses a line that disagrees with its
+    contract.** `SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH` where `taxAmount` is
+    not exactly `priceGross - priceNet`, and
+    `SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH` where the line's currency is
+    not the one the contract was priced in. Both platform paths satisfy them, so
+    these only reach a caller supplying its own line items — but a contract is
+    append-only, and an invoice stating one currency in its total and another on
+    every line is a record nobody can correct afterwards.
+
+    `@saasicat/spec` also ships `schemas/tenant-ledger.schema.json`, naming the
+    shapes of a per-tenant account — a charge, a payment, the origins a charge can
+    have, and the account read model — with the generated types in `@saasicat/core`. A
+    payment carries no tax split: the net, the rate and the tax belong to the
+    charges it settles, and asking a payment for them would make an integrator
+    write a number nobody knows. Nothing reads the shapes yet; the persistence and
+    the service that writes charges follow.
+
+### Minor Changes
+
+- 3a700a4: The platform records the configuration it applied
+
+    `config/saas.yaml` says what should be true. Until now nothing said what IS
+    true, and somebody who edited the file an hour ago had no way to tell whether
+    it had landed. At every start the platform now records the settings it applied
+    — everything in the file but the plans and the features, with the environment
+    references resolved — together with a `sha256-…` fingerprint over them, the
+    moment they took effect and the file they came from.
+
+    Three states, and almost every start is the middle one: no record → written;
+    same fingerprint → nothing happens, and `appliedAt` keeps saying when these
+    values took effect; different → the record is replaced and the difference is
+    written down, leaf by leaf with both values, in `settings_changes`. The
+    fingerprint covers the settings and not the catalogue, so a plan added to the
+    file is not a configuration change — and it covers the resolved values, so a
+    production variable that moved the notice period is one.
+
+    **The record is a mirror, never a source.** Nothing reads a setting out of it;
+    a record that disagrees with the file changes nothing about what runs, and a
+    test holds the port to the module that writes it and the endpoint that shows
+    it. `GET /admin/settings` is that endpoint: the running settings, their
+    fingerprint and source, `appliedAt` where the record matches what is running,
+    and the recent changes with what moved. It sits behind `controller.guards`
+    like the manifest and discovery, and `includeSettingsController: false` leaves
+    it out for an app that serves the path itself — the record is kept either way.
+
+    **Two tables, one migration.** `applied_settings` holds one row — the
+    installation's, held to one by a `CHECK` rather than by convention — and
+    `settings_changes` one row per start that noticed a change. Run
+    `sql/1.0-the-applied-settings-are-recorded.postgres.sql` once, before
+    `db push` where you use one; it is safe to run again and does nothing on a
+    database created from the reference schema. On the Prisma path, copy the two
+    models from `prisma-fragments/12-applied-settings.prisma`.
+
+    `AppliedSettingsPort` is a new port in `@saasicat/core`, served by both
+    `prismaPersistence()` and `drizzlePersistence()` as `core.appliedSettings` and
+    held to the same executable contract. It is optional in the bundle: a
+    persistence adapter written before it existed still starts, and the platform
+    says once, at boot, that it is not recording. `SaaSiCatAdapters.appliedSettings`
+    overrides the bundle's slice like the other core ports.
+
+    `loadPlanCatalogFromFile` now remembers the absolute path it read a catalogue
+    from — `catalogSource(catalog)` returns it — which is what the record names as
+    the source. A catalogue handed in as an object, or through `dbCatalog`, is
+    recorded as coming from code, not from a path the platform did not read.
+
+    `@saasicat/core` also gains `settingsSubtreeOf`, `canonicalJson` and
+    `diffSettings`, the pure functions behind the fingerprint and the difference.
+
+### Patch Changes
+
+- Updated dependencies [7c7b06c]
+- Updated dependencies [d4b294e]
+- Updated dependencies [e95b629]
+- Updated dependencies [5936288]
+- Updated dependencies [c351b6b]
+- Updated dependencies [3a700a4]
+    - @saasicat/core@1.0.0-rc.10
+
 ## 1.0.0-rc.9
 
 ### Patch Changes
