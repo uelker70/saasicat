@@ -1,5 +1,389 @@
 # @saasicat/nest
 
+## 1.0.0-rc.10
+
+### Major Changes
+
+- d4b294e: A contract line records the currency and the tax it was booked with
+
+    `ContractLineItem` gains three required columns — `currency`, `taxRate` and
+    `taxAmount` — and `ContractLineItemRecord`, `NewContractLineItemData` and
+    `InvoiceLineItemSnapshot` gain the matching fields. An installation configures
+    one currency and one rate at a time, so a line never chooses them; what the
+    column is for is that a row keeps meaning what it meant after either is
+    changed, which is why changing a currency once contracts exist is a migration
+    rather than an edit.
+
+    `taxRate` is stored even though net and gross both are, because the ratio
+    between them is not the rate: it cannot be reproduced for a gross that was
+    rounded, it cannot express an exempt or a reverse-charge line, and it does not
+    survive a rate change. `taxAmount` is the gap between the line's own net and
+    gross, so the row cannot disagree with itself and no reader rounds a second
+    time.
+
+    **Run `sql/1.0-line-items-record-their-money.postgres.sql` before `db push`.**
+    The columns are NOT NULL, which `db push` cannot add to a table that already
+    holds rows. The migration adds them, fills them from each line's own contract —
+    `priceSnapshot` already records the currency and the VAT rate that were agreed
+    — and only then makes them required. It refuses, naming the contract, where a
+    snapshot states no currency or a rate that is not a number between 0 and 100,
+    rather than inventing one; and it does nothing at all on a second run.
+
+    **If you implement the persistence ports, your build breaks here.** A
+    repository adapter has to read and write the three fields.
+    `ContractFreezeSourcePort.loadBookedBundles` deliberately does not: its
+    `lineItems` are now `PricedContractLineItem`, the same shape without them,
+    because a source prices what it sells and the platform records the
+    installation's currency and rate. An adapter that annotates its result as
+    `NewContractLineItemData[]` needs that annotation dropped or changed.
+
+    **The rate is recorded in per cent on both paths, which the checkout path did
+    not do before.** A checkout offer prices its lines as `net * (1 + vatRate)` and
+    so states the rate as a fraction, while the catalogue states per cent; recorded
+    as they stand, one column would hold both. Which unit an offer's breakdown
+    carries is now read off that breakdown's own totals rather than assumed.
+    `SubscriptionContractPriceSnapshot.vatRate` is unchanged and still carries
+    whichever unit the contract was concluded with — it now says so — and
+    `ContractLineItemRecord.taxRate` is the one that is always per cent.
+
+    **`SubscriptionContractService.create` refuses a line that disagrees with its
+    contract.** `SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH` where `taxAmount` is
+    not exactly `priceGross - priceNet`, and
+    `SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH` where the line's currency is
+    not the one the contract was priced in. Both platform paths satisfy them, so
+    these only reach a caller supplying its own line items — but a contract is
+    append-only, and an invoice stating one currency in its total and another on
+    every line is a record nobody can correct afterwards.
+
+    `@saasicat/spec` also ships `schemas/tenant-ledger.schema.json`, naming the
+    shapes of a per-tenant account — a charge, a payment, the origins a charge can
+    have, and the account read model — with the generated types in `@saasicat/core`. A
+    payment carries no tax split: the net, the rate and the tax belong to the
+    charges it settles, and asking a payment for them would make an integrator
+    write a number nobody knows. Nothing reads the shapes yet; the persistence and
+    the service that writes charges follow.
+
+- e95b629: <!-- language-history: this note names the German identifiers it removes, because a
+       rename nobody can follow is not a migration instruction. -->
+
+    Keep three promises the catalogue made and the code did not
+
+    **A feature marked as not yet rolled out is no longer granted through a
+    contract.** `SC-ENTL-003` says "never … wherever it comes from", and the filter
+    sat in the aggregator, which a frozen contract does not go through: limits read
+    from `entitlementSnapshot` or from contract line items were handed over as they
+    stood. A successor pulled in by a `replaces` alias could arrive the same way.
+    Both paths now end in one place, so no path can skip it.
+
+    `SC-ENTL-004` said catalogue edits do not reach a running contract, which this
+    makes false in one case, so it is superseded by `SC-ENTL-021`: a commercial
+    edit — a price, a quota, a feature set — still leaves an agreed contract alone;
+    a feature losing its code does not, because that is a statement about whether
+    the capability exists rather than about what was sold.
+
+    **A catalogue offers at most one recommended plan.** `highlight` is a boolean
+    on a projection, and a projection belongs to one plan version and one language,
+    so no single row could keep that promise: two rows in the same language carry
+    it, or one carried in the default language reaches another language through the
+    fallback that fills in a missing translation — and each row is correct on its
+    own. The public catalogue decides it, because only there are the live versions,
+    the requested language and the fallback known at once. A row written for the
+    language that was asked for wins; failing that, the first plan the catalogue
+    offers. The others keep their card and lose the mark. `SC-MKT-009` is
+    superseded by `SC-MKT-022`, which says which one wins. The SuperAdmin's
+    mock-up of that page applies the same rule from `@saasicat/core`, so it stops
+    showing two cards the website will never show both of.
+
+    Two consequences worth naming. The editor no longer refuses a second
+    recommended projection — a check there sees neither which version is live nor
+    the fallback, so it refused on rows the editor does not display and still let
+    two cards through. And add-on projections, which that check happened to cover,
+    are constrained by nothing again; no requirement ever covered them, and nothing
+    in the repository reads the flag for an add-on.
+
+    **German out of what ships**, and a guard so it stays out. `SC-LANG-011`
+    promised English — code, comments, documentation, developer-facing errors,
+    release notes and the command-line tools — and nothing measured it, so it
+    drifted where nothing is reread: the type definitions `@saasicat/spec` hands
+    CommonJS consumers, a CLI conventions document whose worked example ran a
+    German command, a worked example in the backend guide whose every label was
+    German, the schema comments a consumer copies, comments quoting German captions
+    across the admin screens, and four German names in a shipped public API on
+    `TenantDetailPage` (the `stammdaten` slots and props are now `master-data`).
+
+    **Six refusal codes a consumer could not resolve.** `ERROR_MESSAGES_EN` is
+    `Record<PlatformErrorCode, string>`, so the compiler holds the catalogue and
+    the code set together — for codes that are in `PLATFORM_ERROR_CODES`.
+    `REDUNDANT_FEATURES`, `MINIMUM_TERM_BINDS`, `SUBSCRIPTION_CHANGED`,
+    `NO_SUBSCRIPTION`, `CANCELLATION_TERMS_CHANGED` and
+    `BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED` were thrown or pushed as bare string
+    literals and were in neither, so a tenant met a refusal their app had no text
+    for. All six are declared now, in English and German. Seven bundle-preview
+    templates also named values the preview never passed — a translating consumer
+    rendered `{bundleVersionId}` at the reader — and `SubscriptionBundlePreviewIssue`
+    gained the `params` field its plan-change sibling already had.
+
+    The guard that would have caught them read one preview service; it reads both,
+    and refuses a service that contributes nothing to the scan, so a rename cannot
+    quietly take one out while the other holds the count up.
+
+    What the guard measures is named in its own header rather than implied: it
+    reads the file types that carry prose and holds them against a list of German
+    words that cannot be English. A file that is a translation catalogue says so in
+    its first lines. It is a floor and not a sweep — the word list is finite, and
+    `.yaml`, `.json` and the example's shell and Docker files are outside its reach
+    today.
+
+- c351b6b: Compare a plan version on every quota it carries, not on three keys by name
+
+    `classifyPlanDiff` compared `maxUsers`, `maxVehicles` and `maxStorageGb` and
+    nothing else, so a quota an installation defines for itself — NotesApp's
+    `notesMax`, a club's `members` — could be halved and published without the
+    confirmation a regression asks for. Which quotas exist comes from
+    `@DefinesQuota` in the app, so a fixed set here could only ever have covered the
+    ones the platform happened to have heard of. Add-on versions were already
+    compared on every quota they carry; plans now use the same comparison, `-1`
+    (unlimited) included. `SC-PLAN-025` moves from decided to delivered.
+
+    A quota key is compared by own-property lookup, so an installation may name one
+    `constructor` or `toString` without the side that lacks it answering from
+    `Object.prototype`. Add-on version diffs, which already used this comparison,
+    gain the same correction.
+
+    **A quota value is a number, and the boundary now says so.** `@IsObject()`
+    validated the container and nothing in it, so `{ "users": "100" }` reached the
+    service, the repository and the JSON column. Two things went wrong downstream
+    and the second is the worse one: the comparison read `"50"` against `"100"` as
+    _strings_, so halving an allowance classified as an improvement and published
+    with nothing asked — and "unlimited" is `=== -1` at every enforcement site,
+    which `"-1"` is not, so an unlimited quota written as a string became
+    `max !== -1` and `used + delta > "-1"`: every request refused, for a tenant who
+    had bought no limit at all.
+
+    Plan and add-on version drafts now insist on an integer of at least -1 per key,
+    which is the shape `plan-catalog.schema.json` has always stated for the same
+    field — the catalogue-import path was validated by that schema all along, and
+    the admin route is catching up. The comparison reads both sides as numbers
+    regardless, because rows written before this exist; a value that cannot be read
+    as a finite one counts as a regression, since not knowing is not evidence of an
+    improvement — and `"1e999"` reads as `Infinity`, which would otherwise beat
+    every allowance there is.
+
+    **And the defence never saw a string, because three mappers disagreed.** The
+    same decision — how a quota is read out of a JSON column — was written three
+    times: `plan-mapping` dropped every non-number, so a legacy `{"users": "100"}`
+    reached the version diff as _absent_ and replacing it with 50 read as 0 → 50, an
+    improvement; the adapters' `toQuotaMap` cast the column straight through, so the
+    same value reached enforcement as a string, and `"-1"` turned an unlimited quota
+    into a limit that refused everything; `subscription-contract-mapping` dropped it
+    too, taking an allowance somebody had bought out of their own contract.
+
+    `readQuotaValue` and `readQuotaRecord` in `@saasicat/core` are that reading,
+    once. A number written as a string is that number. What cannot be read as a
+    finite number keeps its key: dropping it would make the quota _absent_, and
+    absent means undeclared, which `enforceLimit` answers with a 500 — so a corrupt
+    row would have refused the tenant every operation on that dimension. A quota
+    that is declared and cannot be read is the other requirement, `SC-ENTL-010`:
+    it blocks nobody. Wherever a quota is computed with it becomes `-1`, the value
+    every enforcement site short-circuits on and one that survives the JSON column
+    a contract snapshot lives in; in the catalogue row it stays `NaN`, because only
+    the diff has to tell "the plan did not have this quota" from "the plan had
+    something nobody can read", and it reports the value that was actually there.
+
+    The cost is stated rather than hidden: a corrupt value reads as unlimited to
+    anything that renders it. What `SC-ENTL-010` also asks for — the gap reported
+    for review — is not done, because these functions are framework-free and have
+    nowhere to log.
+
+    The change record keeps the value as it stood rather than the reading.
+    `publishedChanges` is persisted to a JSON column, and neither `NaN` nor
+    `Infinity` is a JSON value: normalising into the record would have written
+    `null` on exactly the rows where an operator has to see what was really there.
+
+    **Breaking.** `PlanVersionFields` now takes `quotas: Record<QuotaKey, number>`
+    in place of the three flat fields, and a quota change is reported as
+    `quotas.<key>` rather than `maxUsers`. Anything reading a `VersionChange.field`
+    — a label map, a report over stored `publishedChanges` — follows the same
+    rename. Rows published before this change keep the field names they were
+    written with.
+
+    Two admin-UI label maps follow: `regressionFields.quotasLowered` /
+    `quotasRaised` and `diffFields.maxUsers` / `maxStorageGb` are replaced by one
+    `quota` entry that takes the key. The platform names no quota, because the
+    installation owns the vocabulary; an app that wants its own word for one passes
+    it through the `fieldLabels` prop.
+
+### Minor Changes
+
+- 7c7b06c: A configuration change is reported to the people the file names
+
+    `config/saas.yaml` gains an optional `notifications.settingsChanged` list of
+    addresses. When a start finds the applied settings changed since the previous
+    start, each address is mailed what moved — every leaf with both values, the
+    file it came from, and when the start noticed it — through a new `EmailPort`
+    bound as `adapters.email`:
+
+    ```yaml
+    notifications:
+        settingsChanged: [ops@example.com]
+    ```
+
+    ```ts
+    SaaSiCatModule.forRoot({ adapters: { email: MySmtpEmailPort } });
+    ```
+
+    `EmailPort` is one method, `send({ to, subject, text })`; the platform composes
+    the text, in English like every other diagnostic it writes. It is not part of a
+    persistence bundle, because mail is not persistence.
+
+    **The record is unconditional; mail is the addition, never the substitute.** The
+    change is written to `settings_changes` before any mail goes out, and a mail
+    that cannot be sent is logged without stopping the others or the boot. Name
+    addresses and bind no port, and the boot log says once that they reach nobody.
+    Name nobody, and nothing is said: in-app only is what an installation of one
+    operator asked for, and a warning at a correct configuration teaches people to
+    skip warnings.
+
+    **A recorded change survives until an operator acknowledges it.**
+    `POST /admin/settings/changes/{id}/acknowledge` marks it seen with who and
+    when, keeps its first author when repeated, and is written to the audit trail as
+    `SETTINGS_CHANGE_ACKNOWLEDGE`. It answers `404 SETTINGS_CHANGE_NOT_FOUND` for an
+    id nothing recorded — and for an installation that keeps no record at all.
+
+    The list is itself a setting, so moving it is a change like any other — and the
+    mail about it goes to both lists: an address added learns everything from then
+    on, and an address taken off is told that once rather than going quiet.
+
+- 5936288: A read-only settings screen: what is running, since when, and from where
+
+    `SettingsPage` joins the standard pages at `/admin/settings`, under _System_ in
+    the sidebar, mounted by `standardAdminChildren()` like the others. It answers
+    the question an operator has after editing `config/saas.yaml`: has it landed?
+    The moment the running configuration was applied and the file it came from are
+    the first things on the screen — the timestamp is the requirement, not
+    decoration — followed by what changed between two starts, leaf by leaf with
+    both values, and the running values themselves as the file spells them.
+
+    It edits nothing, and it will not: the file is the one place a setting lives.
+    The one action is marking a change as seen, which records who and when and is
+    audited. An installation whose adapter keeps no record is told so and still
+    sees its running values; a record that describes an earlier configuration is
+    named as stale rather than shown as current.
+
+    The page reads the `settings` resource — `GET /admin/settings` and
+    `POST /admin/settings/changes/{id}/acknowledge` — through the registry, so it
+    takes one optional prop, `resources`, and no callbacks. `settings` is a new
+    `StandardPageKey`; the platform grants `settings.read` unconditionally, so an
+    app that passes `includeSettingsController: false` answers `GET /admin/settings`
+    itself and keeps the sidebar entry. Labels ship in English and German under the
+    new `settings` message namespace.
+
+- 6d9a238: A value in `config/saas.yaml` may name an environment variable
+
+    `monthly: ${NOTICE_DAYS}` — written into the file and resolved from the
+    environment when the platform reads it, so one file serves local development and
+    production, wired differently by the deployment rather than by a second file.
+    `${NOTICE_DAYS:-0}` declares a default for a variable that is unset or empty.
+
+    The reference is resolved **before** the schema looks, so a variable standing
+    in for `monthly` is held to `integer, minimum: 0` like a number typed into the
+    file. The resolved text is read as the type the field declares: `14` becomes the
+    integer 14 where the field takes one, and `1234` stays the string `"1234"` where
+    `app.version` takes a string. Three things stop the boot, each with the field,
+    the variable and the way out in one sentence, and all of them at once rather
+    than one per restart:
+
+    - a variable nobody set and no default in the file;
+    - a value that does not fit the field — `NOTICE_DAYS=abc` is refused rather than
+      becoming `NaN` or `0`, and the reading is strict: `1.5`, `1e3` and a leading
+      space are not integers;
+    - a variable whose name says it holds a credential — `SECRET`, `TOKEN`,
+      `PASSWORD`, a `PRIVATE_KEY`, an `API_KEY`. A value the file resolves is shown
+      on the login page, quoted in errors and recorded; a secret stays in the
+      environment and is read where it is used, which is what `setupTokenEnvVar`
+      and its kind carry: the name of a variable, not its value. Recognition is by
+      name, so a credential under an innocuous name is not caught, and a key is
+      refused only when a qualifier says what kind it is.
+
+    References are resolved for the installation's own file only.
+    `loadPlanCatalogFromString` takes an `env` option and, without one, refuses a
+    document that carries a reference — so the catalogue import, which loads an
+    uploaded body through it, cannot be used to read the server's environment. The
+    refusal is a `PlanCatalogValidationError`, and the import already answers 400 to
+    that. A document without a reference loads exactly as before.
+
+    **A value that already contains the text `${NAME}` changes meaning.** A plan
+    tagline reading `Save ${AMOUNT}` used to be that text; it is now a reference to
+    a variable called `AMOUNT`, and there is no escape that writes a literal
+    `${NAME}` — the boot refuses the document, naming the field and the variable,
+    so the change is loud rather than silent. Rewrite the text. A `$` that opens no
+    well-formed reference — `$5`, `${`, `${9}` — is ordinary text as before.
+
+    Inside a YAML flow collection a bare `${X}` is a nested mapping to the parser,
+    so quote it there: `asTarget: ['${ENTERPRISE_PLAN}']`. See "A value may name an
+    environment variable" in
+    [`docs/guides/wire-the-backend.md`](https://github.com/uelker70/saasicat/blob/main/docs/guides/wire-the-backend.md).
+
+- 3a700a4: The platform records the configuration it applied
+
+    `config/saas.yaml` says what should be true. Until now nothing said what IS
+    true, and somebody who edited the file an hour ago had no way to tell whether
+    it had landed. At every start the platform now records the settings it applied
+    — everything in the file but the plans and the features, with the environment
+    references resolved — together with a `sha256-…` fingerprint over them, the
+    moment they took effect and the file they came from.
+
+    Three states, and almost every start is the middle one: no record → written;
+    same fingerprint → nothing happens, and `appliedAt` keeps saying when these
+    values took effect; different → the record is replaced and the difference is
+    written down, leaf by leaf with both values, in `settings_changes`. The
+    fingerprint covers the settings and not the catalogue, so a plan added to the
+    file is not a configuration change — and it covers the resolved values, so a
+    production variable that moved the notice period is one.
+
+    **The record is a mirror, never a source.** Nothing reads a setting out of it;
+    a record that disagrees with the file changes nothing about what runs, and a
+    test holds the port to the module that writes it and the endpoint that shows
+    it. `GET /admin/settings` is that endpoint: the running settings, their
+    fingerprint and source, `appliedAt` where the record matches what is running,
+    and the recent changes with what moved. It sits behind `controller.guards`
+    like the manifest and discovery, and `includeSettingsController: false` leaves
+    it out for an app that serves the path itself — the record is kept either way.
+
+    **Two tables, one migration.** `applied_settings` holds one row — the
+    installation's, held to one by a `CHECK` rather than by convention — and
+    `settings_changes` one row per start that noticed a change. Run
+    `sql/1.0-the-applied-settings-are-recorded.postgres.sql` once, before
+    `db push` where you use one; it is safe to run again and does nothing on a
+    database created from the reference schema. On the Prisma path, copy the two
+    models from `prisma-fragments/12-applied-settings.prisma`.
+
+    `AppliedSettingsPort` is a new port in `@saasicat/core`, served by both
+    `prismaPersistence()` and `drizzlePersistence()` as `core.appliedSettings` and
+    held to the same executable contract. It is optional in the bundle: a
+    persistence adapter written before it existed still starts, and the platform
+    says once, at boot, that it is not recording. `SaaSiCatAdapters.appliedSettings`
+    overrides the bundle's slice like the other core ports.
+
+    `loadPlanCatalogFromFile` now remembers the absolute path it read a catalogue
+    from — `catalogSource(catalog)` returns it — which is what the record names as
+    the source. A catalogue handed in as an object, or through `dbCatalog`, is
+    recorded as coming from code, not from a path the platform did not read.
+
+    `@saasicat/core` also gains `settingsSubtreeOf`, `canonicalJson` and
+    `diffSettings`, the pure functions behind the fingerprint and the difference.
+
+### Patch Changes
+
+- Updated dependencies [7c7b06c]
+- Updated dependencies [d4b294e]
+- Updated dependencies [e95b629]
+- Updated dependencies [5936288]
+- Updated dependencies [c351b6b]
+- Updated dependencies [3a700a4]
+    - @saasicat/spec@1.0.0-rc.10
+    - @saasicat/core@1.0.0-rc.10
+
 ## 1.0.0-rc.9
 
 ### Minor Changes
