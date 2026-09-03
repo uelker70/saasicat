@@ -34,6 +34,7 @@ import {
     platformResources,
     promoCodesResource,
     promotionsResource,
+    settingsResource,
     subscriptionsResource,
     tenantsResource,
     useBundleVersions,
@@ -755,6 +756,12 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     // route in the platform's own admin controller. Same file, same reason.
     promoCodes: ['detail'],
     users: ['resetPassword', 'deactivate'],
+    // Platform-served, and with no composable twin: the settings page is the
+    // first page written on the descriptor alone. Measured the way the
+    // app-served descriptors are — the request itself is pinned — in
+    // `tests/settings-resource.test.js`, which carries its own completeness
+    // assertion.
+    settings: Object.keys(settingsResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
     tenants: [LIST_OP],

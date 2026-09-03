@@ -783,6 +783,12 @@ It creates both tables and the index only where they are missing, and adds the `
 `applied_settings` to one row. Safe to run again; on a database created from the reference schema it
 does nothing at all. Nothing to list beforehand: it changes no rows.
 
+**A page appears:** `SettingsPage` at `/admin/settings`, under _System_ in the sidebar, mounted
+by `standardAdminChildren()` like the others. It shows what is running, since when and from
+where, and what changed at the last start, with the one action of marking a change as seen; it
+edits nothing. The sidebar entry stays whoever serves the route: an app that passes
+`includeSettingsController: false` answers `GET /admin/settings` itself and keeps the page.
+
 **A route appears:** `GET /admin/settings`, behind the same `controller.guards` as the manifest
 and discovery, answers the resolved settings and the absolute path of `config/saas.yaml`. An app
 that already serves that path, or does not want the platform to, passes

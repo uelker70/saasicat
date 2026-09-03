@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 413 entries: 🟢 403 stand today, 🟡 8 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 413 entries: 🟢 404 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -140,7 +140,6 @@ Of 413 entries: 🟢 403 stand today, 🟡 8 decided but not yet delivered, ⚪ 
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
-[SC-CFG-008](#sc-cfg-008--an-operator-can-see-when-the-running-configuration-was-applied-and-from-where),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
 [SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
 
@@ -7743,6 +7742,12 @@ _Tested by:_
         - a rescan that does not answer 200 or 201 fails the same way
     - an empty list answer is a list, not a null
         - ${def.key}.${op} answers []
+- `packages/ui-vue/tests/settings-resource.test.js`
+    - settingsResource
+        - read asks for the settings
+        - acknowledgeChange posts to the change, with its id escaped
+        - a read that answers nothing is an error, not a page with no facts
+        - every operation this descriptor declares has a case above
 
 <!-- END proof -->
 
@@ -9576,7 +9581,7 @@ _Tested by:_
 
 ### SC-CFG-008 — An operator can see when the running configuration was applied, and from where
 
-🟡 _(Decided, not yet delivered.)_ Somebody who edited the file an hour ago otherwise has no way to
+🟢 Somebody who edited the file an hour ago otherwise has no way to
 tell whether it has landed. The timestamp is the requirement, not decoration.
 
 _Source:_ #217 · #260
@@ -9592,6 +9597,34 @@ _Tested by:_
         - without a port the running values are still answered, and nothing is claimed about a
           record
         - a change arrives with what moved, both values, and its acknowledgement
+- `packages/ui-vue/tests/component/settings-page-shows-when-it-was-applied.test.ts`
+    - SettingsPage
+        - says when the running configuration was applied, and from where
+        - a change is shown with what moved, and can be marked as seen
+        - an installation that keeps no record is told so, and still sees its running values
+        - a record that describes an earlier configuration is named as stale
+        - a failed acknowledgement is reported through the notify port, and the change stays open
+- `packages/ui-vue/tests/settings-resource.test.js`
+    - settingsResource
+        - read asks for the settings
+        - acknowledgeChange posts to the change, with its id escaped
+        - a read that answers nothing is an error, not a page with no facts
+        - every operation this descriptor declares has a case above
+- `packages/ui-vue/tests/settings-view.test.js`
+    - flattenSettings
+        - one row per leaf, at the path the file spells, in the order it wrote them
+        - a list is one leaf — one setting the operator wrote, not a row per plan
+        - an empty block is a leaf reading {}, so present-but-empty stays apart from absent
+        - nothing in, nothing out
+    - showSettingValue
+        - a string reads as itself, everything else as JSON, so 0, "0" and [] stay apart
+        - a leaf that did not exist on one side reads as the word for absent
+- `packages/ui-vue/tests/use-applied-settings.test.js`
+    - loading the view
+        - loads on creation, and a reload after a failure clears the error
+        - loading is on while the read is in flight, and off after
+        - a refresh that fails takes the old facts off the screen with it
+        - of two overlapping reloads, the newer answer stands even when it arrives first
 
 <!-- END proof -->
 
@@ -9690,6 +9723,18 @@ _Tested by:_
         - a second acknowledgement keeps the first author and answers the record as it stands
         - an id nothing recorded is refused by name
         - an installation that keeps no record has nothing to acknowledge
+- `packages/ui-vue/tests/component/settings-page-shows-when-it-was-applied.test.ts`
+    - SettingsPage
+        - says when the running configuration was applied, and from where
+        - a change is shown with what moved, and can be marked as seen
+        - an installation that keeps no record is told so, and still sees its running values
+        - a record that describes an earlier configuration is named as stale
+        - a failed acknowledgement is reported through the notify port, and the change stays open
+- `packages/ui-vue/tests/use-applied-settings.test.js`
+    - acknowledging a change
+        - replaces the change in place with what the server answered
+        - each button reports its own request: the first to answer clears only itself
+        - a failure is reported through the notify port, and the change stays as it was
 
 <!-- END proof -->
 

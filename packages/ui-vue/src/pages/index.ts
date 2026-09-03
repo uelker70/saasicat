@@ -45,6 +45,7 @@ export const adminPages = {
     PlatformEmailPage: () => import('./PlatformEmailPage.vue'),
     PromoCodeDetailPage: () => import('./PromoCodeDetailPage.vue'),
     PromoCodesPage: () => import('./PromoCodesPage.vue'),
+    SettingsPage: () => import('./SettingsPage.vue'),
     SubscriptionsPage: () => import('./SubscriptionsPage.vue'),
     TenantDetailPage: () => import('./TenantDetailPage.vue'),
     TenantsPage: () => import('./TenantsPage.vue'),
@@ -96,6 +97,7 @@ export const STANDARD_ADMIN_ROUTES: ReadonlyArray<{
     { path: 'pilots', page: 'PilotsPage' },
     { path: 'platform-email', page: 'PlatformEmailPage' },
     { path: 'email-history', page: 'EmailHistoryPage' },
+    { path: 'settings', page: 'SettingsPage' },
 ];
 
 /**
@@ -103,7 +105,7 @@ export const STANDARD_ADMIN_ROUTES: ReadonlyArray<{
  *
  * Pass your own routes and they win on a path collision — that is the point:
  * wrapping one page, to bind it to your own resource client for instance, must
- * not cost you the other fourteen and must not mount both at one path.
+ * not cost you the other fifteen and must not mount both at one path.
  *
  *     createAdminRoutes({
  *         loginPage, adminLayout, adminErrorPage,

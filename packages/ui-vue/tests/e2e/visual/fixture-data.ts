@@ -960,6 +960,45 @@ const EMAIL_PROVIDERS = [
     },
 ];
 
+/** The applied configuration, recorded, with one change nobody has seen yet. */
+const APPLIED_SETTINGS = {
+    source: '/srv/app/config/saas.yaml',
+    fingerprint: 'sha256-3f1a9c0e7b2d4e6f8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f3a5b7c9d1e3f',
+    settings: {
+        app: { name: 'NotesApp', label: 'NotesApp Cockpit' },
+        currency: 'EUR',
+        vatRate: 19,
+        tenantBilling: {
+            cancellationNoticeDays: { monthly: 14, yearly: 90 },
+            selfServiceBlockedPlans: { asTarget: ['ENTERPRISE'], asSource: [] },
+        },
+        marketing: { availableLocales: ['en', 'de'] },
+    },
+    recorded: true,
+    appliedAt: '2026-01-15T09:00:00.000Z',
+    changes: [
+        {
+            id: 'change-1',
+            noticedAt: '2026-01-15T09:00:00.000Z',
+            source: '/srv/app/config/saas.yaml',
+            differences: [
+                { path: 'tenantBilling.cancellationNoticeDays.monthly', before: 0, after: 14 },
+                { path: 'tenantBilling.cancellationNoticeDays.yearly', before: 0, after: 90 },
+            ],
+            acknowledgedAt: null,
+            acknowledgedBy: null,
+        },
+        {
+            id: 'change-0',
+            noticedAt: '2026-01-10T08:00:00.000Z',
+            source: '/srv/app/config/saas.yaml',
+            differences: [{ path: 'vatRate', before: 20, after: 19 }],
+            acknowledgedAt: '2026-01-10T09:30:00.000Z',
+            acknowledgedBy: 'web:ops@example.com:s-1',
+        },
+    ],
+};
+
 /** Routing table. Matched EXACTLY — see `respondTo` for why. */
 const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/boot', BOOT],
@@ -968,6 +1007,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/users', USER_ROWS],
     ['/api/admin/audit', AUDIT_ROWS],
     ['/api/admin/subscriptions', SUBSCRIPTION_ROWS],
+    ['/api/admin/settings', APPLIED_SETTINGS],
     // The full snapshot, not an empty stand-in. It used to be one, because the
     // pages that render a scan were handed `FIXTURE_DISCOVERY` as a prop and
     // nothing read this route for its contents. They fetch it now: an empty

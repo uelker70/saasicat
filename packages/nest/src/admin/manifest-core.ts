@@ -68,6 +68,11 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 enabled: true,
                 requiredCapability: 'platformEmailHistory.read',
             },
+            // The applied configuration, read-only. The platform grants
+            // `settings.read` unconditionally — see `compose/manifest.ts` —
+            // because the page is mounted and the route answers either way;
+            // `includeSettingsController` only says who serves it.
+            settings: { enabled: true, requiredCapability: 'settings.read' },
         },
     },
     tenants: {

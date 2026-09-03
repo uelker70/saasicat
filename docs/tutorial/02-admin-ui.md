@@ -11,7 +11,7 @@ pnpm create saasicat-admin admin --api-base /api/v1/admin
 ```
 
 One command writes a Vite + Vue 3 + Quasar application you own: routes, the
-platform loaders, an HTTP client with your auth header, and the thirteen
+platform loaders, an HTTP client with your auth header, and the fourteen
 standard pages mounted behind `AdminLayout`. Nothing in it is regenerated later
 — edit it freely.
 

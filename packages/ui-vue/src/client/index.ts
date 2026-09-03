@@ -31,6 +31,7 @@ export * from './http-json.js';
 export * from './boot-loader.js';
 export * from './manifest-loader.js';
 export * from './nav-builder.js';
+export * from './settings-view.js';
 export * from './action-registry.js';
 export * from './batch-column-fetcher.js';
 export * from './admin-resource-client.js';

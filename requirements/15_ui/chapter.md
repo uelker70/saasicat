@@ -318,6 +318,12 @@ _Tested by:_
         - a rescan that does not answer 200 or 201 fails the same way
     - an empty list answer is a list, not a null
         - ${def.key}.${op} answers []
+- `packages/ui-vue/tests/settings-resource.test.js`
+    - settingsResource
+        - read asks for the settings
+        - acknowledgeChange posts to the change, with its id escaped
+        - a read that answers nothing is an error, not a page with no facts
+        - every operation this descriptor declares has a case above
 
 <!-- END proof -->
 

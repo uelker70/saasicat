@@ -19,6 +19,7 @@ import { planEditorMessages } from './messages/plan-editor.js';
 import { planVersionsMessages } from './messages/plan-versions.js';
 import { plansMessages } from './messages/plans.js';
 import { promosMessages } from './messages/promos.js';
+import { settingsMessages } from './messages/settings.js';
 import { shellMessages } from './messages/shell.js';
 import { tenantsMessages } from './messages/tenants.js';
 import { usersMessages } from './messages/users.js';
@@ -43,6 +44,7 @@ export type SaMessages = {
     readonly promos: (typeof promosMessages)['de'];
     readonly pilots: (typeof pilotsMessages)['de'];
     readonly email: (typeof emailMessages)['de'];
+    readonly settings: (typeof settingsMessages)['de'];
 };
 
 /** Shape of app-side string overrides (deep partial of the catalog). */
@@ -68,6 +70,7 @@ function catalogFor(locale: SaBuiltinLocale): SaMessages {
         promos: promosMessages[locale],
         pilots: pilotsMessages[locale],
         email: emailMessages[locale],
+        settings: settingsMessages[locale],
     };
 }
 

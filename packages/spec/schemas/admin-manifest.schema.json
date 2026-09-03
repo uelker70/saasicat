@@ -134,7 +134,8 @@
                         "bundles": { "$ref": "#/$defs/StandardPageDef" },
                         "marketingCatalog": { "$ref": "#/$defs/StandardPageDef" },
                         "platformEmail": { "$ref": "#/$defs/StandardPageDef" },
-                        "platformEmailHistory": { "$ref": "#/$defs/StandardPageDef" }
+                        "platformEmailHistory": { "$ref": "#/$defs/StandardPageDef" },
+                        "settings": { "$ref": "#/$defs/StandardPageDef" }
                     }
                 },
                 "projectPages": {

@@ -38,8 +38,12 @@ export function buildStandardManifestContribution(
     adminResources: SaaSiCatAdminResourcesOptions | true | null,
     promoCodes: SaaSiCatPromoCodesOptions | true | null,
 ): ManifestContribution {
+    // `settings.read` does not follow `includeSettingsController`: that flag
+    // says who answers `GET /admin/settings`, not whether the page exists. An
+    // app that passes `false` serves the route itself and keeps the entry.
     const capabilities: NonNullable<ManifestContribution['capabilities']> = {
         'discovery.read': true,
+        'settings.read': true,
     };
 
     if (catalog && catalog.adminControllers !== false) {
