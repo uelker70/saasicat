@@ -26,6 +26,7 @@ import {
     SETTINGS_SOURCE_TOKEN,
 } from '../dist/index.js';
 import { settingsSubtreeOf } from '@saasicat/core';
+import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: [] };
@@ -43,43 +44,6 @@ const catalogWith = (overrides = {}) => ({
 class FakeJwtGuard {
     canActivate() {
         return true;
-    }
-}
-
-/** The port, in memory, with its state open for the assertions. */
-class FakeAppliedSettingsPort {
-    applied = null;
-    changes = [];
-    async readApplied() {
-        return this.applied;
-    }
-    async writeApplied(record) {
-        this.applied = { ...record };
-    }
-    async recordChange(change) {
-        const record = {
-            id: `change-${this.changes.length + 1}`,
-            ...change,
-            acknowledgedAt: null,
-            acknowledgedBy: null,
-        };
-        this.changes.unshift(record);
-        return record;
-    }
-    async listChanges(filter = {}) {
-        const rows = this.changes.filter(
-            (c) =>
-                filter.acknowledged === undefined ||
-                (c.acknowledgedAt !== null) === filter.acknowledged,
-        );
-        return filter.limit === undefined ? rows : rows.slice(0, filter.limit);
-    }
-    async acknowledgeChange(id, by, at) {
-        const change = this.changes.find((c) => c.id === id);
-        if (!change) return null;
-        if (change.acknowledgedAt === null)
-            Object.assign(change, { acknowledgedAt: at, acknowledgedBy: by });
-        return change;
     }
 }
 
@@ -246,10 +210,10 @@ describe('the three states a boot can find the record in', () => {
     });
 
     test('a change that cannot be written leaves the record alone, so the next start notices again', async () => {
-        // The two writes are not one transaction. Recording the change first
-        // means a failure here leaves the OLD record in place — and the next
-        // start finds the fingerprints differ and tries again. The other order
-        // would replace the record and then lose the change for ever.
+        // The change and the record it supersedes land together or not at all
+        // — the port's promise. A failure here therefore leaves the OLD record
+        // in place, and the next start finds the fingerprints differ and tries
+        // again; a record replaced without its change would say nothing, ever.
         const port = new FakeAppliedSettingsPort();
         const previous = settingsSubtreeOf(catalogWith());
         port.applied = {

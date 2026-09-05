@@ -1255,6 +1255,7 @@ model AppliedSettings {
 
 model SettingsChange {
     id             String    @id @default(uuid())
+    seq            Int       @unique @default(autoincrement())
     noticedAt      DateTime
     source         String
     previous       Json

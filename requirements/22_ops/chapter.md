@@ -157,6 +157,10 @@ _Tested by:_
     - the applied settings hold one row, and the database is what holds them to it
         - a second id is refused by the constraint, on the reference schema
         - and on a database that gained the tables from the migration alone
+    - a settings change carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them
@@ -212,6 +216,10 @@ _Tested by:_
     - the applied settings hold one row, and the database is what holds them to it
         - a second id is refused by the constraint, on the reference schema
         - and on a database that gained the tables from the migration alone
+    - a settings change carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them

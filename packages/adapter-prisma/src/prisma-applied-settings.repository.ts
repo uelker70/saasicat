@@ -26,6 +26,8 @@ interface AppliedSettingsDbRow {
 
 interface SettingsChangeDbRow {
     id: string;
+    /** Assigned by the database at the write; the order the list is read in. */
+    seq: number;
     noticedAt: Date;
     source: string;
     previous: unknown;
@@ -34,15 +36,20 @@ interface SettingsChangeDbRow {
     acknowledgedBy: string | null;
 }
 
-/** Narrow view of the injected client used by this repository. */
+/**
+ * Narrow view of the injected client used by this repository — and of the
+ * transaction client, which carries the same delegates.
+ */
 interface AppliedSettingsPrisma {
     appliedSettings: PrismaModelDelegateLike<AppliedSettingsDbRow>;
     settingsChange: PrismaModelDelegateLike<SettingsChangeDbRow>;
 }
 
+/** Root-client fields used directly: the two delegates and the interactive transaction. */
 interface AppliedSettingsRepositoryClient {
     appliedSettings: unknown;
     settingsChange: unknown;
+    $transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>;
 }
 
 /**
@@ -67,30 +74,35 @@ export class PrismaAppliedSettingsRepository implements AppliedSettingsPort {
         return row ? toAppliedRecord(row) : null;
     }
 
-    async writeApplied(record: AppliedSettingsRecord): Promise<void> {
-        const values = {
-            fingerprint: record.fingerprint,
-            settings: record.settings,
-            source: record.source,
-            appliedAt: record.appliedAt,
-        };
-        await this.db.appliedSettings.upsert({
-            where: { id: INSTALLATION_ROW_ID },
-            create: { id: INSTALLATION_ROW_ID, ...values },
-            update: values,
-        });
+    async writeApplied(
+        record: AppliedSettingsRecord,
+        expectedFingerprint: string | null,
+    ): Promise<boolean> {
+        return replaceRecord(this.db, record, expectedFingerprint);
     }
 
-    async recordChange(change: NewSettingsChange): Promise<SettingsChangeRecord> {
-        const row = await this.db.settingsChange.create({
-            data: {
-                noticedAt: change.noticedAt,
-                source: change.source,
-                previous: change.previous,
-                current: change.current,
-            },
+    async recordChange(
+        change: NewSettingsChange,
+        record: AppliedSettingsRecord,
+        expectedFingerprint: string,
+    ): Promise<SettingsChangeRecord | null> {
+        // One transaction, because the change and the record it supersedes are
+        // one fact. A change written and a record not replaced would make the
+        // next start notice again and write a duplicate; a record replaced and
+        // a change not written would make it say nothing, ever.
+        return this.prisma.$transaction(async (tx) => {
+            const db = tx as AppliedSettingsPrisma;
+            if (!(await replaceRecord(db, record, expectedFingerprint))) return null;
+            const row = await db.settingsChange.create({
+                data: {
+                    noticedAt: change.noticedAt,
+                    source: change.source,
+                    previous: change.previous,
+                    current: change.current,
+                },
+            });
+            return toChangeRecord(row);
         });
-        return toChangeRecord(row);
     }
 
     async listChanges(filter: SettingsChangeFilter = {}): Promise<SettingsChangeRecord[]> {
@@ -99,11 +111,11 @@ export class PrismaAppliedSettingsRepository implements AppliedSettingsPort {
                 filter.acknowledged === undefined
                     ? undefined
                     : { acknowledgedAt: filter.acknowledged ? { not: null } : null },
-            // `id` breaks the tie: `noticedAt` is one `new Date()` per start, and
-            // several replicas starting together after one edit share the
-            // millisecond. Without it the two adapters — or one adapter twice —
-            // may answer the same rows in two orders.
-            orderBy: [{ noticedAt: 'desc' }, { id: 'desc' }],
+            // By the number the database gave each change at its write, not by
+            // `noticedAt`: a start's clock says when it noticed, the number says
+            // in which order the record moved, and only the second is the
+            // order the list promises.
+            orderBy: [{ seq: 'desc' }],
             ...(filter.limit === undefined ? {} : { take: filter.limit }),
         });
         return rows.map(toChangeRecord);
@@ -124,6 +136,38 @@ export class PrismaAppliedSettingsRepository implements AppliedSettingsPort {
         const row = await this.db.settingsChange.findUnique({ where: { id } });
         return row ? toChangeRecord(row) : null;
     }
+}
+
+/**
+ * The guarded write behind both port methods. `null` expects no row and
+ * inserts one only where the table is empty — `skipDuplicates` is
+ * `ON CONFLICT DO NOTHING`; a fingerprint expects the row to still carry it.
+ * The count says whether this caller was the one who moved the record: a
+ * concurrent writer that got there first leaves the guard unmatched, rather
+ * than a second row or a lost update.
+ */
+async function replaceRecord(
+    db: AppliedSettingsPrisma,
+    record: AppliedSettingsRecord,
+    expectedFingerprint: string | null,
+): Promise<boolean> {
+    const values = {
+        fingerprint: record.fingerprint,
+        settings: record.settings,
+        source: record.source,
+        appliedAt: record.appliedAt,
+    };
+    const { count } =
+        expectedFingerprint === null
+            ? await db.appliedSettings.createMany({
+                  data: [{ id: INSTALLATION_ROW_ID, ...values }],
+                  skipDuplicates: true,
+              })
+            : await db.appliedSettings.updateMany({
+                  where: { id: INSTALLATION_ROW_ID, fingerprint: expectedFingerprint },
+                  data: values,
+              });
+    return count === 1;
 }
 
 function toAppliedRecord(row: AppliedSettingsDbRow): AppliedSettingsRecord {

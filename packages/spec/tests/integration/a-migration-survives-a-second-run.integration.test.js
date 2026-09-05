@@ -270,6 +270,68 @@ describe('the applied settings hold one row, and the database is what holds them
     });
 });
 
+// @requirement SC-CFG-033 — The changes are listed in the order the record went through them
+describe('a settings change carries the order it was recorded in', () => {
+    // `seq` arrives on a table that may already hold rows, and the list an
+    // operator saw was ordered by `noticedAt`, then `id`. The migration numbers
+    // those rows in that order, so nothing changes place, continues the
+    // numbering after them — and, run again, leaves every number alone: a row
+    // recorded between the two runs keeps the number its write gave it, however
+    // early the moment it carries.
+    const MIGRATION = '1.0-a-settings-change-carries-its-order.postgres.sql';
+    const insert = (id, noticedAt) =>
+        client.query(
+            'INSERT INTO "settings_changes" ("id", "noticedAt", "source", "previous", "current") ' +
+                "VALUES ($1, $2, '/srv/app/config/saas.yaml', '{}', '{}')",
+            [id, noticedAt],
+        );
+    const numbered = async () =>
+        (await client.query('SELECT "id", "seq" FROM "settings_changes" ORDER BY "seq"')).rows.map(
+            (row) => `${row.id}:${row.seq}`,
+        );
+    /** The table as it shipped before the column, with rows an operator has seen. */
+    async function tableBeforeTheColumn() {
+        await freshGround();
+        await client.query('ALTER TABLE "settings_changes" DROP COLUMN "seq"');
+        await insert('b', '2026-09-01T06:30:00.000Z');
+        await insert('a', '2026-09-01T06:30:00.000Z');
+        await insert('c', '2026-08-01T06:30:00.000Z');
+        // An acknowledgement rewrites the row, so the heap no longer holds the
+        // rows in the order they were inserted — the case a naive backfill
+        // would number wrongly.
+        await client.query(
+            `UPDATE "settings_changes" SET "acknowledgedAt" = NOW() WHERE "id" = 'c'`,
+        );
+    }
+
+    test('rows recorded before the column keep the order they were listed in, and the numbering continues', async () => {
+        await tableBeforeTheColumn();
+        await apply(MIGRATION);
+        assert.deepEqual(await numbered(), ['c:1', 'a:2', 'b:3']);
+
+        // Recorded after the migration, dated earlier than everything: the
+        // number is the order of the write, and the sequence carried on.
+        await insert('d', '2026-07-01T06:30:00.000Z');
+        assert.deepEqual(await numbered(), ['c:1', 'a:2', 'b:3', 'd:4']);
+    });
+
+    test('a second run leaves every number where the first one put it', async () => {
+        await tableBeforeTheColumn();
+        await apply(MIGRATION);
+        await insert('d', '2026-07-01T06:30:00.000Z');
+        const afterFirst = await numbered();
+
+        await apply(MIGRATION);
+        assert.deepEqual(await numbered(), afterFirst, 'the second run renumbered rows');
+        await insert('e', '2026-06-01T06:30:00.000Z');
+        assert.deepEqual(
+            (await numbered()).at(-1),
+            'e:5',
+            'the sequence was reset by the second run',
+        );
+    });
+});
+
 describe('a line item learns the money it was booked with', () => {
     // The 1.0 line-item migration adds three NOT NULL columns to a table that
     // already holds rows, which `db push` cannot do — it fills them from the
