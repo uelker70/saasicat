@@ -640,10 +640,16 @@ function createMemoryHarness() {
         async readApplied() {
             return state.appliedSettings ? structuredClone(state.appliedSettings) : null;
         },
-        async writeApplied(record) {
+        async writeApplied(record, expectedFingerprint) {
+            // The guard, as a database keeps it: the row is replaced only while
+            // it still carries the fingerprint the caller read, and `null` only
+            // while there is no row.
+            if ((state.appliedSettings?.fingerprint ?? null) !== expectedFingerprint) return false;
             state.appliedSettings = structuredClone(record);
+            return true;
         },
-        async recordChange(change) {
+        async recordChange(change, record, expectedFingerprint) {
+            if (!(await appliedSettings.writeApplied(record, expectedFingerprint))) return null;
             const row = {
                 id: nextId('change'),
                 ...structuredClone(change),
@@ -654,13 +660,15 @@ function createMemoryHarness() {
             return structuredClone(row);
         },
         async listChanges(filter = {}) {
-            const rows = state.settingsChanges
+            // The order they were recorded in, latest first — what the database
+            // numbers at each write — and not the moment each row carries.
+            const rows = [...state.settingsChanges]
+                .reverse()
                 .filter(
                     (row) =>
                         filter.acknowledged === undefined ||
                         (row.acknowledgedAt !== null) === filter.acknowledged,
-                )
-                .sort((a, b) => b.noticedAt - a.noticedAt || (a.id < b.id ? 1 : -1));
+                );
             const limited = filter.limit === undefined ? rows : rows.slice(0, filter.limit);
             return structuredClone(limited);
         },

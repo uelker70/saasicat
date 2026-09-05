@@ -42,31 +42,37 @@ export class DrizzleAppliedSettingsRepository implements AppliedSettingsPort {
         };
     }
 
-    async writeApplied(record: AppliedSettingsRecord): Promise<void> {
-        const values = {
-            fingerprint: record.fingerprint,
-            settings: record.settings,
-            source: record.source,
-            appliedAt: record.appliedAt,
-        };
-        await this.db
-            .insert(appliedSettings)
-            .values({ id: INSTALLATION_ROW_ID, ...values })
-            .onConflictDoUpdate({ target: appliedSettings.id, set: values });
+    async writeApplied(
+        record: AppliedSettingsRecord,
+        expectedFingerprint: string | null,
+    ): Promise<boolean> {
+        return replaceRecord(this.db, record, expectedFingerprint);
     }
 
-    async recordChange(change: NewSettingsChange): Promise<SettingsChangeRecord> {
-        const row = {
-            id: randomUUID(),
-            noticedAt: change.noticedAt,
-            source: change.source,
-            previous: change.previous,
-            current: change.current,
-            acknowledgedAt: null,
-            acknowledgedBy: null,
-        };
-        await this.db.insert(settingsChanges).values(row);
-        return toChangeRecord(row);
+    async recordChange(
+        change: NewSettingsChange,
+        record: AppliedSettingsRecord,
+        expectedFingerprint: string,
+    ): Promise<SettingsChangeRecord | null> {
+        // One transaction, because the change and the record it supersedes are
+        // one fact. A change written and a record not replaced would make the
+        // next start notice again and write a duplicate; a record replaced and
+        // a change not written would make it say nothing, ever.
+        return this.db.transaction(async (tx) => {
+            const db = tx as unknown as DrizzleClient;
+            if (!(await replaceRecord(db, record, expectedFingerprint))) return null;
+            const row = {
+                id: randomUUID(),
+                noticedAt: change.noticedAt,
+                source: change.source,
+                previous: change.previous,
+                current: change.current,
+                acknowledgedAt: null,
+                acknowledgedBy: null,
+            };
+            await db.insert(settingsChanges).values(row);
+            return toChangeRecord(row);
+        });
     }
 
     async listChanges(filter: SettingsChangeFilter = {}): Promise<SettingsChangeRecord[]> {
@@ -80,9 +86,11 @@ export class DrizzleAppliedSettingsRepository implements AppliedSettingsPort {
             .select()
             .from(settingsChanges)
             .where(acknowledgement)
-            // `id` breaks the tie between rows noticed in the same millisecond —
-            // several replicas starting together after one edit.
-            .orderBy(desc(settingsChanges.noticedAt), desc(settingsChanges.id));
+            // By the number the database gave each change at its write, not by
+            // `noticedAt`: a start's clock says when it noticed, the number says
+            // in which order the record moved, and only the second is the
+            // order the list promises.
+            .orderBy(desc(settingsChanges.seq));
         const rows = filter.limit === undefined ? await query : await query.limit(filter.limit);
         return rows.map(toChangeRecord);
     }
@@ -105,6 +113,45 @@ export class DrizzleAppliedSettingsRepository implements AppliedSettingsPort {
             .limit(1);
         return rows[0] ? toChangeRecord(rows[0]) : null;
     }
+}
+
+/**
+ * The guarded write behind both port methods. `null` expects no row and
+ * inserts one only where the table is empty — `ON CONFLICT DO NOTHING`; a
+ * fingerprint expects the row to still carry it. What comes back says whether
+ * this caller was the one who moved the record: a concurrent writer that got
+ * there first leaves the guard unmatched, rather than a second row or a lost
+ * update.
+ */
+async function replaceRecord(
+    db: DrizzleClient,
+    record: AppliedSettingsRecord,
+    expectedFingerprint: string | null,
+): Promise<boolean> {
+    const values = {
+        fingerprint: record.fingerprint,
+        settings: record.settings,
+        source: record.source,
+        appliedAt: record.appliedAt,
+    };
+    const written =
+        expectedFingerprint === null
+            ? await db
+                  .insert(appliedSettings)
+                  .values({ id: INSTALLATION_ROW_ID, ...values })
+                  .onConflictDoNothing({ target: appliedSettings.id })
+                  .returning({ id: appliedSettings.id })
+            : await db
+                  .update(appliedSettings)
+                  .set(values)
+                  .where(
+                      and(
+                          eq(appliedSettings.id, INSTALLATION_ROW_ID),
+                          eq(appliedSettings.fingerprint, expectedFingerprint),
+                      ),
+                  )
+                  .returning({ id: appliedSettings.id });
+    return written.length === 1;
 }
 
 interface SettingsChangeRow {

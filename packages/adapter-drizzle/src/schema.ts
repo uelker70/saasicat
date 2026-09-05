@@ -11,7 +11,16 @@
 //     as `text`: parameterized values are coerced by Postgres, and reads
 //     come back as strings — exactly what the platform records expect.
 
-import { boolean, integer, jsonb, numeric, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+    boolean,
+    integer,
+    jsonb,
+    numeric,
+    pgTable,
+    serial,
+    text,
+    timestamp,
+} from 'drizzle-orm/pg-core';
 
 const ts = (name: string) => timestamp(name, { precision: 3, mode: 'date' });
 
@@ -349,6 +358,9 @@ export const appliedSettings = pgTable('applied_settings', {
 
 export const settingsChanges = pgTable('settings_changes', {
     id: text('id').primaryKey(),
+    // Numbered by the database at the write that recorded the change, and the
+    // order the list is read in. Never set by the adapter.
+    seq: serial('seq').notNull(),
     noticedAt: ts('noticedAt').notNull(),
     source: text('source').notNull(),
     previous: jsonb('previous').notNull(),

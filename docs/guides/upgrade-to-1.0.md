@@ -783,6 +783,18 @@ It creates both tables and the index only where they are missing, and adds the `
 `applied_settings` to one row. Safe to run again; on a database created from the reference schema it
 does nothing at all. Nothing to list beforehand: it changes no rows.
 
+**Run `sql/1.0-a-settings-change-carries-its-order.postgres.sql`** as well, the same way:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-settings-change-carries-its-order.postgres.sql
+```
+
+It adds `seq` to `settings_changes`: the order the changes were recorded in, numbered by the
+database at each write, which is what the list is read by. Rows already there are numbered in the
+order they were listed until now, so nothing changes place; where the column exists the file does
+nothing. On the Prisma path the `SettingsChange` model carries
+`seq Int @unique @default(autoincrement())`.
+
 **A page appears:** `SettingsPage` at `/admin/settings`, under _System_ in the sidebar, mounted
 by `standardAdminChildren()` like the others. It shows what is running, since when and from
 where, and what changed at the last start, with the one action of marking a change as seen; it

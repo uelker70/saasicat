@@ -11,6 +11,12 @@
 //                    the record is replaced, and the difference is written
 //                    down where an operator will find it.
 //
+// Several replicas of one installation start together after one edit, and
+// each of them compares the same record with the same values. Every write to
+// the record is guarded on the fingerprint that was read, so exactly one start
+// replaces it — that one records the change and tells people; the others read
+// again, find the record already saying what they run, and say nothing.
+//
 // What this does NOT do is decide anything. The file is the one place a
 // setting lives; this mirrors it. And a failure here does not take the boot
 // down: an installation that cannot write its record is still an installation
@@ -33,6 +39,15 @@ import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.t
 
 /** How long a boot waits for the mail to be handed over before it goes on. */
 const MAIL_BOOT_BUDGET_MS = 2_000;
+
+/**
+ * How often one start reads the record again after a write found it moved.
+ * Losing takes a concurrent start running a *different* file — a replica of
+ * the same file finds its own fingerprint on the next read and stops — so a
+ * start that keeps losing is not racing replicas, it is talking to an adapter
+ * whose guarded write never says yes. That is reported, not retried for ever.
+ */
+const RECORD_ATTEMPTS = 5;
 
 /** Resolves after `ms`; the timer is unreferenced, so it holds nothing open. */
 function pause(ms: number): Promise<void> {
@@ -82,7 +97,7 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
         }
         this.notifier?.reportModeAtBoot();
         try {
-            const outcome = await this.record(this.port, new Date());
+            const outcome = await this.record(this.port, () => new Date());
             this.report(outcome);
             if (outcome.kind === 'changed' && this.notifier) {
                 await this.tellSomebody(this.notifier, outcome.change);
@@ -113,51 +128,80 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
         await Promise.race([notifier.notify(change), pause(MAIL_BOOT_BUDGET_MS)]);
     }
 
-    /** Compares the running settings with the record and writes what follows. */
-    async record(port: AppliedSettingsPort, now: Date): Promise<BootOutcome> {
+    /**
+     * Compares the running settings with the record and writes what follows.
+     *
+     * `clock` is read once per attempt, after the record has been read and
+     * right before it is written, so the moment a row carries is the moment
+     * of the write that produced it. Read once when the start began, it would
+     * date a write by its start — and a start whose write landed after
+     * another's could carry the earlier moment, listing the changes in an
+     * order the record never went through.
+     */
+    async record(port: AppliedSettingsPort, clock: () => Date): Promise<BootOutcome> {
         const settings = settingsSubtreeOf(this.catalog);
         const fingerprint = fingerprintOf(settings);
-        const previous = await port.readApplied();
+        for (let attempt = 1; attempt <= RECORD_ATTEMPTS; attempt++) {
+            const previous = await port.readApplied();
+            const running: AppliedSettingsRecord = {
+                fingerprint,
+                settings,
+                source: this.source,
+                appliedAt: clock(),
+            };
+            const outcome = await this.reconcile(port, previous, running);
+            if (outcome) return outcome;
+            // The record moved between the read and the write: another start
+            // got there first. Read again — a replica of the same file now
+            // finds its own fingerprint and has nothing to add; one running a
+            // different file has a change of its own to record.
+        }
+        throw new Error(
+            `The applied settings record moved ${RECORD_ATTEMPTS} times while this start was ` +
+                'writing it. Either concurrent starts are running different configuration files, ' +
+                'or the persistence adapter never confirms the guarded write: `writeApplied` must ' +
+                'answer true, and `recordChange` the change, while the record still carries the ' +
+                'fingerprint that was read.',
+        );
+    }
 
-        if (previous?.fingerprint === fingerprint) {
+    /**
+     * What one read of the record calls for, written. `null` means the write
+     * found the record moved since `previous` was read, and wrote nothing.
+     */
+    private async reconcile(
+        port: AppliedSettingsPort,
+        previous: AppliedSettingsRecord | null,
+        running: AppliedSettingsRecord,
+    ): Promise<BootOutcome | null> {
+        if (previous?.fingerprint === running.fingerprint) {
+            if (previous.source === running.source) return { kind: 'unchanged', record: previous };
             // The fingerprint covers the values, not where they came from. A
             // file moved with its content intact — a Dockerfile that relocates
             // `config/saas.yaml` — is not a change to report, but the record
             // must not keep naming a path that no longer exists.
-            if (previous.source !== this.source) {
-                const relocated = { ...previous, source: this.source };
-                await port.writeApplied(relocated);
-                return { kind: 'unchanged', record: relocated };
-            }
-            return { kind: 'unchanged', record: previous };
+            const relocated = { ...previous, source: running.source };
+            const written = await port.writeApplied(relocated, previous.fingerprint);
+            return written ? { kind: 'unchanged', record: relocated } : null;
         }
-        const record: AppliedSettingsRecord = {
-            fingerprint,
-            settings,
-            source: this.source,
-            appliedAt: now,
-        };
         if (!previous) {
-            await port.writeApplied(record);
-            return { kind: 'first-record', record };
+            const written = await port.writeApplied(running, null);
+            return written ? { kind: 'first-record', record: running } : null;
         }
-
-        // The change first, then the record it supersedes. The two writes are
-        // not one transaction, so either can be the last thing that happens —
-        // and the order decides which failure is left behind. A change written
-        // and a record not replaced means the next start notices again and
-        // writes a second, duplicate change: visible, and dismissible. A record
-        // replaced and a change not written means the next start finds the
-        // fingerprints agree and says nothing, ever — the one event this exists
-        // for, lost.
-        const change = await port.recordChange({
-            noticedAt: now,
-            source: this.source,
-            previous: previous.settings,
-            current: settings,
-        });
-        await port.writeApplied(record);
-        return { kind: 'changed', record, change };
+        // The change and the record it supersedes land together or not at all;
+        // that is the port's promise, and what makes a failure here safe: the
+        // old record stays, and the next start notices again.
+        const change = await port.recordChange(
+            {
+                noticedAt: running.appliedAt,
+                source: running.source,
+                previous: previous.settings,
+                current: running.settings,
+            },
+            running,
+            previous.fingerprint,
+        );
+        return change ? { kind: 'changed', record: running, change } : null;
     }
 
     private report(outcome: BootOutcome): void {

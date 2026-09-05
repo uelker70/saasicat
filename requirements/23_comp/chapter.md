@@ -685,11 +685,16 @@ _Tested by:_
         - token client + hasher token → provisioning factory injecting both
 - `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
     - the one row
-        - is keyed on the installation id, on create and on update alike
+        - the first record is an insert keyed on the installation id that skips a duplicate
+        - a replacement is one update keyed on the id and the fingerprint that was read
+        - a guard the row no longer matches answers false, and the row stands
         - reads back what was written, and null before anything was
         - a JSON column that is not an object reads as no settings, not as a crash
     - the changes
-        - a listing is newest first and passes the acknowledgement filter and the limit through
+        - a change is written inside one transaction with the record it supersedes
+        - a change whose record has moved on writes nothing and answers null
+        - a listing is by the recorded order and passes the acknowledgement filter and the limit
+          through
         - an acknowledgement is one guarded update, so the first one stands
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
