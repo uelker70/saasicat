@@ -21,6 +21,7 @@ import { Test } from '@nestjs/testing';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { AppliedSettingsRecorder, fingerprintOf } from '../dist/index.js';
 import { settingsSubtreeOf } from '@saasicat/core';
+import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: [] };
@@ -39,33 +40,6 @@ const catalogWith = (overrides = {}) => ({
 class FakeJwtGuard {
     canActivate() {
         return true;
-    }
-}
-
-class FakeAppliedSettingsPort {
-    applied = null;
-    changes = [];
-    async readApplied() {
-        return this.applied;
-    }
-    async writeApplied(record) {
-        this.applied = { ...record };
-    }
-    async recordChange(change) {
-        const record = {
-            id: `change-${this.changes.length + 1}`,
-            ...change,
-            acknowledgedAt: null,
-            acknowledgedBy: null,
-        };
-        this.changes.unshift(record);
-        return record;
-    }
-    async listChanges() {
-        return this.changes;
-    }
-    async acknowledgeChange() {
-        return null;
     }
 }
 
@@ -326,7 +300,7 @@ describe('a recorder built by hand, the way it was published', () => {
             '/srv/app/config/saas.yaml',
             port,
         );
-        const outcome = await recorder.record(port, new Date('2026-09-02T06:00:00.000Z'));
+        const outcome = await recorder.record(port, () => new Date('2026-09-02T06:00:00.000Z'));
         assert.equal(outcome.kind, 'changed');
         assert.equal(port.changes.length, 1);
     });

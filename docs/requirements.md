@@ -122,7 +122,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 22      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 31      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 33      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 413 entries: 🟢 404 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 415 entries: 🟢 406 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -146,7 +146,7 @@ Of 413 entries: 🟢 404 stand today, 🟡 7 decided but not yet delivered, ⚪ 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 413 requirements. Do not edit by hand:
+Generated from `requirements/` — 415 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9569,7 +9569,9 @@ _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
     - the one row
-        - is keyed on the installation id, on create and on update alike
+        - the first record is an insert keyed on the installation id that skips a duplicate
+        - a replacement is one update keyed on the id and the fingerprint that was read
+        - a guard the row no longer matches answers false, and the row stands
         - reads back what was written, and null before anything was
         - a JSON column that is not an object reads as no settings, not as a crash
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
@@ -9735,6 +9737,62 @@ _Tested by:_
         - replaces the change in place with what the server answered
         - each button reports its own request: the first to answer clears only itself
         - a failure is reported through the notify port, and the change stays as it was
+
+<!-- END proof -->
+
+### SC-CFG-032 — One edit is recorded once, however many replicas start on it
+
+🟢 Several replicas of one installation start together after one edit of the file, and each finds
+the same difference between the record and what it runs. The record is replaced by whichever start
+gets there first — every write to it is guarded on the fingerprint that start read — and that start
+alone writes the change and mails the addresses; the others find the record already saying what they
+run, and say nothing. A replica running a different file than the one that won has a difference of
+its own, and records it: two files in flight are two changes, and both are true.
+
+_Source:_ #266
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/one-edit-is-recorded-once.test.js`
+    - replicas of one file starting together after one edit
+        - three replicas, two addresses: one change, and one mail per address
+        - the start that recorded it says so; the others find it recorded and say nothing
+        - a first start in several replicas writes one record, and one of them says so
+        - a file moved on every replica is one relocation, not a race anybody loses
+    - replicas running different files
+        - each records the difference it found, and the record ends on one of them
+        - an old start between two new ones is three real moves, dated in the order they landed
+
+<!-- END proof -->
+
+### SC-CFG-033 — The changes are listed in the order the record went through them
+
+🟢 Not by the moment each start read from its own clock, which is what a change's `noticedAt` is: a
+start delayed between reading its clock and writing can land after another start's move and still
+carry the earlier moment. The database numbers each change at the write that records it, and the
+list follows that number — the same answer every time it is asked, and a row recorded before the
+number existed keeps the place it was listed in until then.
+
+_Source:_ #266
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
+    - the changes
+        - a listing is by the recorded order and passes the acknowledgement filter and the limit
+          through
+- `packages/nest/tests/one-edit-is-recorded-once.test.js`
+    - replicas running different files
+        - an old start between two new ones is three real moves, dated in the order they landed
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a settings change carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
 
 <!-- END proof -->
 
@@ -11710,6 +11768,10 @@ _Tested by:_
     - the applied settings hold one row, and the database is what holds them to it
         - a second id is refused by the constraint, on the reference schema
         - and on a database that gained the tables from the migration alone
+    - a settings change carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them
@@ -11765,6 +11827,10 @@ _Tested by:_
     - the applied settings hold one row, and the database is what holds them to it
         - a second id is refused by the constraint, on the reference schema
         - and on a database that gained the tables from the migration alone
+    - a settings change carries the order it was recorded in
+        - rows recorded before the column keep the order they were listed in, and the numbering
+          continues
+        - a second run leaves every number where the first one put it
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
         - and the columns come out of it required, so nothing can be written without them
@@ -12542,11 +12608,16 @@ _Tested by:_
         - token client + hasher token → provisioning factory injecting both
 - `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
     - the one row
-        - is keyed on the installation id, on create and on update alike
+        - the first record is an insert keyed on the installation id that skips a duplicate
+        - a replacement is one update keyed on the id and the fingerprint that was read
+        - a guard the row no longer matches answers false, and the row stands
         - reads back what was written, and null before anything was
         - a JSON column that is not an object reads as no settings, not as a crash
     - the changes
-        - a listing is newest first and passes the acknowledgement filter and the limit through
+        - a change is written inside one transaction with the record it supersedes
+        - a change whose record has moved on writes nothing and answers null
+        - a listing is by the recorded order and passes the acknowledgement filter and the limit
+          through
         - an acknowledgement is one guarded update, so the first one stands
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record

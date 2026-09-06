@@ -584,6 +584,7 @@ CREATE TABLE "applied_settings" (
 -- CreateTable
 CREATE TABLE "settings_changes" (
     "id" TEXT NOT NULL,
+    "seq" SERIAL NOT NULL,
     "noticedAt" TIMESTAMP(3) NOT NULL,
     "source" TEXT NOT NULL,
     "previous" JSONB NOT NULL,
@@ -773,6 +774,9 @@ CREATE INDEX "subscription_bundles_bundleVersionId_idx" ON "subscription_bundles
 
 -- CreateIndex
 CREATE INDEX "subscription_bundles_canceledEffectiveAt_idx" ON "subscription_bundles"("canceledEffectiveAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "settings_changes_seq_key" ON "settings_changes"("seq");
 
 -- CreateIndex
 CREATE INDEX "settings_changes_acknowledgedAt_noticedAt_idx" ON "settings_changes"("acknowledgedAt", "noticedAt");

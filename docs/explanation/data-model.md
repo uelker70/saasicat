@@ -119,10 +119,10 @@ has always required anyway.
 
 ### Configuration
 
-| Entity                                 | Identity / uniqueness                  | Notes                                                                                                                                                                                                                  |
-| -------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AppliedSettings` (`applied_settings`) | one row, `id = 'installation'` (CHECK) | The settings subtree of `config/saas.yaml` as it was resolved at the last start, a `sha256-…` fingerprint over it, `appliedAt`, and `source` — the file's absolute path or a phrase saying the values came in as code. |
-| `SettingsChange` (`settings_changes`)  | —                                      | One row per start that found the fingerprint moved: `previous`, `current`, `noticedAt`, and `acknowledgedAt`/`acknowledgedBy` once an operator has seen it.                                                            |
+| Entity                                 | Identity / uniqueness                  | Notes                                                                                                                                                                                                                            |
+| -------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AppliedSettings` (`applied_settings`) | one row, `id = 'installation'` (CHECK) | The settings subtree of `config/saas.yaml` as it was resolved at the last start, a `sha256-…` fingerprint over it, `appliedAt`, and `source` — the file's absolute path or a phrase saying the values came in as code.           |
+| `SettingsChange` (`settings_changes`)  | `seq`, numbered by the database        | One row per start that found the fingerprint moved: `previous`, `current`, `noticedAt`, and `acknowledgedAt`/`acknowledgedBy` once an operator has seen it. `seq` is assigned at the write and is the order the list is read in. |
 
 **A mirror, never a source.** The platform writes both tables at boot and reads
 them for the read-only settings screen — and for nothing else. No setting is
@@ -160,6 +160,16 @@ maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    that declare atomic plan-binding support update the semantic `plan`, its
    active `planVersionId` and stale pending-version state in one transaction.
    A failed onboarding promo callback rolls the complete change back.
+8. **The applied-settings record is replaced by one start at a time.**
+   `AppliedSettingsPort.writeApplied` and `recordChange` take the fingerprint
+   the caller read and write only while the row still carries it — `null`
+   only while there is no row — and `recordChange` writes the change and the
+   record it supersedes in one transaction. Several replicas starting together
+   after one edit therefore record it once, and only the start that recorded
+   it notifies anybody. `listChanges` orders by the number the database gave
+   each change at that write, not by the moment the row carries: the list is
+   the order the record moved in, even where a delayed start's clock says
+   otherwise.
 
 ## Capability requirements
 

@@ -8,7 +8,11 @@
 
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test } from 'node:test';
-import type { NewContractLineItemData, TransactionContext } from '@saasicat/core';
+import type {
+    AppliedSettingsValues,
+    NewContractLineItemData,
+    TransactionContext,
+} from '@saasicat/core';
 import type {
     PersistenceAdapterContractOptions,
     PersistenceContractHarness,
@@ -1697,7 +1701,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // The applied settings — one row per installation, and its changes
         // -------------------------------------------------------------
 
-        const SETTINGS = {
+        const SETTINGS: AppliedSettingsValues = {
             app: { name: 'Demo' },
             currency: 'EUR',
             vatRate: 19,
@@ -1706,12 +1710,22 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 selfServiceBlockedPlans: { asTarget: ['ENTERPRISE'], asSource: [] },
             },
         };
-        const applied = (fingerprint: string, appliedAt: Date, settings = SETTINGS) => ({
-            fingerprint,
-            settings,
-            source: '/srv/app/config/saas.yaml',
-            appliedAt,
-        });
+        const SOURCE = '/srv/app/config/saas.yaml';
+        const FIRST_START = new Date('2026-09-01T06:30:00.000Z');
+        const SECOND_START = new Date('2026-09-02T06:30:00.000Z');
+        const applied = (
+            fingerprint: string,
+            appliedAt: Date,
+            settings: AppliedSettingsValues = SETTINGS,
+        ) => ({ fingerprint, settings, source: SOURCE, appliedAt });
+        /** What a start noticed: `previous` became `current`. */
+        const changeTo = (
+            current: AppliedSettingsValues,
+            noticedAt: Date,
+            previous: AppliedSettingsValues = SETTINGS,
+        ) => ({ noticedAt, source: SOURCE, previous, current });
+        const TWENTY = { ...SETTINGS, vatRate: 20 };
+        const TWENTY_ONE = { ...SETTINGS, vatRate: 21 };
 
         test('no record before the first boot that could write one', async (t) => {
             const port = harness.adapter.appliedSettings;
@@ -1729,14 +1743,13 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 t.skip('adapter provides no AppliedSettingsPort');
                 return;
             }
-            const appliedAt = new Date('2026-09-01T06:30:00.000Z');
-            await port.writeApplied(applied('sha256-a', appliedAt));
+            assert.equal(await port.writeApplied(applied('sha256-a', FIRST_START), null), true);
 
             const read = await port.readApplied();
             assert.ok(read, 'a record expected');
             assert.equal(read.fingerprint, 'sha256-a');
-            assert.equal(read.source, '/srv/app/config/saas.yaml');
-            assert.equal(read.appliedAt.toISOString(), appliedAt.toISOString());
+            assert.equal(read.source, SOURCE);
+            assert.equal(read.appliedAt.toISOString(), FIRST_START.toISOString());
             // Numbers stay numbers and lists keep their order through the JSON
             // column: a notice period read back as "14" would compare unequal
             // to the file for ever, and report a change on every boot.
@@ -1749,37 +1762,80 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 t.skip('adapter provides no AppliedSettingsPort');
                 return;
             }
-            await port.writeApplied(applied('sha256-a', new Date('2026-09-01T06:30:00.000Z')));
-            const later = new Date('2026-09-02T06:30:00.000Z');
-            await port.writeApplied(applied('sha256-b', later, { ...SETTINGS, vatRate: 20 }));
+            await port.writeApplied(applied('sha256-a', FIRST_START), null);
+            assert.equal(
+                await port.writeApplied(applied('sha256-b', SECOND_START, TWENTY), 'sha256-a'),
+                true,
+            );
 
             const read = await port.readApplied();
             assert.equal(read?.fingerprint, 'sha256-b');
-            assert.equal(read?.appliedAt.toISOString(), later.toISOString());
+            assert.equal(read?.appliedAt.toISOString(), SECOND_START.toISOString());
             assert.equal((read?.settings as { vatRate: number }).vatRate, 20);
         });
 
-        test('a change is recorded with both sides, and listed newest first', async (t) => {
+        test('the first record is written once: a second writer that read none is refused', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
                 t.skip('adapter provides no AppliedSettingsPort');
                 return;
             }
-            const first = await port.recordChange({
-                noticedAt: new Date('2026-09-01T06:30:00.000Z'),
-                source: '/srv/app/config/saas.yaml',
-                previous: SETTINGS,
-                current: { ...SETTINGS, vatRate: 20 },
-            });
-            const second = await port.recordChange({
-                noticedAt: new Date('2026-09-02T06:30:00.000Z'),
-                source: '/srv/app/config/saas.yaml',
-                previous: { ...SETTINGS, vatRate: 20 },
-                current: { ...SETTINGS, vatRate: 21 },
-            });
+            assert.equal(await port.writeApplied(applied('sha256-a', FIRST_START), null), true);
+            assert.equal(await port.writeApplied(applied('sha256-b', SECOND_START), null), false);
+            assert.equal((await port.readApplied())?.fingerprint, 'sha256-a');
+        });
+
+        test('a write guarded on a fingerprint the row no longer carries is refused', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            await port.writeApplied(applied('sha256-a', FIRST_START), null);
+            assert.equal(
+                await port.writeApplied(applied('sha256-b', SECOND_START), 'sha256-a'),
+                true,
+            );
+            // A second writer that also read 'sha256-a' arrives after the first.
+            assert.equal(
+                await port.writeApplied(applied('sha256-c', SECOND_START), 'sha256-a'),
+                false,
+            );
+            const read = await port.readApplied();
+            assert.equal(
+                read?.fingerprint,
+                'sha256-b',
+                'the row stands as the first writer left it',
+            );
+            assert.equal(read?.appliedAt.toISOString(), SECOND_START.toISOString());
+        });
+
+        test('a change lands with the record it supersedes, and is listed newest first', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            await port.writeApplied(applied('sha256-a', FIRST_START), null);
+            const first = await port.recordChange(
+                changeTo(TWENTY, FIRST_START),
+                applied('sha256-b', FIRST_START, TWENTY),
+                'sha256-a',
+            );
+            const second = await port.recordChange(
+                changeTo(TWENTY_ONE, SECOND_START, TWENTY),
+                applied('sha256-c', SECOND_START, TWENTY_ONE),
+                'sha256-b',
+            );
+            assert.ok(first && second, 'both guards held');
             assert.ok(first.id && second.id && first.id !== second.id, 'two distinct ids');
             assert.equal(first.acknowledgedAt, null);
             assert.equal(first.acknowledgedBy, null);
+            assert.equal(
+                (await port.readApplied())?.fingerprint,
+                'sha256-c',
+                'the record moved with the change',
+            );
 
             const listed = await port.listChanges();
             assert.deepEqual(
@@ -1795,36 +1851,105 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        test('two changes noticed in the same instant come back in one order, both times', async (t) => {
+        test('a change whose record has moved on is refused whole: no change, and the record as it was', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            await port.writeApplied(applied('sha256-a', FIRST_START), null);
+            const refused = await port.recordChange(
+                changeTo(TWENTY, SECOND_START),
+                applied('sha256-b', SECOND_START, TWENTY),
+                'sha256-stale',
+            );
+            assert.equal(refused, null);
+            assert.deepEqual(await port.listChanges(), [], 'no change without its record');
+            const read = await port.readApplied();
+            assert.equal(read?.fingerprint, 'sha256-a');
+            assert.equal(read?.appliedAt.toISOString(), FIRST_START.toISOString());
+        });
+
+        test('starts noticing the same difference at once record it once', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
                 t.skip('adapter provides no AppliedSettingsPort');
                 return;
             }
             // Several replicas of one deployment start together after one
-            // edit, and `noticedAt` is one `new Date()` per start. Which comes
-            // first is the adapter's to decide; that it decides the same way
-            // twice is the contract.
-            const instant = new Date('2026-09-01T06:30:00.000Z');
-            const a = await port.recordChange({
-                noticedAt: instant,
-                source: 'a',
-                previous: {},
-                current: { vatRate: 1 },
-            });
-            const b = await port.recordChange({
-                noticedAt: instant,
-                source: 'b',
-                previous: {},
-                current: { vatRate: 2 },
-            });
-            const first = (await port.listChanges()).map((c) => c.id);
-            const second = (await port.listChanges()).map((c) => c.id);
-            assert.deepEqual(new Set(first), new Set([a.id, b.id]));
-            assert.deepEqual(second, first);
+            // edit: each read 'sha256-a', each found the same difference, and
+            // each hands the port the same change. Issued together, so that on
+            // a real database they meet on the row rather than queue in the
+            // test.
+            await port.writeApplied(applied('sha256-a', FIRST_START), null);
+            const attempts = await Promise.all(
+                [1, 2, 3].map(() =>
+                    port.recordChange(
+                        changeTo(TWENTY, SECOND_START),
+                        applied('sha256-b', SECOND_START, TWENTY),
+                        'sha256-a',
+                    ),
+                ),
+            );
+            const recorded = attempts.filter((change) => change !== null);
+            assert.equal(recorded.length, 1, 'exactly one start records the change');
+            assert.deepEqual(
+                (await port.listChanges()).map((c) => c.id),
+                [recorded[0]?.id],
+            );
+            assert.equal((await port.readApplied())?.fingerprint, 'sha256-b');
+        });
+
+        test('several first starts write the record once', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            const written = await Promise.all(
+                [1, 2, 3].map(() => port.writeApplied(applied('sha256-a', FIRST_START), null)),
+            );
+            assert.equal(written.filter(Boolean).length, 1, 'exactly one start writes it');
+            assert.equal((await port.readApplied())?.fingerprint, 'sha256-a');
+        });
+
+        test('changes are listed in the order they were recorded, latest first — not by the moment they carry', async (t) => {
+            const port = harness.adapter.appliedSettings;
+            if (!port) {
+                t.skip('adapter provides no AppliedSettingsPort');
+                return;
+            }
+            // `noticedAt` is the recording start's own clock. Two starts can
+            // read the same millisecond, and a start delayed between its clock
+            // and its write can carry a moment earlier than a move that landed
+            // before it. Neither decides the order: the database numbers each
+            // change at its write, and the list follows that number — the
+            // order the record moved in, the same answer every time.
+            await port.writeApplied(applied('sha256-0', FIRST_START, {}), null);
+            const earlierMove = await port.recordChange(
+                changeTo({ vatRate: 1 }, SECOND_START, {}),
+                applied('sha256-1', SECOND_START, { vatRate: 1 }),
+                'sha256-0',
+            );
+            // Recorded after the first move, dated before it.
+            const laterMove = await port.recordChange(
+                changeTo({ vatRate: 2 }, FIRST_START, { vatRate: 1 }),
+                applied('sha256-2', FIRST_START, { vatRate: 2 }),
+                'sha256-1',
+            );
+            assert.ok(earlierMove && laterMove, 'both guards held');
+            assert.deepEqual(
+                (await port.listChanges()).map((c) => c.id),
+                [laterMove.id, earlierMove.id],
+            );
             assert.deepEqual(
                 (await port.listChanges({ limit: 1 })).map((c) => c.id),
-                [first[0]],
+                [laterMove.id],
+            );
+            assert.deepEqual(
+                (await port.listChanges()).map((c) => c.id),
+                [laterMove.id, earlierMove.id],
+                'the same order the second time it is asked',
             );
         });
 
@@ -1834,18 +1959,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 t.skip('adapter provides no AppliedSettingsPort');
                 return;
             }
-            const change = await port.recordChange({
-                noticedAt: new Date('2026-09-01T06:30:00.000Z'),
-                source: '/srv/app/config/saas.yaml',
-                previous: SETTINGS,
-                current: { ...SETTINGS, vatRate: 20 },
-            });
-            const open = await port.recordChange({
-                noticedAt: new Date('2026-09-02T06:30:00.000Z'),
-                source: '/srv/app/config/saas.yaml',
-                previous: { ...SETTINGS, vatRate: 20 },
-                current: { ...SETTINGS, vatRate: 21 },
-            });
+            await port.writeApplied(applied('sha256-a', FIRST_START), null);
+            const change = await port.recordChange(
+                changeTo(TWENTY, FIRST_START),
+                applied('sha256-b', FIRST_START, TWENTY),
+                'sha256-a',
+            );
+            const open = await port.recordChange(
+                changeTo(TWENTY_ONE, SECOND_START, TWENTY),
+                applied('sha256-c', SECOND_START, TWENTY_ONE),
+                'sha256-b',
+            );
+            assert.ok(change && open, 'both guards held');
 
             const seenAt = new Date('2026-09-03T08:00:00.000Z');
             const acknowledged = await port.acknowledgeChange(

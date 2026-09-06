@@ -71,9 +71,11 @@ export interface ContractAdapterInstances {
     /**
      * Enables the applied-settings scenarios: the one row an installation keeps
      * about the configuration it runs on, and the changes noticed between
-     * starts. The singleton is the part worth a contract — two adapters that
-     * upsert differently would leave one of them with two rows and a reader
-     * picking one at random.
+     * starts. The singleton and the guard are the parts worth a contract — two
+     * adapters that upsert differently would leave one of them with two rows
+     * and a reader picking one at random, and one whose write ignores the
+     * fingerprint it was given lets every replica of a deployment record the
+     * same change.
      */
     appliedSettings?: AppliedSettingsPort;
 }

@@ -34,6 +34,12 @@ model AppliedSettings {
 
 model SettingsChange {
     id             String    @id @default(uuid())
+    // The order the changes were recorded in, numbered by the database at the
+    // write that recorded each one, and the order the list is read in. Not
+    // `noticedAt`: that is the recording start's own clock, and a start delayed
+    // between reading it and writing would be listed before a move that landed
+    // earlier. Never set by the platform.
+    seq            Int       @unique @default(autoincrement())
     // The start that found the fingerprint moved.
     noticedAt      DateTime
     source         String
