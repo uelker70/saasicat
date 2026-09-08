@@ -26,7 +26,7 @@ import {
 } from '@saasicat/core';
 
 import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
-import { dbCatalogNamesAFile } from '../compose/base.js';
+import { dbCatalogLeftovers, dbCatalogNamesAFile, dbCatalogNamesAPath } from '../compose/base.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 
 /** Everything a rule may look at: the options as given, the adapters as resolved. */
@@ -178,12 +178,28 @@ const RULE_SPECS: readonly RuleSpec[] = [
         id: 'catalog.db-catalog-names-the-file',
         when: (c) => c.options.dbCatalog !== undefined,
         assert: (c) => dbCatalogNamesAFile(c.options.dbCatalog),
-        message:
-            "`dbCatalog` names the file: `dbCatalog: { path: 'config/saas.yaml' }`. It used to " +
-            'take `app`, `currency`, `vatRate` and `tenantBilling` as values, and that was a ' +
-            'second place a setting could live. Delete the values here; the platform reads ' +
-            'them from the file it names — the same one they were forwarded from. See ' +
-            'docs/guides/upgrade-to-1.0.md.',
+        message: (c) => {
+            // Two ways to fail it, told apart because the fix differs: no path at
+            // all is the old shape whole; a path with a value beside it is an
+            // upgrade that stopped halfway, and the value is the one thing to name.
+            const given = c.options.dbCatalog;
+            const leftovers = dbCatalogNamesAPath(given) ? dbCatalogLeftovers(given) : [];
+            if (leftovers.length > 0) {
+                return (
+                    `\`dbCatalog\` names the file and nothing else, and this one still carries ${list(leftovers)}. ` +
+                    'Delete that here; the platform reads the settings from the file it names, and a ' +
+                    'value left beside the path would be ignored while looking like the one that ' +
+                    'runs. See docs/guides/upgrade-to-1.0.md.'
+                );
+            }
+            return (
+                "`dbCatalog` names the file: `dbCatalog: { path: 'config/saas.yaml' }`. It used to " +
+                'take `app`, `currency`, `vatRate` and `tenantBilling` as values, and that was a ' +
+                'second place a setting could live. Delete the values here; the platform reads ' +
+                'them from the file it names — the same one they were forwarded from. See ' +
+                'docs/guides/upgrade-to-1.0.md.'
+            );
+        },
     },
     {
         id: 'catalog.app-is-named',

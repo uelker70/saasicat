@@ -195,6 +195,27 @@ describe('a dbCatalog that still carries the values', () => {
     test('and a blank path is the same omission', () => {
         assert.throws(() => forRootWith({ path: '   ' }), /catalog\.db-catalog-names-the-file/);
     });
+
+    // An upgrade that stopped halfway: the path is there and a value beside
+    // it. Accepting the path and ignoring the value would leave an operator
+    // believing the value runs — the outcome the refusal exists to prevent.
+    test('a value left beside the path is refused too, and named', () => {
+        assert.throws(
+            () =>
+                forRootWith({ path: fileWith(), vatRate: 7, tenantBilling: VALUES.tenantBilling }),
+            (error) => {
+                assert.match(error.message, /catalog\.db-catalog-names-the-file/);
+                assert.match(error.message, /still carries vatRate, tenantBilling/);
+                assert.match(error.message, /1 configuration problem/);
+                return true;
+            },
+        );
+    });
+
+    test('a key left beside the path with nothing in it has passed nothing', async () => {
+        const app = await boot({ path: fileWith(), env: ENV, vatRate: undefined });
+        assert.equal(app.get(PLAN_CATALOG_TOKEN).vatRate, 19);
+    });
 });
 
 describe('a file that does not load', () => {

@@ -765,8 +765,8 @@ async function cmdCodemodV1MovedSettings(args) {
             found.push({ where: `${relative(root, full)}:${line}`, setting });
         }
         if (!SCANNED_FOR_DB_CATALOG.test(full)) return;
-        for (const { shape, line } of findDbCatalogBlocks(source).occurrences) {
-            blocks.push({ where: `${relative(root, full)}:${line}`, shape });
+        for (const { shape, line, leftovers } of findDbCatalogBlocks(source).occurrences) {
+            blocks.push({ where: `${relative(root, full)}:${line}`, shape, leftovers });
         }
     });
 
@@ -811,9 +811,13 @@ function reportDbCatalogBlocks(blocks) {
     }
     console.log(`${blocks.length} dbCatalog block(s) to point at the file:`);
     const width = Math.max(...blocks.map((b) => b.where.length));
-    for (const { where, shape } of blocks) {
+    for (const { where, shape, leftovers } of blocks) {
         const what =
-            shape === 'values' ? 'carries the values' : 'carries something this cannot see into';
+            shape === 'values'
+                ? `carries the values: ${leftovers.join(', ')}`
+                : shape === 'mixed'
+                  ? `names the path but still carries ${leftovers.join(', ')}`
+                  : 'carries something this cannot see into';
         console.log(`  ${where.padEnd(width)}  ${what}`);
     }
     console.log('');

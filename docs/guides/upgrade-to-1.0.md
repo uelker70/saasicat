@@ -846,11 +846,13 @@ names the file on both paths.
 
 **A `dbCatalog` that still carries the values refuses the boot** — `catalog.db-catalog-names-the-file`,
 naming what the option takes now — rather than being read: the values it carries are the ones the
-operator believes are running. `saasicat codemod v1` names every such block with its file and
-line, and does not rewrite it: which file the values were forwarded from is a variable in another
-module more often than a literal, and a guess would be wrong quietly. An application that loads
-the file for its own use keeps doing so; the platform reads it once more, which costs a parse at
-start and nothing after.
+operator believes are running. So does one that names the path and still carries a value beside
+it, and that refusal names the value: an upgrade that stopped halfway must not run on the file
+while looking as if it ran on the value. `saasicat codemod v1` names every such block with its
+file and line — the values it carries, or the ones left beside the path — and does not rewrite
+it: which file the values were forwarded from is a variable in another module more often than a
+literal, and a guess would be wrong quietly. An application that loads the file for its own use
+keeps doing so; the platform reads it once more, which costs a parse at start and nothing after.
 
 ### `projectKey` is gone from the database
 

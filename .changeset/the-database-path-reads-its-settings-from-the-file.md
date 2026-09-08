@@ -39,7 +39,8 @@ dbCatalog: { path: 'config/saas.yaml' },
 - **A `dbCatalog` that still carries the values refuses the boot**
   (`catalog.db-catalog-names-the-file`), naming what the option takes, rather
   than being read: the values it carries are the ones an operator believes are
-  running.
+  running. A path with a value left beside it is refused the same way, and the
+  refusal names the value.
 - `saasicat codemod v1` names every such block with its file and line. It does
   not rewrite it: which file the values were forwarded from is a variable in
   another module more often than a literal, and a guess would be wrong

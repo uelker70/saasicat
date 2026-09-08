@@ -265,13 +265,20 @@ export interface SaaSiCatSubscriptionContractOptions extends Omit<
  * CLI, or your own onboarding form — is composed here.
  */
 /**
+ * The members `dbCatalog` takes. The type below is derived from this list, so
+ * the shape the platform refuses at boot and the shape the compiler accepts
+ * cannot drift apart — and `saasicat codemod v1` reads the same list.
+ */
+export const DB_CATALOG_MEMBERS = ['path', 'env'] as const;
+
+/**
  * Which `config/saas.yaml` a database-held catalogue reads its settings from.
  *
  * The same file the quickstart path loads, read by the platform. A `plans:` or
  * `features:` block in it is not read on this path — the sink is their source —
  * so a file kept as the seed for `saasicat catalog import` still loads.
  */
-export type DbCatalogOptions = Pick<LoadPlanCatalogOptions, 'path' | 'env'>;
+export type DbCatalogOptions = Pick<LoadPlanCatalogOptions, (typeof DB_CATALOG_MEMBERS)[number]>;
 
 export interface SaaSiCatModuleOptions {
     /**

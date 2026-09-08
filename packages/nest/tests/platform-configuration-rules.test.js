@@ -373,6 +373,38 @@ describe('a dbCatalog that still carries the values', () => {
         assert.match(violations[0].message, /dbCatalog: \{ path: 'config\/saas\.yaml' \}/);
     });
 
+    test('a path with a value left beside it is refused too, and the finding names the value', () => {
+        const violations = findViolations({
+            options: {
+                dbCatalog: {
+                    path: 'config/saas.yaml',
+                    vatRate: 19,
+                    marketing: { availableLocales: ['en'] },
+                },
+                controller: { guards: [] },
+            },
+            adapters: SINK,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.db-catalog-names-the-file'],
+        );
+        assert.match(violations[0].message, /still carries vatRate, marketing/);
+        assert.doesNotMatch(violations[0].message, /used to take/);
+    });
+
+    test('an env beside the path is what the option takes', () => {
+        const violations = findViolations({
+            options: {
+                dbCatalog: { path: 'config/saas.yaml', env: {} },
+                controller: { guards: [] },
+            },
+            adapters: SINK,
+            catalog: { schemaVersion: 1, app: { name: 'FromFile' }, currency: 'EUR', vatRate: 19 },
+        });
+        assert.deepEqual(violations, []);
+    });
+
     test('a blank path is the same omission spelled differently', () => {
         const violations = findViolations({
             options: { dbCatalog: { path: '   ' }, controller: { guards: [] } },

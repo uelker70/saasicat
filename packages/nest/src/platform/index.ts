@@ -5,7 +5,9 @@
 //
 
 export {
+    DB_CATALOG_MEMBERS,
     SaaSiCatModule,
+    type DbCatalogOptions,
     type SaaSiCatAdapters,
     type SaaSiCatAdminStatsOptions,
     type SaaSiCatAdminResourcesOptions,

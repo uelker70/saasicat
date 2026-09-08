@@ -24,7 +24,11 @@ import type { ProviderSpec } from '../../core/di.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
 import { SettingsModule } from '../../settings/settings.module.js';
-import type { DbCatalogOptions, SaaSiCatModuleOptions } from '../module-options.js';
+import {
+    DB_CATALOG_MEMBERS,
+    type DbCatalogOptions,
+    type SaaSiCatModuleOptions,
+} from '../module-options.js';
 
 import { buildMinimalManifestConfig } from './manifest.js';
 
@@ -40,11 +44,35 @@ const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
  */
 export const SOURCE_IN_CODE = 'the object passed to SaaSiCatModule.forRoot({ planCatalog })';
 
-/** Whether `dbCatalog` has the shape it takes: the path to the file, not the values. */
-export function dbCatalogNamesAFile(
+/** Whether `dbCatalog` names a file at all: a non-blank `path`. Half of its shape. */
+export function dbCatalogNamesAPath(
     dbCatalog: SaaSiCatModuleOptions['dbCatalog'],
 ): dbCatalog is DbCatalogOptions {
     return typeof dbCatalog?.path === 'string' && dbCatalog.path.trim() !== '';
+}
+
+/**
+ * The members of a `dbCatalog` that are not what the option takes.
+ *
+ * The settings an upgrade left beside the path, most likely — `vatRate`,
+ * `tenantBilling` — or a misspelt member. Either way a value that would be
+ * ignored while looking like the one that runs, which is the one outcome the
+ * refusal exists to prevent. `undefined` is not a member: a spread that
+ * leaves a key behind with nothing in it has passed nothing, the same reading
+ * `TenantBillingModule` takes of its moved options.
+ */
+export function dbCatalogLeftovers(dbCatalog: object): string[] {
+    const taken = new Set<string>(DB_CATALOG_MEMBERS);
+    return Object.entries(dbCatalog)
+        .filter(([key, value]) => !taken.has(key) && value !== undefined)
+        .map(([key]) => key);
+}
+
+/** Whether `dbCatalog` has the shape it takes: the path to the file, and nothing that is not. */
+export function dbCatalogNamesAFile(
+    dbCatalog: SaaSiCatModuleOptions['dbCatalog'],
+): dbCatalog is DbCatalogOptions {
+    return dbCatalogNamesAPath(dbCatalog) && dbCatalogLeftovers(dbCatalog).length === 0;
 }
 
 /**

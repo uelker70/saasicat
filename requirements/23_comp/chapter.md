@@ -205,12 +205,18 @@ _Tested by:_
 
 - `packages/cli/tests/a-db-catalog-block-is-reported.test.js`
     - what the codemod says about a dbCatalog that still carries the values
-        - an object literal with no path is reported, with its line
-        - a nested object inside the block does not end it early
-        - one that names the file is what the option takes, so it is not reported
+        - an object literal with no path is reported, with its line and its members
+        - a nested object inside the block does not end it early, and its members are not this
+          block’s
+        - one that names the file, and nothing else, is what the option takes, so it is not reported
+        - a path with a value left beside it is an upgrade that stopped halfway, and the value is
+          named
+        - a spread beside the path is named as one, because what it carries is decided elsewhere
+        - a path that is not this block’s own does not count as one
         - a value it cannot see into is named for a person to look at
         - a mention that is not a property is not a block
         - a block the file ends inside is still reported rather than lost
+        - what counts as migrated is the list the platform refuses by, not a copy of it
         - the sentence says what to write
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
