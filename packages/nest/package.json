@@ -142,7 +142,7 @@
         "@saasicat/core": "workspace:^",
         "ajv": "^8.17.1",
         "ajv-formats": "^3.0.1",
-        "js-yaml": "^4.3.1",
+        "js-yaml": "^4.3.2",
         "otplib": "^13.4.1",
         "qrcode": "^1.5.4"
     },
