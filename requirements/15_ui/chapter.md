@@ -1572,7 +1572,7 @@ _Tested by:_
 
 <!-- END proof -->
 
-### SC-UI-020 — A page never takes the whole screen down because data arrived in a shape it did not expect
+### SC-UI-020 — A page never takes the whole screen down because data arrived in an unexpected shape
 
 🟢 A malformed payload leaves a page that says so, not a blank content area beside a working shell.
 

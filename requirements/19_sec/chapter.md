@@ -247,8 +247,8 @@ _Source:_ `SECURITY.md`
 
 ### SC-SEC-009 — Checks run in a fixed order and fail closed
 
-🟢 🔒 A check that expects an authenticated caller refuses rather than passing when the step before it
-did not run.
+🟢 🔒 A check that expects an authenticated caller refuses rather than passing when the step before
+it did not run.
 
 _Source:_ `SECURITY.md`
 

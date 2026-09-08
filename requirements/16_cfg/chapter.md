@@ -316,8 +316,8 @@ _Tested by:_
 
 ### SC-CFG-022 — A variable whose value does not fit the field is refused, not read as zero
 
-🟢 💰 `monthly: ${NOTICE_DAYS}` with `NOTICE_DAYS=abc` does not become `NaN` and does not fall back to
-`0`: it stops the installation, naming the variable, the text it resolved to, and the type the
+🟢 💰 `monthly: ${NOTICE_DAYS}` with `NOTICE_DAYS=abc` does not become `NaN` and does not fall back
+to `0`: it stops the installation, naming the variable, the text it resolved to, and the type the
 field takes. That is the silent zero the move into the file exists to end, one level down. The
 reading is strict — `1.5`, `1e3` and a leading space are not integers — because the text is what
 somebody typed into a deployment, and a lenient reading is how a typo becomes a term.

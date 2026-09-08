@@ -28,8 +28,8 @@ _Tested by:_
 
 ### SC-BUN-002 — An add-on's periods end on the day the plan's do
 
-🟢 The alignment is made when the add-on is booked rather than repaired when the plan ends, because a
-period that has to be trimmed is one somebody was committed to more of than they received — and
+🟢 The alignment is made when the add-on is booked rather than repaired when the plan ends, because
+a period that has to be trimmed is one somebody was committed to more of than they received — and
 then owed the difference.
 
 _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
