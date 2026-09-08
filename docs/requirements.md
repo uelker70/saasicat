@@ -2037,8 +2037,8 @@ _Tested by:_
 
 ### SC-BUN-002 — An add-on's periods end on the day the plan's do
 
-🟢 The alignment is made when the add-on is booked rather than repaired when the plan ends, because a
-period that has to be trimmed is one somebody was committed to more of than they received — and
+🟢 The alignment is made when the add-on is booked rather than repaired when the plan ends, because
+a period that has to be trimmed is one somebody was committed to more of than they received — and
 then owed the difference.
 
 _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
@@ -8996,7 +8996,7 @@ _Tested by:_
 
 <!-- END proof -->
 
-### SC-UI-020 — A page never takes the whole screen down because data arrived in a shape it did not expect
+### SC-UI-020 — A page never takes the whole screen down because data arrived in an unexpected shape
 
 🟢 A malformed payload leaves a page that says so, not a blank content area beside a working shell.
 
@@ -9398,8 +9398,8 @@ _Tested by:_
 
 ### SC-CFG-022 — A variable whose value does not fit the field is refused, not read as zero
 
-🟢 💰 `monthly: ${NOTICE_DAYS}` with `NOTICE_DAYS=abc` does not become `NaN` and does not fall back to
-`0`: it stops the installation, naming the variable, the text it resolved to, and the type the
+🟢 💰 `monthly: ${NOTICE_DAYS}` with `NOTICE_DAYS=abc` does not become `NaN` and does not fall back
+to `0`: it stops the installation, naming the variable, the text it resolved to, and the type the
 field takes. That is the silent zero the move into the file exists to end, one level down. The
 reading is strict — `1.5`, `1e3` and a leading space are not integers — because the text is what
 somebody typed into a deployment, and a lenient reading is how a typo becomes a term.
@@ -11331,8 +11331,8 @@ _Source:_ `SECURITY.md`
 
 ### SC-SEC-009 — Checks run in a fixed order and fail closed
 
-🟢 🔒 A check that expects an authenticated caller refuses rather than passing when the step before it
-did not run.
+🟢 🔒 A check that expects an authenticated caller refuses rather than passing when the step before
+it did not run.
 
 _Source:_ `SECURITY.md`
 
@@ -11415,8 +11415,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-PRIV-006 — A record that history depends on is retired, not deleted
 
-🟢 🔒 Plans, add-ons, promotional codes and catalogue entries are withdrawn from use and kept. Only an
-unpublished draft is removed outright.
+🟢 🔒 Plans, add-ons, promotional codes and catalogue entries are withdrawn from use and kept. Only
+an unpublished draft is removed outright.
 
 _Source:_ `docs/explanation/data-model.md`
 

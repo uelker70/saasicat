@@ -11,19 +11,29 @@ overrides:
     # GHSA-mh99-v99m-4gvg: unbounded brace expansion crashes the process. The fix
     # only landed on the 5.x line, so minimatch@9 — whose 2.x dependency has no
     # patched release — is lifted to minimatch@10 instead of patched in place.
-    'brace-expansion@^5.0.0': '^5.0.8'
+    # GHSA-rgw5-rvv9-x895: the same class of input still grew unbounded
+    # intermediate arrays past that fix; 5.0.9 closes it.
+    'brace-expansion@^5.0.0': '^5.0.9'
     'minimatch@^9.0.0': '^10.2.5'
     # GHSA-g7r4-m6w7-qqqr: path traversal in the esbuild dev server. Pulled in
     # transitively by tsup, which still pins ^0.27.0.
     esbuild: '^0.28.1'
-    # Transitive build-tool dependencies with patched releases available.
-    # Keeping the overrides on the existing majors avoids unrelated migrations.
+    # Transitive dependencies with a patched release on the major already in
+    # the tree. Keeping the overrides on the existing majors avoids unrelated
+    # migrations.
     # GHSA-fxqj-rqcc-2cmp: inefficient parsing in PostCSS.
     postcss: '^8.5.23'
     # GHSA-7p8r-x3mc-p8w7: denial of service in fast-uri URI parsing.
-    fast-uri: '^3.1.5'
+    # GHSA-jqff-g426-hqxp, GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf and
+    # GHSA-5jgf-p345-68v8: host confusion and server-side request forgery
+    # through URI normalisation; all four are closed by 3.1.6.
+    fast-uri: '^3.1.6'
     # GHSA-2v37-7h3g-55p8: predictable Nano ID generation with non-integer size.
     nanoid: '^3.3.17'
+    # GHSA-x5fp-wj9c-mxmx: array-limit bypass in qs query-string parsing.
+    # GHSA-4mjr-xmp4-gh2g: denial of service through an attacker-controlled
+    # `isBuffer`. Reached through express and body-parser.
+    qs: '^6.16.0'
     # GHSA-p2gr-x3f9-5xw5: stack exhaustion merging recursive object graphs.
     # Reached only through the Prisma CLI's config loader, which pins 7.1.5
     # exactly, so this lifts it across a major. What that loader merges is the

@@ -59,8 +59,8 @@ _Source:_ `docs/explanation/data-model.md`
 
 ### SC-PRIV-006 — A record that history depends on is retired, not deleted
 
-🟢 🔒 Plans, add-ons, promotional codes and catalogue entries are withdrawn from use and kept. Only an
-unpublished draft is removed outright.
+🟢 🔒 Plans, add-ons, promotional codes and catalogue entries are withdrawn from use and kept. Only
+an unpublished draft is removed outright.
 
 _Source:_ `docs/explanation/data-model.md`
 

@@ -9,4 +9,10 @@
 {
     "extends": "../.markdownlint.jsonc",
     "MD051": false,
+    // The front matter `title` becomes `## <n>. <title>` when the page is
+    // assembled (`scripts/requirements/render.mjs`), which is why the entries
+    // below it are `###`. MD001 reads a front-matter title as an H1 and would
+    // ask for an H2 first; with no title to read, it still checks that the
+    // headings actually in the file increment one level at a time.
+    "MD001": { "front_matter_title": "" },
 }
