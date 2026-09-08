@@ -7,10 +7,13 @@ name: Claude Review
 #   @claude review          — full review of the pull request
 #   @claude <question>      — a targeted question about one place
 #   @claude <instruction>   — on an issue: Claude rewrites the issue's title
-#                             and body itself (`gh issue edit`)
+#                             and body itself (`.github/scripts/edit-issue.sh`)
 #
 # The run comments and does not write to the branch (`contents: read`). It
-# may edit an issue — title and body; the issue's edit history keeps the
+# may edit an issue — the triggering one only, title and body only, and only
+# through `.github/scripts/edit-issue.sh` in the default branch's version;
+# `gh issue edit` itself is not allowed, because a prefix rule could not rule
+# out labels, assignees and other issues. The issue's edit history keeps the
 # previous version.
 # Letting Claude push fixes would make that `contents: write` — a deliberate
 # widening of permissions, not a detail.
@@ -48,6 +51,23 @@ jobs:
               with:
                   fetch-depth: 1
 
+            # Write access is measured, not read off `author_association`:
+            # MEMBER only means organisation member, COLLABORATOR can be
+            # read-only. The action checks the same thing, but sits behind the
+            # moving `@v1` — since the run may edit issues, the check also
+            # lives here, before the first step that uses the token.
+            - name: Check the requester's write access
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  ACTOR: ${{ github.actor }}
+              run: |
+                  set -euo pipefail
+                  level=$(gh api "repos/${{ github.repository }}/collaborators/${ACTOR}/permission" --jq '.permission' 2>/dev/null || echo "unknown")
+                  case "$level" in
+                      admin|write) echo "write access: ${level}" ;;
+                      *) echo "::error::${ACTOR} has no write access to the repository (${level}) — the run ends here."; exit 1 ;;
+                  esac
+
             # The brief applies in the version on the default branch, not the
             # one under review. Two reasons: the PR branch is what gets checked
             # out, and the file only exists there once it is merged — the review
@@ -64,6 +84,28 @@ jobs:
                       --header "Accept: application/vnd.github.raw" \
                       > .github/claude-review-context.md
                   wc -l .github/claude-review-context.md
+
+            # The issue script comes from the default branch like the brief and
+            # lives outside the working tree: on a pull-request event the PR
+            # merge is checked out, and a rule pointing into the working tree
+            # would run the PR's version — arbitrary shell with `issues: write`.
+            # If it is not there yet (the PR that brings it), the review goes
+            # on without the capability and says so.
+            - name: Take the issue script from the default branch
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+              run: |
+                  set -euo pipefail
+                  target="$RUNNER_TEMP/edit-issue.sh"
+                  if ! gh api "repos/${{ github.repository }}/contents/.github/scripts/edit-issue.sh?ref=$DEFAULT_BRANCH" \
+                      --header "Accept: application/vnd.github.raw" > "$target" 2>/dev/null || [ ! -s "$target" ]; then
+                      rm -f "$target"
+                      echo "::warning::.github/scripts/edit-issue.sh does not exist on $DEFAULT_BRANCH — a request cannot edit an issue in this run."
+                      exit 0
+                  fi
+                  chmod 755 "$target"
+                  echo "Issue script: $(wc -l < "$target") lines from $DEFAULT_BRANCH"
 
             - name: Run Claude
               uses: anthropics/claude-code-action@v1
@@ -87,5 +129,5 @@ jobs:
                   # reviews — on a source-available project read in English.
                   claude_args: |
                       --model claude-opus-5
-                      --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh run view:*)"
-                      --append-system-prompt "Binding for this run: write everything you post — findings, summary, inline comments, questions — in English, whatever language the pull request or the comment you are answering is in. Then read .github/claude-review-context.md first and follow it before doing anything else."
+                      --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(${{ runner.temp }}/edit-issue.sh:*),Bash(gh run view:*)"
+                      --append-system-prompt "Binding for this run: write everything you post — findings, summary, inline comments, questions — in English, whatever language the pull request or the comment you are answering is in. Then read .github/claude-review-context.md first and follow it before doing anything else. If the request is to change the issue itself, the only way is ${{ runner.temp }}/edit-issue.sh (--title, --body-file with a file inside the workspace); the rules for it are in the brief."
