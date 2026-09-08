@@ -71,9 +71,9 @@ import {
  * should have come from.
  *
  * The loader refuses a `config/saas.yaml` without `tenantBilling`, so a
- * catalogue arriving here without one was assembled in code — the `dbCatalog`
- * block, which forwards the section from the same file, or an object handed
- * straight to `planCatalog`. Without this the failure is
+ * catalogue arriving here without one was assembled in code — an object
+ * handed straight to `planCatalog`; the database path reads the file too,
+ * since `dbCatalog` names it. Without this the failure is
  * `Cannot read properties of undefined`, thrown from a Nest factory, which
  * names neither the file nor the field.
  */
@@ -88,8 +88,7 @@ function settingFromCatalog<K extends keyof PlanCatalog['tenantBilling']>(
             `The plan catalogue carries no tenantBilling.${key}. It is a required ` +
                 'section of config/saas.yaml and the loader refuses a file without it, ' +
                 'so a catalogue that reaches here without one was built in code: check ' +
-                'the `dbCatalog` block, which forwards `tenantBilling` from that same ' +
-                'file, or the object passed to `planCatalog`.',
+                'the object passed to `planCatalog`.',
         );
     }
     return value;

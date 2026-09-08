@@ -354,17 +354,21 @@ SuperAdmin promo-code CRUD. Both add functionality to the standard API; they
 do not remove pages from the Admin UI. Apps with a different schema replace
 the single `AdminResourcesPort` while keeping the controllers and pages.
 
-For a database-managed runtime catalog, replace `planCatalog` with:
+For a database-managed runtime catalog, replace `planCatalog` with the path of
+the same file:
 
 ```ts
 dbCatalog: {
-    app: SAAS_CONFIG.app,
-    currency: SAAS_CONFIG.currency,
-    vatRate: SAAS_CONFIG.vatRate,
-    tenantBilling: SAAS_CONFIG.tenantBilling,
-    marketing: SAAS_CONFIG.marketing,
+    path: 'config/saas.yaml';
 }
 ```
+
+The platform reads the settings — `app`, `currency`, `vatRate`,
+`tenantBilling`, `marketing`, `notifications` — from that file itself, and the
+plans and features from the read sink. A `plans:` block still in the file is
+not read on this path; it is the seed for `saasicat catalog import`. There is
+nothing in the option to type a setting into, which is the point: the file
+defines them by construction, not by everybody agreeing to forward them.
 
 Use the low-level `CatalogModule`, `EntitlementModule`,
 `TenantBillingModule`, `SubscriptionBundleModule` and adapter options only

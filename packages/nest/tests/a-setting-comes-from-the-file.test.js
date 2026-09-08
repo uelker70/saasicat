@@ -179,8 +179,8 @@ describe('an option that moved refuses the boot', () => {
 
 // @requirement SC-CFG-018 — An empty list and a zero are values an operator wrote, not omissions
 describe('a catalogue assembled in code without the section', () => {
-    // Reachable: `dbCatalog` and `planCatalog` both take an object, and only
-    // the file path runs through the loader. Without this the failure is
+    // Reachable: `planCatalog` takes an object, and only a file runs through
+    // the loader — `dbCatalog` names one now. Without this the failure is
     // `Cannot read properties of undefined` out of a Nest factory.
     test('names the field and the file rather than throwing a TypeError', async () => {
         await assert.rejects(

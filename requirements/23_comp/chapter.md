@@ -203,26 +203,36 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
+- `packages/cli/tests/a-db-catalog-block-is-reported.test.js`
+    - what the codemod says about a dbCatalog that still carries the values
+        - an object literal with no path is reported, with its line
+        - a nested object inside the block does not end it early
+        - one that names the file is what the option takes, so it is not reported
+        - a value it cannot see into is named for a person to look at
+        - a mention that is not a property is not a block
+        - a block the file ends inside is still reported rather than lost
+        - the sentence says what to write
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
         - every member is reported, flattened to the path it has in the file
         - an empty list reads as one, rather than as nothing at all
         - the report is read off the document, so it follows what the template writes
         - a catalogue the platform would refuse fails here, not at the first boot
-    - names both, with the line each is on
-    - the set is read off the schema, not written out beside it
-    - every setting the schema names has a sentence saying where it goes
-    - says where each one goes, separately
-    - leaves the source untouched — there is nothing to write back
-    - a longer identifier that merely contains the name is not reported
-    - reads the value back as well as writing it — the same migration, later
-    - a file that passes nothing produces no report at all
-    - prose is not scanned — it cannot pass a module option
-    - code is
-    - a shorthand property is reported
-    - a destructured read is reported
-    - a mention in a comment is reported, and that is the chosen trade
-    - several occurrences of one setting are all named, in file order
+    - what the codemod says about a setting still passed in code
+        - names both, with the line each is on
+        - the set is read off the schema, not written out beside it
+        - every setting the schema names has a sentence saying where it goes
+        - says where each one goes, separately
+        - leaves the source untouched — there is nothing to write back
+        - a longer identifier that merely contains the name is not reported
+        - reads the value back as well as writing it — the same migration, later
+        - a file that passes nothing produces no report at all
+        - prose is not scanned — it cannot pass a module option
+        - code is
+        - a shorthand property is reported
+        - a destructured read is reported
+        - a mention in a comment is reported, and that is the chosen trade
+        - several occurrences of one setting are all named, in file order
 - `packages/cli/tests/codemod-project-key.test.js`
     - a query parameter the admin API no longer reads
         - the only parameter takes the question mark with it
@@ -733,8 +743,9 @@ _Tested by:_
         - entitlement pulls repositories + transaction runner from the bundle
         - entitlement without required capabilities fails fast at boot
         - explicit adapters combine with a bundle
-        - DB hydration forwards the dbCatalog identity to the plan-catalog factory
+        - DB hydration reads the settings from the file dbCatalog names, and the plans from the sink
         - DB hydration without dbCatalog fails fast instead of loading an empty catalog
+        - DB hydration with the values typed into dbCatalog is refused, naming what it takes now
         - the mega module COMPILES through Nest DI with a bundle (boot smoke)
         - bundle without entitlement slice still requires repositories for entitlement
         - the high-level standard stack wires catalog and tenant billing from one bundle

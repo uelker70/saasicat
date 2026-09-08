@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 16 rules, in 11 areas.
+There are 17 rules, in 11 areas.
 
 ## core
 
@@ -24,8 +24,17 @@ The core adapters are missing: mfa, audit, rlsBypass. Bind them through
 
 No plan catalogue is reachable. Either set `planCatalog` (the quickstart YAML
 path) or, for DB hydration, BOTH a `planCatalogReadSink` (via `adapters` or
-`persistence`) AND `dbCatalog` ({ app, currency, vatRate, tenantBilling }).
-Without the identity the app boots with a silently empty catalogue.
+`persistence`) AND `dbCatalog` ({ path: 'config/saas.yaml' }, the file the
+settings are read from). Without the file the app boots with a silently empty
+catalogue and no settings.
+
+### catalog.db-catalog-names-the-file
+
+`dbCatalog` names the file: `dbCatalog: { path: 'config/saas.yaml' }`. It used
+to take `app`, `currency`, `vatRate` and `tenantBilling` as values, and that was
+a second place a setting could live. Delete the values here; the platform reads
+them from the file it names — the same one they were forwarded from. See
+docs/guides/upgrade-to-1.0.md.
 
 ### catalog.app-is-named
 
@@ -33,7 +42,7 @@ The catalogue names no application. `app.name` is the one place an installation
 names itself — it is the manifest display name, the login-page brand and the
 discovery snapshot key — so an absent one is not a default to fill in: the app
 would boot identified by an empty string. Set `app: { name: … }` in
-config/saas.yaml, or in `dbCatalog` on the DB-hydration path.
+config/saas.yaml.
 
 ### catalog.requires-persistence
 

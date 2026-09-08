@@ -198,7 +198,7 @@ function renderForRootBlock(options: PatchAppModuleOptions): string {
         'SaaSiCatModule.forRoot(',
         '    defineSaaSiCat({',
         '        // Plans straight from the YAML. Apps that manage plans in the',
-        '        // SuperAdmin UI pass `dbCatalog` instead.',
+        "        // SuperAdmin UI pass `dbCatalog: { path: 'config/saas.yaml' }` instead.",
         "        planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),",
         '        // Your authentication guard. This does NOT compile until you',
         '        // name one, and that is deliberate: an empty array is how the',

@@ -21,7 +21,7 @@
 //   codemod v1-imports [--dir=X] [--dry-run]
 //   codemod v1-rename  [--dir=X] [--dry-run]
 //   codemod v1-project-key [--dir=X] [--dry-run]
-//   codemod v1-moved-settings [--dir=X]
+//   codemod v1-moved-settings [--dir=X]         — and a `dbCatalog` still carrying values
 //   codemod v1         [--dir=X] [--dry-run]   — all four, in that order
 //        [--skip-hasher] [--dry-run] [--dir=.]
 //       Writes the platform wiring — config, persistence, manifest
@@ -66,6 +66,9 @@ import {
     findMovedSettings,
     SCANNED_FOR_MOVED_SETTINGS,
     WHERE_IT_GOES,
+    findDbCatalogBlocks,
+    SCANNED_FOR_DB_CATALOG,
+    WHERE_DB_CATALOG_GOES,
 } from '../dist/index.js';
 
 const require_ = createRequire(import.meta.url);
@@ -751,6 +754,7 @@ async function walkSources(root, visit, extra = null) {
 async function cmdCodemodV1MovedSettings(args) {
     const root = resolve(args.dir ?? '.');
     const found = [];
+    const blocks = [];
 
     await walkSources(root, async (full, source) => {
         // Code only. The walk includes Markdown, and a documentation file that
@@ -760,7 +764,13 @@ async function cmdCodemodV1MovedSettings(args) {
         for (const { setting, line } of findMovedSettings(source).occurrences) {
             found.push({ where: `${relative(root, full)}:${line}`, setting });
         }
+        if (!SCANNED_FOR_DB_CATALOG.test(full)) return;
+        for (const { shape, line } of findDbCatalogBlocks(source).occurrences) {
+            blocks.push({ where: `${relative(root, full)}:${line}`, shape });
+        }
     });
+
+    reportDbCatalogBlocks(blocks);
 
     if (found.length === 0) {
         console.log('No module option that moved into config/saas.yaml is still passed.');
@@ -784,6 +794,34 @@ async function cmdCodemodV1MovedSettings(args) {
     console.log('');
     console.log('  TenantBillingModule.forRoot() refuses to boot while either is still');
     console.log('  passed, so this cannot be half-done quietly.');
+}
+
+/**
+ * Names a `dbCatalog` that still carries the settings as values.
+ *
+ * The same decision as the settings above, one option up: the values were
+ * forwarded from `config/saas.yaml`, and the option names that file now. Not
+ * rewritten, because which file is a variable in another module more often
+ * than a literal here — see `codemods/v1-db-catalog.ts`.
+ */
+function reportDbCatalogBlocks(blocks) {
+    if (blocks.length === 0) {
+        console.log('No dbCatalog still carries the settings as values.');
+        return;
+    }
+    console.log(`${blocks.length} dbCatalog block(s) to point at the file:`);
+    const width = Math.max(...blocks.map((b) => b.where.length));
+    for (const { where, shape } of blocks) {
+        const what =
+            shape === 'values' ? 'carries the values' : 'carries something this cannot see into';
+        console.log(`  ${where.padEnd(width)}  ${what}`);
+    }
+    console.log('');
+    console.log(`  ${WHERE_DB_CATALOG_GOES}`);
+    console.log('');
+    console.log('  SaaSiCatModule.forRoot() refuses to boot while the values are still passed,');
+    console.log('  so this cannot be half-done quietly.');
+    console.log('');
 }
 
 async function cmdCodemodV1ProjectKey(args) {

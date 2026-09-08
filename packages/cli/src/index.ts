@@ -25,6 +25,7 @@
 //   - codemods/v1-project-key: taking `projectKey` out, where that is decidable
 //     (project-key-history: the command's name is the retired identifier)
 //   - codemods/v1-moved-settings: naming the options that moved into the file
+//   - codemods/v1-db-catalog: naming a `dbCatalog` that still carries the values
 //   - init/patch-app-module: adding the platform to an existing AppModule
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
@@ -50,6 +51,7 @@ export * from './codemods/v1-imports.js';
 export * from './codemods/v1-rename.js';
 export * from './codemods/v1-project-key.js';
 export * from './codemods/v1-moved-settings.js';
+export * from './codemods/v1-db-catalog.js';
 export * from './init/patch-app-module.js';
 export * from './cli-context.module.js';
 export * from './manifest.command.js';

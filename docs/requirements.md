@@ -122,7 +122,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 22      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 33      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 34      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 415 entries: 🟢 406 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 416 entries: 🟢 407 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -146,7 +146,7 @@ Of 415 entries: 🟢 406 stand today, 🟡 7 decided but not yet delivered, ⚪ 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 415 requirements. Do not edit by hand:
+Generated from `requirements/` — 416 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9146,6 +9146,11 @@ _Tested by:_
         - ${option} is refused, and the message says where it went
         - both at once are named together, so the fix is one pass
         - an explicitly undefined option is not a passed option
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - a dbCatalog that still carries the values
+        - refuses the boot, naming what the option takes now
+        - is one finding, not two: the name it also carries is not reported on top
+        - and a blank path is the same omission
 
 <!-- END proof -->
 
@@ -9188,31 +9193,77 @@ _Source:_ #217
 
 _Tested by:_
 
+- `packages/cli/tests/a-db-catalog-block-is-reported.test.js`
+    - what the codemod says about a dbCatalog that still carries the values
+        - an object literal with no path is reported, with its line
+        - a nested object inside the block does not end it early
+        - one that names the file is what the option takes, so it is not reported
+        - a value it cannot see into is named for a person to look at
+        - a mention that is not a property is not a block
+        - a block the file ends inside is still reported rather than lost
+        - the sentence says what to write
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
         - every member is reported, flattened to the path it has in the file
         - an empty list reads as one, rather than as nothing at all
         - the report is read off the document, so it follows what the template writes
         - a catalogue the platform would refuse fails here, not at the first boot
-    - names both, with the line each is on
-    - the set is read off the schema, not written out beside it
-    - every setting the schema names has a sentence saying where it goes
-    - says where each one goes, separately
-    - leaves the source untouched — there is nothing to write back
-    - a longer identifier that merely contains the name is not reported
-    - reads the value back as well as writing it — the same migration, later
-    - a file that passes nothing produces no report at all
-    - prose is not scanned — it cannot pass a module option
-    - code is
-    - a shorthand property is reported
-    - a destructured read is reported
-    - a mention in a comment is reported, and that is the chosen trade
-    - several occurrences of one setting are all named, in file order
+    - what the codemod says about a setting still passed in code
+        - names both, with the line each is on
+        - the set is read off the schema, not written out beside it
+        - every setting the schema names has a sentence saying where it goes
+        - says where each one goes, separately
+        - leaves the source untouched — there is nothing to write back
+        - a longer identifier that merely contains the name is not reported
+        - reads the value back as well as writing it — the same migration, later
+        - a file that passes nothing produces no report at all
+        - prose is not scanned — it cannot pass a module option
+        - code is
+        - a shorthand property is reported
+        - a destructured read is reported
+        - a mention in a comment is reported, and that is the chosen trade
+        - several occurrences of one setting are all named, in file order
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - an option that moved refuses the boot
         - ${option} is refused, and the message says where it went
         - both at once are named together, so the fix is one pass
         - an explicitly undefined option is not a passed option
+
+<!-- END proof -->
+
+### SC-CFG-034 — An installation whose plans live in the database reads its settings from the file
+
+🟢 `dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate`,
+`tenantBilling`, `marketing` and `notifications` from it; the plans and the features come from the
+database. No option takes a setting as a value in code, so the file defines them by construction
+rather than by agreement — an installation still passing the values does not start, and is told
+what the option takes instead.
+
+_Source:_ #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a dbCatalog that still carries the values
+        - is a finding of its own, and the only one
+        - a blank path is the same omission spelled differently
+        - a path is what the option takes, so the rule has nothing to say
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - the settings an installation with a database catalogue runs on
+        - are the ones in the file dbCatalog names, every block the schema declares
+        - a variable the file names resolves through the environment dbCatalog is given
+        - the plans come from the database; a plans block in the file is the seed, not the catalogue
+    - where the record says the values came from, on the database path
+        - the absolute path of the file dbCatalog names
+    - a dbCatalog that still carries the values
+        - refuses the boot, naming what the option takes now
+        - is one finding, not two: the name it also carries is not reported on top
+        - and a blank path is the same omission
+    - a file that does not load
+        - stops the boot with the loader's error, naming the path
+        - or the field it is missing, rather than a TypeError further down
 
 <!-- END proof -->
 
@@ -9538,8 +9589,8 @@ _Tested by:_
 ### SC-CFG-027 — The record says where the values came from
 
 🟢 The absolute path of the file the platform read, or a sentence saying the values were handed to it
-in code, where no path exists to name: an object passed as `planCatalog`, or the `dbCatalog` block.
-The platform does not invent a path it did not read.
+in code, where no path exists to name: an object passed as `planCatalog`. The platform does not
+invent a path it did not read.
 
 _Source:_ #260
 
@@ -9551,6 +9602,9 @@ _Tested by:_
     - where the record says the values came from
         - the absolute path of the file the platform read
         - a catalogue built in code says so rather than inventing a path
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - where the record says the values came from, on the database path
+        - the absolute path of the file dbCatalog names
 
 <!-- END proof -->
 
@@ -12126,26 +12180,36 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
+- `packages/cli/tests/a-db-catalog-block-is-reported.test.js`
+    - what the codemod says about a dbCatalog that still carries the values
+        - an object literal with no path is reported, with its line
+        - a nested object inside the block does not end it early
+        - one that names the file is what the option takes, so it is not reported
+        - a value it cannot see into is named for a person to look at
+        - a mention that is not a property is not a block
+        - a block the file ends inside is still reported rather than lost
+        - the sentence says what to write
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
         - every member is reported, flattened to the path it has in the file
         - an empty list reads as one, rather than as nothing at all
         - the report is read off the document, so it follows what the template writes
         - a catalogue the platform would refuse fails here, not at the first boot
-    - names both, with the line each is on
-    - the set is read off the schema, not written out beside it
-    - every setting the schema names has a sentence saying where it goes
-    - says where each one goes, separately
-    - leaves the source untouched — there is nothing to write back
-    - a longer identifier that merely contains the name is not reported
-    - reads the value back as well as writing it — the same migration, later
-    - a file that passes nothing produces no report at all
-    - prose is not scanned — it cannot pass a module option
-    - code is
-    - a shorthand property is reported
-    - a destructured read is reported
-    - a mention in a comment is reported, and that is the chosen trade
-    - several occurrences of one setting are all named, in file order
+    - what the codemod says about a setting still passed in code
+        - names both, with the line each is on
+        - the set is read off the schema, not written out beside it
+        - every setting the schema names has a sentence saying where it goes
+        - says where each one goes, separately
+        - leaves the source untouched — there is nothing to write back
+        - a longer identifier that merely contains the name is not reported
+        - reads the value back as well as writing it — the same migration, later
+        - a file that passes nothing produces no report at all
+        - prose is not scanned — it cannot pass a module option
+        - code is
+        - a shorthand property is reported
+        - a destructured read is reported
+        - a mention in a comment is reported, and that is the chosen trade
+        - several occurrences of one setting are all named, in file order
 - `packages/cli/tests/codemod-project-key.test.js`
     - a query parameter the admin API no longer reads
         - the only parameter takes the question mark with it
@@ -12656,8 +12720,9 @@ _Tested by:_
         - entitlement pulls repositories + transaction runner from the bundle
         - entitlement without required capabilities fails fast at boot
         - explicit adapters combine with a bundle
-        - DB hydration forwards the dbCatalog identity to the plan-catalog factory
+        - DB hydration reads the settings from the file dbCatalog names, and the plans from the sink
         - DB hydration without dbCatalog fails fast instead of loading an empty catalog
+        - DB hydration with the values typed into dbCatalog is refused, naming what it takes now
         - the mega module COMPILES through Nest DI with a bundle (boot smoke)
         - bundle without entitlement slice still requires repositories for entitlement
         - the high-level standard stack wires catalog and tenant billing from one bundle

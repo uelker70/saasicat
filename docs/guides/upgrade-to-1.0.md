@@ -586,9 +586,9 @@ Two things follow for the wiring:
 
 - On the **static path** (`planCatalog: loadPlanCatalogFromFile(…)`) there is nothing to do beyond
   editing the file.
-- On the **database path** the settings are not in the database and never will be, so `dbCatalog`
-  forwards them from the same file it already forwards `currency` from:
-  `tenantBilling: SAAS_CONFIG.tenantBilling`.
+- On the **database path** the settings are not in the database and never will be. `dbCatalog`
+  names the file and the platform reads them from it — see
+  [`dbCatalog` names the file](#dbcatalog-names-the-file).
 
 `saasicat codemod v1` names every place a moved option is still passed, with its file and line. It
 does **not** remove them: the value is a term somebody agreed, and deleting it from the code
@@ -814,6 +814,44 @@ persistence adapter provides no `core.appliedSettings` port still starts — the
 boot, that it is not recording — so a custom adapter is not broken by this, only silent until it
 implements `AppliedSettingsPort`.
 
+### `dbCatalog` names the file
+
+On the database path, `dbCatalog` **takes the path of `config/saas.yaml`** and nothing else. It
+used to take the settings as values — `app`, `currency`, `vatRate`, `tenantBilling`, `marketing`
+and `notifications` — and every application forwarded them from the file it had loaded anyway:
+
+```ts
+// before
+dbCatalog: {
+    app: SAAS_CONFIG.app,
+    currency: SAAS_CONFIG.currency,
+    vatRate: SAAS_CONFIG.vatRate,
+    tenantBilling: SAAS_CONFIG.tenantBilling,
+    marketing: SAAS_CONFIG.marketing,
+},
+// after
+dbCatalog: { path: 'config/saas.yaml' },
+```
+
+The platform reads the file itself. The settings come from it, the plans and the features come
+from the read sink, and a `plans:` block still in the file — the seed for `saasicat catalog
+import` — is not read on this path. `${NAME}` references resolve from `process.env` unless
+`dbCatalog` passes an `env` of its own, exactly as `loadPlanCatalogFromFile` does.
+
+Why: forwarding by hand held "the file defines, nothing else does" by agreement rather than by
+construction. Nothing stopped an application typing a notice period straight into the block, and
+the record of the applied settings had no file to name on this path, only a sentence saying the
+values came in as code. Now there is nothing in the option to type a setting into, and the record
+names the file on both paths.
+
+**A `dbCatalog` that still carries the values refuses the boot** — `catalog.db-catalog-names-the-file`,
+naming what the option takes now — rather than being read: the values it carries are the ones the
+operator believes are running. `saasicat codemod v1` names every such block with its file and
+line, and does not rewrite it: which file the values were forwarded from is a variable in another
+module more often than a literal, and a guess would be wrong quietly. An application that loads
+the file for its own use keeps doing so; the platform reads it once more, which costs a parse at
+start and nothing after.
+
 ### `projectKey` is gone from the database
 
 One installation serves one application. A plan key, a bundle key, a feature key and a quota key
@@ -866,7 +904,7 @@ caller that supplies the value.
 | before                                                          | after                                     |
 | --------------------------------------------------------------- | ----------------------------------------- |
 | `projectKey: myapp` in `config/saas.yaml`                       | gone — `app.name` is now required instead |
-| `dbCatalog: { projectKey, currency, vatRate }`                  | `dbCatalog: { app, currency, vatRate }`   |
+| `dbCatalog: { projectKey, currency, vatRate }`                  | `dbCatalog: { path: 'config/saas.yaml' }` |
 | `{ apiBase: '…', projectKey: 'myapp' }` (`SuperAdminEndpoints`) | `{ apiBase: '…' }`                        |
 | `?projectKey=…` on a `/catalog/` URL                            | gone — those endpoints no longer read it  |
 | `plans.create({ projectKey, planKey, … })`                      | `plans.create({ planKey, … })`            |

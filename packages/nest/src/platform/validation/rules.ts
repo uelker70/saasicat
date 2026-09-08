@@ -19,9 +19,14 @@
 // anything to say about this configuration at all, so "not enabled" and
 // "enabled and satisfied" never look alike.
 
-import { assertPersistenceCapabilities, type SaaSiCatPersistenceAdapter } from '@saasicat/core';
+import {
+    assertPersistenceCapabilities,
+    type PlanCatalog,
+    type SaaSiCatPersistenceAdapter,
+} from '@saasicat/core';
 
 import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
+import { dbCatalogNamesAFile } from '../compose/base.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 
 /** Everything a rule may look at: the options as given, the adapters as resolved. */
@@ -29,6 +34,12 @@ export interface PlatformConfiguration {
     readonly options: SaaSiCatModuleOptions;
     /** After the bundle slices and the explicit entries have been merged. */
     readonly adapters: SaaSiCatAdapters;
+    /**
+     * The catalogue as resolved before the database is asked: `planCatalog`
+     * as given, or the file `dbCatalog` names, loaded. Absent where nothing
+     * usable was configured — which is for the rules to say.
+     */
+    readonly catalog?: PlanCatalog;
 }
 
 export interface PlatformRule {
@@ -135,6 +146,10 @@ function absent<T extends Record<string, unknown>>(required: T): string[] {
 
 const list = (names: string[]): string => names.join(', ');
 
+/** The catalogue a rule may look at, on either path. */
+const catalogOf = (c: PlatformConfiguration): PlanCatalog | undefined =>
+    c.catalog ?? c.options.planCatalog;
+
 /** The rules, without the field every one of them derives from its own id. */
 type RuleSpec = Omit<PlatformRule, 'docs'>;
 
@@ -155,23 +170,34 @@ const RULE_SPECS: readonly RuleSpec[] = [
         message:
             'no plan catalogue is reachable. Either set `planCatalog` (the quickstart YAML ' +
             'path) or, for DB hydration, BOTH a `planCatalogReadSink` (via `adapters` or ' +
-            '`persistence`) AND `dbCatalog` ({ app, currency, vatRate, tenantBilling }). ' +
-            'Without the identity the app boots with a silently empty catalogue.',
+            "`persistence`) AND `dbCatalog` ({ path: 'config/saas.yaml' }, the file the " +
+            'settings are read from). Without the file the app boots with a silently empty ' +
+            'catalogue and no settings.',
+    },
+    {
+        id: 'catalog.db-catalog-names-the-file',
+        when: (c) => c.options.dbCatalog !== undefined,
+        assert: (c) => dbCatalogNamesAFile(c.options.dbCatalog),
+        message:
+            "`dbCatalog` names the file: `dbCatalog: { path: 'config/saas.yaml' }`. It used to " +
+            'take `app`, `currency`, `vatRate` and `tenantBilling` as values, and that was a ' +
+            'second place a setting could live. Delete the values here; the platform reads ' +
+            'them from the file it names — the same one they were forwarded from. See ' +
+            'docs/guides/upgrade-to-1.0.md.',
     },
     {
         id: 'catalog.app-is-named',
         // Only where a catalogue is reachable at all — otherwise
         // `catalog.identity-or-sink` is the finding, and reporting both would
         // name the same omission twice.
-        when: (c) => Boolean(c.options.planCatalog ?? c.options.dbCatalog),
-        assert: (c) =>
-            Boolean((c.options.planCatalog?.app ?? c.options.dbCatalog?.app)?.name?.trim()),
+        when: (c) => catalogOf(c) !== undefined,
+        assert: (c) => Boolean(catalogOf(c)?.app?.name?.trim()),
         message:
             'the catalogue names no application. `app.name` is the one place an installation ' +
             'names itself — it is the manifest display name, the login-page brand and the ' +
             'discovery snapshot key — so an absent one is not a default to fill in: the app ' +
             'would boot identified by an empty string. Set `app: { name: … }` in ' +
-            'config/saas.yaml, or in `dbCatalog` on the DB-hydration path.',
+            'config/saas.yaml.',
     },
     {
         id: 'catalog.requires-persistence',

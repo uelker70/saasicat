@@ -76,16 +76,15 @@ describe('what init says about the settings it wrote', () => {
 
 describe('what the codemod says about a setting still passed in code', () => {
     const source = `
-export const CONFIG = defineSaaSiCat({
-    tenantBilling: {
-        authGuards: [JwtAuthGuard],
-        cancellationNoticeDays: { monthly: 30, yearly: 90 },
-        selfServiceBlockedPlans: {
-            asTarget: ['ENTERPRISE'],
-        },
-    },
-});
-`;
+        export const CONFIG = defineSaaSiCat({
+            tenantBilling: {
+                authGuards: [JwtAuthGuard],
+                cancellationNoticeDays: { monthly: 30, yearly: 90 },
+                selfServiceBlockedPlans: {
+                    asTarget: ['ENTERPRISE'],
+                },
+            },
+        });`;
 
     test('names both, with the line each is on', () => {
         const { occurrences } = findMovedSettings(source);

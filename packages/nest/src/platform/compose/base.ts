@@ -18,13 +18,13 @@ import type {
 
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
 import { AdminModule } from '../../admin/admin.module.js';
-import { catalogSource } from '../../billing/plan-catalog-loader.js';
+import { catalogSource, loadPlanCatalogFromFile } from '../../billing/plan-catalog-loader.js';
 import { PlanCatalogModule } from '../../billing/plan-catalog.module.js';
 import type { ProviderSpec } from '../../core/di.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
 import { SettingsModule } from '../../settings/settings.module.js';
-import type { SaaSiCatModuleOptions } from '../module-options.js';
+import type { DbCatalogOptions, SaaSiCatModuleOptions } from '../module-options.js';
 
 import { buildMinimalManifestConfig } from './manifest.js';
 
@@ -33,22 +33,44 @@ const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
 
 /**
  * What the settings record says about where the values came from when the
- * platform cannot name a file.
- *
- * `planCatalog` took an object — built in code, or the loaded object copied
- * so that the loader's memory of its path does not follow it. `dbCatalog`
- * forwards the settings from the same file the consumer read `currency` from,
- * by convention rather than by construction, so the platform has no path to
- * record; closing that gap means `dbCatalog` taking the file's path, which is
- * a change to that option and has its own step.
+ * platform cannot name a file: `planCatalog` took an object — built in code,
+ * or the loaded object copied so that the loader's memory of its path does
+ * not follow it. The database path never needs the sentence, because
+ * `dbCatalog` is a path and the platform read the file itself.
  */
 export const SOURCE_IN_CODE = 'the object passed to SaaSiCatModule.forRoot({ planCatalog })';
-export const SOURCE_DB_CATALOG = 'the dbCatalog block passed to SaaSiCatModule.forRoot()';
+
+/** Whether `dbCatalog` has the shape it takes: the path to the file, not the values. */
+export function dbCatalogNamesAFile(
+    dbCatalog: SaaSiCatModuleOptions['dbCatalog'],
+): dbCatalog is DbCatalogOptions {
+    return typeof dbCatalog?.path === 'string' && dbCatalog.path.trim() !== '';
+}
+
+/**
+ * The catalogue the configuration runs on, as far as it is known before the
+ * database is asked.
+ *
+ * On the quickstart path it is the object given. On the database path it is
+ * the file `dbCatalog` names, loaded here: its settings are what runs, and its
+ * `plans` and `features` are not read, because the sink is their source.
+ * Undefined where neither is usable — no catalogue at all, or a `dbCatalog`
+ * that still carries the values — which the rules report by name, rather than
+ * this throwing a TypeError at the first member read.
+ *
+ * A file that does not load throws the loader's own error, naming the file
+ * and the field: the same error the quickstart path raises, where the
+ * consumer calls the loader before `forRoot()` sees anything.
+ */
+export function resolveCatalog(options: SaaSiCatModuleOptions): PlanCatalog | undefined {
+    if (options.planCatalog) return options.planCatalog;
+    if (dbCatalogNamesAFile(options.dbCatalog)) return loadPlanCatalogFromFile(options.dbCatalog);
+    return undefined;
+}
 
 /** Where the running settings came from, for the record. */
-export function resolveSettingsSource(options: SaaSiCatModuleOptions): string {
-    if (options.planCatalog) return catalogSource(options.planCatalog) ?? SOURCE_IN_CODE;
-    return SOURCE_DB_CATALOG;
+export function resolveSettingsSource(catalog: PlanCatalog): string {
+    return catalogSource(catalog) ?? SOURCE_IN_CODE;
 }
 
 /**
@@ -58,17 +80,16 @@ export function resolveSettingsSource(options: SaaSiCatModuleOptions): string {
  * catalogue paths require it — so there is nothing to fall back to and no
  * placeholder that would collide with every other installation's.
  */
-export function resolveAppInfo(options: SaaSiCatModuleOptions): DiscoveryAppInfo {
+export function resolveAppInfo(
+    options: SaaSiCatModuleOptions,
+    catalog: PlanCatalog,
+): DiscoveryAppInfo {
     if (options.app) return options.app;
-    // Non-null here: `assertConfiguration` runs before this, and two of its
-    // rules together guarantee it — `catalog.identity-or-sink` refuses a
-    // configuration with neither catalogue, `catalog.app-is-named` refuses one
-    // whose catalogue names no application. Deliberately not `?? ''`: an empty
-    // key would reach the discovery snapshot and the manifest with nothing
-    // saying the identity was missing, which is the failure mode the old
-    // `'app'` placeholder existed to avoid.
-    const app = (options.planCatalog?.app ?? options.dbCatalog?.app) as PlanCatalog['app'];
-    return { key: app.name, version: app.version ?? '0.0.0' };
+    // Deliberately not `?? ''`: `catalog.app-is-named` has already refused a
+    // catalogue whose application has no name, and an empty key reaching the
+    // discovery snapshot and the manifest with nothing saying the identity was
+    // missing is the failure mode the old `'app'` placeholder existed to avoid.
+    return { key: catalog.app.name, version: catalog.app.version ?? '0.0.0' };
 }
 
 /**
@@ -79,21 +100,22 @@ export function resolveAppInfo(options: SaaSiCatModuleOptions): DiscoveryAppInfo
  */
 export function composePlanCatalog(
     options: SaaSiCatModuleOptions,
+    catalog: PlanCatalog,
     sink: ProviderSpec<PlanCatalogReadSink> | undefined,
 ): DynamicModule {
     if (options.planCatalog) {
         return PlanCatalogModule.forRootWithCatalog(options.planCatalog, { global: true });
     }
-    // Non-null on this branch: `catalog.identity-or-sink` has already refused a
-    // configuration that reaches here without it.
-    const dbCatalog = options.dbCatalog as NonNullable<SaaSiCatModuleOptions['dbCatalog']>;
+    // The settings come from the file `dbCatalog` named, which is `catalog`
+    // here; the plans and the features come from the sink, which
+    // `catalog.identity-or-sink` has already refused a configuration without.
     return PlanCatalogModule.forRoot({
-        app: dbCatalog.app,
-        currency: dbCatalog.currency,
-        vatRate: dbCatalog.vatRate,
-        tenantBilling: dbCatalog.tenantBilling,
-        marketing: dbCatalog.marketing,
-        notifications: dbCatalog.notifications,
+        app: catalog.app,
+        currency: catalog.currency,
+        vatRate: catalog.vatRate,
+        tenantBilling: catalog.tenantBilling,
+        marketing: catalog.marketing,
+        notifications: catalog.notifications,
         sink: sink as ProviderSpec<PlanCatalogReadSink>,
         imports: options.imports,
     });
@@ -112,6 +134,7 @@ export interface CorePorts {
 /** Discovery, the admin core, the manifest and the settings record — in that order. */
 export function composeBaseModules(
     options: SaaSiCatModuleOptions,
+    catalog: PlanCatalog,
     appInfo: DiscoveryAppInfo,
     ports: CorePorts,
 ): DynamicModule[] {
@@ -144,7 +167,7 @@ export function composeBaseModules(
         SettingsModule.forRoot({
             port: appliedSettingsPort,
             email: emailPort,
-            source: resolveSettingsSource(options),
+            source: resolveSettingsSource(catalog),
             controller: { guards: options.controller.guards },
             includeController: options.includeSettingsController,
             imports: options.imports,

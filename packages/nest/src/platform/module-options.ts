@@ -49,6 +49,7 @@ import {
 import { type TenantBillingModuleOptions } from '../billing/tenant-billing.module.js';
 import { type CatalogModuleOptions } from '../catalog/catalog.module.js';
 import type { DiscoveryAppInfo } from '../discovery/discovery.scanner.js';
+import type { LoadPlanCatalogOptions } from '../billing/plan-catalog-loader.js';
 import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution.js';
 import { type PromoCodesModuleOptions } from '../promo/promo.module.js';
 import { type SetupModuleOptions } from '../setup/setup.module.js';
@@ -263,35 +264,37 @@ export interface SaaSiCatSubscriptionContractOptions extends Omit<
  * Everything else — an operator creating tenants through the SuperAdmin UI, a
  * CLI, or your own onboarding form — is composed here.
  */
+/**
+ * Which `config/saas.yaml` a database-held catalogue reads its settings from.
+ *
+ * The same file the quickstart path loads, read by the platform. A `plans:` or
+ * `features:` block in it is not read on this path — the sink is their source —
+ * so a file kept as the seed for `saasicat catalog import` still loads.
+ */
+export type DbCatalogOptions = Pick<LoadPlanCatalogOptions, 'path' | 'env'>;
+
 export interface SaaSiCatModuleOptions {
     /**
      * Plan catalog. Either as an already-loaded object (quickstart, comes
      * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or via DB
      * hydration: a sink reference in `adapters.planCatalogReadSink` /
-     * `persistence.planCatalogReadSink` **plus** the `dbCatalog` identity.
+     * `persistence.planCatalogReadSink` **plus** `dbCatalog` naming the file.
      */
     planCatalog?: PlanCatalog;
     /**
-     * App identity for the DB-hydration path — required when `planCatalog`
-     * is omitted. The read sink only loads plans and features; branding,
-     * currency and VAT cannot come from the database and must be supplied
-     * here.
+     * The DB-hydration path — required when `planCatalog` is omitted: the
+     * `config/saas.yaml` the platform reads the settings from. The read sink
+     * loads plans and features; `app`, `currency`, `vatRate`, `tenantBilling`,
+     * `marketing` and `notifications` are not in the database and never will
+     * be, so they come from the file this names.
+     *
+     * A path rather than the values. The option used to take them as values,
+     * and every consumer forwarded them from the file it had loaded anyway —
+     * by agreement, which is a second place a setting can live. The file
+     * defines them by construction now: there is nothing here to type a
+     * setting into.
      */
-    dbCatalog?: {
-        currency: string;
-        vatRate: number;
-        app: PlanCatalog['app'];
-        /**
-         * Forwarded from the same `config/saas.yaml` the other three come from
-         * — `loadPlanCatalogFromFile(...).tenantBilling`. The read sink loads
-         * plans and features; these are not in the database and never will be,
-         * so the file is the only place they can come from.
-         */
-        tenantBilling: PlanCatalog['tenantBilling'];
-        marketing?: PlanCatalog['marketing'];
-        /** Who is told when the settings change — from the same file, like the rest. */
-        notifications?: PlanCatalog['notifications'];
-    };
+    dbCatalog?: DbCatalogOptions;
     /**
      * Aggregate persistence bundle from an adapter package (e.g.
      * `prismaPersistence({ client: PrismaService })` from

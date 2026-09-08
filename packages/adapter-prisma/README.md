@@ -53,10 +53,10 @@ Options:
   for schemas that differ from the 0.6 canonical layout.
 
 The bundle also ships `planCatalogReadSink` for DB hydration. To use it,
-omit `planCatalog` and pass the identity the database cannot provide:
-`SaaSiCatModule.forRoot({ persistence, dbCatalog: { app, currency, vatRate, tenantBilling } })`
-— without `dbCatalog` the module refuses to boot, because branding, currency
-and VAT cannot come from the database.
+omit `planCatalog` and name the file the settings come from:
+`SaaSiCatModule.forRoot({ persistence, dbCatalog: { path: 'config/saas.yaml' } })`
+— without `dbCatalog` the module refuses to boot, because branding, currency,
+VAT and the commercial settings cannot come from the database.
 
 Slices the mega module does not wire (promo) spread into the domain module:
 

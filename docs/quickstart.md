@@ -111,7 +111,9 @@ create(@Req() req: DemoRequest, @Body() dto: CreateNoteDto) {
 
 The plans themselves are in `config/saas.yaml`, which `init` wrote — `STARTER`
 with `notesMax: 25`, `PRO` with more. Applications that manage plans in the
-SuperAdmin UI drop that block and pass `dbCatalog` instead.
+SuperAdmin UI drop that block and pass `dbCatalog: { path: 'config/saas.yaml' }`
+instead: the settings keep coming from the file, only the plans come from the
+database.
 
 For a race-critical operation — a large upload against a storage quota — the
 transactional path `EntitlementService.enforceLimit({ … })` is the cleaner one;
@@ -194,8 +196,9 @@ dashboard. The **Discovery page** shows `notes.create` as "discovered", the
 Add these in this order:
 
 1. **Switch the runtime catalog to the database:** replace `planCatalog` with
-   `dbCatalog: { app, currency, vatRate, tenantBilling, marketing }`. The
-   persistence bundle already supplies the read sink and catalog repositories.
+   `dbCatalog: { path: 'config/saas.yaml' }`. The persistence bundle already
+   supplies the read sink and catalog repositories, and the settings keep
+   coming from the file — the platform reads it itself.
 
 2. **Manifest contributions** for your own SuperAdmin KPI cards, tenant
    actions and project pages. **Tenant navigation** contributions via
