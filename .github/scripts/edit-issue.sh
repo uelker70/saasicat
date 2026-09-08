@@ -15,6 +15,8 @@ fail() {
     exit 1
 }
 
+jq --version >/dev/null 2>&1 || fail "jq is missing on the runner — the script reads the run's event with it"
+
 [ -f "${GITHUB_EVENT_PATH:-}" ] || fail "no event (GITHUB_EVENT_PATH) — this script only runs inside the workflow"
 number=$(jq -r '.issue.number // empty' "$GITHUB_EVENT_PATH")
 [[ "$number" =~ ^[0-9]+$ ]] || fail "the event carries no issue (pull request or review event?)"
@@ -57,6 +59,10 @@ fi
 
 # The repository comes from the run, not from the checkout's git remote.
 export GH_REPO="${GITHUB_REPOSITORY:?}"
-echo "before: $(gh issue view "$number" --json title,body --jq '"\(.title) — \(.body | length) chars"')"
+# Separate assignments, not `echo "$(…)"`: if `gh issue view` fails, the run
+# ends here before anything is written — and the log names the state before.
+before=$(gh issue view "$number" --json title,body --jq '"\(.title) — \(.body | length) chars"')
+echo "before: $before"
 gh issue edit "$number" "${args[@]}"
-echo "after:  $(gh issue view "$number" --json title,body --jq '"\(.title) — \(.body | length) chars"')"
+after=$(gh issue view "$number" --json title,body --jq '"\(.title) — \(.body | length) chars"')
+echo "after:  $after"
