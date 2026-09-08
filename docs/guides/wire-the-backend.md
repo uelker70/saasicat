@@ -358,9 +358,10 @@ For a database-managed runtime catalog, replace `planCatalog` with the path of
 the same file:
 
 ```ts
-dbCatalog: {
-    path: 'config/saas.yaml';
-}
+SaaSiCatModule.forRoot({
+    // … the rest of your wiring …
+    dbCatalog: { path: 'config/saas.yaml' },
+});
 ```
 
 The platform reads the settings — `app`, `currency`, `vatRate`,

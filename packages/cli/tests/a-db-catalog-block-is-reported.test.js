@@ -69,6 +69,27 @@ describe('what the codemod says about a dbCatalog that still carries the values'
         ]);
     });
 
+    test('a block commented out, or quoted as a sample, is not migration work', () => {
+        // The outer scan keeps the lexical context the way the literal is
+        // read: a comment or a string is stepped over whole.
+        const source = [
+            '// dbCatalog: { vatRate: 19 },',
+            '/* dbCatalog: {',
+            '    currency: "EUR",',
+            '} */',
+            'const sample = "dbCatalog: { vatRate: 19 }";',
+            'const other = `dbCatalog: { app: X }`;',
+        ].join('\n');
+        assert.deepEqual(findDbCatalogBlocks(source).occurrences, []);
+    });
+
+    test('a live block after a comment that mentions one is still reported, on its own line', () => {
+        const source = `// the old shape was dbCatalog: { vatRate: 19 }\ndbCatalog: { vatRate: 19 },`;
+        assert.deepEqual(findDbCatalogBlocks(source).occurrences, [
+            { line: 2, shape: 'values', leftovers: ['vatRate'] },
+        ]);
+    });
+
     test('a value it cannot see into is named for a person to look at', () => {
         const source = `const options = {\n    dbCatalog: DB_CATALOG,\n};`;
         assert.deepEqual(findDbCatalogBlocks(source).occurrences, [

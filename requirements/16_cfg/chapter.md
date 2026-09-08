@@ -123,6 +123,8 @@ _Tested by:_
           named
         - a spread beside the path is named as one, because what it carries is decided elsewhere
         - a path that is not this block’s own does not count as one
+        - a block commented out, or quoted as a sample, is not migration work
+        - a live block after a comment that mentions one is still reported, on its own line
         - a value it cannot see into is named for a person to look at
         - a mention that is not a property is not a block
         - a block the file ends inside is still reported rather than lost

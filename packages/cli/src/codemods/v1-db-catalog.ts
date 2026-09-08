@@ -89,6 +89,24 @@ function closingQuote(text: string, open: number): number {
     return text.length;
 }
 
+/**
+ * The index after the comment or string starting at `at`, or `at` itself where
+ * none starts there. An unterminated one runs to the text's end.
+ */
+function skipCommentOrString(text: string, at: number): number {
+    const ch = text[at];
+    if (ch === '/' && text[at + 1] === '/') {
+        const end = text.indexOf('\n', at);
+        return end === -1 ? text.length : end;
+    }
+    if (ch === '/' && text[at + 1] === '*') {
+        const end = text.indexOf('*/', at + 2);
+        return end === -1 ? text.length : end + 2;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') return closingQuote(text, at) + 1;
+    return at;
+}
+
 interface ObjectLiteral {
     /** The names of the literal's own members, in order. */
     readonly members: readonly string[];
@@ -115,22 +133,18 @@ function objectLiteralAt(text: string, open: number): ObjectLiteral {
     let at = open + 1;
     while (at < text.length) {
         const ch = text[at] as string;
-        if (ch === '/' && text[at + 1] === '/') {
-            const end = text.indexOf('\n', at);
-            at = end === -1 ? text.length : end;
-            continue;
-        }
-        if (ch === '/' && text[at + 1] === '*') {
-            const end = text.indexOf('*/', at + 2);
-            at = end === -1 ? text.length : end + 2;
-            continue;
-        }
         if (ch === "'" || ch === '"' || ch === '`') {
+            // A quoted key is a member; a string anywhere else is stepped over.
             const end = closingQuote(text, at);
             if (depth === 0 && expectingKey && text[skipBlanks(text, end + 1)] === ':') {
                 members.push(text.slice(at + 1, end));
             }
             at = end + 1;
+            continue;
+        }
+        const skipped = skipCommentOrString(text, at);
+        if (skipped > at) {
+            at = skipped;
             continue;
         }
         if (ch === '{' || ch === '[' || ch === '(') {
@@ -169,13 +183,15 @@ function objectLiteralAt(text: string, open: number): ObjectLiteral {
 /**
  * Every `dbCatalog:` property in one source file, with what stands to its right.
  *
- * A property, which means the name followed by a colon. The other codemod in
- * this family reports every word-boundary mention of a setting, including one
- * in a comment, on the reasoning that over-reporting inside code costs a
- * glance. That reasoning does not carry here: `saasicat init` writes the
- * sentence "pass `dbCatalog` instead" into every generated `app.module.ts`, so
- * a mention is the normal case and a report of it would be noise on every
- * upgrade. A type member (`dbCatalog?:`) is not a property either, and a
+ * A property in code, which means the name followed by a colon, outside any
+ * comment or string. The other codemod in this family reports every
+ * word-boundary mention of a setting, including one in a comment, on the
+ * reasoning that over-reporting inside code costs a glance. That reasoning
+ * does not carry here: `saasicat init` writes the sentence "pass `dbCatalog`
+ * instead" into every generated `app.module.ts`, so a mention is the normal
+ * case and a report of it would be noise on every upgrade — and a block
+ * commented out, or quoted as a sample, is migration work that does not
+ * exist. A type member (`dbCatalog?:`) is not a property either, and a
  * shorthand `{ dbCatalog }` is not seen — the value it carries is elsewhere,
  * and the module's refusal names it at boot.
  *
@@ -185,26 +201,46 @@ function objectLiteralAt(text: string, open: number): ObjectLiteral {
 export function findDbCatalogBlocks(text: string): DbCatalogResult {
     const occurrences: DbCatalogOccurrence[] = [];
 
-    for (let at = text.indexOf(PROPERTY); at >= 0; at = text.indexOf(PROPERTY, at + 1)) {
-        if (isIdentifierChar(text[at - 1])) continue;
+    // One pass with the lexical context kept, the same way the literal is
+    // read: a comment or a string is stepped over whole, so a `dbCatalog:`
+    // inside one is never looked at.
+    let at = 0;
+    while (at < text.length) {
+        const skipped = skipCommentOrString(text, at);
+        if (skipped > at) {
+            at = skipped;
+            continue;
+        }
+        if (!text.startsWith(PROPERTY, at) || isIdentifierChar(text[at - 1])) {
+            at += 1;
+            continue;
+        }
         const afterName = at + PROPERTY.length;
-        if (isIdentifierChar(text[afterName])) continue;
+        if (isIdentifierChar(text[afterName])) {
+            at = afterName;
+            continue;
+        }
         const colon = skipBlanks(text, afterName);
-        if (text[colon] !== ':') continue;
+        if (text[colon] !== ':') {
+            at = afterName;
+            continue;
+        }
 
         const value = skipBlanks(text, colon + 1);
         const line = lineAt(text, at);
         if (text[value] !== '{') {
             occurrences.push({ line, shape: 'reference', leftovers: [] });
+            at = value;
             continue;
         }
-        const { members } = objectLiteralAt(text, value);
+        const { members, end } = objectLiteralAt(text, value);
         const leftovers = members.filter((member) => !TAKEN.has(member));
         if (!members.includes('path')) {
             occurrences.push({ line, shape: 'values', leftovers });
         } else if (leftovers.length > 0) {
             occurrences.push({ line, shape: 'mixed', leftovers });
         }
+        at = end;
     }
 
     return { occurrences };
