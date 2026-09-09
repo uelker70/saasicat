@@ -1,5 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import 'reflect-metadata';
 import { Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -110,31 +113,49 @@ describe('SaaSiCatModule persistence bundle', () => {
         assert.ok(mod.module);
     });
 
-    test('DB hydration forwards the dbCatalog identity to the plan-catalog factory', async () => {
-        let loads = 0;
-        const sink = {
-            loadSnapshot: async () => {
-                loads++;
-                return { plans: [], livePlanVersions: [], featureEntries: [] };
-            },
-        };
-        const mod = SaaSiCatModule.forRoot({
-            controller: { guards: [] },
-            persistence: fakeBundle(),
-            adapters: { planCatalogReadSink: sink },
-            dbCatalog: { app: { name: 'NotesApp' }, currency: 'EUR', vatRate: 19 },
-        });
+    test('DB hydration reads the settings from the file dbCatalog names, and the plans from the sink', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'saasicat-db-catalog-'));
+        try {
+            const path = join(dir, 'saas.yaml');
+            writeFileSync(
+                path,
+                [
+                    'schemaVersion: 1',
+                    'app: { name: NotesApp }',
+                    'currency: EUR',
+                    'vatRate: 19',
+                    'tenantBilling:',
+                    '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
+                    '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
+                ].join('\n'),
+            );
+            let loads = 0;
+            const sink = {
+                loadSnapshot: async () => {
+                    loads++;
+                    return { plans: [], livePlanVersions: [], featureEntries: [] };
+                },
+            };
+            const mod = SaaSiCatModule.forRoot({
+                controller: { guards: [] },
+                persistence: fakeBundle(),
+                adapters: { planCatalogReadSink: sink },
+                dbCatalog: { path },
+            });
 
-        const planCatalogModule = mod.imports[0];
-        const catalogFactory = planCatalogModule.providers.find(
-            (provider) => typeof provider.useFactory === 'function',
-        );
-        const catalog = await catalogFactory.useFactory(sink);
+            const planCatalogModule = mod.imports[0];
+            const catalogFactory = planCatalogModule.providers.find(
+                (provider) => typeof provider.useFactory === 'function',
+            );
+            const catalog = await catalogFactory.useFactory(sink);
 
-        assert.equal(loads, 1);
-        assert.equal(catalog.app.name, 'NotesApp');
-        assert.equal(catalog.currency, 'EUR');
-        assert.equal(catalog.vatRate, 19);
+            assert.equal(loads, 1);
+            assert.equal(catalog.app.name, 'NotesApp');
+            assert.equal(catalog.currency, 'EUR');
+            assert.equal(catalog.vatRate, 19);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
     });
 
     test('DB hydration without dbCatalog fails fast instead of loading an empty catalog', () => {
@@ -145,6 +166,18 @@ describe('SaaSiCatModule persistence bundle', () => {
                     persistence: fakeBundle(), // provides a read sink, but no identity
                 }),
             /dbCatalog/,
+        );
+    });
+
+    test('DB hydration with the values typed into dbCatalog is refused, naming what it takes now', () => {
+        assert.throws(
+            () =>
+                SaaSiCatModule.forRoot({
+                    controller: { guards: [] },
+                    persistence: fakeBundle(),
+                    dbCatalog: { app: { name: 'NotesApp' }, currency: 'EUR', vatRate: 19 },
+                }),
+            /dbCatalog: \{ path: 'config\/saas\.yaml' \}/,
         );
     });
 

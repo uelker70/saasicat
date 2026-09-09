@@ -90,7 +90,7 @@ that surprised us:
 
 | Your wiring                                                                     | Standard stack                                  | Note                                                                                                |
 | ------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `PlanCatalogModule.forRoot({app, currency, vatRate, tenantBilling, marketing})` | `dbCatalog: {...}`                              | identity + settings; plans come from the read sink                                                  |
+| `PlanCatalogModule.forRoot({app, currency, vatRate, tenantBilling, marketing})` | `dbCatalog: { path: 'config/saas.yaml' }`       | the settings come from the file; plans from the read sink                                           |
 | `EntitlementModule.forRoot({...repos, resolutionConfig})`                       | `entitlement: { resolutionConfig }`             | repos come from the bundle                                                                          |
 | `PublicCatalogModule.forRoot(...)`                                              | `catalog: { publicCatalog: true }`              | on by default                                                                                       |
 | `PromoCodesModule.forRoot({includePublicController: true})`                     | `promoCodes: { includePublicController: true }` | **default flips to `false`** — set it explicitly or you silently lose `POST /billing/promo/preview` |

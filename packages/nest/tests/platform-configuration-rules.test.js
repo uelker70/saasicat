@@ -304,6 +304,20 @@ describe('every rule can actually fail', () => {
             },
             adapters: CORE_ADAPTERS,
         },
+        // A dbCatalog that still carries the values instead of naming the file.
+        {
+            options: {
+                dbCatalog: { app: { name: 'Typed' }, currency: 'EUR', vatRate: 19 },
+                controller: { guards: [] },
+            },
+            adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
+        },
+        // A dbCatalog naming a file the platform could not read.
+        {
+            options: { dbCatalog: { path: 'config/saas.yaml' }, controller: { guards: [] } },
+            adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
+            catalogFailure: new Error("ENOENT: no such file or directory, open '/app/saas.yaml'"),
+        },
     ];
 
     test('every rule fails in at least one probe', () => {
@@ -340,6 +354,137 @@ describe('every rule can actually fail', () => {
             (r) => r.id === 'entitlement.requires-transactional-persistence',
         );
         assert.match(messageOf(rule, PROBES[2]), /transactions, pessimistic locking/);
+    });
+});
+
+// @requirement SC-CFG-034 — An installation whose plans live in the database reads its settings from the file
+describe('a dbCatalog that still carries the values', () => {
+    // The option takes the path of the file now. A block with the values is
+    // the shape every consumer had before, and the values in it are the ones
+    // an operator believes are running — so it is refused by name rather than
+    // read, and refused once: the name it also carries is not a second
+    // finding on top.
+    const WITH_VALUES = { app: { name: 'Typed' }, currency: 'EUR', vatRate: 19 };
+    const SINK = { ...CORE_ADAPTERS, planCatalogReadSink: {} };
+
+    test('is a finding of its own, and the only one', () => {
+        const violations = findViolations({
+            options: { dbCatalog: WITH_VALUES, controller: { guards: [] } },
+            adapters: SINK,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.db-catalog-names-the-file'],
+        );
+        assert.match(violations[0].message, /dbCatalog: \{ path: 'config\/saas\.yaml' \}/);
+    });
+
+    test('a path with a value left beside it is refused too, and the finding names the value', () => {
+        const violations = findViolations({
+            options: {
+                dbCatalog: {
+                    path: 'config/saas.yaml',
+                    vatRate: 19,
+                    marketing: { availableLocales: ['en'] },
+                },
+                controller: { guards: [] },
+            },
+            adapters: SINK,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.db-catalog-names-the-file'],
+        );
+        assert.match(violations[0].message, /still carries vatRate, marketing/);
+        assert.doesNotMatch(violations[0].message, /used to take/);
+    });
+
+    test('an env beside the path is what the option takes', () => {
+        const violations = findViolations({
+            options: {
+                dbCatalog: { path: 'config/saas.yaml', env: {} },
+                controller: { guards: [] },
+            },
+            adapters: SINK,
+            catalog: { schemaVersion: 1, app: { name: 'FromFile' }, currency: 'EUR', vatRate: 19 },
+        });
+        assert.deepEqual(violations, []);
+    });
+
+    test('a blank path is the same omission spelled differently', () => {
+        const violations = findViolations({
+            options: { dbCatalog: { path: '   ' }, controller: { guards: [] } },
+            adapters: SINK,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.db-catalog-names-the-file'],
+        );
+    });
+
+    test('a path is what the option takes, so the rule has nothing to say', () => {
+        const violations = findViolations({
+            options: { dbCatalog: { path: 'config/saas.yaml' }, controller: { guards: [] } },
+            adapters: SINK,
+            catalog: { schemaVersion: 1, app: { name: 'FromFile' }, currency: 'EUR', vatRate: 19 },
+        });
+        assert.deepEqual(violations, []);
+    });
+});
+
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
+describe('a dbCatalog whose file did not load', () => {
+    // The platform calls the loader on this path, so a throw from inside it
+    // would end the boot before any other rule had spoken — and the loader's
+    // own text names an absolute path without naming the option that produced
+    // it, or the directory the relative one was resolved against.
+    const FAILURE = new Error("ENOENT: no such file or directory, open '/app/config/saas.yaml'");
+    const NAMES_THE_FILE = { path: 'config/saas.yaml' };
+    const SINK = { ...CORE_ADAPTERS, planCatalogReadSink: {} };
+
+    test('is a finding of its own, naming the option, the path and where it was resolved', () => {
+        const violations = findViolations({
+            options: { dbCatalog: NAMES_THE_FILE, controller: { guards: [] } },
+            adapters: SINK,
+            catalogFailure: FAILURE,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.db-catalog-file-loads'],
+        );
+        assert.match(violations[0].message, /`dbCatalog` names 'config\/saas\.yaml'/);
+        assert.match(violations[0].message, /ENOENT/);
+        assert.match(violations[0].message, /directory the process was started in/);
+    });
+
+    test('is reported beside whatever else is wrong, not instead of it', () => {
+        const violations = findViolations({
+            options: { dbCatalog: NAMES_THE_FILE, controller: { guards: [] }, catalog: {} },
+            adapters: CORE_ADAPTERS,
+            catalogFailure: FAILURE,
+        });
+        assert.deepEqual(violations.map((v) => v.id).sort(), [
+            'catalog.db-catalog-file-loads',
+            'catalog.identity-or-sink',
+            'catalog.requires-persistence',
+        ]);
+    });
+
+    test('says nothing where the file loaded, and nothing on the quickstart path', () => {
+        assert.deepEqual(
+            findViolations({
+                options: { dbCatalog: NAMES_THE_FILE, controller: { guards: [] } },
+                adapters: SINK,
+                catalog: {
+                    schemaVersion: 1,
+                    app: { name: 'FromFile' },
+                    currency: 'EUR',
+                    vatRate: 19,
+                },
+            }),
+            [],
+        );
+        assert.deepEqual(findViolations(sound()), []);
     });
 });
 
@@ -391,12 +536,16 @@ describe('a catalogue that names no application', () => {
     });
 
     test('the DB-hydration path is held to it too', () => {
+        // `forRoot` resolves the catalogue from the file `dbCatalog` names
+        // before the rules run; here the resolved catalogue is handed in, so
+        // the rule sees what it would see.
         const violations = findViolations({
             options: {
-                dbCatalog: { currency: 'EUR', vatRate: 19 },
+                dbCatalog: { path: 'config/saas.yaml' },
                 controller: { guards: [] },
             },
             adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
+            catalog: NAMELESS,
         });
         assert.deepEqual(
             violations.map((v) => v.id),

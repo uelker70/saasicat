@@ -50,7 +50,8 @@ marketing:
 
 # The quickstart path: plans live here, and `loadPlanCatalogFromFile` reads
 # them at boot. Apps that let operators manage plans in the SuperAdmin UI drop
-# this block and pass `dbCatalog` instead — see docs/quickstart.md.
+# this block and pass `dbCatalog: { path: 'config/saas.yaml' }` instead — the
+# settings above stay here either way. See docs/quickstart.md.
 plans:
     - id: STARTER
       name: Starter

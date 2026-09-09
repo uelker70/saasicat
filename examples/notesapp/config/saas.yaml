@@ -50,7 +50,8 @@ marketing:
 
 # Static quickstart path: plans live directly in the YAML. Apps that manage
 # plans in the SuperAdmin UI omit this block and use the DB catalog instead
-# (SaaSiCatModule.forRoot({ persistence, dbCatalog })).
+# (SaaSiCatModule.forRoot({ persistence, dbCatalog: { path: 'config/saas.yaml' } }))
+# — the settings above stay in this file either way.
 plans:
     - id: STARTER
       name: Starter

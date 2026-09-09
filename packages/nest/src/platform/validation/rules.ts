@@ -19,9 +19,19 @@
 // anything to say about this configuration at all, so "not enabled" and
 // "enabled and satisfied" never look alike.
 
-import { assertPersistenceCapabilities, type SaaSiCatPersistenceAdapter } from '@saasicat/core';
+import {
+    assertPersistenceCapabilities,
+    type PlanCatalog,
+    type SaaSiCatPersistenceAdapter,
+} from '@saasicat/core';
 
-import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
+import {
+    dbCatalogLeftovers,
+    dbCatalogNamesAFile,
+    dbCatalogNamesAPath,
+    type SaaSiCatAdapters,
+    type SaaSiCatModuleOptions,
+} from '../module-options.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 
 /** Everything a rule may look at: the options as given, the adapters as resolved. */
@@ -29,6 +39,20 @@ export interface PlatformConfiguration {
     readonly options: SaaSiCatModuleOptions;
     /** After the bundle slices and the explicit entries have been merged. */
     readonly adapters: SaaSiCatAdapters;
+    /**
+     * The catalogue as resolved before the database is asked: `planCatalog`
+     * as given, or the file `dbCatalog` names, loaded. Absent where nothing
+     * usable was configured — which is for the rules to say.
+     */
+    readonly catalog?: PlanCatalog;
+    /**
+     * Why the file `dbCatalog` named did not load, where it did not.
+     *
+     * A finding rather than a throw from inside the loader: the platform is
+     * the caller on this path, so an unreadable file would otherwise end the
+     * boot before any other rule had spoken.
+     */
+    readonly catalogFailure?: Error;
 }
 
 export interface PlatformRule {
@@ -135,6 +159,10 @@ function absent<T extends Record<string, unknown>>(required: T): string[] {
 
 const list = (names: string[]): string => names.join(', ');
 
+/** The catalogue a rule may look at, on either path. */
+const catalogOf = (c: PlatformConfiguration): PlanCatalog | undefined =>
+    c.catalog ?? c.options.planCatalog;
+
 /** The rules, without the field every one of them derives from its own id. */
 type RuleSpec = Omit<PlatformRule, 'docs'>;
 
@@ -155,23 +183,74 @@ const RULE_SPECS: readonly RuleSpec[] = [
         message:
             'no plan catalogue is reachable. Either set `planCatalog` (the quickstart YAML ' +
             'path) or, for DB hydration, BOTH a `planCatalogReadSink` (via `adapters` or ' +
-            '`persistence`) AND `dbCatalog` ({ app, currency, vatRate, tenantBilling }). ' +
-            'Without the identity the app boots with a silently empty catalogue.',
+            "`persistence`) AND `dbCatalog` ({ path: 'config/saas.yaml' }, the file the " +
+            'settings are read from). Without the file the app boots with a silently empty ' +
+            'catalogue and no settings.',
+    },
+    {
+        id: 'catalog.db-catalog-names-the-file',
+        when: (c) => c.options.dbCatalog !== undefined,
+        assert: (c) => dbCatalogNamesAFile(c.options.dbCatalog),
+        message: (c) => {
+            // Two ways to fail it, told apart because the fix differs: no path at
+            // all is the old shape whole; a path with a value beside it is an
+            // upgrade that stopped halfway, and the value is the one thing to name.
+            const given = c.options.dbCatalog;
+            const leftovers = dbCatalogNamesAPath(given) ? dbCatalogLeftovers(given) : [];
+            if (leftovers.length > 0) {
+                return (
+                    `\`dbCatalog\` names the file and nothing else, and this one still carries ${list(leftovers)}. ` +
+                    'Delete that here; the platform reads the settings from the file it names, and a ' +
+                    'value left beside the path would be ignored while looking like the one that ' +
+                    'runs. See docs/guides/upgrade-to-1.0.md.'
+                );
+            }
+            return (
+                "`dbCatalog` names the file: `dbCatalog: { path: 'config/saas.yaml' }`. It used to " +
+                'take `app`, `currency`, `vatRate` and `tenantBilling` as values, and that was a ' +
+                'second place a setting could live. Delete the values here; the platform reads ' +
+                'them from the file it names — the same one they were forwarded from. See ' +
+                'docs/guides/upgrade-to-1.0.md.'
+            );
+        },
+    },
+    {
+        id: 'catalog.db-catalog-file-loads',
+        // Only where a file was named at all. On the quickstart path the
+        // consumer calls the loader themselves, and their own stack says where.
+        when: (c) => c.options.dbCatalog !== undefined,
+        assert: (c) => c.catalogFailure === undefined,
+        message: (c) => {
+            // The loader's own text names the absolute path, and for a schema
+            // failure the field. What it cannot say is which option named the
+            // file, or that a relative path was resolved against the directory
+            // the process was started in — which is the whole difference
+            // between this path and the quickstart one, where the consumer
+            // wrote the call and the stack points at their own file.
+            const given = c.options.dbCatalog;
+            const named = dbCatalogNamesAPath(given) ? given.path : 'config/saas.yaml';
+            const why = c.catalogFailure ? `: ${c.catalogFailure.message}` : '';
+            return (
+                `\`dbCatalog\` names '${named}' and the file did not load${why}. ` +
+                'A relative path is resolved against the directory the process was started ' +
+                'in, not against the file the option is written in. See ' +
+                'docs/guides/wire-the-backend.md.'
+            );
+        },
     },
     {
         id: 'catalog.app-is-named',
         // Only where a catalogue is reachable at all — otherwise
         // `catalog.identity-or-sink` is the finding, and reporting both would
         // name the same omission twice.
-        when: (c) => Boolean(c.options.planCatalog ?? c.options.dbCatalog),
-        assert: (c) =>
-            Boolean((c.options.planCatalog?.app ?? c.options.dbCatalog?.app)?.name?.trim()),
+        when: (c) => catalogOf(c) !== undefined,
+        assert: (c) => Boolean(catalogOf(c)?.app?.name?.trim()),
         message:
             'the catalogue names no application. `app.name` is the one place an installation ' +
             'names itself — it is the manifest display name, the login-page brand and the ' +
             'discovery snapshot key — so an absent one is not a default to fill in: the app ' +
             'would boot identified by an empty string. Set `app: { name: … }` in ' +
-            'config/saas.yaml, or in `dbCatalog` on the DB-hydration path.',
+            'config/saas.yaml.',
     },
     {
         id: 'catalog.requires-persistence',

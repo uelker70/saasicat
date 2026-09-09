@@ -27,7 +27,7 @@
 // adapters, check the configuration, assemble.
 
 import { type DynamicModule, Logger, Module, type Provider } from '@nestjs/common';
-import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/core';
+import type { AuditPort, MfaPort, PlanCatalog, RlsBypassPort } from '@saasicat/core';
 
 import { type ProviderSpec } from '../core/di.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';
@@ -42,7 +42,12 @@ import {
 export * from './module-options.js';
 import { assertConfiguration } from './validation/validate.js';
 import { composeFeatures, type CompositionContext } from './compose/index.js';
-import { composeBaseModules, composePlanCatalog, resolveAppInfo } from './compose/base.js';
+import {
+    composeBaseModules,
+    composePlanCatalog,
+    resolveAppInfo,
+    resolveCatalog,
+} from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
 import { composeTenantManifest } from './compose/tenant-manifest.js';
 import { composeEnforcementRuntime, resolvePlanResolution } from './compose/enforcement-runtime.js';
@@ -120,20 +125,33 @@ export class SaaSiCatModule {
         // integrator gets the complete list of what is missing instead of
         // discovering it one restart at a time, and so each one can carry the
         // link to its own documentation.
-        assertConfiguration({ options, adapters });
+        //
+        // The catalogue the rules read and the composition runs on is resolved
+        // first: the object given, or the file `dbCatalog` names — loaded here,
+        // so that on the database path the settings come from the file by
+        // construction rather than by whatever the consumer forwarded. A file
+        // that does not load is a finding rather than a throw, so it lands in
+        // the same list as everything else that is wrong.
+        const { catalog, failure: catalogFailure } = resolveCatalog(options);
+        assertConfiguration({ options, adapters, catalog, catalogFailure });
 
         // Non-null after the check above — AdminModule requires them.
         const mfaPort = adapters.mfa as ProviderSpec<MfaPort>;
         const auditPort = adapters.audit as ProviderSpec<AuditPort>;
         const rlsBypassPort = adapters.rlsBypass as ProviderSpec<RlsBypassPort>;
+        // And so is this: `catalog.identity-or-sink`,
+        // `catalog.db-catalog-names-the-file` and `catalog.db-catalog-file-loads`
+        // together refuse a configuration that reaches here without a catalogue
+        // to run on.
+        const running = catalog as PlanCatalog;
 
-        const appInfo = resolveAppInfo(options);
+        const appInfo = resolveAppInfo(options, running);
         const imports: NonNullable<DynamicModule['imports']> = [
             // Make injected client/auth providers visible to the high-level
             // module's own quota providers and automatic plan resolver too.
             ...(options.imports ?? []),
-            composePlanCatalog(options, adapters.planCatalogReadSink),
-            ...composeBaseModules(options, appInfo, {
+            composePlanCatalog(options, running, adapters.planCatalogReadSink),
+            ...composeBaseModules(options, running, appInfo, {
                 mfaPort,
                 auditPort,
                 rlsBypassPort,

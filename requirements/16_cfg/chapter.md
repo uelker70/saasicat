@@ -64,6 +64,13 @@ _Tested by:_
         - ${option} is refused, and the message says where it went
         - both at once are named together, so the fix is one pass
         - an explicitly undefined option is not a passed option
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - a dbCatalog that still carries the values
+        - refuses the boot, naming what the option takes now
+        - is one finding, not two: the name it also carries is not reported on top
+        - and a blank path is the same omission
+        - a value left beside the path is refused too, and named
+        - a key left beside the path with nothing in it has passed nothing
 
 <!-- END proof -->
 
@@ -106,31 +113,97 @@ _Source:_ #217
 
 _Tested by:_
 
+- `packages/cli/tests/a-db-catalog-block-is-reported.test.js`
+    - what the codemod says about a dbCatalog that still carries the values
+        - an object literal with no path is reported, with its line and its members
+        - a nested object inside the block does not end it early, and its members are not this
+          block’s
+        - one that names the file, and nothing else, is what the option takes, so it is not reported
+        - a path with a value left beside it is an upgrade that stopped halfway, and the value is
+          named
+        - a spread beside the path is named as one, because what it carries is decided elsewhere
+        - a path that is not this block’s own does not count as one
+        - a block commented out, or quoted as a sample, is not migration work
+        - a live block after a comment that mentions one is still reported, on its own line
+        - a value it cannot see into is named for a person to look at
+        - a mention that is not a property is not a block
+        - a required type member reads as a value passed, and is named for a person
+        - a block the file ends inside is still reported rather than lost
+        - what counts as migrated is the list the platform refuses by, not a copy of it
+        - the sentence says what to write
+    - what the report says about one occurrence
+        - a block with the values names them
+        - a block with a value beside the path names that one
+        - a block with nothing left to name says what is missing instead
+        - a value it cannot see into says so
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
         - every member is reported, flattened to the path it has in the file
         - an empty list reads as one, rather than as nothing at all
         - the report is read off the document, so it follows what the template writes
         - a catalogue the platform would refuse fails here, not at the first boot
-    - names both, with the line each is on
-    - the set is read off the schema, not written out beside it
-    - every setting the schema names has a sentence saying where it goes
-    - says where each one goes, separately
-    - leaves the source untouched — there is nothing to write back
-    - a longer identifier that merely contains the name is not reported
-    - reads the value back as well as writing it — the same migration, later
-    - a file that passes nothing produces no report at all
-    - prose is not scanned — it cannot pass a module option
-    - code is
-    - a shorthand property is reported
-    - a destructured read is reported
-    - a mention in a comment is reported, and that is the chosen trade
-    - several occurrences of one setting are all named, in file order
+    - what the codemod says about a setting still passed in code
+        - names both, with the line each is on
+        - the set is read off the schema, not written out beside it
+        - every setting the schema names has a sentence saying where it goes
+        - says where each one goes, separately
+        - leaves the source untouched — there is nothing to write back
+        - a longer identifier that merely contains the name is not reported
+        - reads the value back as well as writing it — the same migration, later
+        - a file that passes nothing produces no report at all
+        - prose is not scanned — it cannot pass a module option
+        - code is
+        - a shorthand property is reported
+        - a destructured read is reported
+        - a mention in a comment is reported, and that is the chosen trade
+        - several occurrences of one setting are all named, in file order
 - `packages/nest/tests/a-setting-comes-from-the-file.test.js`
     - an option that moved refuses the boot
         - ${option} is refused, and the message says where it went
         - both at once are named together, so the fix is one pass
         - an explicitly undefined option is not a passed option
+
+<!-- END proof -->
+
+### SC-CFG-034 — An installation whose plans live in the database reads its settings from the file
+
+🟢 `dbCatalog` names `config/saas.yaml`, and the platform reads `app`, `currency`, `vatRate`,
+`tenantBilling`, `marketing` and `notifications` from it; the plans and the features come from the
+database. No option takes a setting as a value in code, so the file defines them by construction
+rather than by agreement — an installation still passing the values does not start, and is told
+what the option takes instead.
+
+_Source:_ #217
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-configuration-rules.test.js`
+    - a dbCatalog that still carries the values
+        - is a finding of its own, and the only one
+        - a path with a value left beside it is refused too, and the finding names the value
+        - an env beside the path is what the option takes
+        - a blank path is the same omission spelled differently
+        - a path is what the option takes, so the rule has nothing to say
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - the settings an installation with a database catalogue runs on
+        - are the ones in the file dbCatalog names, every block the schema declares
+        - a variable the file names resolves through the environment dbCatalog is given
+        - the plans come from the database; a plans block in the file is the seed, not the catalogue
+    - where the record says the values came from, on the database path
+        - the absolute path of the file dbCatalog names
+    - a dbCatalog that still carries the values
+        - refuses the boot, naming what the option takes now
+        - is one finding, not two: the name it also carries is not reported on top
+        - and a blank path is the same omission
+        - a value left beside the path is refused too, and named
+        - a key left beside the path with nothing in it has passed nothing
+    - a file that does not load
+        - stops the boot with the loader's error, naming the path
+        - and names the option that named it, which the loader cannot
+        - is one finding beside the others, not a throw ahead of them
+        - or the field it is missing, rather than a TypeError further down
 
 <!-- END proof -->
 
@@ -230,6 +303,10 @@ _Tested by:_
         - the error names every one of them, numbered, each with its link
         - one problem is still phrased as one
         - a message names which of a set is missing, not that some are
+    - a dbCatalog whose file did not load
+        - is a finding of its own, naming the option, the path and where it was resolved
+        - is reported beside whatever else is wrong, not instead of it
+        - says nothing where the file loaded, and nothing on the quickstart path
 - `packages/nest/tests/preflight.test.js`
     - runPreflight
         - empty catalog → overall=ok, total=0
@@ -237,6 +314,12 @@ _Tested by:_
         - plan with unknown feature → overall=error, kind=plan
         - bundle with unknown feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN
         - findings are deterministically sorted (kind, entityKey, version, code)
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - a file that does not load
+        - stops the boot with the loader's error, naming the path
+        - and names the option that named it, which the loader cannot
+        - is one finding beside the others, not a throw ahead of them
+        - or the field it is missing, rather than a TypeError further down
 
 <!-- END proof -->
 
@@ -456,8 +539,8 @@ _Tested by:_
 ### SC-CFG-027 — The record says where the values came from
 
 🟢 The absolute path of the file the platform read, or a sentence saying the values were handed to it
-in code, where no path exists to name: an object passed as `planCatalog`, or the `dbCatalog` block.
-The platform does not invent a path it did not read.
+in code, where no path exists to name: an object passed as `planCatalog`. The platform does not
+invent a path it did not read.
 
 _Source:_ #260
 
@@ -469,6 +552,9 @@ _Tested by:_
     - where the record says the values came from
         - the absolute path of the file the platform read
         - a catalogue built in code says so rather than inventing a path
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - where the record says the values came from, on the database path
+        - the absolute path of the file dbCatalog names
 
 <!-- END proof -->
 

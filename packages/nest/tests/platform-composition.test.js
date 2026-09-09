@@ -1,7 +1,9 @@
-import { describe, test } from 'node:test';
+import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -34,6 +36,30 @@ const MINIMAL_CATALOG = {
 
 const PORT = {};
 const REPO = {};
+
+/** A `config/saas.yaml` for the database path: the settings, no plans. */
+const scratch = [];
+function catalogFileNamed(name) {
+    const dir = mkdtempSync(join(tmpdir(), 'saasicat-composition-'));
+    scratch.push(dir);
+    const path = join(dir, 'saas.yaml');
+    writeFileSync(
+        path,
+        [
+            'schemaVersion: 1',
+            `app: { name: ${name} }`,
+            'currency: EUR',
+            'vatRate: 19',
+            'tenantBilling:',
+            '  cancellationNoticeDays: { monthly: 0, yearly: 0 }',
+            '  selfServiceBlockedPlans: { asTarget: [], asSource: [] }',
+        ].join('\n'),
+    );
+    return path;
+}
+after(() => {
+    for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
+});
 
 /** The persistence bundle the probe binds, shared by both places it appears. */
 const PERSISTENCE = {
@@ -190,11 +216,11 @@ describe('the assembled module is the same one as before', () => {
 describe('the base modules', () => {
     test('the DB-hydration path builds the catalogue from the sink', () => {
         // The branch a consumer takes once operators manage plans in the UI.
-        // The identity cannot come from the database — branding, currency and
-        // VAT are `dbCatalog`, and `catalog.identity-or-sink` refuses a
+        // The settings cannot come from the database — they come from the
+        // file `dbCatalog` names, and `catalog.identity-or-sink` refuses a
         // configuration without it.
         const dyn = SaaSiCatModule.forRoot({
-            dbCatalog: { app: { name: 'TestApp' }, currency: 'EUR', vatRate: 19 },
+            dbCatalog: { path: catalogFileNamed('TestApp') },
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT, planCatalogReadSink: REPO },
         });
@@ -220,7 +246,7 @@ describe('the base modules', () => {
         assert.deepEqual(identityOf(fromYaml), { key: 'TestApp', version: '0.0.1' });
 
         const fromDb = SaaSiCatModule.forRoot({
-            dbCatalog: { app: { name: 'FromDb' }, currency: 'EUR', vatRate: 19 },
+            dbCatalog: { path: catalogFileNamed('FromDb') },
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT, planCatalogReadSink: REPO },
         });

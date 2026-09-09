@@ -8,6 +8,12 @@
 // Every option type here is derived from the module that consumes it, with
 // `Omit`/`Pick`, so a low-level module gaining an option cannot leave the
 // high-level surface behind.
+//
+// The three `dbCatalog…` predicates below are here for the same reason, one
+// level down: they read `DB_CATALOG_MEMBERS`, and their readers are a composer
+// and a validation rule. Putting them beside either one would make the other
+// import it — which is how `validation/` came to pull the whole Nest module
+// graph in behind three pure functions.
 
 import {
     type CanActivate,
@@ -49,6 +55,7 @@ import {
 import { type TenantBillingModuleOptions } from '../billing/tenant-billing.module.js';
 import { type CatalogModuleOptions } from '../catalog/catalog.module.js';
 import type { DiscoveryAppInfo } from '../discovery/discovery.scanner.js';
+import type { LoadPlanCatalogOptions } from '../billing/plan-catalog-loader.js';
 import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution.js';
 import { type PromoCodesModuleOptions } from '../promo/promo.module.js';
 import { type SetupModuleOptions } from '../setup/setup.module.js';
@@ -263,35 +270,75 @@ export interface SaaSiCatSubscriptionContractOptions extends Omit<
  * Everything else — an operator creating tenants through the SuperAdmin UI, a
  * CLI, or your own onboarding form — is composed here.
  */
+/**
+ * The members `dbCatalog` takes. The type below is derived from this list, so
+ * the shape the platform refuses at boot and the shape the compiler accepts
+ * cannot drift apart — and `saasicat codemod v1` reads the same list.
+ */
+export const DB_CATALOG_MEMBERS = ['path', 'env'] as const;
+
+/**
+ * Which `config/saas.yaml` a database-held catalogue reads its settings from.
+ *
+ * The same file the quickstart path loads, read by the platform. A `plans:` or
+ * `features:` block in it is not read on this path — the sink is their source —
+ * so a file kept as the seed for `saasicat catalog import` still loads.
+ */
+export type DbCatalogOptions = Pick<LoadPlanCatalogOptions, (typeof DB_CATALOG_MEMBERS)[number]>;
+
+/** Whether `dbCatalog` names a file at all: a non-blank `path`. Half of its shape. */
+export function dbCatalogNamesAPath(
+    dbCatalog: DbCatalogOptions | undefined,
+): dbCatalog is DbCatalogOptions {
+    return typeof dbCatalog?.path === 'string' && dbCatalog.path.trim() !== '';
+}
+
+/**
+ * The members of a `dbCatalog` that are not what the option takes.
+ *
+ * The settings an upgrade left beside the path, most likely — `vatRate`,
+ * `tenantBilling` — or a misspelt member. Either way a value that would be
+ * ignored while looking like the one that runs, which is the one outcome the
+ * refusal exists to prevent. `undefined` is not a member: a spread that
+ * leaves a key behind with nothing in it has passed nothing, the same reading
+ * `TenantBillingModule` takes of its moved options.
+ */
+export function dbCatalogLeftovers(dbCatalog: object): string[] {
+    const taken = new Set<string>(DB_CATALOG_MEMBERS);
+    return Object.entries(dbCatalog)
+        .filter(([key, value]) => !taken.has(key) && value !== undefined)
+        .map(([key]) => key);
+}
+
+/** Whether `dbCatalog` has the shape it takes: the path to the file, and nothing that is not. */
+export function dbCatalogNamesAFile(
+    dbCatalog: DbCatalogOptions | undefined,
+): dbCatalog is DbCatalogOptions {
+    return dbCatalogNamesAPath(dbCatalog) && dbCatalogLeftovers(dbCatalog).length === 0;
+}
+
 export interface SaaSiCatModuleOptions {
     /**
      * Plan catalog. Either as an already-loaded object (quickstart, comes
      * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or via DB
      * hydration: a sink reference in `adapters.planCatalogReadSink` /
-     * `persistence.planCatalogReadSink` **plus** the `dbCatalog` identity.
+     * `persistence.planCatalogReadSink` **plus** `dbCatalog` naming the file.
      */
     planCatalog?: PlanCatalog;
     /**
-     * App identity for the DB-hydration path — required when `planCatalog`
-     * is omitted. The read sink only loads plans and features; branding,
-     * currency and VAT cannot come from the database and must be supplied
-     * here.
+     * The DB-hydration path — required when `planCatalog` is omitted: the
+     * `config/saas.yaml` the platform reads the settings from. The read sink
+     * loads plans and features; `app`, `currency`, `vatRate`, `tenantBilling`,
+     * `marketing` and `notifications` are not in the database and never will
+     * be, so they come from the file this names.
+     *
+     * A path rather than the values. The option used to take them as values,
+     * and every consumer forwarded them from the file it had loaded anyway —
+     * by agreement, which is a second place a setting can live. The file
+     * defines them by construction now: there is nothing here to type a
+     * setting into.
      */
-    dbCatalog?: {
-        currency: string;
-        vatRate: number;
-        app: PlanCatalog['app'];
-        /**
-         * Forwarded from the same `config/saas.yaml` the other three come from
-         * — `loadPlanCatalogFromFile(...).tenantBilling`. The read sink loads
-         * plans and features; these are not in the database and never will be,
-         * so the file is the only place they can come from.
-         */
-        tenantBilling: PlanCatalog['tenantBilling'];
-        marketing?: PlanCatalog['marketing'];
-        /** Who is told when the settings change — from the same file, like the rest. */
-        notifications?: PlanCatalog['notifications'];
-    };
+    dbCatalog?: DbCatalogOptions;
     /**
      * Aggregate persistence bundle from an adapter package (e.g.
      * `prismaPersistence({ client: PrismaService })` from

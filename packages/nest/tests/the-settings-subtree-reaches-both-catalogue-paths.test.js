@@ -3,10 +3,12 @@
 // `settingsSubtreeOf` excludes rather than includes, so a block the schema gains
 // is fingerprinted by default — for the object bound to `PLAN_CATALOG_TOKEN`. On
 // the static path that object is the loaded file, and the exclusion earns its
-// keep. On the database path `composePlanCatalog` assembles the object from the
-// `dbCatalog` option, member by member, and a block the schema gained but that
-// option did not would be fingerprinted on one path and silently absent on the
-// other, with both directions of the core test still green.
+// keep. On the database path `composePlanCatalog` hands the loaded file's
+// settings to `PlanCatalogModule.forRoot` member by member, and a block the
+// schema gained but that chain did not would be fingerprinted on one path and
+// silently absent on the other, with both directions of the core test still
+// green. `the-database-path-reads-its-settings-from-the-file.test.js` holds
+// the whole chain against a booted application; this holds its narrowest link.
 //
 // So the seam is held here: the settings the schema declares are handed to the
 // assembler, and every one of them has to come out the other side.
@@ -40,9 +42,9 @@ describe('the database path carries every setting the schema declares', () => {
         assert.deepEqual(
             dropped,
             [],
-            'a setting the schema declares does not reach the fingerprint on the dbCatalog ' +
+            'a setting the schema declares does not reach the fingerprint on the database ' +
                 'path — `buildPlanCatalogFromSnapshot`, `PlanCatalogModuleOptions` and ' +
-                '`SaaSiCatModuleOptions.dbCatalog` have to carry it',
+                '`composePlanCatalog` have to carry it',
         );
     });
 });
