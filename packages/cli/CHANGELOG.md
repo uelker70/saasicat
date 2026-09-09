@@ -1,5 +1,14 @@
 # @saasicat/cli
 
+## 1.0.0-rc.11
+
+### Patch Changes
+
+- Updated dependencies [6da5d86]
+    - @saasicat/nest@1.0.0-rc.11
+    - @saasicat/spec@1.0.0-rc.11
+    - @saasicat/core@1.0.0-rc.11
+
 ## 1.0.0-rc.10
 
 ### Minor Changes

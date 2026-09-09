@@ -1,5 +1,11 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.11
+
+### Patch Changes
+
+- @saasicat/core@1.0.0-rc.11
+
 ## 1.0.0-rc.10
 
 ### Major Changes
