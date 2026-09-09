@@ -191,7 +191,10 @@ function objectLiteralAt(text: string, open: number): ObjectLiteral {
  * instead" into every generated `app.module.ts`, so a mention is the normal
  * case and a report of it would be noise on every upgrade — and a block
  * commented out, or quoted as a sample, is migration work that does not
- * exist. A type member (`dbCatalog?:`) is not a property either, and a
+ * exist. An OPTIONAL type member (`dbCatalog?:`) is not a property either: the
+ * `?` stands where the colon would. A required one (`dbCatalog: DbCatalogOptions`)
+ * is the same tokens as a value passed in from elsewhere, and is reported as a
+ * `reference` for that reason — a glance, which is what `reference` is for. A
  * shorthand `{ dbCatalog }` is not seen — the value it carries is elsewhere,
  * and the module's refusal names it at boot.
  *
@@ -244,6 +247,25 @@ export function findDbCatalogBlocks(text: string): DbCatalogResult {
     }
 
     return { occurrences };
+}
+
+/**
+ * What is wrong with one occurrence, in the words the report uses.
+ *
+ * Beside the shapes rather than in the printer, because one of them has no
+ * leftovers to name: a `values` block whose only member is one the option
+ * takes — `dbCatalog: { env: process.env }` — or one emptied mid-edit is
+ * genuinely broken and genuinely refused at boot, but "carries the values:"
+ * with nothing after it names a file to go and look at without saying what to
+ * look for.
+ */
+export function describeDbCatalogOccurrence(
+    occurrence: Pick<DbCatalogOccurrence, 'shape' | 'leftovers'>,
+): string {
+    const { shape, leftovers } = occurrence;
+    if (shape === 'reference') return 'carries something this cannot see into';
+    if (shape === 'mixed') return `names the path but still carries ${leftovers.join(', ')}`;
+    return leftovers.length > 0 ? `carries the values: ${leftovers.join(', ')}` : 'names no path';
 }
 
 /** What to write instead, for the report. */

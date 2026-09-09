@@ -25,8 +25,13 @@ import {
     type SaaSiCatPersistenceAdapter,
 } from '@saasicat/core';
 
-import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
-import { dbCatalogLeftovers, dbCatalogNamesAFile, dbCatalogNamesAPath } from '../compose/base.js';
+import {
+    dbCatalogLeftovers,
+    dbCatalogNamesAFile,
+    dbCatalogNamesAPath,
+    type SaaSiCatAdapters,
+    type SaaSiCatModuleOptions,
+} from '../module-options.js';
 import { resolveBundleRepository } from '../compose/bundle-repository-source.js';
 
 /** Everything a rule may look at: the options as given, the adapters as resolved. */
@@ -40,6 +45,14 @@ export interface PlatformConfiguration {
      * usable was configured — which is for the rules to say.
      */
     readonly catalog?: PlanCatalog;
+    /**
+     * Why the file `dbCatalog` named did not load, where it did not.
+     *
+     * A finding rather than a throw from inside the loader: the platform is
+     * the caller on this path, so an unreadable file would otherwise end the
+     * boot before any other rule had spoken.
+     */
+    readonly catalogFailure?: Error;
 }
 
 export interface PlatformRule {
@@ -198,6 +211,30 @@ const RULE_SPECS: readonly RuleSpec[] = [
                 'second place a setting could live. Delete the values here; the platform reads ' +
                 'them from the file it names — the same one they were forwarded from. See ' +
                 'docs/guides/upgrade-to-1.0.md.'
+            );
+        },
+    },
+    {
+        id: 'catalog.db-catalog-file-loads',
+        // Only where a file was named at all. On the quickstart path the
+        // consumer calls the loader themselves, and their own stack says where.
+        when: (c) => c.options.dbCatalog !== undefined,
+        assert: (c) => c.catalogFailure === undefined,
+        message: (c) => {
+            // The loader's own text names the absolute path, and for a schema
+            // failure the field. What it cannot say is which option named the
+            // file, or that a relative path was resolved against the directory
+            // the process was started in — which is the whole difference
+            // between this path and the quickstart one, where the consumer
+            // wrote the call and the stack points at their own file.
+            const given = c.options.dbCatalog;
+            const named = dbCatalogNamesAPath(given) ? given.path : 'config/saas.yaml';
+            const why = c.catalogFailure ? `: ${c.catalogFailure.message}` : '';
+            return (
+                `\`dbCatalog\` names '${named}' and the file did not load${why}. ` +
+                'A relative path is resolved against the directory the process was started ' +
+                'in, not against the file the option is written in. See ' +
+                'docs/guides/wire-the-backend.md.'
             );
         },
     },

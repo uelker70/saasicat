@@ -312,6 +312,12 @@ describe('every rule can actually fail', () => {
             },
             adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
         },
+        // A dbCatalog naming a file the platform could not read.
+        {
+            options: { dbCatalog: { path: 'config/saas.yaml' }, controller: { guards: [] } },
+            adapters: { ...CORE_ADAPTERS, planCatalogReadSink: {} },
+            catalogFailure: new Error("ENOENT: no such file or directory, open '/app/saas.yaml'"),
+        },
     ];
 
     test('every rule fails in at least one probe', () => {
@@ -423,6 +429,62 @@ describe('a dbCatalog that still carries the values', () => {
             catalog: { schemaVersion: 1, app: { name: 'FromFile' }, currency: 'EUR', vatRate: 19 },
         });
         assert.deepEqual(violations, []);
+    });
+});
+
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
+describe('a dbCatalog whose file did not load', () => {
+    // The platform calls the loader on this path, so a throw from inside it
+    // would end the boot before any other rule had spoken — and the loader's
+    // own text names an absolute path without naming the option that produced
+    // it, or the directory the relative one was resolved against.
+    const FAILURE = new Error("ENOENT: no such file or directory, open '/app/config/saas.yaml'");
+    const NAMES_THE_FILE = { path: 'config/saas.yaml' };
+    const SINK = { ...CORE_ADAPTERS, planCatalogReadSink: {} };
+
+    test('is a finding of its own, naming the option, the path and where it was resolved', () => {
+        const violations = findViolations({
+            options: { dbCatalog: NAMES_THE_FILE, controller: { guards: [] } },
+            adapters: SINK,
+            catalogFailure: FAILURE,
+        });
+        assert.deepEqual(
+            violations.map((v) => v.id),
+            ['catalog.db-catalog-file-loads'],
+        );
+        assert.match(violations[0].message, /`dbCatalog` names 'config\/saas\.yaml'/);
+        assert.match(violations[0].message, /ENOENT/);
+        assert.match(violations[0].message, /directory the process was started in/);
+    });
+
+    test('is reported beside whatever else is wrong, not instead of it', () => {
+        const violations = findViolations({
+            options: { dbCatalog: NAMES_THE_FILE, controller: { guards: [] }, catalog: {} },
+            adapters: CORE_ADAPTERS,
+            catalogFailure: FAILURE,
+        });
+        assert.deepEqual(violations.map((v) => v.id).sort(), [
+            'catalog.db-catalog-file-loads',
+            'catalog.identity-or-sink',
+            'catalog.requires-persistence',
+        ]);
+    });
+
+    test('says nothing where the file loaded, and nothing on the quickstart path', () => {
+        assert.deepEqual(
+            findViolations({
+                options: { dbCatalog: NAMES_THE_FILE, controller: { guards: [] } },
+                adapters: SINK,
+                catalog: {
+                    schemaVersion: 1,
+                    app: { name: 'FromFile' },
+                    currency: 'EUR',
+                    vatRate: 19,
+                },
+            }),
+            [],
+        );
+        assert.deepEqual(findViolations(sound()), []);
     });
 });
 

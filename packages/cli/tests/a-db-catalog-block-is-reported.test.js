@@ -4,7 +4,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { findDbCatalogBlocks, WHERE_DB_CATALOG_GOES } from '../dist/index.js';
+import {
+    describeDbCatalogOccurrence,
+    findDbCatalogBlocks,
+    WHERE_DB_CATALOG_GOES,
+} from '../dist/index.js';
 import { DB_CATALOG_MEMBERS } from '@saasicat/nest/platform';
 
 // `dbCatalog` names the file now. A block that still carries the settings as
@@ -99,9 +103,21 @@ describe('what the codemod says about a dbCatalog that still carries the values'
 
     test('a mention that is not a property is not a block', () => {
         // `saasicat init` writes this sentence into every generated app.module.ts,
-        // and a type member is a declaration, not a value passed.
+        // and an optional type member is a declaration, not a value passed.
         const source = `// SuperAdmin UI pass \`dbCatalog\` instead.\ninterface Options { dbCatalog?: { path: string } }\nconst x = myDbCatalog;`;
         assert.deepEqual(findDbCatalogBlocks(source).occurrences, []);
+    });
+
+    test('a required type member reads as a value passed, and is named for a person', () => {
+        // `dbCatalog: DbCatalogOptions` in an interface is the same tokens as
+        // a value handed in from elsewhere, and telling them apart needs a
+        // parser. `reference` is the answer that costs a glance rather than a
+        // wrong action — which is what the doc comment has to say, since the
+        // `?` is the only thing the scan can go on.
+        const source = `interface AppOptions {\n    dbCatalog: DbCatalogOptions;\n}`;
+        assert.deepEqual(findDbCatalogBlocks(source).occurrences, [
+            { line: 2, shape: 'reference', leftovers: [] },
+        ]);
     });
 
     test('a block the file ends inside is still reported rather than lost', () => {
@@ -121,5 +137,46 @@ describe('what the codemod says about a dbCatalog that still carries the values'
     test('the sentence says what to write', () => {
         assert.match(WHERE_DB_CATALOG_GOES, /dbCatalog: \{ path: 'config\/saas\.yaml' \}/);
         assert.match(WHERE_DB_CATALOG_GOES, /Delete the values/);
+    });
+});
+
+describe('what the report says about one occurrence', () => {
+    test('a block with the values names them', () => {
+        assert.equal(
+            describeDbCatalogOccurrence({ shape: 'values', leftovers: ['vatRate', 'currency'] }),
+            'carries the values: vatRate, currency',
+        );
+    });
+
+    test('a block with a value beside the path names that one', () => {
+        assert.equal(
+            describeDbCatalogOccurrence({ shape: 'mixed', leftovers: ['tenantBilling'] }),
+            'names the path but still carries tenantBilling',
+        );
+    });
+
+    test('a block with nothing left to name says what is missing instead', () => {
+        // `dbCatalog: { env: process.env }` and a block emptied mid-edit are
+        // both refused at boot and both have no leftovers — `env` is what the
+        // option takes. Naming the file with nothing after "carries the
+        // values:" would send a reader to a line without saying what to look
+        // for there.
+        assert.equal(
+            describeDbCatalogOccurrence({ shape: 'values', leftovers: [] }),
+            'names no path',
+        );
+        assert.deepEqual(findDbCatalogBlocks('dbCatalog: { env: process.env },').occurrences, [
+            { line: 1, shape: 'values', leftovers: [] },
+        ]);
+        assert.deepEqual(findDbCatalogBlocks('dbCatalog: {},').occurrences, [
+            { line: 1, shape: 'values', leftovers: [] },
+        ]);
+    });
+
+    test('a value it cannot see into says so', () => {
+        assert.equal(
+            describeDbCatalogOccurrence({ shape: 'reference', leftovers: [] }),
+            'carries something this cannot see into',
+        );
     });
 });

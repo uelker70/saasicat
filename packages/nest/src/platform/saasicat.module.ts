@@ -129,17 +129,20 @@ export class SaaSiCatModule {
         // The catalogue the rules read and the composition runs on is resolved
         // first: the object given, or the file `dbCatalog` names — loaded here,
         // so that on the database path the settings come from the file by
-        // construction rather than by whatever the consumer forwarded.
-        const catalog = resolveCatalog(options);
-        assertConfiguration({ options, adapters, catalog });
+        // construction rather than by whatever the consumer forwarded. A file
+        // that does not load is a finding rather than a throw, so it lands in
+        // the same list as everything else that is wrong.
+        const { catalog, failure: catalogFailure } = resolveCatalog(options);
+        assertConfiguration({ options, adapters, catalog, catalogFailure });
 
         // Non-null after the check above — AdminModule requires them.
         const mfaPort = adapters.mfa as ProviderSpec<MfaPort>;
         const auditPort = adapters.audit as ProviderSpec<AuditPort>;
         const rlsBypassPort = adapters.rlsBypass as ProviderSpec<RlsBypassPort>;
-        // And so is this: `catalog.identity-or-sink` and
-        // `catalog.db-catalog-names-the-file` together refuse a configuration
-        // that reaches here without a catalogue to run on.
+        // And so is this: `catalog.identity-or-sink`,
+        // `catalog.db-catalog-names-the-file` and `catalog.db-catalog-file-loads`
+        // together refuse a configuration that reaches here without a catalogue
+        // to run on.
         const running = catalog as PlanCatalog;
 
         const appInfo = resolveAppInfo(options, running);

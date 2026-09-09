@@ -24,11 +24,7 @@ import type { ProviderSpec } from '../../core/di.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
 import { SettingsModule } from '../../settings/settings.module.js';
-import {
-    DB_CATALOG_MEMBERS,
-    type DbCatalogOptions,
-    type SaaSiCatModuleOptions,
-} from '../module-options.js';
+import { dbCatalogNamesAFile, type SaaSiCatModuleOptions } from '../module-options.js';
 
 import { buildMinimalManifestConfig } from './manifest.js';
 
@@ -44,35 +40,20 @@ const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
  */
 export const SOURCE_IN_CODE = 'the object passed to SaaSiCatModule.forRoot({ planCatalog })';
 
-/** Whether `dbCatalog` names a file at all: a non-blank `path`. Half of its shape. */
-export function dbCatalogNamesAPath(
-    dbCatalog: SaaSiCatModuleOptions['dbCatalog'],
-): dbCatalog is DbCatalogOptions {
-    return typeof dbCatalog?.path === 'string' && dbCatalog.path.trim() !== '';
-}
-
-/**
- * The members of a `dbCatalog` that are not what the option takes.
- *
- * The settings an upgrade left beside the path, most likely — `vatRate`,
- * `tenantBilling` — or a misspelt member. Either way a value that would be
- * ignored while looking like the one that runs, which is the one outcome the
- * refusal exists to prevent. `undefined` is not a member: a spread that
- * leaves a key behind with nothing in it has passed nothing, the same reading
- * `TenantBillingModule` takes of its moved options.
- */
-export function dbCatalogLeftovers(dbCatalog: object): string[] {
-    const taken = new Set<string>(DB_CATALOG_MEMBERS);
-    return Object.entries(dbCatalog)
-        .filter(([key, value]) => !taken.has(key) && value !== undefined)
-        .map(([key]) => key);
-}
-
-/** Whether `dbCatalog` has the shape it takes: the path to the file, and nothing that is not. */
-export function dbCatalogNamesAFile(
-    dbCatalog: SaaSiCatModuleOptions['dbCatalog'],
-): dbCatalog is DbCatalogOptions {
-    return dbCatalogNamesAPath(dbCatalog) && dbCatalogLeftovers(dbCatalog).length === 0;
+/** The catalogue the configuration runs on, or why there is none. */
+export interface ResolvedCatalog {
+    readonly catalog?: PlanCatalog;
+    /**
+     * Why the file `dbCatalog` named did not become one.
+     *
+     * Returned rather than thrown, because throwing here would end the boot
+     * before `assertConfiguration` has said anything — and on this path the
+     * platform is the one calling the loader, so the integrator would get one
+     * problem per restart again, from a stack that points into the platform.
+     * `catalog.db-catalog-file-loads` reports it as a finding like any other,
+     * beside whatever else is wrong.
+     */
+    readonly failure?: Error;
 }
 
 /**
@@ -82,18 +63,18 @@ export function dbCatalogNamesAFile(
  * On the quickstart path it is the object given. On the database path it is
  * the file `dbCatalog` names, loaded here: its settings are what runs, and its
  * `plans` and `features` are not read, because the sink is their source.
- * Undefined where neither is usable — no catalogue at all, or a `dbCatalog`
+ * Neither, where neither is usable — no catalogue at all, or a `dbCatalog`
  * that still carries the values — which the rules report by name, rather than
  * this throwing a TypeError at the first member read.
- *
- * A file that does not load throws the loader's own error, naming the file
- * and the field: the same error the quickstart path raises, where the
- * consumer calls the loader before `forRoot()` sees anything.
  */
-export function resolveCatalog(options: SaaSiCatModuleOptions): PlanCatalog | undefined {
-    if (options.planCatalog) return options.planCatalog;
-    if (dbCatalogNamesAFile(options.dbCatalog)) return loadPlanCatalogFromFile(options.dbCatalog);
-    return undefined;
+export function resolveCatalog(options: SaaSiCatModuleOptions): ResolvedCatalog {
+    if (options.planCatalog) return { catalog: options.planCatalog };
+    if (!dbCatalogNamesAFile(options.dbCatalog)) return {};
+    try {
+        return { catalog: loadPlanCatalogFromFile(options.dbCatalog) };
+    } catch (failure) {
+        return { failure: failure instanceof Error ? failure : new Error(String(failure)) };
+    }
 }
 
 /** Where the running settings came from, for the record. */

@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 17 rules, in 11 areas.
+There are 18 rules, in 11 areas.
 
 ## core
 
@@ -35,6 +35,12 @@ to take `app`, `currency`, `vatRate` and `tenantBilling` as values, and that was
 a second place a setting could live. Delete the values here; the platform reads
 them from the file it names — the same one they were forwarded from. See
 docs/guides/upgrade-to-1.0.md.
+
+### catalog.db-catalog-file-loads
+
+`dbCatalog` names 'config/saas.yaml' and the file did not load. A relative path
+is resolved against the directory the process was started in, not against the
+file the option is written in. See docs/guides/wire-the-backend.md.
 
 ### catalog.app-is-named
 

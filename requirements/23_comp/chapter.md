@@ -217,9 +217,15 @@ _Tested by:_
         - a live block after a comment that mentions one is still reported, on its own line
         - a value it cannot see into is named for a person to look at
         - a mention that is not a property is not a block
+        - a required type member reads as a value passed, and is named for a person
         - a block the file ends inside is still reported rather than lost
         - what counts as migrated is the list the platform refuses by, not a copy of it
         - the sentence says what to write
+    - what the report says about one occurrence
+        - a block with the values names them
+        - a block with a value beside the path names that one
+        - a block with nothing left to name says what is missing instead
+        - a value it cannot see into says so
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
         - every member is reported, flattened to the path it has in the file

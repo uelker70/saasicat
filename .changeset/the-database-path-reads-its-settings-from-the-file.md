@@ -41,6 +41,12 @@ dbCatalog: { path: 'config/saas.yaml' },
   than being read: the values it carries are the ones an operator believes are
   running. A path with a value left beside it is refused the same way, and the
   refusal names the value.
+- A file the platform cannot read is a boot finding like any other
+  (`catalog.db-catalog-file-loads`), reported beside whatever else is wrong
+  rather than ending the boot ahead of it. The message names the option, the
+  path as written, and that a relative one is resolved against the directory
+  the process was started in — none of which the loader's own error can say
+  when the platform is the caller.
 - `saasicat codemod v1` names every such block with its file and line. It does
   not rewrite it: which file the values were forwarded from is a variable in
   another module more often than a literal, and a guess would be wrong

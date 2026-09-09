@@ -66,6 +66,7 @@ import {
     findMovedSettings,
     SCANNED_FOR_MOVED_SETTINGS,
     WHERE_IT_GOES,
+    describeDbCatalogOccurrence,
     findDbCatalogBlocks,
     SCANNED_FOR_DB_CATALOG,
     WHERE_DB_CATALOG_GOES,
@@ -770,10 +771,9 @@ async function cmdCodemodV1MovedSettings(args) {
         }
     });
 
-    reportDbCatalogBlocks(blocks);
-
     if (found.length === 0) {
         console.log('No module option that moved into config/saas.yaml is still passed.');
+        reportDbCatalogBlocks(blocks);
         return;
     }
 
@@ -794,6 +794,8 @@ async function cmdCodemodV1MovedSettings(args) {
     console.log('');
     console.log('  TenantBillingModule.forRoot() refuses to boot while either is still');
     console.log('  passed, so this cannot be half-done quietly.');
+    console.log('');
+    reportDbCatalogBlocks(blocks);
 }
 
 /**
@@ -812,13 +814,9 @@ function reportDbCatalogBlocks(blocks) {
     console.log(`${blocks.length} dbCatalog block(s) to point at the file:`);
     const width = Math.max(...blocks.map((b) => b.where.length));
     for (const { where, shape, leftovers } of blocks) {
-        const what =
-            shape === 'values'
-                ? `carries the values: ${leftovers.join(', ')}`
-                : shape === 'mixed'
-                  ? `names the path but still carries ${leftovers.join(', ')}`
-                  : 'carries something this cannot see into';
-        console.log(`  ${where.padEnd(width)}  ${what}`);
+        console.log(
+            `  ${where.padEnd(width)}  ${describeDbCatalogOccurrence({ shape, leftovers })}`,
+        );
     }
     console.log('');
     console.log(`  ${WHERE_DB_CATALOG_GOES}`);

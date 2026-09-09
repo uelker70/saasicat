@@ -218,6 +218,7 @@ describe('a dbCatalog that still carries the values', () => {
     });
 });
 
+// @requirement SC-CFG-006 — A misconfigured installation is told everything that is wrong at once
 describe('a file that does not load', () => {
     test("stops the boot with the loader's error, naming the path", () => {
         const missing = join(scratchDir(), 'missing.yaml');
@@ -225,6 +226,43 @@ describe('a file that does not load', () => {
             () => forRootWith({ path: missing }),
             (error) => {
                 assert.match(error.message, /missing\.yaml/);
+                return true;
+            },
+        );
+    });
+
+    test('and names the option that named it, which the loader cannot', () => {
+        // The platform is the caller here, so the stack points into the
+        // platform: the raw ENOENT names an absolute path and nothing about
+        // which option produced it, or that a relative one was resolved
+        // against the directory the process was started in.
+        assert.throws(
+            () => forRootWith({ path: join(scratchDir(), 'missing.yaml') }),
+            (error) => {
+                assert.match(error.message, /catalog\.db-catalog-file-loads/);
+                assert.match(error.message, /`dbCatalog` names/);
+                assert.match(error.message, /started in/);
+                return true;
+            },
+        );
+    });
+
+    test('is one finding beside the others, not a throw ahead of them', () => {
+        // Without this the load ends the boot before the rule table runs, and
+        // an integrator who both started in the wrong directory and has not
+        // bound the sink yet learns one of the two per restart.
+        assert.throws(
+            () =>
+                SaaSiCatModule.forRoot({
+                    dbCatalog: { path: join(scratchDir(), 'missing.yaml') },
+                    controller: { guards: [FakeJwtGuard] },
+                    discoverySnapshotPath: null,
+                    persistence: persistenceWith(new FakeAppliedSettingsPort()),
+                }),
+            (error) => {
+                assert.match(error.message, /2 configuration problems/);
+                assert.match(error.message, /catalog\.identity-or-sink/);
+                assert.match(error.message, /catalog\.db-catalog-file-loads/);
                 return true;
             },
         );

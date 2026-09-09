@@ -8,6 +8,12 @@
 // Every option type here is derived from the module that consumes it, with
 // `Omit`/`Pick`, so a low-level module gaining an option cannot leave the
 // high-level surface behind.
+//
+// The three `dbCatalog…` predicates below are here for the same reason, one
+// level down: they read `DB_CATALOG_MEMBERS`, and their readers are a composer
+// and a validation rule. Putting them beside either one would make the other
+// import it — which is how `validation/` came to pull the whole Nest module
+// graph in behind three pure functions.
 
 import {
     type CanActivate,
@@ -279,6 +285,37 @@ export const DB_CATALOG_MEMBERS = ['path', 'env'] as const;
  * so a file kept as the seed for `saasicat catalog import` still loads.
  */
 export type DbCatalogOptions = Pick<LoadPlanCatalogOptions, (typeof DB_CATALOG_MEMBERS)[number]>;
+
+/** Whether `dbCatalog` names a file at all: a non-blank `path`. Half of its shape. */
+export function dbCatalogNamesAPath(
+    dbCatalog: DbCatalogOptions | undefined,
+): dbCatalog is DbCatalogOptions {
+    return typeof dbCatalog?.path === 'string' && dbCatalog.path.trim() !== '';
+}
+
+/**
+ * The members of a `dbCatalog` that are not what the option takes.
+ *
+ * The settings an upgrade left beside the path, most likely — `vatRate`,
+ * `tenantBilling` — or a misspelt member. Either way a value that would be
+ * ignored while looking like the one that runs, which is the one outcome the
+ * refusal exists to prevent. `undefined` is not a member: a spread that
+ * leaves a key behind with nothing in it has passed nothing, the same reading
+ * `TenantBillingModule` takes of its moved options.
+ */
+export function dbCatalogLeftovers(dbCatalog: object): string[] {
+    const taken = new Set<string>(DB_CATALOG_MEMBERS);
+    return Object.entries(dbCatalog)
+        .filter(([key, value]) => !taken.has(key) && value !== undefined)
+        .map(([key]) => key);
+}
+
+/** Whether `dbCatalog` has the shape it takes: the path to the file, and nothing that is not. */
+export function dbCatalogNamesAFile(
+    dbCatalog: DbCatalogOptions | undefined,
+): dbCatalog is DbCatalogOptions {
+    return dbCatalogNamesAPath(dbCatalog) && dbCatalogLeftovers(dbCatalog).length === 0;
+}
 
 export interface SaaSiCatModuleOptions {
     /**

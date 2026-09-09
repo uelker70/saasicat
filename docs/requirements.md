@@ -9209,9 +9209,15 @@ _Tested by:_
         - a live block after a comment that mentions one is still reported, on its own line
         - a value it cannot see into is named for a person to look at
         - a mention that is not a property is not a block
+        - a required type member reads as a value passed, and is named for a person
         - a block the file ends inside is still reported rather than lost
         - what counts as migrated is the list the platform refuses by, not a copy of it
         - the sentence says what to write
+    - what the report says about one occurrence
+        - a block with the values names them
+        - a block with a value beside the path names that one
+        - a block with nothing left to name says what is missing instead
+        - a value it cannot see into says so
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
         - every member is reported, flattened to the path it has in the file
@@ -9277,6 +9283,8 @@ _Tested by:_
         - a key left beside the path with nothing in it has passed nothing
     - a file that does not load
         - stops the boot with the loader's error, naming the path
+        - and names the option that named it, which the loader cannot
+        - is one finding beside the others, not a throw ahead of them
         - or the field it is missing, rather than a TypeError further down
 
 <!-- END proof -->
@@ -9377,6 +9385,10 @@ _Tested by:_
         - the error names every one of them, numbered, each with its link
         - one problem is still phrased as one
         - a message names which of a set is missing, not that some are
+    - a dbCatalog whose file did not load
+        - is a finding of its own, naming the option, the path and where it was resolved
+        - is reported beside whatever else is wrong, not instead of it
+        - says nothing where the file loaded, and nothing on the quickstart path
 - `packages/nest/tests/preflight.test.js`
     - runPreflight
         - empty catalog → overall=ok, total=0
@@ -9384,6 +9396,12 @@ _Tested by:_
         - plan with unknown feature → overall=error, kind=plan
         - bundle with unknown feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN
         - findings are deterministically sorted (kind, entityKey, version, code)
+- `packages/nest/tests/the-database-path-reads-its-settings-from-the-file.test.js`
+    - a file that does not load
+        - stops the boot with the loader's error, naming the path
+        - and names the option that named it, which the loader cannot
+        - is one finding beside the others, not a throw ahead of them
+        - or the field it is missing, rather than a TypeError further down
 
 <!-- END proof -->
 
@@ -12208,9 +12226,15 @@ _Tested by:_
         - a live block after a comment that mentions one is still reported, on its own line
         - a value it cannot see into is named for a person to look at
         - a mention that is not a property is not a block
+        - a required type member reads as a value passed, and is named for a person
         - a block the file ends inside is still reported rather than lost
         - what counts as migrated is the list the platform refuses by, not a copy of it
         - the sentence says what to write
+    - what the report says about one occurrence
+        - a block with the values names them
+        - a block with a value beside the path names that one
+        - a block with nothing left to name says what is missing instead
+        - a value it cannot see into says so
 - `packages/cli/tests/a-setting-is-reported-not-deleted.test.js`
     - what init says about the settings it wrote
         - every member is reported, flattened to the path it has in the file
