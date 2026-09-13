@@ -1,5 +1,15 @@
 # @saasicat/cli
 
+## 1.0.0-rc.12
+
+### Patch Changes
+
+- Updated dependencies [d8721ab]
+- Updated dependencies [d8721ab]
+    - @saasicat/nest@1.0.0-rc.12
+    - @saasicat/spec@1.0.0-rc.12
+    - @saasicat/core@1.0.0-rc.12
+
 ## 1.0.0-rc.11
 
 ### Patch Changes

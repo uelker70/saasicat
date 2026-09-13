@@ -1,5 +1,13 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.12
+
+### Patch Changes
+
+- Updated dependencies [d8721ab]
+    - @saasicat/ui-vue@1.0.0-rc.12
+    - @saasicat/core@1.0.0-rc.12
+
 ## 1.0.0-rc.11
 
 ### Patch Changes
