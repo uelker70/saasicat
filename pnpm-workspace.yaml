@@ -41,6 +41,19 @@ overrides:
     # the override is here because a known-vulnerable version in the tree is
     # worth removing, not because the path is reachable from a request.
     deepmerge-ts: '^8.0.2'
+    # GHSA-7w5x-hrqm-74c2: denial of service through malformed TOML. Reached
+    # only through markdownlint-cli2, which pins 1.7.0 exactly, so Dependabot
+    # cannot lift it; what it parses is this repository's own lint configuration.
+    smol-toml: '^1.7.1'
+    # GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf, GHSA-qvfw-j98x-7q72 and
+    # GHSA-535w-7cp7-47q4: denial of service and a file size limit bypass in
+    # multipart parsing. Reached through @nestjs/platform-express, which pins
+    # 2.2.0 exactly; here that is the test harness and examples/notesapp.
+    multer: '^2.3.0'
+    # GHSA-2883-xcg3-v3hh: `maxTotalMergeKeys` does not bound the work an empty
+    # merge source causes. @saasicat/nest already requires 4.3.2; this lifts the
+    # copy json-schema-to-typescript still resolves for the type codegen.
+    'js-yaml@^4.0.0': '^4.3.2'
 allowBuilds:
     '@nestjs/core': true
     # Native file watcher pulled in by the admin dev tooling; the JS fallback is
