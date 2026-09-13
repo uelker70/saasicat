@@ -317,13 +317,12 @@ _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
     - CheckoutOfferService
-        - create creates an open offer
-        - update customizes an open offer
-        - create requires bundle line items for specific bundle versions
-        - create freezes bundle versions, promotions and promo code into the offer
-        - create adds the discounted price as a negative discount line item
+        - create creates an open offer with a frozen plan line
+        - update adds an add-on and prices the offer again
+        - every selected bundle version carries its own frozen line
+        - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
-        - consume blocks a no-longer-bookable bundle version
+        - consume blocks a bundle version that went off sale after the offer was made
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -343,13 +342,12 @@ _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
     - CheckoutOfferService
-        - create creates an open offer
-        - update customizes an open offer
-        - create requires bundle line items for specific bundle versions
-        - create freezes bundle versions, promotions and promo code into the offer
-        - create adds the discounted price as a negative discount line item
+        - create creates an open offer with a frozen plan line
+        - update adds an add-on and prices the offer again
+        - every selected bundle version carries its own frozen line
+        - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
-        - consume blocks a no-longer-bookable bundle version
+        - consume blocks a bundle version that went off sale after the offer was made
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -375,7 +373,6 @@ _Tested by:_
         - create accepts when the plan covers the requires
         - update validates the changed bundle selection against requires
         - without a CatalogEntryRepository no validation happens (graceful)
-        - without a PlanRepository the plan line item featuresSnapshot covers (fallback)
 
 <!-- END proof -->
 
@@ -384,6 +381,16 @@ _Tested by:_
 🟢 💰 Every add-on in it has to still be bookable at the moment of purchase.
 
 _Source:_ `docs/reference/error-codes.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/checkout-offer-service.test.js`
+    - CheckoutOfferService
+        - consume blocks a bundle version that went off sale after the offer was made
+
+<!-- END proof -->
 
 ### SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 
@@ -397,13 +404,12 @@ _Tested by:_
 
 - `packages/nest/tests/checkout-offer-service.test.js`
     - CheckoutOfferService
-        - create creates an open offer
-        - update customizes an open offer
-        - create requires bundle line items for specific bundle versions
-        - create freezes bundle versions, promotions and promo code into the offer
-        - create adds the discounted price as a negative discount line item
+        - create creates an open offer with a frozen plan line
+        - update adds an add-on and prices the offer again
+        - every selected bundle version carries its own frozen line
+        - a promo code becomes a negative discount line, and removing it removes the line
         - consume freezes the offer
-        - consume blocks a no-longer-bookable bundle version
+        - consume blocks a bundle version that went off sale after the offer was made
         - update on a consumed offer throws Conflict
         - update on an expired offer throws Conflict
         - double consume throws Conflict
@@ -437,6 +443,53 @@ _Tested by:_
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
     - a failed mutation triggers no freeze
+
+<!-- END proof -->
+
+### SC-MKT-023 — An offer's amounts are computed from the catalogue, never taken from the request
+
+🟢 💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
+the plan version on sale, an add-on's from its bundle version with the price it carries for that
+plan, the promotion from the same choice the public catalogue makes, a promo code's discount from
+what the promo module accepts, and the currency and VAT rate from the installation. A plan without
+a price for the rhythm, an add-on that is not on sale, not marketed, not compatible or not priced
+for the plan, and a code the promo module refuses or cannot check are refused rather than priced at
+nothing. When the offer is consumed its stored amounts are computed again from the versions it
+froze and the promotions as they stood when it was priced, and an offer whose amounts differ is
+refused, so no amount written by anything else becomes a contract.
+
+_Source:_ release 1.0.0-rc.13
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-offer-is-priced-from-the-catalogue.test.js`
+    - what a request says is not an amount
+        - the public bodies strip amounts before the service sees them
+        - a service called without that pipe still prices from the catalogue
+        - an update cannot bring amounts in either
+    - where each amount comes from
+        - the plan version on sale, in the rhythm chosen, with the installation VAT in per cent
+        - an add-on's price for that plan and rhythm, its override included
+        - the promotion the public catalogue picks, as a discount with its snapshot
+        - a promotion tied to a code, or to another language, is not applied
+        - a promo code the promo module accepts, on the plan price after its promotion
+    - what cannot be priced is refused, not priced at nothing
+        - a plan with no version on sale
+        - a plan that is not marketed
+        - a plan without a price for the rhythm
+        - an add-on that is ${reason}
+        - the same add-on twice
+        - a promo code the promo module refuses
+        - a promo code where no promo module is registered to check it
+        - the module does not start without a plan repository to price from
+    - an offer becomes a contract only with the amounts the catalogue gave it
+        - an offer as priced is consumed
+        - ${what} written into the stored row is refused
+        - a promotion that starts after the offer was priced does not unsettle it
+        - a promo code the promo module no longer accepts is refused at consumption
+        - an add-on renamed after the offer keeps the offer valid
 
 <!-- END proof -->
 

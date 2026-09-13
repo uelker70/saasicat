@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 154 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 158 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -173,6 +173,7 @@ Checkout offers and subscription contracts.
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `CHECKOUT_OFFER_ALREADY_CONSUMED`                   | Checkout offer '{offerId}' has already been consumed and cannot be {action}                                                  |
 | `CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED`         | Every selected bundle version requires a frozen bundle line item.                                                            |
+| `CHECKOUT_OFFER_BUNDLE_NOT_OFFERED`                 | Bundle version '{bundleVersionId}' cannot be added to this offer ({reason}).                                                 |
 | `CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE`        | At least one bundle version from the checkout offer is no longer bookable.                                                   |
 | `CHECKOUT_OFFER_EXPIRED`                            | Checkout offer '{offerId}' has expired and cannot be {action}                                                                |
 | `CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED`     | The selected plan does not cover all feature dependencies: [{missingRequires}] are missing from the plan + selected bundles. |
@@ -180,6 +181,9 @@ Checkout offers and subscription contracts.
 | `CHECKOUT_OFFER_NOT_CONSUMED`                       | CheckoutOffer '{offerId}' must be consumed before the contract is created                                                    |
 | `CHECKOUT_OFFER_NOT_FOUND`                          | CheckoutOffer '{offerId}' not found                                                                                          |
 | `CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED`            | A checkout offer requires a frozen plan line item.                                                                           |
+| `CHECKOUT_OFFER_PLAN_NOT_OFFERED`                   | Plan '{planKey}' is not offered with a {billingCycle} price at the moment.                                                   |
+| `CHECKOUT_OFFER_PRICE_NOT_CURRENT`                  | The prices of checkout offer '{offerId}' no longer match the catalogue; create a new offer.                                  |
+| `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`            | The promo code cannot be applied to this offer ({reason}).                                                                   |
 | `NO_ACTIVE_SUBSCRIPTION_CONTRACT`                   | No active subscription contract for tenant {tenantId}                                                                        |
 | `SUBSCRIPTION_CONTRACT_ALREADY_CLOSED`              | SubscriptionContract '{contractId}' is already closed                                                                        |
 | `SUBSCRIPTION_CONTRACT_INVALID_DATE`                | {field} must be a valid date.                                                                                                |

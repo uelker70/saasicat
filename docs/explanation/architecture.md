@@ -53,7 +53,7 @@ not yet distinct in your head.
                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ CheckoutOfferService    →  GET /api/v1/checkout/offer/:id        │
-│   (frozen selection with expiry date)                            │
+│   (selection priced from the catalogue, with expiry date)        │
 └─────────────────┬────────────────────────────────────────────────┘
                   │ (payment)
                   ▼

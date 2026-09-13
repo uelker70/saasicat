@@ -893,6 +893,38 @@ check sits on those handlers rather than in a guard list, so neither `controller
   `AdminResourcesModule`, `PlanCatalogImporterModule` — need `MfaService` resolvable, which
   `AdminModule` provides; without it the application does not start.
 
+### A checkout offer is priced from the catalogue
+
+`POST /public/checkout-offer`, `PATCH /public/checkout-offer/:id`, `CheckoutOfferService.create` and
+`CheckoutOfferService.update` take a selection and nothing else: `planKey`, `billingCycle`,
+`bundleVersionIds`, `promoCode`, `locale` and `validUntil`, typed as `CheckoutOfferSelection` and
+`CheckoutOfferSelectionUpdate`. The server computes the plan price from the plan version on sale,
+each add-on's price for that plan, the promotion the public catalogue picks, the promo code
+discount, and the currency and VAT rate from `config/saas.yaml`.
+
+- **A pricing page that posts amounts** drops `priceBreakdown`, `lineItems`,
+  `promotionSnapshots`, `promoCodeSnapshot`, `planVersionId`, `promotionId` and `bundles`, and reads
+  the amounts back from the offer the route returns. With the usual `ValidationPipe`
+  (`whitelist: true`) the old fields are stripped, so nothing breaks at the route; the amounts the
+  page computed are simply not used.
+- **Code that calls the service with line items**, such as a registration step that builds its own
+  plan line, passes the selection instead. The TypeScript types refuse the old input.
+- **A promo code** is part of the selection. Rewriting an offer's breakdown after redeeming a code
+  is no longer possible and no longer needed: the offer already carries the discount the promo
+  module accepts.
+- **`priceBreakdown.vatRate`** is stated in per cent (`19`), as the plan catalogue names it. Code
+  that multiplied by `1 + vatRate` reads it as `1 + vatRate / 100`. A contract created from an
+  offer reads either unit.
+- **Consuming an offer** computes its amounts again from the plan and bundle versions it froze and
+  refuses one whose stored amounts differ, or that names no plan version, with
+  `CHECKOUT_OFFER_PRICE_NOT_CURRENT`. An offer created before the upgrade can hit this; create it
+  again from the same selection.
+- **New refusals:** `CHECKOUT_OFFER_PLAN_NOT_OFFERED`, `CHECKOUT_OFFER_BUNDLE_NOT_OFFERED` (with a
+  `reason`) and `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`.
+- **Wiring `CheckoutOfferModule` by hand** needs `planRepository`, and `promotionRepository` for
+  promotions; the plan catalogue module has to be registered for the currency and VAT rate, and the
+  promo module has to be visible for a promo code. `SaaSiCatModule.forRoot` does all of that itself.
+
 ### `projectKey` is gone from the database
 
 One installation serves one application. A plan key, a bundle key, a feature key and a quota key

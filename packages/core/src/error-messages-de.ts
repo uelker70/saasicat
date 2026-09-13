@@ -220,6 +220,14 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Mindestens eine Bundle-Version aus dem Checkout-Angebot ist nicht mehr buchbar.',
     CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED:
         'Der gewählte Plan deckt nicht alle Feature-Abhängigkeiten ab: [{missingRequires}] fehlen in Plan und gewählten Bundles.',
+    CHECKOUT_OFFER_PLAN_NOT_OFFERED:
+        "Plan '{planKey}' wird derzeit nicht mit einem Preis für den Rhythmus {billingCycle} angeboten.",
+    CHECKOUT_OFFER_BUNDLE_NOT_OFFERED:
+        "Bundle-Version '{bundleVersionId}' kann diesem Angebot nicht hinzugefügt werden ({reason}).",
+    CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED:
+        'Der Rabattcode kann auf dieses Angebot nicht angewendet werden ({reason}).',
+    CHECKOUT_OFFER_PRICE_NOT_CURRENT:
+        "Die Preise des Angebots '{offerId}' stimmen nicht mehr mit dem Katalog überein; bitte ein neues Angebot erstellen.",
     SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED: 'Ein Abo-Vertrag braucht mindestens eine Position.',
     SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED:
         'Ein Abo-Vertrag braucht genau eine Plan-Grundposition.',

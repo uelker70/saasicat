@@ -42,24 +42,20 @@ export function recordLineItemMoney(
 /**
  * The VAT rate a checkout offer states, as a percentage.
  *
- * Two conventions meet here, and the column they meet in holds one of them. An
- * offer prices its lines as `net * (1 + vatRate)` — see
- * `checkout-offer.service.ts` and `discount-line-items.ts` — so an offer states
- * the rate as a **fraction**, while `config/saas.yaml` and every path that
- * reads it state the same rate in **per cent**. Recording either as it stands
- * would put both units in `ContractLineItem.taxRate`, on a column whose whole
- * purpose is to be the authoritative record of the rate. A tenant registering
- * through checkout would store `0.19` beside a tax that is 19 % of net; the
- * same installation's next plan change would store `19` for the same tax.
+ * A stored offer can carry the rate in either unit. The server prices an offer
+ * in **per cent**, as `config/saas.yaml` names the rate, while an offer row
+ * written by other code may carry a **fraction**. Recording either as it
+ * stands would put both units in `ContractLineItem.taxRate`, on a column whose
+ * whole purpose is to be the authoritative record of the rate.
  *
- * Which unit a given breakdown carries is read off its own totals rather than
- * assumed. The per-cent reading has to be proved — the fraction is what this
- * platform's own arithmetic produces, so it is what an unrecognised breakdown
- * is taken to be, and a breakdown that was priced elsewhere at least keeps a
- * rate that explains its own gross.
+ * Which unit a given breakdown carries is read off its own totals where they
+ * tell the two apart. Where they cannot — a total of zero explains any rate —
+ * the size decides: a VAT rate stated as a fraction is below one, and one
+ * stated in per cent is not.
  */
 export function vatPercentFromOfferRate(rate: number, net: number, gross: number): number {
     const asPercent = round2(net * (1 + rate / 100)) === round2(gross);
     const asFraction = round2(net * (1 + rate)) === round2(gross);
-    return asPercent && !asFraction ? rate : round2(rate * 100);
+    if (asPercent !== asFraction) return asPercent ? rate : round2(rate * 100);
+    return rate >= 1 ? rate : round2(rate * 100);
 }

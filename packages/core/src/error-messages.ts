@@ -218,6 +218,14 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'At least one bundle version from the checkout offer is no longer bookable.',
     CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED:
         'The selected plan does not cover all feature dependencies: [{missingRequires}] are missing from the plan + selected bundles.',
+    CHECKOUT_OFFER_PLAN_NOT_OFFERED:
+        "Plan '{planKey}' is not offered with a {billingCycle} price at the moment.",
+    CHECKOUT_OFFER_BUNDLE_NOT_OFFERED:
+        "Bundle version '{bundleVersionId}' cannot be added to this offer ({reason}).",
+    CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED:
+        'The promo code cannot be applied to this offer ({reason}).',
+    CHECKOUT_OFFER_PRICE_NOT_CURRENT:
+        "The prices of checkout offer '{offerId}' no longer match the catalogue; create a new offer.",
     SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED:
         'A subscription contract requires at least one line item.',
     SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED:

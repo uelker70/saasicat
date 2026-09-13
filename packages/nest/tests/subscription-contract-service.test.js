@@ -451,6 +451,19 @@ describe('the money facts a contract inherits from its offer', () => {
         }
     });
 
+    test('a rate the offer states in per cent, as the server prices it, is recorded as it is', async () => {
+        const offer = consumedOffer();
+        offer.priceBreakdown = { ...offer.priceBreakdown, vatRate: 19 };
+        const contract = await conclude(offer);
+        for (const line of contract.lineItems) {
+            assert.equal(line.taxRate, 19, `${line.sourceKey} recorded the rate in the wrong unit`);
+            assert.ok(
+                rateExplainsTax(line),
+                `${line.sourceKey}: ${line.taxAmount} on ${line.priceNet}`,
+            );
+        }
+    });
+
     test('the discount the offer implies carries a negative tax, not a positive one', async () => {
         // The discount line is appended by the platform rather than supplied,
         // so it is the one a stamping applied only to the offer's own lines
@@ -465,15 +478,9 @@ describe('the money facts a contract inherits from its offer', () => {
     });
 });
 
-// The unit itself, asked of the function rather than through a contract.
-//
-// Only one of the two readings is reachable end to end: `discount-line-items`
-// prices the discount it appends as `net * (1 + vatRate)`, so an offer stating
-// a percentage gets a discount line 20 times its size long before this is
-// consulted. That is a pre-existing defect of the offer arithmetic and not
-// this function's to fix — but the function still has to answer for a
-// breakdown whose own totals say per cent, because a consumer supplies the
-// breakdown and only the platform's line pricing assumes otherwise.
+// The unit itself, asked of the function rather than through a contract. The
+// server prices an offer in per cent; a stored row written by other code may
+// carry a fraction, and both have to come out as the same percentage.
 
 // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
 describe('reading the unit an offer states its VAT rate in', () => {
@@ -491,18 +498,19 @@ describe('reading the unit an offer states its VAT rate in', () => {
         assert.equal(vatPercentFromOfferRate(0, 100, 100), 0);
     });
 
-    test('totals that prove nothing fall to the unit this platform produces', () => {
-        // A breakdown nobody here priced. The fraction is what
-        // `checkout-offer.service.ts` and `discount-line-items.ts` both assume,
-        // so it is what an unrecognised one is taken to be — the alternative is
-        // reading 0.19 as a fifth of a per cent.
+    test('totals that prove nothing leave the size of the rate to decide', () => {
+        // A breakdown nobody here priced. A VAT rate stated as a fraction is
+        // below one and one stated in per cent is not, so 0.19 is not read as a
+        // fifth of a per cent and 19 is not read as 1,900 %.
         assert.equal(vatPercentFromOfferRate(0.19, 100, 500), 19);
+        assert.equal(vatPercentFromOfferRate(19, 100, 500), 19);
     });
 
-    test('a total of nothing is still read as the fraction it is', () => {
+    test('a total of nothing keeps the rate it states, in either unit', () => {
         // Both readings produce a gross of zero, so the totals cannot separate
         // them. A fully discounted contract is the case, and it still has a
         // rate.
         assert.equal(vatPercentFromOfferRate(0.19, 0, 0), 19);
+        assert.equal(vatPercentFromOfferRate(19, 0, 0), 19);
     });
 });

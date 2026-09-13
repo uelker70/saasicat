@@ -242,10 +242,16 @@ export interface SaaSiCatAdminStatsOptions extends Omit<
  */
 export interface SaaSiCatCheckoutOfferOptions extends Omit<
     CheckoutOfferModuleOptions,
-    'bundleRepository' | 'planRepository' | 'catalogEntryRepository' | 'global'
+    | 'bundleRepository'
+    | 'planRepository'
+    | 'promotionRepository'
+    | 'catalogEntryRepository'
+    | 'global'
 > {
     bundleRepository?: CheckoutOfferModuleOptions['bundleRepository'];
+    /** Defaults to the persistence bundle's plan repository; an offer cannot be priced without one. */
     planRepository?: CheckoutOfferModuleOptions['planRepository'];
+    promotionRepository?: CheckoutOfferModuleOptions['promotionRepository'];
     catalogEntryRepository?: CheckoutOfferModuleOptions['catalogEntryRepository'];
 }
 

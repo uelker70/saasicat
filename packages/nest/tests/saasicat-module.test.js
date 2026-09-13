@@ -189,6 +189,7 @@ describe('SaaSiCatModule.forRoot', () => {
             },
             checkoutOffer: {
                 checkoutOfferRepository: {},
+                planRepository: {},
                 controller: { guards: [] },
             },
             subscriptionContract: {
@@ -263,7 +264,7 @@ describe('SaaSiCatModule.forRoot', () => {
                         promoCodeStatsPort: {},
                         auditStatsPort: {},
                     },
-                    checkoutOffer: { checkoutOfferRepository: {} },
+                    checkoutOffer: { checkoutOfferRepository: {}, planRepository: {} },
                     subscriptionContract: { subscriptionContractRepository: {} },
                 }),
                 OptionalServicesConsumerModule,

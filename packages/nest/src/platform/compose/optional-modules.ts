@@ -8,7 +8,10 @@
 import type { DynamicModule } from '@nestjs/common';
 
 import { AdminStatsModule, type AdminStatsModuleOptions } from '../../admin/admin-stats.module.js';
-import { CheckoutOfferModule } from '../../checkout-offer/checkout-offer.module.js';
+import {
+    CheckoutOfferModule,
+    type CheckoutOfferModuleOptions,
+} from '../../checkout-offer/checkout-offer.module.js';
 import { SetupModule, type SetupModuleOptions } from '../../setup/setup.module.js';
 import {
     SubscriptionContractModule,
@@ -61,7 +64,11 @@ export function composeCheckoutOffer({
         CheckoutOfferModule.forRoot({
             ...config,
             bundleRepository: config.bundleRepository ?? resolveBundleRepository(persistence),
-            planRepository: config.planRepository ?? persistence?.catalog?.planRepository,
+            planRepository: (config.planRepository ??
+                persistence?.catalog
+                    ?.planRepository) as CheckoutOfferModuleOptions['planRepository'],
+            promotionRepository:
+                config.promotionRepository ?? persistence?.catalog?.promotionRepository,
             catalogEntryRepository:
                 config.catalogEntryRepository ?? persistence?.catalog?.catalogEntryRepository,
             imports: config.imports ?? options.imports,

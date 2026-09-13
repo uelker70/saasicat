@@ -165,6 +165,7 @@ export {
     type CheckoutOfferModuleOptions,
 } from '../checkout-offer/checkout-offer.module.js';
 export { CheckoutOfferService } from '../checkout-offer/checkout-offer.service.js';
+export { CheckoutOfferPricing } from '../checkout-offer/checkout-offer-pricing.js';
 export {
     SubscriptionContractModule,
     type SubscriptionContractModuleOptions,

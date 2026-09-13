@@ -4,10 +4,15 @@
 // CheckoutOfferModule.forRoot({
 //   checkoutOfferRepository: { useFactory: (r: PrismaCheckoutOfferRepository) => r,
 //                              inject: [PrismaCheckoutOfferRepository] },
+//   planRepository: { useFactory: (r: PrismaPlanRepository) => r, inject: [PrismaPlanRepository] },
 //   controller: { guards: [] }, // auth-free — offer is created before tenant creation
 //   imports: [PrismaModule],
 // })
 // ```
+//
+// Pricing reads the installation's currency and VAT rate from the plan
+// catalogue (`PlanCatalogModule`, global under `SaaSiCatModule.forRoot`), and a
+// promo code through `PromoCodesService` where the promo module is registered.
 
 import {
     type CanActivate,
@@ -22,6 +27,7 @@ import type {
     CatalogEntryRepository,
     CheckoutOfferRepository,
     PlanRepository,
+    PromotionRepository,
 } from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
@@ -29,7 +35,9 @@ import {
     BUNDLE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
+    PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
+import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
 import { CheckoutOfferService } from './checkout-offer.service.js';
 import { buildCheckoutOfferController } from './checkout-offer.controller.js';
 import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './checkout-offer.tokens.js';
@@ -42,17 +50,21 @@ export interface CheckoutOfferControllerConfig {
 export interface CheckoutOfferModuleOptions {
     checkoutOfferRepository: ProviderSpec<CheckoutOfferRepository>;
     /**
-     * Optional for V3 revalidation on consume: if set, the service checks
-     * whether referenced bundle versions are still bookable. Also provides
-     * the bundle features for the requires validation (#35 P6).
+     * Bundle versions an offer can book: their prices, and whether they are
+     * still bookable on consume. Without it an offer carries no add-ons, and
+     * one that names a bundle version is refused.
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
     /**
-     * Optional for the requires validation (#35 P6): plan features of the
-     * chosen plan version. Without wiring, falls back to the featuresSnapshot
-     * of the plan line item.
+     * REQUIRED: the plan version on sale and its price, which every offer is
+     * priced from. Also the plan features for the requires validation.
      */
-    planRepository?: ProviderSpec<PlanRepository>;
+    planRepository: ProviderSpec<PlanRepository>;
+    /**
+     * The catalogue promotions an offer applies, the same ones the public
+     * catalogue shows. Without it an offer carries no promotion.
+     */
+    promotionRepository?: ProviderSpec<PromotionRepository>;
     /**
      * Optional for the requires validation (#35 P6): requires source =
      * curated FeatureCatalogEntries. Without wiring, the validation is
@@ -69,6 +81,13 @@ export interface CheckoutOfferModuleOptions {
 @Module({})
 export class CheckoutOfferModule {
     static forRoot(options: CheckoutOfferModuleOptions): DynamicModule {
+        if (!options.planRepository) {
+            throw new Error(
+                'CheckoutOfferModule: `planRepository` is required — every offer is priced from the ' +
+                    'plan version on sale, and an offer without it would have to take its price from ' +
+                    'the request.',
+            );
+        }
         const controllers: Type[] = [];
         if (options.controller) {
             controllers.push(buildCheckoutOfferController(options.controller.guards));
@@ -83,12 +102,14 @@ export class CheckoutOfferModule {
                 ...(options.bundleRepository
                     ? [asProvider(BUNDLE_REPOSITORY_TOKEN, options.bundleRepository)]
                     : []),
-                ...(options.planRepository
-                    ? [asProvider(PLAN_REPOSITORY_TOKEN, options.planRepository)]
+                asProvider(PLAN_REPOSITORY_TOKEN, options.planRepository),
+                ...(options.promotionRepository
+                    ? [asProvider(PROMOTION_REPOSITORY_TOKEN, options.promotionRepository)]
                     : []),
                 ...(options.catalogEntryRepository
                     ? [asProvider(CATALOG_ENTRY_REPOSITORY_TOKEN, options.catalogEntryRepository)]
                     : []),
+                CheckoutOfferPricing,
                 CheckoutOfferService,
                 ...(options.extraProviders ?? []),
             ],

@@ -2,6 +2,11 @@
 // onboarding → billing.
 
 export { CheckoutOfferService } from './checkout-offer.service.js';
+export {
+    CheckoutOfferPricing,
+    type CheckoutOfferPricingInput,
+    type PricedCheckoutOffer,
+} from './checkout-offer-pricing.js';
 export { buildCheckoutOfferController } from './checkout-offer.controller.js';
 export {
     CheckoutOfferModule,

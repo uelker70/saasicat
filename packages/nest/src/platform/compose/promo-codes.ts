@@ -48,6 +48,9 @@ export function composePromoCodes({
                     ? false
                     : { guards: adminGuards ?? operatorGuards(options) },
             imports: promoImports ?? options.imports,
+            // A checkout offer prices a promo code through `PromoCodesService`,
+            // from a module that does not import this one.
+            global: Boolean(options.checkoutOffer),
         }),
     ];
 }

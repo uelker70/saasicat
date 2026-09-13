@@ -1,264 +1,93 @@
-import { describe, test, beforeEach } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { CheckoutOfferService } from '../dist/checkout-offer/index.js';
+import {
+    BUNDLE_VERSION,
+    PLAN_VERSION,
+    buildOfferService,
+    fakeBundleRepo,
+    fakePlanRepo,
+} from './helpers/checkout-catalogue.js';
 
-// CheckoutOfferService — package snapshot website → onboarding → billing
-//. Test against an in-memory fake.
-
-const PRICE = {
-    currency: 'EUR',
-    billingCycle: 'monthly',
-    planNet: 49,
-    bundlesNet: 0,
-    regularNet: 49,
-    effectiveNet: 49,
-    vatRate: 0.19,
-    effectiveGross: 58.31,
-};
-
-const DISCOUNTED_PRICE = {
-    ...PRICE,
-    effectiveNet: 44.1,
-    effectiveGross: 52.48,
-};
-
-const PLAN_LINE_ITEM = {
-    kind: 'plan',
-    sourceKey: 'STANDARD',
-    sourceVersionId: 'pv-1',
-    titleSnapshot: 'Standard',
-    descriptionSnapshot: null,
-    quantity: 1,
-    unit: null,
-    priceNet: 49,
-    priceGross: 58.31,
-    billingCycle: 'monthly',
-    featuresSnapshot: ['DASHBOARD'],
-    quotaEffectsSnapshot: { users: 5 },
-    metadata: null,
-};
-
-const BUNDLE_LINE_ITEM = {
-    kind: 'bundle',
-    sourceKey: 'FINANCE_PLUS',
-    sourceVersionId: 'bv-1',
-    titleSnapshot: 'Finance Plus',
-    descriptionSnapshot: null,
-    quantity: 1,
-    unit: null,
-    priceNet: 12,
-    priceGross: 14.28,
-    billingCycle: 'monthly',
-    featuresSnapshot: ['FINANCE_EXPORT'],
-    quotaEffectsSnapshot: {},
-    metadata: null,
-};
-
-function fakeRepo() {
-    const map = new Map();
-    let seq = 0;
-    return {
-        async list({ status }) {
-            return [...map.values()].filter((o) => !status || o.status === status);
-        },
-        async findById(id) {
-            return map.get(id) ?? null;
-        },
-        async create(data) {
-            const id = `offer-${++seq}`;
-            const now = new Date().toISOString();
-            const row = {
-                id,
-                planKey: data.planKey,
-                planVersionId: data.planVersionId ?? null,
-                billingCycle: data.billingCycle,
-                promotionId: data.promotionId ?? null,
-                promoCode: data.promoCode ?? null,
-                bundles: data.bundles ?? [],
-                bundleVersionIds: data.bundleVersionIds ?? [],
-                quotas: data.quotas ?? {},
-                priceBreakdown: data.priceBreakdown,
-                lineItems: data.lineItems ?? [],
-                promotionSnapshots: data.promotionSnapshots ?? [],
-                promoCodeSnapshot: data.promoCodeSnapshot ?? null,
-                locale: data.locale ?? 'de',
-                validUntil: data.validUntil ?? null,
-                status: 'open',
-                consumedAt: null,
-                createdAt: now,
-                updatedAt: now,
-            };
-            map.set(id, row);
-            return row;
-        },
-        async update(id, data) {
-            const row = map.get(id);
-            Object.assign(row, data, { updatedAt: new Date().toISOString() });
-            return row;
-        },
-        async consume(id) {
-            const row = map.get(id);
-            row.status = 'consumed';
-            row.consumedAt = new Date().toISOString();
-            return row;
-        },
-    };
-}
-
-function fakeBundleRepo(rows) {
-    return {
-        async findVersionById(id) {
-            return rows.get(id) ?? null;
-        },
-    };
-}
+// CheckoutOfferService — package snapshot website → onboarding → billing,
+// against an in-memory store and the small catalogue in the helper.
 
 // @requirement SC-MKT-013 — What a customer selected is frozen into an offer before it becomes a contract
 // @requirement SC-MKT-014 — An offer that has expired or been used cannot become a contract
 // @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 describe('CheckoutOfferService', () => {
-    let repo;
-    let service;
+    const select = (extra = {}) => ({ planKey: 'STANDARD', billingCycle: 'monthly', ...extra });
 
-    beforeEach(() => {
-        repo = fakeRepo();
-        service = new CheckoutOfferService(repo);
-    });
-
-    function create() {
-        return service.create({
-            planKey: 'STANDARD',
-            billingCycle: 'monthly',
-            priceBreakdown: PRICE,
-        });
-    }
-
-    test('create creates an open offer', async () => {
-        const offer = await create();
+    test('create creates an open offer with a frozen plan line', async () => {
+        const { service } = buildOfferService();
+        const offer = await service.create(select());
         assert.equal(offer.status, 'open');
         assert.equal(offer.consumedAt, null);
         assert.equal(offer.planKey, 'STANDARD');
-        assert.equal(offer.lineItems[0].kind, 'plan');
-    });
-
-    test('update customizes an open offer', async () => {
-        const offer = await create();
-        const updated = await service.update(offer.id, { bundles: ['FINANCE_PLUS'] });
-        assert.deepEqual(updated.bundles, ['FINANCE_PLUS']);
-    });
-
-    test('create requires bundle line items for specific bundle versions', async () => {
-        await assert.rejects(
-            () =>
-                service.create({
-                    planKey: 'STANDARD',
-                    billingCycle: 'monthly',
-                    bundleVersionIds: ['bv-1'],
-                    priceBreakdown: PRICE,
-                    lineItems: [PLAN_LINE_ITEM],
-                }),
-            /bundle line item/,
+        assert.equal(offer.planVersionId, PLAN_VERSION.id);
+        assert.deepEqual(
+            offer.lineItems.map((item) => [item.kind, item.sourceVersionId]),
+            [['plan', PLAN_VERSION.id]],
         );
     });
 
-    test('create freezes bundle versions, promotions and promo code into the offer', async () => {
-        const offer = await service.create({
-            planKey: 'STANDARD',
-            planVersionId: 'pv-1',
-            billingCycle: 'monthly',
-            bundles: ['FINANCE_PLUS'],
-            bundleVersionIds: ['bv-1'],
-            priceBreakdown: PRICE,
-            lineItems: [PLAN_LINE_ITEM, BUNDLE_LINE_ITEM],
-            promotionSnapshots: [
-                {
-                    id: 'promo-1',
-                    type: 'percent',
-                    value: 10,
-                    label: '10 % Start',
-                    resolvedAmountNet: 4.9,
-                    appliesTo: ['STANDARD'],
-                    billingCycle: 'monthly',
-                },
-            ],
-            promoCodeSnapshot: {
-                code: 'START10',
-                label: '10 % Start',
-                valueType: 'PERCENT',
-                value: 10,
-                resolvedAmountNet: 4.9,
-            },
-        });
-        assert.deepEqual(offer.bundleVersionIds, ['bv-1']);
-        assert.equal(offer.lineItems.length, 2);
-        assert.equal(offer.promotionSnapshots[0].id, 'promo-1');
-        assert.equal(offer.promoCodeSnapshot.code, 'START10');
+    test('update adds an add-on and prices the offer again', async () => {
+        const { service } = buildOfferService();
+        const offer = await service.create(select());
+        const updated = await service.update(offer.id, { bundleVersionIds: [BUNDLE_VERSION.id] });
+        assert.deepEqual(updated.bundles, ['FINANCE_PLUS']);
+        assert.deepEqual(updated.bundleVersionIds, [BUNDLE_VERSION.id]);
+        assert.equal(updated.priceBreakdown.bundlesNet, 12);
+        assert.equal(updated.priceBreakdown.regularNet, 61);
     });
 
-    test('create adds the discounted price as a negative discount line item', async () => {
-        const offer = await service.create({
-            planKey: 'STANDARD',
-            planVersionId: 'pv-1',
-            billingCycle: 'monthly',
-            priceBreakdown: DISCOUNTED_PRICE,
-            lineItems: [PLAN_LINE_ITEM],
-            promoCodeSnapshot: {
-                code: 'START10',
-                label: '10 % Start',
-                valueType: 'PERCENT',
-                value: 10,
-                resolvedAmountNet: 4.9,
-            },
-        });
+    test('every selected bundle version carries its own frozen line', async () => {
+        const { service } = buildOfferService();
+        const offer = await service.create(select({ bundleVersionIds: [BUNDLE_VERSION.id] }));
+        assert.deepEqual(
+            offer.lineItems.map((item) => [item.kind, item.sourceKey, item.sourceVersionId]),
+            [
+                ['plan', 'STANDARD', PLAN_VERSION.id],
+                ['bundle', 'FINANCE_PLUS', BUNDLE_VERSION.id],
+            ],
+        );
+    });
+
+    test('a promo code becomes a negative discount line, and removing it removes the line', async () => {
+        const { service } = buildOfferService();
+        const offer = await service.create(select({ promoCode: 'start10' }));
 
         const discount = offer.lineItems.find((item) => item.kind === 'discount');
         assert.ok(discount);
-        assert.equal(offer.lineItems.length, 2);
+        assert.equal(offer.promoCode, 'START10');
         assert.equal(discount.sourceKey, 'START10');
         assert.equal(discount.titleSnapshot, '10 % Start');
         assert.equal(discount.priceNet, -4.9);
         assert.equal(discount.priceGross, -5.83);
         assert.equal(discount.metadata.source, 'promo_code');
 
-        const withoutDiscount = await service.update(offer.id, {
-            priceBreakdown: PRICE,
-            promoCodeSnapshot: null,
-        });
+        const withoutCode = await service.update(offer.id, { promoCode: null });
+        assert.equal(withoutCode.promoCode, null);
         assert.equal(
-            withoutDiscount.lineItems.some((item) => item.kind === 'discount'),
+            withoutCode.lineItems.some((item) => item.kind === 'discount'),
             false,
         );
     });
 
     test('consume freezes the offer', async () => {
-        const offer = await create();
+        const { service } = buildOfferService();
+        const offer = await service.create(select());
         const consumed = await service.consume(offer.id);
         assert.equal(consumed.status, 'consumed');
         assert.ok(consumed.consumedAt);
     });
 
-    test('consume blocks a no-longer-bookable bundle version', async () => {
-        const bundleRows = new Map([
-            [
-                'bv-1',
-                {
-                    id: 'bv-1',
-                    publishedAt: '2026-01-01T00:00:00.000Z',
-                    supersededAt: '2026-05-01T00:00:00.000Z',
-                    validFrom: '2026-01-01T00:00:00.000Z',
-                    validUntil: null,
-                },
-            ],
-        ]);
-        service = new CheckoutOfferService(repo, fakeBundleRepo(bundleRows));
-        const offer = await service.create({
-            planKey: 'STANDARD',
-            billingCycle: 'monthly',
-            bundleVersionIds: ['bv-1'],
-            priceBreakdown: PRICE,
-            lineItems: [PLAN_LINE_ITEM, BUNDLE_LINE_ITEM],
-        });
+    // @requirement SC-MKT-016 — An offer cannot be turned into a contract if part of it is no longer on sale
+    test('consume blocks a bundle version that went off sale after the offer was made', async () => {
+        const bundle = { ...BUNDLE_VERSION };
+        const { service } = buildOfferService({ bundles: fakeBundleRepo([bundle]) });
+        const offer = await service.create(select({ bundleVersionIds: [bundle.id] }));
+        bundle.supersededAt = '2026-05-01T00:00:00.000Z';
 
         await assert.rejects(
             () => service.consume(offer.id),
@@ -272,31 +101,30 @@ describe('CheckoutOfferService', () => {
     });
 
     test('update on a consumed offer throws Conflict', async () => {
-        const offer = await create();
+        const { service } = buildOfferService();
+        const offer = await service.create(select());
         await service.consume(offer.id);
         await assert.rejects(
-            () => service.update(offer.id, { bundles: ['X'] }),
+            () => service.update(offer.id, { locale: 'en' }),
             /already been consumed/,
         );
     });
 
     test('update on an expired offer throws Conflict', async () => {
-        const offer = await service.create({
-            planKey: 'STANDARD',
-            billingCycle: 'monthly',
-            priceBreakdown: PRICE,
-            validUntil: '2020-01-01T00:00:00.000Z',
-        });
+        const { service } = buildOfferService();
+        const offer = await service.create(select({ validUntil: '2020-01-01T00:00:00.000Z' }));
         await assert.rejects(() => service.update(offer.id, { locale: 'en' }), /has expired/);
     });
 
     test('double consume throws Conflict', async () => {
-        const offer = await create();
+        const { service } = buildOfferService();
+        const offer = await service.create(select());
         await service.consume(offer.id);
         await assert.rejects(() => service.consume(offer.id), /already been consumed/);
     });
 
     test('getById throws for an unknown offer', async () => {
+        const { service } = buildOfferService();
         await assert.rejects(() => service.getById('nope'), /not found/);
     });
 });
@@ -306,20 +134,18 @@ describe('CheckoutOfferService', () => {
 // within the selection. requires source = curated FeatureCatalogEntries.
 // @requirement SC-MKT-015 — An offer whose selection does not cover its own dependencies is refused
 describe('CheckoutOfferService — requires validation (#35 P6)', () => {
-    const PLAN_VERSION = { id: 'pv-1', planId: 'STANDARD', features: ['DASHBOARD'] };
-    const TURNIERE_BV = { id: 'bv-turniere', features: ['TOURNAMENT_MANAGEMENT'] };
-    const RESSOURCEN_BV = { id: 'bv-ressourcen', features: ['RESOURCE_MANAGEMENT'] };
-
-    function fakePlanRepo() {
-        return {
-            async findVersionById(id) {
-                return id === PLAN_VERSION.id ? PLAN_VERSION : null;
-            },
-            async findActivePlanVersion(planKey) {
-                return planKey === 'STANDARD' ? PLAN_VERSION : null;
-            },
-        };
-    }
+    const TURNIERE_BV = {
+        ...BUNDLE_VERSION,
+        id: 'bv-turniere',
+        bundleKey: 'TURNIERE',
+        features: ['TOURNAMENT_MANAGEMENT'],
+    };
+    const RESSOURCEN_BV = {
+        ...BUNDLE_VERSION,
+        id: 'bv-ressourcen',
+        bundleKey: 'RESSOURCEN',
+        features: ['RESOURCE_MANAGEMENT'],
+    };
 
     function fakeCatalogEntryRepo(requiresByFeature) {
         return {
@@ -331,45 +157,19 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
         };
     }
 
-    function bundleLineItem(bv) {
-        return {
-            ...BUNDLE_LINE_ITEM,
-            sourceKey: bv.id,
-            sourceVersionId: bv.id,
-            featuresSnapshot: bv.features,
-        };
-    }
-
-    let repo;
-
-    beforeEach(() => {
-        repo = fakeRepo();
-    });
-
     function buildService(requiresByFeature) {
-        return new CheckoutOfferService(
-            repo,
-            fakeBundleRepo(
-                new Map([
-                    [TURNIERE_BV.id, TURNIERE_BV],
-                    [RESSOURCEN_BV.id, RESSOURCEN_BV],
-                ]),
-            ),
-            fakePlanRepo(),
-            fakeCatalogEntryRepo(requiresByFeature),
-        );
+        return buildOfferService({
+            bundles: fakeBundleRepo([TURNIERE_BV, RESSOURCEN_BV]),
+            plans: fakePlanRepo(),
+            catalogEntries: requiresByFeature ? fakeCatalogEntryRepo(requiresByFeature) : null,
+        }).service;
     }
 
-    function offerData(bundleVersions) {
-        return {
-            planKey: 'STANDARD',
-            planVersionId: PLAN_VERSION.id,
-            billingCycle: 'monthly',
-            bundleVersionIds: bundleVersions.map((bv) => bv.id),
-            priceBreakdown: PRICE,
-            lineItems: [PLAN_LINE_ITEM, ...bundleVersions.map(bundleLineItem)],
-        };
-    }
+    const offerData = (bundleVersions) => ({
+        planKey: 'STANDARD',
+        billingCycle: 'monthly',
+        bundleVersionIds: bundleVersions.map((bv) => bv.id),
+    });
 
     test('create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires', async () => {
         const service = buildService({ TOURNAMENT_MANAGEMENT: ['RESOURCE_MANAGEMENT'] });
@@ -400,11 +200,7 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
         const service = buildService({ TOURNAMENT_MANAGEMENT: ['RESOURCE_MANAGEMENT'] });
         const offer = await service.create(offerData([TURNIERE_BV, RESSOURCEN_BV]));
         await assert.rejects(
-            () =>
-                service.update(offer.id, {
-                    bundleVersionIds: [TURNIERE_BV.id],
-                    lineItems: [PLAN_LINE_ITEM, bundleLineItem(TURNIERE_BV)],
-                }),
+            () => service.update(offer.id, { bundleVersionIds: [TURNIERE_BV.id] }),
             (err) => {
                 assert.equal(err.response?.code, 'CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED');
                 return true;
@@ -413,24 +209,7 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
     });
 
     test('without a CatalogEntryRepository no validation happens (graceful)', async () => {
-        const service = new CheckoutOfferService(
-            repo,
-            fakeBundleRepo(new Map([[TURNIERE_BV.id, TURNIERE_BV]])),
-            fakePlanRepo(),
-            null,
-        );
-        const offer = await service.create(offerData([TURNIERE_BV]));
-        assert.equal(offer.status, 'open');
-    });
-
-    test('without a PlanRepository the plan line item featuresSnapshot covers (fallback)', async () => {
-        const service = new CheckoutOfferService(
-            repo,
-            fakeBundleRepo(new Map([[TURNIERE_BV.id, TURNIERE_BV]])),
-            null,
-            fakeCatalogEntryRepo({ TOURNAMENT_MANAGEMENT: ['DASHBOARD'] }),
-        );
-        // PLAN_LINE_ITEM.featuresSnapshot contains DASHBOARD → covered.
+        const service = buildService(null);
         const offer = await service.create(offerData([TURNIERE_BV]));
         assert.equal(offer.status, 'open');
     });

@@ -3,9 +3,13 @@
 //
 // On a package click on the pricing page a CheckoutOffer is created; its
 // `id` travels as `?offer=<id>` into onboarding. There the tenant may
-// customize the package (bundles/quotas) — the delta is written into
+// customize the package (bundles, a promo code) — the change is written into
 // the same offer. When the subscription is created the final offer is
 // frozen as `packageSnapshot`.
+//
+// A caller chooses and the server prices: `CheckoutOfferSelection` is all the
+// public routes accept, and every amount on the stored row comes from the
+// catalogue.
 
 export type CheckoutOfferLineItemKind = 'plan' | 'bundle' | 'discount';
 
@@ -61,6 +65,7 @@ export interface CheckoutOfferPriceBreakdown {
     regularNet: number;
     /** Net total after promo. */
     effectiveNet: number;
+    /** VAT rate in percent, as the plan catalogue names it (19 = 19 %). */
     vatRate: number;
     /** Gross total after promo. */
     effectiveGross: number;
@@ -80,7 +85,7 @@ export interface CheckoutOfferRow {
 
     /** Applied promotion (active at offer time). */
     promotionId: string | null;
-    /** Redeemed promo code, if the promotion was `requiresCoupon`. */
+    /** Promo code applied to the offer, as the promo module normalised it. */
     promoCode: string | null;
 
     /** Added bundle keys. Legacy display; V3 uses `bundleVersionIds` + `lineItems`. */
@@ -111,7 +116,43 @@ export interface CheckoutOfferFilter {
     status?: CheckoutOfferStatus;
 }
 
-/** Body of `POST /public/checkout-offer` — called from the website. */
+/**
+ * What a caller chooses: the body of `POST /public/checkout-offer`, and the
+ * input of `CheckoutOfferService.create`.
+ *
+ * No amount is part of it. The plan version, the bundle prices, the promotion
+ * and the promo code discount are resolved on the server, so the offer costs
+ * what the catalogue says rather than what a request says.
+ */
+export interface CheckoutOfferSelection {
+    planKey: string;
+    billingCycle: 'monthly' | 'yearly';
+    /** Concrete BundleVersion IDs to book with the plan. */
+    bundleVersionIds?: string[];
+    /** A promo code to apply; refused when the promo module cannot accept it. */
+    promoCode?: string | null;
+    locale?: string;
+    validUntil?: string | null;
+}
+
+/**
+ * What a caller may change while an offer is open: the body of
+ * `PATCH /public/checkout-offer/:id`. The plan is fixed; everything given here
+ * is priced again.
+ */
+export interface CheckoutOfferSelectionUpdate {
+    billingCycle?: 'monthly' | 'yearly';
+    bundleVersionIds?: string[];
+    /** `null` removes a code applied before. */
+    promoCode?: string | null;
+    locale?: string;
+    validUntil?: string | null;
+}
+
+/**
+ * A new offer as the repository stores it — the selection with the amounts
+ * the server computed for it (`CheckoutOfferRepository.create`).
+ */
 export interface CreateCheckoutOfferData {
     planKey: string;
     planVersionId?: string | null;
@@ -129,11 +170,13 @@ export interface CreateCheckoutOfferData {
 }
 
 /**
- * Body of `PATCH /public/checkout-offer/:id` — customization during
- * onboarding. `status`/`consumedAt` are not editable — `consume()`
- * sets them server-side.
+ * A change to an open offer as the repository stores it, with the amounts
+ * priced again (`CheckoutOfferRepository.update`). `status`/`consumedAt` are
+ * not editable — `consume()` sets them server-side.
  */
 export interface UpdateCheckoutOfferData {
+    /** The plan version active when the change was priced. */
+    planVersionId?: string | null;
     billingCycle?: 'monthly' | 'yearly';
     promotionId?: string | null;
     promoCode?: string | null;

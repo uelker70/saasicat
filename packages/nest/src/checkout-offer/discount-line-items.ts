@@ -5,6 +5,9 @@ import type {
     CheckoutOfferPromotionSnapshot,
 } from '@saasicat/core';
 
+import { grossFromNet } from '../promo/math.js';
+import { vatPercentFromOfferRate } from '../subscription-contract/contract-line-item-money.js';
+
 export interface AppendImplicitDiscountLineItemInput {
     billingCycle: 'monthly' | 'yearly';
     priceBreakdown: CheckoutOfferPriceBreakdown;
@@ -49,7 +52,13 @@ function createDiscountLineItem(
 ): CheckoutOfferLineItem {
     const promoCode = input.promoCodeSnapshot ?? null;
     const firstPromotion = input.promotionSnapshots?.[0] ?? null;
-    const discountGross = roundMoney(discountNet * (1 + input.priceBreakdown.vatRate));
+    const breakdown = input.priceBreakdown;
+    const vatPercent = vatPercentFromOfferRate(
+        breakdown.vatRate,
+        breakdown.effectiveNet,
+        breakdown.effectiveGross,
+    );
+    const discountGross = grossFromNet(discountNet, vatPercent);
 
     return {
         kind: 'discount',

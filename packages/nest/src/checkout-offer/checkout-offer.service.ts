@@ -2,7 +2,8 @@
 //
 // `create` is called by the pricing page, `getById`/`update` by
 // onboarding (customization), `consume` on subscription completion
-// (freezes the offer → `Subscription.packageSnapshot`).
+// (freezes the offer → `Subscription.packageSnapshot`). Every amount on an
+// offer comes from `CheckoutOfferPricing`; a caller only chooses.
 
 import {
     ConflictException,
@@ -19,15 +20,14 @@ import type {
     CheckoutOfferLineItem,
     CheckoutOfferRepository,
     CheckoutOfferRow,
-    CreateCheckoutOfferData,
+    CheckoutOfferSelection,
+    CheckoutOfferSelectionUpdate,
     PlanRepository,
-    UpdateCheckoutOfferData,
 } from '@saasicat/core';
 import {
     CONTRACT_ERROR_CODES,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
-    startOfUtcDay,
 } from '@saasicat/core';
 
 import {
@@ -35,26 +35,30 @@ import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
-import { appendImplicitDiscountLineItem } from './discount-line-items.js';
+import { bundleVersionNotBookableReason, isValidUntilExpired } from './bundle-version-bookable.js';
+import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
 import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './checkout-offer.tokens.js';
+
+/** The language an offer is described in when the caller names none. */
+const DEFAULT_OFFER_LOCALE = 'de';
 
 @Injectable()
 export class CheckoutOfferService {
     constructor(
         @Inject(CHECKOUT_OFFER_REPOSITORY_TOKEN)
         private readonly repo: CheckoutOfferRepository,
+        @Inject(CheckoutOfferPricing)
+        private readonly pricing: CheckoutOfferPricing,
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundles: BundleRepository | null = null,
-        // Optional for the requires validation (#35 P6): plan features of the
-        // selected PlanVersion. If the adapter is missing, fall back to the
-        // featuresSnapshot of the plan LineItem.
+        // Plan features of the selected PlanVersion for the requires
+        // validation (#35 P6).
         @Optional()
         @Inject(PLAN_REPOSITORY_TOKEN)
         private readonly plans: PlanRepository | null = null,
         // Optional for the requires validation (#35 P6): without the adapter
-        // there is no requires data → validation is skipped (graceful,
-        // behavior as before #35).
+        // there is no requires data → validation is skipped.
         @Optional()
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntries: CatalogEntryRepository | null = null,
@@ -76,40 +80,75 @@ export class CheckoutOfferService {
         return row;
     }
 
-    async create(data: CreateCheckoutOfferData): Promise<CheckoutOfferRow> {
-        const normalized = this.normalizeCreateData(data);
-        await this.assertFeatureRequiresSatisfied({
-            planKey: normalized.planKey,
-            planVersionId: normalized.planVersionId ?? null,
-            bundleVersionIds: normalized.bundleVersionIds ?? [],
-            lineItems: normalized.lineItems ?? [],
+    /** Prices what the caller chose and stores it as an open offer. */
+    async create(selection: CheckoutOfferSelection): Promise<CheckoutOfferRow> {
+        const locale = selection.locale ?? DEFAULT_OFFER_LOCALE;
+        const priced = await this.pricing.price({
+            planKey: selection.planKey,
+            billingCycle: selection.billingCycle,
+            bundleVersionIds: selection.bundleVersionIds ?? [],
+            promoCode: selection.promoCode ?? null,
+            locale,
         });
-        return this.repo.create(normalized);
+        await this.assertFeatureRequiresSatisfied({
+            planKey: selection.planKey,
+            planVersionId: priced.planVersionId,
+            bundleVersionIds: priced.bundleVersionIds,
+            lineItems: priced.lineItems,
+        });
+        return this.repo.create({
+            planKey: selection.planKey,
+            billingCycle: selection.billingCycle,
+            locale,
+            validUntil: selection.validUntil ?? null,
+            ...priced,
+        });
     }
 
-    /** Customization in onboarding — only while the offer is `open`. */
-    async update(id: string, data: UpdateCheckoutOfferData): Promise<CheckoutOfferRow> {
+    /**
+     * Customization in onboarding — only while the offer is `open`. The plan
+     * stays; whatever else changes, the whole offer is priced again.
+     */
+    async update(id: string, change: CheckoutOfferSelectionUpdate): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
         this.assertOpen(existing, 'changed');
-        const next = this.normalizeUpdateData(existing, data);
+        const billingCycle = change.billingCycle ?? existing.billingCycle;
+        const locale = change.locale ?? existing.locale;
+        const priced = await this.pricing.price({
+            planKey: existing.planKey,
+            billingCycle,
+            bundleVersionIds: change.bundleVersionIds ?? existing.bundleVersionIds ?? [],
+            promoCode: change.promoCode !== undefined ? change.promoCode : existing.promoCode,
+            locale,
+        });
         await this.assertFeatureRequiresSatisfied({
             planKey: existing.planKey,
-            planVersionId: existing.planVersionId,
-            bundleVersionIds: next.bundleVersionIds ?? [],
-            lineItems: next.lineItems ?? [],
+            planVersionId: priced.planVersionId,
+            bundleVersionIds: priced.bundleVersionIds,
+            lineItems: priced.lineItems,
         });
-        return this.repo.update(id, next);
+        return this.repo.update(id, {
+            billingCycle,
+            locale,
+            ...(change.validUntil !== undefined ? { validUntil: change.validUntil } : {}),
+            ...priced,
+        });
     }
 
     /**
      * Freezes the offer (`status = 'consumed'`). Returns the final
      * snapshot — the caller (registration/billing) writes it
      * as `Subscription.packageSnapshot`.
+     *
+     * Refused unless every add-on is still bookable and the stored amounts are
+     * what the catalogue makes of the offer's own selection, so an offer whose
+     * amounts were written by anything but the pricing never becomes a contract.
      */
     async consume(id: string): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
         this.assertOpen(existing, 'consumed');
         await this.assertBundleVersionsStillBookable(existing);
+        await this.pricing.assertPricedByCatalogue(existing);
         return this.repo.consume(id);
     }
 
@@ -209,21 +248,8 @@ export class CheckoutOfferService {
                 violations.push({ bundleVersionId, reason: 'missing' });
                 continue;
             }
-            if (version.publishedAt === null) {
-                violations.push({ bundleVersionId, reason: 'not_published' });
-                continue;
-            }
-            if (version.supersededAt !== null) {
-                violations.push({ bundleVersionId, reason: 'superseded' });
-                continue;
-            }
-            if (this.dateIsAfterNow(version.validFrom, now)) {
-                violations.push({ bundleVersionId, reason: 'not_yet_valid' });
-                continue;
-            }
-            if (this.isValidUntilExpired(version.validUntil, now)) {
-                violations.push({ bundleVersionId, reason: 'expired' });
-            }
+            const reason = bundleVersionNotBookableReason(version, now);
+            if (reason) violations.push({ bundleVersionId, reason });
         }
         if (violations.length > 0) {
             throw new UnprocessableEntityException({
@@ -233,130 +259,6 @@ export class CheckoutOfferService {
                 violations,
             });
         }
-    }
-
-    private normalizeCreateData(data: CreateCheckoutOfferData): CreateCheckoutOfferData {
-        const lineItems = this.resolveLineItems({
-            planKey: data.planKey,
-            billingCycle: data.billingCycle,
-            priceBreakdown: data.priceBreakdown,
-            lineItems: data.lineItems,
-            bundleVersionIds: data.bundleVersionIds ?? [],
-            promotionSnapshots: data.promotionSnapshots ?? [],
-            promoCodeSnapshot: data.promoCodeSnapshot ?? null,
-        });
-        return {
-            ...data,
-            bundles: data.bundles ?? [],
-            bundleVersionIds: data.bundleVersionIds ?? [],
-            lineItems,
-            promotionSnapshots: data.promotionSnapshots ?? [],
-            promoCodeSnapshot: data.promoCodeSnapshot ?? null,
-            locale: data.locale ?? 'de',
-            validUntil: data.validUntil ?? null,
-        };
-    }
-
-    private normalizeUpdateData(
-        existing: CheckoutOfferRow,
-        data: UpdateCheckoutOfferData,
-    ): UpdateCheckoutOfferData {
-        const priceBreakdown = data.priceBreakdown ?? existing.priceBreakdown;
-        const billingCycle = data.billingCycle ?? existing.billingCycle;
-        const bundleVersionIds = data.bundleVersionIds ?? existing.bundleVersionIds ?? [];
-        const lineItems = this.resolveLineItems({
-            planKey: existing.planKey,
-            billingCycle,
-            priceBreakdown,
-            lineItems: data.lineItems ?? existing.lineItems,
-            bundleVersionIds,
-            promotionSnapshots: data.promotionSnapshots ?? existing.promotionSnapshots ?? [],
-            promoCodeSnapshot:
-                data.promoCodeSnapshot !== undefined
-                    ? data.promoCodeSnapshot
-                    : (existing.promoCodeSnapshot ?? null),
-        });
-        return {
-            ...data,
-            bundleVersionIds,
-            lineItems,
-            promotionSnapshots: data.promotionSnapshots ?? existing.promotionSnapshots ?? [],
-            promoCodeSnapshot:
-                data.promoCodeSnapshot !== undefined
-                    ? data.promoCodeSnapshot
-                    : (existing.promoCodeSnapshot ?? null),
-        };
-    }
-
-    private resolveLineItems(input: {
-        planKey: string;
-        billingCycle: 'monthly' | 'yearly';
-        priceBreakdown: CreateCheckoutOfferData['priceBreakdown'];
-        lineItems: CheckoutOfferLineItem[] | undefined;
-        bundleVersionIds: string[];
-        promotionSnapshots: CreateCheckoutOfferData['promotionSnapshots'];
-        promoCodeSnapshot: CreateCheckoutOfferData['promoCodeSnapshot'];
-    }): CheckoutOfferLineItem[] {
-        const lineItems =
-            input.lineItems && input.lineItems.length > 0
-                ? input.lineItems
-                : [
-                      this.defaultPlanLineItem(
-                          input.planKey,
-                          input.billingCycle,
-                          input.priceBreakdown,
-                      ),
-                  ];
-        const hasPlan = lineItems.some((item) => item.kind === 'plan');
-        if (!hasPlan) {
-            throw new UnprocessableEntityException({
-                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED,
-                message: 'A checkout offer requires a frozen plan line item.',
-            });
-        }
-        const missingBundleVersionIds = input.bundleVersionIds.filter(
-            (versionId) =>
-                !lineItems.some(
-                    (item) => item.kind === 'bundle' && item.sourceVersionId === versionId,
-                ),
-        );
-        if (missingBundleVersionIds.length > 0) {
-            throw new UnprocessableEntityException({
-                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED,
-                message: 'Every selected bundle version requires a frozen bundle line item.',
-                bundleVersionIds: missingBundleVersionIds,
-            });
-        }
-        return appendImplicitDiscountLineItem({
-            billingCycle: input.billingCycle,
-            priceBreakdown: input.priceBreakdown,
-            lineItems,
-            promotionSnapshots: input.promotionSnapshots ?? [],
-            promoCodeSnapshot: input.promoCodeSnapshot ?? null,
-        });
-    }
-
-    private defaultPlanLineItem(
-        planKey: string,
-        billingCycle: 'monthly' | 'yearly',
-        priceBreakdown: CreateCheckoutOfferData['priceBreakdown'],
-    ): CheckoutOfferLineItem {
-        const priceNet = priceBreakdown.planNet;
-        return {
-            kind: 'plan',
-            sourceKey: planKey,
-            sourceVersionId: null,
-            titleSnapshot: planKey,
-            descriptionSnapshot: null,
-            quantity: 1,
-            unit: null,
-            priceNet,
-            priceGross: Math.round(priceNet * (1 + priceBreakdown.vatRate) * 100) / 100,
-            billingCycle,
-            featuresSnapshot: [],
-            quotaEffectsSnapshot: {},
-            metadata: null,
-        };
     }
 
     private assertOpen(existing: CheckoutOfferRow, action: 'changed' | 'consumed'): void {
@@ -384,22 +286,6 @@ export class CheckoutOfferService {
     }
 
     private isExpired(row: CheckoutOfferRow): boolean {
-        return this.isValidUntilExpired(row.validUntil, Date.now());
-    }
-
-    private dateIsAfterNow(value: string | null, now: number): boolean {
-        if (!value) return false;
-        const time = new Date(value).getTime();
-        return Number.isNaN(time) || time > now;
-    }
-
-    // `validUntil` is day-inclusive (day date, UTC midnight): expired
-    // only from the following day, i.e. when validUntil < startOfDay(now). Symmetric
-    // to the catalog resolver (buildActivePlanVersionWhere).
-    private isValidUntilExpired(value: string | null | undefined, nowMs: number): boolean {
-        if (!value) return false;
-        const validUntil = new Date(value).getTime();
-        if (Number.isNaN(validUntil)) return true;
-        return validUntil < startOfUtcDay(new Date(nowMs)).getTime();
+        return isValidUntilExpired(row.validUntil, Date.now());
     }
 }
