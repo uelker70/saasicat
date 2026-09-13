@@ -976,6 +976,20 @@ the contract recorded its plan line at 0.00.
   version carries both prices; give the plan a yearly price in `saas.yaml`, or publish its version
   in the administration.
 
+### A port the harness leaves out fails the persistence contract
+
+`persistenceAdapterContract` from `@saasicat/persistence-testing` used to report a scenario group
+as skipped when the harness did not provide its port or seed writer, so a suite could pass with a
+whole group unchecked. That group now fails and names the part. Groups that the adapter's
+`capabilities` rule out, such as the lock scenarios with `pessimisticLocking: false`, still skip.
+
+- **A harness that wires every port its adapter ships** changes nothing.
+- **A harness that leaves a part out on purpose** lists it in the new `gaps` option:
+  `gaps: ['appliedSettings']`. Its scenarios report as skipped, as before. `ContractGap` lists the
+  names.
+- **A gap listed there that the harness does provide** fails the suite, so the list cannot outlive
+  the port it excused.
+
 ### `projectKey` is gone from the database
 
 One installation serves one application. A plan key, a bundle key, a feature key and a quota key

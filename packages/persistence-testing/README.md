@@ -27,10 +27,14 @@ Verified scenarios:
   concurrently — with the change and the record it supersedes landing together;
   changes listed in the order they were recorded, acknowledged once
 
-Scenario groups gate on declared capabilities and provided slices; a
-gated-off group reports as **skipped with reason** — coverage gaps stay
-visible, never silent. Roadmap scenarios (subscription contracts, reference
-migrations N→N+1) are registered as visible skips until the slices ship.
+Scenario groups gate on declared capabilities and provided slices. A group the
+capabilities rule out, such as the lock scenarios with `pessimisticLocking:
+false`, reports as **skipped with reason**. A group whose port or seed writer
+the harness does not provide **fails**, unless the adapter names it in `gaps` —
+then it reports as skipped. A gap named there that the harness does provide
+fails the suite, so the list stays true. A skipped scenario is easy to read
+past in a green run; a harness that forgot to wire a port would otherwise pass
+without checking it.
 
 ## What this is not
 
@@ -69,6 +73,9 @@ persistenceAdapterContract({
         reset: () => truncatePlatformTables(),
         close: () => pool.end(),
     }),
+    // The parts this adapter deliberately does not provide. Anything else the
+    // harness leaves out fails its scenarios.
+    gaps: ['subscriptionContracts', 'appliedSettings'],
 });
 ```
 
