@@ -15,6 +15,8 @@ import {
 } from '@nestjs/common';
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
+import { EnforceMfa } from '../admin/enforce-mfa.decorator.js';
+
 import {
     PLAN_CATALOG_UNREADABLE_ERROR,
     PlanCatalogValidationError,
@@ -75,6 +77,7 @@ export function buildPlanCatalogImporterController(guards: Array<Type<CanActivat
          * they can fix is the one that looked unfixable.
          */
         @Post('import')
+        @EnforceMfa()
         async import(@Body() dto: PlanCatalogImportDto) {
             try {
                 return await this.service.importFromYaml(dto.yamlContent, {

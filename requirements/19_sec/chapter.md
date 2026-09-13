@@ -271,3 +271,63 @@ _Source:_ `SECURITY.md`
 conflict is only discoverable by reading. Where it is unclear, it is raised rather than added.
 
 _Source:_ ADR 0001
+
+### SC-SEC-013 — The platform's own routes with lasting consequences check the second factor themselves
+
+🟢 🔒 Suspending or reactivating a tenant (`SC-ADM-005`), publishing a plan or bundle version,
+ending a plan version, purging a plan, and importing a catalogue, whose plans are published as they
+are created. The check sits on the route rather than in the guards an integrator passes, so a guard
+list that leaves it out, an override of that list or a module wired by hand does not switch it off;
+a module wired by hand that cannot provide the second factor does not start. It runs after the
+caller is established and the role is checked, an operator who has not set up a second factor is
+refused, and the shipped administration asks for the code before each of these actions. A route an
+application serves itself is the application's to protect.
+
+_Source:_ release 1.0.0-rc.12
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/lasting-operator-actions-require-the-second-factor.test.js`
+    - which routes the platform mounts ask for the second factor
+        - the walk reaches every lasting action
+        - each one carries the check on its handler, not in the chain an integrator passes
+        - no other route asks for it
+    - what the chain Nest builds does with a request
+        - each chain holds the role check before the second factor
+        - the platform administrator without a code is refused by name
+        - a wrong code is refused, and the right one passes
+        - an operator who has not set up a second factor is refused rather than let through
+        - a caller named by `userId` rather than `id` is checked under that name
+        - a platform administrator the request does not name is refused as unauthenticated
+        - a tenant user meets the role check, even holding a valid code
+        - every other operator route lets the platform administrator through without a code
+    - suspending and reactivating a tenant
+        - an override of the administration guards that leaves the check out does not leave it out
+    - the catalogue import, a module wired by hand
+        - asks for the second factor, whatever guards it was given
+        - with no guards, nothing establishes a caller and the import is refused
+        - without the second factor available, it does not start
+- `packages/ui-vue/tests/component/lasting-actions-ask-for-the-second-factor.test.ts`
+    - BundlesPage asks for the code before it publishes
+        - nothing is published until the code is entered, and the code goes with it
+        - cancelling publishes nothing and answers null, which keeps the publish dialog open
+        - a refused code asks again and says why
+    - PlansPage asks for the code before it purges, ends or publishes
+        - purging sends nothing before the code, then the code
+        - a cancelled purge sends nothing and shows no error
+        - ending a live version waits for the code, and a cancel answers false
+        - publishing from the dialog carries the code
+- `packages/ui-vue/tests/lasting-actions-carry-the-second-factor.test.js`
+    - a lasting action carries the code in the header, and only when there is one
+        - ${c.name} sends it with a code
+        - ${c.name} sends no header for an empty code
+    - the dialog loop the pages share
+        - the action runs with the entered code, and the dialog closes after it
+        - cancelling runs nothing and says so
+        - a refused code keeps the dialog open, says so, and a second code goes through
+        - a package error carrying the status counts as a refusal, not only an AdminError
+        - any other failure closes the dialog and reaches the caller
+
+<!-- END proof -->

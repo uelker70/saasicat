@@ -20,6 +20,7 @@ import type {
     UpdateBundleVersionDraftData,
 } from '@saasicat/core';
 
+import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { requestJson, requestJsonBody } from './resource-request.js';
 
@@ -105,17 +106,19 @@ export const bundleVersionsResource = defineResource('bundleVersions', {
             { method: 'PATCH', body: data },
         ),
 
+    /** Puts a draft live. The route requires the second factor. */
     publish: (
         http,
         ctx,
         versionId: string,
         options: PublishBundleVersionOptions = {},
+        mfaCode?: string,
     ): Promise<BundleVersionMutationResult> =>
         requestJsonBody<BundleVersionMutationResult>(
             http,
             `${bundleVersionsUrl(ctx)}/${versionId}/publish`,
             'Publish returned no body',
-            { method: 'POST', body: options },
+            { method: 'POST', body: options, headers: mfaHeader(mfaCode) },
         ),
 
     /**

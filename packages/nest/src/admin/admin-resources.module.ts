@@ -33,6 +33,7 @@ import type {
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
+import { EnforceMfa } from './enforce-mfa.decorator.js';
 
 export const ADMIN_RESOURCES_PORT_TOKEN = Symbol.for('saasicat/nest/AdminResourcesPort');
 
@@ -172,6 +173,7 @@ function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
         }
 
         @Post('tenants/:slug/suspend')
+        @EnforceMfa()
         suspendTenant(
             @Req() request: AdminRequest,
             @Param('slug') slug: string,
@@ -181,6 +183,7 @@ function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
         }
 
         @Post('tenants/:slug/reactivate')
+        @EnforceMfa()
         reactivateTenant(
             @Req() request: AdminRequest,
             @Param('slug') slug: string,

@@ -1,5 +1,13 @@
 import { ref, type Ref } from 'vue';
 
+import { toAdminError } from '../client/admin-error.js';
+
+/** The status a route answers with when it refuses the code: wrong, expired, or no second factor set up. */
+const CODE_REFUSED = 401;
+
+/** What became of an action taken behind the second factor. */
+export type MfaOutcome<T> = { readonly done: true; readonly value: T } | { readonly done: false };
+
 /**
  * Turns the MFA dialog into an awaitable step.
  *
@@ -28,6 +36,20 @@ export interface MfaPrompt {
     onVisibility: (open: boolean) => void;
     /** Closes the dialog and cancels a pending prompt. */
     close: () => void;
+    /**
+     * Asks for a code and runs `action` with it, until the server accepts the
+     * code or the user cancels.
+     *
+     * A refused code keeps the dialog open with `invalidCode` and asks again,
+     * because the operator can fix that without starting over. Any other
+     * failure closes the dialog and is rethrown: it is the action's own error,
+     * and the caller already knows how to show it.
+     */
+    run: <T>(
+        description: string,
+        invalidCode: string,
+        action: (code: string) => Promise<T>,
+    ) => Promise<MfaOutcome<T>>;
 }
 
 export function useMfaPrompt(): MfaPrompt {
@@ -42,21 +64,23 @@ export function useMfaPrompt(): MfaPrompt {
         resolve?.(code);
     }
 
+    function prompt(next: string): Promise<string | null> {
+        // A prompt opening while another is pending would strand the first
+        // caller's promise forever; cancel it rather than leak it.
+        settle(null);
+        description.value = next;
+        error.value = '';
+        show.value = true;
+        return new Promise((resolve) => {
+            pendingResolve = resolve;
+        });
+    }
+
     return {
         show,
         description,
         error,
-        prompt(next: string): Promise<string | null> {
-            // A prompt opening while another is pending would strand the first
-            // caller's promise forever; cancel it rather than leak it.
-            settle(null);
-            description.value = next;
-            error.value = '';
-            show.value = true;
-            return new Promise((resolve) => {
-                pendingResolve = resolve;
-            });
-        },
+        prompt,
         onConfirm(code: string): void {
             settle(code);
         },
@@ -67,6 +91,32 @@ export function useMfaPrompt(): MfaPrompt {
         close(): void {
             show.value = false;
             settle(null);
+        },
+        async run<T>(
+            next: string,
+            invalidCode: string,
+            action: (code: string) => Promise<T>,
+        ): Promise<MfaOutcome<T>> {
+            let refused = false;
+            for (;;) {
+                const pending = prompt(next);
+                // `prompt` opens with a clean slate, so a refused code is said
+                // on the dialog it reopens rather than before it.
+                if (refused) error.value = invalidCode;
+                const code = await pending;
+                if (code === null) return { done: false };
+                try {
+                    const value = await action(code);
+                    show.value = false;
+                    return { done: true, value };
+                } catch (err) {
+                    if (toAdminError(err).status !== CODE_REFUSED) {
+                        show.value = false;
+                        throw err;
+                    }
+                    refused = true;
+                }
+            }
         },
     };
 }

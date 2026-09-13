@@ -64,6 +64,11 @@ export interface CatalogControllerConfig {
      * Class-level guards for `BundlesController` and `BundleVersionsController`.
      * REQUIRED — otherwise `forRoot()` throws at boot. Pass `[]` explicitly
      * if the endpoints should intentionally be auth-free.
+     *
+     * Publishing a plan or bundle version, ending a plan version and purging a
+     * plan require the second factor whatever this list holds: the check sits
+     * on those handlers, so `MfaService` has to be resolvable — through
+     * `AdminModule`, which `SaaSiCatModule.forRoot` always registers.
      */
     guards: Array<Type<CanActivate>>;
 }

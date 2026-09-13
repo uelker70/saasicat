@@ -15,6 +15,7 @@ import type {
     UpdatePlanVersionDraftData,
 } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
+import { mfaHeader } from '../client/mfa-header.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UsePlansOptions {
@@ -67,9 +68,10 @@ export interface UsePlansResult {
     /**
      * Hard delete (`DELETE /admin/catalog/plans/:id/purge`). Only allowed
      * for plans without PlanVersions — otherwise the backend responds with
-     * 422 `PLAN_HAS_VERSIONS`. Also removes the plan from `plans`.
+     * 422 `PLAN_HAS_VERSIONS`. Also removes the plan from `plans`. The route
+     * requires the second factor.
      */
-    hardDelete: (planId: string) => Promise<void>;
+    hardDelete: (planId: string, mfaCode?: string) => Promise<void>;
 }
 
 export function usePlans(options: UsePlansOptions): UsePlansResult {
@@ -172,8 +174,11 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
         plans.value = plans.value.filter((p) => p.id !== planId);
     }
 
-    async function hardDelete(planId: string): Promise<void> {
-        await fetchJson<null>(`${baseUrl}/${planId}/purge`, { method: 'DELETE' });
+    async function hardDelete(planId: string, mfaCode?: string): Promise<void> {
+        await fetchJson<null>(`${baseUrl}/${planId}/purge`, {
+            method: 'DELETE',
+            headers: mfaHeader(mfaCode),
+        });
         plans.value = plans.value.filter((p) => p.id !== planId);
     }
 
@@ -224,6 +229,7 @@ export interface UsePlanVersionsResult {
         versionId: string,
         data: UpdatePlanVersionDraftData,
     ) => Promise<PlanVersionMutationResult>;
+    /** The route requires the second factor. */
     publish: (
         versionId: string,
         opts?: {
@@ -232,6 +238,7 @@ export interface UsePlanVersionsResult {
             validFrom?: string | null;
             validUntil?: string | null;
         },
+        mfaCode?: string,
     ) => Promise<PlanVersionMutationResult>;
     /**
      * Discards a draft (`DELETE /admin/catalog/plan-versions/:id`).
@@ -242,8 +249,13 @@ export interface UsePlanVersionsResult {
     /**
      * Terminates a live PlanVersion with `endsAt` (without a successor
      * version). Idempotent — a second call with a different date overwrites.
+     * The route requires the second factor.
      */
-    terminateVersion: (versionId: string, endsAt: string) => Promise<PlanVersionRow>;
+    terminateVersion: (
+        versionId: string,
+        endsAt: string,
+        mfaCode?: string,
+    ) => Promise<PlanVersionRow>;
 }
 
 export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersionsResult {
@@ -343,10 +355,11 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             validFrom?: string | null;
             validUntil?: string | null;
         } = {},
+        mfaCode?: string,
     ): Promise<PlanVersionMutationResult> {
         const result = await fetchJson<PlanVersionMutationResult>(
             `${versionUrlBase}/${versionId}/publish`,
-            { method: 'POST', body: JSON.stringify(opts) },
+            { method: 'POST', body: JSON.stringify(opts), headers: mfaHeader(mfaCode) },
         );
         if (!result)
             throw markEmptyResponse(new PlansApiError(0, null, 'Publish returned no body'));
@@ -359,10 +372,14 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
         versions.value = versions.value.filter((v) => v.id !== versionId);
     }
 
-    async function terminateVersion(versionId: string, endsAt: string): Promise<PlanVersionRow> {
+    async function terminateVersion(
+        versionId: string,
+        endsAt: string,
+        mfaCode?: string,
+    ): Promise<PlanVersionRow> {
         const updated = await fetchJson<PlanVersionRow>(
             `${versionUrlBase}/${versionId}/terminate`,
-            { method: 'POST', body: JSON.stringify({ endsAt }) },
+            { method: 'POST', body: JSON.stringify({ endsAt }), headers: mfaHeader(mfaCode) },
         );
         if (!updated)
             throw markEmptyResponse(new PlansApiError(0, null, 'Terminate returned no body'));

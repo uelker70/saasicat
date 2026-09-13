@@ -36,6 +36,15 @@ _Tested by:_
         - returns HTTP 304 + null body on an If-None-Match match
         - returns the full snapshot when If-None-Match does not match
         - ignores an empty If-None-Match header
+- `packages/nest/tests/every-operator-route-requires-the-platform-administrator.test.js`
+    - every operator route the platform mounts requires the platform administrator
+        - the walk reaches the operator routes of more than one composer
+        - each one runs SuperAdminGuard
+        - after the guards that establish the caller, never before them
+        - a signed-in tenant user is refused by name, and the platform administrator passes
+        - a route marked public keeps no role check, so setup and the login branding stay reachable
+        - with no guards passed, a request without a caller is refused rather than let through
+        - the tenant manifest keeps authentication alone
 - `packages/nest/tests/saasicat-module-escape-hatches.test.js`
     - includeManifestController
         - is passed through to AdminManifestModule
@@ -131,6 +140,9 @@ _Tested by:_
         - accepts a valid code
         - bypass with SAAS_PLATFORM_SKIP_MFA=1 in non-prod
         - no bypass in production
+- `packages/nest/tests/lasting-operator-actions-require-the-second-factor.test.js`
+    - suspending and reactivating a tenant
+        - an override of the administration guards that leaves the check out does not leave it out
 
 <!-- END proof -->
 

@@ -7,6 +7,7 @@
 
 import type { AdminUserListFilter, AdminUserListRow } from '@saasicat/core';
 
+import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { filterQueryString } from './list-resource.js';
 import { requestJson } from './resource-request.js';
@@ -51,7 +52,7 @@ export const usersResource = defineResource('users', {
             {
                 method: 'POST',
                 body: { reason },
-                headers: mfaCode ? { 'X-Mfa-Code': mfaCode } : undefined,
+                headers: mfaHeader(mfaCode),
             },
         ),
 
@@ -60,7 +61,7 @@ export const usersResource = defineResource('users', {
         await requestJson(http, `${usersUrl(ctx)}/${encodeURIComponent(id)}/deactivate`, {
             method: 'POST',
             body: { reason },
-            headers: mfaCode ? { 'X-Mfa-Code': mfaCode } : undefined,
+            headers: mfaHeader(mfaCode),
         });
     },
 });

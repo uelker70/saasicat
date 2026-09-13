@@ -8,6 +8,7 @@
 //   - http:                 createFetchHttpClient, createAxiosHttpClient
 //   - resources:            defineResource, bindResource, the endpoint descriptors
 //   - admin-error:          AdminError, toAdminError, adminErrorMessage
+//   - mfa-header:           MFA_CODE_HEADER, mfaHeader — the second factor on a request
 //   - http-json:            JSON fetch helper over HttpClient
 //   - boot-loader:          BootLoader + BootLoadError
 //   - manifest-loader:      ManifestLoader with ETag cache + ManifestLoadError
@@ -24,6 +25,7 @@ export * from './types.js';
 export * from './http/index.js';
 export * from './resources/index.js';
 export * from './admin-error.js';
+export * from './mfa-header.js';
 // Named in CONTRIBUTING as the ES2021 stand-in for `new Error(msg, { cause })`,
 // so it was already API in every sense except this line.
 export * from './attach-cause.js';

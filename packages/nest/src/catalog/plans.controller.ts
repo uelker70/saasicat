@@ -29,6 +29,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 
+import { EnforceMfa } from '../admin/enforce-mfa.decorator.js';
 import { PlansService } from './plans.service.js';
 import { PlanVersionsService } from './plan-versions.service.js';
 import { CreatePlanDto, UpdatePlanDto } from './dto/plans.dto.js';
@@ -87,6 +88,7 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
         }
 
         @Delete(':id/purge')
+        @EnforceMfa()
         @HttpCode(HttpStatus.NO_CONTENT)
         async hardDeletePlan(@Param('id', new ParseUUIDPipe()) planId: string) {
             await this.service.hardDeletePlan(planId);
@@ -164,6 +166,7 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
         }
 
         @Post(':id/publish')
+        @EnforceMfa()
         publish(
             @Param('id', new ParseUUIDPipe()) versionId: string,
             @Body() dto: PublishPlanVersionDto,
@@ -184,6 +187,7 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
         }
 
         @Post(':id/terminate')
+        @EnforceMfa()
         terminate(
             @Param('id', new ParseUUIDPipe()) versionId: string,
             @Body() dto: TerminatePlanVersionDto,

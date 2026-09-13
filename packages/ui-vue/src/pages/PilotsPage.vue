@@ -107,7 +107,7 @@ import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { pilotsResource } from '../client/resources/pilots.resource.js';
 import type { plansResource } from '../client/resources/plans.resource.js';
-import { adminErrorMessage, httpStatusOf } from '../client/admin-error.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
@@ -465,27 +465,13 @@ async function runAction(
         }
         return;
     }
-    // MFA loop: as long as the server returns 401, keep the dialog open and
-    // wait again for a code. Cancelling (resolver === null) ends it.
-    while (true) {
-        const code = await mfa.prompt(actionLabel);
-        if (code === null) return;
-        try {
-            await invoke(code);
-            mfa.show.value = false;
-            notify('positive', successMessage);
-            await reload();
-            return;
-        } catch (err) {
-            const status = httpStatusOf(err);
-            if (status === 401) {
-                mfa.error.value = msg.value.mfa.invalidOrNotSetUp;
-                continue;
-            }
-            mfa.show.value = false;
-            notify('negative', adminErrorMessage(err, errors.value));
-            return;
-        }
+    try {
+        const outcome = await mfa.run(actionLabel, msg.value.mfa.invalidOrNotSetUp, invoke);
+        if (!outcome.done) return;
+        notify('positive', successMessage);
+        await reload();
+    } catch (err) {
+        notify('negative', adminErrorMessage(err, errors.value));
     }
 }
 

@@ -180,7 +180,11 @@ export interface SaaSiCatAdminResourcesOptions extends Omit<
     AdminResourcesModuleOptions,
     'resources' | 'guards' | 'global'
 > {
-    /** Override the default controller guards + `SuperAdminGuard` chain. */
+    /**
+     * Override the default controller guards + `SuperAdminGuard` chain.
+     * Suspending and reactivating a tenant require the second factor either
+     * way; that check sits on the two handlers, not in this list.
+     */
     guards?: Array<Type<CanActivate>>;
     /** Custom schema override; the persistence bundle supplies the default. */
     resources?: ProviderSpec<AdminResourcesPort>;
@@ -354,13 +358,16 @@ export interface SaaSiCatModuleOptions {
      */
     adapters?: SaaSiCatAdapters;
     /**
-     * Class-level guards for the platform controllers (`GET /admin/discovery`
-     * and `GET /admin/manifest`). REQUIRED — otherwise the platform throws at
-     * boot, because a manifest controller must never be silently registered
-     * without auth (platform security).
+     * The guards that establish who is calling the platform's controllers —
+     * typically `[JwtAuthGuard]`. REQUIRED: the platform does not mount an
+     * administration route whose protection nobody decided.
      *
-     * Pass `[]` explicitly if the endpoint is intentionally auth-free
-     * (CI/smoke test).
+     * Authentication only. Every operator route the platform mounts — the
+     * administration, catalogue, discovery, manifest, settings, promo codes and
+     * statistics — runs `SuperAdminGuard` after these, and the tenant manifest
+     * falls back to these guards alone, so a role check added here would lock
+     * tenants out of their own manifest. With `[]` nothing establishes a
+     * caller, and `SuperAdminGuard` refuses every operator request.
      */
     controller: { guards: Array<Type<CanActivate>> };
     /**
@@ -387,9 +394,8 @@ export interface SaaSiCatModuleOptions {
      * and compared at boot either way, only the endpoint is left out — the
      * sidebar entry stays, since the page is shipped and the route answers. Note
      * what the endpoint answers: the resolved settings and the absolute path of
-     * `config/saas.yaml`, behind `controller.guards` — the same guards as the
-     * manifest and discovery, so an app that passes `[]` there publishes it
-     * unauthenticated like those two.
+     * `config/saas.yaml`, behind `controller.guards` and `SuperAdminGuard` —
+     * the same chain as the manifest and discovery.
      */
     includeSettingsController?: boolean;
     /**

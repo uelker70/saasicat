@@ -15,7 +15,9 @@ the platform needs from your NestJS application, and what each option in
   the same ports and are held to the same semantics by
   `@saasicat/persistence-testing`.
 - **Authentication**: JWT-based is recommended; a `JwtAuthGuard` equivalent
-  must exist (passed into `controller.guards` of the platform modules).
+  must exist (passed into `controller.guards` of the platform modules). It
+  establishes who is calling; the platform adds `SuperAdminGuard` to every
+  operator route itself.
 - **Vue 3 + Quasar 2** for the admin frontend; Vite as the build tool.
 
 ## Installing Packages
@@ -290,7 +292,7 @@ import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
         SaaSiCatModule.forRoot(
             defineSaaSiCat({
                 planCatalog: SAAS_CONFIG,
-                controller: { guards: [JwtAuthGuard, SuperAdminGuard] },
+                controller: { guards: [JwtAuthGuard] },
                 imports: [PrismaModule, AuthModule],
                 persistence,
                 entitlement: {

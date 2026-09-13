@@ -21,6 +21,7 @@ import type {
     UpdatePlanVersionDraftData,
 } from '@saasicat/core';
 
+import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 
 import { requestJson, requestJsonBody } from './resource-request.js';
@@ -66,9 +67,15 @@ export const plansResource = defineResource('plans', {
         await requestJson(http, `${plansUrl(ctx)}/${planId}`, { method: 'DELETE' });
     },
 
-    /** Removes the plan for good. 422 `PLAN_HAS_VERSIONS` when it cannot. */
-    hardDelete: async (http, ctx, planId: string): Promise<void> => {
-        await requestJson(http, `${plansUrl(ctx)}/${planId}/purge`, { method: 'DELETE' });
+    /**
+     * Removes the plan for good. 422 `PLAN_HAS_VERSIONS` when it cannot. The
+     * route requires the second factor.
+     */
+    hardDelete: async (http, ctx, planId: string, mfaCode?: string): Promise<void> => {
+        await requestJson(http, `${plansUrl(ctx)}/${planId}/purge`, {
+            method: 'DELETE',
+            headers: mfaHeader(mfaCode),
+        });
     },
 });
 
@@ -102,17 +109,19 @@ export const planVersionsResource = defineResource('planVersions', {
             { method: 'PATCH', body: data },
         ),
 
+    /** Puts a draft live. The route requires the second factor. */
     publish: (
         http,
         ctx,
         versionId: string,
         options: PublishPlanVersionOptions = {},
+        mfaCode?: string,
     ): Promise<PlanVersionMutationResult> =>
         requestJsonBody<PlanVersionMutationResult>(
             http,
             `${versionsUrl(ctx)}/${versionId}/publish`,
             'Publish returned no body',
-            { method: 'POST', body: options },
+            { method: 'POST', body: options, headers: mfaHeader(mfaCode) },
         ),
 
     discardDraft: async (http, ctx, versionId: string): Promise<void> => {
@@ -125,12 +134,19 @@ export const planVersionsResource = defineResource('planVersions', {
      *
      * `endsAt` is the date itself, not a payload: the endpoint's body is
      * `{ endsAt }` and wrapping it is this operation's job, not the caller's.
+     * The route requires the second factor.
      */
-    terminate: (http, ctx, versionId: string, endsAt: string): Promise<PlanVersionRow> =>
+    terminate: (
+        http,
+        ctx,
+        versionId: string,
+        endsAt: string,
+        mfaCode?: string,
+    ): Promise<PlanVersionRow> =>
         requestJsonBody<PlanVersionRow>(
             http,
             `${versionsUrl(ctx)}/${versionId}/terminate`,
             'Terminate returned no body',
-            { method: 'POST', body: { endsAt } },
+            { method: 'POST', body: { endsAt }, headers: mfaHeader(mfaCode) },
         ),
 });

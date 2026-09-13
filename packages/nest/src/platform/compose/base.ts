@@ -26,6 +26,7 @@ import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
 import { SettingsModule } from '../../settings/settings.module.js';
 import { dbCatalogNamesAFile, type SaaSiCatModuleOptions } from '../module-options.js';
 
+import { operatorGuards } from './context.js';
 import { buildMinimalManifestConfig } from './manifest.js';
 
 /** Where the discovery snapshot goes unless the app names another path. */
@@ -151,7 +152,7 @@ export function composeBaseModules(
     return [
         DiscoveryModule.forRoot({
             app: appInfo,
-            controller: { guards: options.controller.guards },
+            controller: { guards: operatorGuards(options) },
             imports: options.imports,
             snapshotPath:
                 options.discoverySnapshotPath === undefined
@@ -163,7 +164,7 @@ export function composeBaseModules(
             config: options.adminManifestConfig ?? buildMinimalManifestConfig(),
             extraProviders: options.adminManifestExtraProviders,
             includeManifestController: options.includeManifestController,
-            guards: options.controller.guards,
+            guards: operatorGuards(options),
             reloadGuards: options.reloadGuards,
             imports: options.imports,
             // Global like AdminModule above: apps register their manifest
@@ -177,7 +178,7 @@ export function composeBaseModules(
             port: appliedSettingsPort,
             email: emailPort,
             source: resolveSettingsSource(catalog),
-            controller: { guards: options.controller.guards },
+            controller: { guards: operatorGuards(options) },
             includeController: options.includeSettingsController,
             imports: options.imports,
         }),

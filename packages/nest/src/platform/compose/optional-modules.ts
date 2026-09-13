@@ -8,7 +8,6 @@
 import type { DynamicModule } from '@nestjs/common';
 
 import { AdminStatsModule, type AdminStatsModuleOptions } from '../../admin/admin-stats.module.js';
-import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
 import { CheckoutOfferModule } from '../../checkout-offer/checkout-offer.module.js';
 import { SetupModule, type SetupModuleOptions } from '../../setup/setup.module.js';
 import {
@@ -16,7 +15,7 @@ import {
     type SubscriptionContractModuleOptions,
 } from '../../subscription-contract/subscription-contract.module.js';
 
-import { optionsOf, type CompositionContext } from './context.js';
+import { operatorGuards, optionsOf, type CompositionContext } from './context.js';
 import { resolveBundleRepository } from './bundle-repository-source.js';
 
 /** First-run provisioning of the first SuperAdmin. */
@@ -42,7 +41,7 @@ export function composeAdminStats({ options, persistence }: CompositionContext):
     return [
         AdminStatsModule.forRoot({
             ...config,
-            guards: config.guards ?? [...options.controller.guards, SuperAdminGuard],
+            guards: config.guards ?? operatorGuards(options),
             auditStatsPort:
                 config.auditStatsPort ??
                 (persistence?.core.auditStats as AdminStatsModuleOptions['auditStatsPort']),

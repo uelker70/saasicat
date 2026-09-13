@@ -15,6 +15,7 @@
 
 import type { AdminTenantDetail, TenantDto, TenantListFilter } from '@saasicat/core';
 
+import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { defineListOp, type ListFilterOf } from './list-resource.js';
 import { requestJson } from './resource-request.js';
@@ -38,16 +39,21 @@ export const tenantsResource = defineResource('tenants', {
 
     /**
      * Suspends a tenant. The reason is recorded on the audit trail, so it is a
-     * required argument rather than an option with a default.
+     * required argument rather than an option with a default. Suspending and
+     * reactivating both require the second factor.
      */
-    suspend: async (http, ctx, slug: string, reason: string): Promise<void> => {
+    suspend: async (http, ctx, slug: string, reason: string, mfaCode?: string): Promise<void> => {
         await requestJson(http, `${tenantUrl(ctx, slug)}/suspend`, {
             method: 'POST',
             body: { reason },
+            headers: mfaHeader(mfaCode),
         });
     },
 
-    reactivate: async (http, ctx, slug: string): Promise<void> => {
-        await requestJson(http, `${tenantUrl(ctx, slug)}/reactivate`, { method: 'POST' });
+    reactivate: async (http, ctx, slug: string, mfaCode?: string): Promise<void> => {
+        await requestJson(http, `${tenantUrl(ctx, slug)}/reactivate`, {
+            method: 'POST',
+            headers: mfaHeader(mfaCode),
+        });
     },
 });

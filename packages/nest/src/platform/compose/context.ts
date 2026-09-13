@@ -17,9 +17,10 @@
 // it was invisible; here it is a named field with a comment on it, and the
 // order it implies is stated in `compose/index.ts`.
 
-import type { CanActivate } from '@nestjs/common';
+import type { CanActivate, Type } from '@nestjs/common';
 import type { SaaSiCatPersistenceAdapter, SubscriptionUsagePort } from '@saasicat/core';
 
+import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
 import type { ProviderSpec } from '../../core/di.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
 import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
@@ -46,6 +47,19 @@ export interface SharedTenantBinding {
      * `QuotaProvider` are two counters over the same rows.
      */
     quotaProvidersHostedByTenantBilling: boolean;
+}
+
+/**
+ * The guard chain for a route only the platform's administrator may reach.
+ *
+ * `controller.guards` establishes who is calling; whether that caller is the
+ * platform administrator is decided here, once, for every operator route a
+ * composer mounts. Authentication alone admits every signed-in tenant user,
+ * and the tenant manifest falls back to `controller.guards` for exactly that
+ * reason — so the role check cannot live in that list, and has to live here.
+ */
+export function operatorGuards(options: SaaSiCatModuleOptions): Array<Type<CanActivate>> {
+    return [...options.controller.guards, SuperAdminGuard];
 }
 
 export interface CompositionContext {

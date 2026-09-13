@@ -221,7 +221,7 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { emailHistoryResource } from '../client/resources/platform-email.resource.js';
-import { adminErrorMessage, httpStatusOf } from '../client/admin-error.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
@@ -451,23 +451,12 @@ async function runWrite<T>(
             return { ok: false };
         }
     }
-    for (;;) {
-        const code = await mfa.prompt(label);
-        if (code === null) return { ok: false };
-        try {
-            const result = await invoke(code);
-            mfa.show.value = false;
-            return { ok: true, result };
-        } catch (err) {
-            const status = httpStatusOf(err);
-            if (status === 401) {
-                mfa.error.value = shell.value.mfa.invalidCode;
-                continue;
-            }
-            mfa.show.value = false;
-            notify('negative', adminErrorMessage(err, errors.value));
-            return { ok: false };
-        }
+    try {
+        const outcome = await mfa.run(label, shell.value.mfa.invalidCode, invoke);
+        return outcome.done ? { ok: true, result: outcome.value } : { ok: false };
+    } catch (err) {
+        notify('negative', adminErrorMessage(err, errors.value));
+        return { ok: false };
     }
 }
 

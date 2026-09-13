@@ -163,12 +163,17 @@ const props = defineProps<{
         previous: BundleVersionRow,
         draft: BundleVersionRow,
     ) => { changes: VersionChange[]; nonRegressive: boolean };
+    /**
+     * Publishes the draft. Resolves `null` when the operator cancelled a step
+     * the page asked for, such as the second factor, which leaves the dialog
+     * open.
+     */
     submit: (opts: {
         forceRegressive: boolean;
         allowZeroPrice?: boolean;
         validFrom?: string | null;
         validUntil?: string | null;
-    }) => Promise<BundleVersionMutationResult>;
+    }) => Promise<BundleVersionMutationResult | null>;
 }>();
 
 const emit = defineEmits<{
@@ -249,6 +254,7 @@ async function onSubmit(): Promise<void> {
             validFrom: validFromInput.value || null,
             validUntil: validUntilInput.value || null,
         });
+        if (!result) return;
         emit('submitted', result);
         close();
     } finally {

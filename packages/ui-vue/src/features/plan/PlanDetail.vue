@@ -104,9 +104,11 @@ const props = withDefaults(
         /**
          * Optional callback for `POST /admin/catalog/plan-versions/:id/terminate`.
          * The platform component delegates the HTTP wiring to the consumer
-         * (PlansPage.vue) — see `endsAt` on PlanVersionRow.
+         * (PlansPage.vue) — see `endsAt` on PlanVersionRow. Resolves `false`
+         * when the operator cancelled a step the consumer asked for, such as
+         * the second factor, which leaves the dialog open.
          */
-        submitTerminate?: (versionId: string, endsAt: string) => Promise<void>;
+        submitTerminate?: (versionId: string, endsAt: string) => Promise<boolean>;
     }>(),
     {
         impactByVersion: () => ({}),
@@ -374,7 +376,7 @@ async function executeTerminate(): Promise<void> {
     terminateError.value = null;
     try {
         if (props.submitTerminate) {
-            await props.submitTerminate(terminateTarget.value.id, endsAtIso);
+            if (!(await props.submitTerminate(terminateTarget.value.id, endsAtIso))) return;
         } else {
             emit('terminate', terminateTarget.value.id, endsAtIso);
         }

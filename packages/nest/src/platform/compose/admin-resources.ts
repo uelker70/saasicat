@@ -2,10 +2,9 @@ import type { DynamicModule } from '@nestjs/common';
 import type { AdminResourcesPort } from '@saasicat/core';
 
 import { AdminResourcesModule } from '../../admin/admin-resources.module.js';
-import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
 import type { ProviderSpec } from '../../core/di.js';
 
-import { optionsOf, type CompositionContext } from './context.js';
+import { operatorGuards, optionsOf, type CompositionContext } from './context.js';
 
 /** Tenants, users, audit and subscriptions for the SuperAdmin pages. */
 export function composeAdminResources({
@@ -19,7 +18,7 @@ export function composeAdminResources({
             resources:
                 config.resources ??
                 (persistence?.adminResources?.resources as ProviderSpec<AdminResourcesPort>),
-            guards: config.guards ?? [...options.controller.guards, SuperAdminGuard],
+            guards: config.guards ?? operatorGuards(options),
             imports: config.imports ?? options.imports,
         }),
     ];

@@ -17,6 +17,9 @@ export const plansMessages = defineMessages(
             toastDraftDiscarded:
                 'Draft v{version} von {planKey} verworfen — Live-Version unverändert.',
             toastVersionTerminated: 'v{version} terminiert.',
+            mfaPublish: 'v{version} von {planKey} veröffentlichen.',
+            mfaTerminate: 'Live-Version v{version} von {planKey} beenden.',
+            mfaPurge: 'Plan {planKey} endgültig löschen.',
             errorSessionExpiredSave:
                 'Sitzung abgelaufen — bitte neu anmelden und erneut speichern.',
             errorStrictMode: 'Strict-Mode-Check: {details}',
@@ -277,6 +280,9 @@ export const plansMessages = defineMessages(
             toastDraftDiscarded:
                 'Draft v{version} of {planKey} discarded — live version unchanged.',
             toastVersionTerminated: 'v{version} terminated.',
+            mfaPublish: 'Publish v{version} of {planKey}.',
+            mfaTerminate: 'End live version v{version} of {planKey}.',
+            mfaPurge: 'Delete plan {planKey} for good.',
             errorSessionExpiredSave: 'Session expired — please sign in again and save once more.',
             errorStrictMode: 'Strict mode check: {details}',
             errorStrictModeFallback: 'Drift against the discovery snapshot.',

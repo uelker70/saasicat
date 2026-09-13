@@ -209,6 +209,14 @@
             :format-change-value="formatChangeValue"
             @execute="executePublish"
         />
+
+        <MfaPromptDialog
+            :model-value="mfa.show.value"
+            :description="mfa.description.value"
+            :error="mfa.error.value"
+            @update:model-value="mfa.onVisibility"
+            @confirm="mfa.onConfirm"
+        />
     </AdminPage>
 </template>
 
@@ -259,6 +267,8 @@ import PlanCreateDialog, {
 import PlanArchiveDialog from '../internal/plans-page/PlanArchiveDialog.vue';
 import PlanDiscardDraftDialog from '../internal/plans-page/PlanDiscardDraftDialog.vue';
 import PlanPublishDialog from '../internal/plans-page/PlanPublishDialog.vue';
+import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
+import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import PlanBundleOverview from '../internal/plans-page/PlanBundleOverview.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import type {
@@ -319,6 +329,11 @@ const notify = useSuperAdminNotify();
 const msg = useSaMessages('plans');
 // The plan detail's own strings: its header moved into this page's hero.
 const planDetailMsg = useSaMessages('planDetail');
+const shell = useSaMessages('shell');
+
+// Publishing, ending a live version and purging a plan require the second
+// factor on the server; each asks for the code right before its request.
+const mfa = useMfaPrompt();
 
 // Fallback for the requests this page issues directly. It resolves to the
 // client the app registered via `createSuperAdminApp({ http })`, or to
@@ -945,10 +960,25 @@ async function onReviewPublish(payload: {
         // Persist first (the draft doesn't exist server-side yet), then publish.
         const saved = await persistDraft();
         if (!saved) return false;
-        const result = await planVersions.value.publish(saved.id, {
-            forceRegressive: payload.forceRegressive,
-            allowZeroPrice: payload.allowZeroPrice,
-        });
+        const versionsOps = planVersions.value;
+        const outcome = await mfa.run(
+            formatMessage(msg.value.page.mfaPublish, {
+                planKey: selectedPlan.value.planKey,
+                version: saved.version,
+            }),
+            shell.value.mfa.invalidCode,
+            (code) =>
+                versionsOps.publish(
+                    saved.id,
+                    {
+                        forceRegressive: payload.forceRegressive,
+                        allowZeroPrice: payload.allowZeroPrice,
+                    },
+                    code,
+                ),
+        );
+        if (!outcome.done) return false;
+        const result = outcome.value;
         await reloadCockpitVersions();
         const planKey = selectedPlan.value.planKey;
         flashHighlight(planKey);
@@ -993,7 +1023,12 @@ async function executeArchive(): Promise<void> {
         // Hard-delete is the only path: published versions block deletion
         // server-side, drafts must be removed first via the discard route.
         // The UI aborts on both before this call is even reached.
-        await hardDelete(plan.id);
+        const outcome = await mfa.run(
+            formatMessage(msg.value.page.mfaPurge, { planKey: plan.planKey }),
+            shell.value.mfa.invalidCode,
+            (code) => hardDelete(plan.id, code),
+        );
+        if (!outcome.done) return;
         await reloadAllVersions();
         archiveOpen.value = false;
         notify(
@@ -1101,11 +1136,20 @@ async function executeDiscard(): Promise<void> {
 // Called by PlanDetail.vue as a prop callback. Uses the usePlanVersions
 // composable of the current cockpit so the UI state (versions ref) stays
 // consistent after the call.
-async function onSubmitTerminate(versionId: string, endsAt: string): Promise<void> {
-    if (!planVersions.value) {
+async function onSubmitTerminate(versionId: string, endsAt: string): Promise<boolean> {
+    const versionsOps = planVersions.value;
+    if (!versionsOps) {
         throw new Error('PlanVersions composable is not initialized');
     }
-    await planVersions.value.terminateVersion(versionId, endsAt);
+    const outcome = await mfa.run(
+        formatMessage(msg.value.page.mfaTerminate, {
+            planKey: selectedPlan.value?.planKey ?? '',
+            version: versions.value.find((v) => v.id === versionId)?.version ?? '?',
+        }),
+        shell.value.mfa.invalidCode,
+        (code) => versionsOps.terminateVersion(versionId, endsAt, code),
+    );
+    if (!outcome.done) return false;
     await reloadCockpitVersions();
     if (selectedPlan.value) {
         notify(
@@ -1115,6 +1159,7 @@ async function onSubmitTerminate(versionId: string, endsAt: string): Promise<voi
             }),
         );
     }
+    return true;
 }
 
 // ─── Publish ───
@@ -1209,10 +1254,26 @@ async function executePublish(): Promise<void> {
     publishing.value = true;
     publishError.value = null;
     try {
-        const result = await planVersions.value.publish(publishTarget.value.id, {
-            forceRegressive: forceRegressive.value,
-            allowZeroPrice: allowZeroPrice.value,
-        });
+        const versionsOps = planVersions.value;
+        const target = publishTarget.value;
+        const outcome = await mfa.run(
+            formatMessage(msg.value.page.mfaPublish, {
+                planKey: selectedPlan.value?.planKey ?? '',
+                version: target.version,
+            }),
+            shell.value.mfa.invalidCode,
+            (code) =>
+                versionsOps.publish(
+                    target.id,
+                    {
+                        forceRegressive: forceRegressive.value,
+                        allowZeroPrice: allowZeroPrice.value,
+                    },
+                    code,
+                ),
+        );
+        if (!outcome.done) return;
+        const result = outcome.value;
         await reloadCockpitVersions();
         publishOpen.value = false;
         regressionChanges.value = [];

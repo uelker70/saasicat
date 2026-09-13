@@ -197,7 +197,7 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { platformEmailResource } from '../client/resources/platform-email.resource.js';
-import { adminErrorMessage, httpStatusOf } from '../client/admin-error.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import { computed, reactive, ref } from 'vue';
@@ -355,23 +355,11 @@ async function runWrite(
             return false;
         }
     }
-    for (;;) {
-        const code = await mfa.prompt(label);
-        if (code === null) return false;
-        try {
-            await invoke(code);
-            mfa.show.value = false;
-            return true;
-        } catch (err) {
-            const status = httpStatusOf(err);
-            if (status === 401) {
-                mfa.error.value = shell.value.mfa.invalidCode;
-                continue;
-            }
-            mfa.show.value = false;
-            notify('negative', adminErrorMessage(err, errors.value));
-            return false;
-        }
+    try {
+        return (await mfa.run(label, shell.value.mfa.invalidCode, invoke)).done;
+    } catch (err) {
+        notify('negative', adminErrorMessage(err, errors.value));
+        return false;
     }
 }
 

@@ -36,7 +36,8 @@ export const RequireMfa = (): MethodDecorator & ClassDecorator =>
     SetMetadata(REQUIRE_MFA_KEY, true);
 
 interface RequestWithMfa {
-    user?: { id: string };
+    /** `id`, or `userId` — the pair the platform's admin controllers read the actor from. */
+    user?: { id?: string; userId?: string };
     headers?: Record<string, string | string[] | undefined>;
 }
 
@@ -63,8 +64,8 @@ export class MfaGuard implements CanActivate {
         }
 
         const request = context.switchToHttp().getRequest<RequestWithMfa>();
-        const user = request.user;
-        if (!user) {
+        const userId = request.user?.id ?? request.user?.userId;
+        if (!userId) {
             throw new UnauthorizedException({
                 ...codedError(AUTH_ERROR_CODES.NOT_AUTHENTICATED),
                 // `reason` is superseded by `code` and will be removed.
@@ -72,7 +73,7 @@ export class MfaGuard implements CanActivate {
             });
         }
 
-        const enabled = await this.mfaService.isEnabled(user.id);
+        const enabled = await this.mfaService.isEnabled(userId);
         if (!enabled) {
             throw new UnauthorizedException({
                 code: AUTH_ERROR_CODES.MFA_NOT_SET_UP,
@@ -93,7 +94,7 @@ export class MfaGuard implements CanActivate {
             });
         }
 
-        const valid = await this.mfaService.verify({ userId: user.id, code: String(code) });
+        const valid = await this.mfaService.verify({ userId, code: String(code) });
         if (!valid) {
             throw new UnauthorizedException({
                 code: AUTH_ERROR_CODES.MFA_FAILED,

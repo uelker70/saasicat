@@ -238,6 +238,7 @@ export const bundlesMessages = defineMessages(
             forceRegressive: 'Trotzdem publishen',
             confirm: 'Publishen',
             confirmRegressive: 'Regressiv publishen',
+            mfaDescription: 'Version v{version} von Bundle {bundleKey} publishen.',
         },
     },
     {
@@ -462,6 +463,7 @@ export const bundlesMessages = defineMessages(
             forceRegressive: 'Publish anyway',
             confirm: 'Publish',
             confirmRegressive: 'Publish regressively',
+            mfaDescription: 'Publish version v{version} of bundle {bundleKey}.',
         },
     },
 );

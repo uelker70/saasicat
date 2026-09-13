@@ -801,12 +801,11 @@ where, and what changed at the last start, with the one action of marking a chan
 edits nothing. The sidebar entry stays whoever serves the route: an app that passes
 `includeSettingsController: false` answers `GET /admin/settings` itself and keeps the page.
 
-**A route appears:** `GET /admin/settings`, behind the same `controller.guards` as the manifest
-and discovery, answers the resolved settings and the absolute path of `config/saas.yaml`. An app
-that already serves that path, or does not want the platform to, passes
-`includeSettingsController: false` — the record is kept and compared at boot either way, only
-the endpoint is left out. An app that passes `controller: { guards: [] }` publishes it
-unauthenticated, as it does the other two.
+**A route appears:** `GET /admin/settings`, behind `controller.guards` and `SuperAdminGuard` like
+the manifest and discovery, answers the resolved settings and the absolute path of
+`config/saas.yaml`. An app that already serves that path, or does not want the platform to, passes
+`includeSettingsController: false` — the record is kept and compared at boot either way, only the
+endpoint is left out.
 
 On the Prisma path, `saasicat schema check` reports the two models until you copy them from
 `prisma-fragments/12-applied-settings.prisma` into your `schema.prisma`. An installation whose
@@ -853,6 +852,46 @@ file and line — the values it carries, or the ones left beside the path — an
 it: which file the values were forwarded from is a variable in another module more often than a
 literal, and a guess would be wrong quietly. An application that loads the file for its own use
 keeps doing so; the platform reads it once more, which costs a parse at start and nothing after.
+
+### Every operator route requires the platform administrator
+
+`SaaSiCatModule.forRoot` runs `SuperAdminGuard` after `controller.guards` on every operator route
+it mounts: the administration, the catalogue, discovery, the admin manifest, the settings endpoint,
+promo codes and statistics. `controller.guards` establishes who is calling, so it holds
+`[JwtAuthGuard]` or its equivalent and not a role check — the tenant manifest falls back to the same
+list, and a role check there would lock tenants out of their own manifest.
+
+- **`SuperAdminGuard` listed in `controller.guards`** keeps working; the check runs twice. Drop it
+  from there.
+- **`controller: { guards: [] }`** no longer leaves these routes without a check. A test that calls
+  one needs a signed-in platform administrator on the request.
+- **Low-level modules wired by hand** — `CatalogModule`, `DiscoveryModule`, `AdminManifestModule`,
+  `SettingsModule`, `PlanCatalogImporterModule` — take their whole guard chain from you as before.
+  Make sure it ends in `SuperAdminGuard`.
+
+### Lasting operator actions require the second factor
+
+Publishing a plan or bundle version, ending a plan version, purging a plan, importing a catalogue,
+and suspending or reactivating a tenant require a one-time code in the `X-Mfa-Code` header. The
+check sits on those handlers rather than in a guard list, so neither `controller.guards`, an
+`adminResources.guards` override nor the chain of a module wired by hand can leave it out.
+
+- **Every platform administrator who takes these actions** needs a second factor set up, as the
+  setup wizard or the `admin mfa-setup` command from [Extend your CLI](extend-your-cli.md) enrolls
+  one. Without it the request is refused with `MFA_NOT_SET_UP`.
+- **The shipped plans and bundles pages** ask for the code before each action, and the tenant pages
+  already did. A tenant-action handler you register for `tenants.suspend` or `tenants.reactivate`
+  has to pass the `mfaCode` it receives on: `suspendTenant(slug, reason, mfaCode)`,
+  `reactivateTenant(slug, mfaCode)`, and the same last argument on the `tenants` resource.
+- **Your own calls** to `usePlans().hardDelete`, `usePlanVersions().publish`,
+  `usePlanVersions().terminateVersion`, `useBundleVersions().publish` or the matching resource
+  operations ask for the code first and pass it as the new last argument. `mfaHeader(code)` builds
+  the header, and sends nothing for an empty code.
+- **`request.user`** is read as `id` or `userId` by `MfaGuard`, the same pair the admin controllers
+  read the actor from.
+- **Low-level modules wired by hand** that carry one of these routes — `CatalogModule`,
+  `AdminResourcesModule`, `PlanCatalogImporterModule` — need `MfaService` resolvable, which
+  `AdminModule` provides; without it the application does not start.
 
 ### `projectKey` is gone from the database
 

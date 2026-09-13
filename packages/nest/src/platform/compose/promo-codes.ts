@@ -1,11 +1,10 @@
 import type { DynamicModule } from '@nestjs/common';
 import type { SaaSiCatPersistenceAdapter, TransactionRunner } from '@saasicat/core';
 
-import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
 import type { ProviderSpec } from '../../core/di.js';
 import { PromoCodesModule } from '../../promo/promo.module.js';
 
-import { optionsOf, type CompositionContext } from './context.js';
+import { operatorGuards, optionsOf, type CompositionContext } from './context.js';
 
 /**
  * Promo codes, admin side and — off by default — the public preview.
@@ -47,7 +46,7 @@ export function composePromoCodes({
             adminController:
                 adminController === false
                     ? false
-                    : { guards: adminGuards ?? [...options.controller.guards, SuperAdminGuard] },
+                    : { guards: adminGuards ?? operatorGuards(options) },
             imports: promoImports ?? options.imports,
         }),
     ];

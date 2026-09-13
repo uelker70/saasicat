@@ -21,6 +21,7 @@ import type {
     PlatformEmailWriteInput,
 } from './platform-email.types.js';
 
+import { mfaHeader } from '../mfa-header.js';
 import { defineResource } from './define-resource.js';
 import { filterQueryString } from './list-resource.js';
 import { requestJson, requestJsonBody } from './resource-request.js';
@@ -150,14 +151,3 @@ export const emailHistoryResource = defineResource('emailHistory', {
             { method: 'POST', headers: mfaHeader(mfaCode) },
         ),
 });
-
-/**
- * The second-factor header, or nothing.
- *
- * An empty string is not a code: the flows pass `''` when MFA is off, and
- * sending `X-Mfa-Code:` empty made a backend that checks for the header's
- * presence reject a request that was never guarded.
- */
-function mfaHeader(mfaCode?: string): Record<string, string> | undefined {
-    return mfaCode ? { 'X-Mfa-Code': mfaCode } : undefined;
-}

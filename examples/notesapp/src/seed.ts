@@ -36,6 +36,18 @@ const MARKETING_SETTINGS_ROW_ID = 'marketing-settings';
 /** Matches DemoPasswordHasher — scrypt with a 64-byte key. */
 const SUPER_ADMIN = { email: 'admin@notesapp.example', password: 'demo' };
 
+/**
+ * Who DemoAuthGuard says the admin app's caller is (`x-demo-tenant: admin`),
+ * which is the id the platform looks the second factor up under.
+ */
+const DEMO_ADMIN_USER_ID = 'demo-user-admin';
+
+/** RFC 4648 base32, the form an authenticator app takes a TOTP secret in. */
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+/** Twenty random bytes, the secret length RFC 4226 recommends. */
+const TOTP_SECRET_BYTES = 20;
+
 /** A plan stem plus its single published v1 (mirrors config/saas.yaml). */
 interface PlanSeed {
     planKey: string;
@@ -299,6 +311,46 @@ async function seedSuperAdmin(prisma: PrismaClient): Promise<void> {
         // password the developer changed through the UI.
         update: { isActive: true, deletedAt: null },
     });
+}
+
+function base32(bytes: Uint8Array): string {
+    let buffer = 0;
+    let bits = 0;
+    let out = '';
+    for (const byte of bytes) {
+        buffer = (buffer << 8) | byte;
+        bits += 8;
+        while (bits >= 5) {
+            bits -= 5;
+            out += BASE32_ALPHABET[(buffer >> bits) & 31];
+        }
+        buffer &= (1 << bits) - 1;
+    }
+    if (bits > 0) out += BASE32_ALPHABET[(buffer << (5 - bits)) & 31];
+    return out;
+}
+
+/**
+ * Gives the demo admin a second factor, because publishing, ending or purging
+ * a plan and suspending a tenant ask for its code.
+ *
+ * DEMO ONLY. The secret is random per database and kept on a re-seed, so an
+ * authenticator set up once keeps working. Returns the otpauth URI when the
+ * secret was created by this run, and `null` when one already existed.
+ */
+async function seedSuperAdminMfa(prisma: PrismaClient): Promise<string | null> {
+    const existing = await prisma.superAdminMfa.findUnique({
+        where: { userId: DEMO_ADMIN_USER_ID },
+    });
+    if (existing?.secret) return null;
+    const secret = base32(randomBytes(TOTP_SECRET_BYTES));
+    await prisma.superAdminMfa.upsert({
+        where: { userId: DEMO_ADMIN_USER_ID },
+        create: { userId: DEMO_ADMIN_USER_ID, secret, enabledAt: new Date() },
+        update: { secret, enabledAt: new Date() },
+    });
+    const label = encodeURIComponent(`NotesApp:${SUPER_ADMIN.email}`);
+    return `otpauth://totp/${label}?secret=${secret}&issuer=NotesApp`;
 }
 
 async function seedPlans(prisma: PrismaClient): Promise<void> {
@@ -572,6 +624,7 @@ async function seed(): Promise<void> {
     try {
         await seedTenants(prisma);
         await seedSuperAdmin(prisma);
+        const otpauthUri = await seedSuperAdminMfa(prisma);
         await seedPlans(prisma);
         await seedBundles(prisma);
         await seedMarketing(prisma);
@@ -586,6 +639,11 @@ async function seed(): Promise<void> {
                 `${PROMO_CODES.length} promo codes, ` +
                 `${PROMOTIONS.length} promotions, 1 marketing-settings row, ` +
                 `SuperAdmin ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`,
+        );
+        console.log(
+            otpauthUri
+                ? `second factor for ${SUPER_ADMIN.email} — add to an authenticator app: ${otpauthUri}`
+                : `second factor for ${SUPER_ADMIN.email} already set up — the authenticator entry from the first seed still applies`,
         );
     } finally {
         await prisma.$disconnect();

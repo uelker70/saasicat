@@ -128,6 +128,14 @@
             :submit="onPublishSubmit"
             @submitted="onPublishSubmitted"
         />
+
+        <MfaPromptDialog
+            :model-value="mfa.show.value"
+            :description="mfa.description.value"
+            :error="mfa.error.value"
+            @update:model-value="mfa.onVisibility"
+            @confirm="mfa.onConfirm"
+        />
     </AdminPage>
 </template>
 
@@ -162,6 +170,8 @@ import type {
 } from '@saasicat/core';
 
 import BundleVersionPublishDialog from '../features/bundle/BundleVersionPublishDialog.vue';
+import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
+import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import BundleCreatePanel from '../features/bundle/internal/BundleCreatePanel.vue';
 import type { FeatureMeta } from '../features/bundle/internal/BundleFeaturesEditor.vue';
 import {
@@ -333,6 +343,8 @@ onMounted(() => void reload());
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
+const shell = useSaMessages('shell');
+const mfa = useMfaPrompt();
 const askConfirm = useSuperAdminConfirm();
 
 // The pool this project declares, unless the app narrows it. Read here rather
@@ -732,11 +744,21 @@ async function onPublishSubmit(opts: {
     allowZeroPrice?: boolean;
     validFrom?: string | null;
     validUntil?: string | null;
-}): Promise<BundleVersionMutationResult> {
-    if (!publishDraft.value) {
+}): Promise<BundleVersionMutationResult | null> {
+    const draft = publishDraft.value;
+    if (!draft) {
         throw new Error('BundlesPage: publish submit without draft context');
     }
-    return versionsOps.publish(publishDraft.value.id, opts);
+    // Publishing requires the second factor on the server.
+    const outcome = await mfa.run(
+        formatMessage(msg.value.publishDialog.mfaDescription, {
+            bundleKey: detailBundle.value?.bundleKey ?? '',
+            version: draft.version,
+        }),
+        shell.value.mfa.invalidCode,
+        (code) => versionsOps.publish(draft.id, opts, code),
+    );
+    return outcome.done ? outcome.value : null;
 }
 
 async function onPublishSubmitted(result: BundleVersionMutationResult): Promise<void> {

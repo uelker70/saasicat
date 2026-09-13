@@ -2,8 +2,9 @@
 //
 // Path convention: all endpoints under `/admin/catalog/bundles`. The
 // controller is built dynamically at boot time so that the consumer decides
-// the class-level guards itself (`SuperAdminGuard`, MFA, …) — analogous to
-// DiscoveryController.
+// the class-level guards itself (authentication, `SuperAdminGuard`) —
+// analogous to DiscoveryController. Publishing a version is not left to that
+// chain: `@EnforceMfa()` puts the second factor on the handler.
 
 import {
     Body,
@@ -22,6 +23,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 
+import { EnforceMfa } from '../admin/enforce-mfa.decorator.js';
 import { BundlesService } from './bundles.service.js';
 import {
     CreateBundleDto,
@@ -142,6 +144,7 @@ export function buildBundleVersionsController(guards: Array<Type<CanActivate>>):
         }
 
         @Post(':id/publish')
+        @EnforceMfa()
         publish(
             @Param('id', new ParseUUIDPipe()) versionId: string,
             @Body() dto: PublishBundleVersionDto,

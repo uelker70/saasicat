@@ -24,8 +24,8 @@ import { useManifestStore } from './stores/manifest';
 
 // Tenant-action handlers. The map key matches `manifest.tenants.actions[].actionKey`
 // (the platform-core spine declares tenants.suspend/reactivate). The Confirm→MFA
-// flow inside the page collects `reason`/`mfaCode` and hands them here; this
-// demo has no real MFA, so the code is accepted and ignored server-side.
+// flow inside the page collects `reason`/`mfaCode` and hands them here, and both
+// routes refuse a request without the code.
 interface TenantActionInput {
     row: { slug: string };
     mfaCode: string | null;
@@ -33,12 +33,12 @@ interface TenantActionInput {
 }
 const ADMIN_ACTIONS: ActionsMap = {
     'tenants.suspend': (input) => {
-        const { row, reason } = input as TenantActionInput;
-        return suspendTenant(row.slug, reason ?? '');
+        const { row, reason, mfaCode } = input as TenantActionInput;
+        return suspendTenant(row.slug, reason ?? '', mfaCode ?? undefined);
     },
     'tenants.reactivate': (input) => {
-        const { row } = input as TenantActionInput;
-        return reactivateTenant(row.slug);
+        const { row, mfaCode } = input as TenantActionInput;
+        return reactivateTenant(row.slug, mfaCode ?? undefined);
     },
 };
 

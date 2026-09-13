@@ -24,8 +24,10 @@ import { asProvider, type ProviderSpec } from '../core/di.js';
 export interface PlanCatalogImporterControllerConfig {
     /**
      * Class-level guards for `/admin/billing/plan-catalog/import`. Required
-     * when `controller` is set — pass `[]` explicitly for auth-free
-     * (only sensible in tests).
+     * when `controller` is set. The import publishes the plans it creates, so
+     * the handler requires the second factor whatever this list holds, and
+     * `MfaService` has to be resolvable through `AdminModule`; with `[]`
+     * nothing establishes a caller and the import is refused.
      */
     guards: Array<Type<CanActivate>>;
 }

@@ -4,7 +4,7 @@ import type { SaaSiCatPersistenceAdapter } from '@saasicat/core';
 import { PublicCatalogModule } from '../../billing/public-catalog.module.js';
 import { CatalogModule } from '../../catalog/catalog.module.js';
 
-import type { CompositionContext } from './context.js';
+import { operatorGuards, type CompositionContext } from './context.js';
 
 /**
  * The plan/bundle catalogue, and the public projection of it.
@@ -27,9 +27,7 @@ export function composeCatalog({ options, persistence }: CompositionContext): Dy
             promotionRepository: catalog.promotionRepository,
             marketingSettingsRepository: catalog.marketingSettingsRepository,
             controller:
-                config.adminControllers === false
-                    ? undefined
-                    : { guards: options.controller.guards },
+                config.adminControllers === false ? undefined : { guards: operatorGuards(options) },
             imports: config.imports ?? options.imports,
             extraProviders: config.extraProviders,
             strictModeCheckMode: config.strictModeCheckMode,

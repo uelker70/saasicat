@@ -18,6 +18,7 @@ import type {
     UpdateBundleVersionDraftData,
 } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
+import { mfaHeader } from '../client/mfa-header.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UseBundlesOptions {
@@ -176,6 +177,7 @@ export interface UseBundleVersionsResult {
         versionId: string,
         data: UpdateBundleVersionDraftData,
     ) => Promise<BundleVersionMutationResult>;
+    /** The route requires the second factor. */
     publish: (
         versionId: string,
         opts?: {
@@ -184,6 +186,7 @@ export interface UseBundleVersionsResult {
             validFrom?: string | null;
             validUntil?: string | null;
         },
+        mfaCode?: string,
     ) => Promise<BundleVersionMutationResult>;
     /**
      * Discards a draft (`DELETE /admin/catalog/bundle-versions/:id`).
@@ -286,10 +289,11 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             validFrom?: string | null;
             validUntil?: string | null;
         } = {},
+        mfaCode?: string,
     ): Promise<BundleVersionMutationResult> {
         const result = await fetchJson<BundleVersionMutationResult>(
             `${versionUrlBase}/${versionId}/publish`,
-            { method: 'POST', body: JSON.stringify(opts) },
+            { method: 'POST', body: JSON.stringify(opts), headers: mfaHeader(mfaCode) },
         );
         if (!result)
             throw markEmptyResponse(new BundlesApiError(0, null, 'Publish returned no body'));

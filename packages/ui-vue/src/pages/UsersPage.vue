@@ -120,7 +120,7 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { usersResource } from '../client/resources/users.resource.js';
-import { adminErrorMessage, httpStatusOf } from '../client/admin-error.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -402,24 +402,11 @@ async function runAction<R>(
         }
         return;
     }
-    while (true) {
-        const code = await mfa.prompt(actionLabel);
-        if (code === null) return;
-        try {
-            const result = await invoke(code);
-            mfa.show.value = false;
-            onSuccess(result);
-            return;
-        } catch (err) {
-            const status = httpStatusOf(err);
-            if (status === 401) {
-                mfa.error.value = shell.value.mfa.invalidCode;
-                continue;
-            }
-            mfa.show.value = false;
-            notify('negative', adminErrorMessage(err, errors.value));
-            return;
-        }
+    try {
+        const outcome = await mfa.run(actionLabel, shell.value.mfa.invalidCode, invoke);
+        if (outcome.done) onSuccess(outcome.value);
+    } catch (err) {
+        notify('negative', adminErrorMessage(err, errors.value));
     }
 }
 

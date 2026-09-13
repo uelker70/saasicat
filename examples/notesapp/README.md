@@ -40,7 +40,9 @@ docker compose -f examples/notesapp/docker-compose.yml up --build
 ```
 
 - **SuperAdmin UI** → <http://localhost:9000>, sign in with
-  `admin@notesapp.example` / `demo`
+  `admin@notesapp.example` / `demo`. Publishing, ending or deleting a plan and
+  suspending a tenant ask for a one-time code: the first seed prints an
+  `otpauth://` URI to add to an authenticator app
 - **Web UI** → <http://localhost:8080> (the tenant-facing app)
 - **API** → <http://localhost:3000/api/v1> (for the curl walkthrough below)
 - **Postgres** → `localhost:5432` (`notesapp` / `notesapp`)
@@ -69,7 +71,7 @@ cd examples/notesapp
 cp .env.example .env
 export DATABASE_URL=postgresql://postgres:test@localhost:5432/postgres
 pnpm run db:push     # apply prisma/schema.prisma
-pnpm run db:seed     # demo tenants + SuperAdmin admin@notesapp.example / demo
+pnpm run db:seed     # demo tenants, SuperAdmin admin@notesapp.example / demo, its otpauth URI
 pnpm start           # http://localhost:3000/api/v1
 
 # SuperAdmin UI in a second shell (proxies /api to the backend)

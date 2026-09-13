@@ -93,14 +93,14 @@ properties it has while doing it.
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 34      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
-| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 12      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 13      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 10      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 11      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 416 entries: 🟢 407 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 417 entries: 🟢 408 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),

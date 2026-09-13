@@ -11,6 +11,7 @@
 // `mfaCode` parameter through.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { mfaHeader } from '../client/mfa-header.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import { useSaMessages } from './use-super-admin-i18n.js';
 
@@ -99,13 +100,9 @@ export function useBulkPublish(options: UseBulkPublishOptions): UseBulkPublishRe
         item.status = 'publishing';
         try {
             const url = endpoints[item.kind](item.draftId);
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (mfaCode) headers['X-Mfa-Code'] = mfaCode;
             const res = await http(url, {
                 method: 'POST',
-                headers,
+                headers: { 'Content-Type': 'application/json', ...mfaHeader(mfaCode) },
                 body: JSON.stringify(body),
             });
             if (res.status >= 200 && res.status < 300) {

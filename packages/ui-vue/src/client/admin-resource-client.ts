@@ -7,6 +7,7 @@ import type {
     AuditEntry,
     PromoCodeRecord,
 } from '@saasicat/core';
+import { mfaHeader } from './mfa-header.js';
 import { filterQueryString } from './resources/list-resource.js';
 import type { HttpClient } from './types.js';
 
@@ -42,10 +43,15 @@ export function createAdminResourceClient(options: AdminResourceClientOptions) {
         return (await response.json()) as T;
     };
 
-    const sendJson = async <T>(method: string, url: string, body?: unknown): Promise<T> => {
+    const sendJson = async <T>(
+        method: string,
+        url: string,
+        body?: unknown,
+        mfaCode?: string,
+    ): Promise<T> => {
         const response = await options.http(url, {
             method,
-            headers: { 'content-type': 'application/json' },
+            headers: { 'content-type': 'application/json', ...mfaHeader(mfaCode) },
             body: body === undefined ? undefined : JSON.stringify(body),
         });
         assertSuccess(response.status, method, url);
@@ -87,12 +93,21 @@ export function createAdminResourceClient(options: AdminResourceClientOptions) {
         deletePromo: async (id: string): Promise<void> => {
             await sendJson('DELETE', `${base}/promo-codes/${encodeURIComponent(id)}`);
         },
-        suspendTenant: (slug: string, reason: string): Promise<unknown> =>
-            sendJson('POST', `${tenantsEndpoint}/${encodeURIComponent(slug)}/suspend`, {
-                reason,
-            }),
-        reactivateTenant: (slug: string): Promise<unknown> =>
-            sendJson('POST', `${tenantsEndpoint}/${encodeURIComponent(slug)}/reactivate`),
+        /** Suspending and reactivating a tenant both require the second factor. */
+        suspendTenant: (slug: string, reason: string, mfaCode?: string): Promise<unknown> =>
+            sendJson(
+                'POST',
+                `${tenantsEndpoint}/${encodeURIComponent(slug)}/suspend`,
+                { reason },
+                mfaCode,
+            ),
+        reactivateTenant: (slug: string, mfaCode?: string): Promise<unknown> =>
+            sendJson(
+                'POST',
+                `${tenantsEndpoint}/${encodeURIComponent(slug)}/reactivate`,
+                undefined,
+                mfaCode,
+            ),
     };
 }
 
