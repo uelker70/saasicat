@@ -133,3 +133,56 @@ _Source:_ #214
 of individually booked amounts with no grouping leaves that to guesswork.
 
 _Source:_ #214
+
+### SC-AUD-012 — A contract carries both parties as they were when it was concluded
+
+🟡 _(Decided, not yet delivered.)_ 💰 The subscriber, and the issuer as `config/saas.yaml` named
+it that day, so the contract still says which legal entity was the counterparty after either
+changes and after the tenant is gone. A copy made while an existing contract is migrated says
+so, and is never presented as what was true at conclusion. Either party may have changed since the
+contract was concluded, which the migration cannot see, so the operator confirms each migrated copy
+against the contract as concluded, correcting it where it differs, before that contract is
+invoiced; until then it is not.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-013 — Every invoice line can be traced to the charge and the contract line it came from
+
+🟡 _(Decided, not yet delivered.)_ 💰 The charge already names its agreement line (`SC-AUD-010`);
+the invoice line adds the step from the document to the charge.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+
+🟡 _(Decided, not yet delivered.)_ 💰 The rendered document is archived when the invoice is
+issued, and every later download, by the tenant or by the operator, returns that archived file;
+an invoice whose document is not yet archived is not offered at all (`SC-PRIC-033`). Rendering
+it again from today's data would hand out a document the subscriber never received.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
+
+🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
+nothing else, never the current time or today's settings, and its checksum is recorded with the
+invoice before it is archived. An archiving attempt repeated after an interruption (`SC-PRIC-033`)
+stores a file with that checksum, every download is checked against it, and a file that does not
+match is not handed out but shown to the operator. The register's export (`SC-ADM-022`) carries each
+checksum.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
+
+🟡 _(Decided, not yet delivered.)_ 💰 It names the plan and the bundles, their prices with the tax
+treatment (`SC-PRIC-038`), the term, the notice period and the version of the operator's terms that
+applied. That version is the one `config/saas.yaml` named when the contract was concluded or changed,
+which the contract records; the confirmation takes it from the contract, so one rendered again after
+new terms are published still names the terms the subscriber agreed to (`SC-AUD-015`). It is
+rendered and archived like an invoice (`SC-AUD-015`),
+sent to the subscriber's invoice email and offered for download beside the invoices (`SC-UI-023`).
+German law asks for the terms of a contract concluded online, general terms included, to be
+retrievable and storable when it is concluded.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

@@ -107,46 +107,109 @@ properties it has while doing it.
 
 | #   | Chapter                                      | Identifiers  | Entries |
 | --- | -------------------------------------------- | ------------ | ------- |
-| 1   | The product and its boundary                 | `SC-SCOPE-…` | 10      |
+| 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 25      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 15      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 17      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
-| 7   | Cancelling                                   | `SC-CANC-…`  | 19      |
+| 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 21      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 49      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
-| 12  | Self-registration                            | `SC-REG-…`   | 20      |
+| 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 23      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 21      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 24      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 35      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 13      |
-| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 10      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 11      |
+| 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 16      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 420 entries: 🟢 411 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
-🔴 0 withdrawn.
+Of 483 entries: 🟢 411 stand today, 🟡 70 decided but not yet delivered, ⚪ 0 drafts,
+🔵 2 superseded, 🔴 0 withdrawn.
 
-🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
+🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
+[SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
+[SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
+[SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
+[SC-SUB-016](#sc-sub-016--a-subscription-always-has-its-subscriber-whichever-path-created-the-tenant),
+[SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
+[SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
+[SC-CANC-021](#sc-canc-021--the-read-only-period-and-the-deletion-date-are-stated-before-a-tenant-cancels),
+[SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
 [SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
 [SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
+[SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
+[SC-PRIC-023](#sc-pric-023--invoice-numbers-have-no-gaps-within-an-installation-and-a-prefix-sets-it-apart),
+[SC-PRIC-024](#sc-pric-024--an-installations-invoice-number-prefix-cannot-change-once-an-invoice-exists),
+[SC-PRIC-025](#sc-pric-025--an-issued-invoice-is-never-edited-a-cancellation-invoice-corrects-it),
+[SC-PRIC-026](#sc-pric-026--an-invoice-carries-the-issuer-and-the-subscriber-as-they-were-on-the-day-it-was-issued),
+[SC-PRIC-027](#sc-pric-027--an-invoice-carries-what-the-tax-law-of-its-issuer-requires-of-it),
+[SC-PRIC-028](#sc-pric-028--a-direct-debit-is-announced-before-it-is-collected),
+[SC-PRIC-029](#sc-pric-029--a-payment-is-recorded-against-its-invoice-once-the-gateway-has-confirmed-it),
+[SC-PRIC-030](#sc-pric-030--a-payment-method-is-entered-in-the-gateways-own-form-and-saasicat-keeps-a-reference),
+[SC-PRIC-031](#sc-pric-031--a-returned-debit-or-a-chargeback-is-recorded-and-what-the-payment-settled-opens-again),
+[SC-PRIC-032](#sc-pric-032--no-contract-is-frozen-and-no-invoice-issued-before-the-subscribers-identity-is-complete),
+[SC-PRIC-033](#sc-pric-033--an-invoice-interrupted-in-archiving-keeps-its-number-and-is-never-issued-twice),
+[SC-PRIC-034](#sc-pric-034--a-collection-retried-after-an-unanswered-request-never-charges-twice),
+[SC-PRIC-035](#sc-pric-035--an-invoice-left-unpaid-past-its-grace-period-makes-the-tenant-read-only),
+[SC-PRIC-036](#sc-pric-036--what-an-invoice-owes-and-how-it-is-paid-changes-one-step-at-a-time),
+[SC-PRIC-037](#sc-pric-037--the-tax-a-subscriber-is-charged-is-decided-by-a-tax-adapter-for-the-issuer),
+[SC-PRIC-038](#sc-pric-038--a-contract-and-an-invoice-record-the-tax-treatment-and-the-adapter-that-decided-it),
+[SC-PRIC-039](#sc-pric-039--a-subscriber-the-tax-adapter-cannot-treat-is-refused-before-a-contract-exists),
+[SC-PRIC-040](#sc-pric-040--a-tax-identifier-is-validated-before-a-tax-treatment-depends-on-it),
+[SC-PRIC-041](#sc-pric-041--an-invoice-computes-its-tax-once-per-rate-by-the-rule-its-tax-adapter-names),
+[SC-PRIC-042](#sc-pric-042--an-invoice-is-issued-in-the-format-its-tax-adapter-requires),
+[SC-PRIC-043](#sc-pric-043--a-change-to-a-subscribers-tax-origin-applies-from-its-next-invoice),
+[SC-PRIC-044](#sc-pric-044--the-german-tax-adapter-covers-germany-businesses-abroad-and-small-businesses),
+[SC-PRIC-045](#sc-pric-045--invoice-dates-and-tax-periods-count-in-the-installations-time-zone),
+[SC-PRIC-046](#sc-pric-046--an-invoice-states-the-day-it-is-due),
+[SC-PRIC-047](#sc-pric-047--every-invoice-reaches-the-subscriber-by-email-with-its-file-attached),
+[SC-PRIC-048](#sc-pric-048--a-billing-period-whose-charges-are-all-zero-issues-no-invoice),
+[SC-PRIC-049](#sc-pric-049--a-subscribers-account-is-shown-to-the-tenants-users-holding-the-billing-permission),
+[SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
+[SC-REG-022](#sc-reg-022--the-account-subscriber-tenant-subscription-and-payment-method-are-created-together),
+[SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
+[SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
+[SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
+[SC-ADM-022](#sc-adm-022--an-operator-lists-every-invoice-with-totals-per-period-and-tax-rate-and-exports-it),
+[SC-ADM-023](#sc-adm-023--an-operator-can-list-open-items-and-every-contract-including-former-subscribers),
+[SC-ADM-024](#sc-adm-024--a-suspended-tenants-users-cannot-act-and-a-read-only-tenant-cannot-write),
+[SC-ADM-025](#sc-adm-025--an-operator-gets-a-description-of-the-invoicing-procedure-to-document-its-own-on),
+[SC-ADM-026](#sc-adm-026--the-administrator-changes-what-the-tenant-pays-billing-needs-the-billing-permission),
+[SC-ADM-027](#sc-adm-027--an-operator-joins-a-returning-customers-new-tenant-to-the-subscriber-it-had),
+[SC-UI-022](#sc-ui-022--a-tenant-downloads-its-subscriptions-invoices-and-tells-them-from-the-applications),
+[SC-UI-023](#sc-ui-023--a-tenants-invoices-payment-method-and-billing-details-need-the-billing-permission),
+[SC-UI-024](#sc-ui-024--a-tenants-invoice-list-says-what-each-invoice-stands-for),
+[SC-PRIV-011](#sc-priv-011--contracts-invoices-and-payments-outlive-the-tenant-they-were-for),
+[SC-PRIV-012](#sc-priv-012--a-record-kept-for-tax-purposes-is-not-deleted-automatically),
+[SC-PRIV-013](#sc-priv-013--a-subscriber-with-no-live-tenant-and-no-claim-left-keeps-only-what-its-documents-need),
+[SC-PRIV-014](#sc-priv-014--a-tenant-is-deleted-through-the-application-which-first-names-what-to-keep),
+[SC-PRIV-015](#sc-priv-015--a-tenants-deletion-leaves-a-record-with-the-subscriber-that-names-no-person),
+[SC-PRIV-016](#sc-priv-016--erasing-a-tenants-data-or-files-is-refused-unless-exactly-one-tenant-is-named),
+[SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
+[SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
-[SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to)
+[SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to),
+[SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
+[SC-AUD-013](#sc-aud-013--every-invoice-line-can-be-traced-to-the-charge-and-the-contract-line-it-came-from),
+[SC-AUD-014](#sc-aud-014--an-invoice-downloaded-later-is-the-document-that-was-issued-not-a-new-rendering),
+[SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered),
+[SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 420 requirements. Do not edit by hand:
+Generated from `requirements/` — 483 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -365,6 +428,40 @@ _Tested by:_
         - the clause is not trivially short, so the check is not trivially true
 
 <!-- END proof -->
+
+### SC-SCOPE-011 — SaaSiCat invoices subscriptions and collects payment through a payment gateway
+
+🟡 _(Decided, not yet delivered.)_ 💰 It records what was agreed, what became due, what was
+invoiced and what was paid. The means of payment stay with the gateway, which is why
+`SC-PRIV-005` holds as it is. Paying an invoice by bank transfer is not offered in this stage;
+it stays open for a later one, for subscribers such as an enterprise customer who pays against
+an invoice. This entry supersedes `SC-SCOPE-004` and `SC-PRIC-001` in the change that delivers
+it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-SCOPE-012 — A tenant holds the application's data; the subscriber is the party to the contract
+
+🟡 _(Decided, not yet delivered.)_ 💰 A tenant can be deleted, and its subscriber stays for as
+long as a document that has to be kept belongs to it. Keeping the two apart is what lets the
+application's data go without taking the tax record along. A subscriber has one live tenant at
+most, and the tenants it had before stay in its history: a customer who runs several tenants is
+a subscriber per tenant, so every tenant-facing read and change of the account, the payment
+method and the master data stays inside that tenant's own authority.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-SCOPE-013 — Subscriber and invoice models avoid the application's own names, and a clash is reported
+
+🟡 _(Decided, not yet delivered.)_ The fragments are copied into the application's own schema,
+where an application may already invoice its own customers or collect from its members. Every
+such model carries `Subscription` or `Subscriber` in its name, which keeps it clear of the names
+those applications use. A prefix cannot rule out a clash with a name nobody has seen, so
+`saasicat schema check` reports an application model that carries a platform model's name with a
+different shape, rather than leaving it to surface as a schema error. The application's own
+invoicing stays the application's.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ## 2. Capabilities, features and quotas
 
@@ -3582,6 +3679,29 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
+
+🟡 _(Decided, not yet delivered.)_ 💰 Self-registration creates both together (`SC-REG-022`), and
+a tenant an operator creates through the administration, a command or the integrator's own form
+(`SC-SCOPE-006`) gets its subscriber in the same step, so no contract is ever frozen and no
+charge ever arises without a party to it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-SUB-017 — A subscriber's legal identity can be corrected, not replaced, under a running contract
+
+🟡 _(Decided, not yet delivered.)_ 💰 Contact details, such as the address or the invoice email,
+can be changed at any time, and later invoices carry the new ones. The legal name and the tax
+identifiers are the party the contract was concluded with (`SC-AUD-012`). While a contract runs
+they change only as a correction of that same party, such as a misspelt name, a wrong tax
+identifier or a change of name the same legal entity went through, which the operator records
+with the values it replaces and the reason (`SC-ADM-020`); later invoices carry the corrected
+identity, and the contract keeps its copy as concluded. SaaSiCat cannot tell a correction from
+another legal entity taking over, so the operator declares which it is: a takeover is a transfer
+or a new contract rather than an edit, the same rule `SC-PRIC-026` applies to the issuer.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
 ## 6. Changing a plan
 
 A plan change is where a tenant's money and a tenant's expectations meet, and both can be lost
@@ -4473,6 +4593,41 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CANC-020 — An ended subscription leaves the tenant a period to read and export before its deletion
+
+🟡 _(Decided, not yet delivered.)_ 🔒 A subscription that ends while still a trial, with no contract
+ever frozen (`SC-SPEC-005`), ends the same way. The period is named in `config/saas.yaml`. Every
+subscription that ends has one deletion date, recorded and told to the tenant. A cancellation the
+tenant confirmed carries the date announced at confirmation (`SC-CANC-021`); a subscription that
+ends without one, by a trial running out or by an operator ending it on the spot (`SC-CANC-003`),
+gets its date computed from the period at the moment it ends. A later change to the period moves
+neither, and the one way to delete earlier is `SC-ADM-020`'s. A new subscription for the tenant
+before that date lifts it, and that subscription ending records a date of its own. What a tenant may
+do during the period is `SC-ADM-024`'s to enforce, and how the deletion runs is `SC-PRIV-014`'s.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Beside the period the cancellation lands in, which
+`SC-CANC-017` states. The deletion date stated when the tenant confirms is recorded with the
+cancellation, and a later change to the period in `config/saas.yaml` applies to cancellations
+confirmed after it, never moving a date already announced. The one way a tenant is deleted before
+that date is an early deletion the operator confirms for a legal reason (`SC-ADM-020`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-CANC-022 — A tenant is reminded before its data is deleted
+
+🟡 _(Decided, not yet delivered.)_ 🔒 By email to the tenant's administrators, who can take the export
+(`SC-PRIV-017`), at each lead time `config/saas.yaml` names in days before the deletion date
+(`SC-CANC-020`). Lead times that have already passed when the subscription ends are covered by one
+reminder sent at once rather than skipped, so a period shorter than a lead time still gives notice,
+and a run that repeats sends no reminder twice. Each reminder sent is part of the deletion record
+(`SC-PRIV-017`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
 ## 8. Trials, pilots and negotiated arrangements
 
 Not every subscription is an ordinary paid one. A trial commits to nothing, a pilot is a granted
@@ -5121,11 +5276,389 @@ _Source:_ #214
 
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 
-🟡 _(Decided, not yet delivered.)_ Invoice numbering is sequential, gapless and legally constrained
+🟡 _(Decided, not yet delivered.)_ Invoice numbering is sequential, unique and legally constrained
 per country, and an identifier a customer has already seen on a screen cannot become one later
 without confusion.
 
 _Source:_ #214
+
+### SC-PRIC-022 — Every charge of a subscription is invoiced once, on that subscription's invoice
+
+🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
+period opens with together, and a charge that arises later in the period, such as a bundle booked
+mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-003`), on an invoice of
+its own rather than added to one already issued. A charge correcting one on a cancelled invoice is
+the exception: it goes on that invoice's replacement (`SC-PRIC-025`). A billing period whose charges
+are all zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoice that
+stands: a cancelled invoice and the replacement that follows it (`SC-PRIC-025`) are not two. Each
+charge carries its period (`SC-AUD-011`). A subscription belongs to one tenant, so an invoice stays
+inside the tenant it was for and what a tenant downloads never shows another tenant's charges.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-023 — Invoice numbers have no gaps within an installation, and a prefix sets it apart
+
+🟡 _(Decided, not yet delivered.)_ 💰 The number is assigned in the transaction that writes the
+invoice, so an issue that fails leaves no gap, and only after the tax adapter has accepted the
+invoice's content (`SC-PRIC-027`), so a refusal leaves no number behind. The prefix is named in
+`config/saas.yaml`, and two applications run by one issuer stay apart as long as each names its own.
+The law asks for a unique, sequential number; the gapless range spares an audit the question of a
+missing one.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-024 — An installation's invoice number prefix cannot change once an invoice exists
+
+🟡 _(Decided, not yet delivered.)_ 💰 Otherwise a number issued before the change and one issued
+after it no longer read as one range.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-025 — An issued invoice is never edited; a cancellation invoice corrects it
+
+🟡 _(Decided, not yet delivered.)_ 💰 An invoice is cancelled only once its document is archived
+(`SC-PRIC-033`), so a cancellation never corrects a document the subscriber could not have received.
+The cancellation invoice cancels the whole invoice, names it and the reason given for it
+(`SC-ADM-020`), and carries the issuer and the subscriber of that invoice rather than whatever
+`config/saas.yaml` or the subscriber's record names by then, so an invoice stays correctable after
+either has changed. Where some or all of the charges it covered are still owed, a replacement
+invoice for exactly those, and for any charge written to correct one of the cancelled invoice's
+charges (`SC-PRIC-020`), follows under a new number, names the invoice it replaces, and each of its
+lines names the line it replaces (`SC-AUD-013`). The replacement carries both parties of the invoice
+it replaces, the issuer and the subscriber, rather than whatever `config/saas.yaml` or the
+subscriber's record names by then: the charges are owed between the parties of their contract, and
+the subscriber's record may have kept only what its documents need (`SC-PRIV-013`). Where a party
+detail on the cancelled invoice was wrong, such as the billing address, the name or a tax
+identifier, the operator records the corrected detail with the cancellation and its reason, and the
+replacement carries it; a correction of the issuer declared in `config/saas.yaml` (`SC-PRIC-026`) or
+of the subscriber's legal identity (`SC-SUB-017`) applies as well. A correcting charge names the
+charge it corrects and goes on the replacement rather than on an invoice of its own, so what was
+paid settles it like the others. Those charges are then on the replacement, the cancelled invoice no
+longer counts for them (`SC-PRIC-022`), and a charge no longer owed is on no invoice that stands.
+What a payment for the cancelled invoice settles moves with the charges, whether it was paid before
+the cancellation or confirmed by the gateway after it: it is applied to the replacement as a new
+entry rather than collected again, and where there is no replacement, or the payment exceeds it, the
+rest is a credit on the subscriber's account for the operator to refund (`SC-PRIC-031`). A
+collection for the cancelled invoice not yet submitted to the gateway is not submitted, and no
+invoice of its chain is collected while one already submitted for any of them is unresolved
+(`SC-PRIC-036`). Where several payments settled the cancelled invoice, they settle the replacement
+in the order they were confirmed, the oldest first, and what remains of the most recent ones becomes
+the credit; each payment's share is recorded, so a later reversal takes back exactly that payment's
+part (`SC-PRIC-031`). The cancellation invoice, its replacement and the movement of what was paid
+onto the replacement or into a credit are written in one transaction, so an interruption leaves all
+of them or none, and it takes its turn with everything else that changes the invoice
+(`SC-PRIC-036`), so an invoice is cancelled once and a payment event that commits after the
+cancellation settles the replacement or the credit rather than the cancelled invoice; archiving each
+invoice then follows `SC-PRIC-033`.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+
+🟡 _(Decided, not yet delivered.)_ 💰 The issuer's identity, its legal name and tax identifiers, is
+the counterparty a contract names (`SC-AUD-012`), so an invoice takes that identity from the copy
+on the contract its charges belong to, with a declared correction of that entity applied; its
+address and contact details come from `config/saas.yaml` on the issue date while the configuration
+names that same identity, and from the contract's copy otherwise. The subscriber's details are
+copied from its record. A cancellation or replacement invoice keeps both parties of the invoice it
+corrects instead (`SC-PRIC-025`). Either way a later change leaves the invoice as it was, and a new
+contract takes its issuer from `config/saas.yaml`. An installation that names a different identity
+while contracts with the previous one still run does not start, and names those contracts: moving a
+contract to another legal entity is a transfer, not an edit of a setting, and an invoice never asks
+for payment on behalf of an entity the contract was not concluded with. A correction of the same
+entity, such as a misspelt name, a wrong tax identifier or a change of name that entity went
+through, starts once `config/saas.yaml` declares it as one beside the values it replaces; the
+settings record keeps that declaration (`SC-CFG-025`), and invoices issued afterwards carry the
+corrected identity.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-027 — An invoice carries what the tax law of its issuer requires of it
+
+🟡 _(Decided, not yet delivered.)_ 💰 The installation's tax adapter (`SC-PRIC-037`) names that
+content, the names of the documents and the note each tax treatment needs, and checks an invoice's
+content against them before its number is drawn (`SC-PRIC-023`). An invoice missing any of it draws
+no number and is not issued, and the operator is shown what is missing, such as a billing address
+the format rejects; once it is corrected, the invoice takes the next number then. Another country's
+law is another adapter rather than an addition to one, and German law is the first (`SC-PRIC-044`).
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-028 — A direct debit is announced before it is collected
+
+🟡 _(Decided, not yet delivered.)_ 💰 The invoice states the amount, the collection date and the
+mandate reference, and it reaches the subscriber at least the lead time named in
+`config/saas.yaml` before the collection. A collection whose date or mandate differs from what the
+invoice announced, such as after the payment method was replaced or a collection is retried, is
+announced again with its own date and mandate reference, the same lead time before it; that notice
+stands on its own and leaves the invoice as it was issued (`SC-PRIC-025`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-029 — A payment is recorded against its invoice once the gateway has confirmed it
+
+🟡 _(Decided, not yet delivered.)_ 💰 A confirmation that arrives twice records one payment, as
+`SC-REG-019` already holds for sign-up. Claiming a gateway event and recording what it changes
+happen in one transaction, so an attempt that fails leaves the event unclaimed and the gateway's
+retry is processed rather than discarded as a duplicate. A payment is recorded once by its gateway
+account and the gateway's own reference for it, whichever way it arrives, so a callback, a
+reconciliation after an unanswered request (`SC-PRIC-034`) and a retry that report the same payment
+under different event identifiers settle it once. An event, and a checkout session a sign-up waits
+on, is identified together with the gateway account that sent it, so two accounts configured side
+by side (`SC-PRIC-030`) never take one another's event for a duplicate or a payment for another's
+sign-up.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
+
+🟡 _(Decided, not yet delivered.)_ 🔒 What SaaSiCat stores is the gateway's reference and the masked
+details `SC-PRIV-005` allows, never the IBAN or the card number. Adding or changing a payment
+method needs the billing permission (`SC-UI-023`) and is taken in the subscriber's one live tenant
+(`SC-SCOPE-012`), or, once that tenant is deleted, on the gateway's payment page for an open invoice
+(`SC-ADM-024`). A reference is only meaningful to the gateway account that issued it,
+the provider and the merchant account there, so each payment method and each payment records that
+account. `config/saas.yaml` names the account that takes new payment methods; one that still holds
+a payment method in use, an open collection, a credit to refund, a payment inside its reversal
+period or a sign-up's checkout session that has neither completed nor expired stays configured
+beside it with its own keys, so its callbacks, refunds and reversals keep being handled. An
+installation holding such a reference to an account it no longer configures does not start, and
+names what it holds. Moving a subscriber to another account, at the same provider or another, means
+asking for a new payment method there.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-031 — A returned debit or a chargeback is recorded, and what the payment settled opens again
+
+🟡 _(Decided, not yet delivered.)_ 💰 Either is recorded as a counter-entry rather than an edit of
+the payment, and a report that arrives twice records one reversal. A reversal takes back everything
+the payment settles when it arrives, divided across all of it: the invoice it was collected for, or
+the replacement its settlement moved to under `SC-PRIC-025`, opens again by the part the payment
+settled there, and the credit it became shrinks by its part; never an invoice already cancelled. A
+partial reversal reduces the credit first and reopens invoices only with what remains, so the
+operator is not left refunding what is owed again. Where the credit's part was already refunded,
+that part is shown to the operator to reconcile. A refund is different: SaaSiCat never initiates
+one (`SC-PRIC-003`), and one the operator makes in the gateway is recorded against the credit it
+pays out, reopening nothing; a refund that matches no credit is shown to the operator to reconcile.
+A credit the gateway can no longer refund, because the payment's gateway account is no longer
+configured (`SC-PRIC-030`) or the gateway's own refund period has passed, is paid out by the
+operator outside the gateway, such as by bank transfer, and the operator records that payout with
+its reference against the credit; SaaSiCat still initiates nothing. What follows a reversal is
+`SC-PRIC-035`'s: the invoice it reopens is unpaid like any other.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-032 — No contract is frozen and no invoice issued before the subscriber's identity is complete
+
+🟡 _(Decided, not yet delivered.)_ 💰 The identity is the legal name, the billing address and the
+tax identifiers. Sign-up asks for it before the tenant is activated. A subscriber created
+another way is asked for what is missing before its subscription becomes a paid one, which is
+when its contract is frozen (`SC-SPEC-005`, `SC-AUD-012`); until then the operator sees the
+subscription waiting and why, because a party copied onto a contract incomplete cannot be
+completed afterwards.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-033 — An invoice interrupted in archiving keeps its number and is never issued twice
+
+🟡 _(Decided, not yet delivered.)_ 💰 Its content has passed the tax adapter's check before the
+number is drawn (`SC-PRIC-027`), so what can still fail afterwards is rendering or archiving the
+document rather than the invoice itself. The invoice and its number are written in one transaction,
+and the rendered document is then archived under that number, which makes a repeated attempt the
+same write rather than a second document. Until the archive confirms, the invoice is neither sent
+nor offered for download, the register shows it as awaiting its document (`SC-ADM-022`), and an
+attempt that fails is retried; it never draws a new number for the same charges (`SC-PRIC-022`,
+`SC-PRIC-023`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-034 — A collection retried after an unanswered request never charges twice
+
+🟡 _(Decided, not yet delivered.)_ 💰 An invoice has at most one active collection attempt, claimed
+atomically in the database before any request reaches the gateway, so two workers that find the
+same invoice open do not both collect it. Asking the gateway to collect an invoice carries a key
+that stays the same for that invoice and attempt across every retry, so a request whose answer was
+lost is repeated as the same request rather than a second charge. A result that stays uncertain is
+reconciled with the gateway before anything is retried under a new key. An attempt is marked as
+submitted in the invoice's turn (`SC-PRIC-036`) before its request leaves, so a cancellation never
+meets an attempt that is about to be sent without knowing it. Deduplicating the gateway's callbacks
+(`SC-PRIC-029`) covers the other direction.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-035 — An invoice left unpaid past its grace period makes the tenant read-only
+
+🟡 _(Decided, not yet delivered.)_ 💰 A collection that fails, the first one after sign-up included,
+and a reversal (`SC-PRIC-031`) leave the invoice open; the gateway retries, and the subscriber is
+told. An invoice still open when the grace period named in `config/saas.yaml` has passed, counted
+from its due date (`SC-PRIC-046`), puts the tenant into read-only (`SC-ADM-024`), where a user
+holding the billing permission (`SC-UI-023`) can still replace the payment method. Settling every
+overdue invoice lifts that reason and no other: a tenant whose subscription has ended
+(`SC-CANC-020`), that the operator suspended or that is being deleted (`SC-PRIV-014`) stays as
+restricted as that reason makes it. Suspending the tenant stays the operator's decision
+(`SC-ADM-005`). Sign-up activates on a confirmed payment method rather than a completed collection
+(`SC-REG-022`), and this is what keeps that from being service against an invoice nobody pays.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-036 — What an invoice owes and how it is paid changes one step at a time
+
+🟡 _(Decided, not yet delivered.)_ 💰 Cancelling an invoice (`SC-PRIC-025`), recording a payment event
+(`SC-PRIC-029`) or a reversal (`SC-PRIC-031`) against it, and marking a collection for it as
+submitted to the gateway (`SC-PRIC-034`) take turns, and the turn belongs to the invoice's chain:
+the invoice and every replacement that follows it, however many cancellations deep, share one. Each
+reads the chain's state only once it holds the turn, so a payment event for a cancelled invoice and
+the cancellation of its replacement never read the same replacement at once, and the event settles
+the invoice that stands in the chain when it holds the turn. A collection that finds the invoice
+cancelled is not submitted, and a request only leaves once its attempt is marked, so no request is
+sent for an invoice a cancellation has already replaced. A second cancellation that finds the
+invoice already cancelled is refused; a mistake on the replacement is corrected by cancelling the
+replacement. No invoice of a chain is collected while an attempt submitted for any invoice of that
+chain is unresolved, so a replacement of a replacement waits for the attempt its first predecessor
+sent. The turn covers the writes and not the gateway's answer, which arrives as an event of its own.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-037 — The tax a subscriber is charged is decided by a tax adapter for the issuer
+
+🟡 _(Decided, not yet delivered.)_ 💰 SaaSiCat itself interprets no tax law, since an installation may
+run in any country. `config/saas.yaml` names the installation's tax adapter, a package for the
+country of the issuer. For each charge the adapter decides the treatment, such as the standard or a
+reduced rate, an exemption, the reverse charge, not taxable in the issuer's country, or a small
+business's exemption, together with the rate and the note the invoice has to carry. It decides from
+the issuer, the period the charge covers and the subscriber's origin as its record stands when the
+invoice is issued: the country of the billing address, whether the subscriber is a business, and its
+validated tax identifier (`SC-PRIC-040`). A price shown before a subscriber's origin is known, such
+as on the pricing page, states the treatment for a subscriber in the issuer's country and says so.
+For an installation that invoices, `SC-PRIC-008`, `SC-PRIC-009`, `SC-PRIC-016`, `SC-MKT-023` and
+`SC-CFG-034` are superseded in the change that delivers this entry, by successors that take the rate
+from the adapter.
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-038 — A contract and an invoice record the tax treatment and the adapter that decided it
+
+🟡 _(Decided, not yet delivered.)_ 💰 The treatment, the rate, the note and the adapter's name and
+version are written with the contract when it is concluded and with each invoice when it is issued,
+so a document still says why it carries the tax it does after the adapter is updated or replaced. An
+update never changes a document already issued (`SC-PRIC-025`).
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-039 — A subscriber the tax adapter cannot treat is refused before a contract exists
+
+🟡 _(Decided, not yet delivered.)_ 💰 Sign-up and an operator creating a subscriber ask the adapter
+first. A case it answers as not supported is refused with a sentence saying so rather than invoiced
+with a guessed tax. A subscriber whose origin changes into such a case (`SC-PRIC-043`) is shown to
+the operator, and its next invoice is not issued until the operator resolves it.
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-040 — A tax identifier is validated before a tax treatment depends on it
+
+🟡 _(Decided, not yet delivered.)_ 💰 The adapter names how, such as the European Union's VIES service
+for a VAT identification number, and the result is kept with its date and the confirmation the
+service returned. A check that cannot be completed, such as while the service is unavailable, leaves
+the identifier unvalidated, and the adapter decides as though there were none; it never decides in
+the subscriber's favour on an identifier it could not check.
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-041 — An invoice computes its tax once per rate, by the rule its tax adapter names
+
+🟡 _(Decided, not yet delivered.)_ 💰 The German adapter names the rule of EN 16931: the tax of each
+rate is that rate applied to the net total of its lines, rounded once, and the invoice total is the
+net total plus that tax. The amount the invoice states, the amount collected and the amount a
+payment settles are that one figure. The total is never the sum of the lines' own rounded taxes,
+which can differ from it by cents: ten lines of 12.34 net at 19 % carry 2.34 each, 23.40 together,
+while the rate applied to 123.40 gives 23.45.
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-042 — An invoice is issued in the format its tax adapter requires
+
+🟡 _(Decided, not yet delivered.)_ 💰 The German adapter requires ZUGFeRD in the EN 16931 profile, one
+file a person reads as a PDF and a program reads as structured data, for cancellation and
+replacement invoices as well. That file is what is archived, sent (`SC-PRIC-047`) and downloaded
+(`SC-AUD-014`). Rendering stays a port, so an application's own renderer can produce it. A rendered
+file the adapter's format check refuses is not issued. The content check and the format check come
+from one profile of the adapter, so content that passed before the number was drawn (`SC-PRIC-027`)
+renders into a file that passes; a refusal after all is a defect of the renderer or the adapter, so
+the invoice keeps its number, waits for its document as `SC-PRIC-033` has it until the defect is
+fixed, and the operator is shown the refusal.
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-043 — A change to a subscriber's tax origin applies from its next invoice
+
+🟡 _(Decided, not yet delivered.)_ 💰 The change is recorded with its date, and a new tax identifier
+is validated first (`SC-PRIC-040`). An invoice already issued keeps its treatment; one issued under
+a detail that was wrong is corrected by cancelling it (`SC-PRIC-025`).
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-044 — The German tax adapter covers Germany, businesses abroad and small businesses
+
+🟡 _(Decided, not yet delivered.)_ 💰 It is the first adapter and the template for the others. It
+treats a subscriber in Germany, business or consumer, at the German rate; a business in another
+member state of the European Union with a validated VAT identification number under the reverse
+charge, with both numbers and the note on the invoice; a business outside the European Union as not
+taxable in Germany, with its note; and an issuer using the small business exemption without VAT and
+with that note. A consumer outside Germany, and a business in another member state without a
+validated number, are not supported yet and are refused (`SC-PRIC-039`). The adapter is a template,
+not tax advice: the operator stays responsible for the tax it charges.
+
+_Source:_ #276 · `docs/explanation/adr/0013-tax-law-is-an-adapter.md`
+
+### SC-PRIC-045 — Invoice dates and tax periods count in the installation's time zone
+
+🟡 _(Decided, not yet delivered.)_ 💰 `config/saas.yaml` names it. The issue date, the period a charge
+covers, the due date and the periods the invoice register exports (`SC-ADM-022`) are days in that
+zone, so an invoice issued half an hour after midnight on the first of January belongs to the new
+year whatever the server's clock says (`SC-OPS-011`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-046 — An invoice states the day it is due
+
+🟡 _(Decided, not yet delivered.)_ 💰 An invoice collected by direct debit is due on the collection
+date it announces (`SC-PRIC-028`), any other on its issue date plus the payment term named in
+`config/saas.yaml`. The grace period of `SC-PRIC-035` counts from that day, and a collection
+announced again with a later date leaves the due date as the invoice states it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-047 — Every invoice reaches the subscriber by email, with its file attached
+
+🟡 _(Decided, not yet delivered.)_ 💰 Cancellation and replacement invoices as well, sent to the
+invoice email on the subscriber's record once the document is archived (`SC-PRIC-033`), so a
+subscriber who never signs in, or whose tenant is gone, still receives it. A link in the message
+leads to the tenant's sign-in rather than to an address anyone holding it could open. Where the
+subscriber's record no longer holds an invoice email, as `SC-PRIV-013` allows once no claim is left,
+the operator enters an address to deliver to when cancelling the invoice, and cannot cancel without
+one; the address is kept with the cancellation and its reason and used for the replacement as well,
+rather than written back onto the subscriber's record. A message that cannot be delivered is shown
+to the operator, and the invoice stays issued: delivery is not what makes it an invoice.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-048 — A billing period whose charges are all zero issues no invoice
+
+🟡 _(Decided, not yet delivered.)_ 💰 A free plan does not use up an invoice number every period. A
+charge of zero is invoiced beside charges that are not, and an invoice whose total a discount brings
+to zero is issued, because it records the service and the discount.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIC-049 — A subscriber's account is shown to the tenant's users holding the billing permission
+
+🟡 _(Decided, not yet delivered.)_ 💰 Balance, what is open, and the history, in the subscriber's one
+live tenant (`SC-SCOPE-012`), to whoever holds the billing permission (`SC-UI-023`). An open balance
+a customer cannot see is a surprise at the moment it becomes a problem; one they can see is something
+they can act on. The account belongs to the subscriber and shows its amounts, which not every user of
+a tenant is meant to see. This entry supersedes `SC-PRIC-019` in the change that delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ## 10. What a tenant may do at runtime
 
@@ -6439,6 +6972,24 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-REG-021 — A payment confirmation is verified before anything is created from it
+
+🟡 _(Decided, not yet delivered.)_ 🔒 A gateway adapter SaaSiCat ships verifies the confirmation
+with the gateway's secret. An integrator who binds a provider of their own verifies it in front
+of the route, as before. This entry supersedes `SC-REG-018` in the change that delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-REG-022 — The account, subscriber, tenant, subscription and payment method are created together
+
+🟡 _(Decided, not yet delivered.)_ Or not at all: only after the gateway confirmed the payment
+method, which sign-up asks for in the gateway's own form, together with the master data an invoice
+needs (`SC-PRIC-032`), and a partial creation is undone. A first collection that then fails leaves
+an invoice unpaid like any other, with the grace period of `SC-PRIC-035`. This entry supersedes
+`SC-REG-016` in the change that delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
 ## 13. The public catalogue, checkout and contracts
 
 What a prospective customer sees before they buy, and what happens between choosing and owning.
@@ -7602,6 +8153,125 @@ _Tested by:_
         - isEnabled() reflects port state
 
 <!-- END proof -->
+
+### SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Deleting a tenant before its recorded date (`SC-ADM-020`),
+cancelling an invoice and joining a returning customer's tenant to the subscriber it had
+(`SC-ADM-027`). Each also needs an explicit confirmation, and deleting a tenant early asks the
+operator to type the tenant's name. A deletion date is not scheduled or withdrawn by hand: it is
+recorded when a subscription ends and lifted by a new one (`SC-CANC-020`). The actions that were
+there before are `SC-ADM-005`'s.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them
+
+🟡 _(Decided, not yet delivered.)_ Resetting somebody's password, deactivating a user, cancelling an
+invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tenant to the subscriber
+a returning customer had (`SC-ADM-027`), and deleting a tenant before the
+deletion date recorded when its subscription ended (`SC-CANC-020`, `SC-CANC-021`). The reason is
+part of the record. An early deletion is for a legal reason, such as abuse or an order from an
+authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
+date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
+invoice records, beside the reason, any party detail the replacement has to carry corrected
+(`SC-PRIC-025`), and an address to deliver to where the subscriber's record no longer holds an
+invoice email (`SC-PRIC-047`). This entry supersedes `SC-ADM-006` in the change that delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-021 — An operator finds everything about a subscriber in one record
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Master data, its live tenant and the ones it had before,
+contracts with their history, invoices, payments, open items and the deletion record. The
+contract dossier planned in #43 is part of this record rather than a second place to look.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-022 — An operator lists every invoice with totals per period and tax rate, and exports it
+
+🟡 _(Decided, not yet delivered.)_ 💰 The register is ordered by issue date, cancellation and
+replacement invoices included, and an invoice still awaiting its document (`SC-PRIC-033`) is listed
+as such, so no number in the range stands without an explanation. Its export is machine-readable:
+each line with its tax treatment and rate (`SC-PRIC-038`), the payments and reversals against each
+invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-015`).
+Every export names the moment it is as of, and every payment, reversal, cancellation and replacement
+in it carries the moment it was recorded. The same period as of the same moment gives the same rows
+every time it is taken, so a hand-over to a tax advisor can be repeated and compared; as of a later
+moment, the export shows what was recorded since, such as a payment confirmed or an invoice
+cancelled after a period ended, rather than silently changing a row.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-023 — An operator can list open items, and every contract including former subscribers'
+
+🟡 _(Decided, not yet delivered.)_ 💰 A contract register that forgets a subscriber once its
+tenant is gone answers the one question it exists for wrongly.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+
+🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
+that holds, such as an ended subscription (`SC-CANC-020`), an overdue invoice (`SC-PRIC-035`), a
+suspension or a deletion under way; the strictest of them applies, a deletion under way before a
+suspension and a suspension before read-only, and ending one reason lifts only that one. The
+application checks it on every request through a port, sign-in included, so a session that was
+already open when the state changed is held to it on its next request; SaaSiCat does the same on the
+routes it protects. A state that is recorded and not enforced is a switch that looks like
+protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not held
+to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export stay
+possible on a suspended tenant; that access requires the second factor and is recorded. Read-only
+stops at one write: while one of the subscriber's invoices is open, a user of the tenant holding the
+billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`), because the
+claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of payment for it.
+A suspended tenant has no such exception, and lifting a suspension is the operator's (`SC-ADM-005`).
+Once the tenant is deleted nobody is left to act in it, so an invoice still open is settled through
+a payment page of the gateway that the operator sends to the contact address `SC-PRIV-013` keeps,
+where the subscriber can pay it with a new payment method and needs no tenant.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
+
+🟡 _(Decided, not yet delivered.)_ 💰 German bookkeeping rules (GoBD) ask an operator to document how
+its invoices are produced, numbered, corrected, archived, accessed and kept. SaaSiCat's
+documentation describes each of those steps as SaaSiCat performs them, and names which parts the
+installation's adapters and settings decide, so the operator writes only what is its own.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Changing a plan, booking an add-on and cancelling are not things
+any signed-in user of a tenant may do. The plan, the usage and a change's preview stay open to
+everyone who is signed in; the invoices, the account and the payment method, reading and changing
+alike, are for whoever holds the billing permission (`SC-UI-023`), which the tenant's administrator
+holds unless the application says otherwise. This entry supersedes `SC-ADM-013` in the change that
+delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-027 — An operator joins a returning customer's new tenant to the subscriber it had
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Self-registration creates a subscriber of its own
+(`SC-REG-022`): matching a sign-up to an existing subscriber by an email address would hand whoever
+types that address into the form another customer's record. A customer whose earlier tenant is
+deleted and who signs up again is therefore joined by the operator, who declares that the new
+subscriber is the same legal entity, with the second factor (`SC-ADM-019`) and a reason
+(`SC-ADM-020`); a different entity is a transfer, as `SC-SUB-017` has it. The new tenant then
+becomes the earlier subscriber's live tenant (`SC-SCOPE-012`), and its subscription with its
+contract, its account and its payment method move to it, together with the master data sign-up
+collected (`SC-PRIC-032`): the billing address and the invoice email replace what the earlier record
+kept, and a legal name or tax identifier that differs is recorded as a correction of the same entity
+(`SC-SUB-017`). Later invoices carry that subscriber, its customer number and the details just given
+(`SC-PRIC-026`), and the contract keeps the party copy it was concluded with, which names the same
+legal entity (`SC-AUD-012`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
+and the record created at
+sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record shows the customer's
+whole history. A subscriber with a live tenant is not joined to a second one.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ## 15. Working in the interface
 
@@ -9264,6 +9934,40 @@ _Tested by:_
         - keep their counts while the search narrows the table
 
 <!-- END proof -->
+
+### SC-UI-022 — A tenant downloads its subscription's invoices and tells them from the application's
+
+🟡 _(Decided, not yet delivered.)_ 💰 A tenant downloads the invoices of its own subscription
+(`SC-PRIC-022`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
+guards and the billing permission (`SC-UI-023`), so an application wires nothing new for it beyond
+mapping that permission to its roles. Each invoice names who issued it, and an application that
+invoices its own customers labels the subscription's as the operator's.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
+
+🟡 _(Decided, not yet delivered.)_ 🔒 They show the subscriber's amounts, address and masked payment
+details, which not every user of a tenant is meant to see. The permission governs the whole billing
+area, reading and changing alike: the invoices and their downloads, the account (`SC-PRIC-049`) and
+the payment method (`SC-PRIC-030`). The plan, the usage and a change's preview stay open to every
+signed-in user (`SC-ADM-026`). The application maps the permission to its own roles, and the tenant's
+administrator holds it unless the application says otherwise. A user without it sees neither the
+list nor a download, and a request built by hand is refused where it is served (`SC-SEC-004`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-UI-024 — A tenant's invoice list says what each invoice stands for
+
+🟡 _(Decided, not yet delivered.)_ 💰 Each entry shows its number, issue date, period, total and due
+date (`SC-PRIC-046`), and whether it is open, collected on a given day, reversed, or cancelled and
+replaced; a cancelled invoice links to its cancellation and its replacement, and each of those links
+back. A credit shows that it is to be refunded, and the contract confirmations stand beside the
+invoices (`SC-AUD-016`). The documents carry the names their tax adapter gives them (`SC-PRIC-027`),
+and a credit on the account is never called by the name German VAT law reserves for an invoice the
+recipient writes: Guthaben, not Gutschrift.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ## 16. Configuring and running an installation
 
@@ -11848,6 +12552,88 @@ otherwise be tidier. Rewriting it changes what the record says happened.
 
 _Source:_ #222 · `docs/guides/upgrade-to-1.0.md`
 
+### SC-PRIV-011 — Contracts, invoices and payments outlive the tenant they were for
+
+🟡 _(Decided, not yet delivered.)_ 💰 They belong to the subscriber (`SC-SCOPE-012`) and are kept
+for as long as they have to be.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-012 — A record kept for tax purposes is not deleted automatically
+
+🟡 _(Decided, not yet delivered.)_ 💰 A retention period in configuration can be set too short,
+and the first one runs out years from now. Removing records whose period has passed is a later
+and deliberate addition.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-013 — A subscriber with no live tenant and no claim left keeps only what its documents need
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Its tenant was its only live one (`SC-SCOPE-012`), and every
+contract and invoice carries its own copy of the subscriber's details (`SC-PRIC-026`,
+`SC-AUD-012`). A claim is left while a charge is not yet on an invoice, while an invoice is open,
+while a credit is still to be refunded, and until the latest end of the reversal period among all
+its payments (`SC-PRIC-031`); until then the contact data and the gateway reference needed to
+collect or refund stay. How long a payment can be reversed depends on how it was made and is not
+something SaaSiCat can observe, so the installation names that period in `config/saas.yaml`,
+counted from each payment. Each payment keeps the end of its period as the setting stood when the
+payment was recorded, so shortening the period later never brings an earlier payment's end forward,
+and a newer payment with a shorter period never ends the claim an older one still holds. The
+reading errs towards keeping the data a little longer rather than losing a claim.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-014 — A tenant is deleted through the application, which first names what to keep
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The application erases all of the tenant's data and files,
+records it locks against deletion included, and provides a full export. Beforehand it reports
+what the tenant has to keep for obligations of its own, such as receipts under a retention
+period, and that report does not stop the deletion: keeping those records is the tenant's
+obligation, not the operator's, and the read-only period of `SC-CANC-020` is the time to take
+them along. SaaSiCat decides when, asks for confirmation and records that it happened. Deleting
+a single record inside the application, such as a member or a case, still honours the
+application's own locks.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-015 — A tenant's deletion leaves a record with the subscriber that names no person
+
+🟡 _(Decided, not yet delivered.)_ 🔒 What was deleted, when and by which run, as counts per
+category. A deletion earlier than announced also records the announced date, the reason and that
+the operator confirmed it against that date (`SC-ADM-020`). It is kept with the subscriber rather
+than in the audit log, which an installation may prune.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-016 — Erasing a tenant's data or files is refused unless exactly one tenant is named
+
+🟡 _(Decided, not yet delivered.)_ 🔒 An empty or missing tenant identifier would reach every
+tenant at once, so such a request is refused before anything is erased.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-017 — A tenant is deleted only after its full export was offered in the read-only period
+
+🟡 _(Decided, not yet delivered.)_ 🔒 The offer, the reminders sent and the tenant's
+acknowledgement, where it gave one, are part of the deletion record (`SC-PRIV-015`). An
+acknowledgement that never comes does not stop the deletion.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-PRIV-018 — A tenant's deletion can safely run again, and is done only once every store confirms
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Data and files live in different stores, and a call can time
+out after it has already erased. Each eraser treats what is already gone as done, a run that stops
+partway is reported and repeated rather than left half-finished, and the deletion record
+(`SC-PRIV-015`) is written only when every store has confirmed. Once a run has begun the tenant is
+being deleted: nobody writes to it any more, the operator acting as the tenant included
+(`SC-ADM-024`). Before its first destructive call, each store counts what it is about to erase and
+keeps those counts with the run, so a call whose answer was lost, and a repeat that finds the store
+already empty, still leave the counts that were erased rather than a record that nothing was
+deleted.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
 ## 21. Answering the question afterwards
 
 Prices change, plans are republished, entitlements move. This chapter is about being able to
@@ -11981,6 +12767,59 @@ _Source:_ #214
 of individually booked amounts with no grouping leaves that to guesswork.
 
 _Source:_ #214
+
+### SC-AUD-012 — A contract carries both parties as they were when it was concluded
+
+🟡 _(Decided, not yet delivered.)_ 💰 The subscriber, and the issuer as `config/saas.yaml` named
+it that day, so the contract still says which legal entity was the counterparty after either
+changes and after the tenant is gone. A copy made while an existing contract is migrated says
+so, and is never presented as what was true at conclusion. Either party may have changed since the
+contract was concluded, which the migration cannot see, so the operator confirms each migrated copy
+against the contract as concluded, correcting it where it differs, before that contract is
+invoiced; until then it is not.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-013 — Every invoice line can be traced to the charge and the contract line it came from
+
+🟡 _(Decided, not yet delivered.)_ 💰 The charge already names its agreement line (`SC-AUD-010`);
+the invoice line adds the step from the document to the charge.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-014 — An invoice downloaded later is the document that was issued, not a new rendering
+
+🟡 _(Decided, not yet delivered.)_ 💰 The rendered document is archived when the invoice is
+issued, and every later download, by the tenant or by the operator, returns that archived file;
+an invoice whose document is not yet archived is not offered at all (`SC-PRIC-033`). Rendering
+it again from today's data would hand out a document the subscriber never received.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-015 — An archived invoice is checked against the checksum recorded when it was rendered
+
+🟡 _(Decided, not yet delivered.)_ 💰 The document is rendered from what the invoice records and
+nothing else, never the current time or today's settings, and its checksum is recorded with the
+invoice before it is archived. An archiving attempt repeated after an interruption (`SC-PRIC-033`)
+stores a file with that checksum, every download is checked against it, and a file that does not
+match is not handed out but shown to the operator. The register's export (`SC-ADM-022`) carries each
+checksum.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-AUD-016 — Concluding or changing a contract gives the subscriber a confirmation to keep
+
+🟡 _(Decided, not yet delivered.)_ 💰 It names the plan and the bundles, their prices with the tax
+treatment (`SC-PRIC-038`), the term, the notice period and the version of the operator's terms that
+applied. That version is the one `config/saas.yaml` named when the contract was concluded or changed,
+which the contract records; the confirmation takes it from the contract, so one rendered again after
+new terms are published still names the terms the subscriber agreed to (`SC-AUD-015`). It is
+rendered and archived like an invoice (`SC-AUD-015`),
+sent to the subscriber's invoice email and offered for download beside the invoices (`SC-UI-023`).
+German law asks for the terms of a contract concluded online, general terms included, to be
+retrievable and storable when it is concluded.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
 ## 22. Repeating an operation safely
 

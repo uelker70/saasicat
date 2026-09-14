@@ -473,3 +473,38 @@ _Tested by:_
         - is not an error
 
 <!-- END proof -->
+
+### SC-CANC-020 — An ended subscription leaves the tenant a period to read and export before its deletion
+
+🟡 _(Decided, not yet delivered.)_ 🔒 A subscription that ends while still a trial, with no contract
+ever frozen (`SC-SPEC-005`), ends the same way. The period is named in `config/saas.yaml`. Every
+subscription that ends has one deletion date, recorded and told to the tenant. A cancellation the
+tenant confirmed carries the date announced at confirmation (`SC-CANC-021`); a subscription that
+ends without one, by a trial running out or by an operator ending it on the spot (`SC-CANC-003`),
+gets its date computed from the period at the moment it ends. A later change to the period moves
+neither, and the one way to delete earlier is `SC-ADM-020`'s. A new subscription for the tenant
+before that date lifts it, and that subscription ending records a date of its own. What a tenant may
+do during the period is `SC-ADM-024`'s to enforce, and how the deletion runs is `SC-PRIV-014`'s.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-CANC-021 — The read-only period and the deletion date are stated before a tenant cancels
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Beside the period the cancellation lands in, which
+`SC-CANC-017` states. The deletion date stated when the tenant confirms is recorded with the
+cancellation, and a later change to the period in `config/saas.yaml` applies to cancellations
+confirmed after it, never moving a date already announced. The one way a tenant is deleted before
+that date is an early deletion the operator confirms for a legal reason (`SC-ADM-020`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-CANC-022 — A tenant is reminded before its data is deleted
+
+🟡 _(Decided, not yet delivered.)_ 🔒 By email to the tenant's administrators, who can take the export
+(`SC-PRIV-017`), at each lead time `config/saas.yaml` names in days before the deletion date
+(`SC-CANC-020`). Lead times that have already passed when the subscription ends are covered by one
+reminder sent at once rather than skipped, so a period shorter than a lead time still gives notice,
+and a run that repeats sends no reminder twice. Each reminder sent is part of the deletion record
+(`SC-PRIV-017`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

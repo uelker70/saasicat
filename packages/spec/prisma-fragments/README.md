@@ -125,5 +125,12 @@ CREATE UNIQUE INDEX plan_versions_draft_per_plan
 - **No add-on tables (#49)** — `subscription_addons`,
   `unit_addon_versions`, `feature_addon_versions` are not a
   sales surface; only plan versions + bundles are sold.
-- **App-specific tables** (e.g. invoice or bank master data)
-  belong in the schema of the consuming app, not in the platform.
+- **The application's own invoicing** — invoices to the people it sells to, fees
+  it collects from its members, their bank details — belongs in the schema of the
+  consuming app. The subscription business is the platform's: subscribers, their
+  invoices and their payments are decided in
+  [ADR 0012](../../../docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md),
+  and every model added for them carries `Subscription` or `Subscriber` in its name,
+  which keeps it clear of the names applications use for their own invoicing. A
+  prefix cannot rule out a name nobody has seen, so `saasicat schema check` reports
+  an application model that carries a platform model's name with a different shape.
