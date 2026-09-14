@@ -983,7 +983,15 @@ as skipped when the harness did not provide its port or seed writer, so a suite 
 whole group unchecked. That group now fails and names the part. Groups that the adapter's
 `capabilities` rule out, such as the lock scenarios with `pessimisticLocking: false`, still skip.
 
-- **A harness that wires every port its adapter ships** changes nothing.
+- **A harness that wires every port its adapter ships** changes nothing. What a port ships can
+  follow its options: `@saasicat/adapter-prisma` adds `findActivePlanVersion` only with
+  `planVersionFields.catalog.validityWindows`, `findActiveBundleVersion` only with the bundle
+  repository's `validityWindows`, and `applyOnboardingSelection` only with
+  `tenantSubscription.atomicOnboardingSelection` — all off by default, for a 0.6 schema. Without
+  them `planLifecycle`, `bundleValidity` and `atomicOnboarding` are gaps, and with them they are
+  not, so derive `gaps` from the same options instead of writing a constant:
+  `gaps: validityWindows ? [] : ['planLifecycle', 'bundleValidity']`.
+- **A gap name that is not a part of the contract** fails the suite as unknown.
 - **A harness that leaves a part out on purpose** lists it in the new `gaps` option:
   `gaps: ['appliedSettings']`. Its scenarios report as skipped, as before. `ContractGap` lists the
   names.

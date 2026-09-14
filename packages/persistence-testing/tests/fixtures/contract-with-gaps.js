@@ -15,6 +15,11 @@ const SHAPES = {
     declared: { without: 'appliedSettings', gaps: [...BASE_GAPS, 'appliedSettings'] },
     // Everything wired, and a gap declared for a part that is there.
     stale: { without: null, gaps: [...BASE_GAPS, 'mfa'] },
+    // The applied-settings port left out, and its name misspelt in the declaration.
+    misspelled: { without: 'appliedSettings', gaps: [...BASE_GAPS, 'appliedSetting'] },
+    // A plan repository whose `softDelete` is wired but is not the method: the
+    // contract's presence check sees a member, the scenario binds nothing.
+    unusable: { without: null, gaps: BASE_GAPS, break: 'planRepository.softDelete' },
 };
 
 const shape = SHAPES[process.env.CONTRACT_GAP_SHAPE];
@@ -25,6 +30,9 @@ persistenceAdapterContract({
     create: async () => {
         const harness = createMemoryHarness();
         if (shape.without) delete harness.adapter[shape.without];
+        if (shape.break === 'planRepository.softDelete') {
+            harness.adapter.planRepository.softDelete = { bind: () => undefined };
+        }
         return harness;
     },
     gaps: shape.gaps,

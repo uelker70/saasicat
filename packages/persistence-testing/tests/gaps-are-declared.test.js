@@ -22,8 +22,9 @@ function run(shape) {
     return runTestFile(FIXTURE, { env: { CONTRACT_GAP_SHAPE: shape } });
 }
 
+const undeclared = run('undeclared');
+
 describe('a part the harness does not provide', () => {
-    const undeclared = run('undeclared');
     const declared = run('declared');
 
     test('the runs report counts at all', () => {
@@ -58,7 +59,6 @@ describe('a part the harness does not provide', () => {
 
 describe('a group the capabilities rule out', () => {
     test('still skips when no gap is declared for it', () => {
-        const undeclared = run('undeclared');
         assert.ok(
             undeclared.output.includes('# SKIP adapter declares no pessimistic-locking capability'),
             undeclared.output,
@@ -71,5 +71,25 @@ describe('a gap declared for a part the harness does provide', () => {
         const stale = run('stale');
         assert.equal(stale.fail, 1, stale.output);
         assert.match(stale.output, /declared as gaps but wired into the harness: mfa/);
+    });
+});
+
+describe('a gap name that is not a part of the contract', () => {
+    test('is reported as unknown, not as wired into the harness', () => {
+        const misspelled = run('misspelled');
+        assert.match(
+            misspelled.output,
+            /declared as gaps but not parts of the contract: appliedSetting \(ContractGap/,
+        );
+        assert.doesNotMatch(misspelled.output, /wired into the harness: appliedSetting/);
+    });
+});
+
+describe('a part the contract counts as provided but a scenario cannot use', () => {
+    test('fails once, saying so, instead of asking for a declaration the check would reject', () => {
+        const unusable = run('unusable');
+        assert.equal(unusable.fail, 1, unusable.output);
+        assert.match(unusable.output, /'planRetirement' counts as provided, yet this scenario/);
+        assert.doesNotMatch(unusable.output, /declare `gaps: \['planRetirement'\]`/);
     });
 });

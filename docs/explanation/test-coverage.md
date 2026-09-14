@@ -78,17 +78,19 @@ contract touches 12 of 25 exported classes there. `adapter-drizzle` trailing
 `adapter-prisma` is a known state, recorded in the project's planning notes;
 this page names what the gap actually is. Bundles used to be the widest part of
 it — the adapter had no bundle tables at all, so a consumer on Drizzle could not
-sell an add-on — and both halves are now implemented and in the contract. What
-remains of the gap is the plan catalogue: `adapter-drizzle` has no
-`PlanRepository`, so it exposes no `catalog` slice, and the plan-lifecycle and
-atomic plan-binding scenarios still gate off.
+sell an add-on — and both halves are now implemented and in the contract. The
+plan catalogue followed: its contract harness wires every part the contract
+checks and declares no gap, which the contract now requires rather than letting
+a missing part skip.
 
 ### `@saasicat/persistence-testing` at 74.30%
 
 This package _is_ the contract. Its uncovered lines are the assertions that only
-run when an adapter fails a case — the error paths of a test harness. Covering
-them would mean writing a deliberately broken adapter to fail against, which
-tests the harness rather than the platform.
+run when an adapter fails a case — the error paths of a test harness. The
+declaration check is the exception: whether a missing part fails is what the
+package promises, so `tests/fixtures/contract-with-gaps.js` runs the contract
+against in-memory harnesses with a part left out, declared, misnamed or not
+callable.
 
 ### `@saasicat/core` functions at 57.45%
 

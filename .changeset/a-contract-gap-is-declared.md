@@ -15,4 +15,9 @@ as the lock scenarios, still skip.
 
 - A harness that wires every port its adapter ships changes nothing.
 - A harness that relied on skips either wires the missing ports or declares
-  them: `gaps: ['appliedSettings']`. `ContractGap` lists the names.
+  them: `gaps: ['appliedSettings']`. `ContractGap` lists the names, and a name
+  that is not one fails the suite as unknown.
+- Which parts a port provides can follow its options: `@saasicat/adapter-prisma`
+  adds `findActivePlanVersion`, `findActiveBundleVersion` and
+  `applyOnboardingSelection` only with `validityWindows` and
+  `atomicOnboardingSelection`. Derive `gaps` from the same options.

@@ -167,14 +167,29 @@ function sleep(ms: number): Promise<void> {
  */
 export function persistenceAdapterContract(options: PersistenceAdapterContractOptions): void {
     const declaredGaps = new Set<ContractGap>(options.gaps ?? []);
+    let harness: PersistenceContractHarness;
 
     /**
      * Ends a scenario whose part the harness does not provide: as a skip when
      * the adapter declared the gap, as a failure naming the declaration when it
      * did not.
+     *
+     * Each scenario states what it needs beside `CONTRACT_GAPS`, so the two can
+     * disagree — about a member the harness wires but the scenario cannot call,
+     * or after one of them is edited. Asked first, the registry turns that into
+     * one failure saying so; otherwise the scenario would demand a declaration
+     * the declaration check then rejects, and no `gaps` value would pass.
      */
     function missing(t: TestContext, gap: ContractGap): void {
-        const { reason } = CONTRACT_GAPS[gap];
+        const { reason, present } = CONTRACT_GAPS[gap];
+        if (present(harness)) {
+            assert.fail(
+                `'${gap}' counts as provided, yet this scenario found a member it needs missing ` +
+                    'or not callable. Check that the harness wires the port itself; if it does, ' +
+                    `the contract's check for '${gap}' and this scenario disagree, which is a ` +
+                    'defect in @saasicat/persistence-testing.',
+            );
+        }
         if (declaredGaps.has(gap)) {
             t.skip(reason);
             return;
@@ -186,8 +201,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
     }
 
     describe(`persistence adapter contract: ${options.name}`, () => {
-        let harness: PersistenceContractHarness;
-
         before(async () => {
             harness = await options.create();
         });
@@ -201,9 +214,16 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('the declared gaps are exactly the parts the harness does not provide', () => {
             const gaps = Object.keys(CONTRACT_GAPS) as ContractGap[];
             const absent = gaps.filter((gap) => !CONTRACT_GAPS[gap].present(harness));
-            const stale = [...declaredGaps].filter((gap) => !absent.includes(gap));
+            // A plain JavaScript harness is not type-checked, so a misspelt name
+            // arrives here; reported as wired, it would say the opposite of what it is.
+            const known = (gap: string) => Object.prototype.hasOwnProperty.call(CONTRACT_GAPS, gap);
+            const unknown = [...declaredGaps].filter((gap) => !known(gap));
+            const stale = [...declaredGaps].filter((gap) => known(gap) && !absent.includes(gap));
             const undeclared = absent.filter((gap) => !declaredGaps.has(gap));
             const problems = [
+                unknown.length > 0 &&
+                    `declared as gaps but not parts of the contract: ${unknown.join(', ')} ` +
+                        '(ContractGap lists the names)',
                 stale.length > 0 &&
                     `declared as gaps but wired into the harness: ${stale.join(', ')}`,
                 undeclared.length > 0 &&

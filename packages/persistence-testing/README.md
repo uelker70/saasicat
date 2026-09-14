@@ -36,6 +36,12 @@ fails the suite, so the list stays true. A skipped scenario is easy to read
 past in a green run; a harness that forgot to wire a port would otherwise pass
 without checking it.
 
+The list describes the harness as it is built, not the adapter package. Where a
+port adds a member only under an option — `@saasicat/adapter-prisma`'s
+`validityWindows` and `atomicOnboardingSelection`, off by default for a 0.6
+schema — compute `gaps` from the same option rather than writing a constant, so
+the declaration moves when the schema does.
+
 ## What this is not
 
 Not a test framework and not a set of fixtures for your application. It is one
