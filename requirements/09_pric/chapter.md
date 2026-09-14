@@ -170,7 +170,9 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
     - a promo code applied before the plan or rhythm changes
         - is asked about again, and the summary shows the new answer
-        - only the latest question's answer stands, answers landing ${order.join(' then ')}
+        - the answer to the earlier question landing last does not replace the latest
+        - the answer to the earlier question landing first does not stand
+        - a code refused outright is not asked about again, a restricted one is
         - a code removed while its preview is out gives no discount when the answer lands
 
 <!-- END proof -->
@@ -225,6 +227,7 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
     - a plan without a price for the chosen rhythm
         - says so on its card, cannot be chosen, and the order cannot be sent
+        - is not sent when the summary emits without its button
         - becomes a plan again in the rhythm it is priced for
         - an add-on priced in the other rhythm only says so and cannot be chosen
 

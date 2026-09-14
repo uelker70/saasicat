@@ -181,6 +181,21 @@ describe('a plan without a price for the chosen rhythm', () => {
         expect(cta(wrapper).attributes('disabled')).toBeDefined();
     });
 
+    test('is not sent when the summary emits without its button', async () => {
+        // A page replacing the summary's call-to-action slot emits `submit`
+        // without the button's disabled state.
+        const submit = vi.fn(async () => ({}));
+        const wrapper = mountConfigurator({ initialPlan: 'BASIC', initialCycle: 'YEARLY', submit });
+        wrapper.findComponent({ name: 'PriceSummary' }).vm.$emit('submit');
+        await flushPromises();
+        expect(submit).not.toHaveBeenCalled();
+
+        await chooseCycle(wrapper, 'MONTHLY');
+        wrapper.findComponent({ name: 'PriceSummary' }).vm.$emit('submit');
+        await flushPromises();
+        expect(submit).toHaveBeenCalledTimes(1);
+    });
+
     test('becomes a plan again in the rhythm it is priced for', async () => {
         const wrapper = mountConfigurator({ initialPlan: 'BASIC', initialCycle: 'YEARLY' });
         await chooseCycle(wrapper, 'MONTHLY');
@@ -229,36 +244,64 @@ describe('a promo code applied before the plan or rhythm changes', () => {
         expect(discountRow(wrapper).text()).toContain('20.00 EUR');
     });
 
-    // Both orders: the earlier answer landing last must not replace the later
-    // one, and landing first must not stand once the later one is out.
-    for (const order of [
-        [1, 0],
-        [0, 1],
-    ]) {
-        test(`only the latest question's answer stands, answers landing ${order.join(' then ')}`, async () => {
-            const releases: Array<() => void> = [];
-            const previewPromo = (req: PromoPreviewRequest) =>
-                new Promise<PromoPreviewResponse>((resolve) => {
-                    releases.push(() =>
-                        resolve(validAnswer(req.billingCycle === 'YEARLY' ? '20.00' : '2.00')),
-                    );
-                });
+    /**
+     * Applies a code on monthly, switches to yearly while that preview is out,
+     * and releases the two answers in `order` (0 is the monthly question).
+     */
+    async function discountAfterAnswersLand(order: number[]) {
+        const releases: Array<() => void> = [];
+        const previewPromo = (req: PromoPreviewRequest) =>
+            new Promise<PromoPreviewResponse>((resolve) => {
+                releases.push(() =>
+                    resolve(validAnswer(req.billingCycle === 'YEARLY' ? '20.00' : '2.00')),
+                );
+            });
+        const wrapper = mountConfigurator({
+            initialPlan: 'PRO',
+            initialCycle: 'MONTHLY',
+            previewPromo,
+        });
+
+        await applyCode(wrapper, 'START');
+        await chooseCycle(wrapper, 'YEARLY');
+        for (const question of order) {
+            releases[question]();
+            await flushPromises();
+        }
+        return discountRow(wrapper).text();
+    }
+
+    test('the answer to the earlier question landing last does not replace the latest', async () => {
+        expect(await discountAfterAnswersLand([1, 0])).toContain('20.00 EUR');
+    });
+
+    test('the answer to the earlier question landing first does not stand', async () => {
+        expect(await discountAfterAnswersLand([0, 1])).toContain('20.00 EUR');
+    });
+
+    test('a code refused outright is not asked about again, a restricted one is', async () => {
+        const refused = vi.fn(async () => ({
+            valid: false as const,
+            reason: 'NOT_FOUND' as const,
+        }));
+        const wrongRhythm = vi.fn(async () => ({
+            valid: false as const,
+            reason: 'BILLING_MISMATCH' as const,
+        }));
+        for (const [previewPromo, calls] of [
+            [refused, 1],
+            [wrongRhythm, 2],
+        ] as const) {
             const wrapper = mountConfigurator({
                 initialPlan: 'PRO',
                 initialCycle: 'MONTHLY',
                 previewPromo,
             });
-
-            await applyCode(wrapper, 'START');
+            await applyCode(wrapper, 'NOPE');
             await chooseCycle(wrapper, 'YEARLY');
-            for (const question of order) {
-                releases[question]();
-                await flushPromises();
-            }
-
-            expect(discountRow(wrapper).text()).toContain('20.00 EUR');
-        });
-    }
+            expect(previewPromo).toHaveBeenCalledTimes(calls);
+        }
+    });
 
     test('a code removed while its preview is out gives no discount when the answer lands', async () => {
         const releases: Array<() => void> = [];

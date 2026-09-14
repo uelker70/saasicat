@@ -1,5 +1,5 @@
 ---
-'@saasicat/core': minor
+'@saasicat/core': major
 '@saasicat/nest': major
 '@saasicat/ui-vue': major
 '@saasicat/ui-vue-tenant': major

@@ -232,18 +232,26 @@ const bookableSubscriptionBundles = computed(() => {
 });
 
 // A preview answers for one plan and cycle, and the draft forgets it when either
-// changes. A code the tenant had applied is asked about again rather than left
-// for them to notice that the discount disappeared.
+// changes. A code the answer could differ for is asked about again rather than
+// left for the tenant to notice that the discount disappeared: an applied one, a
+// restricted one, or one still being checked. A code refused outright is not —
+// another plan does not make it exist, and each question counts against the
+// preview's rate limit.
+function isWorthAskingAgain(): boolean {
+    const status = draft.promoState.value.status;
+    return status === 'valid' || status === 'restricted' || status === 'checking';
+}
+
 function choosePlan(planId: string): void {
-    const hadPromo = draft.promoState.value.status !== 'idle';
+    const askAgain = isWorthAskingAgain();
     draft.setPlan(planId);
-    if (hadPromo) void handleApplyPromo();
+    if (askAgain) void handleApplyPromo();
 }
 
 function chooseCycle(cycle: BillingCycleStr): void {
-    const hadPromo = draft.promoState.value.status !== 'idle';
+    const askAgain = isWorthAskingAgain();
     draft.setCycle(cycle);
-    if (hadPromo) void handleApplyPromo();
+    if (askAgain) void handleApplyPromo();
 }
 
 /** What the preview says about a code for a plan and cycle, as the draft holds it. */
@@ -287,7 +295,9 @@ async function handleApplyPromo(): Promise<void> {
 }
 
 async function handleSubmit(): Promise<void> {
-    if (!draft.plan.value || submitting.value) return;
+    // The button says the same, but a page replacing the summary's slot emits
+    // `submit` without it.
+    if (!draft.plan.value || !draft.pricing.value.planPriced || submitting.value) return;
     submitting.value = true;
     submitError.value = null;
     try {

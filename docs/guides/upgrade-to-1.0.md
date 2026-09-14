@@ -943,6 +943,22 @@ the contract recorded its plan line at 0.00.
   `billingCycle`. The plan change and the onboarding choice refuse such a plan through it, and
   `SubscriptionContractFreezeService.freezeOnPlanChange` refuses it before the contract in force is
   closed. A plan that is not marketed is sold under a special contract and is not affected.
+- **A subscription already in such a rhythm is not moved.** Only a catalogue in `config/saas.yaml`
+  can hold a marketed plan without a price for a rhythm, because a stored plan version carries
+  both, so an installation on the database catalogue has none. With a YAML catalogue, take its
+  marketed plans without `yearlyNet`, and those without any price, and find their tenants before
+  upgrading:
+
+    ```sql
+    SELECT "tenantId", "plan", "billingCycle" FROM "subscriptions"
+    WHERE ("plan" IN ('BASIC') AND "billingCycle" = 'YEARLY')  -- plans without yearlyNet
+       OR "plan" IN ('CUSTOM');                                -- plans without any price
+    ```
+
+    Give each plan the price for the rhythm its tenants are on, or move them to a rhythm it is
+    priced for. Until then every contract freeze for them — an add-on booked or cancelled — is
+    refused, and its callers only log the refusal, so the contract stops following their bookings.
+
 - **`DEFAULT_YEARLY_FACTOR` and the `yearlyFactor` option of `useSubscriptionDraft` are gone.**
   `DraftPricing.planPriced` says whether the selected plan carries a price for the cycle; a bundle
   without one is neither charged nor sent while that cycle is chosen.

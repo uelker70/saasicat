@@ -411,6 +411,7 @@ _Tested by:_
 - `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
     - a plan without a price for the chosen rhythm
         - says so on its card, cannot be chosen, and the order cannot be sent
+        - is not sent when the summary emits without its button
         - becomes a plan again in the rhythm it is priced for
         - an add-on priced in the other rhythm only says so and cannot be chosen
 

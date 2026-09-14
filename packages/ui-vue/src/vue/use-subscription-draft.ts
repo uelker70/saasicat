@@ -242,14 +242,17 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
             totalNet,
             yearSavings,
             breakdown: {
-                plan: planObj
-                    ? {
-                          key: `plan:${planObj.id}`,
-                          label: planObj.name,
-                          net: planNet,
-                          sublabel: `${planObj.features.length} Basis-Module`,
-                      }
-                    : null,
+                // A plan not sold in the cycle has no line: 0.00 beside its name
+                // would read as a price.
+                plan:
+                    planObj && planPrice !== null
+                        ? {
+                              key: `plan:${planObj.id}`,
+                              label: planObj.name,
+                              net: planNet,
+                              sublabel: `${planObj.features.length} Basis-Module`,
+                          }
+                        : null,
                 bundles: bundleItems,
             },
         };

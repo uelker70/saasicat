@@ -120,11 +120,13 @@ describe('useSubscriptionDraft — cycle toggle', () => {
         const d = buildDraft({ plans: monthlyOnly, initialPlan: 'X', initialCycle: 'YEARLY' });
         assert.equal(d.pricing.value.planPriced, false);
         assert.equal(d.pricing.value.planNet, 0, 'not ten monthly prices');
+        assert.equal(d.pricing.value.breakdown.plan, null, 'no 0.00 line beside its name');
         assert.equal(d.pricing.value.yearSavings, 0);
 
         d.setCycle('MONTHLY');
         assert.equal(d.pricing.value.planPriced, true);
         assert.equal(d.pricing.value.planNet, 10);
+        assert.equal(d.pricing.value.breakdown.plan.net, 10);
     });
 
     test('a bundle without a price for the cycle is neither charged nor sent, until its cycle is back', () => {
