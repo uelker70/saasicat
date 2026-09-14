@@ -74,6 +74,31 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter }) =>
             Boolean(adapter.planRepository?.softDelete && adapter.planRepository.findByKey),
     },
+    planVersionReads: {
+        reason: 'adapter provides no PlanRepository that reads versions by plan key',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                repository?.listVersions &&
+                repository.findCurrentDraft &&
+                repository.findLatestLivePlanVersion,
+            );
+        },
+    },
+    planVersionRetirement: {
+        reason: 'adapter provides no PlanRepository that reads versions and retires plans',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                repository?.createPlanVersionDraft &&
+                repository.publishPlanVersionDraft &&
+                repository.listVersions &&
+                repository.findCurrentDraft &&
+                repository.findLatestLivePlanVersion &&
+                repository.softDelete,
+            );
+        },
+    },
     bundleRepository: {
         reason: 'adapter provides no BundleRepository',
         present: ({ adapter }) => Boolean(adapter.bundleRepository),
@@ -983,7 +1008,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 !repository.findCurrentDraft ||
                 !repository.findLatestLivePlanVersion
             ) {
-                t.skip('adapter provides no PlanRepository that reads versions by plan key');
+                missing(t, 'planVersionReads');
                 return;
             }
             const entitlementVersions = harness.adapter.planVersionRepository;
@@ -1019,7 +1044,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 !repository.findLatestLivePlanVersion ||
                 !repository.softDelete
             ) {
-                t.skip('adapter provides no PlanRepository that reads versions and retires plans');
+                missing(t, 'planVersionRetirement');
                 return;
             }
             const listVersions = repository.listVersions.bind(repository);

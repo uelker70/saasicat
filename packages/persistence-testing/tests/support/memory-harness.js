@@ -11,6 +11,18 @@ import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES } from '@saasicat/core';
 // moves between two reads is a difference no scenario asked for.
 const FIXED_NOW = new Date('2026-01-01T00:00:00.000Z');
 
+/**
+ * The parts this harness deliberately does not provide: it keeps no validity
+ * windows and no version lineage per plan. One list for every run against it,
+ * so the self-test and the gap tests cannot declare two different harnesses.
+ */
+export const MEMORY_HARNESS_GAPS = [
+    'planLifecycle',
+    'bundleValidity',
+    'planVersionReads',
+    'planVersionRetirement',
+];
+
 export function createMemoryHarness() {
     let idCounter = 0;
     const nextId = (prefix) => `${prefix}-${++idCounter}`;

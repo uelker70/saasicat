@@ -4,9 +4,9 @@
 
 import { persistenceAdapterContract } from '../../dist/index.js';
 
-import { createMemoryHarness } from '../support/memory-harness.js';
+import { createMemoryHarness, MEMORY_HARNESS_GAPS } from '../support/memory-harness.js';
 
-const BASE_GAPS = ['planLifecycle', 'bundleValidity'];
+const BASE_GAPS = MEMORY_HARNESS_GAPS;
 
 const SHAPES = {
     // The applied-settings port left out, and nothing declared.

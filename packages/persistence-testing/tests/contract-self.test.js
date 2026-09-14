@@ -2,14 +2,14 @@
 
 import { persistenceAdapterContract } from '../dist/index.js';
 
-import { createMemoryHarness } from './support/memory-harness.js';
+import { createMemoryHarness, MEMORY_HARNESS_GAPS } from './support/memory-harness.js';
 
 // Self-test of the contract kit: the in-memory reference adapter with correct
-// semantics must pass the suite. It keeps no validity windows, so the two
-// time-aware lifecycle groups are declared as the gaps they are.
+// semantics must pass the suite, with the parts it does not keep declared as
+// the gaps they are.
 
 persistenceAdapterContract({
     name: 'in-memory reference adapter (self-test)',
     create: async () => createMemoryHarness(),
-    gaps: ['planLifecycle', 'bundleValidity'],
+    gaps: MEMORY_HARNESS_GAPS,
 });
