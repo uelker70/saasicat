@@ -585,3 +585,122 @@ _Tested by:_
         - isEnabled() reflects port state
 
 <!-- END proof -->
+
+### SC-ADM-019 — Early deletion, cancelling an invoice and joining a subscriber need a second factor
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Deleting a tenant before its recorded date (`SC-ADM-020`),
+cancelling an invoice and joining a returning customer's tenant to the subscriber it had
+(`SC-ADM-027`). Each also needs an explicit confirmation, and deleting a tenant early asks the
+operator to type the tenant's name. A deletion date is not scheduled or withdrawn by hand: it is
+recorded when a subscription ends and lifted by a new one (`SC-CANC-020`). The actions that were
+there before are `SC-ADM-005`'s.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-020 — Six actions require a written reason, cancelling an invoice among them
+
+🟡 _(Decided, not yet delivered.)_ Resetting somebody's password, deactivating a user, cancelling an
+invoice, correcting a subscriber's legal identity (`SC-SUB-017`), joining a tenant to the subscriber
+a returning customer had (`SC-ADM-027`), and deleting a tenant before the
+deletion date recorded when its subscription ended (`SC-CANC-020`, `SC-CANC-021`). The reason is
+part of the record. An early deletion is for a legal reason, such as abuse or an order from an
+authority, and only once the export was offered (`SC-PRIV-017`): the operator is shown the announced
+date, and nothing is deleted until the operator confirms the deletion against it. Cancelling an
+invoice records, beside the reason, any party detail the replacement has to carry corrected
+(`SC-PRIC-025`), and an address to deliver to where the subscriber's record no longer holds an
+invoice email (`SC-PRIC-047`). This entry supersedes `SC-ADM-006` in the change that delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-021 — An operator finds everything about a subscriber in one record
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Master data, its live tenant and the ones it had before,
+contracts with their history, invoices, payments, open items and the deletion record. The
+contract dossier planned in #43 is part of this record rather than a second place to look.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-022 — An operator lists every invoice with totals per period and tax rate, and exports it
+
+🟡 _(Decided, not yet delivered.)_ 💰 The register is ordered by issue date, cancellation and
+replacement invoices included, and an invoice still awaiting its document (`SC-PRIC-033`) is listed
+as such, so no number in the range stands without an explanation. Its export is machine-readable:
+each line with its tax treatment and rate (`SC-PRIC-038`), the payments and reversals against each
+invoice, the cancellation and replacement each names, and each document's checksum (`SC-AUD-015`).
+Every export names the moment it is as of, and every payment, reversal, cancellation and replacement
+in it carries the moment it was recorded. The same period as of the same moment gives the same rows
+every time it is taken, so a hand-over to a tax advisor can be repeated and compared; as of a later
+moment, the export shows what was recorded since, such as a payment confirmed or an invoice
+cancelled after a period ended, rather than silently changing a row.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-023 — An operator can list open items, and every contract including former subscribers'
+
+🟡 _(Decided, not yet delivered.)_ 💰 A contract register that forgets a subscriber once its
+tenant is gone answers the one question it exists for wrongly.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-024 — A suspended tenant's users cannot act, and a read-only tenant cannot write
+
+🟡 _(Decided, not yet delivered.)_ 🔒 SaaSiCat decides the state, and records it with every reason
+that holds, such as an ended subscription (`SC-CANC-020`), an overdue invoice (`SC-PRIC-035`), a
+suspension or a deletion under way; the strictest of them applies, a deletion under way before a
+suspension and a suspension before read-only, and ending one reason lifts only that one. The
+application checks it on every request through a port, sign-in included, so a session that was
+already open when the state changed is held to it on its next request; SaaSiCat does the same on the
+routes it protects. A state that is recorded and not enforced is a switch that looks like
+protection. The operator acting as the tenant (`SC-ADM-005`) is not one of its users and is not held
+to the state, except once the tenant is being deleted (`SC-PRIV-018`), so support and an export stay
+possible on a suspended tenant; that access requires the second factor and is recorded. Read-only
+stops at one write: while one of the subscriber's invoices is open, a user of the tenant holding the
+billing permission (`SC-UI-023`) can still replace the payment method (`SC-PRIC-030`), because the
+claim outlives the subscription (`SC-PRIV-013`) and nobody else can enter a means of payment for it.
+A suspended tenant has no such exception, and lifting a suspension is the operator's (`SC-ADM-005`).
+Once the tenant is deleted nobody is left to act in it, so an invoice still open is settled through
+a payment page of the gateway that the operator sends to the contact address `SC-PRIV-013` keeps,
+where the subscriber can pay it with a new payment method and needs no tenant.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-025 — An operator gets a description of the invoicing procedure to document its own on
+
+🟡 _(Decided, not yet delivered.)_ 💰 German bookkeeping rules (GoBD) ask an operator to document how
+its invoices are produced, numbered, corrected, archived, accessed and kept. SaaSiCat's
+documentation describes each of those steps as SaaSiCat performs them, and names which parts the
+installation's adapters and settings decide, so the operator writes only what is its own.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-026 — The administrator changes what the tenant pays; billing needs the billing permission
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Changing a plan, booking an add-on and cancelling are not things
+any signed-in user of a tenant may do. The plan, the usage and a change's preview stay open to
+everyone who is signed in; the invoices, the account and the payment method, reading and changing
+alike, are for whoever holds the billing permission (`SC-UI-023`), which the tenant's administrator
+holds unless the application says otherwise. This entry supersedes `SC-ADM-013` in the change that
+delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-027 — An operator joins a returning customer's new tenant to the subscriber it had
+
+🟡 _(Decided, not yet delivered.)_ 🔒 Self-registration creates a subscriber of its own
+(`SC-REG-022`): matching a sign-up to an existing subscriber by an email address would hand whoever
+types that address into the form another customer's record. A customer whose earlier tenant is
+deleted and who signs up again is therefore joined by the operator, who declares that the new
+subscriber is the same legal entity, with the second factor (`SC-ADM-019`) and a reason
+(`SC-ADM-020`); a different entity is a transfer, as `SC-SUB-017` has it. The new tenant then
+becomes the earlier subscriber's live tenant (`SC-SCOPE-012`), and its subscription with its
+contract, its account and its payment method move to it, together with the master data sign-up
+collected (`SC-PRIC-032`): the billing address and the invoice email replace what the earlier record
+kept, and a legal name or tax identifier that differs is recorded as a correction of the same entity
+(`SC-SUB-017`). Later invoices carry that subscriber, its customer number and the details just given
+(`SC-PRIC-026`), and the contract keeps the party copy it was concluded with, which names the same
+legal entity (`SC-AUD-012`). Documents already issued keep the parties they copied (`SC-PRIC-025`),
+and the record created at
+sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record shows the customer's
+whole history. A subscriber with a live tenant is not joined to a second one.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

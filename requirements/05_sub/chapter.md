@@ -336,3 +336,26 @@ _Tested by:_
     - no-op when nothing is due
 
 <!-- END proof -->
+
+### SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
+
+🟡 _(Decided, not yet delivered.)_ 💰 Self-registration creates both together (`SC-REG-022`), and
+a tenant an operator creates through the administration, a command or the integrator's own form
+(`SC-SCOPE-006`) gets its subscriber in the same step, so no contract is ever frozen and no
+charge ever arises without a party to it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-SUB-017 — A subscriber's legal identity can be corrected, not replaced, under a running contract
+
+🟡 _(Decided, not yet delivered.)_ 💰 Contact details, such as the address or the invoice email,
+can be changed at any time, and later invoices carry the new ones. The legal name and the tax
+identifiers are the party the contract was concluded with (`SC-AUD-012`). While a contract runs
+they change only as a correction of that same party, such as a misspelt name, a wrong tax
+identifier or a change of name the same legal entity went through, which the operator records
+with the values it replaces and the reason (`SC-ADM-020`); later invoices carry the corrected
+identity, and the contract keeps its copy as concluded. SaaSiCat cannot tell a correction from
+another legal entity taking over, so the operator declares which it is: a takeover is a transfer
+or a new contract rather than an edit, the same rule `SC-PRIC-026` applies to the issuer.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

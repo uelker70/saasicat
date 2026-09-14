@@ -1661,3 +1661,37 @@ _Tested by:_
         - keep their counts while the search narrows the table
 
 <!-- END proof -->
+
+### SC-UI-022 — A tenant downloads its subscription's invoices and tells them from the application's
+
+🟡 _(Decided, not yet delivered.)_ 💰 A tenant downloads the invoices of its own subscription
+(`SC-PRIC-022`), served by the tenant routes SaaSiCat already mounts behind the application's tenant
+guards and the billing permission (`SC-UI-023`), so an application wires nothing new for it beyond
+mapping that permission to its roles. Each invoice names who issued it, and an application that
+invoices its own customers labels the subscription's as the operator's.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-UI-023 — A tenant's invoices, payment method and billing details need the billing permission
+
+🟡 _(Decided, not yet delivered.)_ 🔒 They show the subscriber's amounts, address and masked payment
+details, which not every user of a tenant is meant to see. The permission governs the whole billing
+area, reading and changing alike: the invoices and their downloads, the account (`SC-PRIC-049`) and
+the payment method (`SC-PRIC-030`). The plan, the usage and a change's preview stay open to every
+signed-in user (`SC-ADM-026`). The application maps the permission to its own roles, and the tenant's
+administrator holds it unless the application says otherwise. A user without it sees neither the
+list nor a download, and a request built by hand is refused where it is served (`SC-SEC-004`).
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-UI-024 — A tenant's invoice list says what each invoice stands for
+
+🟡 _(Decided, not yet delivered.)_ 💰 Each entry shows its number, issue date, period, total and due
+date (`SC-PRIC-046`), and whether it is open, collected on a given day, reversed, or cancelled and
+replaced; a cancelled invoice links to its cancellation and its replacement, and each of those links
+back. A credit shows that it is to be refunded, and the contract confirmations stand beside the
+invoices (`SC-AUD-016`). The documents carry the names their tax adapter gives them (`SC-PRIC-027`),
+and a credit on the account is never called by the name German VAT law reserves for an invoice the
+recipient writes: Guthaben, not Gutschrift.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

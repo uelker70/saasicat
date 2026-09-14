@@ -216,3 +216,37 @@ _Tested by:_
         - the clause is not trivially short, so the check is not trivially true
 
 <!-- END proof -->
+
+### SC-SCOPE-011 — SaaSiCat invoices subscriptions and collects payment through a payment gateway
+
+🟡 _(Decided, not yet delivered.)_ 💰 It records what was agreed, what became due, what was
+invoiced and what was paid. The means of payment stay with the gateway, which is why
+`SC-PRIV-005` holds as it is. Paying an invoice by bank transfer is not offered in this stage;
+it stays open for a later one, for subscribers such as an enterprise customer who pays against
+an invoice. This entry supersedes `SC-SCOPE-004` and `SC-PRIC-001` in the change that delivers
+it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-SCOPE-012 — A tenant holds the application's data; the subscriber is the party to the contract
+
+🟡 _(Decided, not yet delivered.)_ 💰 A tenant can be deleted, and its subscriber stays for as
+long as a document that has to be kept belongs to it. Keeping the two apart is what lets the
+application's data go without taking the tax record along. A subscriber has one live tenant at
+most, and the tenants it had before stay in its history: a customer who runs several tenants is
+a subscriber per tenant, so every tenant-facing read and change of the account, the payment
+method and the master data stays inside that tenant's own authority.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-SCOPE-013 — Subscriber and invoice models avoid the application's own names, and a clash is reported
+
+🟡 _(Decided, not yet delivered.)_ The fragments are copied into the application's own schema,
+where an application may already invoice its own customers or collect from its members. Every
+such model carries `Subscription` or `Subscriber` in its name, which keeps it clear of the names
+those applications use. A prefix cannot rule out a clash with a name nobody has seen, so
+`saasicat schema check` reports an application model that carries a platform model's name with a
+different shape, rather than leaving it to surface as a schema error. The application's own
+invoicing stays the application's.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`

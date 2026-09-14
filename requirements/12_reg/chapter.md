@@ -326,3 +326,21 @@ _Tested by:_
     - resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID
 
 <!-- END proof -->
+
+### SC-REG-021 — A payment confirmation is verified before anything is created from it
+
+🟡 _(Decided, not yet delivered.)_ 🔒 A gateway adapter SaaSiCat ships verifies the confirmation
+with the gateway's secret. An integrator who binds a provider of their own verifies it in front
+of the route, as before. This entry supersedes `SC-REG-018` in the change that delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-REG-022 — The account, subscriber, tenant, subscription and payment method are created together
+
+🟡 _(Decided, not yet delivered.)_ Or not at all: only after the gateway confirmed the payment
+method, which sign-up asks for in the gateway's own form, together with the master data an invoice
+needs (`SC-PRIC-032`), and a partial creation is undone. A first collection that then fails leaves
+an invoice unpaid like any other, with the grace period of `SC-PRIC-035`. This entry supersedes
+`SC-REG-016` in the change that delivers it.
+
+_Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
