@@ -257,7 +257,8 @@ export class PrismaPlanRepository implements PlanRepository {
 
     async listVersions(planKey: string): Promise<PlanVersionRow[]> {
         const db = this.db();
-        const storedPlanId = await this.binding.toStoragePlanId(db, planKey);
+        const storedPlanId = await this.binding.findStoragePlanId(db, planKey);
+        if (storedPlanId === null) return [];
         const rows = await this.versions(db).findMany({
             where: { planId: storedPlanId },
             orderBy: { version: 'asc' },
@@ -275,7 +276,8 @@ export class PrismaPlanRepository implements PlanRepository {
 
     async findCurrentDraft(planKey: string): Promise<PlanVersionRow | null> {
         const db = this.db();
-        const storedPlanId = await this.binding.toStoragePlanId(db, planKey);
+        const storedPlanId = await this.binding.findStoragePlanId(db, planKey);
+        if (storedPlanId === null) return null;
         const row = await this.versions(db).findFirst({
             where: { planId: storedPlanId, publishedAt: null },
         });
@@ -287,7 +289,8 @@ export class PrismaPlanRepository implements PlanRepository {
         tx?: TransactionContext,
     ): Promise<PlanVersionRow | null> {
         const db = this.db(tx);
-        const storedPlanId = await this.binding.toStoragePlanId(db, planKey);
+        const storedPlanId = await this.binding.findStoragePlanId(db, planKey);
+        if (storedPlanId === null) return null;
         const row = await this.versions(db).findFirst({
             where: {
                 planId: storedPlanId,
@@ -308,7 +311,8 @@ export class PrismaPlanRepository implements PlanRepository {
         tx?: TransactionContext,
     ): Promise<PlanVersionRow | null> {
         const db = this.db(tx);
-        const storedPlanId = await this.binding.toStoragePlanId(db, planKey);
+        const storedPlanId = await this.binding.findStoragePlanId(db, planKey);
+        if (storedPlanId === null) return null;
         const activeWhere = this.fields.endsAt
             ? buildActivePlanVersionWhere(asOf, { withEndsAt: true })
             : buildActivePlanVersionWhere(asOf);

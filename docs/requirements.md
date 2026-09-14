@@ -1688,6 +1688,8 @@ _Tested by:_
     - Prisma plan binding options
         - the omitted schema preserves every 0.6 plan default
         - normalized mode resolves both directions
+        - a read finds a retired plan and finds nothing for a key no plan has
+        - reading the versions of a plan no row has answers empty, in both repositories
     - normalized plan identity across Prisma adapters
         - catalog read uses the catalog delegate and exposes semantic planKey
         - catalog import resolves planKey to UUID and writes only the catalog delegate

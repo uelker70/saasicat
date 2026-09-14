@@ -102,7 +102,14 @@ interface PlanIdentityClient {
 
 export interface PrismaPlanBindingResolver {
     readonly mode: PrismaPlanBindingMode;
+    /** The stored id of the plan a write targets; a key no live plan has is an error. */
     toStoragePlanId(client: unknown, planKey: string): Promise<string>;
+    /**
+     * The stored id a read looks versions up by, or `null` when no plan row has
+     * the key. A retired plan is found: its versions stay readable, and the
+     * deletion guard that counts them must not be told it has none.
+     */
+    findStoragePlanId(client: unknown, planKey: string): Promise<string | null>;
     toPlanKey(client: unknown, storedPlanId: string): Promise<string>;
 }
 
@@ -197,6 +204,15 @@ export function createPrismaPlanBindingResolver(
                 throw new Error(`Plan '${planKey}' not found.`);
             }
             return plan.id;
+        },
+
+        async findStoragePlanId(client, planKey) {
+            if (resolved.mode === 'legacy-plan-key') return planKey;
+
+            const plan = await asPlanIdentityClient(client).plan.findFirst({
+                where: { planKey },
+            });
+            return plan?.id ?? null;
         },
 
         async toPlanKey(client, storedPlanId) {

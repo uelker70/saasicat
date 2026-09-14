@@ -1001,6 +1001,19 @@ parameter, so a message you render from the catalogue is unaffected.
 for the npm package name, the storage prefix and the generated identifiers — and it is no longer
 written into `config/saas.yaml`.
 
+### A plan key no plan has reads as nothing
+
+`@saasicat/persistence-testing` checks two reads of `PlanRepository` it did not check before. A key
+no plan row has answers `listVersions`, `findCurrentDraft`, `findLatestLivePlanVersion`,
+`findActivePlanVersion` and `PlanVersionRepository.findLatestLive` with an empty list or `null`,
+not an error: a plan can go between listing the catalogue and reading its versions. A retired plan
+keeps its versions readable, because the guard that decides whether a plan may be deleted counts
+them.
+
+- **`@saasicat/adapter-prisma` and `@saasicat/adapter-drizzle`** behave that way; nothing to do.
+- **An adapter of your own** that throws for an unknown key, or filters retired plans out of those
+  reads, fails the new scenario until it answers the same way.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

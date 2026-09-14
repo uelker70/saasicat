@@ -99,6 +99,12 @@ export interface PlanRepository {
     // resolves it to a normalized `Plan.id` foreign key. The
     // `PlanVersionsService` resolves the plan UUID of the controller path
     // parameter via `findById(planUuid).planKey` before calling these methods.
+    //
+    // The reads keyed by plan key answer for every plan row there is, a retired
+    // one included, and a key no plan has finds nothing — an empty list or
+    // `null`, never an error. A plan can go between listing the catalogue and
+    // reading its versions, and the deletion guards read a retired plan's
+    // versions to decide whether it may go.
 
     /**
      * Returns all versions of a plan stem (drafts + published +

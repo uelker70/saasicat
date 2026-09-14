@@ -558,6 +558,8 @@ export interface PlanVersionRepository {
      *
      * Note: ignores `validFrom`/`validUntil`. For time-aware
      * resolution (onboarding, plan fallback for TRIAL) use `findActive`.
+     *
+     * A plan key no plan has finds `null`, not an error.
      */
     findLatestLive(planId: string, tx?: TransactionContext): Promise<PlanVersionRecord | null>;
 

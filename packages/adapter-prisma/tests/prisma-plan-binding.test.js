@@ -60,6 +60,37 @@ describe('Prisma plan binding options', () => {
         await assert.rejects(resolver.toPlanKey(client, 'plan-missing'), /not found/);
         await assert.rejects(resolver.toStoragePlanId(client, 'NO_SUCH_KEY'), /not found/);
     });
+
+    test('a read finds a retired plan and finds nothing for a key no plan has', async () => {
+        // A write to a retired plan is refused; a read of its versions is not,
+        // because the guard that decides whether the plan may be deleted reads
+        // them. A key without a plan row is a plan that went, not a fault.
+        const client = fakePrisma();
+        client.plan.rows[1].deletedAt = new Date('2026-09-01T00:00:00.000Z');
+        const resolver = createPrismaPlanBindingResolver(APP_SCHEMA.planBinding);
+
+        assert.equal(await resolver.findStoragePlanId(client, 'PRO'), 'plan-pro');
+        await assert.rejects(resolver.toStoragePlanId(client, 'PRO'), /not found/);
+        assert.equal(await resolver.findStoragePlanId(client, 'NO_SUCH_KEY'), null);
+        assert.equal(
+            await createPrismaPlanBindingResolver().findStoragePlanId({}, 'NO_SUCH_KEY'),
+            'NO_SUCH_KEY',
+            'the legacy binding stores the key itself and looks nothing up',
+        );
+    });
+
+    test('reading the versions of a plan no row has answers empty, in both repositories', async () => {
+        const client = fakePrisma();
+        const plans = new PrismaPlanRepository(client, APP_SCHEMA);
+        const versions = new PrismaPlanVersionRepository(client, APP_SCHEMA);
+
+        assert.deepEqual(await plans.listVersions('NO_SUCH_KEY'), []);
+        assert.equal(await plans.findCurrentDraft('NO_SUCH_KEY'), null);
+        assert.equal(await plans.findLatestLivePlanVersion('NO_SUCH_KEY'), null);
+        assert.equal(await plans.findActivePlanVersion('NO_SUCH_KEY', new Date()), null);
+        assert.equal(await versions.findLatestLive('NO_SUCH_KEY'), null);
+        assert.equal(await versions.findActive('NO_SUCH_KEY', new Date()), null);
+    });
 });
 
 describe('normalized plan identity across Prisma adapters', () => {

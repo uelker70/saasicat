@@ -833,6 +833,89 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('a plan key no plan has finds no versions, and retiring a plan hides none', async (t) => {
+            // A plan can go between listing the catalogue and reading its
+            // versions, so a read by a key no plan has answers empty rather
+            // than failing. A retired plan is different: its row is there, and
+            // the guard deciding whether it may be deleted counts its published
+            // versions — an adapter that hid them would let that delete through.
+            const repository = harness.adapter.planRepository;
+            if (
+                !repository?.createPlanVersionDraft ||
+                !repository.publishPlanVersionDraft ||
+                !repository.listVersions ||
+                !repository.findCurrentDraft ||
+                !repository.findLatestLivePlanVersion ||
+                !repository.softDelete
+            ) {
+                t.skip('adapter provides no PlanRepository that reads versions and retires plans');
+                return;
+            }
+            const listVersions = repository.listVersions.bind(repository);
+            const findCurrentDraft = repository.findCurrentDraft.bind(repository);
+            const findLatestLive = repository.findLatestLivePlanVersion.bind(repository);
+            const entitlementVersions = harness.adapter.planVersionRepository;
+
+            assert.deepEqual(await listVersions('NO_SUCH_PLAN'), []);
+            assert.equal(await findCurrentDraft('NO_SUCH_PLAN'), null);
+            assert.equal(await findLatestLive('NO_SUCH_PLAN'), null);
+            if (repository.findActivePlanVersion) {
+                assert.equal(
+                    await repository.findActivePlanVersion('NO_SUCH_PLAN', new Date()),
+                    null,
+                );
+            }
+            assert.equal(await entitlementVersions.findLatestLive('NO_SUCH_PLAN'), null);
+
+            const plan = await repository.create({ planKey: 'RETIRING', label: 'Retiring' });
+            const firstDraft = await repository.createPlanVersionDraft({
+                planId: 'RETIRING',
+                features: ['CORE'],
+                quotas: { users: 5 },
+                monthlyNet: '10.00',
+                yearlyNet: '100.00',
+                validFrom: '2026-01-01',
+            });
+            const live = await repository.publishPlanVersionDraft(firstDraft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+            const openDraft = await repository.createPlanVersionDraft({
+                planId: 'RETIRING',
+                baseVersionId: live.id,
+                features: ['CORE', 'PLUS'],
+                quotas: { users: 10 },
+                monthlyNet: '15.00',
+                yearlyNet: '150.00',
+                validFrom: '2026-06-01',
+            });
+            const reads = async () => ({
+                versions: (await listVersions('RETIRING')).map((row) => row.id),
+                draft: (await findCurrentDraft('RETIRING'))?.id ?? null,
+                latestLive: (await findLatestLive('RETIRING'))?.id ?? null,
+                entitlementFeatures:
+                    (await entitlementVersions.findLatestLive('RETIRING'))?.features ?? null,
+            });
+            const beforeRetiring = await reads();
+            assert.deepEqual(
+                beforeRetiring,
+                {
+                    versions: [live.id, openDraft.id],
+                    draft: openDraft.id,
+                    latestLive: live.id,
+                    entitlementFeatures: ['CORE'],
+                },
+                'a live plan reads its versions, so the comparison below has a subject',
+            );
+
+            await repository.softDelete(plan.id);
+
+            assert.deepEqual(await reads(), beforeRetiring, 'retiring the plan hid its versions');
+        });
+
         test('a retired bundle still occupies its key', async (t) => {
             // `findByKey` answers the database's question, and
             // `bundles_bundleKey_key` is an unconditional unique
