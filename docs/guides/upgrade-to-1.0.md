@@ -903,12 +903,30 @@ discount, and the currency and VAT rate from `config/saas.yaml`.
 - **Consuming an offer** computes its amounts again from the plan and bundle versions it froze and
   refuses one whose stored amounts differ, or that names no plan version, with
   `CHECKOUT_OFFER_PRICE_NOT_CURRENT`. An offer created before the upgrade can hit this; create it
-  again from the same selection.
+  again from the same selection. Its promo code is checked with the promo module as it stands at
+  consumption, because a code is redeemed when the contract is concluded: a code that expired or ran
+  out of redemptions since the offer was priced refuses the offer with
+  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`. Consume the offer before creating the tenant, so a
+  refusal leaves nothing half-created.
 - **New refusals:** `CHECKOUT_OFFER_PLAN_NOT_OFFERED`, `CHECKOUT_OFFER_BUNDLE_NOT_OFFERED` (with a
   `reason`) and `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`.
 - **Wiring `CheckoutOfferModule` by hand** needs `planRepository`, and `promotionRepository` for
   promotions; the plan catalogue module has to be registered for the currency and VAT rate, and the
   promo module has to be visible for a promo code. `SaaSiCatModule.forRoot` does all of that itself.
+
+### The configurator's yearly price is the plan version's
+
+The sign-up configurator showed a yearly price of the monthly price times
+`ConfiguratorCatalog.cycleDiscount`, while the offer and the contract charge the yearly price the
+plan version carries. Where the two differed, say 9.99 a month and 99.00 a year, the configurator
+showed 99.90 and a promo code preview worked on that figure. `computeBreakdown` now takes each
+model's `yearlyNet`, and the saving it reports is twelve monthly prices minus that, never below zero.
+
+- **`ConfiguratorCatalog.cycleDiscount` and `ConfiguratorMarketingProvider.getCycleDiscount()` are
+  gone.** Delete `getCycleDiscount` from your marketing provider; an object literal typed as the
+  provider no longer compiles with it.
+- **A registration page that computed a yearly price or a saving from `cycleDiscount`** displays
+  the breakdown the server returns, or reads `model.yearlyNet`.
 
 ### `projectKey` is gone from the database
 

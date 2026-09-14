@@ -136,6 +136,13 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
+    - the configurator breakdown
+        - a monthly plan costs its monthly price and saves nothing
+        - a yearly plan costs the yearly price its plan version carries
+        - a yearly price above twelve monthly ones saves nothing rather than a negative amount
+        - a promo code is previewed on the yearly price that is charged
+        - resuming the step shows the same yearly figure
 - `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
     - a monthly plan offers no choice
         - the card quotes the monthly price with the monthly unit
@@ -172,6 +179,13 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - a bundle sold in one rhythm only says so for the other
+- `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
+    - the configurator breakdown
+        - a monthly plan costs its monthly price and saves nothing
+        - a yearly plan costs the yearly price its plan version carries
+        - a yearly price above twelve monthly ones saves nothing rather than a negative amount
+        - a promo code is previewed on the yearly price that is charged
+        - resuming the step shows the same yearly figure
 
 <!-- END proof -->
 

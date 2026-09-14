@@ -4776,6 +4776,13 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
+    - the configurator breakdown
+        - a monthly plan costs its monthly price and saves nothing
+        - a yearly plan costs the yearly price its plan version carries
+        - a yearly price above twelve monthly ones saves nothing rather than a negative amount
+        - a promo code is previewed on the yearly price that is charged
+        - resuming the step shows the same yearly figure
 - `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
     - a monthly plan offers no choice
         - the card quotes the monthly price with the monthly unit
@@ -4812,6 +4819,13 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - a bundle sold in one rhythm only says so for the other
+- `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
+    - the configurator breakdown
+        - a monthly plan costs its monthly price and saves nothing
+        - a yearly plan costs the yearly price its plan version carries
+        - a yearly price above twelve monthly ones saves nothing rather than a negative amount
+        - a promo code is previewed on the yearly price that is charged
+        - resuming the step shows the same yearly figure
 
 <!-- END proof -->
 
@@ -6789,12 +6803,14 @@ _Tested by:_
 🟢 💰 A caller chooses a plan, a rhythm, add-ons and perhaps a promo code; the plan price comes from
 the plan version on sale, an add-on's from its bundle version with the price it carries for that
 plan, the promotion from the same choice the public catalogue makes, a promo code's discount from
-what the promo module accepts, and the currency and VAT rate from the installation. A plan without
-a price for the rhythm, an add-on that is not on sale, not marketed, not compatible or not priced
-for the plan, and a code the promo module refuses or cannot check are refused rather than priced at
-nothing. When the offer is consumed its stored amounts are computed again from the versions it
-froze and the promotions as they stood when it was priced, and an offer whose amounts differ is
-refused, so no amount written by anything else becomes a contract.
+what the promo module accepts, and the currency and VAT rate from the installation. A plan without a
+price for the rhythm, an add-on that is not on sale, not marketed, not compatible or not priced for
+the plan, and a code the promo module refuses or cannot check are refused rather than priced at
+nothing. When the offer is consumed its stored amounts are computed again from the versions it froze
+and the promotions as they stood when it was priced, and its promo code with the promo module as it
+stands then, since a code is redeemed when the contract is concluded; an offer whose amounts differ,
+or whose code has since expired or run out of redemptions, is refused, so no amount written by
+anything else becomes a contract.
 
 _Source:_ release 1.0.0-rc.13
 

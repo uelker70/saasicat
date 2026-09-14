@@ -315,8 +315,6 @@ export interface ConfiguratorModel {
 }
 
 export interface ConfiguratorCatalog {
-    /** Factor `yearlyNet = monthlyNet * cycleDiscount` (typically 10 = 2 months free). */
-    cycleDiscount: number;
     currency: string;
     vatRate: number;
     models: ConfiguratorModel[];
@@ -426,8 +424,6 @@ export interface ConfiguratorPlanMarketing {
  */
 export interface ConfiguratorMarketingProvider {
     listPlanMarketing(): ConfiguratorPlanMarketing[];
-    /** Factor `yearlyNet = monthlyNet * cycleDiscount`. Default `10`. */
-    getCycleDiscount(): number;
     getVatRate(): number;
     getCurrency(): string;
 }

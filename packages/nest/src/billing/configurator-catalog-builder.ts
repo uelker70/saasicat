@@ -29,7 +29,6 @@ export class ConfiguratorCatalogBuilder {
         );
 
         return {
-            cycleDiscount: marketing.getCycleDiscount(),
             currency: marketing.getCurrency(),
             vatRate: marketing.getVatRate(),
             models: planRows

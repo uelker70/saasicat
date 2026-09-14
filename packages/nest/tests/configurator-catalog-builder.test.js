@@ -31,7 +31,6 @@ const SOURCES = {
 };
 
 const MARKETING = {
-    getCycleDiscount: () => 10,
     getCurrency: () => 'EUR',
     getVatRate: () => 19,
     listPlanMarketing: () => [
@@ -56,7 +55,7 @@ describe('ConfiguratorCatalogBuilder', () => {
             marketing: MARKETING,
         });
 
-        assert.equal(catalog.cycleDiscount, 10);
+        assert.equal('cycleDiscount' in catalog, false, "the yearly price is each model's own");
         assert.equal(catalog.currency, 'EUR');
         assert.equal(catalog.vatRate, 19);
         assert.equal(catalog.models.length, 1, 'non-marketed plans are dropped');

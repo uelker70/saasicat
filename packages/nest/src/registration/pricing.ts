@@ -45,8 +45,11 @@ export function computeBreakdown(
 
     const subtotalMonthlyNet = modelMonthlyNet;
 
-    const factor = selection.billingCycle === 'YEARLY' ? catalog.cycleDiscount : 1;
-    const subtotalNet = round2(subtotalMonthlyNet * factor);
+    // The yearly price is the one the plan version carries, never a multiple of
+    // the monthly one: the offer and the contract charge that figure, and a
+    // configurator that derived its own showed a price nobody was charged.
+    const subtotalNet =
+        selection.billingCycle === 'YEARLY' ? round2(model.yearlyNet) : subtotalMonthlyNet;
 
     const discountAmount = promo ? Math.min(round2(promo.discountAmount), subtotalNet) : 0;
     const totalNet = Math.max(0, round2(subtotalNet - discountAmount));
@@ -54,7 +57,7 @@ export function computeBreakdown(
 
     const yearlySavings =
         selection.billingCycle === 'YEARLY'
-            ? round2(subtotalMonthlyNet * 12 - subtotalMonthlyNet * catalog.cycleDiscount)
+            ? Math.max(0, round2(subtotalMonthlyNet * 12 - subtotalNet))
             : 0;
 
     return {
