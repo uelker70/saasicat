@@ -12,6 +12,8 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test, type TestContext } from 'node:test';
 import type {
     AppliedSettingsValues,
+    CreateCheckoutOfferData,
+    CreateSubscriptionContractData,
     NewContractLineItemData,
     TransactionContext,
 } from '@saasicat/core';
@@ -22,6 +24,62 @@ import type {
 } from './harness.types.js';
 
 const LOCK_HOLD_MS = 150;
+
+/** An offer as a pricing page stores it: one plan line, priced. */
+const OFFER: CreateCheckoutOfferData = {
+    planKey: 'STANDARD',
+    planVersionId: null,
+    billingCycle: 'monthly',
+    priceBreakdown: {
+        currency: 'EUR',
+        billingCycle: 'monthly',
+        planNet: 49,
+        bundlesNet: 0,
+        regularNet: 49,
+        effectiveNet: 49,
+        vatRate: 19,
+        effectiveGross: 58.31,
+    },
+};
+
+/** The contract concluded from the offer `offerId`: one plan line, as agreed. */
+function contractFromOffer(offerId: string): CreateSubscriptionContractData {
+    return {
+        tenantId: `tenant-${offerId}`,
+        effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+        originalOfferId: offerId,
+        priceSnapshot: {
+            currency: 'EUR',
+            billingCycle: 'monthly',
+            subtotalNet: 49,
+            discountNet: 0,
+            totalNet: 49,
+            vatRate: 19,
+            totalGross: 58.31,
+        },
+        lineItems: [
+            {
+                kind: 'plan',
+                sourceKey: 'STANDARD',
+                sourceVersionId: null,
+                titleSnapshot: 'Standard',
+                descriptionSnapshot: null,
+                quantity: 1,
+                unit: null,
+                priceNet: 49,
+                priceGross: 58.31,
+                billingCycle: 'monthly',
+                currency: 'EUR',
+                taxRate: 19,
+                taxAmount: 9.31,
+                minimumTermUntil: null,
+                featuresSnapshot: [],
+                quotaEffectsSnapshot: {},
+                metadata: null,
+            },
+        ],
+    };
+}
 
 /**
  * What each gap stands for: the reason a skipped scenario reports, and whether
@@ -144,6 +202,10 @@ const CONTRACT_GAPS: Record<
     subscriptionContracts: {
         reason: 'adapter provides no SubscriptionContractRepository',
         present: ({ adapter }) => Boolean(adapter.subscriptionContractRepository),
+    },
+    checkoutOffers: {
+        reason: 'adapter provides no CheckoutOfferRepository',
+        present: ({ adapter }) => Boolean(adapter.checkoutOfferRepository),
     },
     appliedSettings: {
         reason: 'adapter provides no AppliedSettingsPort',
@@ -1983,6 +2045,106 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     'net plus tax is gross, on every line',
                 );
             }
+        });
+
+        test('a contract written on a transaction is undone with it, and found by its offer', async (t) => {
+            // Concluding an offer writes its contract on the transaction that
+            // consumes the offer, and a retry asks for the contract by offer.
+            // An adapter that wrote past the transaction would leave a contract
+            // for an offer that is still open.
+            const { adapter } = harness;
+            const contracts = adapter.subscriptionContractRepository;
+            if (!contracts) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            if (!adapter.capabilities.transactions) {
+                t.skip('adapter declares no transaction capability');
+                return;
+            }
+
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    await contracts.create(contractFromOffer('offer-rolled-back'), tx);
+                    throw new Error('the conclusion fails after the contract is written');
+                }),
+            );
+            assert.equal(
+                await contracts.findByOriginalOfferId('offer-rolled-back'),
+                null,
+                'the contract outlived its transaction',
+            );
+
+            const kept = await adapter.transactionRunner.run((tx) =>
+                contracts.create(contractFromOffer('offer-kept'), tx),
+            );
+            const found = await contracts.findByOriginalOfferId('offer-kept');
+            assert.equal(found?.id, kept.id);
+            assert.equal(found?.lineItems.length, 1, 'with its lines');
+            assert.equal(await contracts.findByOriginalOfferId('offer-nobody-concluded'), null);
+        });
+
+        // -------------------------------------------------------------
+        // Checkout offers — consumed once, and undone with their transaction
+        // -------------------------------------------------------------
+
+        test('an offer is consumed once, whoever asks first', async (t) => {
+            const offers = harness.adapter.checkoutOfferRepository;
+            if (!offers) {
+                missing(t, 'checkoutOffers');
+                return;
+            }
+            const offer = await offers.create(OFFER);
+            assert.equal(offer.status, 'open');
+
+            // The condition belongs on the write: a check before it sees both
+            // callers find the offer open.
+            const attempts = await Promise.allSettled([
+                offers.consume(offer.id),
+                offers.consume(offer.id),
+            ]);
+            assert.equal(
+                attempts.filter((attempt) => attempt.status === 'fulfilled').length,
+                1,
+                'exactly one consume wins',
+            );
+            const consumed = await offers.findById(offer.id);
+            assert.equal(consumed?.status, 'consumed');
+            assert.ok(consumed?.consumedAt, 'and it records when');
+
+            await assert.rejects(() => offers.consume(offer.id), 'a later consume is refused');
+            assert.equal(
+                (await offers.findById(offer.id))?.consumedAt,
+                consumed.consumedAt,
+                'and changes nothing',
+            );
+        });
+
+        test('a consume on a transaction that rolls back leaves the offer open', async (t) => {
+            const { adapter } = harness;
+            const offers = adapter.checkoutOfferRepository;
+            if (!offers) {
+                missing(t, 'checkoutOffers');
+                return;
+            }
+            if (!adapter.capabilities.transactions) {
+                t.skip('adapter declares no transaction capability');
+                return;
+            }
+            const offer = await offers.create(OFFER);
+
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    await offers.consume(offer.id, tx);
+                    throw new Error('the contract after the consume fails');
+                }),
+            );
+            const afterwards = await offers.findById(offer.id);
+            assert.equal(afterwards?.status, 'open', 'the consume outlived its transaction');
+            assert.equal(afterwards?.consumedAt, null);
+
+            // Open, so it can be concluded again.
+            assert.equal((await offers.consume(offer.id)).status, 'consumed');
         });
 
         // -------------------------------------------------------------

@@ -14,6 +14,7 @@ import {
     composeModuleExports,
 } from '../dist/platform/index.js';
 import { DISCOVERY_APP_INFO_TOKEN } from '../dist/discovery/index.js';
+import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/index.js';
 
 // Two properties the decomposition exists to keep, asked as behaviour.
 //
@@ -276,6 +277,46 @@ describe('the catalogue composer', () => {
     test('and by default mounts both', () => {
         const names = composeFeatures(everythingOn()).map((m) => m.module.name);
         assert.ok(names.includes('PublicCatalogModule'));
+    });
+});
+
+// @requirement SC-MKT-024 — An offer is concluded into its contract in one step, or not at all
+describe('the checkout offer composer', () => {
+    /** Whether the mounted checkout offer module can conclude an offer. */
+    function concludes(ctx) {
+        const checkout = composeFeatures(ctx).find((m) => m.module.name === 'CheckoutOfferModule');
+        return checkout.providers.some(
+            (provider) => provider.provide === CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
+        );
+    }
+
+    test('wires concluding from a bundle that has contracts and a transaction runner', () => {
+        const ctx = everythingOn();
+        ctx.persistence = {
+            ...PERSISTENCE,
+            entitlement: { ...PERSISTENCE.entitlement, subscriptionContractRepository: REPO },
+        };
+        assert.equal(concludes(ctx), true);
+    });
+
+    test('leaves it unwired where the bundle has no contract repository', () => {
+        assert.equal(concludes(everythingOn()), false);
+    });
+
+    test('refuses to start when the application names half of it and nothing supplies the rest', () => {
+        const ctx = everythingOn();
+        ctx.options.checkoutOffer = { conclusion: { transactionRunner: REPO } };
+        assert.throws(() => composeFeatures(ctx), /subscriptionContractRepository/);
+    });
+
+    test('leaves it unwired without a transaction runner', () => {
+        const ctx = everythingOn();
+        ctx.persistence = {
+            ...PERSISTENCE,
+            entitlement: { ...PERSISTENCE.entitlement, subscriptionContractRepository: REPO },
+        };
+        delete ctx.adapters.transactionRunner;
+        assert.equal(concludes(ctx), false);
     });
 });
 

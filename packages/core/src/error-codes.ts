@@ -269,6 +269,12 @@ export const CONTRACT_ERROR_CODES = {
     CHECKOUT_OFFER_EXPIRED: 'CHECKOUT_OFFER_EXPIRED',
     CHECKOUT_OFFER_ALREADY_CONSUMED: 'CHECKOUT_OFFER_ALREADY_CONSUMED',
     CHECKOUT_OFFER_NOT_CONSUMED: 'CHECKOUT_OFFER_NOT_CONSUMED',
+    /**
+     * The offer changed between the checks of `conclude` and the transaction
+     * that consumed it, so the contract checked is not the one the offer now
+     * describes. Nothing was written; load the offer and conclude it again.
+     */
+    CHECKOUT_OFFER_CHANGED: 'CHECKOUT_OFFER_CHANGED',
     SUBSCRIPTION_CONTRACT_NOT_FOUND: 'SUBSCRIPTION_CONTRACT_NOT_FOUND',
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'NO_ACTIVE_SUBSCRIPTION_CONTRACT',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: 'SUBSCRIPTION_CONTRACT_ALREADY_CLOSED',

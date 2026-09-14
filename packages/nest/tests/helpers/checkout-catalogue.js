@@ -52,10 +52,13 @@ export const START10 = {
 
 export function fakeOfferRepo() {
     const rows = new Map();
+    /** The transaction each consume ran on, by offer id. */
+    const consumedOn = new Map();
     let seq = 0;
     const stamp = () => new Date().toISOString();
     return {
         rows,
+        consumedOn,
         async list({ status }) {
             return [...rows.values()].filter((o) => !status || o.status === status);
         },
@@ -89,8 +92,11 @@ export function fakeOfferRepo() {
             Object.assign(row, structuredClone(data), { updatedAt: stamp() });
             return structuredClone(row);
         },
-        async consume(id) {
+        // As the port has it: the write decides whether the offer is still open.
+        async consume(id, tx) {
             const row = rows.get(id);
+            if (row.status !== 'open') throw new Error(`Checkout offer '${id}' is not open`);
+            consumedOn.set(id, tx);
             row.status = 'consumed';
             row.consumedAt = stamp();
             return structuredClone(row);
@@ -144,6 +150,8 @@ export function buildOfferService(overrides = {}) {
         promotions: fakePromotionRepo(),
         promoCodes: fakePromoCodes(),
         catalogEntries: null,
+        contracts: null,
+        transactions: null,
         ...overrides,
     };
     const pricing = new CheckoutOfferPricing(
@@ -159,6 +167,8 @@ export function buildOfferService(overrides = {}) {
         deps.bundles,
         deps.plans,
         deps.catalogEntries,
+        deps.contracts,
+        deps.transactions,
     );
     return { service, ...deps };
 }

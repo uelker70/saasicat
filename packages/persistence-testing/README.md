@@ -16,6 +16,9 @@ Verified scenarios:
 - PlanVersion and BundleVersion validity windows with auto-succession
 - `countByPlanVersionId` counts current AND pending bindings in one query
 - transaction rollback discards writes
+- a contract written on a transaction is undone with it, and found by the offer it came from
+- a checkout offer is consumed once, whoever asks first, and a consume on a rolled-back transaction
+  leaves it open
 - `findByTenantIdLocked` serializes concurrent transactions (row lock)
 - concurrent `claimSlot` grants exactly `maxRedemptions` slots
 - claim / exhaust / release lifecycle
@@ -91,7 +94,7 @@ persistenceAdapterContract({
     }),
     // The parts this adapter deliberately does not provide. A part named here
     // that the harness does provide fails the suite as well.
-    gaps: ['subscriptionContracts', 'appliedSettings'],
+    gaps: ['subscriptionContracts', 'checkoutOffers', 'appliedSettings'],
 });
 ```
 

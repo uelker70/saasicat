@@ -1,9 +1,12 @@
 // CheckoutOfferService — package snapshot website → onboarding → billing
 //
 // `create` is called by the pricing page, `getById`/`update` by
-// onboarding (customization), `consume` on subscription completion
-// (freezes the offer → `Subscription.packageSnapshot`). Every amount on an
-// offer comes from `CheckoutOfferPricing`; a caller only chooses.
+// onboarding (customization), and `conclude` on subscription completion, which
+// consumes the offer and writes its contract together (`consume` alone freezes
+// the offer and leaves the contract to the caller). Every amount on an offer
+// comes from `CheckoutOfferPricing`; a caller only chooses.
+
+import { isDeepStrictEqual } from 'node:util';
 
 import {
     ConflictException,
@@ -23,6 +26,9 @@ import type {
     CheckoutOfferSelection,
     CheckoutOfferSelectionUpdate,
     PlanRepository,
+    SubscriptionContractRecord,
+    TransactionContext,
+    TransactionRunner,
 } from '@saasicat/core';
 import {
     CONTRACT_ERROR_CODES,
@@ -36,11 +42,34 @@ import {
     PLAN_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
 import { bundleVersionNotBookableReason, isValidUntilExpired } from './bundle-version-bookable.js';
+import {
+    type CreateContractFromOfferOptions,
+    SubscriptionContractService,
+} from '../subscription-contract/subscription-contract.service.js';
 import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
-import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './checkout-offer.tokens.js';
+import {
+    CHECKOUT_OFFER_REPOSITORY_TOKEN,
+    CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
+} from './checkout-offer.tokens.js';
 
 /** The language an offer is described in when the caller names none. */
 const DEFAULT_OFFER_LOCALE = 'de';
+
+/** What concluding an offer produced: the consumed offer and its contract. */
+export interface ConcludedCheckoutOffer {
+    offer: CheckoutOfferRow;
+    contract: SubscriptionContractRecord;
+}
+
+/**
+ * The application's own writes that belong to concluding an offer, such as
+ * starting its subscription. They run on the same transaction, after the offer
+ * is consumed and its contract written; throwing undoes all of it.
+ */
+export type ConcludeCheckoutOfferWithin = (
+    tx: TransactionContext,
+    concluded: ConcludedCheckoutOffer,
+) => Promise<void>;
 
 @Injectable()
 export class CheckoutOfferService {
@@ -62,6 +91,13 @@ export class CheckoutOfferService {
         @Optional()
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntries: CatalogEntryRepository | null = null,
+        // Both present, or `conclude` is not wired: the module provides them together.
+        @Optional()
+        @Inject(SubscriptionContractService)
+        private readonly contracts: SubscriptionContractService | null = null,
+        @Optional()
+        @Inject(CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN)
+        private readonly transactions: TransactionRunner | null = null,
     ) {}
 
     list(filter: CheckoutOfferFilter): Promise<CheckoutOfferRow[]> {
@@ -152,11 +188,128 @@ export class CheckoutOfferService {
      * is kept for amounts that no longer match.
      */
     async consume(id: string): Promise<CheckoutOfferRow> {
+        await this.assertConsumable(id);
+        return this.repo.consume(id);
+    }
+
+    /**
+     * Consumes an offer and creates its contract in one transaction, together
+     * with the application's own writes in `within`, so an offer is never
+     * consumed without its contract, and no contract is written for an offer
+     * that stays open.
+     *
+     * Everything that can refuse runs before the transaction: what `consume`
+     * checks, and the checks the contract the offer becomes is held to. Inside
+     * it, the offer is consumed on the condition that it is still open, the
+     * contract is written, and `within` runs; an error in any of them undoes
+     * the others, and the offer can be concluded again.
+     *
+     * An offer that is already concluded for the same tenant answers with its
+     * contract rather than a refusal, so a caller retrying after a lost answer,
+     * or losing a race to another call for that tenant, gets the conclusion that
+     * stands; `within` does not run again, its writes committed with it. A
+     * conclusion for another tenant is refused with
+     * `CHECKOUT_OFFER_ALREADY_CONSUMED`, and an offer changed between the checks
+     * and the transaction with `CHECKOUT_OFFER_CHANGED`, nothing written.
+     *
+     * A promo code on the offer is redeemed in `within`, with
+     * `PromoCodesService.redeemInTransaction` on the same transaction. Before
+     * the transaction the code is only checked the way pricing checks it; the
+     * redemption checks the rest, the customer and the remaining redemptions,
+     * where a refusal still undoes everything. Nothing checks the code again
+     * after `within`, so a redemption that takes its last slot does not refuse
+     * the offer it was redeemed for.
+     */
+    async conclude(
+        id: string,
+        options: CreateContractFromOfferOptions,
+        within?: ConcludeCheckoutOfferWithin,
+    ): Promise<ConcludedCheckoutOffer> {
+        const { contracts, transactions } = this.conclusionPorts();
+        const { tenantId } = options;
+        const standing = await this.standingConclusion(await this.getById(id), contracts, tenantId);
+        if (standing) return standing;
+
+        const existing = await this.assertConsumable(id);
+        const checked = contracts.prepareFromOffer(existing, options);
+        let consumeFailed = false;
+        try {
+            return await transactions.run(async (tx) => {
+                // Per attempt: a runner may run this again, and a consume refused
+                // in an earlier attempt says nothing about the one that failed.
+                consumeFailed = false;
+                let offer: CheckoutOfferRow;
+                try {
+                    offer = await this.repo.consume(id, tx);
+                } catch (error) {
+                    consumeFailed = true;
+                    throw error;
+                }
+                // The checks read the offer before this transaction, and an open
+                // offer can still be changed in between. The contract has to be
+                // the one the consumed row describes, so it is built from that row
+                // and must be the contract that was checked.
+                const data = contracts.prepareFromOffer(offer, options);
+                if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
+                const contract = await contracts.create(data, tx);
+                const concluded = { offer, contract };
+                if (within) await within(tx, concluded);
+                return concluded;
+            });
+        } catch (error) {
+            // Only a consume that failed can have lost a race: the condition on it
+            // refuses a caller that another one beat to the offer after the checks
+            // above, and that caller's conclusion is the answer when it was for the
+            // same tenant. A failure after the consume is this caller's own and
+            // stands, even if somebody concludes the offer while it rolls back.
+            if (!consumeFailed) throw error;
+            // A lookup that fails on its own must not replace the refusal.
+            const offer = await this.repo.findById(id).catch(() => null);
+            const concludedMeanwhile = await this.standingConclusion(
+                offer,
+                contracts,
+                tenantId,
+            ).catch(() => null);
+            if (concludedMeanwhile) return concludedMeanwhile;
+            throw error;
+        }
+    }
+
+    private async assertConsumable(id: string): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
         this.assertOpen(existing, 'consumed');
         await this.assertBundleVersionsStillBookable(existing);
         await this.pricing.assertPricedByCatalogue(existing);
-        return this.repo.consume(id);
+        return existing;
+    }
+
+    /**
+     * The conclusion that stands for this tenant, if the offer has one. An offer
+     * carries no tenant and its id travels in a link, so a conclusion for
+     * another tenant is not an answer: that caller is refused as before.
+     */
+    private async standingConclusion(
+        offer: CheckoutOfferRow | null,
+        contracts: SubscriptionContractService,
+        tenantId: string,
+    ): Promise<ConcludedCheckoutOffer | null> {
+        if (!offer || offer.status !== 'consumed') return null;
+        const contract = await contracts.findByOriginalOfferId(offer.id);
+        return contract && contract.tenantId === tenantId ? { offer, contract } : null;
+    }
+
+    private conclusionPorts(): {
+        contracts: SubscriptionContractService;
+        transactions: TransactionRunner;
+    } {
+        if (!this.contracts || !this.transactions) {
+            throw new Error(
+                'CheckoutOfferService.conclude needs the subscription contract repository and a ' +
+                    'transaction runner: pass `conclusion` to CheckoutOfferModule.forRoot, or give ' +
+                    'SaaSiCatModule.forRoot a persistence bundle that has both.',
+            );
+        }
+        return { contracts: this.contracts, transactions: this.transactions };
     }
 
     /**
@@ -295,4 +448,12 @@ export class CheckoutOfferService {
     private isExpired(row: CheckoutOfferRow): boolean {
         return isValidUntilExpired(row.validUntil, Date.now());
     }
+}
+
+function offerChanged(offerId: string): ConflictException {
+    return new ConflictException({
+        code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_CHANGED,
+        message: `Checkout offer '${offerId}' changed while it was being concluded. Load it again.`,
+        params: { offerId },
+    });
 }

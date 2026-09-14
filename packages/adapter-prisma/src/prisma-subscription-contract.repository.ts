@@ -111,8 +111,23 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
         return row ? toSubscriptionContractRecord(row, row.lineItems) : null;
     }
 
-    async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
-        const row = await this.db().subscriptionContract.create({
+    async findByOriginalOfferId(
+        offerId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null> {
+        const row = await this.db(tx).subscriptionContract.findFirst({
+            where: { originalOfferId: offerId },
+            include: { lineItems: true },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        });
+        return row ? toSubscriptionContractRecord(row, row.lineItems) : null;
+    }
+
+    async create(
+        data: CreateSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord> {
+        const row = await this.db(tx).subscriptionContract.create({
             data: {
                 tenantId: data.tenantId,
                 status: data.status ?? 'active',

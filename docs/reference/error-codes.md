@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 160 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 161 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -176,6 +176,7 @@ Checkout offers and subscription contracts.
 | `CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED`         | Every selected bundle version requires a frozen bundle line item.                                                                                                              |
 | `CHECKOUT_OFFER_BUNDLE_NOT_OFFERED`                 | Bundle version '{bundleVersionId}' cannot be added to this offer ({reason}).                                                                                                   |
 | `CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE`        | At least one bundle version from the checkout offer is no longer bookable.                                                                                                     |
+| `CHECKOUT_OFFER_CHANGED`                            | Checkout offer '{offerId}' changed while it was being concluded. Load it again.                                                                                                |
 | `CHECKOUT_OFFER_EXPIRED`                            | Checkout offer '{offerId}' has expired and cannot be {action}                                                                                                                  |
 | `CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED`     | The selected plan does not cover all feature dependencies: [{missingRequires}] are missing from the plan + selected bundles.                                                   |
 | `CHECKOUT_OFFER_LINE_ITEMS_REQUIRED`                | A checkout offer can yield only one contract, and only once its line items are frozen.                                                                                         |

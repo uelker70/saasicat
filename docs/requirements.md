@@ -119,7 +119,7 @@ properties it has while doing it.
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 23      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 24      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 24      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 35      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 483 entries: 🟢 411 stand today, 🟡 70 decided but not yet delivered, ⚪ 0 drafts,
+Of 484 entries: 🟢 412 stand today, 🟡 70 decided but not yet delivered, ⚪ 0 drafts,
 🔵 2 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -209,7 +209,7 @@ Of 483 entries: 🟢 411 stand today, 🟡 70 decided but not yet delivered, ⚪
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 483 requirements. Do not edit by hand:
+Generated from `requirements/` — 484 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7484,6 +7484,63 @@ _Tested by:_
         - a promotion that starts after the offer was priced does not unsettle it
         - a promo code the promo module no longer accepts is refused at consumption
         - an add-on renamed after the offer keeps the offer valid
+
+<!-- END proof -->
+
+### SC-MKT-024 — An offer is concluded into its contract in one step, or not at all
+
+🟢 💰 Consuming the offer, writing the contract it becomes and the application's own writes for it,
+such as starting the subscription, commit together or not at all (`CheckoutOfferService.conclude`).
+Everything that can refuse is asked first: the offer is open, its add-ons bookable, its amounts the
+catalogue's (`SC-MKT-023`), and the contract passes the checks every contract is held to. A failure
+after that undoes the consume and the contract, and the offer can be concluded again. The contract
+is built from the offer as the transaction consumes it, and an offer changed after its checks is
+refused with `CHECKOUT_OFFER_CHANGED` rather than concluded into a contract it no longer describes.
+An offer already concluded for the same tenant answers with its contract, so a caller retrying after
+a lost answer, or losing to another call for that tenant, gets the conclusion that stands, and the
+application's writes do not run a second time; for any other tenant it is refused as consumed, since
+an offer carries no tenant and its link can reach anyone. A failure of the application's own writes
+stays that caller's error, whatever another call does meanwhile. A promo code on the offer is
+redeemed among those writes, on the same transaction: before it the code is checked only as pricing
+checks it, and nothing checks it again afterwards, so a redemption that takes the code's last slot
+does not refuse the offer it was redeemed for. Where the persistence bundle has no contract
+repository or no transaction runner, concluding refuses to run rather than writing the two apart;
+consuming an offer alone (`SC-MKT-017`) stays available and leaves the contract to the caller.
+
+_Source:_ autohauspro#352
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
+    - concluding an offer
+        - consumes it, writes its contract and runs the application on one transaction
+        - undoes all of it when the application’s own write fails, and can be concluded again
+        - refuses a contract the offer cannot become before anything is written
+        - refuses an offer whose amounts no longer match before anything is written
+        - answers an offer concluded already with its contract, without running the application
+          again
+        - gives a caller that loses the race the conclusion that stands
+        - refuses the offer to another tenant once it is concluded, rather than handing over the
+          contract
+        - refuses a caller that loses the race to another tenant
+        - refuses an offer changed between its checks and the transaction, writing nothing
+        - keeps its own failure when another call concludes the offer during the rollback
+        - keeps its own failure under a runner that retries after a refused consume
+        - refuses an offer consumed without a contract, rather than concluding it twice over
+    - a promo code on the offer
+        - is not checked again after the redemption took its last slot
+        - whose redemption is refused inside the transaction undoes the conclusion
+    - without what concluding writes through
+        - the service refuses to conclude rather than writing the two apart
+        - the module does not start with half of it
+- `packages/nest/tests/platform-composition.test.js`
+    - the checkout offer composer
+        - wires concluding from a bundle that has contracts and a transaction runner
+        - leaves it unwired where the bundle has no contract repository
+        - refuses to start when the application names half of it and nothing supplies the rest
+        - leaves it unwired without a transaction runner
 
 <!-- END proof -->
 

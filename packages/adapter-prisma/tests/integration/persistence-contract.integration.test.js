@@ -247,6 +247,9 @@ function createHarness() {
 persistenceAdapterContract({
     name: 'adapter-prisma @ postgres (canonical fragments schema)',
     create: async () => createHarness(),
+    // The adapter ships no CheckoutOfferRepository: an application implements
+    // that port against its own table, and wires it into its own harness.
+    gaps: ['checkoutOffers'],
 });
 
 describe('canonical schema structure', () => {
