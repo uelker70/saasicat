@@ -73,7 +73,8 @@ export class PrismaPlanVersionRepository implements PlanVersionRepository {
         tx?: TransactionContext,
     ): Promise<PlanVersionRecord | null> {
         const db = this.db(tx);
-        const storedPlanId = await this.binding.toStoragePlanId(db, planId);
+        const storedPlanId = await this.binding.findStoragePlanId(db, planId);
+        if (storedPlanId === null) return null;
         const row = await this.versions(db).findFirst({
             where: { planId: storedPlanId, publishedAt: { not: null }, supersededAt: null },
             orderBy: { version: 'desc' },
@@ -88,7 +89,8 @@ export class PrismaPlanVersionRepository implements PlanVersionRepository {
         tx?: TransactionContext,
     ): Promise<PlanVersionRecord | null> {
         const db = this.db(tx);
-        const storedPlanId = await this.binding.toStoragePlanId(db, planId);
+        const storedPlanId = await this.binding.findStoragePlanId(db, planId);
+        if (storedPlanId === null) return null;
         const activeWhere = this.fields.endsAt
             ? buildActivePlanVersionWhere(asOf, { withEndsAt: true })
             : buildActivePlanVersionWhere(asOf);

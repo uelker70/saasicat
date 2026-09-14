@@ -558,6 +558,8 @@ export interface PlanVersionRepository {
      *
      * Note: ignores `validFrom`/`validUntil`. For time-aware
      * resolution (onboarding, plan fallback for TRIAL) use `findActive`.
+     *
+     * A plan key no plan has finds `null`, not an error.
      */
     findLatestLive(planId: string, tx?: TransactionContext): Promise<PlanVersionRecord | null>;
 
@@ -571,6 +573,8 @@ export interface PlanVersionRepository {
      * return the highest `validFrom`, explicitly ordering null start dates
      * last as a legacy fallback. Adapters without validity columns may omit
      * the method (consumers fall back to `findLatestLive`).
+     *
+     * A plan key no plan has finds `null`, not an error.
      */
     findActive?(
         planId: string,

@@ -48,6 +48,41 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.equal(list[0].id, result.planVersion.id);
     });
 
+    test('createPlanDraft for a retired plan is refused as a plan that is not there', async () => {
+        const { versions, stem, plan } = await setupWithPlan();
+        await stem.softDeletePlan(plan.id);
+
+        await assert.rejects(
+            () =>
+                versions.createPlanDraft({
+                    planId: plan.id,
+                    features: ['A'],
+                    quotas: {},
+                    monthlyNet: '5.00',
+                    yearlyNet: '50.00',
+                }),
+            (error) => error.getResponse().code === 'PLAN_NOT_FOUND',
+        );
+    });
+
+    test('a draft left over from before its plan was retired is not published', async () => {
+        const { versions, stem, plan } = await setupWithPlan();
+        const { planVersion: draft } = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: {},
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        });
+        await stem.softDeletePlan(plan.id);
+
+        await assert.rejects(
+            () => versions.publishPlanVersion(draft.id, {}),
+            (error) => error.getResponse().code === 'PLAN_NOT_FOUND',
+        );
+        assert.equal((await versions.getPlanVersion(draft.id)).publishedAt, null);
+    });
+
     test('createPlanDraft: second draft → UnprocessableEntity (max 1 draft)', async () => {
         const { versions, plan } = await setupWithPlan();
         await versions.createPlanDraft({

@@ -833,6 +833,112 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('a plan key no plan has finds no versions, rather than failing', async (t) => {
+            // A plan can go between listing the catalogue and reading its
+            // versions, so a read by a key no plan has answers empty. Adapters
+            // without the editor's writes still have these reads, and the
+            // bundle service asks them on every publish.
+            const repository = harness.adapter.planRepository;
+            if (
+                !repository?.listVersions ||
+                !repository.findCurrentDraft ||
+                !repository.findLatestLivePlanVersion
+            ) {
+                t.skip('adapter provides no PlanRepository that reads versions by plan key');
+                return;
+            }
+            const entitlementVersions = harness.adapter.planVersionRepository;
+
+            assert.deepEqual(await repository.listVersions('NO_SUCH_PLAN'), []);
+            assert.equal(await repository.findCurrentDraft('NO_SUCH_PLAN'), null);
+            assert.equal(await repository.findLatestLivePlanVersion('NO_SUCH_PLAN'), null);
+            if (repository.findActivePlanVersion) {
+                assert.equal(
+                    await repository.findActivePlanVersion('NO_SUCH_PLAN', new Date()),
+                    null,
+                );
+            }
+            assert.equal(await entitlementVersions.findLatestLive('NO_SUCH_PLAN'), null);
+            if (entitlementVersions.findActive) {
+                assert.equal(
+                    await entitlementVersions.findActive('NO_SUCH_PLAN', new Date()),
+                    null,
+                );
+            }
+        });
+
+        test('retiring a plan hides none of its versions', async (t) => {
+            // A retired plan's row is there, and the guard deciding whether it
+            // may be deleted counts its published versions — an adapter that
+            // hid them would let that delete through.
+            const repository = harness.adapter.planRepository;
+            if (
+                !repository?.createPlanVersionDraft ||
+                !repository.publishPlanVersionDraft ||
+                !repository.listVersions ||
+                !repository.findCurrentDraft ||
+                !repository.findLatestLivePlanVersion ||
+                !repository.softDelete
+            ) {
+                t.skip('adapter provides no PlanRepository that reads versions and retires plans');
+                return;
+            }
+            const listVersions = repository.listVersions.bind(repository);
+            const findCurrentDraft = repository.findCurrentDraft.bind(repository);
+            const findLatestLive = repository.findLatestLivePlanVersion.bind(repository);
+            const entitlementVersions = harness.adapter.planVersionRepository;
+
+            const plan = await repository.create({ planKey: 'RETIRING', label: 'Retiring' });
+            const firstDraft = await repository.createPlanVersionDraft({
+                planId: 'RETIRING',
+                features: ['CORE'],
+                quotas: { users: 5 },
+                monthlyNet: '10.00',
+                yearlyNet: '100.00',
+                validFrom: '2026-01-01',
+            });
+            const live = await repository.publishPlanVersionDraft(firstDraft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+            const openDraft = await repository.createPlanVersionDraft({
+                planId: 'RETIRING',
+                baseVersionId: live.id,
+                features: ['CORE', 'PLUS'],
+                quotas: { users: 10 },
+                monthlyNet: '15.00',
+                yearlyNet: '150.00',
+                validFrom: '2026-06-01',
+            });
+            const reads = async () => ({
+                versions: (await listVersions('RETIRING')).map((row) => row.id),
+                draft: (await findCurrentDraft('RETIRING'))?.id ?? null,
+                latestLive: (await findLatestLive('RETIRING'))?.id ?? null,
+                entitlementFeatures:
+                    (await entitlementVersions.findLatestLive('RETIRING'))?.features ?? null,
+            });
+            const beforeRetiring = await reads();
+            // The entitlement read goes through a slice an adapter may keep in a
+            // table of its own, so it is compared before and after rather than
+            // pinned to what the catalogue slice wrote.
+            assert.deepEqual(
+                {
+                    versions: beforeRetiring.versions,
+                    draft: beforeRetiring.draft,
+                    latestLive: beforeRetiring.latestLive,
+                },
+                { versions: [live.id, openDraft.id], draft: openDraft.id, latestLive: live.id },
+                'a live plan reads its versions, so the comparison below has a subject',
+            );
+
+            await repository.softDelete(plan.id);
+
+            assert.deepEqual(await reads(), beforeRetiring, 'retiring the plan hid its versions');
+        });
+
         test('a retired bundle still occupies its key', async (t) => {
             // `findByKey` answers the database's question, and
             // `bundles_bundleKey_key` is an unconditional unique

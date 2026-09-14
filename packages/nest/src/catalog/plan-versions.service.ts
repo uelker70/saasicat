@@ -209,7 +209,10 @@ export class PlanVersionsService {
      */
     async createPlanDraft(data: CreatePlanVersionDraftData): Promise<PlanVersionMutationResult> {
         const plan = await this.repo.findById(data.planId);
-        if (!plan) {
+        // A retired plan takes no new version: it is out of the catalogue, and
+        // a draft could only be published into a plan nobody can buy. Publishing
+        // an existing draft is refused the same way below.
+        if (!plan || plan.deletedAt !== null) {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
                 message: `Plan '${data.planId}' not found`,
@@ -306,6 +309,17 @@ export class PlanVersionsService {
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED,
                 message: `PlanVersion '${versionId}' is already published`,
                 params: { versionId },
+            });
+        }
+        // A draft left over from before its plan was retired is not published:
+        // the retired plan would carry a live version, and a plan with a
+        // published version can never be deleted.
+        const plan = await this.repo.findByKey(draft.planId);
+        if (!plan || plan.deletedAt !== null) {
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
+                message: `Plan '${draft.planId}' not found`,
+                params: { planId: draft.planId },
             });
         }
 
