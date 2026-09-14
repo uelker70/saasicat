@@ -65,6 +65,24 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
+    test('a draft left over from before its plan was retired is not published', async () => {
+        const { versions, stem, plan } = await setupWithPlan();
+        const { planVersion: draft } = await versions.createPlanDraft({
+            planId: plan.id,
+            features: ['A'],
+            quotas: {},
+            monthlyNet: '5.00',
+            yearlyNet: '50.00',
+        });
+        await stem.softDeletePlan(plan.id);
+
+        await assert.rejects(
+            () => versions.publishPlanVersion(draft.id, {}),
+            (error) => error.getResponse().code === 'PLAN_NOT_FOUND',
+        );
+        assert.equal((await versions.getPlanVersion(draft.id)).publishedAt, null);
+    });
+
     test('createPlanDraft: second draft → UnprocessableEntity (max 1 draft)', async () => {
         const { versions, plan } = await setupWithPlan();
         await versions.createPlanDraft({

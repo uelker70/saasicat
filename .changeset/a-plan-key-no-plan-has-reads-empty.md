@@ -1,5 +1,6 @@
 ---
 '@saasicat/adapter-prisma': patch
+'@saasicat/nest': minor
 '@saasicat/persistence-testing': major
 ---
 
@@ -17,9 +18,11 @@ plan could not be listed at all.
 - A retired plan's versions stay readable, as they already were in the legacy
   binding and in `@saasicat/adapter-drizzle`: the guard that decides whether a
   plan may be deleted counts them.
-- Writes to a plan that is not live still refuse, and `PlanVersionsService`
-  refuses a new draft for a retired plan with `PLAN_NOT_FOUND` rather than
-  failing in the adapter.
+- Writes to a plan that is not live still refuse. `PlanVersionsService`
+  refuses to create a draft for a retired plan, or to publish one left over
+  from before it was retired, with `PLAN_NOT_FOUND`: `POST /plans/:planId/versions`
+  and publishing a plan version answer 404 for a retired plan, on every
+  adapter.
 - The exported `PrismaPlanBindingResolver` interface gains the member
   `findStoragePlanId`; a hand-written implementation of it adds one.
 - The persistence contract checks both, so an adapter that throws for an
