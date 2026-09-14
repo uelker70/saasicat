@@ -977,6 +977,10 @@ _Tested by:_
         - still skips when no gap is declared for it
     - a gap declared for a part the harness does provide
         - fails the suite and names the part
+- `packages/persistence-testing/tests/readme-example-declares-its-gaps.test.js`
+    - the README usage example
+        - is read: it wires ports and seed writers and declares gaps
+        - declares exactly the parts its harness leaves out
 
 <!-- END proof -->
 

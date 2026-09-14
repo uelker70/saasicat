@@ -11,32 +11,15 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+import { runTestFile } from './support/tap.js';
 
 const FIXTURE = fileURLToPath(new URL('./fixtures/contract-with-gaps.js', import.meta.url));
 
 /** Runs the fixture in one shape and reads the counts off its TAP report. */
 function run(shape) {
-    // `node --test` marks its children with NODE_TEST_CONTEXT and they report to
-    // the parent instead of stdout; the fixture is a run of its own.
-    const { NODE_TEST_CONTEXT: _parentRunner, ...env } = process.env;
-    const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap', FIXTURE], {
-        env: { ...env, CONTRACT_GAP_SHAPE: shape },
-        encoding: 'utf8',
-    });
-    const lines = result.stdout.split('\n');
-    const count = (name) => {
-        const prefix = `# ${name} `;
-        const line = lines.find((l) => l.startsWith(prefix));
-        return line === undefined ? Number.NaN : Number(line.slice(prefix.length));
-    };
-    return {
-        pass: count('pass'),
-        fail: count('fail'),
-        skip: count('skipped'),
-        output: result.stdout,
-    };
+    return runTestFile(FIXTURE, { env: { CONTRACT_GAP_SHAPE: shape } });
 }
 
 describe('a part the harness does not provide', () => {

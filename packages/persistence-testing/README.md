@@ -53,28 +53,38 @@ find one.
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 
 persistenceAdapterContract({
-    name: 'adapter-drizzle @ postgres',
+    name: 'my-adapter @ postgres',
     create: async () => ({
         adapter: {
             capabilities: { transactions: true, pessimisticLocking: true /* … */ },
             transactionRunner,
             subscriptionRepository,
             planVersionRepository,
-            promoCodeRepository, // optional slices activate more scenarios
+            planRepository,
+            bundleRepository,
+            subscriptionBundleRepository,
+            tenantSubscriptionWrite,
+            promoCodeRepository,
             promoCodeRedemptionRepository,
+            promoSubscriptionLookup,
             mfa,
             audit,
             auditQuery,
-            tenantSubscriptionWrite, // optional: enables atomic plan-binding scenarios
-            planRepository, // optional: enables plan lifecycle scenarios
-            bundleRepository, // optional: enables bundle validity scenarios
+            // Leave a part out and name it in `gaps` below; left out and not
+            // named, its scenarios fail.
         },
-        seed: { createPlanVersion, createSubscription, createPromoCode },
+        seed: {
+            createPlanVersion,
+            createSubscription,
+            createBundleVersion,
+            clearBookingRequestDate,
+            createPromoCode,
+        },
         reset: () => truncatePlatformTables(),
         close: () => pool.end(),
     }),
-    // The parts this adapter deliberately does not provide. Anything else the
-    // harness leaves out fails its scenarios.
+    // The parts this adapter deliberately does not provide. A part named here
+    // that the harness does provide fails the suite as well.
     gaps: ['subscriptionContracts', 'appliedSettings'],
 });
 ```
