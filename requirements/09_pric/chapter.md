@@ -260,11 +260,10 @@ _Tested by:_
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
-        - a rate the offer states as a fraction is recorded in per cent
+        - the rate the offer states is recorded as the percentage it is
         - and the rate it records explains the tax it records
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
-        - a rate the offer states in per cent, as the server prices it, is recorded as it is
         - the discount the offer implies carries a negative tax, not a positive one
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a line item learns the money it was booked with
@@ -284,11 +283,10 @@ _Tested by:_
 
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
-        - a rate the offer states as a fraction is recorded in per cent
+        - the rate the offer states is recorded as the percentage it is
         - and the rate it records explains the tax it records
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
-        - a rate the offer states in per cent, as the server prices it, is recorded as it is
         - the discount the offer implies carries a negative tax, not a positive one
 - `packages/nest/tests/validity-window.test.js`
     - the window a version is refused for
@@ -327,31 +325,14 @@ _Tested by:_
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
-        - a rate the offer states as a fraction is recorded in per cent
+        - the rate the offer states is recorded as the percentage it is
         - and the rate it records explains the tax it records
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
-        - a rate the offer states in per cent, as the server prices it, is recorded as it is
         - the discount the offer implies carries a negative tax, not a positive one
-    - reading the unit an offer states its VAT rate in
-        - a fraction beside totals that agree with it becomes a percentage
-        - a percentage beside totals that agree with it is left as it is
-        - zero is zero under either reading
-        - totals that prove nothing leave the size of the rate to decide
-        - a total of nothing keeps the rate it states, in either unit
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
-        - a rate ${what} stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
-        - a free plan frozen from the catalogue keeps a rate below 1 as it stands
-        - a free plan concluded from an offer that states per cent keeps its rate as it stands
-        - totals a cent beside both readings leave a rate above 1 in per cent
-        - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
-        - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
-        - a rate of exactly 1 that no reading explains stops the migration and is named
-        - a rate of 0 is recorded as 0 whatever its totals say
-        - a rate below 1 that no reading explains stops the migration and is named
 
 <!-- END proof -->
 

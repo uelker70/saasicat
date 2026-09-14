@@ -6,7 +6,6 @@ import type {
 } from '@saasicat/core';
 
 import { grossFromNet } from '../promo/math.js';
-import { vatPercentFromOfferRate } from '../subscription-contract/contract-line-item-money.js';
 
 export interface AppendImplicitDiscountLineItemInput {
     billingCycle: 'monthly' | 'yearly';
@@ -53,12 +52,7 @@ function createDiscountLineItem(
     const promoCode = input.promoCodeSnapshot ?? null;
     const firstPromotion = input.promotionSnapshots?.[0] ?? null;
     const breakdown = input.priceBreakdown;
-    const vatPercent = vatPercentFromOfferRate(
-        breakdown.vatRate,
-        breakdown.effectiveNet,
-        breakdown.effectiveGross,
-    );
-    const discountGross = grossFromNet(discountNet, vatPercent);
+    const discountGross = grossFromNet(discountNet, breakdown.vatRate);
 
     return {
         kind: 'discount',

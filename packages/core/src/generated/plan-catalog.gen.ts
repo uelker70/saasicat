@@ -40,7 +40,7 @@ export interface PlanCatalog {
      */
     currency: string;
     /**
-     * VAT rate in percent. Required (even when 0).
+     * VAT rate as a percentage: 19 means 19 %. Required (even when 0). Every tax rate in SaaSiCat is a percentage, so a value between 0 and 1, the shape of a fraction such as 0.19, is refused.
      */
     vatRate: number;
     /**

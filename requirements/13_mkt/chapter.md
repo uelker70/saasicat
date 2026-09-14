@@ -428,8 +428,10 @@ _Tested by:_
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
+        - a replacement whose rate is refused leaves the previous contract active
         - create requires a plan line item
         - a line whose tax does not close its own gap is refused
+        - ${what} is refused when a contract is created directly
         - a line booked in another currency than its contract is refused
         - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
@@ -508,8 +510,10 @@ _Tested by:_
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
+        - a replacement whose rate is refused leaves the previous contract active
         - create requires a plan line item
         - a line whose tax does not close its own gap is refused
+        - ${what} is refused when a contract is created directly
         - a line booked in another currency than its contract is refused
         - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
@@ -535,8 +539,10 @@ _Tested by:_
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
+        - a replacement whose rate is refused leaves the previous contract active
         - create requires a plan line item
         - a line whose tax does not close its own gap is refused
+        - ${what} is refused when a contract is created directly
         - a line booked in another currency than its contract is refused
         - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice

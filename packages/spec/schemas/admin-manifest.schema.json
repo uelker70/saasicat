@@ -80,7 +80,13 @@
                 },
                 "hash": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$" },
                 "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
-                "vatRate": { "type": "number", "minimum": 0, "maximum": 100 },
+                "vatRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "not": { "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+                    "description": "VAT rate as a percentage: 19 means 19 %."
+                },
                 "features": {
                     "type": "array",
                     "items": {

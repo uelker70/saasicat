@@ -40,7 +40,8 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 - Primary keys: UUID strings.
 - Soft delete via `deletedAt` where history must survive (plans, bundles,
   promo codes, catalog entries); hard delete only for drafts.
-- Money: `Decimal(10,2)`; promo values `Decimal(8,2)`; tax rates `Decimal(5,2)`.
+- Money: `Decimal(10,2)`; promo values `Decimal(8,2)`; tax rates `Decimal(5,2)`, as percentages —
+  19 means 19 %, wherever a rate is stated.
   Never floats. An amount that was booked records the currency and the tax
   rate beside it rather than borrowing today's configuration — an
   installation sells in one currency at a time, and changing it is a

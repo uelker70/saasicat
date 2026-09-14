@@ -168,17 +168,8 @@ _Tested by:_
         - a contract with ${what} stops the migration and is named
         - and the table is exactly as it was afterwards
         - a rate ${what} stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
-        - a free plan frozen from the catalogue keeps a rate below 1 as it stands
-        - and a free plan concluded from an offer keeps its rate as the fraction it is
-        - a free plan concluded from an offer that states per cent keeps its rate as it stands
-        - totals a cent beside both readings leave a rate above 1 in per cent
-        - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
-        - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
-        - a rate of exactly 1 that no reading explains stops the migration and is named
-        - a rate of 0 is recorded as 0 whatever its totals say
-        - a rate below 1 that no reading explains stops the migration and is named
-        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
         - a value already in a column is kept, and a row missing only one is still found
         - an installation that never took the fragment is left alone
         - a line whose contract is gone is named as itself, not as an empty space
@@ -235,17 +226,8 @@ _Tested by:_
         - a contract with ${what} stops the migration and is named
         - and the table is exactly as it was afterwards
         - a rate ${what} stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
-        - a free plan frozen from the catalogue keeps a rate below 1 as it stands
-        - and a free plan concluded from an offer keeps its rate as the fraction it is
-        - a free plan concluded from an offer that states per cent keeps its rate as it stands
-        - totals a cent beside both readings leave a rate above 1 in per cent
-        - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
-        - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
-        - a rate of exactly 1 that no reading explains stops the migration and is named
-        - a rate of 0 is recorded as 0 whatever its totals say
-        - a rate below 1 that no reading explains stops the migration and is named
-        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
         - a value already in a column is kept, and a row missing only one is still found
         - an installation that never took the fragment is left alone
         - a line whose contract is gone is named as itself, not as an empty space

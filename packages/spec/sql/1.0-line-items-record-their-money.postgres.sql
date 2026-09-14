@@ -13,38 +13,20 @@
 --
 -- Where the values come from. Every contract carries a `priceSnapshot` holding
 -- the currency and the VAT rate that were agreed for it, written in the same
--- moment as its line items — so an existing line is not guessed at, it reads
--- the fact one level up. "taxAmount" is the gap between the line's own net and
--- gross, which is exact: both are already held to two places.
+-- moment as its line items — so an existing line reads the fact one level up.
+-- "taxAmount" is the gap between the line's own net and gross, which is exact:
+-- both are already held to two places.
 --
--- The rate needs its unit read rather than assumed. A contract frozen from the
--- catalogue holds per cent. A contract concluded from a checkout offer holds
--- the rate as that offer stated it: the platform's offer priced its lines as
--- `net * (1 + vatRate)`, a fraction, and an installation that built its own
--- offers may have written per cent there too. The same installation can
--- therefore hold both in one column, which is the reason `"taxRate"` exists.
---
--- Three things decide the unit, in this order. First the snapshot's own
--- totals: whichever of the two readings alone explains the gross it recorded
--- is the one it was written in. Where both explain it (totals of zero, which
--- every rate explains) or neither does (a total summed from rounded lines can
--- sit a cent beside both), the size of the rate. A rate of 0 is 0 in either
--- unit, so it is recorded as it stands whatever the totals say. A fraction
--- above 1 would be a tax above 100 per cent, which the guard below refuses, so
--- a rate above 1 is per cent. A rate of exactly 1 is still 100 per cent as a
--- fraction, so from 1 down to 0 the size settles nothing. There, where both
--- readings explain the totals, the contract's provenance decides:
--- `originalOfferId` is set only where the contract was concluded from an
--- offer, so a null one holds per cent and a set one the platform's fraction.
--- Where neither does, nothing in the row says which unit it is, and the
--- migration refuses rather than guessing.
---
--- What it will not do is invent a value. A contract whose snapshot does not
--- state a currency, or does not state the numbers this needs, or leaves the
--- unit of a rate between 0 and 1 open, or yields a rate outside 0–100, stops
--- the migration with a sentence naming the contract —
--- because a row labelled EUR because EUR is common is worse than a migration
--- that did not run.
+-- The rate is a percentage, as every tax rate in SaaSiCat is: 19 means 19 %.
+-- It is taken from the snapshot as it stands and checked, never read in some
+-- other unit or converted. A contract stops the migration, named, where its
+-- snapshot does not state a currency, does not state its vatRate as a number,
+-- or states a rate outside 0 to 100 or between 0 and 1 — the shape of a
+-- fraction such as 0.19. A line this file fills that already carries a rate of
+-- its own is held to the same rule; a line that already holds all three values
+-- is not touched. An installation that stored fractions converts them before it
+-- runs this file; a row labelled 0.19 % because a number was there is worse
+-- than a migration that did not run.
 --
 -- Safe to run again: the columns are added only where they are missing, a value
 -- already in a column is kept rather than rewritten, and tightening a column
@@ -89,58 +71,21 @@ BEGIN
                        THEN nullif(c."priceSnapshot" ->> 'currency', '')
                END
            ) AS currency,
-           coalesce(
-               li."taxRate",
-               CASE
-                   WHEN snap.rate IS NULL THEN NULL
-                   -- The totals explain exactly one reading.
-                   WHEN reading.as_percent AND NOT reading.as_fraction
-                       THEN round(snap.rate, 2)
-                   WHEN reading.as_fraction AND NOT reading.as_percent
-                       THEN round(snap.rate * 100, 2)
-                   -- They explain both or neither. A rate of 0 is 0 in either
-                   -- unit, whatever the totals say.
-                   WHEN snap.rate = 0
-                       THEN 0
-                   -- A fraction above 1 would be a tax above 100 per cent, so
-                   -- this rate is per cent whatever the totals say. Exactly 1
-                   -- is not settled here: as a fraction it is 100 per cent,
-                   -- which the guard allows.
-                   WHEN snap.rate > 1
-                       THEN round(snap.rate, 2)
-                   -- Above 0, up to 1, and explained by neither reading: the
-                   -- unit is open, and the guard below refuses the NULL.
-                   WHEN NOT reading.as_percent
-                       THEN NULL
-                   -- Above 0, up to 1, and explained by both: provenance decides.
-                   WHEN c."originalOfferId" IS NULL
-                       THEN round(snap.rate, 2)
-                   ELSE round(snap.rate * 100, 2)
-               END
-           ) AS tax_rate,
+           -- The rate as it is stated, before it is rounded to the column's two
+           -- places: the rule is checked on what was written, as the guide's
+           -- query checks it, so 0.995 is a fraction here too.
+           coalesce(li."taxRate", snap.rate) AS stated_rate,
+           coalesce(li."taxRate", round(snap.rate, 2)) AS tax_rate,
            coalesce(li."taxAmount", li."priceGross" - li."priceNet") AS tax_amount
       FROM "contract_line_items" li
       LEFT JOIN "subscription_contracts" c ON c."id" = li."contractId"
-      -- The numbers are cast only once all three are known to be JSON numbers,
-      -- so a snapshot stating `"vatRate": "19"` reaches the refusal below with
-      -- its contract named rather than a cast error that names nothing.
+      -- The rate is cast only once it is known to be a JSON number, so a
+      -- snapshot stating `"vatRate": "19"` reaches the refusal below with its
+      -- contract named rather than a cast error that names nothing.
      CROSS JOIN LATERAL (
-         SELECT jsonb_typeof(c."priceSnapshot" -> 'vatRate') = 'number'
-                AND jsonb_typeof(c."priceSnapshot" -> 'totalNet') = 'number'
-                AND jsonb_typeof(c."priceSnapshot" -> 'totalGross') = 'number' AS has_numbers
-     ) typed
-     CROSS JOIN LATERAL (
-         SELECT CASE WHEN typed.has_numbers
-                    THEN (c."priceSnapshot" ->> 'vatRate')::numeric END AS rate,
-                CASE WHEN typed.has_numbers
-                    THEN (c."priceSnapshot" ->> 'totalNet')::numeric END AS net,
-                CASE WHEN typed.has_numbers
-                    THEN (c."priceSnapshot" ->> 'totalGross')::numeric END AS gross
+         SELECT CASE WHEN jsonb_typeof(c."priceSnapshot" -> 'vatRate') = 'number'
+                    THEN (c."priceSnapshot" ->> 'vatRate')::numeric END AS rate
      ) snap
-     CROSS JOIN LATERAL (
-         SELECT round(snap.net * (1 + snap.rate / 100), 2) = round(snap.gross, 2) AS as_percent,
-                round(snap.net * (1 + snap.rate), 2) = round(snap.gross, 2) AS as_fraction
-     ) reading
      WHERE li."currency" IS NULL
         OR li."taxRate" IS NULL
         OR li."taxAmount" IS NULL;
@@ -154,18 +99,21 @@ BEGIN
       INTO unfillable
       FROM _saasicat_line_money
      WHERE currency IS NULL
-        OR tax_rate IS NULL
-        OR tax_rate < 0
-        OR tax_rate > 100;
+        OR stated_rate IS NULL
+        OR stated_rate < 0
+        OR stated_rate > 100
+        -- The shape of a fraction: a percentage between 0 and 1 is refused
+        -- rather than recorded as a fraction of a per cent.
+        OR (stated_rate > 0 AND stated_rate < 1);
 
     IF unfillable IS NOT NULL THEN
         RAISE EXCEPTION
             'Cannot record the money facts of % contract(s): their priceSnapshot does not state a '
-            'currency, or does not state the vatRate, totalNet and totalGross this needs as '
-            'numbers, or states a rate above 0 and up to 1 whose unit neither its totals nor its '
-            'size settle, or yields a rate outside 0-100 (%). The snapshot is the only record of '
-            'what was agreed, so this migration will not guess. Repair those snapshots and run it '
-            'again. A line named on its own has no contract row at all.',
+            'currency, or does not state its vatRate as a number, or states a tax rate — in the '
+            'snapshot, or on a line that already carries one — that is not a percentage from 0 '
+            'to 100, a value between 0 and 1 being refused as a fraction (%). The snapshot is '
+            'the only record of what was agreed, so this migration converts nothing. Repair those '
+            'rows and run it again. A line named on its own has no contract row at all.',
             array_length(unfillable, 1),
             array_to_string(unfillable[1:10], ', ')
                 || CASE WHEN array_length(unfillable, 1) > 10 THEN ', …' ELSE '' END;

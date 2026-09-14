@@ -661,10 +661,9 @@ psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-line-items-record-th
 It adds the columns, fills them from each line's own contract — `priceSnapshot` already records the
 currency and the VAT rate that were agreed, written in the same moment as the lines — and only then
 makes them required. It will not invent a currency or a rate: a contract whose snapshot does not
-state one, states a rate that is not a number between 0 and 100, or states a rate above 0 and up to
-1 whose unit nothing in the snapshot settles, **stops the migration and is named**, with nothing
-half-applied. Running it again does nothing, and on a database whose schema already has the columns
-it does nothing at all.
+state one, or states a rate that is not a number from 0 to 100, or a rate between 0 and 1 — the
+shape of a fraction — **stops the migration and is named**, with nothing half-applied. Running it
+again does nothing, and on a database whose schema already has the columns it does nothing at all.
 
 **List what it would refuse, before you run it.** An empty result means it will go through. Run it
 against the database as it stands, before the columns exist:
@@ -674,64 +673,44 @@ WITH snapshot AS (
     SELECT c."id", c."tenantId", c."priceSnapshot" AS s,
            jsonb_typeof(c."priceSnapshot" -> 'currency') = 'string'
                AND c."priceSnapshot" ->> 'currency' <> '' AS has_currency,
-           jsonb_typeof(c."priceSnapshot" -> 'vatRate') = 'number'
-               AND jsonb_typeof(c."priceSnapshot" -> 'totalNet') = 'number'
-               AND jsonb_typeof(c."priceSnapshot" -> 'totalGross') = 'number' AS has_numbers,
-           c."originalOfferId" IS NOT NULL AS from_an_offer
+           CASE WHEN jsonb_typeof(c."priceSnapshot" -> 'vatRate') = 'number'
+               THEN (c."priceSnapshot" ->> 'vatRate')::numeric END AS rate
       FROM "subscription_contracts" c
      WHERE EXISTS (SELECT 1 FROM "contract_line_items" li WHERE li."contractId" = c."id")
-), numbers AS (
-    SELECT *,
-           CASE WHEN has_numbers THEN (s ->> 'vatRate')::numeric END AS stated_rate,
-           CASE WHEN has_numbers THEN (s ->> 'totalNet')::numeric END AS net,
-           CASE WHEN has_numbers THEN (s ->> 'totalGross')::numeric END AS gross
-      FROM snapshot
-), reading AS (
-    SELECT *,
-           round(net * (1 + stated_rate / 100), 2) = round(gross, 2) AS as_percent,
-           round(net * (1 + stated_rate), 2) = round(gross, 2) AS as_fraction
-      FROM numbers
-), rated AS (
-    SELECT *,
-           CASE
-               WHEN stated_rate IS NULL THEN NULL
-               WHEN as_percent AND NOT as_fraction THEN round(stated_rate, 2)
-               WHEN as_fraction AND NOT as_percent THEN round(stated_rate * 100, 2)
-               WHEN stated_rate = 0 THEN 0
-               WHEN stated_rate > 1 THEN round(stated_rate, 2)
-               WHEN NOT as_percent THEN NULL
-               WHEN NOT from_an_offer THEN round(stated_rate, 2)
-               ELSE round(stated_rate * 100, 2)
-           END AS rate
-      FROM reading
 )
-SELECT id, "tenantId", s -> 'currency' AS currency, s -> 'vatRate' AS stated, rate
-  FROM rated
- WHERE has_currency IS NOT TRUE OR rate IS NULL OR rate < 0 OR rate > 100
+SELECT id, "tenantId", s -> 'currency' AS currency, s -> 'vatRate' AS rate
+  FROM snapshot
+ WHERE has_currency IS NOT TRUE
+    OR rate IS NULL
+    OR rate < 0
+    OR rate > 100
+    OR (rate > 0 AND rate < 1)
  ORDER BY id;
 ```
 
-The `rate` column is what the migration would record, in per cent. It is worth reading even for the
-contracts the query does not report, because `stated` may be in either unit: a contract frozen from
-the catalogue states per cent, and one concluded from a checkout offer states the rate as the offer
-did — a fraction where the platform's offer priced its lines, per cent where your own code wrote it
-that way. So `stated` of `0.19` and `rate` of `19` are the same rate. Three things settle the unit,
-in this order: the snapshot's totals, where exactly one reading explains them; otherwise the size of
-the rate, because a rate of 0 is 0 in either unit and a fraction above 1 would be a tax above 100
-per cent; and above 0 up to 1, where both readings explain the totals — a free plan, whose totals
-are zero — `originalOfferId`. A rate above 0 and up to 1 that neither reading explains is reported
-with an empty `rate`: nothing in the row says which unit it is in.
+Every tax rate in SaaSiCat is a percentage: `19` means 19 %. The migration records the rate a
+snapshot states as it stands and converts nothing, so a contract whose `rate` is between 0 and 1 —
+a fraction such as `0.19` — is reported and refused. If your application stored rates as fractions,
+convert those snapshots to percentages before you run the migration. A line the migration fills
+that already carries a `taxRate` of its own, which this query does not read, is held to the same
+rule. The query answers for contracts that have line items, which are the ones the
+migration fills; to find every snapshot that still states a fraction, run it without its
+`WHERE EXISTS` line.
 
 Repair those snapshots to say what was actually agreed — they are the record the lines are filled
 from, so a wrong value here becomes a wrong value on every line of that contract.
 
-**The rate is recorded in per cent, and the checkout path did not do that before.** A checkout offer
-used to price its lines as `net * (1 + vatRate)`, so a contract concluded from one may state the
-rate as a fraction, while the catalogue states per cent. The migration settles the unit per
-contract as the query above shows, so `taxRate` is per cent whichever path wrote the row.
-`SubscriptionContractPriceSnapshot.vatRate` is untouched and still carries whichever unit the
-contract was concluded with — if you read it, `ContractLineItemRecord.taxRate` is the one that is
-always per cent.
+**Every tax rate is a percentage, and nothing reads it another way.** `config/saas.yaml`,
+`priceBreakdown.vatRate` on a checkout offer, `SubscriptionContractPriceSnapshot.vatRate` and
+`ContractLineItemRecord.taxRate` all state 19 for 19 %.
+
+- **A `vatRate` between 0 and 1 in `config/saas.yaml`** does not load; it is the shape of a
+  fraction.
+- **`SubscriptionContractService`** refuses a contract whose `priceSnapshot.vatRate` or any line's
+  `taxRate` is not a percentage, with `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT`, whichever way it
+  is created. An offer the server priced always passes; create a new offer for one that does not.
+- **`vatPercentFromOfferRate` is gone** from `@saasicat/nest/subscription-contract`. Code that
+  called it reads the rate as it stands.
 
 **`SubscriptionContractService.create` now refuses a line that disagrees with its contract** —
 `SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH` where `taxAmount` is not exactly
@@ -918,9 +897,9 @@ discount, and the currency and VAT rate from `config/saas.yaml`.
 - **A promo code** is part of the selection. Rewriting an offer's breakdown after redeeming a code
   is no longer possible and no longer needed: the offer already carries the discount the promo
   module accepts.
-- **`priceBreakdown.vatRate`** is stated in per cent (`19`), as the plan catalogue names it. Code
-  that multiplied by `1 + vatRate` reads it as `1 + vatRate / 100`. A contract created from an
-  offer reads either unit.
+- **`priceBreakdown.vatRate`** is a percentage (`19`), as every tax rate is. Code that multiplied by
+  `1 + vatRate` computes `1 + vatRate / 100`, and a contract created from an offer takes the rate
+  as it stands.
 - **Consuming an offer** computes its amounts again from the plan and bundle versions it froze and
   refuses one whose stored amounts differ, or that names no plan version, with
   `CHECKOUT_OFFER_PRICE_NOT_CURRENT`. An offer created before the upgrade can hit this; create it

@@ -38,24 +38,3 @@ export function recordLineItemMoney(
         taxAmount: round2(line.priceGross - line.priceNet),
     };
 }
-
-/**
- * The VAT rate a checkout offer states, as a percentage.
- *
- * A stored offer can carry the rate in either unit. The server prices an offer
- * in **per cent**, as `config/saas.yaml` names the rate, while an offer row
- * written by other code may carry a **fraction**. Recording either as it
- * stands would put both units in `ContractLineItem.taxRate`, on a column whose
- * whole purpose is to be the authoritative record of the rate.
- *
- * Which unit a given breakdown carries is read off its own totals where they
- * tell the two apart. Where they cannot — a total of zero explains any rate —
- * the size decides: a VAT rate stated as a fraction is below one, and one
- * stated in per cent is not.
- */
-export function vatPercentFromOfferRate(rate: number, net: number, gross: number): number {
-    const asPercent = round2(net * (1 + rate / 100)) === round2(gross);
-    const asFraction = round2(net * (1 + rate)) === round2(gross);
-    if (asPercent !== asFraction) return asPercent ? rate : round2(rate * 100);
-    return rate >= 1 ? rate : round2(rate * 100);
-}

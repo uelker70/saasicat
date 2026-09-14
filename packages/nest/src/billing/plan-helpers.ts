@@ -13,7 +13,8 @@ import type {
     PlanId,
     QuotaKey,
 } from '@saasicat/core';
-import { round2 } from '../promo/math.js';
+import { grossFromNet } from '../promo/math.js';
+import { assertTaxRatePercent } from '../subscription-contract/contract-refusals.js';
 
 /**
  * Finds a plan in the catalog. `undefined` if it does not exist.
@@ -65,9 +66,10 @@ export function getPlanPriceNet(
 }
 
 /**
- * Gross list price from the catalog (net * (1 + vatRate/100)).
+ * Gross list price from the catalog, through `grossFromNet`.
  * `null` with the same rules as `getPlanPriceNet`. `vatRate` is optional;
- * default: `catalog.vatRate`.
+ * default: `catalog.vatRate`. A rate that is not a percentage is refused, as it
+ * is wherever a rate is stated.
  */
 export function getPlanPriceGross(
     catalog: PlanCatalog,
@@ -78,7 +80,8 @@ export function getPlanPriceGross(
     const net = getPlanPriceNet(catalog, planId, cycle);
     if (net === null) return null;
     const rate = vatRate ?? catalog.vatRate;
-    return round2(net * (1 + rate / 100));
+    assertTaxRatePercent(vatRate === undefined ? 'catalog.vatRate' : 'vatRate', rate);
+    return grossFromNet(net, rate);
 }
 
 /**

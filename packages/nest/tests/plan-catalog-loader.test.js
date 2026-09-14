@@ -333,3 +333,27 @@ test('an unknown member of the block is refused, not ignored', () => {
         PlanCatalogValidationError,
     );
 });
+
+// @requirement SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+test('a VAT rate is a percentage: a fraction is refused, and the bounds are percentages', () => {
+    for (const vatRate of ['0.19', '0.5', '-1', '101']) {
+        assert.throws(
+            () =>
+                loadPlanCatalogFromString(
+                    VALID_YAML.replace('vatRate: 19.0', `vatRate: ${vatRate}`),
+                    {
+                        source: `vat-${vatRate}`,
+                    },
+                ),
+            PlanCatalogValidationError,
+            `vatRate ${vatRate} was accepted`,
+        );
+    }
+    for (const vatRate of [0, 1, 7, 100]) {
+        const catalog = loadPlanCatalogFromString(
+            VALID_YAML.replace('vatRate: 19.0', `vatRate: ${vatRate}`),
+            { source: `vat-${vatRate}` },
+        );
+        assert.equal(catalog.vatRate, vatRate);
+    }
+});
