@@ -4974,7 +4974,10 @@ _Tested by:_
         - a free plan frozen from the catalogue keeps its rate as it stands
         - a free plan frozen from the catalogue keeps a rate below 1 as it stands
         - a free plan concluded from an offer that states per cent keeps its rate as it stands
-        - totals a cent beside both readings leave a rate of 1 or more in per cent
+        - totals a cent beside both readings leave a rate above 1 in per cent
+        - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
+        - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
+        - a rate of exactly 1 that no reading explains stops the migration and is named
         - a rate below 1 that no reading explains stops the migration and is named
 
 <!-- END proof -->
@@ -12000,7 +12003,10 @@ _Tested by:_
         - a free plan frozen from the catalogue keeps a rate below 1 as it stands
         - and a free plan concluded from an offer keeps its rate as the fraction it is
         - a free plan concluded from an offer that states per cent keeps its rate as it stands
-        - totals a cent beside both readings leave a rate of 1 or more in per cent
+        - totals a cent beside both readings leave a rate above 1 in per cent
+        - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
+        - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
+        - a rate of exactly 1 that no reading explains stops the migration and is named
         - a rate below 1 that no reading explains stops the migration and is named
         - a rate a checkout offer stated as a fraction is recorded in per cent
         - a value already in a column is kept, and a row missing only one is still found
@@ -12063,7 +12069,10 @@ _Tested by:_
         - a free plan frozen from the catalogue keeps a rate below 1 as it stands
         - and a free plan concluded from an offer keeps its rate as the fraction it is
         - a free plan concluded from an offer that states per cent keeps its rate as it stands
-        - totals a cent beside both readings leave a rate of 1 or more in per cent
+        - totals a cent beside both readings leave a rate above 1 in per cent
+        - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
+        - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
+        - a rate of exactly 1 that no reading explains stops the migration and is named
         - a rate below 1 that no reading explains stops the migration and is named
         - a rate a checkout offer stated as a fraction is recorded in per cent
         - a value already in a column is kept, and a row missing only one is still found

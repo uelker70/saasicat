@@ -600,7 +600,7 @@ describe('a line item learns the money it was booked with', () => {
     });
 
     // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
-    test('totals a cent beside both readings leave a rate of 1 or more in per cent', async () => {
+    test('totals a cent beside both readings leave a rate above 1 in per cent', async () => {
         // 10.01 at 19 per cent is 11.91; the snapshot says 11.92, as a total
         // summed from rounded lines can. Neither reading explains it, and the
         // tax on the line is its own gap between net and gross.
@@ -617,6 +617,65 @@ describe('a line item learns the money it was booked with', () => {
         assert.deepEqual(await linesById(), [
             { id: 'l-cent-off', currency: 'EUR', taxRate: '19.00', taxAmount: '1.91' },
         ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is', async () => {
+        // As a fraction, 1 is a tax of 100 per cent, which the guard allows, so
+        // the size settles nothing at 1 and provenance decides as it does below.
+        await beforeTheMigration();
+        await seedContract(
+            'c-free-one-offer',
+            { currency: 'EUR', vatRate: 1, totalNet: 0, totalGross: 0 },
+            'offer-6',
+        );
+        await seedLine('l-free-one-offer', 'c-free-one-offer', 'plan', '0.00', '0.00');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await linesById(), [
+            { id: 'l-free-one-offer', currency: 'EUR', taxRate: '100.00', taxAmount: '0.00' },
+        ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent', async () => {
+        await beforeTheMigration();
+        await seedContract('c-free-one', {
+            currency: 'EUR',
+            vatRate: 1,
+            totalNet: 0,
+            totalGross: 0,
+        });
+        await seedLine('l-free-one', 'c-free-one', 'plan', '0.00', '0.00');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await linesById(), [
+            { id: 'l-free-one', currency: 'EUR', taxRate: '1.00', taxAmount: '0.00' },
+        ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('a rate of exactly 1 that no reading explains stops the migration and is named', async () => {
+        // 100 at 1 per cent is 101, at a fraction of 1 it is 200; the snapshot
+        // says 150.
+        await beforeTheMigration();
+        await seedContract(
+            'c-one-unclear',
+            { currency: 'EUR', vatRate: 1, totalNet: 100, totalGross: 150 },
+            'offer-7',
+        );
+        await seedLine('l-one-unclear', 'c-one-unclear', 'plan', '100.00', '150.00');
+
+        await assert.rejects(
+            () => apply(MIGRATION),
+            (error) => {
+                assert.match(String(error.message), /Cannot record the money facts of 1 contract/);
+                assert.match(String(error.message), /c-one-unclear/);
+                return true;
+            },
+        );
     });
 
     // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
@@ -751,6 +810,12 @@ describe('a line item learns the money it was booked with', () => {
         );
         await seedLine('l-unclear', 'c-unclear', 'plan', '100.00', '118.00');
         await seedContract(
+            'c-one-unclear',
+            { currency: 'EUR', vatRate: 1, totalNet: 100, totalGross: 150 },
+            'offer-7',
+        );
+        await seedLine('l-one-unclear', 'c-one-unclear', 'plan', '100.00', '150.00');
+        await seedContract(
             'c-free-percent-offer',
             { currency: 'EUR', vatRate: 19, totalNet: 0, totalGross: 0 },
             'offer-3',
@@ -762,7 +827,7 @@ describe('a line item learns the money it was booked with', () => {
 
         const { rows } = await client.query(preflightQueryFromTheGuide());
         const reported = rows.map((row) => row.id).sort();
-        assert.deepEqual(reported, ['c-no-currency', 'c-text-rate', 'c-unclear']);
+        assert.deepEqual(reported, ['c-no-currency', 'c-one-unclear', 'c-text-rate', 'c-unclear']);
 
         await assert.rejects(
             () => apply(MIGRATION),
