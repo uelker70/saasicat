@@ -4,6 +4,7 @@
 export { persistenceAdapterContract } from './contract.js';
 export type {
     ContractAdapterInstances,
+    ContractGap,
     ContractSeed,
     PersistenceAdapterContractOptions,
     PersistenceContractHarness,

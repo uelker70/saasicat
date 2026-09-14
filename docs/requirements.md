@@ -13198,6 +13198,20 @@ _Tested by:_
     - standard adapters
         - SubscriptionPlanResolver only grants active subscriptions
         - QuotaProvidersUsageSnapshot reuses every quota counter
+- `packages/persistence-testing/tests/gaps-are-declared.test.js`
+    - a part the harness does not provide
+        - the runs report counts at all
+        - fails its scenarios when it is not declared, naming the declaration
+        - fails the declaration check too, naming every part left out
+        - skips exactly those scenarios when it is declared
+    - a group the capabilities rule out
+        - still skips when no gap is declared for it
+    - a gap declared for a part the harness does provide
+        - fails the suite and names the part
+    - a gap name that is not a part of the contract
+        - is reported as unknown, not as wired into the harness
+    - a part the contract counts as provided but a scenario cannot use
+        - fails once, saying so, instead of asking for a declaration the check would reject
 - `packages/spec/tests/reference-sql-drift.test.js`
     - prisma-fragments compose and reference-schema.postgres.sql is in sync
     - normative constraints are part of the reference schema
@@ -13249,6 +13263,24 @@ _Tested by:_
     - standard adapters
         - SubscriptionPlanResolver only grants active subscriptions
         - QuotaProvidersUsageSnapshot reuses every quota counter
+- `packages/persistence-testing/tests/gaps-are-declared.test.js`
+    - a part the harness does not provide
+        - the runs report counts at all
+        - fails its scenarios when it is not declared, naming the declaration
+        - fails the declaration check too, naming every part left out
+        - skips exactly those scenarios when it is declared
+    - a group the capabilities rule out
+        - still skips when no gap is declared for it
+    - a gap declared for a part the harness does provide
+        - fails the suite and names the part
+    - a gap name that is not a part of the contract
+        - is reported as unknown, not as wired into the harness
+    - a part the contract counts as provided but a scenario cannot use
+        - fails once, saying so, instead of asking for a declaration the check would reject
+- `packages/persistence-testing/tests/readme-example-declares-its-gaps.test.js`
+    - the README usage example
+        - is read: it wires ports and seed writers and declares gaps
+        - declares exactly the parts its harness leaves out
 
 <!-- END proof -->
 

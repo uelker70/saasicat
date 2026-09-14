@@ -26,8 +26,9 @@ import type {
 /**
  * Port instances under test. Required members define the minimum an adapter
  * must ship to call itself a SaaSiCat persistence adapter; optional members
- * activate additional scenario groups (absent → the group reports as
- * skipped, never silently).
+ * activate additional scenario groups. An absent member fails its scenarios
+ * unless the contract options declare it in `gaps`, in which case they report
+ * as skipped.
  */
 export interface ContractAdapterInstances {
     capabilities: PersistenceCapabilities;
@@ -143,9 +144,46 @@ export interface PersistenceContractHarness {
     close?(): Promise<void>;
 }
 
+/**
+ * A part of the contract an adapter may deliberately not provide.
+ *
+ * Each names the members its scenarios need; `contract.ts` holds the list with
+ * what each one checks.
+ */
+export type ContractGap =
+    | 'atomicPlanBinding'
+    | 'atomicOnboarding'
+    | 'promoCodes'
+    | 'promoCodeRedemptions'
+    | 'promoSubscriptionLookup'
+    | 'planRepository'
+    | 'planLifecycle'
+    | 'planRetirement'
+    | 'planVersionReads'
+    | 'planVersionRetirement'
+    | 'bundleRepository'
+    | 'bundleValidity'
+    | 'bundleDraftDiscard'
+    | 'bundleDraftPublish'
+    | 'bundleRetirement'
+    | 'bundleBookings'
+    | 'halfCancelledBookingSeed'
+    | 'countByPlanVersionId'
+    | 'audit'
+    | 'mfa'
+    | 'subscriptionContracts'
+    | 'appliedSettings';
+
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */
     name: string;
     /** Builds the harness once for the whole suite. */
     create(): Promise<PersistenceContractHarness>;
+    /**
+     * The parts this adapter deliberately does not provide. Their scenarios
+     * report as skipped; a part missing without being named here fails its
+     * scenarios, and a part named here that the harness does provide fails
+     * the suite.
+     */
+    gaps?: readonly ContractGap[];
 }

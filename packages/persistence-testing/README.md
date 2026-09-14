@@ -27,10 +27,20 @@ Verified scenarios:
   concurrently — with the change and the record it supersedes landing together;
   changes listed in the order they were recorded, acknowledged once
 
-Scenario groups gate on declared capabilities and provided slices; a
-gated-off group reports as **skipped with reason** — coverage gaps stay
-visible, never silent. Roadmap scenarios (subscription contracts, reference
-migrations N→N+1) are registered as visible skips until the slices ship.
+Scenario groups gate on declared capabilities and provided slices. A group the
+capabilities rule out, such as the lock scenarios with `pessimisticLocking:
+false`, reports as **skipped with reason**. A group whose port or seed writer
+the harness does not provide **fails**, unless the adapter names it in `gaps` —
+then it reports as skipped. A gap named there that the harness does provide
+fails the suite, so the list stays true. A skipped scenario is easy to read
+past in a green run; a harness that forgot to wire a port would otherwise pass
+without checking it.
+
+The list describes the harness as it is built, not the adapter package. Where a
+port adds a member only under an option — `@saasicat/adapter-prisma`'s
+`validityWindows` and `atomicOnboardingSelection`, off by default for a 0.6
+schema — compute `gaps` from the same option rather than writing a constant, so
+the declaration moves when the schema does.
 
 ## What this is not
 
@@ -49,26 +59,39 @@ find one.
 import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 
 persistenceAdapterContract({
-    name: 'adapter-drizzle @ postgres',
+    name: 'my-adapter @ postgres',
     create: async () => ({
         adapter: {
             capabilities: { transactions: true, pessimisticLocking: true /* … */ },
             transactionRunner,
             subscriptionRepository,
             planVersionRepository,
-            promoCodeRepository, // optional slices activate more scenarios
+            planRepository,
+            bundleRepository,
+            subscriptionBundleRepository,
+            tenantSubscriptionWrite,
+            promoCodeRepository,
             promoCodeRedemptionRepository,
+            promoSubscriptionLookup,
             mfa,
             audit,
             auditQuery,
-            tenantSubscriptionWrite, // optional: enables atomic plan-binding scenarios
-            planRepository, // optional: enables plan lifecycle scenarios
-            bundleRepository, // optional: enables bundle validity scenarios
+            // Leave a part out and name it in `gaps` below; left out and not
+            // named, its scenarios fail.
         },
-        seed: { createPlanVersion, createSubscription, createPromoCode },
+        seed: {
+            createPlanVersion,
+            createSubscription,
+            createBundleVersion,
+            clearBookingRequestDate,
+            createPromoCode,
+        },
         reset: () => truncatePlatformTables(),
         close: () => pool.end(),
     }),
+    // The parts this adapter deliberately does not provide. A part named here
+    // that the harness does provide fails the suite as well.
+    gaps: ['subscriptionContracts', 'appliedSettings'],
 });
 ```
 

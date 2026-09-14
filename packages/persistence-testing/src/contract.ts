@@ -2,23 +2,154 @@
 // scenarios against its real database — this is what makes "functionally
 // equivalent adapters" a verified claim instead of prose.
 //
-// Scenario groups gate on adapter capabilities/slices. A gated-off group is
-// registered as skipped with the reason, so coverage gaps stay visible in
-// the test report.
+// Scenario groups gate on adapter capabilities and slices. A group the
+// adapter's capabilities rule out is registered as skipped with the reason. A
+// group whose port or seed writer is missing fails, unless the adapter names
+// it in `gaps`: a skip is easy to read past in a green run, and a harness that
+// forgot to wire a port it ships would otherwise pass without checking it.
 
 import assert from 'node:assert/strict';
-import { after, before, beforeEach, describe, test } from 'node:test';
+import { after, before, beforeEach, describe, test, type TestContext } from 'node:test';
 import type {
     AppliedSettingsValues,
     NewContractLineItemData,
     TransactionContext,
 } from '@saasicat/core';
 import type {
+    ContractGap,
     PersistenceAdapterContractOptions,
     PersistenceContractHarness,
 } from './harness.types.js';
 
 const LOCK_HOLD_MS = 150;
+
+/**
+ * What each gap stands for: the reason a skipped scenario reports, and whether
+ * a harness provides it. `present` asks for the same members the gated
+ * scenarios check, so a gap declared for a part the harness wires is caught.
+ */
+const CONTRACT_GAPS: Record<
+    ContractGap,
+    { reason: string; present(harness: PersistenceContractHarness): boolean }
+> = {
+    atomicPlanBinding: {
+        reason: 'adapter does not expose atomic plan-binding writes',
+        present: ({ adapter }) => Boolean(adapter.tenantSubscriptionWrite),
+    },
+    atomicOnboarding: {
+        reason: 'adapter does not expose atomic onboarding writes',
+        present: ({ adapter }) =>
+            Boolean(adapter.tenantSubscriptionWrite?.applyOnboardingSelection),
+    },
+    promoCodes: {
+        reason: 'adapter provides no PromoCodeRepository',
+        present: ({ adapter }) => Boolean(adapter.promoCodeRepository),
+    },
+    promoCodeRedemptions: {
+        reason: 'adapter provides no PromoCodeRedemptionRepository',
+        present: ({ adapter }) => Boolean(adapter.promoCodeRedemptionRepository),
+    },
+    promoSubscriptionLookup: {
+        reason: 'adapter provides no PromoSubscriptionLookup',
+        present: ({ adapter }) => Boolean(adapter.promoSubscriptionLookup),
+    },
+    planRepository: {
+        reason: 'adapter provides no PlanRepository',
+        present: ({ adapter }) => Boolean(adapter.planRepository),
+    },
+    planLifecycle: {
+        reason: 'adapter provides no time-aware PlanRepository lifecycle',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                repository?.createPlanVersionDraft &&
+                repository.publishPlanVersionDraft &&
+                repository.findVersionById &&
+                repository.findActivePlanVersion,
+            );
+        },
+    },
+    planRetirement: {
+        reason: 'adapter provides no PlanRepository that retires and finds plans by key',
+        present: ({ adapter }) =>
+            Boolean(adapter.planRepository?.softDelete && adapter.planRepository.findByKey),
+    },
+    planVersionReads: {
+        reason: 'adapter provides no PlanRepository that reads versions by plan key',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                repository?.listVersions &&
+                repository.findCurrentDraft &&
+                repository.findLatestLivePlanVersion,
+            );
+        },
+    },
+    planVersionRetirement: {
+        reason: 'adapter provides no PlanRepository that reads versions and retires plans',
+        present: ({ adapter }) => {
+            const repository = adapter.planRepository;
+            return Boolean(
+                repository?.createPlanVersionDraft &&
+                repository.publishPlanVersionDraft &&
+                repository.listVersions &&
+                repository.findCurrentDraft &&
+                repository.findLatestLivePlanVersion &&
+                repository.softDelete,
+            );
+        },
+    },
+    bundleRepository: {
+        reason: 'adapter provides no BundleRepository',
+        present: ({ adapter }) => Boolean(adapter.bundleRepository),
+    },
+    bundleValidity: {
+        reason: 'adapter provides no time-aware BundleRepository',
+        present: ({ adapter }) => Boolean(adapter.bundleRepository?.findActiveBundleVersion),
+    },
+    bundleDraftDiscard: {
+        reason: 'adapter provides no BundleRepository that discards drafts',
+        present: ({ adapter }) => Boolean(adapter.bundleRepository?.deleteDraft),
+    },
+    bundleDraftPublish: {
+        reason: 'adapter provides no BundleRepository that publishes drafts',
+        present: ({ adapter }) => Boolean(adapter.bundleRepository?.publishDraft),
+    },
+    bundleRetirement: {
+        reason: 'adapter provides no BundleRepository that retires and finds bundles by key',
+        present: ({ adapter }) =>
+            Boolean(adapter.bundleRepository?.softDelete && adapter.bundleRepository.findByKey),
+    },
+    bundleBookings: {
+        reason: 'adapter provides no SubscriptionBundleRepository or bundle catalog',
+        present: ({ adapter, seed }) =>
+            Boolean(adapter.subscriptionBundleRepository && seed.createBundleVersion),
+    },
+    halfCancelledBookingSeed: {
+        reason: 'adapter harness cannot write the half-cancelled shape',
+        present: ({ seed }) => Boolean(seed.clearBookingRequestDate),
+    },
+    countByPlanVersionId: {
+        reason: 'adapter does not implement countByPlanVersionId (fail-closed fallback)',
+        present: ({ adapter }) => Boolean(adapter.subscriptionRepository.countByPlanVersionId),
+    },
+    audit: {
+        reason: 'adapter provides no AuditPort/AuditQueryPort pair',
+        present: ({ adapter }) => Boolean(adapter.audit && adapter.auditQuery),
+    },
+    mfa: {
+        reason: 'adapter provides no MfaPort',
+        present: ({ adapter }) => Boolean(adapter.mfa),
+    },
+    subscriptionContracts: {
+        reason: 'adapter provides no SubscriptionContractRepository',
+        present: ({ adapter }) => Boolean(adapter.subscriptionContractRepository),
+    },
+    appliedSettings: {
+        reason: 'adapter provides no AppliedSettingsPort',
+        present: ({ adapter }) => Boolean(adapter.appliedSettings),
+    },
+};
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,9 +166,41 @@ function sleep(ms: number): Promise<void> {
  * ```
  */
 export function persistenceAdapterContract(options: PersistenceAdapterContractOptions): void {
-    describe(`persistence adapter contract: ${options.name}`, () => {
-        let harness: PersistenceContractHarness;
+    const declaredGaps = new Set<ContractGap>(options.gaps ?? []);
+    let harness: PersistenceContractHarness;
 
+    /**
+     * Ends a scenario whose part the harness does not provide: as a skip when
+     * the adapter declared the gap, as a failure naming the declaration when it
+     * did not.
+     *
+     * Each scenario states what it needs beside `CONTRACT_GAPS`, so the two can
+     * disagree — about a member the harness wires but the scenario cannot call,
+     * or after one of them is edited. Asked first, the registry turns that into
+     * one failure saying so; otherwise the scenario would demand a declaration
+     * the declaration check then rejects, and no `gaps` value would pass.
+     */
+    function missing(t: TestContext, gap: ContractGap): void {
+        const { reason, present } = CONTRACT_GAPS[gap];
+        if (present(harness)) {
+            assert.fail(
+                `'${gap}' counts as provided, yet this scenario found a member it needs missing ` +
+                    'or not callable. Check that the harness wires the port itself; if it does, ' +
+                    `the contract's check for '${gap}' and this scenario disagree, which is a ` +
+                    'defect in @saasicat/persistence-testing.',
+            );
+        }
+        if (declaredGaps.has(gap)) {
+            t.skip(reason);
+            return;
+        }
+        assert.fail(
+            `${reason}. Wire it into the harness, or declare \`gaps: ['${gap}']\` in ` +
+                'persistenceAdapterContract if the adapter deliberately does not provide it.',
+        );
+    }
+
+    describe(`persistence adapter contract: ${options.name}`, () => {
         before(async () => {
             harness = await options.create();
         });
@@ -46,6 +209,27 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
         beforeEach(async () => {
             await harness.reset();
+        });
+
+        test('the declared gaps are exactly the parts the harness does not provide', () => {
+            const gaps = Object.keys(CONTRACT_GAPS) as ContractGap[];
+            const absent = gaps.filter((gap) => !CONTRACT_GAPS[gap].present(harness));
+            // A plain JavaScript harness is not type-checked, so a misspelt name
+            // arrives here; reported as wired, it would say the opposite of what it is.
+            const known = (gap: string) => Object.prototype.hasOwnProperty.call(CONTRACT_GAPS, gap);
+            const unknown = [...declaredGaps].filter((gap) => !known(gap));
+            const stale = [...declaredGaps].filter((gap) => known(gap) && !absent.includes(gap));
+            const undeclared = absent.filter((gap) => !declaredGaps.has(gap));
+            const problems = [
+                unknown.length > 0 &&
+                    `declared as gaps but not parts of the contract: ${unknown.join(', ')} ` +
+                        '(ContractGap lists the names)',
+                stale.length > 0 &&
+                    `declared as gaps but wired into the harness: ${stale.join(', ')}`,
+                undeclared.length > 0 &&
+                    `not wired into the harness and not declared as gaps: ${undeclared.join(', ')}`,
+            ].filter(Boolean);
+            assert.deepEqual(problems, [], problems.join('; '));
         });
 
         // -------------------------------------------------------------
@@ -132,7 +316,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('immediate plan change binds plan and active PlanVersion consistently', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.tenantSubscriptionWrite) {
-                t.skip('adapter does not expose atomic plan-binding writes');
+                missing(t, 'atomicPlanBinding');
                 return;
             }
             const oldVersion = await seed.createPlanVersion({
@@ -181,12 +365,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const { seed, adapter } = harness;
             const writer = adapter.tenantSubscriptionWrite;
             if (!writer?.applyOnboardingSelection) {
-                t.skip('adapter does not expose atomic onboarding writes');
+                missing(t, 'atomicOnboarding');
                 return;
             }
             const redemptions = adapter.promoCodeRedemptionRepository;
             if (!redemptions) {
-                t.skip('adapter provides no PromoCodeRedemptionRepository');
+                missing(t, 'promoCodeRedemptions');
                 return;
             }
             const oldVersion = await seed.createPlanVersion({
@@ -273,7 +457,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 !repository.findVersionById ||
                 !repository.findActivePlanVersion
             ) {
-                t.skip('adapter provides no time-aware PlanRepository lifecycle');
+                missing(t, 'planLifecycle');
                 return;
             }
             const plan = await repository.create({
@@ -344,7 +528,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('bundle lifecycle roundtrips validity and auto-succeeds atomically', async (t) => {
             const repository = harness.adapter.bundleRepository;
             if (!repository?.findActiveBundleVersion) {
-                t.skip('adapter provides no time-aware BundleRepository');
+                missing(t, 'bundleValidity');
                 return;
             }
             const bundle = await repository.create({
@@ -415,7 +599,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const repository = harness.adapter.subscriptionBundleRepository;
             const { seed } = harness;
             if (!repository || !seed.createBundleVersion) {
-                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                missing(t, 'bundleBookings');
                 return;
             }
             const { planVersionId } = await seed.createPlanVersion({
@@ -484,7 +668,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const repository = harness.adapter.subscriptionBundleRepository;
             const { seed } = harness;
             if (!repository || !seed.createBundleVersion) {
-                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                missing(t, 'bundleBookings');
                 return;
             }
             const { planVersionId } = await seed.createPlanVersion({
@@ -546,7 +730,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const repository = harness.adapter.subscriptionBundleRepository;
             const { seed } = harness;
             if (!repository || !seed.createBundleVersion) {
-                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                missing(t, 'bundleBookings');
                 return;
             }
             const { planVersionId } = await seed.createPlanVersion({
@@ -603,7 +787,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const repository = harness.adapter.subscriptionBundleRepository;
             const { seed } = harness;
             if (!repository || !seed.createBundleVersion) {
-                t.skip('adapter provides no SubscriptionBundleRepository or bundle catalog');
+                missing(t, 'bundleBookings');
                 return;
             }
             const { planVersionId } = await seed.createPlanVersion({
@@ -636,7 +820,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             const clearRequestDate = harness.seed.clearBookingRequestDate;
             if (!clearRequestDate) {
-                t.skip('adapter harness cannot write the half-cancelled shape');
+                missing(t, 'halfCancelledBookingSeed');
                 return;
             }
             await clearRequestDate(booking.id);
@@ -668,7 +852,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // a property check across a closure boundary.
             const discardDraft = catalog?.deleteDraft?.bind(catalog);
             if (!catalog || !discardDraft) {
-                t.skip('adapter provides no BundleRepository');
+                missing(t, 'bundleDraftDiscard');
                 return;
             }
             const bundle = await catalog.create({
@@ -708,7 +892,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const catalog = harness.adapter.bundleRepository;
             const publish = catalog?.publishDraft?.bind(catalog);
             if (!catalog || !publish) {
-                t.skip('adapter provides no BundleRepository');
+                missing(t, 'bundleDraftPublish');
                 return;
             }
             const bundle = await catalog.create({
@@ -785,7 +969,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // the second `create` is refused, whatever it is called.
             const repository = harness.adapter.planRepository;
             if (!repository) {
-                t.skip('adapter provides no PlanRepository');
+                missing(t, 'planRepository');
                 return;
             }
             await repository.create({ planKey: 'DOUBLE', label: 'First' });
@@ -798,7 +982,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a bundle key names one bundle for the whole installation', async (t) => {
             const catalog = harness.adapter.bundleRepository;
             if (!catalog) {
-                t.skip('adapter provides no BundleRepository');
+                missing(t, 'bundleRepository');
                 return;
             }
             await catalog.create({ bundleKey: 'DOUBLE', label: 'First' });
@@ -817,7 +1001,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const retire = repository?.softDelete?.bind(repository);
             const byKey = repository?.findByKey?.bind(repository);
             if (!repository || !retire || !byKey) {
-                t.skip('adapter provides no PlanRepository');
+                missing(t, 'planRetirement');
                 return;
             }
             const plan = await repository.create({ planKey: 'RETIRED_PLAN', label: 'Retired' });
@@ -844,7 +1028,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 !repository.findCurrentDraft ||
                 !repository.findLatestLivePlanVersion
             ) {
-                t.skip('adapter provides no PlanRepository that reads versions by plan key');
+                missing(t, 'planVersionReads');
                 return;
             }
             const entitlementVersions = harness.adapter.planVersionRepository;
@@ -880,7 +1064,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 !repository.findLatestLivePlanVersion ||
                 !repository.softDelete
             ) {
-                t.skip('adapter provides no PlanRepository that reads versions and retires plans');
+                missing(t, 'planVersionRetirement');
                 return;
             }
             const listVersions = repository.listVersions.bind(repository);
@@ -952,7 +1136,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const retire = catalog?.softDelete?.bind(catalog);
             const byKey = catalog?.findByKey?.bind(catalog);
             if (!catalog || !retire || !byKey) {
-                t.skip('adapter provides no BundleRepository');
+                missing(t, 'bundleRetirement');
                 return;
             }
             const bundle = await catalog.create({
@@ -978,7 +1162,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.subscriptionRepository.countByPlanVersionId) {
-                t.skip('adapter does not implement countByPlanVersionId (fail-closed fallback)');
+                missing(t, 'countByPlanVersionId');
                 return;
             }
             const v1 = await seed.createPlanVersion({
@@ -1024,9 +1208,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             if (!adapter.promoCodeRedemptionRepository) {
-                t.skip(
-                    'adapter provides no PromoCodeRedemptionRepository (needed as tx write probe)',
-                );
+                missing(t, 'promoCodeRedemptions');
                 return;
             }
             const redemptions = adapter.promoCodeRedemptionRepository;
@@ -1124,7 +1306,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('concurrent claimSlot grants exactly maxRedemptions slots', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.promoCodeRepository) {
-                t.skip('adapter provides no PromoCodeRepository');
+                missing(t, 'promoCodes');
                 return;
             }
             const promoCodes = adapter.promoCodeRepository;
@@ -1147,7 +1329,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('claimSlot / markExhaustedIfFull / releaseSlot lifecycle', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.promoCodeRepository) {
-                t.skip('adapter provides no PromoCodeRepository');
+                missing(t, 'promoCodes');
                 return;
             }
             const promoCodes = adapter.promoCodeRepository;
@@ -1171,7 +1353,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a subscription cannot redeem twice (unique guard)', async (t) => {
             const { seed, adapter } = harness;
             if (!adapter.promoCodeRedemptionRepository) {
-                t.skip('adapter provides no PromoCodeRedemptionRepository');
+                missing(t, 'promoCodeRedemptions');
                 return;
             }
             const redemptions = adapter.promoCodeRedemptionRepository;
@@ -1217,7 +1399,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('audit write → query roundtrip with actorTag filters', async (t) => {
             const { adapter } = harness;
             if (!adapter.audit || !adapter.auditQuery) {
-                t.skip('adapter provides no AuditPort/AuditQueryPort pair');
+                missing(t, 'audit');
                 return;
             }
             await adapter.audit.write({
@@ -1261,7 +1443,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('MFA secret roundtrip', async (t) => {
             const { adapter } = harness;
             if (!adapter.mfa) {
-                t.skip('adapter provides no MfaPort');
+                missing(t, 'mfa');
                 return;
             }
             assert.equal(await adapter.mfa.getSecret('admin-1'), null);
@@ -1292,7 +1474,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('finds the subscription the id names, not merely a subscription', async (t) => {
             const { adapter, seed } = harness;
             if (!adapter.promoSubscriptionLookup) {
-                t.skip('adapter provides no PromoSubscriptionLookup');
+                missing(t, 'promoSubscriptionLookup');
                 return;
             }
             const { planVersionId } = await seed.createPlanVersion({
@@ -1323,7 +1505,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('returns null for an id that does not exist', async (t) => {
             const { adapter, seed } = harness;
             if (!adapter.promoSubscriptionLookup) {
-                t.skip('adapter provides no PromoSubscriptionLookup');
+                missing(t, 'promoSubscriptionLookup');
                 return;
             }
             // With a row present, so that "returns null" cannot be satisfied by
@@ -1348,7 +1530,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('carries the fields a promo rule reads: cycle and start date', async (t) => {
             const { adapter, seed } = harness;
             if (!adapter.promoSubscriptionLookup) {
-                t.skip('adapter provides no PromoSubscriptionLookup');
+                missing(t, 'promoSubscriptionLookup');
                 return;
             }
             // A promo code may be restricted to a billing cycle, or to
@@ -1390,7 +1572,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('reads inside a transaction, so validation and redemption agree', async (t) => {
             const { adapter, seed } = harness;
             if (!adapter.promoSubscriptionLookup) {
-                t.skip('adapter provides no PromoSubscriptionLookup');
+                missing(t, 'promoSubscriptionLookup');
                 return;
             }
             // Redeeming a code validates and writes in one transaction. A
@@ -1421,7 +1603,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a contract keeps what was agreed, and ending it does not rewrite it', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
             if (!contracts) {
-                t.skip('adapter provides no SubscriptionContractRepository');
+                missing(t, 'subscriptionContracts');
                 return;
             }
             const tenantId = 'tenant-contract-lifecycle';
@@ -1596,7 +1778,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a successor takes over without erasing the contract it replaces', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
             if (!contracts) {
-                t.skip('adapter provides no SubscriptionContractRepository');
+                missing(t, 'subscriptionContracts');
                 return;
             }
             const tenantId = 'tenant-contract-succession';
@@ -1719,7 +1901,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a line keeps the currency and the tax it was booked with', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
             if (!contracts) {
-                t.skip('adapter provides no SubscriptionContractRepository');
+                missing(t, 'subscriptionContracts');
                 return;
             }
             const tenantId = 'tenant-contract-money-facts';
@@ -1836,7 +2018,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('no record before the first boot that could write one', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             assert.equal(await port.readApplied(), null);
@@ -1846,7 +2028,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('the record comes back as it was written — values, source and moment', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             assert.equal(await port.writeApplied(applied('sha256-a', FIRST_START), null), true);
@@ -1865,7 +2047,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('writing again replaces the one row rather than adding a second', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             await port.writeApplied(applied('sha256-a', FIRST_START), null);
@@ -1883,7 +2065,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('the first record is written once: a second writer that read none is refused', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             assert.equal(await port.writeApplied(applied('sha256-a', FIRST_START), null), true);
@@ -1894,7 +2076,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a write guarded on a fingerprint the row no longer carries is refused', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             await port.writeApplied(applied('sha256-a', FIRST_START), null);
@@ -1919,7 +2101,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a change lands with the record it supersedes, and is listed newest first', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             await port.writeApplied(applied('sha256-a', FIRST_START), null);
@@ -1960,7 +2142,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('a change whose record has moved on is refused whole: no change, and the record as it was', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             await port.writeApplied(applied('sha256-a', FIRST_START), null);
@@ -1979,7 +2161,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('starts noticing the same difference at once record it once', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             // Several replicas of one deployment start together after one
@@ -2009,7 +2191,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('several first starts write the record once', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             const written = await Promise.all(
@@ -2022,7 +2204,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('changes are listed in the order they were recorded, latest first — not by the moment they carry', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             // `noticedAt` is the recording start's own clock. Two starts can
@@ -2062,7 +2244,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('acknowledging a change is recorded once, and filters it out of what is owed', async (t) => {
             const port = harness.adapter.appliedSettings;
             if (!port) {
-                t.skip('adapter provides no AppliedSettingsPort');
+                missing(t, 'appliedSettings');
                 return;
             }
             await port.writeApplied(applied('sha256-a', FIRST_START), null);
