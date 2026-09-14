@@ -354,9 +354,10 @@ describe('a line item learns the money it was booked with', () => {
     }
 
     /**
-     * `offerId` is the provenance the migration falls back on where a
-     * contract's totals cannot say which unit its rate is in: null is a
-     * contract frozen from the catalogue, an id one concluded from an offer.
+     * `offerId` is the provenance the migration falls back on where neither a
+     * contract's totals nor the size of its rate say which unit the rate is in:
+     * null is a contract frozen from the catalogue, an id one concluded from an
+     * offer.
      */
     const seedContract = (id, priceSnapshot, offerId = null) =>
         client.query(
@@ -493,31 +494,42 @@ describe('a line item learns the money it was booked with', () => {
     });
 
     // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
-    test('a rate no reading brings inside 0-100 stops the migration and is named', async () => {
-        // Reachable only through an offer: a breakdown that states a
-        // percentage, which this platform's own offer arithmetic never
-        // produces. The catalogue side cannot get here — its rate is taken as
-        // stated — which is the whole point of asking provenance.
-        await beforeTheMigration();
-        await seedContract('c-percent-offer', { currency: 'EUR', vatRate: 19 }, 'offer-9');
-        await seedLine('l-1', 'c-percent-offer', 'plan', '100.00', '119.00');
+    for (const [what, snapshot, priceGross] of [
+        [
+            'above 100 per cent',
+            { currency: 'EUR', vatRate: 150, totalNet: 100, totalGross: 250 },
+            '250.00',
+        ],
+        ['below zero', { currency: 'EUR', vatRate: -19, totalNet: 100, totalGross: 81 }, '81.00'],
+        [
+            'that is a fraction of 1.5',
+            { currency: 'EUR', vatRate: 1.5, totalNet: 100, totalGross: 250 },
+            '250.00',
+        ],
+    ]) {
+        test(`a rate ${what} stops the migration and is named`, async () => {
+            await beforeTheMigration();
+            await seedContract('c-out-of-range', snapshot, 'offer-9');
+            await seedLine('l-1', 'c-out-of-range', 'plan', '100.00', priceGross);
 
-        await assert.rejects(
-            () => apply(MIGRATION),
-            (error) => {
-                assert.match(String(error.message), /Cannot record the money facts of 1 contract/);
-                assert.match(String(error.message), /c-percent-offer/);
-                return true;
-            },
-        );
-    });
+            await assert.rejects(
+                () => apply(MIGRATION),
+                (error) => {
+                    assert.match(
+                        String(error.message),
+                        /Cannot record the money facts of 1 contract/,
+                    );
+                    assert.match(String(error.message), /c-out-of-range/);
+                    return true;
+                },
+            );
+        });
+    }
 
     // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
     test('a free plan frozen from the catalogue keeps its rate as it stands', async () => {
-        // Both readings explain a gross of zero, so the totals decide nothing
-        // and the contract's provenance has to. Falling back to the fraction
-        // here turned an ordinary 19 into 1900 and stopped the upgrade of every
-        // installation that sells a free plan.
+        // Both readings explain a gross of zero, so the totals decide nothing.
+        // A fraction of 19 would be a tax of 1900 per cent, so the size does.
         await beforeTheMigration();
         await seedContract('c-free', { currency: 'EUR', vatRate: 19, totalNet: 0, totalGross: 0 });
         await seedLine('l-free', 'c-free', 'plan', '0.00', '0.00');
@@ -526,6 +538,26 @@ describe('a line item learns the money it was booked with', () => {
 
         assert.deepEqual(await linesById(), [
             { id: 'l-free', currency: 'EUR', taxRate: '19.00', taxAmount: '0.00' },
+        ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('a free plan frozen from the catalogue keeps a rate below 1 as it stands', async () => {
+        // Below 1 the size settles nothing either, and the contract's
+        // provenance does: frozen from the catalogue, it holds per cent.
+        await beforeTheMigration();
+        await seedContract('c-free-low', {
+            currency: 'EUR',
+            vatRate: 0.5,
+            totalNet: 0,
+            totalGross: 0,
+        });
+        await seedLine('l-free-low', 'c-free-low', 'plan', '0.00', '0.00');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await linesById(), [
+            { id: 'l-free-low', currency: 'EUR', taxRate: '0.50', taxAmount: '0.00' },
         ]);
     });
 
@@ -543,6 +575,72 @@ describe('a line item learns the money it was booked with', () => {
         assert.deepEqual(await linesById(), [
             { id: 'l-free-offer', currency: 'EUR', taxRate: '19.00', taxAmount: '0.00' },
         ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('a free plan concluded from an offer that states per cent keeps its rate as it stands', async () => {
+        // An installation may write the rate into its offers in per cent. Both
+        // readings explain a total of zero, and a fraction of 19 would be a tax
+        // of 1900 per cent, so the size of the rate settles what provenance
+        // would have got wrong: 1900, and a stopped upgrade over a snapshot
+        // that is in order.
+        await beforeTheMigration();
+        await seedContract(
+            'c-free-percent-offer',
+            { currency: 'EUR', vatRate: 19, totalNet: 0, totalGross: 0 },
+            'offer-3',
+        );
+        await seedLine('l-free-percent-offer', 'c-free-percent-offer', 'plan', '0.00', '0.00');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await linesById(), [
+            { id: 'l-free-percent-offer', currency: 'EUR', taxRate: '19.00', taxAmount: '0.00' },
+        ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('totals a cent beside both readings leave a rate of 1 or more in per cent', async () => {
+        // 10.01 at 19 per cent is 11.91; the snapshot says 11.92, as a total
+        // summed from rounded lines can. Neither reading explains it, and the
+        // tax on the line is its own gap between net and gross.
+        await beforeTheMigration();
+        await seedContract(
+            'c-cent-off',
+            { currency: 'EUR', vatRate: 19, totalNet: 10.01, totalGross: 11.92 },
+            'offer-4',
+        );
+        await seedLine('l-cent-off', 'c-cent-off', 'plan', '10.01', '11.92');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await linesById(), [
+            { id: 'l-cent-off', currency: 'EUR', taxRate: '19.00', taxAmount: '1.91' },
+        ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('a rate below 1 that no reading explains stops the migration and is named', async () => {
+        // 100 at 0.19 per cent is 100.19, at a fraction of 0.19 it is 119; the
+        // snapshot says 118. Below 1 the size does not settle the unit, and
+        // nothing in the snapshot does either — provenance would be a guess
+        // about how this installation wrote its offers.
+        await beforeTheMigration();
+        await seedContract(
+            'c-unclear',
+            { currency: 'EUR', vatRate: 0.19, totalNet: 100, totalGross: 118 },
+            'offer-5',
+        );
+        await seedLine('l-unclear', 'c-unclear', 'plan', '100.00', '118.00');
+
+        await assert.rejects(
+            () => apply(MIGRATION),
+            (error) => {
+                assert.match(String(error.message), /Cannot record the money facts of 1 contract/);
+                assert.match(String(error.message), /c-unclear/);
+                return true;
+            },
+        );
     });
 
     test('a rate a checkout offer stated as a fraction is recorded in per cent', async () => {
@@ -646,13 +744,25 @@ describe('a line item learns the money it was booked with', () => {
             totalGross: 119,
         });
         await seedLine('l-text-rate', 'c-text-rate', 'plan', '100.00', '119.00');
+        await seedContract(
+            'c-unclear',
+            { currency: 'EUR', vatRate: 0.19, totalNet: 100, totalGross: 118 },
+            'offer-5',
+        );
+        await seedLine('l-unclear', 'c-unclear', 'plan', '100.00', '118.00');
+        await seedContract(
+            'c-free-percent-offer',
+            { currency: 'EUR', vatRate: 19, totalNet: 0, totalGross: 0 },
+            'offer-3',
+        );
+        await seedLine('l-free-percent-offer', 'c-free-percent-offer', 'plan', '0.00', '0.00');
         // A contract with no lines needs no filling, so the query must not
         // report it however broken its snapshot is.
         await seedContract('c-lineless', {});
 
         const { rows } = await client.query(preflightQueryFromTheGuide());
         const reported = rows.map((row) => row.id).sort();
-        assert.deepEqual(reported, ['c-no-currency', 'c-text-rate']);
+        assert.deepEqual(reported, ['c-no-currency', 'c-text-rate', 'c-unclear']);
 
         await assert.rejects(
             () => apply(MIGRATION),
@@ -664,11 +774,13 @@ describe('a line item learns the money it was booked with', () => {
                 for (const id of reported) {
                     assert.ok(said.includes(id), `the refusal did not name ${id}`);
                 }
-                assert.equal(
-                    said.includes('c-good'),
-                    false,
-                    'the migration refused a contract the guide told the operator was fine',
-                );
+                for (const fine of ['c-good', 'c-free-percent-offer']) {
+                    assert.equal(
+                        said.includes(fine),
+                        false,
+                        `the migration refused ${fine}, which the guide told the operator was fine`,
+                    );
+                }
                 return true;
             },
         );
