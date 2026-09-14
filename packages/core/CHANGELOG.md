@@ -1,5 +1,78 @@
 # @saasicat/types
 
+## 1.0.0-rc.14
+
+### Major Changes
+
+- a87cc4e: A plan is sold only in a rhythm it carries a price for
+
+    A plan without a yearly price was shown at ten monthly prices a year, accepted
+    by the plan change, and recorded in the contract with a plan line of 0.00.
+
+    - `PLAN_NOT_SOLD_IN_CYCLE` is a new plan-change blocker. The plan change and
+      the onboarding choice refuse such a plan, and the contract freeze refuses it
+      before the contract in force is closed. A plan that is not marketed is sold
+      under a special contract and is not affected.
+    - `DEFAULT_YEARLY_FACTOR` and `useSubscriptionDraft`'s `yearlyFactor` are
+      removed; `DraftPricing.planPriced` says whether the plan carries a price for
+      the cycle, and a bundle without one is neither charged nor sent.
+    - `PlanGrid`, `PublicBundleGrid` and `OnboardingConfigurator` take
+      `notSoldInCycle` in their `i18n`, and `TenantPlanSectionI18n` gains
+      `wizardNotSoldInCycle`. Such a card says so and cannot be chosen.
+    - The promo discount the configurator shows is the server's:
+      `PromoPreviewValidResponse.price.discountNet`, taken off the plan and not off
+      its bundles. Changing the plan or the cycle asks the preview again.
+    - The catalogue importer skips a plan without `yearlyNet` with a warning instead
+      of storing ten monthly prices as its yearly price.
+
+- a87cc4e: The sign-up configurator shows the yearly price the plan version carries
+
+    `computeBreakdown` computed a yearly subtotal as the monthly price times
+    `cycleDiscount`, while the offer and the contract charge the plan version's
+    `yearlyNet`. A plan at 9.99 a month and 99.00 a year was shown at 99.90, and a
+    promo code preview worked on that figure.
+
+    - The yearly subtotal is the model's `yearlyNet`; the saving is twelve monthly
+      prices minus it, never below zero.
+    - `ConfiguratorCatalog.cycleDiscount` and
+      `ConfiguratorMarketingProvider.getCycleDiscount()` are removed. Delete the
+      method from a marketing provider, and display the server's breakdown or
+      `model.yearlyNet` where a page computed from `cycleDiscount`.
+    - A promo discount is gross, as the preview reckons it, and the breakdown takes
+      it off in net, as the offer does. `RegistrationPromoPreview.discountAmount` is
+      documented as that gross amount.
+    - Consuming a checkout offer checks its promo code with the promo module as it
+      stands then, and a code it no longer accepts refuses the offer with
+      `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED` rather than
+      `CHECKOUT_OFFER_PRICE_NOT_CURRENT`, whose prices still match.
+
+### Minor Changes
+
+- cd89334: Every tax rate is a percentage, and nothing reads one in another unit
+
+    19 means 19 % in `config/saas.yaml`, the catalogue, a checkout offer's
+    `priceBreakdown.vatRate`, a contract's `priceSnapshot.vatRate` and
+    `ContractLineItemRecord.taxRate`. A rate is never read as a fraction or
+    converted from one.
+
+    - `config/saas.yaml` refuses a `vatRate` between 0 and 1, the shape of a
+      fraction such as 0.19.
+    - `SubscriptionContractService` refuses a contract whose `priceSnapshot.vatRate`
+      or any line's `taxRate` is not a percentage, with
+      `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT` — frozen from the catalogue,
+      concluded from an offer or handed over by a caller. An offer the server
+      priced passes.
+    - `vatPercentFromOfferRate` is removed from
+      `@saasicat/nest/subscription-contract`.
+    - `getPlanPriceGross` computes through `grossFromNet` and refuses a rate that
+      is not a percentage, the catalogue's or an override, with
+      `SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT`.
+    - `1.0-line-items-record-their-money.postgres.sql` records the snapshot's rate
+      as it stands and refuses a contract whose rate is outside 0 to 100 or
+      between 0 and 1, naming it; it needs the rate, not the totals. It converts
+      nothing: an installation that stored fractions converts them before running
+      it. The pre-flight query in the upgrade guide reports the same contracts.
+
 ## 1.0.0-rc.13
 
 ### Major Changes

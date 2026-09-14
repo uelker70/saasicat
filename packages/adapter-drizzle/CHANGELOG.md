@@ -1,5 +1,14 @@
 # @saasicat/adapter-drizzle
 
+## 1.0.0-rc.14
+
+### Patch Changes
+
+- Updated dependencies [a87cc4e]
+- Updated dependencies [cd89334]
+- Updated dependencies [a87cc4e]
+    - @saasicat/core@1.0.0-rc.14
+
 ## 1.0.0-rc.13
 
 ### Patch Changes
