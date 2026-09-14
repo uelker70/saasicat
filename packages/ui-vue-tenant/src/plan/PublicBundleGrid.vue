@@ -41,6 +41,12 @@
             >
                 {{ i18n.missingRequires }}: {{ row.missingRequires.map(featureLabel).join(', ') }}
             </div>
+            <div
+                v-else-if="row.state === 'not-priced-for-cycle'"
+                class="sp-public-bundle__state sp-public-bundle__state--blocked"
+            >
+                {{ i18n.notSoldInCycle }}
+            </div>
 
             <div v-if="row.bundle.features.length > 0" class="sp-public-bundle__features">
                 <span v-for="featureKey in row.bundle.features" :key="featureKey">
@@ -54,9 +60,9 @@
                 </span>
             </div>
 
-            <div class="sp-public-bundle__foot">
+            <div v-if="row.state !== 'not-priced-for-cycle'" class="sp-public-bundle__foot">
                 <strong>{{ priceLabel(row.bundle) }}</strong>
-                <span v-if="row.bundle.monthlyNet !== null" class="sp-public-bundle__cycle">
+                <span v-if="priceFor(row.bundle) !== null" class="sp-public-bundle__cycle">
                     /{{ cycle === 'YEARLY' ? i18n.perYear : i18n.perMonth }}
                 </span>
             </div>
@@ -84,6 +90,8 @@ interface I18n {
     empty: string;
     allPlans: string;
     priceOnRequest: string;
+    /** A bundle with a price in the other cycle only. */
+    notSoldInCycle: string;
     alreadyBooked: string;
     missingRequires: string;
 }
@@ -106,7 +114,7 @@ const emit = defineEmits<{
 
 interface BundleRow {
     bundle: PublicMarketingBundle;
-    state: BundleAvailabilityState;
+    state: BundleAvailabilityState | 'not-priced-for-cycle';
     missingRequires: string[];
     selected: boolean;
     /** Only unselected, non-bookable bundles are locked. */
@@ -131,7 +139,13 @@ const bundleRows = computed<BundleRow[]>(() =>
             props.planFeatures,
             selectedBundleShapes.value,
         );
-        const state = resolveBundleAvailability(bundle, covered);
+        const availability = resolveBundleAvailability(bundle, covered);
+        // Last, so a covered bundle or one missing a prerequisite keeps the
+        // reason that actually explains it.
+        const state =
+            availability === 'bookable' && soldOnlyInTheOtherCycle(bundle)
+                ? 'not-priced-for-cycle'
+                : availability;
         const selected = props.selected.has(bundle.bundleVersionId);
         return {
             bundle,
@@ -148,12 +162,17 @@ function onToggle(row: BundleRow): void {
     emit('toggle', row.bundle.bundleVersionId);
 }
 
+/** The price the bundle carries for the cycle, never derived from the other one. */
 function priceFor(bundle: PublicMarketingBundle): number | null {
-    if (bundle.monthlyNet === null) return null;
-    if (props.cycle === 'YEARLY') {
-        return bundle.yearlyNet ?? bundle.monthlyNet * 10;
-    }
-    return bundle.monthlyNet;
+    return props.cycle === 'YEARLY' ? bundle.yearlyNet : bundle.monthlyNet;
+}
+
+/**
+ * Priced in the other cycle but not this one: not sold now, and the booking
+ * refuses it. A bundle with no price at all is on request instead.
+ */
+function soldOnlyInTheOtherCycle(bundle: PublicMarketingBundle): boolean {
+    return priceFor(bundle) === null && (bundle.monthlyNet !== null || bundle.yearlyNet !== null);
 }
 
 function priceLabel(bundle: PublicMarketingBundle): string {

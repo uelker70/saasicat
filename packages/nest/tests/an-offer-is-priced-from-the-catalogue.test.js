@@ -312,10 +312,18 @@ describe('an offer becomes a contract only with the amounts the catalogue gave i
     });
 
     test('a promo code the promo module no longer accepts is refused at consumption', async () => {
+        // Under its own code, not NOT_CURRENT: the prices still match, and a
+        // customer told they changed would rebuild an offer that fails again.
         const accepted = [START10];
-        const { service, offer } = await storedOffer({ promoCodes: fakePromoCodes(accepted) });
+        const { service, offer, row } = await storedOffer({
+            promoCodes: fakePromoCodes(accepted),
+        });
         accepted.pop();
-        await assert.rejects(() => service.consume(offer.id), refusedWith(NOT_CURRENT));
+        await assert.rejects(
+            () => service.consume(offer.id),
+            refusedWith('CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED', { reason: 'NOT_FOUND' }),
+        );
+        assert.equal(row.status, 'open');
     });
 
     test('an add-on renamed after the offer keeps the offer valid', async () => {

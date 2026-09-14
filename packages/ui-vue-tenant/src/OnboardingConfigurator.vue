@@ -10,7 +10,7 @@
                 <PlanCycleToggle
                     :model-value="draft.cycle.value"
                     :i18n="i18n.cycle"
-                    @update:model-value="draft.setCycle"
+                    @update:model-value="chooseCycle"
                 />
             </header>
         </slot>
@@ -35,7 +35,7 @@
                         :format-quota-value="formatQuotaValue"
                         :quota-label="quotaLabel"
                         :i18n="i18n.plan"
-                        @update:model-value="draft.setPlan"
+                        @update:model-value="choosePlan"
                     />
                     <div v-else class="sp-onb__loading">{{ i18n.loading }}</div>
                 </section>
@@ -73,7 +73,7 @@
                 :plan-name="draft.selectedPlan.value?.name ?? null"
                 :format-currency="formatCurrency"
                 :cta-label="submitting ? i18n.submitting : i18n.submit"
-                :cta-disabled="submitting || !draft.plan.value"
+                :cta-disabled="submitting || !draft.plan.value || !draft.pricing.value.planPriced"
                 :i18n="i18n.summary"
                 @submit="handleSubmit"
             >
@@ -100,7 +100,8 @@ import PlanGrid from './plan/PlanGrid.vue';
 import PublicBundleGrid from './plan/PublicBundleGrid.vue';
 import PromoCodeInput from './plan/PromoCodeInput.vue';
 import PriceSummary from './plan/PriceSummary.vue';
-import { useSubscriptionDraft, type SubscriptionDraft } from '@saasicat/ui-vue';
+import { useSubscriptionDraft, type PromoState, type SubscriptionDraft } from '@saasicat/ui-vue';
+import { latestAnswerWins } from './latest-answer-wins.js';
 import type { CatalogPlan } from '@saasicat/ui-vue';
 import type { BillingCycleStr } from '@saasicat/ui-vue';
 import type {
@@ -141,6 +142,8 @@ interface OnboardingI18n {
         perMonth: string;
         perYear: string;
         priceOnRequest: string;
+        /** A plan with a price in the other cycle only. */
+        notSoldInCycle: string;
     };
     bundles: {
         perMonth: string;
@@ -148,6 +151,8 @@ interface OnboardingI18n {
         empty: string;
         allPlans: string;
         priceOnRequest: string;
+        /** A bundle with a price in the other cycle only. */
+        notSoldInCycle: string;
         /** Bundle fully covered by the plan/other bundles — not bookable twice. */
         alreadyBooked: string;
         /** Prefix before the list of missing prerequisite features. */
@@ -226,37 +231,59 @@ const bookableSubscriptionBundles = computed(() => {
     });
 });
 
-async function handleApplyPromo(): Promise<void> {
-    if (!props.previewPromo || !draft.promoCode.value || !draft.plan.value) return;
-    draft.setPromoState({ status: 'checking', preview: null, message: '' });
+// A preview answers for one plan and cycle, and the draft forgets it when either
+// changes. A code the tenant had applied is asked about again rather than left
+// for them to notice that the discount disappeared.
+function choosePlan(planId: string): void {
+    const hadPromo = draft.promoState.value.status !== 'idle';
+    draft.setPlan(planId);
+    if (hadPromo) void handleApplyPromo();
+}
+
+function chooseCycle(cycle: BillingCycleStr): void {
+    const hadPromo = draft.promoState.value.status !== 'idle';
+    draft.setCycle(cycle);
+    if (hadPromo) void handleApplyPromo();
+}
+
+/** What the preview says about a code for a plan and cycle, as the draft holds it. */
+async function previewPromoState(request: PromoPreviewRequest): Promise<PromoState> {
+    if (!props.previewPromo) return { status: 'idle', preview: null, message: '' };
     try {
-        const res = await props.previewPromo({
-            code: draft.promoCode.value,
-            plan: draft.plan.value,
-            billingCycle: draft.cycle.value,
-        });
-        if (res.valid) {
-            draft.setPromoState({
-                status: 'valid',
-                preview: res,
-                message: res.label,
-            });
-        } else {
-            const reason = res.reason;
-            const restricted = reason === 'BILLING_MISMATCH' || reason === 'PLAN_MISMATCH';
-            draft.setPromoState({
-                status: restricted ? 'restricted' : 'invalid',
-                preview: res,
-                message: props.i18n.promoReason[reason] ?? reason,
-            });
-        }
+        const res = await props.previewPromo(request);
+        if (res.valid) return { status: 'valid', preview: res, message: res.label };
+        const reason = res.reason;
+        const restricted = reason === 'BILLING_MISMATCH' || reason === 'PLAN_MISMATCH';
+        return {
+            status: restricted ? 'restricted' : 'invalid',
+            preview: res,
+            message: props.i18n.promoReason[reason] ?? reason,
+        };
     } catch (err) {
-        draft.setPromoState({
+        return {
             status: 'invalid',
             preview: null,
             message: err instanceof Error ? err.message : String(err),
-        });
+        };
     }
+}
+
+// Only the answer to the current question lands. A tenant who switches the
+// cycle twice would otherwise see whichever preview returned last, and one who
+// edited or removed the code meanwhile — which leaves the draft no longer
+// `checking` — the answer for a code they dropped.
+const askPromoPreview = latestAnswerWins(previewPromoState, (state: PromoState) => {
+    if (draft.promoState.value.status === 'checking') draft.setPromoState(state);
+});
+
+async function handleApplyPromo(): Promise<void> {
+    if (!props.previewPromo || !draft.promoCode.value || !draft.plan.value) return;
+    draft.setPromoState({ status: 'checking', preview: null, message: '' });
+    await askPromoPreview({
+        code: draft.promoCode.value,
+        plan: draft.plan.value,
+        billingCycle: draft.cycle.value,
+    });
 }
 
 async function handleSubmit(): Promise<void> {

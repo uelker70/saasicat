@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 159 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 160 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -151,6 +151,7 @@ Subscriptions, plan changes, entitlements.
 | `PLAN_LOCKED`                                | Active {planName} special contract — please contact the contract manager to change plans.                                                                   |
 | `PLAN_NOT_IN_CATALOG`                        | Plan "{planKey}" is not in the catalog                                                                                                                      |
 | `PLAN_NOT_SELF_SERVICE`                      | {planName} is only activated via a special contract. Please contact the contract manager.                                                                   |
+| `PLAN_NOT_SOLD_IN_CYCLE`                     | {planName} has no price for this billing rhythm and cannot be booked in it.                                                                                 |
 | `QUOTA_DIMENSION_UNKNOWN`                    | Unknown quota dimension "{dimension}".                                                                                                                      |
 | `QUOTA_OVER_TARGET`                          | Current usage {used} exceeds the target limit {targetMax} ({quotaKey}) in the {planName} plan. Please reduce usage first.                                   |
 | `REDUNDANT_FEATURES`                         | The plan or another booked bundle already includes {count} of the features in this bundle — booking it pays for them twice.                                 |

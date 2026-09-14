@@ -153,6 +153,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" steht nicht im Katalog',
     PLAN_NOT_SELF_SERVICE:
         '{planName} wird nur über einen Sondervertrag freigeschaltet. Bitte wenden Sie sich an die Vertragsverwaltung.',
+    PLAN_NOT_SOLD_IN_CYCLE:
+        '{planName} hat für diesen Abrechnungsrhythmus keinen Preis und kann darin nicht gebucht werden.',
     PLAN_CHANGE_BLOCKED: 'Während des Onboardings ist ein Planwechsel gesperrt.',
     SUBSCRIPTION_CHANGED:
         'Dieses Abonnement hat sich geändert, während die Anfrage entschieden wurde. Bitte lade es neu.',

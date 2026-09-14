@@ -87,13 +87,22 @@ export class PlanCatalogImporterService {
                 );
                 continue;
             }
+            // A stored plan version carries a price for both cycles, and a yearly
+            // price is what the operator sets for a year — not a multiple of the
+            // monthly one, which would sell the plan yearly at a figure nobody chose.
+            if (plan.yearlyNet === null || plan.yearlyNet === undefined) {
+                report.warnings.push(
+                    `Plan '${plan.id}' has no yearlyNet — skipped (a plan version needs a yearly price; set one in the catalog or publish the version manually).`,
+                );
+                continue;
+            }
             const versionResult = await this.sink.upsertPlanVersion({
                 planKey: plan.id,
                 version: 1,
                 features: plan.features,
                 quotas: plan.quotas,
                 monthlyNet: plan.monthlyNet.toFixed(2),
-                yearlyNet: (plan.yearlyNet ?? plan.monthlyNet * 10).toFixed(2),
+                yearlyNet: plan.yearlyNet.toFixed(2),
                 marketed: plan.marketed ?? true,
                 publish: true,
                 changeNote: IMPORT_CHANGE_NOTE,

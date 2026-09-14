@@ -927,6 +927,38 @@ model's `yearlyNet`, and the saving it reports is twelve monthly prices minus th
   provider no longer compiles with it.
 - **A registration page that computed a yearly price or a saving from `cycleDiscount`** displays
   the breakdown the server returns, or reads `model.yearlyNet`.
+- **A promo discount is taken off in net.** `RegistrationPromoPreview.discountAmount` is the gross
+  discount against `subtotalGross`, which is what `PromoCodesService.preview` reckons and what an
+  adapter wrapping it returns; `computeBreakdown` converts it at `vatRate` before taking it off,
+  as the offer does, and `ConfiguratorPriceBreakdown.discountAmount` is that net figure. An adapter
+  that returned a net amount returns the gross one.
+
+### A plan is sold only in a rhythm it carries a price for
+
+A plan without a yearly price is a monthly plan, and one without any price is sold on request. The
+tenant's pages showed such a plan at ten monthly prices a year, the plan change accepted it, and
+the contract recorded its plan line at 0.00.
+
+- **`PLAN_NOT_SOLD_IN_CYCLE`** is a new plan-change blocker, with `planName`, `planKey` and
+  `billingCycle`. The plan change and the onboarding choice refuse such a plan through it, and
+  `SubscriptionContractFreezeService.freezeOnPlanChange` refuses it before the contract in force is
+  closed. A plan that is not marketed is sold under a special contract and is not affected.
+- **`DEFAULT_YEARLY_FACTOR` and the `yearlyFactor` option of `useSubscriptionDraft` are gone.**
+  `DraftPricing.planPriced` says whether the selected plan carries a price for the cycle; a bundle
+  without one is neither charged nor sent while that cycle is chosen.
+- **`PlanGrid`, `PublicBundleGrid` and `OnboardingConfigurator` take `notSoldInCycle`** in their
+  `i18n`, beside `priceOnRequest`; `TenantPlanSectionI18n` gains `wizardNotSoldInCycle`, which the
+  shipped German and English maps carry. A card without a price for the cycle says so and cannot be
+  chosen.
+- **The configurator's promo discount is the server's.** `PromoPreviewValidResponse.price` carries
+  `discountNet`, the preview's gross discount on the plan price converted at the installation's VAT
+  rate, and `useSubscriptionDraft` takes it off the plan — not off the bundles beside it. Changing
+  the plan or the cycle sets the promo state back to `idle`; `OnboardingConfigurator` asks the
+  preview again by itself, and a page built on the composable does the same.
+- **`PlanCatalogImporterService` skips a plan without `yearlyNet`** with a warning, as it skips one
+  without `monthlyNet`, instead of storing ten monthly prices as its yearly price. A stored plan
+  version carries both prices; give the plan a yearly price in `saas.yaml`, or publish its version
+  in the administration.
 
 ### `projectKey` is gone from the database
 

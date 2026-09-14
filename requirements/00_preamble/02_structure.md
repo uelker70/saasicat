@@ -80,7 +80,7 @@ properties it has while doing it.
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 25      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 15      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 18      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 19      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 21      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 419 entries: 🟢 410 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 420 entries: 🟢 411 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),

@@ -59,6 +59,11 @@ export interface PromoPreviewValidResponse {
         /** Decimal-as-string, e.g. "199.00". */
         originalGross: string;
         discountGross: string;
+        /**
+         * `discountGross` in net, converted at the installation's VAT rate —
+         * the figure a page showing net prices takes off the plan price.
+         */
+        discountNet: string;
         discountedGross: string;
         includedVat: string;
         nextRegularAmountGross: string;

@@ -4,6 +4,9 @@
 // and 99.00 a year is not ten monthly prices, and a configurator that derived
 // its own figure showed 99.90 for a contract of 99.00 — and let a promo code
 // preview work on the wrong amount.
+//
+// A promo discount is gross: the preview reckons it against the gross subtotal.
+// The breakdown takes it off in net, as the offer and the contract do.
 
 // @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
 // @requirement SC-PRIC-010 — A yearly price is a price per year, not a monthly price with a discount attached
@@ -37,7 +40,7 @@ const CATALOG = { currency: 'EUR', vatRate: 19, models: [BASIC, DEAR] };
  * registration past e-mail verification, the catalogue, and a promo preview
  * that records the subtotal it was asked about.
  */
-function configurator() {
+function configurator(answer = () => ({ discountAmount: 5, percent: 5 })) {
     const pending = {
         id: 'pending-1',
         email: 'kasse@verein.example',
@@ -58,7 +61,7 @@ function configurator() {
     const promoPreview = {
         async preview(params) {
             previews.push(params);
-            return { valid: true, discountAmount: 5, percent: 5, label: 'Start' };
+            return { valid: true, label: 'Start', ...answer(params) };
         },
     };
     const unused = null;
@@ -119,6 +122,30 @@ describe('the configurator breakdown', () => {
 
         await saving.service.previewConfigPromo(saving.pendingId, 'START5');
         assert.equal(saving.previews.at(-1).subtotalGross, 117.81, 'on the live preview');
+    });
+
+    test('a promo discount is taken off in net, not the gross amount the preview answers', async () => {
+        // Ten per cent of 117.81 gross is 11.78, which is 9.90 in net. The offer
+        // takes off the same 9.90; subtracting 11.78 from the net price would
+        // show 103.79 for a contract of 106.03.
+        const tenPerCent = ({ subtotalGross }) => ({
+            discountAmount: Math.round(subtotalGross * 10) / 100,
+            percent: 10,
+        });
+        const { breakdown } = await configurator(tenPerCent).save('basic', 'YEARLY', 'START10');
+
+        assert.equal(breakdown.discountAmount, 9.9);
+        assert.equal(breakdown.totalNet, 89.1);
+        assert.equal(breakdown.totalGross, 106.03);
+    });
+
+    test('a discount above the price takes it to nothing, not below', async () => {
+        const everything = () => ({ discountAmount: 500, percent: 100 });
+        const { breakdown } = await configurator(everything).save('basic', 'YEARLY', 'ALL');
+
+        assert.equal(breakdown.discountAmount, 99);
+        assert.equal(breakdown.totalNet, 0);
+        assert.equal(breakdown.totalGross, 0);
     });
 
     test('resuming the step shows the same yearly figure', async () => {

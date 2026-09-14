@@ -606,6 +606,7 @@ const planGridI18n = computed(() => ({
     perMonth: props.i18n.priceUnitMonthly,
     perYear: props.i18n.priceUnitYearly,
     priceOnRequest: props.i18n.priceOnRequest,
+    notSoldInCycle: props.i18n.notSoldInCycle,
 }));
 
 async function goToPreview() {

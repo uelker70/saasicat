@@ -366,6 +366,7 @@ describe('PromoCodesService.preview — eligibility', () => {
         assert.equal(r.reason, 'NOT_FIRST_TIME_CUSTOMER');
     });
 
+    // @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
     test('valid=true with price preview for PROFESSIONAL/YEARLY/25%', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({ promoRepo: repo });
@@ -379,6 +380,8 @@ describe('PromoCodesService.preview — eligibility', () => {
         // 499 net + 19% VAT = 593.81 gross · 25% = 148.45
         assert.equal(r.price.originalGross, '593.81');
         assert.equal(r.price.discountGross, '148.45');
+        // 148.45 × 100 / 119 — the amount an offer takes off the plan's net price
+        assert.equal(r.price.discountNet, '124.75');
         assert.equal(r.price.discountedGross, '445.36');
     });
 });

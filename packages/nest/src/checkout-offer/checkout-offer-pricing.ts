@@ -132,6 +132,10 @@ export class CheckoutOfferPricing {
             const bundleVersions = await this.bundleVersionsFor(input, pricedAt, false);
             repriced = await this.compute(input, planVersion, bundleVersions, pricedAt);
         } catch (error) {
+            // A code the promo module no longer accepts is its own answer: the
+            // prices still match, and a customer told that they changed would
+            // rebuild an offer that fails the same way.
+            if (refusesThePromoCode(error)) throw error;
             if (error instanceof UnprocessableEntityException) throw notCurrent();
             throw error;
         }
@@ -486,6 +490,17 @@ function bundleNotOffered(bundleVersionId: string, reason: string): Unprocessabl
         message: `Bundle version '${bundleVersionId}' cannot be added to this offer (${reason}).`,
         params: { bundleVersionId, reason },
     });
+}
+
+function refusesThePromoCode(error: unknown): boolean {
+    if (!(error instanceof UnprocessableEntityException)) return false;
+    const body = error.getResponse();
+    return (
+        typeof body === 'object' &&
+        body !== null &&
+        (body as { code?: unknown }).code ===
+            CONTRACT_ERROR_CODES.CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED
+    );
 }
 
 function promoCodeNotAccepted(reason: string): UnprocessableEntityException {

@@ -112,7 +112,7 @@ properties it has while doing it.
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 25      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 15      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 18      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 19      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 21      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 419 entries: 🟢 410 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 420 entries: 🟢 411 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -146,7 +146,7 @@ Of 419 entries: 🟢 410 stand today, 🟡 7 decided but not yet delivered, ⚪ 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 419 requirements. Do not edit by hand:
+Generated from `requirements/` — 420 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3818,6 +3818,12 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally
@@ -3870,6 +3876,12 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
 
 <!-- END proof -->
 
@@ -3953,6 +3965,38 @@ finished English sentence. Without them a client holding the code would have to 
 the numbers.
 
 _Source:_ #243
+
+### SC-CHG-019 — A plan is booked only in a rhythm it carries a price for
+
+🟢 💰 A plan without a yearly price is a monthly plan, and one without any price is sold on request.
+Choosing such a plan in a rhythm it has no price for is refused with `PLAN_NOT_SOLD_IN_CYCLE`
+before the change is confirmed, whether it is a plan change or the first choice after sign-up, and
+no contract is recorded for it — rather than the plan being charged at nothing, or at a multiple of
+its monthly price. The tenant's page offers no such choice. A plan that is not marketed is sold
+under a special contract whose price the catalogue does not hold, and is outside this rule.
+
+_Source:_ #284
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a plan without a price for the rhythm is refused before the previous contract is closed
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - a plan without a price for the chosen rhythm
+        - says so on its card, cannot be chosen, and the order cannot be sent
+        - becomes a plan again in the rhythm it is priced for
+        - an add-on priced in the other rhythm only says so and cannot be chosen
+
+<!-- END proof -->
 
 ## 7. Cancelling
 
@@ -4754,6 +4798,12 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
     - while a replacement preview is on the wire
         - the answer to the abandoned question is taken off the screen
@@ -4776,18 +4826,36 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
 - `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
     - the configurator breakdown
         - a monthly plan costs its monthly price and saves nothing
         - a yearly plan costs the yearly price its plan version carries
         - a yearly price above twelve monthly ones saves nothing rather than a negative amount
         - a promo code is previewed on the yearly price that is charged
+        - a promo discount is taken off in net, not the gross amount the preview answers
+        - a discount above the price takes it to nothing, not below
         - resuming the step shows the same yearly figure
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — Promo-Discount
+        - the discount is the net amount the server previewed, off the plan and not the bundles
+        - a discount above the plan price stops at the plan price
+        - changing the plan or the cycle forgets the preview, and keeps the code
+        - choosing the plan and cycle already chosen keeps the preview
+        - clearPromo removes discount + sets status idle
+        - setPromoCode clears a previous valid status
 - `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
     - a monthly plan offers no choice
         - the card quotes the monthly price with the monthly unit
     - a yearly plan offers both
         - switching moves the price and the unit together
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - a promo code applied before the plan or rhythm changes
+        - is asked about again, and the summary shows the new answer
+        - only the latest question's answer stands, answers landing ${order.join(' then ')}
+        - a code removed while its preview is out gives no discount when the answer lands
 
 <!-- END proof -->
 
@@ -4819,13 +4887,30 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - a bundle sold in one rhythm only says so for the other
+- `packages/nest/tests/plan-catalog-importer.test.js`
+    - importFromYaml: a plan without a yearly price is skipped with a warning, not given ten monthly
+      prices
 - `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
     - the configurator breakdown
         - a monthly plan costs its monthly price and saves nothing
         - a yearly plan costs the yearly price its plan version carries
         - a yearly price above twelve monthly ones saves nothing rather than a negative amount
         - a promo code is previewed on the yearly price that is charged
+        - a promo discount is taken off in net, not the gross amount the preview answers
+        - a discount above the price takes it to nothing, not below
         - resuming the step shows the same yearly figure
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — cycle toggle
+        - Monthly uses monthlyNet, Yearly uses yearlyNet
+        - yearSavings = 12*monthly − yearly
+        - a plan without a yearly price is not sold yearly, and costs nothing to show
+        - a bundle without a price for the cycle is neither charged nor sent, until its cycle is
+          back
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - a plan without a price for the chosen rhythm
+        - says so on its card, cannot be chosen, and the order cannot be sent
+        - becomes a plan again in the rhythm it is priced for
+        - an add-on priced in the other rhythm only says so and cannot be chosen
 
 <!-- END proof -->
 
@@ -7929,14 +8014,18 @@ _Tested by:_
     - useSubscriptionDraft — cycle toggle
         - Monthly uses monthlyNet, Yearly uses yearlyNet
         - yearSavings = 12*monthly − yearly
-        - yearlyNet=null falls back to monthly × DEFAULT_YEARLY_FACTOR
+        - a plan without a yearly price is not sold yearly, and costs nothing to show
+        - a bundle without a price for the cycle is neither charged nor sent, until its cycle is
+          back
     - useSubscriptionDraft — Bundles
         - Bundle toggle marks bundle + activates its features
         - Bundle deselect removes activated features again
         - Bundle price flows into subtotalNet
     - useSubscriptionDraft — Promo-Discount
-        - PERCENT promo is applied to subtotalNet
-        - ABSOLUTE promo is capped at subtotal
+        - the discount is the net amount the server previewed, off the plan and not the bundles
+        - a discount above the plan price stops at the plan price
+        - changing the plan or the cycle forgets the preview, and keeps the code
+        - choosing the plan and cycle already chosen keeps the preview
         - clearPromo removes discount + sets status idle
         - setPromoCode clears a previous valid status
     - useSubscriptionDraft — toApiPayload

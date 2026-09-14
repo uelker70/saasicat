@@ -10,7 +10,12 @@ import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
-import { findPlan, getPlanPriceNet } from './plan-helpers.js';
+import {
+    findPlan,
+    getPlanPriceNet,
+    isPlanNotSoldInCycle,
+    planNotSoldInCycle,
+} from './plan-helpers.js';
 import { periodEndAfter } from './billing-period.js';
 import { bundleCycleFitsPlan } from './bundle-period.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
@@ -332,6 +337,9 @@ export class PlanChangePreviewService {
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         const blockedSources = this.blockedPlans?.asSource ?? [];
 
+        if (isPlanNotSoldInCycle(targetPlanDef, targetCycle as BillingCycle)) {
+            blockers.push(planNotSoldInCycle(targetPlanDef, targetCycle as BillingCycle));
+        }
         if (blockedTargets.includes(targetPlan)) {
             blockers.push({
                 code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,

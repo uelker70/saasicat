@@ -147,7 +147,9 @@ export class CheckoutOfferService {
      * The plan, the add-ons and the promotions are priced as they stood when the
      * offer was priced; a promo code is checked with the promo module as it
      * stands now. A code is redeemed when the contract is concluded, so one that
-     * has expired or run out of redemptions since refuses the offer.
+     * has expired or run out of redemptions since refuses the offer with
+     * `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`; `CHECKOUT_OFFER_PRICE_NOT_CURRENT`
+     * is kept for amounts that no longer match.
      */
     async consume(id: string): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);

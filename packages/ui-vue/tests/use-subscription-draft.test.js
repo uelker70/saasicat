@@ -6,7 +6,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { useSubscriptionDraft, DEFAULT_YEARLY_FACTOR } from '../dist/index.js';
+import { useSubscriptionDraft } from '../dist/index.js';
 import { ref } from 'vue';
 
 const PLANS = [
@@ -99,6 +99,7 @@ describe('useSubscriptionDraft — plan selection', () => {
     });
 });
 
+// @requirement SC-PRIC-010 — A yearly price is a price per year, not a monthly price with a discount attached
 describe('useSubscriptionDraft — cycle toggle', () => {
     test('Monthly uses monthlyNet, Yearly uses yearlyNet', () => {
         const d = buildDraft({ initialPlan: 'SPORT', initialCycle: 'MONTHLY' });
@@ -114,21 +115,32 @@ describe('useSubscriptionDraft — cycle toggle', () => {
         assert.equal(Math.round(d.pricing.value.yearSavings * 100), 3980);
     });
 
-    test('yearlyNet=null falls back to monthly × DEFAULT_YEARLY_FACTOR', () => {
-        const plansNoYearly = [
-            {
-                id: 'X',
-                name: 'X',
-                tagline: '',
-                monthlyNet: 10,
-                yearlyNet: null,
-                popular: false,
-                quotas: {},
-                features: [],
-            },
-        ];
-        const d = buildDraft({ plans: plansNoYearly, initialPlan: 'X', initialCycle: 'YEARLY' });
-        assert.equal(d.pricing.value.planNet, 10 * DEFAULT_YEARLY_FACTOR);
+    test('a plan without a yearly price is not sold yearly, and costs nothing to show', () => {
+        const monthlyOnly = [{ ...PLANS[0], id: 'X', monthlyNet: 10, yearlyNet: null }];
+        const d = buildDraft({ plans: monthlyOnly, initialPlan: 'X', initialCycle: 'YEARLY' });
+        assert.equal(d.pricing.value.planPriced, false);
+        assert.equal(d.pricing.value.planNet, 0, 'not ten monthly prices');
+        assert.equal(d.pricing.value.yearSavings, 0);
+
+        d.setCycle('MONTHLY');
+        assert.equal(d.pricing.value.planPriced, true);
+        assert.equal(d.pricing.value.planNet, 10);
+    });
+
+    test('a bundle without a price for the cycle is neither charged nor sent, until its cycle is back', () => {
+        const monthlyBundle = [{ ...BUNDLES[0], yearlyNet: null }];
+        const d = buildDraft({ subscriptionBundles: monthlyBundle, initialPlan: 'STARTER' });
+        d.toggleSubscriptionBundle('bv-sport');
+
+        d.setCycle('YEARLY');
+        assert.equal(d.pricing.value.bundlesNet, 0);
+        assert.deepEqual(d.pricing.value.breakdown.bundles, []);
+        assert.equal(d.toApiPayload().bundleVersionIds, undefined);
+        assert.equal(d.activeFeatures.value.has('TRAINING_PLANNER'), false);
+
+        d.setCycle('MONTHLY');
+        assert.equal(d.pricing.value.bundlesNet, 16.9);
+        assert.deepEqual(d.toApiPayload().bundleVersionIds, ['bv-sport']);
     });
 });
 
@@ -163,67 +175,81 @@ describe('useSubscriptionDraft — Bundles', () => {
     });
 });
 
-describe('useSubscriptionDraft — Promo-Discount', () => {
-    test('PERCENT promo is applied to subtotalNet', () => {
-        const d = buildDraft({ initialPlan: 'SPORT' });
-        d.setPromoCode('TEST20');
-        d.setPromoState({
-            status: 'valid',
-            preview: {
-                valid: true,
-                code: 'TEST20',
-                label: '20% Rabatt',
-                discount: {
-                    valueType: 'PERCENT',
-                    value: '20',
-                    durationType: 'ONCE',
-                    durationValue: null,
-                },
-                price: {
-                    originalGross: '0',
-                    discountGross: '0',
-                    discountedGross: '0',
-                    includedVat: '0',
-                    nextRegularAmountGross: '0',
-                    regularStartsAt: null,
-                },
+/** A valid preview whose server-side net discount is `discountNet`. */
+function validPreview(discountNet) {
+    return {
+        status: 'valid',
+        preview: {
+            valid: true,
+            code: 'TEST20',
+            label: '20% Rabatt',
+            discount: {
+                valueType: 'PERCENT',
+                value: '20',
+                durationType: 'ONCE',
+                durationValue: null,
             },
-            message: 'OK',
-        });
-        // SPORT 19.9 × 0.2 = 3.98 → total 19.90 − 3.98 = 15.92
-        assert.equal(Math.round(d.pricing.value.discountNet * 100), 398);
-        assert.equal(Math.round(d.pricing.value.totalNet * 100), 1592);
+            price: {
+                originalGross: '23.68',
+                discountGross: '4.74',
+                discountNet,
+                discountedGross: '18.94',
+                includedVat: '3.02',
+                nextRegularAmountGross: '23.68',
+                regularStartsAt: null,
+            },
+        },
+        message: 'OK',
+    };
+}
+
+// @requirement SC-PRIC-007 — An amount a tenant sees is the amount that is charged
+describe('useSubscriptionDraft — Promo-Discount', () => {
+    test('the discount is the net amount the server previewed, off the plan and not the bundles', () => {
+        // 20 % of SPORT's 23.68 gross is 4.74, which the server converts to 3.98
+        // net. A bundle beside it is not discounted, and a gross amount is not
+        // taken off a net price.
+        const d = buildDraft({ initialPlan: 'SPORT' });
+        d.toggleSubscriptionBundle('bv-sport');
+        d.setPromoCode('TEST20');
+        d.setPromoState(validPreview('3.98'));
+        assert.equal(d.pricing.value.discountNet, 3.98);
+        assert.equal(Math.round(d.pricing.value.totalNet * 100), 3680 - 398);
     });
 
-    test('ABSOLUTE promo is capped at subtotal', () => {
+    test('a discount above the plan price stops at the plan price', () => {
         const d = buildDraft({ initialPlan: 'STARTER' });
+        d.toggleSubscriptionBundle('bv-sport');
         d.setPromoCode('FREE100');
-        d.setPromoState({
-            status: 'valid',
-            preview: {
-                valid: true,
-                code: 'FREE100',
-                label: '100€ Rabatt',
-                discount: {
-                    valueType: 'ABSOLUTE',
-                    value: '100',
-                    durationType: 'ONCE',
-                    durationValue: null,
-                },
-                price: {
-                    originalGross: '0',
-                    discountGross: '0',
-                    discountedGross: '0',
-                    includedVat: '0',
-                    nextRegularAmountGross: '0',
-                    regularStartsAt: null,
-                },
-            },
-            message: 'OK',
-        });
-        // STARTER 9.90, ABSOLUTE 100 → capped at 9.90, total = 0
+        d.setPromoState(validPreview('84.03'));
         assert.equal(d.pricing.value.discountNet, 9.9);
-        assert.equal(d.pricing.value.totalNet, 0);
+        assert.equal(Math.round(d.pricing.value.totalNet * 100), 1690);
+    });
+
+    test('changing the plan or the cycle forgets the preview, and keeps the code', () => {
+        const d = buildDraft({ initialPlan: 'SPORT' });
+        d.setPromoCode('TEST20');
+
+        d.setPromoState(validPreview('3.98'));
+        d.setCycle('YEARLY');
+        assert.equal(d.promoState.value.status, 'idle');
+        assert.equal(d.pricing.value.discountNet, 0);
+        assert.equal(d.promoCode.value, 'TEST20');
+
+        d.setPromoState(validPreview('3.98'));
+        d.setPlan('STARTER');
+        assert.equal(d.promoState.value.status, 'idle');
+        assert.equal(d.pricing.value.discountNet, 0);
+    });
+
+    test('choosing the plan and cycle already chosen keeps the preview', () => {
+        const d = buildDraft({ initialPlan: 'SPORT' });
+        d.setPromoCode('TEST20');
+        d.setPromoState(validPreview('3.98'));
+        d.setCycle('MONTHLY');
+        d.setPlan('SPORT');
+        assert.equal(d.promoState.value.status, 'valid');
+        assert.equal(d.pricing.value.discountNet, 3.98);
     });
 
     test('clearPromo removes discount + sets status idle', () => {

@@ -37,7 +37,7 @@ import {
     computeDiscountedGross,
     computeRegularStartsAt,
 } from './calculator.js';
-import { computeIncludedVat } from './math.js';
+import { computeIncludedVat, netFromGross } from './math.js';
 
 export const CODE_MIN_LENGTH = 4;
 export const CODE_MAX_LENGTH = 32;
@@ -80,6 +80,7 @@ export interface PreviewValid {
     price: {
         originalGross: string;
         discountGross: string;
+        discountNet: string;
         discountedGross: string;
         includedVat: string;
         nextRegularAmountGross: string;
@@ -412,6 +413,7 @@ export class PromoCodesService {
             price: {
                 originalGross: planGross.toFixed(2),
                 discountGross: discountGross.toFixed(2),
+                discountNet: netFromGross(discountGross, this.planCatalog.vatRate).toFixed(2),
                 discountedGross: discountedGross.toFixed(2),
                 includedVat: includedVat.toFixed(2),
                 nextRegularAmountGross: planGross.toFixed(2),

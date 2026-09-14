@@ -11,14 +11,17 @@ import type {
     RegistrationConfigSelection,
 } from '@saasicat/core';
 
-import { grossFromNet } from '../promo/math.js';
+import { grossFromNet, netFromGross } from '../promo/math.js';
 
 function round2(value: number): number {
     return Math.round(value * 100) / 100;
 }
 
 export interface PromoEvaluation {
-    /** Discount in EUR on the subtotal (gross or net depending on catalog convention; here on net). */
+    /**
+     * The discount in gross, as the promo preview reckons it against the gross
+     * subtotal. `computeBreakdown` converts it to net before taking it off.
+     */
     discountAmount: number;
     /** Percentage for UI display. */
     percent: number;
@@ -51,7 +54,12 @@ export function computeBreakdown(
     const subtotalNet =
         selection.billingCycle === 'YEARLY' ? round2(model.yearlyNet) : subtotalMonthlyNet;
 
-    const discountAmount = promo ? Math.min(round2(promo.discountAmount), subtotalNet) : 0;
+    // The preview answers in gross. Taken off the net subtotal as it stands, the
+    // tax on it would be granted a second time once VAT is added back, and the
+    // offer and the contract convert it before they take it off.
+    const discountAmount = promo
+        ? Math.min(netFromGross(round2(promo.discountAmount), catalog.vatRate), subtotalNet)
+        : 0;
     const totalNet = Math.max(0, round2(subtotalNet - discountAmount));
     const totalGross = grossFromNet(totalNet, catalog.vatRate);
 

@@ -10,6 +10,7 @@
                 'sp-model--current': plan.id === currentPlanId,
             }"
             :aria-pressed="modelValue === plan.id"
+            :disabled="planPrice(plan) === null"
             @click="emit('update:modelValue', plan.id)"
         >
             <span v-if="plan.popular && plan.id !== currentPlanId" class="sp-model__flag">
@@ -32,8 +33,11 @@
                         /{{ cycle === 'YEARLY' ? i18n.perYear : i18n.perMonth }}
                     </span>
                 </template>
-                <template v-else>
+                <template v-else-if="plan.monthlyNet === null && plan.yearlyNet === null">
                     {{ i18n.priceOnRequest }}
+                </template>
+                <template v-else>
+                    {{ i18n.notSoldInCycle }}
                 </template>
             </div>
 
@@ -57,6 +61,8 @@ interface I18n {
     perMonth: string;
     perYear: string;
     priceOnRequest: string;
+    /** A plan with a price in the other cycle only. */
+    notSoldInCycle: string;
 }
 
 const props = defineProps<{
@@ -78,11 +84,13 @@ const emit = defineEmits<{
     'update:modelValue': [string];
 }>();
 
+/**
+ * The price the plan carries for the cycle, never derived from the other one. A
+ * plan without it is not sold in that cycle, so its card cannot be chosen: the
+ * plan change and the contract refuse it.
+ */
 function planPrice(plan: CatalogPlan): number | null {
-    if (props.cycle === 'YEARLY') {
-        return plan.yearlyNet ?? (plan.monthlyNet != null ? plan.monthlyNet * 10 : null);
-    }
-    return plan.monthlyNet;
+    return props.cycle === 'YEARLY' ? plan.yearlyNet : plan.monthlyNet;
 }
 </script>
 
@@ -137,6 +145,14 @@ function planPrice(plan: CatalogPlan): number | null {
 }
 .sp-model--current {
     background: var(--sp-card-current-bg);
+}
+.sp-model:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+.sp-model:disabled:hover {
+    transform: none;
+    border-color: var(--sp-card-border);
 }
 .sp-model__flag {
     position: absolute;

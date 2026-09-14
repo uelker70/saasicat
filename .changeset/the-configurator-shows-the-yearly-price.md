@@ -16,5 +16,10 @@ promo code preview worked on that figure.
   `ConfiguratorMarketingProvider.getCycleDiscount()` are removed. Delete the
   method from a marketing provider, and display the server's breakdown or
   `model.yearlyNet` where a page computed from `cycleDiscount`.
+- A promo discount is gross, as the preview reckons it, and the breakdown takes
+  it off in net, as the offer does. `RegistrationPromoPreview.discountAmount` is
+  documented as that gross amount.
 - Consuming a checkout offer checks its promo code with the promo module as it
-  stands then, which was already so and is now documented.
+  stands then, and a code it no longer accepts refuses the offer with
+  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED` rather than
+  `CHECKOUT_OFFER_PRICE_NOT_CURRENT`, whose prices still match.

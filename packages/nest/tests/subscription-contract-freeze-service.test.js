@@ -129,6 +129,52 @@ test('a catalogue rate that is not a percentage is refused before the previous c
     assert.deepEqual(calls.created, []);
 });
 
+// @requirement SC-CHG-019 — A plan is booked only in a rhythm it carries a price for
+test('a plan without a price for the rhythm is refused before the previous contract is closed', async () => {
+    const monthlyOnly = { ...CATALOG.plans[0], yearlyNet: null };
+    const { calls, service } = makeService({
+        previousContract: { id: 'old-1' },
+        catalog: { ...CATALOG, plans: [monthlyOnly] },
+    });
+
+    await assert.rejects(
+        () =>
+            service.freezeOnPlanChange(
+                't1',
+                'STANDARD',
+                'YEARLY',
+                new Date('2026-06-09T00:00:00.000Z'),
+            ),
+        (error) => {
+            const body = error.getResponse();
+            assert.equal(body.code, 'PLAN_NOT_SOLD_IN_CYCLE');
+            assert.deepEqual(body.params, {
+                planName: 'Standard',
+                planKey: 'STANDARD',
+                billingCycle: 'YEARLY',
+            });
+            return true;
+        },
+    );
+
+    assert.deepEqual(calls.terminated, [], 'the contract in force was closed');
+    assert.deepEqual(calls.created, [], 'a plan line of 0.00 was recorded');
+});
+
+test('the same plan is recorded in the rhythm it carries a price for', async () => {
+    const monthlyOnly = { ...CATALOG.plans[0], yearlyNet: null };
+    const { calls, service } = makeService({ catalog: { ...CATALOG, plans: [monthlyOnly] } });
+
+    await service.freezeOnPlanChange(
+        't1',
+        'STANDARD',
+        'MONTHLY',
+        new Date('2026-06-09T00:00:00.000Z'),
+    );
+
+    assert.equal(calls.created[0].lineItems[0].priceNet, 49);
+});
+
 test('an end that is not after the start is refused before the previous contract is closed', async () => {
     const { calls, service } = makeService({ previousContract: { id: 'old-1' } });
     const effectiveFrom = new Date('2026-06-09T00:00:00.000Z');
