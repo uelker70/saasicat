@@ -75,16 +75,8 @@ export interface SubscriptionContractPriceSnapshot {
     discountNet: number;
     totalNet: number;
     /**
-     * The rate this contract's total was computed at — in per cent where the
-     * contract was frozen from the catalogue, and as the offer stated it where
-     * it was concluded from one.
-     *
-     * A checkout offer prices its lines as `net * (1 + vatRate)`, so it states
-     * a fraction, and the value is copied here as it stands. The field
-     * therefore carries both units across a history and cannot be compared
-     * across contracts. `ContractLineItemRecord.taxRate` is always per cent and
-     * is the one to read; this is kept as written because it is the record of
-     * what the contract was concluded with.
+     * The tax rate this contract's total was computed at, as a percentage:
+     * 19 means 19 %, as every tax rate in SaaSiCat is.
      */
     vatRate: number;
     totalGross: number;

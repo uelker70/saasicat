@@ -30,6 +30,7 @@ _Tested by:_
     - getPlanPriceNet for ENTERPRISE (marketed: false) → null
     - getPlanPriceGross MONTHLY = net * 1.19
     - getPlanPriceGross with override vatRate
+    - getPlanPriceGross refuses a rate that is not a percentage, with the contract code
     - getPlanPriceGross for ENTERPRISE → null
     - getPlanQuota returns a concrete value
     - getPlanQuota returns -1 for unlimited ENTERPRISE quotas
@@ -971,6 +972,7 @@ _Tested by:_
     - a negative notice period is refused
     - a fractional notice period is refused — days are whole
     - an unknown member of the block is refused, not ignored
+    - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
 
 <!-- END proof -->
 
@@ -1012,6 +1014,7 @@ _Tested by:_
     - a negative notice period is refused
     - a fractional notice period is refused — days are whole
     - an unknown member of the block is refused, not ignored
+    - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
 
 <!-- END proof -->
 

@@ -214,7 +214,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
                 subtotalNet: 61,
                 discountNet: 0,
                 totalNet: 61,
-                vatRate: 0.19,
+                vatRate: 19,
                 totalGross: 72.59,
             },
             lineItems: [
@@ -276,7 +276,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
                 subtotalNet: 49,
                 discountNet: 0,
                 totalNet: 49,
-                vatRate: 0.19,
+                vatRate: 19,
                 totalGross: 58.31,
             },
             lineItems: [
@@ -770,7 +770,7 @@ describe('EntitlementService — bundles booked after the contract was signed', 
         subtotalNet: 49,
         discountNet: 0,
         totalNet: 49,
-        vatRate: 0.19,
+        vatRate: 19,
         totalGross: 58.31,
     };
 

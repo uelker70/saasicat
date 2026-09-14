@@ -234,6 +234,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_CONTRACT_INVALID_WINDOW: 'effectiveUntil must be after effectiveFrom.',
     SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH:
         "A line item's taxAmount must be exactly priceGross minus priceNet.",
+    SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT:
+        'A subscription contract states a tax rate of {taxRate} at {field}, which is not a percentage: a rate lies from 0 to 100, and a value between 0 and 1 is refused as a fraction.',
     SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START:
         'effectiveUntil must be after the effectiveFrom of the contract.',
     SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH:

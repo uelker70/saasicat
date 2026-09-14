@@ -17,6 +17,11 @@ import {
     recordLineItemMoney,
 } from '../subscription-contract/contract-line-item-money.js';
 import { grossFromNet, round2 } from '../promo/math.js';
+import {
+    assertContractWindow,
+    assertOnePlanLine,
+    assertTaxRatePercent,
+} from '../subscription-contract/contract-refusals.js';
 
 // SubscriptionContractFreezeService (#18) — on a plan change, freezes the
 // agreed service as a `SubscriptionContract` with `entitlementSnapshot`.
@@ -69,24 +74,14 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
     ): Promise<void> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         const vatRate = this.catalog.vatRate;
+        // Before the previous contract is closed below: the new one records this
+        // rate and this window, and a refusal after the termination would leave
+        // no contract.
+        assertTaxRatePercent('catalog.vatRate', vatRate);
+        assertContractWindow(effectiveFrom, endsAt);
 
         const bundles = await this.source.loadBookedBundles(tenantId, cycle, vatRate);
         const livePlanVersionId = await this.source.findLivePlanVersionId(newPlan);
-
-        // Terminate the old active contract so that `computeLimits` takes the
-        // catalog path (otherwise it would read back the OLD frozen snapshot).
-        const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
-        if (previous) {
-            await this.contracts.terminate(previous.id, {
-                effectiveUntil: effectiveFrom,
-                status: 'superseded',
-            });
-        }
-        this.entitlements.invalidateTenant(tenantId);
-
-        // Effective entitlements (plan + bundles + add-ons) as a snapshot — exactly
-        // what the tenant would get without the freeze. That makes the snapshot correct.
-        const limits = await this.entitlements.computeLimits(tenantId, effectiveFrom);
 
         const planDef = findPlan(this.catalog, newPlan);
         const planPriceNet = getPlanPriceNet(this.catalog, newPlan, billingCycle) ?? 0;
@@ -125,6 +120,25 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         const subtotalNet = round2(
             lineItems.reduce((sum, li) => sum + priceOverOnePeriodOf(cycle, li), 0),
         );
+
+        // The lines depend on nothing the termination changes, so they are checked
+        // before it, for the same reason as the rate and the window above.
+        assertOnePlanLine(lineItems);
+
+        // Terminate the old active contract so that `computeLimits` takes the
+        // catalog path (otherwise it would read back the OLD frozen snapshot).
+        const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
+        if (previous) {
+            await this.contracts.terminate(previous.id, {
+                effectiveUntil: effectiveFrom,
+                status: 'superseded',
+            });
+        }
+        this.entitlements.invalidateTenant(tenantId);
+
+        // Effective entitlements (plan + bundles + add-ons) as a snapshot — exactly
+        // what the tenant would get without the freeze. That makes the snapshot correct.
+        const limits = await this.entitlements.computeLimits(tenantId, effectiveFrom);
 
         const data: CreateSubscriptionContractData = {
             tenantId,

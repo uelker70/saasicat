@@ -13,30 +13,20 @@
 --
 -- Where the values come from. Every contract carries a `priceSnapshot` holding
 -- the currency and the VAT rate that were agreed for it, written in the same
--- moment as its line items — so an existing line is not guessed at, it reads
--- the fact one level up. "taxAmount" is the gap between the line's own net and
--- gross, which is exact: both are already held to two places.
+-- moment as its line items — so an existing line reads the fact one level up.
+-- "taxAmount" is the gap between the line's own net and gross, which is exact:
+-- both are already held to two places.
 --
--- The rate needs its unit read rather than assumed. A contract concluded from a
--- checkout offer holds the rate as the offer stated it, and an offer prices its
--- lines as `net * (1 + vatRate)` — a fraction — while a contract frozen from
--- the catalogue holds per cent. The same installation therefore has both in one
--- column, which is the reason `"taxRate"` exists.
---
--- Which unit a snapshot holds is read off that snapshot's own totals: whichever
--- of the two readings explains the gross it recorded is the one it was written
--- in. Where both explain it — a contract for a free plan, whose totals are zero,
--- and every rate explains zero — the contract's own provenance decides:
--- `originalOfferId` is set only where the contract was concluded from an offer,
--- so a null one was frozen from the catalogue and already holds per cent.
--- Falling back to the fraction there turned an ordinary 19 into 1900 and
--- stopped the upgrade of any installation that sells a free plan.
---
--- What it will not do is invent a value. A contract whose snapshot does not
--- state a currency, or does not state the numbers this needs, or yields a rate
--- outside 0–100, stops the migration with a sentence naming the contract —
--- because a row labelled EUR because EUR is common is worse than a migration
--- that did not run.
+-- The rate is a percentage, as every tax rate in SaaSiCat is: 19 means 19 %.
+-- It is taken from the snapshot as it stands and checked, never read in some
+-- other unit or converted. A contract stops the migration, named, where its
+-- snapshot does not state a currency, does not state its vatRate as a number,
+-- or states a rate outside 0 to 100 or between 0 and 1 — the shape of a
+-- fraction such as 0.19. A line this file fills that already carries a rate of
+-- its own is held to the same rule; a line that already holds all three values
+-- is not touched. An installation that stored fractions converts them before it
+-- runs this file; a row labelled 0.19 % because a number was there is worse
+-- than a migration that did not run.
 --
 -- Safe to run again: the columns are added only where they are missing, a value
 -- already in a column is kept rather than rewritten, and tightening a column
@@ -81,60 +71,21 @@ BEGIN
                        THEN nullif(c."priceSnapshot" ->> 'currency', '')
                END
            ) AS currency,
-           coalesce(
-               li."taxRate",
-               CASE
-                   WHEN jsonb_typeof(c."priceSnapshot" -> 'vatRate') = 'number'
-                        AND jsonb_typeof(c."priceSnapshot" -> 'totalNet') = 'number'
-                        AND jsonb_typeof(c."priceSnapshot" -> 'totalGross') = 'number'
-                       THEN CASE
-                           -- The totals say per cent and cannot be read as a
-                           -- fraction.
-                           WHEN round(
-                                    (c."priceSnapshot" ->> 'totalNet')::numeric
-                                        * (1 + (c."priceSnapshot" ->> 'vatRate')::numeric / 100),
-                                    2
-                                ) = round((c."priceSnapshot" ->> 'totalGross')::numeric, 2)
-                                AND round(
-                                        (c."priceSnapshot" ->> 'totalNet')::numeric
-                                            * (1 + (c."priceSnapshot" ->> 'vatRate')::numeric),
-                                        2
-                                    ) <> round((c."priceSnapshot" ->> 'totalGross')::numeric, 2)
-                               THEN round((c."priceSnapshot" ->> 'vatRate')::numeric, 2)
-                           -- And the other way round. It has to exclude the
-                           -- per-cent reading in the same way: a total of zero
-                           -- is explained by both, and without the exclusion
-                           -- this branch answers first and every free contract
-                           -- reaches the fraction.
-                           WHEN round(
-                                    (c."priceSnapshot" ->> 'totalNet')::numeric
-                                        * (1 + (c."priceSnapshot" ->> 'vatRate')::numeric),
-                                    2
-                                ) = round((c."priceSnapshot" ->> 'totalGross')::numeric, 2)
-                                AND round(
-                                        (c."priceSnapshot" ->> 'totalNet')::numeric
-                                            * (1 + (c."priceSnapshot" ->> 'vatRate')::numeric
-                                                       / 100),
-                                        2
-                                    ) <> round((c."priceSnapshot" ->> 'totalGross')::numeric, 2)
-                               THEN round((c."priceSnapshot" ->> 'vatRate')::numeric * 100, 2)
-                           -- The totals cannot tell the two apart. A contract
-                           -- for a free plan is the case that reaches here: its
-                           -- totals are both zero, so every rate explains them.
-                           -- The contract says where it came from instead, and
-                           -- that is a recorded fact rather than an inference —
-                           -- a contract frozen from the catalogue holds per
-                           -- cent, one concluded from an offer holds the
-                           -- fraction the offer priced its lines with.
-                           WHEN c."originalOfferId" IS NULL
-                               THEN round((c."priceSnapshot" ->> 'vatRate')::numeric, 2)
-                           ELSE round((c."priceSnapshot" ->> 'vatRate')::numeric * 100, 2)
-                       END
-               END
-           ) AS tax_rate,
+           -- The rate as it is stated, before it is rounded to the column's two
+           -- places: the rule is checked on what was written, as the guide's
+           -- query checks it, so 0.995 is a fraction here too.
+           coalesce(li."taxRate", snap.rate) AS stated_rate,
+           coalesce(li."taxRate", round(snap.rate, 2)) AS tax_rate,
            coalesce(li."taxAmount", li."priceGross" - li."priceNet") AS tax_amount
       FROM "contract_line_items" li
       LEFT JOIN "subscription_contracts" c ON c."id" = li."contractId"
+      -- The rate is cast only once it is known to be a JSON number, so a
+      -- snapshot stating `"vatRate": "19"` reaches the refusal below with its
+      -- contract named rather than a cast error that names nothing.
+     CROSS JOIN LATERAL (
+         SELECT CASE WHEN jsonb_typeof(c."priceSnapshot" -> 'vatRate') = 'number'
+                    THEN (c."priceSnapshot" ->> 'vatRate')::numeric END AS rate
+     ) snap
      WHERE li."currency" IS NULL
         OR li."taxRate" IS NULL
         OR li."taxAmount" IS NULL;
@@ -148,17 +99,21 @@ BEGIN
       INTO unfillable
       FROM _saasicat_line_money
      WHERE currency IS NULL
-        OR tax_rate IS NULL
-        OR tax_rate < 0
-        OR tax_rate > 100;
+        OR stated_rate IS NULL
+        OR stated_rate < 0
+        OR stated_rate > 100
+        -- The shape of a fraction: a percentage between 0 and 1 is refused
+        -- rather than recorded as a fraction of a per cent.
+        OR (stated_rate > 0 AND stated_rate < 1);
 
     IF unfillable IS NOT NULL THEN
         RAISE EXCEPTION
             'Cannot record the money facts of % contract(s): their priceSnapshot does not state a '
-            'currency, or does not state the vatRate, totalNet and totalGross this needs as '
-            'numbers, or yields a rate outside 0-100 (%). The snapshot is the only record of what '
-            'was agreed, so this migration will not guess. Repair those snapshots and run it '
-            'again. A line named on its own has no contract row at all.',
+            'currency, or does not state its vatRate as a number, or states a tax rate — in the '
+            'snapshot, or on a line that already carries one — that is not a percentage from 0 '
+            'to 100, a value between 0 and 1 being refused as a fraction (%). The snapshot is '
+            'the only record of what was agreed, so this migration converts nothing. Repair those '
+            'rows and run it again. A line named on its own has no contract row at all.',
             array_length(unfillable, 1),
             array_to_string(unfillable[1:10], ', ')
                 || CASE WHEN array_length(unfillable, 1) > 10 THEN ', …' ELSE '' END;

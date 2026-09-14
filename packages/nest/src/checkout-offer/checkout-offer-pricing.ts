@@ -38,7 +38,7 @@ import {
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
 import { computeDiscountGross } from '../promo/calculator.js';
-import { grossFromNet, round2 } from '../promo/math.js';
+import { grossFromNet, netFromGross, round2 } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { appendImplicitDiscountLineItem } from './discount-line-items.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
@@ -365,10 +365,7 @@ export class CheckoutOfferPricing {
             computeDiscountGross({ gross: planGross }, preview.discount),
             planGross,
         );
-        const resolvedAmountNet = Math.min(
-            planNet,
-            round2((discountGross * 100) / (100 + vatRate)),
-        );
+        const resolvedAmountNet = Math.min(planNet, netFromGross(discountGross, vatRate));
         return {
             code: preview.code,
             label: preview.label,

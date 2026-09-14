@@ -1,11 +1,11 @@
 import { describe, test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { CONTRACT_ERROR_CODES } from '@saasicat/core';
 import {
     contractLineItemToInvoiceLineItem,
     subscriptionContractToInvoiceSnapshot,
     SubscriptionContractService,
-    vatPercentFromOfferRate,
 } from '../dist/subscription-contract/index.js';
 import { FakeSubscriptionContractRepository } from '../dist/testing/index.js';
 
@@ -18,7 +18,7 @@ const PRICE = {
     subtotalNet: 708,
     discountNet: 70.8,
     totalNet: 637.2,
-    vatRate: 0.19,
+    vatRate: 19,
     totalGross: 758.27,
 };
 
@@ -100,7 +100,7 @@ function consumedOffer() {
             bundlesNet: 120,
             regularNet: 708,
             effectiveNet: 637.2,
-            vatRate: 0.19,
+            vatRate: 19,
             effectiveGross: 758.27,
         },
         lineItems: [PLAN_LINE, BUNDLE_LINE],
@@ -208,6 +208,35 @@ describe('SubscriptionContractService', () => {
         assert.equal(result.next.lineItems[0].sourceKey, 'PRO');
     });
 
+    // @requirement SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+    test('a replacement whose rate is refused leaves the previous contract active', async () => {
+        const first = await service.create({
+            tenantId: 'tenant-1',
+            effectiveFrom: EFFECTIVE_FROM,
+            priceSnapshot: PRICE,
+            lineItems: [PLAN_LINE],
+        });
+
+        await assert.rejects(
+            () =>
+                service.replaceActiveContract(
+                    'tenant-1',
+                    {
+                        tenantId: 'tenant-1',
+                        effectiveFrom: new Date('2026-07-01T00:00:00.000Z'),
+                        priceSnapshot: { ...PRICE, vatRate: 0.19 },
+                        lineItems: [PLAN_LINE],
+                    },
+                    new Date('2026-07-01T00:00:00.000Z'),
+                ),
+            (error) => error.getResponse().code === 'SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT',
+        );
+
+        const still = await service.getById(first.id);
+        assert.equal(still.status, 'active', 'the refusal closed the contract in force');
+        assert.equal(still.effectiveUntil, null);
+    });
+
     test('create requires a plan line item', async () => {
         await assert.rejects(
             () =>
@@ -244,6 +273,45 @@ describe('SubscriptionContractService', () => {
             },
         );
     });
+
+    for (const [what, contract, field] of [
+        [
+            'a contract rate written as a fraction',
+            { priceSnapshot: { ...PRICE, vatRate: 0.19 }, lineItems: [PLAN_LINE] },
+            'priceSnapshot.vatRate',
+        ],
+        [
+            'a line rate written as a fraction',
+            { priceSnapshot: PRICE, lineItems: [{ ...PLAN_LINE, taxRate: 0.19 }] },
+            'lineItems[0].taxRate',
+        ],
+        [
+            'a line rate above 100',
+            { priceSnapshot: PRICE, lineItems: [{ ...PLAN_LINE, taxRate: 119 }] },
+            'lineItems[0].taxRate',
+        ],
+    ]) {
+        // @requirement SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+        test(`${what} is refused when a contract is created directly`, async () => {
+            await assert.rejects(
+                () =>
+                    service.create({
+                        tenantId: 'tenant-1',
+                        effectiveFrom: EFFECTIVE_FROM,
+                        ...contract,
+                    }),
+                (error) => {
+                    assert.equal(
+                        error.getResponse().code,
+                        'SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT',
+                    );
+                    assert.equal(error.getResponse().params.field, field);
+                    return true;
+                },
+            );
+            assert.equal(await repo.findActiveByTenantId('tenant-1', EFFECTIVE_FROM), null);
+        });
+    }
 
     test('a line booked in another currency than its contract is refused', () => {
         // An installation sells in one currency, so this is not a
@@ -406,14 +474,12 @@ describe('the money facts a contract inherits from its offer', () => {
         return Math.abs(fromRate - line.taxAmount) <= 0.01;
     }
 
-    test('a rate the offer states as a fraction is recorded in per cent', async () => {
-        // The fixture is the shape this platform produces: `vatRate: 0.19`
-        // with lines priced at 19 %. Recorded as it stands, the column would
-        // say 0.19 next to a tax that is 19 % of net.
+    test('the rate the offer states is recorded as the percentage it is', async () => {
         const contract = await conclude(consumedOffer());
         for (const line of contract.lineItems) {
-            assert.equal(line.taxRate, 19, `${line.sourceKey} recorded the rate in the wrong unit`);
+            assert.equal(line.taxRate, 19, `${line.sourceKey} recorded ${line.taxRate}`);
         }
+        assert.equal(contract.priceSnapshot.vatRate, 19);
     });
 
     test('and the rate it records explains the tax it records', async () => {
@@ -451,19 +517,6 @@ describe('the money facts a contract inherits from its offer', () => {
         }
     });
 
-    test('a rate the offer states in per cent, as the server prices it, is recorded as it is', async () => {
-        const offer = consumedOffer();
-        offer.priceBreakdown = { ...offer.priceBreakdown, vatRate: 19 };
-        const contract = await conclude(offer);
-        for (const line of contract.lineItems) {
-            assert.equal(line.taxRate, 19, `${line.sourceKey} recorded the rate in the wrong unit`);
-            assert.ok(
-                rateExplainsTax(line),
-                `${line.sourceKey}: ${line.taxAmount} on ${line.priceNet}`,
-            );
-        }
-    });
-
     test('the discount the offer implies carries a negative tax, not a positive one', async () => {
         // The discount line is appended by the platform rather than supplied,
         // so it is the one a stamping applied only to the offer's own lines
@@ -478,39 +531,57 @@ describe('the money facts a contract inherits from its offer', () => {
     });
 });
 
-// The unit itself, asked of the function rather than through a contract. The
-// server prices an offer in per cent; a stored row written by other code may
-// carry a fraction, and both have to come out as the same percentage.
+// Every tax rate in SaaSiCat is a percentage from 0 to 100, and none lies
+// between 0 and 1. An offer that states anything else was not priced by the
+// server, and its rate is refused rather than read another way.
 
-// @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
-describe('reading the unit an offer states its VAT rate in', () => {
-    test('a fraction beside totals that agree with it becomes a percentage', () => {
-        assert.equal(vatPercentFromOfferRate(0.19, 637.2, 758.27), 19);
-        assert.equal(vatPercentFromOfferRate(0.081, 100, 108.1), 8.1);
-    });
+// @requirement SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+describe('an offer whose tax rate is not a percentage', () => {
+    async function refusal(priceBreakdown) {
+        const repo = new FakeSubscriptionContractRepository();
+        const service = new SubscriptionContractService(repo);
+        const offer = consumedOffer();
+        offer.priceBreakdown = { ...offer.priceBreakdown, ...priceBreakdown };
+        const outcome = await service
+            .createFromOffer(offer, { tenantId: 'tenant-1', effectiveFrom: EFFECTIVE_FROM })
+            .then(
+                () => null,
+                (error) => error,
+            );
+        return { outcome, stored: await repo.findActiveByTenantId('tenant-1', EFFECTIVE_FROM) };
+    }
 
-    test('a percentage beside totals that agree with it is left as it is', () => {
-        assert.equal(vatPercentFromOfferRate(19, 637.2, 758.27), 19);
-        assert.equal(vatPercentFromOfferRate(8.1, 100, 108.1), 8.1);
-    });
+    for (const [what, priceBreakdown] of [
+        ['a fraction beside totals it explains', { vatRate: 0.19 }],
+        ['a rate just below 1', { vatRate: 0.995 }],
+        [
+            'a fraction on a fully discounted offer',
+            { vatRate: 0.19, effectiveNet: 0, effectiveGross: 0 },
+        ],
+        ['a rate below zero', { vatRate: -19, effectiveGross: 516.13 }],
+        ['a rate above 100', { vatRate: 101, effectiveGross: 1280.77 }],
+    ]) {
+        test(`${what} is refused and nothing is stored`, async () => {
+            const { outcome, stored } = await refusal(priceBreakdown);
+            assert.ok(outcome, 'the contract was created');
+            assert.equal(
+                outcome.getResponse().code,
+                CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT,
+            );
+            assert.equal(stored, null);
+        });
+    }
 
-    test('zero is zero under either reading', () => {
-        assert.equal(vatPercentFromOfferRate(0, 100, 100), 0);
-    });
-
-    test('totals that prove nothing leave the size of the rate to decide', () => {
-        // A breakdown nobody here priced. A VAT rate stated as a fraction is
-        // below one and one stated in per cent is not, so 0.19 is not read as a
-        // fifth of a per cent and 19 is not read as 1,900 %.
-        assert.equal(vatPercentFromOfferRate(0.19, 100, 500), 19);
-        assert.equal(vatPercentFromOfferRate(19, 100, 500), 19);
-    });
-
-    test('a total of nothing keeps the rate it states, in either unit', () => {
-        // Both readings produce a gross of zero, so the totals cannot separate
-        // them. A fully discounted contract is the case, and it still has a
-        // rate.
-        assert.equal(vatPercentFromOfferRate(0.19, 0, 0), 19);
-        assert.equal(vatPercentFromOfferRate(19, 0, 0), 19);
-    });
+    for (const [what, priceBreakdown, expected] of [
+        ['zero', { vatRate: 0, effectiveGross: 637.2 }, 0],
+        ['one per cent', { vatRate: 1, effectiveGross: 643.57 }, 1],
+        ['one hundred per cent', { vatRate: 100, effectiveGross: 1274.4 }, 100],
+        ['19 beside a gross summed from rounded lines', { effectiveGross: 758.28 }, 19],
+    ]) {
+        test(`${what} is a percentage and is recorded as it stands`, async () => {
+            const { outcome, stored } = await refusal(priceBreakdown);
+            assert.equal(outcome, null, String(outcome?.message));
+            for (const line of stored.lineItems) assert.equal(line.taxRate, expected);
+        });
+    }
 });

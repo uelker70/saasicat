@@ -10,8 +10,4 @@ export {
     type SubscriptionContractModuleOptions,
 } from './subscription-contract.module.js';
 export { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
-export {
-    recordLineItemMoney,
-    vatPercentFromOfferRate,
-    type PricedContractLineItem,
-} from './contract-line-item-money.js';
+export { recordLineItemMoney, type PricedContractLineItem } from './contract-line-item-money.js';

@@ -21,12 +21,13 @@ import type {
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
 import { round2 } from '../promo/math.js';
-import {
-    type PricedContractLineItem,
-    recordLineItemMoney,
-    vatPercentFromOfferRate,
-} from './contract-line-item-money.js';
+import { type PricedContractLineItem, recordLineItemMoney } from './contract-line-item-money.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
+import {
+    assertContractWindow,
+    assertOnePlanLine,
+    assertTaxRatePercent,
+} from './contract-refusals.js';
 import { CONTRACT_ERROR_CODES } from '@saasicat/core';
 
 export interface CreateContractFromOfferOptions {
@@ -102,6 +103,10 @@ export class SubscriptionContractService {
         data: CreateSubscriptionContractData,
         terminateAt: Date,
     ): Promise<{ previous: SubscriptionContractRecord | null; next: SubscriptionContractRecord }> {
+        const nextData = { ...data, tenantId, effectiveFrom: data.effectiveFrom ?? terminateAt };
+        // Checked before the previous contract is closed: `create` checks again,
+        // but a refusal there would come after a termination nothing can undo.
+        this.assertCreateData(nextData);
         const previous = await this.repo.findActiveByTenantId(tenantId, terminateAt);
         if (previous) {
             await this.terminate(previous.id, {
@@ -109,11 +114,7 @@ export class SubscriptionContractService {
                 status: 'superseded',
             });
         }
-        const next = await this.create({
-            ...data,
-            tenantId,
-            effectiveFrom: data.effectiveFrom ?? terminateAt,
-        });
+        const next = await this.create(nextData);
         return { previous, next };
     }
 
@@ -176,11 +177,7 @@ export class SubscriptionContractService {
             recordLineItemMoney(
                 this.offerLineItemToContractLineItem(item),
                 offer.priceBreakdown.currency,
-                vatPercentFromOfferRate(
-                    offer.priceBreakdown.vatRate,
-                    offer.priceBreakdown.effectiveNet,
-                    offer.priceBreakdown.effectiveGross,
-                ),
+                offer.priceBreakdown.vatRate,
             ),
         );
     }
@@ -240,19 +237,16 @@ export class SubscriptionContractService {
                 message: 'A subscription contract requires at least one line item.',
             });
         }
-        if (data.effectiveUntil && data.effectiveUntil <= data.effectiveFrom) {
-            throw new UnprocessableEntityException({
-                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_INVALID_WINDOW,
-                message: 'effectiveUntil must be after effectiveFrom.',
-            });
-        }
-        const planLineItems = data.lineItems.filter((item) => item.kind === 'plan');
-        if (planLineItems.length !== 1) {
-            throw new UnprocessableEntityException({
-                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED,
-                message: 'A subscription contract requires exactly one plan base item.',
-            });
-        }
+        assertContractWindow(data.effectiveFrom, data.effectiveUntil ?? null);
+        assertOnePlanLine(data.lineItems);
+        // Every tax rate is a percentage, the contract's and each line's. This is
+        // the one door every contract goes through — frozen from the catalogue,
+        // concluded from an offer, or handed over by a caller — so the rule is
+        // held here rather than on each way in.
+        assertTaxRatePercent('priceSnapshot.vatRate', data.priceSnapshot.vatRate);
+        data.lineItems.forEach((item, index) =>
+            assertTaxRatePercent(`lineItems[${index}].taxRate`, item.taxRate),
+        );
         // The tax a line records has to close the gap between its own net and
         // gross. Both platform paths compute it that way, so this only ever
         // catches a caller supplying its own line items — but a contract is

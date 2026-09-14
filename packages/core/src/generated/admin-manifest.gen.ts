@@ -48,6 +48,9 @@ export interface AdminManifest {
         source: string;
         hash: string;
         currency: string;
+        /**
+         * VAT rate as a percentage: 19 means 19 %.
+         */
         vatRate: number;
         features?: {
             key: string;

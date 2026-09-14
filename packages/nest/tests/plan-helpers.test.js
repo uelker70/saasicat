@@ -140,6 +140,31 @@ test('getPlanPriceGross with override vatRate', () => {
     assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'MONTHLY', 7), 53.39);
 });
 
+// @requirement SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+test('getPlanPriceGross refuses a rate that is not a percentage, with the contract code', () => {
+    const refusedFor = (field) => (error) =>
+        error.getResponse().code === 'SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT' &&
+        error.getResponse().params.field === field;
+    for (const vatRate of [0.19, -1, 101]) {
+        assert.throws(
+            () => getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'MONTHLY', vatRate),
+            refusedFor('vatRate'),
+            `an override of ${vatRate} was priced`,
+        );
+    }
+    // The case the platform reaches: a catalogue handed over in code, no override.
+    assert.throws(
+        () =>
+            getPlanPriceGross(
+                { ...DEMOAPP_LIKE_CATALOG, vatRate: 0.19 },
+                'PROFESSIONAL',
+                'MONTHLY',
+            ),
+        refusedFor('catalog.vatRate'),
+    );
+    assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'MONTHLY', 0), 49.9);
+});
+
 test('getPlanPriceGross for ENTERPRISE → null', () => {
     assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'ENTERPRISE', 'MONTHLY'), null);
 });

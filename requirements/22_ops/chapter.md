@@ -167,10 +167,9 @@ _Tested by:_
         - a second run leaves the values the first one wrote
         - a contract with ${what} stops the migration and is named
         - and the table is exactly as it was afterwards
-        - a rate no reading brings inside 0-100 stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
-        - and a free plan concluded from an offer keeps its rate as the fraction it is
-        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a rate ${what} stops the migration and is named
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
         - a value already in a column is kept, and a row missing only one is still found
         - an installation that never took the fragment is left alone
         - a line whose contract is gone is named as itself, not as an empty space
@@ -226,10 +225,9 @@ _Tested by:_
         - a second run leaves the values the first one wrote
         - a contract with ${what} stops the migration and is named
         - and the table is exactly as it was afterwards
-        - a rate no reading brings inside 0-100 stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
-        - and a free plan concluded from an offer keeps its rate as the fraction it is
-        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a rate ${what} stops the migration and is named
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
         - a value already in a column is kept, and a row missing only one is still found
         - an installation that never took the fragment is left alone
         - a line whose contract is gone is named as itself, not as an empty space

@@ -11,6 +11,8 @@ import type {
     RegistrationConfigSelection,
 } from '@saasicat/core';
 
+import { grossFromNet } from '../promo/math.js';
+
 function round2(value: number): number {
     return Math.round(value * 100) / 100;
 }
@@ -48,7 +50,7 @@ export function computeBreakdown(
 
     const discountAmount = promo ? Math.min(round2(promo.discountAmount), subtotalNet) : 0;
     const totalNet = Math.max(0, round2(subtotalNet - discountAmount));
-    const totalGross = round2(totalNet * (1 + catalog.vatRate / 100));
+    const totalGross = grossFromNet(totalNet, catalog.vatRate);
 
     const yearlySavings =
         selection.billingCycle === 'YEARLY'

@@ -107,6 +107,82 @@ test('supersedes the previous active contract before creating the new one', asyn
     assert.equal(calls.created[0].priceSnapshot.billingCycle, 'yearly');
 });
 
+// @requirement SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+test('a catalogue rate that is not a percentage is refused before the previous contract is closed', async () => {
+    const { calls, service } = makeService({
+        previousContract: { id: 'old-1' },
+        catalog: { ...CATALOG, vatRate: 0.19 },
+    });
+
+    await assert.rejects(
+        () =>
+            service.freezeOnPlanChange(
+                't1',
+                'STANDARD',
+                'MONTHLY',
+                new Date('2026-06-09T00:00:00.000Z'),
+            ),
+        (error) => error.getResponse().code === 'SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT',
+    );
+
+    assert.deepEqual(calls.terminated, [], 'the contract in force was closed');
+    assert.deepEqual(calls.created, []);
+});
+
+test('an end that is not after the start is refused before the previous contract is closed', async () => {
+    const { calls, service } = makeService({ previousContract: { id: 'old-1' } });
+    const effectiveFrom = new Date('2026-06-09T00:00:00.000Z');
+
+    await assert.rejects(
+        () => service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', effectiveFrom, effectiveFrom),
+        (error) => error.getResponse().code === 'SUBSCRIPTION_CONTRACT_INVALID_WINDOW',
+    );
+
+    assert.deepEqual(calls.terminated, [], 'the contract in force was closed');
+    assert.deepEqual(calls.created, []);
+});
+
+test('a second plan line from the source is refused before the previous contract is closed', async () => {
+    const { calls, service } = makeService({
+        previousContract: { id: 'old-1' },
+        bundles: {
+            lineItems: [
+                {
+                    kind: 'plan',
+                    sourceKey: 'OTHER',
+                    sourceVersionId: null,
+                    titleSnapshot: 'Other',
+                    descriptionSnapshot: null,
+                    quantity: 1,
+                    unit: null,
+                    priceNet: 10,
+                    priceGross: 11.9,
+                    billingCycle: 'monthly',
+                    minimumTermUntil: null,
+                    featuresSnapshot: [],
+                    quotaEffectsSnapshot: {},
+                    metadata: null,
+                },
+            ],
+            bundleVersionIds: [],
+        },
+    });
+
+    await assert.rejects(
+        () =>
+            service.freezeOnPlanChange(
+                't1',
+                'STANDARD',
+                'MONTHLY',
+                new Date('2026-06-09T00:00:00.000Z'),
+            ),
+        (error) => error.getResponse().code === 'SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED',
+    );
+
+    assert.deepEqual(calls.terminated, [], 'the contract in force was closed');
+    assert.deepEqual(calls.created, []);
+});
+
 test('appends consumer bundle line items + version ids', async () => {
     const bundleLine = {
         kind: 'bundle',

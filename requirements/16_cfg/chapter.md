@@ -207,6 +207,46 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+
+🟢 💰 19 means 19 %, in `config/saas.yaml`, the catalogue, a checkout offer's price breakdown, a
+contract's price snapshot and its lines. Nothing reads a rate in another unit or converts one: a
+value outside 0 to 100, or between 0 and 1 — the shape of a fraction such as 0.19 — is refused where
+it is read, by the same rule in each place. One unit is the only reading an operator who configured
+19 can take for granted.
+
+_Source:_ #282
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
+- `packages/nest/tests/plan-helpers.test.js`
+    - getPlanPriceGross refuses a rate that is not a percentage, with the contract code
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a catalogue rate that is not a percentage is refused before the previous contract is closed
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - a replacement whose rate is refused leaves the previous contract active
+        - ${what} is refused when a contract is created directly
+    - an offer whose tax rate is not a percentage
+        - ${what} is refused and nothing is stored
+        - ${what} is a percentage and is recorded as it stands
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a line item learns the money it was booked with
+        - a rate ${what} stops the migration and is named
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
+- `tests/a-tax-rate-is-computed-in-one-place.test.js`
+    - arithmetic on a tax rate
+        - the scan has sources to read, and the one place is among them
+        - happens nowhere else
+        - the scan sees the shapes it names, and not prose or other names
+
+<!-- END proof -->
+
 ### SC-CFG-003 — A setting that must change without a deployment is kept out of the file entirely
 
 🟢 And lives in one audited place instead of two. Adding a second home is what this rule exists to

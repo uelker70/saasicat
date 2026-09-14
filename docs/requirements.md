@@ -122,7 +122,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 23      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 18      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 21      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 34      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 35      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 13      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 418 entries: 🟢 409 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
+Of 419 entries: 🟢 410 stand today, 🟡 7 decided but not yet delivered, ⚪ 0 drafts, 🔵 2 superseded,
 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
@@ -146,7 +146,7 @@ Of 418 entries: 🟢 409 stand today, 🟡 7 decided but not yet delivered, ⚪ 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
 
-Generated from `requirements/` — 418 requirements. Do not edit by hand:
+Generated from `requirements/` — 419 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -933,6 +933,7 @@ _Tested by:_
     - getPlanPriceNet for ENTERPRISE (marketed: false) → null
     - getPlanPriceGross MONTHLY = net * 1.19
     - getPlanPriceGross with override vatRate
+    - getPlanPriceGross refuses a rate that is not a percentage, with the contract code
     - getPlanPriceGross for ENTERPRISE → null
     - getPlanQuota returns a concrete value
     - getPlanQuota returns -1 for unlimited ENTERPRISE quotas
@@ -1874,6 +1875,7 @@ _Tested by:_
     - a negative notice period is refused
     - a fractional notice period is refused — days are whole
     - an unknown member of the block is refused, not ignored
+    - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
 
 <!-- END proof -->
 
@@ -1915,6 +1917,7 @@ _Tested by:_
     - a negative notice period is refused
     - a fractional notice period is refused — days are whole
     - an unknown member of the block is refused, not ignored
+    - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
 
 <!-- END proof -->
 
@@ -4889,11 +4892,10 @@ _Tested by:_
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
-        - a rate the offer states as a fraction is recorded in per cent
+        - the rate the offer states is recorded as the percentage it is
         - and the rate it records explains the tax it records
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
-        - a rate the offer states in per cent, as the server prices it, is recorded as it is
         - the discount the offer implies carries a negative tax, not a positive one
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a line item learns the money it was booked with
@@ -4913,11 +4915,10 @@ _Tested by:_
 
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
-        - a rate the offer states as a fraction is recorded in per cent
+        - the rate the offer states is recorded as the percentage it is
         - and the rate it records explains the tax it records
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
-        - a rate the offer states in per cent, as the server prices it, is recorded as it is
         - the discount the offer implies carries a negative tax, not a positive one
 - `packages/nest/tests/validity-window.test.js`
     - the window a version is refused for
@@ -4956,23 +4957,14 @@ _Tested by:_
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
-        - a rate the offer states as a fraction is recorded in per cent
+        - the rate the offer states is recorded as the percentage it is
         - and the rate it records explains the tax it records
         - every line names the currency the offer froze
         - and the tax on each closes the gap between its own net and gross
-        - a rate the offer states in per cent, as the server prices it, is recorded as it is
         - the discount the offer implies carries a negative tax, not a positive one
-    - reading the unit an offer states its VAT rate in
-        - a fraction beside totals that agree with it becomes a percentage
-        - a percentage beside totals that agree with it is left as it is
-        - zero is zero under either reading
-        - totals that prove nothing leave the size of the rate to decide
-        - a total of nothing keeps the rate it states, in either unit
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
-        - a rate no reading brings inside 0-100 stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
 
 <!-- END proof -->
 
@@ -6764,8 +6756,10 @@ _Tested by:_
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
+        - a replacement whose rate is refused leaves the previous contract active
         - create requires a plan line item
         - a line whose tax does not close its own gap is refused
+        - ${what} is refused when a contract is created directly
         - a line booked in another currency than its contract is refused
         - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
@@ -6844,8 +6838,10 @@ _Tested by:_
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
+        - a replacement whose rate is refused leaves the previous contract active
         - create requires a plan line item
         - a line whose tax does not close its own gap is refused
+        - ${what} is refused when a contract is created directly
         - a line booked in another currency than its contract is refused
         - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
@@ -6871,8 +6867,10 @@ _Tested by:_
         - createFromOffer creates immutable contract line items from a consumed offer
         - createFromOffer blocks open offers
         - replaceActiveContract closes the old contract and creates a new one
+        - a replacement whose rate is refused leaves the previous contract active
         - create requires a plan line item
         - a line whose tax does not close its own gap is refused
+        - ${what} is refused when a contract is created directly
         - a line booked in another currency than its contract is refused
         - and a line whose tax does close it goes through
         - contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice
@@ -9357,6 +9355,46 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-CFG-035 — Every tax rate is a percentage, wherever it is stated
+
+🟢 💰 19 means 19 %, in `config/saas.yaml`, the catalogue, a checkout offer's price breakdown, a
+contract's price snapshot and its lines. Nothing reads a rate in another unit or converts one: a
+value outside 0 to 100, or between 0 and 1 — the shape of a fraction such as 0.19 — is refused where
+it is read, by the same rule in each place. One unit is the only reading an operator who configured
+19 can take for granted.
+
+_Source:_ #282
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
+- `packages/nest/tests/plan-helpers.test.js`
+    - getPlanPriceGross refuses a rate that is not a percentage, with the contract code
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a catalogue rate that is not a percentage is refused before the previous contract is closed
+- `packages/nest/tests/subscription-contract-service.test.js`
+    - SubscriptionContractService
+        - a replacement whose rate is refused leaves the previous contract active
+        - ${what} is refused when a contract is created directly
+    - an offer whose tax rate is not a percentage
+        - ${what} is refused and nothing is stored
+        - ${what} is a percentage and is recorded as it stands
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - a line item learns the money it was booked with
+        - a rate ${what} stops the migration and is named
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
+- `tests/a-tax-rate-is-computed-in-one-place.test.js`
+    - arithmetic on a tax rate
+        - the scan has sources to read, and the one place is among them
+        - happens nowhere else
+        - the scan sees the shapes it names, and not prose or other names
+
+<!-- END proof -->
+
 ### SC-CFG-003 — A setting that must change without a deployment is kept out of the file entirely
 
 🟢 And lives in one audited place instead of two. Adding a second home is what this rule exists to
@@ -11681,6 +11719,8 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - and the installation is exactly as it was afterwards
+    - a line item learns the money it was booked with
+        - a contract with ${what} stops the migration and is named
 
 <!-- END proof -->
 
@@ -11992,10 +12032,9 @@ _Tested by:_
         - a second run leaves the values the first one wrote
         - a contract with ${what} stops the migration and is named
         - and the table is exactly as it was afterwards
-        - a rate no reading brings inside 0-100 stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
-        - and a free plan concluded from an offer keeps its rate as the fraction it is
-        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a rate ${what} stops the migration and is named
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
         - a value already in a column is kept, and a row missing only one is still found
         - an installation that never took the fragment is left alone
         - a line whose contract is gone is named as itself, not as an empty space
@@ -12051,10 +12090,9 @@ _Tested by:_
         - a second run leaves the values the first one wrote
         - a contract with ${what} stops the migration and is named
         - and the table is exactly as it was afterwards
-        - a rate no reading brings inside 0-100 stops the migration and is named
-        - a free plan frozen from the catalogue keeps its rate as it stands
-        - and a free plan concluded from an offer keeps its rate as the fraction it is
-        - a rate a checkout offer stated as a fraction is recorded in per cent
+        - a rate ${what} stops the migration and is named
+        - a percentage ${what} is recorded as it stands
+        - a line that already carries a fraction as its own rate stops the migration too
         - a value already in a column is kept, and a row missing only one is still found
         - an installation that never took the fragment is left alone
         - a line whose contract is gone is named as itself, not as an empty space

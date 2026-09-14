@@ -235,6 +235,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_CONTRACT_INVALID_WINDOW: 'effectiveUntil muss nach effectiveFrom liegen.',
     SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH:
         'taxAmount einer Position muss exakt priceGross minus priceNet sein.',
+    SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT:
+        'Ein Abo-Vertrag nennt bei {field} einen Steuersatz von {taxRate}, der kein Prozentsatz ist: Ein Satz liegt zwischen 0 und 100, und ein Wert zwischen 0 und 1 wird als Bruch abgelehnt.',
     SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH:
         'Eine Position muss in der Währung gebucht sein, in der ihr Vertrag bepreist ist.',
     SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START:
