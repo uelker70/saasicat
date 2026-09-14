@@ -5276,7 +5276,7 @@ _Source:_ #214
 
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 
-🟡 _(Decided, not yet delivered.)_ Invoice numbering is sequential, gapless and legally constrained
+🟡 _(Decided, not yet delivered.)_ Invoice numbering is sequential, unique and legally constrained
 per country, and an identifier a customer has already seen on a screen cannot become one later
 without confusion.
 
