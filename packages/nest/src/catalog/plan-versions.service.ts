@@ -209,7 +209,9 @@ export class PlanVersionsService {
      */
     async createPlanDraft(data: CreatePlanVersionDraftData): Promise<PlanVersionMutationResult> {
         const plan = await this.repo.findById(data.planId);
-        if (!plan) {
+        // A retired plan takes no new version: it is out of the catalogue, and
+        // a draft could only be published into a plan nobody can buy.
+        if (!plan || plan.deletedAt !== null) {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
                 message: `Plan '${data.planId}' not found`,

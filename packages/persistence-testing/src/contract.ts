@@ -833,12 +833,44 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
-        test('a plan key no plan has finds no versions, and retiring a plan hides none', async (t) => {
+        test('a plan key no plan has finds no versions, rather than failing', async (t) => {
             // A plan can go between listing the catalogue and reading its
-            // versions, so a read by a key no plan has answers empty rather
-            // than failing. A retired plan is different: its row is there, and
-            // the guard deciding whether it may be deleted counts its published
-            // versions — an adapter that hid them would let that delete through.
+            // versions, so a read by a key no plan has answers empty. Adapters
+            // without the editor's writes still have these reads, and the
+            // bundle service asks them on every publish.
+            const repository = harness.adapter.planRepository;
+            if (
+                !repository?.listVersions ||
+                !repository.findCurrentDraft ||
+                !repository.findLatestLivePlanVersion
+            ) {
+                t.skip('adapter provides no PlanRepository that reads versions by plan key');
+                return;
+            }
+            const entitlementVersions = harness.adapter.planVersionRepository;
+
+            assert.deepEqual(await repository.listVersions('NO_SUCH_PLAN'), []);
+            assert.equal(await repository.findCurrentDraft('NO_SUCH_PLAN'), null);
+            assert.equal(await repository.findLatestLivePlanVersion('NO_SUCH_PLAN'), null);
+            if (repository.findActivePlanVersion) {
+                assert.equal(
+                    await repository.findActivePlanVersion('NO_SUCH_PLAN', new Date()),
+                    null,
+                );
+            }
+            assert.equal(await entitlementVersions.findLatestLive('NO_SUCH_PLAN'), null);
+            if (entitlementVersions.findActive) {
+                assert.equal(
+                    await entitlementVersions.findActive('NO_SUCH_PLAN', new Date()),
+                    null,
+                );
+            }
+        });
+
+        test('retiring a plan hides none of its versions', async (t) => {
+            // A retired plan's row is there, and the guard deciding whether it
+            // may be deleted counts its published versions — an adapter that
+            // hid them would let that delete through.
             const repository = harness.adapter.planRepository;
             if (
                 !repository?.createPlanVersionDraft ||
@@ -855,17 +887,6 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const findCurrentDraft = repository.findCurrentDraft.bind(repository);
             const findLatestLive = repository.findLatestLivePlanVersion.bind(repository);
             const entitlementVersions = harness.adapter.planVersionRepository;
-
-            assert.deepEqual(await listVersions('NO_SUCH_PLAN'), []);
-            assert.equal(await findCurrentDraft('NO_SUCH_PLAN'), null);
-            assert.equal(await findLatestLive('NO_SUCH_PLAN'), null);
-            if (repository.findActivePlanVersion) {
-                assert.equal(
-                    await repository.findActivePlanVersion('NO_SUCH_PLAN', new Date()),
-                    null,
-                );
-            }
-            assert.equal(await entitlementVersions.findLatestLive('NO_SUCH_PLAN'), null);
 
             const plan = await repository.create({ planKey: 'RETIRING', label: 'Retiring' });
             const firstDraft = await repository.createPlanVersionDraft({
@@ -900,14 +921,16 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     (await entitlementVersions.findLatestLive('RETIRING'))?.features ?? null,
             });
             const beforeRetiring = await reads();
+            // The entitlement read goes through a slice an adapter may keep in a
+            // table of its own, so it is compared before and after rather than
+            // pinned to what the catalogue slice wrote.
             assert.deepEqual(
-                beforeRetiring,
                 {
-                    versions: [live.id, openDraft.id],
-                    draft: openDraft.id,
-                    latestLive: live.id,
-                    entitlementFeatures: ['CORE'],
+                    versions: beforeRetiring.versions,
+                    draft: beforeRetiring.draft,
+                    latestLive: beforeRetiring.latestLive,
                 },
+                { versions: [live.id, openDraft.id], draft: openDraft.id, latestLive: live.id },
                 'a live plan reads its versions, so the comparison below has a subject',
             );
 

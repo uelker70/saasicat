@@ -982,6 +982,7 @@ _Tested by:_
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft for a retired plan is refused as a plan that is not there
         - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
         - createPlanDraft: unknown plan → NotFound
         - updatePlanDraft: changes features + quotas
@@ -1051,6 +1052,7 @@ _Tested by:_
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft for a retired plan is refused as a plan that is not there
         - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
         - createPlanDraft: unknown plan → NotFound
         - updatePlanDraft: changes features + quotas
@@ -1124,6 +1126,7 @@ _Tested by:_
 - `packages/nest/tests/plan-versions-service.test.js`
     - PlanVersionsService — Lifecycle
         - createPlanDraft + listPlanVersions returns v1 with publishedAt=null
+        - createPlanDraft for a retired plan is refused as a plan that is not there
         - createPlanDraft: second draft → UnprocessableEntity (max 1 draft)
         - createPlanDraft: unknown plan → NotFound
         - updatePlanDraft: changes features + quotas

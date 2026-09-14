@@ -573,6 +573,8 @@ export interface PlanVersionRepository {
      * return the highest `validFrom`, explicitly ordering null start dates
      * last as a legacy fallback. Adapters without validity columns may omit
      * the method (consumers fall back to `findLatestLive`).
+     *
+     * A plan key no plan has finds `null`, not an error.
      */
     findActive?(
         planId: string,

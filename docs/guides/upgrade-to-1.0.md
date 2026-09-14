@@ -1005,7 +1005,8 @@ written into `config/saas.yaml`.
 
 `@saasicat/persistence-testing` checks two reads of `PlanRepository` it did not check before. A key
 no plan row has answers `listVersions`, `findCurrentDraft`, `findLatestLivePlanVersion`,
-`findActivePlanVersion` and `PlanVersionRepository.findLatestLive` with an empty list or `null`,
+`findActivePlanVersion`, `PlanVersionRepository.findLatestLive` and `PlanVersionRepository.findActive`
+with an empty list or `null`,
 not an error: a plan can go between listing the catalogue and reading its versions. A retired plan
 keeps its versions readable, because the guard that decides whether a plan may be deleted counts
 them.
