@@ -137,6 +137,11 @@ export const BILLING_ERROR_CODES = {
     PLAN_NOT_IN_CATALOG: 'PLAN_NOT_IN_CATALOG',
     /** Plan exists but cannot be booked via self-service. */
     PLAN_NOT_SELF_SERVICE: 'PLAN_NOT_SELF_SERVICE',
+    /**
+     * Plan carries no price for the requested billing cycle, so it is not sold
+     * in it: a plan without a yearly price is a monthly plan.
+     */
+    PLAN_NOT_SOLD_IN_CYCLE: 'PLAN_NOT_SOLD_IN_CYCLE',
     /** Plan change refused. Carries `blockers[]` with their own codes. */
     PLAN_CHANGE_BLOCKED: 'PLAN_CHANGE_BLOCKED',
     /**

@@ -154,6 +154,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_NOT_IN_CATALOG: 'Plan "{planKey}" is not in the catalog',
     PLAN_NOT_SELF_SERVICE:
         '{planName} is only activated via a special contract. Please contact the contract manager.',
+    PLAN_NOT_SOLD_IN_CYCLE:
+        '{planName} has no price for this billing rhythm and cannot be booked in it.',
     PLAN_CHANGE_BLOCKED: 'Plan change during onboarding is blocked.',
     SUBSCRIPTION_CHANGED:
         'This subscription changed while the request was being decided. Reload it.',

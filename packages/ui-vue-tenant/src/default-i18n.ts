@@ -121,6 +121,8 @@ export interface TenantPlanSectionI18n {
     wizardPriceUnitMonthly: string;
     wizardPriceUnitYearly: string;
     wizardPriceOnRequest: string;
+    /** A plan card in a cycle the plan carries no price for. */
+    wizardNotSoldInCycle: string;
     wizardStepChoose: string;
     wizardStepChooseIntro: string;
     wizardStepPreview: string;
@@ -330,6 +332,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     wizardPriceUnitMonthly: 'netto/Monat',
     wizardPriceUnitYearly: 'netto/Jahr',
     wizardPriceOnRequest: 'auf Anfrage',
+    wizardNotSoldInCycle: 'In diesem Rhythmus nicht erhältlich',
     wizardStepChoose: 'Paket wählen',
     wizardStepChooseIntro:
         'Wähle dein Ziel-Paket und den Abrechnungszyklus. Im nächsten Schritt zeigen wir Verbrauchs-Check und Feature-Diff.',
@@ -526,6 +529,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     wizardPriceUnitMonthly: 'net/month',
     wizardPriceUnitYearly: 'net/year',
     wizardPriceOnRequest: 'on request',
+    wizardNotSoldInCycle: 'Not available in this rhythm',
     wizardStepChoose: 'Choose plan',
     wizardStepChooseIntro:
         'Choose your target plan and the billing cycle. In the next step we show the usage check and the feature diff.',
@@ -627,6 +631,7 @@ export interface PlanChangeWizardI18n {
     priceUnitMonthly: string;
     priceUnitYearly: string;
     priceOnRequest: string;
+    notSoldInCycle: string;
     stepChoose: string;
     stepChooseIntro: string;
     stepPreview: string;
@@ -698,6 +703,7 @@ export function planChangeWizardI18n(i18n: TenantPlanSectionI18n): PlanChangeWiz
         priceUnitMonthly: i18n.wizardPriceUnitMonthly,
         priceUnitYearly: i18n.wizardPriceUnitYearly,
         priceOnRequest: i18n.wizardPriceOnRequest,
+        notSoldInCycle: i18n.wizardNotSoldInCycle,
         stepChoose: i18n.wizardStepChoose,
         stepChooseIntro: i18n.wizardStepChooseIntro,
         stepPreview: i18n.wizardStepPreview,

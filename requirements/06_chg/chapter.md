@@ -236,6 +236,12 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
 - `packages/nest/tests/the-plan-preview-sees-the-bookings.test.js`
     - the plan-change rule reaches the bookings in a real container
         - a yearly add-on blocks a move to monthly when the module is composed normally
@@ -288,6 +294,12 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
 
 <!-- END proof -->
 
@@ -371,3 +383,36 @@ finished English sentence. Without them a client holding the code would have to 
 the numbers.
 
 _Source:_ #243
+
+### SC-CHG-019 — A plan is booked only in a rhythm it carries a price for
+
+🟢 💰 A plan without a yearly price is a monthly plan, and one without any price is sold on request.
+Choosing such a plan in a rhythm it has no price for is refused with `PLAN_NOT_SOLD_IN_CYCLE`
+before the change is confirmed, whether it is a plan change or the first choice after sign-up, and
+no contract is recorded for it — rather than the plan being charged at nothing, or at a multiple of
+its monthly price. The tenant's page offers no such choice. A plan that is not marketed is sold
+under a special contract whose price the catalogue does not hold, and is outside this rule.
+
+_Source:_ #284
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a plan without a price for the rhythm is refused before the previous contract is closed
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - a plan without a price for the chosen rhythm
+        - says so on its card, cannot be chosen, and the order cannot be sent
+        - is not sent when the summary emits without its button
+        - becomes a plan again in the rhythm it is priced for
+        - an add-on priced in the other rhythm only says so and cannot be chosen
+
+<!-- END proof -->

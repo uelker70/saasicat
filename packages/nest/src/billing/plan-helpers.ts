@@ -5,13 +5,14 @@
 // (`getPlan`, `getPlanPriceNet`, `getPlanPriceGross`, `getMarketedPlans`),
 // which still operate over a static TS const.
 
-import type {
-    BillingCycle,
-    FeatureKey,
-    PlanCatalog,
-    PlanDef,
-    PlanId,
-    QuotaKey,
+import {
+    BILLING_ERROR_CODES,
+    type BillingCycle,
+    type FeatureKey,
+    type PlanCatalog,
+    type PlanDef,
+    type PlanId,
+    type QuotaKey,
 } from '@saasicat/core';
 import { grossFromNet } from '../promo/math.js';
 import { assertTaxRatePercent } from '../subscription-contract/contract-refusals.js';
@@ -63,6 +64,35 @@ export function getPlanPriceNet(
     if (plan.marketed === false) return null;
     const net = cycle === 'YEARLY' ? plan.yearlyNet : plan.monthlyNet;
     return net ?? null;
+}
+
+/**
+ * Whether a plan on the list carries no price for a cycle, and so is not sold
+ * in it: a plan without a yearly price is a monthly plan, one without either is
+ * sold on request. A plan that is not marketed is sold under a special
+ * contract, whose price the catalogue does not hold, so this is never true of
+ * it.
+ */
+export function isPlanNotSoldInCycle(plan: PlanDef, cycle: BillingCycle): boolean {
+    if (plan.marketed === false) return false;
+    return (cycle === 'YEARLY' ? plan.yearlyNet : plan.monthlyNet) == null;
+}
+
+/**
+ * The refusal for a plan that is not sold in a cycle — the same body for the
+ * plan change's blocker and for the contract, which would otherwise record the
+ * plan at 0.00.
+ */
+export function planNotSoldInCycle(
+    plan: PlanDef,
+    cycle: BillingCycle,
+): { code: string; message: string; params: Record<string, string> } {
+    const planName = plan.name ?? plan.id;
+    return {
+        code: BILLING_ERROR_CODES.PLAN_NOT_SOLD_IN_CYCLE,
+        message: `${planName} has no price for this billing rhythm and cannot be booked in it.`,
+        params: { planName, planKey: plan.id, billingCycle: cycle },
+    };
 }
 
 /**

@@ -1,11 +1,16 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import type { BillingCycle, CreateSubscriptionContractData } from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
-import { findPlan, getPlanPriceNet } from './plan-helpers.js';
+import {
+    findPlan,
+    getPlanPriceNet,
+    isPlanNotSoldInCycle,
+    planNotSoldInCycle,
+} from './plan-helpers.js';
 import type { PlanCatalog } from '@saasicat/core';
 import {
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
@@ -75,15 +80,18 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         const vatRate = this.catalog.vatRate;
         // Before the previous contract is closed below: the new one records this
-        // rate and this window, and a refusal after the termination would leave
-        // no contract.
+        // rate, this window and a plan sold in this cycle, and a refusal after
+        // the termination would leave no contract.
         assertTaxRatePercent('catalog.vatRate', vatRate);
         assertContractWindow(effectiveFrom, endsAt);
+        const planDef = findPlan(this.catalog, newPlan);
+        if (planDef && isPlanNotSoldInCycle(planDef, billingCycle)) {
+            throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));
+        }
 
         const bundles = await this.source.loadBookedBundles(tenantId, cycle, vatRate);
         const livePlanVersionId = await this.source.findLivePlanVersionId(newPlan);
 
-        const planDef = findPlan(this.catalog, newPlan);
         const planPriceNet = getPlanPriceNet(this.catalog, newPlan, billingCycle) ?? 0;
 
         const planLineItem: PricedContractLineItem = {

@@ -114,6 +114,12 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan without a price for the rhythm asked for
+        - is blocked, naming the plan and the rhythm, in words both languages can build
+        - is the refusal the change routes enforce
+        - is not blocked in the rhythm it does carry a price for
+        - a plan on request is blocked in either rhythm
+        - a plan that is not marketed is left to the special contract that prices it
 - `packages/ui-vue-tenant/tests/component/a-preview-in-flight-blocks-the-confirmation.test.ts`
     - while a replacement preview is on the wire
         - the answer to the abandoned question is taken off the screen
@@ -136,11 +142,38 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/promo-service.test.js`
+    - PromoCodesService.preview — eligibility
+        - valid=true with price preview for PROFESSIONAL/YEARLY/25%
+- `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
+    - the configurator breakdown
+        - a monthly plan costs its monthly price and saves nothing
+        - a yearly plan costs the yearly price its plan version carries
+        - a yearly price above twelve monthly ones saves nothing rather than a negative amount
+        - a promo code is previewed on the yearly price that is charged
+        - a promo discount is taken off in net, not the gross amount the preview answers
+        - a discount above the price takes it to nothing, not below
+        - resuming the step shows the same yearly figure
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — Promo-Discount
+        - the discount is the net amount the server previewed, off the plan and not the bundles
+        - a discount above the plan price stops at the plan price
+        - changing the plan or the cycle forgets the preview, and keeps the code
+        - choosing the plan and cycle already chosen keeps the preview
+        - clearPromo removes discount + sets status idle
+        - setPromoCode clears a previous valid status
 - `packages/ui-vue-tenant/tests/component/a-bundle-is-bought-in-a-rhythm.test.ts`
     - a monthly plan offers no choice
         - the card quotes the monthly price with the monthly unit
     - a yearly plan offers both
         - switching moves the price and the unit together
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - a promo code applied before the plan or rhythm changes
+        - is asked about again, and the summary shows the new answer
+        - the answer to the earlier question landing last does not replace the latest
+        - the answer to the earlier question landing first does not stand
+        - a code refused outright is not asked about again, a restricted one is
+        - a code removed while its preview is out gives no discount when the answer lands
 
 <!-- END proof -->
 
@@ -172,6 +205,31 @@ _Tested by:_
 - `packages/nest/tests/a-price-belongs-to-a-plan-and-a-rhythm.test.js`
     - the prices a store is shown
         - a bundle sold in one rhythm only says so for the other
+- `packages/nest/tests/plan-catalog-importer.test.js`
+    - importFromYaml: a plan without a yearly price is skipped with a warning, not given ten monthly
+      prices
+- `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
+    - the configurator breakdown
+        - a monthly plan costs its monthly price and saves nothing
+        - a yearly plan costs the yearly price its plan version carries
+        - a yearly price above twelve monthly ones saves nothing rather than a negative amount
+        - a promo code is previewed on the yearly price that is charged
+        - a promo discount is taken off in net, not the gross amount the preview answers
+        - a discount above the price takes it to nothing, not below
+        - resuming the step shows the same yearly figure
+- `packages/ui-vue/tests/use-subscription-draft.test.js`
+    - useSubscriptionDraft — cycle toggle
+        - Monthly uses monthlyNet, Yearly uses yearlyNet
+        - yearSavings = 12*monthly − yearly
+        - a plan without a yearly price is not sold yearly, and costs nothing to show
+        - a bundle without a price for the cycle is neither charged nor sent, until its cycle is
+          back
+- `packages/ui-vue-tenant/tests/component/the-configurator-sells-what-is-priced.test.ts`
+    - a plan without a price for the chosen rhythm
+        - says so on its card, cannot be chosen, and the order cannot be sent
+        - is not sent when the summary emits without its button
+        - becomes a plan again in the rhythm it is priced for
+        - an add-on priced in the other rhythm only says so and cannot be chosen
 
 <!-- END proof -->
 

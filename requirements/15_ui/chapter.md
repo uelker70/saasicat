@@ -415,14 +415,18 @@ _Tested by:_
     - useSubscriptionDraft — cycle toggle
         - Monthly uses monthlyNet, Yearly uses yearlyNet
         - yearSavings = 12*monthly − yearly
-        - yearlyNet=null falls back to monthly × DEFAULT_YEARLY_FACTOR
+        - a plan without a yearly price is not sold yearly, and costs nothing to show
+        - a bundle without a price for the cycle is neither charged nor sent, until its cycle is
+          back
     - useSubscriptionDraft — Bundles
         - Bundle toggle marks bundle + activates its features
         - Bundle deselect removes activated features again
         - Bundle price flows into subtotalNet
     - useSubscriptionDraft — Promo-Discount
-        - PERCENT promo is applied to subtotalNet
-        - ABSOLUTE promo is capped at subtotal
+        - the discount is the net amount the server previewed, off the plan and not the bundles
+        - a discount above the plan price stops at the plan price
+        - changing the plan or the cycle forgets the preview, and keeps the code
+        - choosing the plan and cycle already chosen keeps the preview
         - clearPromo removes discount + sets status idle
         - setPromoCode clears a previous valid status
     - useSubscriptionDraft — toApiPayload

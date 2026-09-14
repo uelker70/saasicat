@@ -903,12 +903,78 @@ discount, and the currency and VAT rate from `config/saas.yaml`.
 - **Consuming an offer** computes its amounts again from the plan and bundle versions it froze and
   refuses one whose stored amounts differ, or that names no plan version, with
   `CHECKOUT_OFFER_PRICE_NOT_CURRENT`. An offer created before the upgrade can hit this; create it
-  again from the same selection.
+  again from the same selection. Its promo code is checked with the promo module as it stands at
+  consumption, because a code is redeemed when the contract is concluded: a code that expired or ran
+  out of redemptions since the offer was priced refuses the offer with
+  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`. Consume the offer before creating the tenant, so a
+  refusal leaves nothing half-created.
 - **New refusals:** `CHECKOUT_OFFER_PLAN_NOT_OFFERED`, `CHECKOUT_OFFER_BUNDLE_NOT_OFFERED` (with a
   `reason`) and `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`.
 - **Wiring `CheckoutOfferModule` by hand** needs `planRepository`, and `promotionRepository` for
   promotions; the plan catalogue module has to be registered for the currency and VAT rate, and the
   promo module has to be visible for a promo code. `SaaSiCatModule.forRoot` does all of that itself.
+
+### The configurator's yearly price is the plan version's
+
+The sign-up configurator showed a yearly price of the monthly price times
+`ConfiguratorCatalog.cycleDiscount`, while the offer and the contract charge the yearly price the
+plan version carries. Where the two differed, say 9.99 a month and 99.00 a year, the configurator
+showed 99.90 and a promo code preview worked on that figure. `computeBreakdown` now takes each
+model's `yearlyNet`, and the saving it reports is twelve monthly prices minus that, never below zero.
+
+- **`ConfiguratorCatalog.cycleDiscount` and `ConfiguratorMarketingProvider.getCycleDiscount()` are
+  gone.** Delete `getCycleDiscount` from your marketing provider; an object literal typed as the
+  provider no longer compiles with it.
+- **A registration page that computed a yearly price or a saving from `cycleDiscount`** displays
+  the breakdown the server returns, or reads `model.yearlyNet`.
+- **A promo discount is taken off in net.** `RegistrationPromoPreview.discountAmount` is the gross
+  discount against `subtotalGross`, which is what `PromoCodesService.preview` reckons and what an
+  adapter wrapping it returns; `computeBreakdown` converts it at `vatRate` before taking it off,
+  as the offer does, and `ConfiguratorPriceBreakdown.discountAmount` is that net figure. An adapter
+  that returned a net amount returns the gross one.
+
+### A plan is sold only in a rhythm it carries a price for
+
+A plan without a yearly price is a monthly plan, and one without any price is sold on request. The
+tenant's pages showed such a plan at ten monthly prices a year, the plan change accepted it, and
+the contract recorded its plan line at 0.00.
+
+- **`PLAN_NOT_SOLD_IN_CYCLE`** is a new plan-change blocker, with `planName`, `planKey` and
+  `billingCycle`. The plan change and the onboarding choice refuse such a plan through it, and
+  `SubscriptionContractFreezeService.freezeOnPlanChange` refuses it before the contract in force is
+  closed. A plan that is not marketed is sold under a special contract and is not affected.
+- **A subscription already in such a rhythm is not moved.** Only a catalogue in `config/saas.yaml`
+  can hold a marketed plan without a price for a rhythm, because a stored plan version carries
+  both, so an installation on the database catalogue has none. With a YAML catalogue, take its
+  marketed plans without `yearlyNet`, and those without any price, and find their tenants before
+  upgrading:
+
+    ```sql
+    SELECT "tenantId", "plan", "billingCycle" FROM "subscriptions"
+    WHERE ("plan" IN ('BASIC') AND "billingCycle" = 'YEARLY')  -- plans without yearlyNet
+       OR "plan" IN ('CUSTOM');                                -- plans without any price
+    ```
+
+    Give each plan the price for the rhythm its tenants are on, or move them to a rhythm it is
+    priced for. Until then every contract freeze for them — an add-on booked or cancelled — is
+    refused, and its callers only log the refusal, so the contract stops following their bookings.
+
+- **`DEFAULT_YEARLY_FACTOR` and the `yearlyFactor` option of `useSubscriptionDraft` are gone.**
+  `DraftPricing.planPriced` says whether the selected plan carries a price for the cycle; a bundle
+  without one is neither charged nor sent while that cycle is chosen.
+- **`PlanGrid`, `PublicBundleGrid` and `OnboardingConfigurator` take `notSoldInCycle`** in their
+  `i18n`, beside `priceOnRequest`; `TenantPlanSectionI18n` gains `wizardNotSoldInCycle`, which the
+  shipped German and English maps carry. A card without a price for the cycle says so and cannot be
+  chosen.
+- **The configurator's promo discount is the server's.** `PromoPreviewValidResponse.price` carries
+  `discountNet`, the preview's gross discount on the plan price converted at the installation's VAT
+  rate, and `useSubscriptionDraft` takes it off the plan — not off the bundles beside it. Changing
+  the plan or the cycle sets the promo state back to `idle`; `OnboardingConfigurator` asks the
+  preview again by itself, and a page built on the composable does the same.
+- **`PlanCatalogImporterService` skips a plan without `yearlyNet`** with a warning, as it skips one
+  without `monthlyNet`, instead of storing ten monthly prices as its yearly price. A stored plan
+  version carries both prices; give the plan a yearly price in `saas.yaml`, or publish its version
+  in the administration.
 
 ### `projectKey` is gone from the database
 

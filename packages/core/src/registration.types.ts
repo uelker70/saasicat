@@ -315,8 +315,6 @@ export interface ConfiguratorModel {
 }
 
 export interface ConfiguratorCatalog {
-    /** Factor `yearlyNet = monthlyNet * cycleDiscount` (typically 10 = 2 months free). */
-    cycleDiscount: number;
     currency: string;
     vatRate: number;
     models: ConfiguratorModel[];
@@ -343,6 +341,10 @@ export interface ConfiguratorPriceBreakdown {
     modelMonthlyNet: number;
     subtotalMonthlyNet: number;
     subtotalNet: number;
+    /**
+     * Net amount taken off `subtotalNet`: the promo preview's gross discount
+     * converted at `vatRate`.
+     */
     discountAmount: number;
     totalNet: number;
     vatRate: number;
@@ -426,8 +428,6 @@ export interface ConfiguratorPlanMarketing {
  */
 export interface ConfiguratorMarketingProvider {
     listPlanMarketing(): ConfiguratorPlanMarketing[];
-    /** Factor `yearlyNet = monthlyNet * cycleDiscount`. Default `10`. */
-    getCycleDiscount(): number;
     getVatRate(): number;
     getCurrency(): string;
 }
@@ -449,6 +449,7 @@ export interface RegistrationPromoPreview {
         reason?: string;
         percent?: number;
         label?: string;
+        /** The discount in gross, reckoned against `subtotalGross`. */
         discountAmount?: number;
     }>;
 }

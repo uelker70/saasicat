@@ -141,7 +141,8 @@ plans:
         assert.match(report.warnings[0], /ENTERPRISE/);
     });
 
-    test('importFromYaml: yearlyNet default = monthlyNet × 10 when missing', async () => {
+    // @requirement SC-PRIC-010 — A yearly price is a price per year, not a monthly price with a discount attached
+    test('importFromYaml: a plan without a yearly price is skipped with a warning, not given ten monthly prices', async () => {
         const yamlNoYearly = `
 schemaVersion: 1
 app:
@@ -159,11 +160,15 @@ plans:
 `;
         const sink = new FakeSink();
         const service = new PlanCatalogImporterService(sink);
-        await service.importFromYaml(yamlNoYearly);
+        const report = await service.importFromYaml(yamlNoYearly);
 
-        const pv = sink.planVersions.get('SIMPLE:v1');
-        assert.equal(pv.monthlyNet, '5.50');
-        assert.equal(pv.yearlyNet, '55.00'); // 5.50 × 10
+        // A stored plan version carries both prices, and none of them is invented.
+        assert.equal(report.plansCreated, 1);
+        assert.equal(report.planVersionsCreated, 0);
+        assert.equal(sink.planVersions.has('SIMPLE:v1'), false);
+        assert.equal(report.warnings.length, 1);
+        assert.match(report.warnings[0], /SIMPLE/);
+        assert.match(report.warnings[0], /yearlyNet/);
     });
 
     test('importFromYaml: invalid schema → throw', async () => {

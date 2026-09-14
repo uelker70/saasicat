@@ -5,7 +5,7 @@
 // @requirement SC-CHG-010 — Every refusal the preview shows is also enforced where the change is made
 // @requirement SC-CHG-012 — A tenant cannot move to a plan whose limits their usage already exceeds
 
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PlanChangePreviewService } from '../dist/billing/index.js';
 import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
@@ -233,4 +233,92 @@ test('limitsCheck renders the union of quota keys from limits, target plan and u
     assert.deepEqual(Object.keys(dto.limitsCheck).sort(), ['members', 'storageGb', 'users']);
     assert.equal(dto.limitsCheck.users.targetMax, 8);
     assert.equal(dto.limitsCheck.members.targetMax, 1000);
+});
+
+// @requirement SC-CHG-019 — A plan is booked only in a rhythm it carries a price for
+describe('a plan without a price for the rhythm asked for', () => {
+    const MONTHLY_ONLY = {
+        id: 'BASIC',
+        name: 'Basic',
+        tagline: '',
+        marketed: true,
+        monthlyNet: 9,
+        yearlyNet: null,
+        quotas: { users: 3, members: 250, storageGb: 2 },
+        features: ['CORE_IDENTITY'],
+    };
+    const ON_REQUEST = { ...MONTHLY_ONLY, id: 'CUSTOM', name: 'Custom', monthlyNet: null };
+    const PRICED_ELSEWHERE = { ...CATALOG, plans: [...CATALOG.plans, MONTHLY_ONLY, ON_REQUEST] };
+
+    function previewService() {
+        return new PlanChangePreviewService(
+            PRICED_ELSEWHERE,
+            buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
+            buildSubPort(),
+            { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.1 }) },
+            null,
+        );
+    }
+    const notSold = (blockers) => blockers.filter((b) => b.code === 'PLAN_NOT_SOLD_IN_CYCLE');
+
+    test('is blocked, naming the plan and the rhythm, in words both languages can build', async () => {
+        const dto = await previewService().preview('t1', 'BASIC', 'YEARLY', new Date('2026-05-15'));
+        const [blocker] = notSold(dto.blockers);
+
+        assert.deepEqual(blocker.params, {
+            planName: 'Basic',
+            planKey: 'BASIC',
+            billingCycle: 'YEARLY',
+        });
+        assert.equal(
+            resolveErrorMessage(blocker, {}, ERROR_MESSAGES_EN),
+            'Basic has no price for this billing rhythm and cannot be booked in it.',
+        );
+        assert.equal(
+            resolveErrorMessage(blocker, {}, ERROR_MESSAGES_DE),
+            'Basic hat für diesen Abrechnungsrhythmus keinen Preis und kann darin nicht gebucht werden.',
+        );
+    });
+
+    test('is the refusal the change routes enforce', async () => {
+        const blockers = await previewService().assertChangeAllowed(
+            't1',
+            'BASIC',
+            'YEARLY',
+            new Date('2026-05-15'),
+        );
+        assert.equal(notSold(blockers).length, 1);
+    });
+
+    test('is not blocked in the rhythm it does carry a price for', async () => {
+        const dto = await previewService().preview(
+            't1',
+            'BASIC',
+            'MONTHLY',
+            new Date('2026-05-15'),
+        );
+        assert.deepEqual(notSold(dto.blockers), []);
+    });
+
+    test('a plan on request is blocked in either rhythm', async () => {
+        for (const cycle of ['MONTHLY', 'YEARLY']) {
+            const dto = await previewService().preview(
+                't1',
+                'CUSTOM',
+                cycle,
+                new Date('2026-05-15'),
+            );
+            assert.equal(notSold(dto.blockers).length, 1, cycle);
+        }
+    });
+
+    test('a plan that is not marketed is left to the special contract that prices it', async () => {
+        const dto = await previewService().preview(
+            't1',
+            'ENTERPRISE',
+            'YEARLY',
+            new Date('2026-05-15'),
+        );
+        assert.deepEqual(notSold(dto.blockers), []);
+    });
 });

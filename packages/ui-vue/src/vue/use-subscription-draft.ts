@@ -21,11 +21,6 @@ import {
     type PublicMarketingBundle,
 } from '@saasicat/core';
 
-// For yearly payment, the mockup applies 10x the monthly price (= 2 months free).
-// If the catalog already provides a `yearlyNet`, that one is used;
-// if it is missing, the composable falls back to `monthly * 10`.
-export const DEFAULT_YEARLY_FACTOR = 10;
-
 export type PromoStatus = 'idle' | 'checking' | 'valid' | 'invalid' | 'restricted';
 
 export interface PromoState {
@@ -43,8 +38,6 @@ export interface UseSubscriptionDraftOptions {
     initialPlan?: string | null;
     initialCycle?: BillingCycleStr;
     initialBundleVersionIds?: ReadonlyArray<string>;
-    /** Override for the `yearlyNet` fallback if the catalog provides no yearlyNet. */
-    yearlyFactor?: number;
 }
 
 export interface PriceLineItem {
@@ -59,13 +52,22 @@ export interface PriceLineItem {
 
 export interface DraftPricing {
     cycle: BillingCycleStr;
+    /**
+     * Whether the selected plan carries a price for the cycle. A plan without
+     * one is not sold in it — a plan without a yearly price is a monthly plan —
+     * so `planNet` is 0 and there is nothing to submit.
+     */
+    planPriced: boolean;
     /** Plan base without bundles. */
     planNet: number;
     /** Sum of all selected catalog bundles. */
     bundlesNet: number;
     /** Plan + Bundles. */
     subtotalNet: number;
-    /** Discount derived from the promo preview (on subtotalNet, not plan-only). */
+    /**
+     * The promo preview's discount in net. A code discounts the plan price, not
+     * the bundles, so it never exceeds `planNet`.
+     */
     discountNet: number;
     /** subtotalNet - discountNet. */
     totalNet: number;
@@ -112,21 +114,20 @@ function unwrap<T>(source: Ref<T> | ComputedRef<T> | T): T {
     return source as T;
 }
 
+/**
+ * The price the catalogue carries for the cycle, or `null` when it carries none.
+ *
+ * Never derived from the other cycle: a yearly price is what the operator set
+ * for a year, and the offer and the contract charge that figure or refuse.
+ */
 function priceForCycle(
-    monthlyNet: number,
-    yearlyNet: number | null | undefined,
+    item: { monthlyNet: number | null; yearlyNet: number | null },
     cycle: BillingCycleStr,
-    yearlyFactor: number,
-): number {
-    if (cycle === 'YEARLY') {
-        return yearlyNet != null ? yearlyNet : monthlyNet * yearlyFactor;
-    }
-    return monthlyNet;
+): number | null {
+    return cycle === 'YEARLY' ? item.yearlyNet : item.monthlyNet;
 }
 
 export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): SubscriptionDraft {
-    const yearlyFactor = options.yearlyFactor ?? DEFAULT_YEARLY_FACTOR;
-
     const plansRef = computed<CatalogPlan[]>(() => unwrap(options.plans) ?? []);
     const subscriptionBundlesRef = computed<PublicMarketingBundle[]>(
         () => unwrap(options.subscriptionBundles ?? null) ?? [],
@@ -145,9 +146,14 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         return plansRef.value.find((p) => p.id === plan.value) ?? null;
     });
 
+    // A selected bundle without a price for the cycle is not sold in it, so it
+    // is neither charged nor sent, and covers nothing. It stays selected, so
+    // switching back to the cycle it is priced for books it again.
     const selectedBundles = computed<PublicMarketingBundle[]>(() =>
-        subscriptionBundlesRef.value.filter((b) =>
-            selectedBundleVersionIds.value.has(b.bundleVersionId),
+        subscriptionBundlesRef.value.filter(
+            (b) =>
+                selectedBundleVersionIds.value.has(b.bundleVersionId) &&
+                priceForCycle(b, cycle.value) !== null,
         ),
     );
 
@@ -184,17 +190,15 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         const cyc = cycle.value;
         const planObj = selectedPlan.value;
 
-        // Plan
-        const planNet = planObj
-            ? priceForCycle(planObj.monthlyNet ?? 0, planObj.yearlyNet, cyc, yearlyFactor)
-            : 0;
+        const planPrice = planObj ? priceForCycle(planObj, cyc) : null;
+        const planNet = planPrice ?? 0;
 
         // Independently bookable catalog bundles from the public marketing catalog.
         // Redundant (fully covered) bundles are excluded here.
         const bundleItems: PriceLineItem[] = [];
         let bundlesNet = 0;
         for (const b of chargeableBundles.value) {
-            const net = priceForCycle(b.monthlyNet ?? 0, b.yearlyNet, cyc, yearlyFactor);
+            const net = priceForCycle(b, cyc) ?? 0;
             bundlesNet += net;
             bundleItems.push({
                 key: `subscription-bundle:${b.bundleVersionId}`,
@@ -205,43 +209,32 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
 
         const subtotalNet = planNet + bundlesNet;
 
-        // Derive discount from the promo preview (PERCENT logic is mirrored on the
-        // frontend; ABSOLUTE is deducted absolutely). The backend recomputes the
-        // final truth at redeem time — the sidebar shows only the preview value.
+        // The discount is the one the server previewed. The promo module reckons
+        // it on the plan price in gross, and only the server knows the VAT rate
+        // that turns it into the net figure this summary adds up. A preview
+        // answers for one plan and cycle, which is why changing either sets the
+        // promo state back to idle for the caller to ask again.
         let discountNet = 0;
         const preview = promoState.value.preview;
         if (preview && preview.valid && promoState.value.status === 'valid') {
-            const valid = preview as PromoPreviewValidResponse;
-            const value = Number(valid.discount.value);
-            if (Number.isFinite(value) && value > 0) {
-                if (valid.discount.valueType === 'PERCENT') {
-                    discountNet = (subtotalNet * value) / 100;
-                } else {
-                    discountNet = Math.min(value, subtotalNet);
-                }
+            const amount = Number((preview as PromoPreviewValidResponse).price.discountNet);
+            if (Number.isFinite(amount) && amount > 0) {
+                discountNet = Math.min(amount, planNet);
             }
         }
 
         const totalNet = Math.max(0, subtotalNet - discountNet);
 
-        // yearSavings: 12 × monthly — yearly. Only meaningful when the catalog
+        // yearSavings: 12 × monthly − yearly. Only meaningful when the catalog
         // knows both prices; otherwise 0.
         let yearSavings = 0;
-        if (planObj) {
-            const monthlyTotal =
-                priceForCycle(planObj.monthlyNet ?? 0, planObj.yearlyNet, 'MONTHLY', yearlyFactor) *
-                12;
-            const yearlyTotal = priceForCycle(
-                planObj.monthlyNet ?? 0,
-                planObj.yearlyNet,
-                'YEARLY',
-                yearlyFactor,
-            );
-            yearSavings = Math.max(0, monthlyTotal - yearlyTotal);
+        if (planObj && planObj.monthlyNet !== null && planObj.yearlyNet !== null) {
+            yearSavings = Math.max(0, planObj.monthlyNet * 12 - planObj.yearlyNet);
         }
 
         return {
             cycle: cyc,
+            planPriced: planPrice !== null,
             planNet,
             bundlesNet,
             subtotalNet,
@@ -249,14 +242,17 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
             totalNet,
             yearSavings,
             breakdown: {
-                plan: planObj
-                    ? {
-                          key: `plan:${planObj.id}`,
-                          label: planObj.name,
-                          net: planNet,
-                          sublabel: `${planObj.features.length} Basis-Module`,
-                      }
-                    : null,
+                // A plan not sold in the cycle has no line: 0.00 beside its name
+                // would read as a price.
+                plan:
+                    planObj && planPrice !== null
+                        ? {
+                              key: `plan:${planObj.id}`,
+                              label: planObj.name,
+                              net: planNet,
+                              sublabel: `${planObj.features.length} Basis-Module`,
+                          }
+                        : null,
                 bundles: bundleItems,
             },
         };
@@ -266,9 +262,17 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         return selectedBundleVersionIds.value.size > 0 || promoState.value.status === 'valid';
     });
 
+    // A promo preview answers for the plan and cycle it was asked about.
+    function forgetPromoPreview(): void {
+        if (promoState.value.status !== 'idle') {
+            promoState.value = { status: 'idle', preview: null, message: '' };
+        }
+    }
+
     function setPlan(planId: string): void {
         if (plan.value === planId) return;
         plan.value = planId;
+        forgetPromoPreview();
         // Reduce the bundle selection to those compatible with the new plan.
         const compatibleBundleVersions = new Set<string>();
         for (const bundle of subscriptionBundlesRef.value) {
@@ -285,8 +289,9 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
     }
 
     function setCycle(c: BillingCycleStr): void {
+        if (cycle.value === c) return;
         cycle.value = c;
-        // Promo restrictions may change — the caller re-runs preview if needed.
+        forgetPromoPreview();
     }
 
     function toggleSubscriptionBundle(bundleVersionId: string): void {
@@ -299,9 +304,7 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
     function setPromoCode(code: string): void {
         promoCode.value = code.toUpperCase();
         // Reset status — the caller re-validates via preview().
-        if (promoState.value.status !== 'idle') {
-            promoState.value = { status: 'idle', preview: null, message: '' };
-        }
+        forgetPromoPreview();
     }
 
     function setPromoState(state: PromoState): void {

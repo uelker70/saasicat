@@ -143,6 +143,13 @@ export class CheckoutOfferService {
      * Refused unless every add-on is still bookable and the stored amounts are
      * what the catalogue makes of the offer's own selection, so an offer whose
      * amounts were written by anything but the pricing never becomes a contract.
+     *
+     * The plan, the add-ons and the promotions are priced as they stood when the
+     * offer was priced; a promo code is checked with the promo module as it
+     * stands now. A code is redeemed when the contract is concluded, so one that
+     * has expired or run out of redemptions since refuses the offer with
+     * `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`; `CHECKOUT_OFFER_PRICE_NOT_CURRENT`
+     * is kept for amounts that no longer match.
      */
     async consume(id: string): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
