@@ -1,7 +1,11 @@
 // @saasicat/nest/checkout-offer — package snapshot across website →
 // onboarding → billing.
 
-export { CheckoutOfferService } from './checkout-offer.service.js';
+export {
+    CheckoutOfferService,
+    type ConcludeCheckoutOfferWithin,
+    type ConcludedCheckoutOffer,
+} from './checkout-offer.service.js';
 export {
     CheckoutOfferPricing,
     type CheckoutOfferPricingInput,
@@ -10,8 +14,12 @@ export {
 export { buildCheckoutOfferController } from './checkout-offer.controller.js';
 export {
     CheckoutOfferModule,
+    type CheckoutOfferConclusionOptions,
     type CheckoutOfferControllerConfig,
     type CheckoutOfferModuleOptions,
 } from './checkout-offer.module.js';
-export { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './checkout-offer.tokens.js';
+export {
+    CHECKOUT_OFFER_REPOSITORY_TOKEN,
+    CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
+} from './checkout-offer.tokens.js';
 export { CreateCheckoutOfferDto, UpdateCheckoutOfferDto } from './dto/checkout-offer.dto.js';

@@ -28,6 +28,8 @@ import type {
     CheckoutOfferRepository,
     PlanRepository,
     PromotionRepository,
+    SubscriptionContractRepository,
+    TransactionRunner,
 } from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
@@ -37,14 +39,27 @@ import {
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
+import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
 import { CheckoutOfferService } from './checkout-offer.service.js';
 import { buildCheckoutOfferController } from './checkout-offer.controller.js';
-import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './checkout-offer.tokens.js';
+import {
+    CHECKOUT_OFFER_REPOSITORY_TOKEN,
+    CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
+} from './checkout-offer.tokens.js';
 
 export interface CheckoutOfferControllerConfig {
     /** Class-level guards; `[]` for auth-free public endpoints. */
     guards: Array<Type<CanActivate>>;
+}
+
+/** What `CheckoutOfferService.conclude` writes through, and in one transaction. */
+export interface CheckoutOfferConclusionOptions {
+    /** Writes the contract an offer becomes, on the conclusion's transaction. */
+    subscriptionContractRepository: ProviderSpec<SubscriptionContractRepository>;
+    /** The transaction consuming the offer, the contract and the application's writes share. */
+    transactionRunner: ProviderSpec<TransactionRunner>;
 }
 
 export interface CheckoutOfferModuleOptions {
@@ -71,6 +86,12 @@ export interface CheckoutOfferModuleOptions {
      * skipped (graceful).
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
+    /**
+     * Enables `CheckoutOfferService.conclude`, which consumes an offer and
+     * writes its contract in one transaction. Without it, `conclude` refuses
+     * to run rather than writing the two apart.
+     */
+    conclusion?: CheckoutOfferConclusionOptions;
     /** Controller mount for `/public/checkout-offer`. Omitted = service only. */
     controller?: CheckoutOfferControllerConfig;
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
@@ -86,6 +107,17 @@ export class CheckoutOfferModule {
                 'CheckoutOfferModule: `planRepository` is required — every offer is priced from the ' +
                     'plan version on sale, and an offer without it would have to take its price from ' +
                     'the request.',
+            );
+        }
+        if (
+            options.conclusion &&
+            (!options.conclusion.subscriptionContractRepository ||
+                !options.conclusion.transactionRunner)
+        ) {
+            throw new Error(
+                'CheckoutOfferModule: `conclusion` needs both `subscriptionContractRepository` and ' +
+                    '`transactionRunner` — concluding an offer writes the contract and consumes the ' +
+                    'offer in one transaction, and without either it would do only half.',
             );
         }
         const controllers: Type[] = [];
@@ -108,6 +140,19 @@ export class CheckoutOfferModule {
                     : []),
                 ...(options.catalogEntryRepository
                     ? [asProvider(CATALOG_ENTRY_REPOSITORY_TOKEN, options.catalogEntryRepository)]
+                    : []),
+                ...(options.conclusion
+                    ? [
+                          asProvider(
+                              SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
+                              options.conclusion.subscriptionContractRepository,
+                          ),
+                          asProvider(
+                              CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
+                              options.conclusion.transactionRunner,
+                          ),
+                          SubscriptionContractService,
+                      ]
                     : []),
                 CheckoutOfferPricing,
                 CheckoutOfferService,

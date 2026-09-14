@@ -17,6 +17,7 @@ import type {
     SubscriptionContractRecord,
     SubscriptionContractRepository,
     TerminateSubscriptionContractData,
+    TransactionContext,
 } from '@saasicat/core';
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
@@ -84,9 +85,21 @@ export class SubscriptionContractService {
         return subscriptionContractToInvoiceSnapshot(contract);
     }
 
-    async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
+    /** With `tx`, the contract is written on that transaction and undone with it. */
+    async create(
+        data: CreateSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord> {
         this.assertCreateData(data);
-        return this.repo.create(this.cloneCreateData(data));
+        return this.repo.create(this.cloneCreateData(data), tx);
+    }
+
+    /** The contract concluded from a checkout offer, or `null` when none was. */
+    findByOriginalOfferId(
+        offerId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null> {
+        return this.repo.findByOriginalOfferId(offerId, tx);
     }
 
     async terminate(
@@ -129,6 +142,28 @@ export class SubscriptionContractService {
                 params: { offerId: offer.id, status: offer.status },
             });
         }
+        return this.dataFromOffer(offer, options);
+    }
+
+    /**
+     * The contract an offer becomes, checked the way `create` checks it, before
+     * anything is written. Unlike `createDataFromOffer` it takes an offer that
+     * is still open: concluding an offer refuses a contract it could not create
+     * before the offer is consumed, rather than after.
+     */
+    prepareFromOffer(
+        offer: CheckoutOfferRow,
+        options: CreateContractFromOfferOptions,
+    ): CreateSubscriptionContractData {
+        const data = this.dataFromOffer(offer, options);
+        this.assertCreateData(data);
+        return data;
+    }
+
+    private dataFromOffer(
+        offer: CheckoutOfferRow,
+        options: CreateContractFromOfferOptions,
+    ): CreateSubscriptionContractData {
         const lineItems = this.lineItemsFromOffer(offer);
         return {
             tenantId: options.tenantId,

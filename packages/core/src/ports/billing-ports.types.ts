@@ -197,7 +197,21 @@ export interface SubscriptionContractRepository {
         asOf?: Date,
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord | null>;
-    create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord>;
+    /** With `tx`, the contract is written on that transaction and undone with it. */
+    create(
+        data: CreateSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord>;
+    /**
+     * The contract concluded from a checkout offer (`originalOfferId`), or
+     * `null` when none was. An offer is consumed once and so yields one
+     * contract (`SC-MKT-017`); where an application's own path wrote two, the
+     * earliest is returned, so the answer does not depend on read order.
+     */
+    findByOriginalOfferId(
+        offerId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null>;
     terminate(
         contractId: string,
         data: TerminateSubscriptionContractData,

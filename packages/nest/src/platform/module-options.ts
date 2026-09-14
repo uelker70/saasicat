@@ -246,9 +246,15 @@ export interface SaaSiCatCheckoutOfferOptions extends Omit<
     | 'planRepository'
     | 'promotionRepository'
     | 'catalogEntryRepository'
+    | 'conclusion'
     | 'global'
 > {
     bundleRepository?: CheckoutOfferModuleOptions['bundleRepository'];
+    /**
+     * Defaults to the persistence bundle's subscription contract repository and
+     * transaction runner, so `conclude` works wherever the bundle has both.
+     */
+    conclusion?: Partial<NonNullable<CheckoutOfferModuleOptions['conclusion']>>;
     /** Defaults to the persistence bundle's plan repository; an offer cannot be priced without one. */
     planRepository?: CheckoutOfferModuleOptions['planRepository'];
     promotionRepository?: CheckoutOfferModuleOptions['promotionRepository'];

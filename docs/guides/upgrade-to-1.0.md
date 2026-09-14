@@ -906,13 +906,59 @@ discount, and the currency and VAT rate from `config/saas.yaml`.
   again from the same selection. Its promo code is checked with the promo module as it stands at
   consumption, because a code is redeemed when the contract is concluded: a code that expired or ran
   out of redemptions since the offer was priced refuses the offer with
-  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`. Consume the offer before creating the tenant, so a
-  refusal leaves nothing half-created.
+  `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`. Conclude the offer rather than consuming it, so a
+  refusal leaves nothing half-created (next section).
 - **New refusals:** `CHECKOUT_OFFER_PLAN_NOT_OFFERED`, `CHECKOUT_OFFER_BUNDLE_NOT_OFFERED` (with a
   `reason`) and `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`.
 - **Wiring `CheckoutOfferModule` by hand** needs `planRepository`, and `promotionRepository` for
   promotions; the plan catalogue module has to be registered for the currency and VAT rate, and the
   promo module has to be visible for a promo code. `SaaSiCatModule.forRoot` does all of that itself.
+
+### A checkout offer is concluded with its contract in one step
+
+An application completing a sign-up consumed the offer, started its own subscription and created
+the contract, one after the other. A contract refused in the last step, for a tax rate that is not a
+percentage or a plan not sold in the rhythm, left a consumed offer and a started subscription with
+nothing agreed, and a second attempt skipped the consume and failed the same way.
+`CheckoutOfferService.conclude(offerId, options, within)` does all three on one transaction:
+
+```ts
+const { contract } = await checkoutOffers.conclude(
+    offerId,
+    { tenantId, effectiveFrom },
+    async (tx, { offer }) => {
+        const subscription = await subscriptions.start(tenantId, offer, tx);
+        if (offer.promoCode) {
+            await promoCodes.redeemInTransaction(
+                { code: offer.promoCode, subscriptionId: subscription.id, tenantId, email },
+                tx,
+            );
+        }
+    },
+);
+```
+
+- **What can refuse is asked first**: everything `consume` checks, and the checks the contract is
+  held to. Then the offer is consumed, the contract written and `within` run; an error in any of
+  them undoes the rest, and the offer stays open for another attempt.
+- **Redeem the promo code in `within`**, on `tx`. Before the transaction the code is checked only as
+  pricing checks it, and nothing checks it again afterwards, so a redemption that takes the last
+  slot no longer refuses the offer it was redeemed for, and one that is refused, for a customer who
+  is not new or a code already exhausted, undoes the conclusion.
+- **An offer concluded already** answers with its contract when it was concluded for the same
+  tenant, and `within` does not run again; for another tenant it is refused with
+  `CHECKOUT_OFFER_ALREADY_CONSUMED`. An offer changed after its checks, by another tab on the same
+  link, is refused with the new `CHECKOUT_OFFER_CHANGED` and nothing is written: load it and
+  conclude again.
+- **`SaaSiCatModule.forRoot` wires it** where the persistence bundle has a subscription contract
+  repository and a transaction runner. By hand, pass `conclusion: { subscriptionContractRepository,
+transactionRunner }` to `CheckoutOfferModule.forRoot`. Without it, `conclude` refuses to run.
+- **Your `CheckoutOfferRepository`** writes `consume` on `tx` when one is passed, and only while the
+  offer is `open`, refusing it otherwise — one condition on the write, not a read before it. Wire
+  it into your persistence contract harness as `checkoutOfferRepository`, which holds both; a
+  harness without it declares `gaps: ['checkoutOffers']`.
+- **A `SubscriptionContractRepository` of your own** takes `tx` on `create` and implements
+  `findByOriginalOfferId`. Both shipped adapters do.
 
 ### The configurator's yearly price is the plan version's
 
@@ -997,6 +1043,10 @@ whole group unchecked. That group now fails and names the part. Groups that the 
   names.
 - **A gap listed there that the harness does provide** fails the suite, so the list cannot outlive
   the port it excused.
+- **`checkoutOffers` is a gap for both shipped adapters**, which ship no `CheckoutOfferRepository`.
+  An application that implements one wires it as `checkoutOfferRepository`; the contract then
+  checks that an offer is consumed once and that a consume on a rolled-back transaction leaves it
+  open.
 
 ### `projectKey` is gone from the database
 

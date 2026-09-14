@@ -250,6 +250,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         "Checkout-Angebot '{offerId}' wurde bereits eingelöst — '{action}' ist nicht mehr möglich",
     CHECKOUT_OFFER_NOT_CONSUMED:
         "CheckoutOffer '{offerId}' muss eingelöst sein, bevor der Vertrag entsteht",
+    CHECKOUT_OFFER_CHANGED:
+        "Checkout-Angebot '{offerId}' hat sich während des Abschlusses geändert. Bitte neu laden.",
     SUBSCRIPTION_CONTRACT_NOT_FOUND: "SubscriptionContract '{contractId}' nicht gefunden",
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'Kein aktiver Abo-Vertrag für Mandant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED:

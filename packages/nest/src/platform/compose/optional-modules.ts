@@ -56,10 +56,15 @@ export function composeAdminStats({ options, persistence }: CompositionContext):
 /** The offer a prospect is shown before there is a tenant to bill. */
 export function composeCheckoutOffer({
     options,
+    adapters,
     persistence,
 }: CompositionContext): DynamicModule[] {
     const config = options.checkoutOffer;
     if (!config) return [];
+    const contractRepository =
+        config.conclusion?.subscriptionContractRepository ??
+        persistence?.entitlement?.subscriptionContractRepository;
+    const transactionRunner = config.conclusion?.transactionRunner ?? adapters.transactionRunner;
     return [
         CheckoutOfferModule.forRoot({
             ...config,
@@ -71,6 +76,16 @@ export function composeCheckoutOffer({
                 config.promotionRepository ?? persistence?.catalog?.promotionRepository,
             catalogEntryRepository:
                 config.catalogEntryRepository ?? persistence?.catalog?.catalogEntryRepository,
+            // Named by hand, it is passed on even when half of it resolves to
+            // nothing, so the module refuses to start the same way it does when
+            // wired directly; derived from the bundle, it is wired when both exist.
+            conclusion:
+                config.conclusion || (contractRepository && transactionRunner)
+                    ? ({
+                          subscriptionContractRepository: contractRepository,
+                          transactionRunner,
+                      } as CheckoutOfferModuleOptions['conclusion'])
+                    : undefined,
             imports: config.imports ?? options.imports,
         }),
     ];

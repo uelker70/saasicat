@@ -40,6 +40,7 @@ export function createMemoryHarness() {
         mfa: new Map(),
         contracts: [],
         contractLines: [],
+        checkoutOffers: [],
         appliedSettings: null,
         settingsChanges: [],
     });
@@ -375,6 +376,10 @@ export function createMemoryHarness() {
             const row = state.contracts.find((candidate) => candidate.id === contractId);
             return row ? withLines(row) : null;
         },
+        async findByOriginalOfferId(offerId) {
+            const row = state.contracts.find((candidate) => candidate.originalOfferId === offerId);
+            return row ? withLines(row) : null;
+        },
         async findActiveByTenantId(tenantId, asOf = FIXED_NOW) {
             const live = state.contracts
                 .filter(
@@ -691,6 +696,57 @@ export function createMemoryHarness() {
         },
     };
 
+    // Checkout offers. `consume` decides on the write whether the offer is still
+    // open, as a conditional update does, so two callers cannot both consume it.
+    const checkoutOfferRepository = {
+        async list({ status } = {}) {
+            return state.checkoutOffers
+                .filter((row) => !status || row.status === status)
+                .map((row) => structuredClone(row));
+        },
+        async findById(id) {
+            const row = state.checkoutOffers.find((candidate) => candidate.id === id);
+            return row ? structuredClone(row) : null;
+        },
+        async create(data) {
+            const row = {
+                id: nextId('offer'),
+                planVersionId: null,
+                promotionId: null,
+                promoCode: null,
+                bundles: [],
+                bundleVersionIds: [],
+                lineItems: [],
+                promotionSnapshots: [],
+                promoCodeSnapshot: null,
+                locale: 'de',
+                validUntil: null,
+                ...structuredClone(data),
+                status: 'open',
+                consumedAt: null,
+                createdAt: FIXED_NOW.toISOString(),
+                updatedAt: FIXED_NOW.toISOString(),
+            };
+            state.checkoutOffers.push(row);
+            return structuredClone(row);
+        },
+        async update(id, data) {
+            const row = state.checkoutOffers.find((candidate) => candidate.id === id);
+            if (!row || row.status !== 'open')
+                throw new Error(`Checkout offer '${id}' is not open.`);
+            Object.assign(row, structuredClone(data));
+            return structuredClone(row);
+        },
+        async consume(id) {
+            const row = state.checkoutOffers.find((candidate) => candidate.id === id);
+            if (!row || row.status !== 'open') {
+                throw new Error(`Checkout offer '${id}' has already been consumed.`);
+            }
+            Object.assign(row, { status: 'consumed', consumedAt: new Date().toISOString() });
+            return structuredClone(row);
+        },
+    };
+
     return {
         adapter: {
             capabilities: {
@@ -713,6 +769,7 @@ export function createMemoryHarness() {
             planRepository,
             bundleRepository,
             subscriptionContractRepository,
+            checkoutOfferRepository,
             appliedSettings,
         },
         seed,

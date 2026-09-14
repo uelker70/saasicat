@@ -9,6 +9,7 @@ import type {
     AuditPort,
     AuditQueryPort,
     BundleRepository,
+    CheckoutOfferRepository,
     MfaPort,
     PersistenceCapabilities,
     PlanRepository,
@@ -41,6 +42,13 @@ export interface ContractAdapterInstances {
     audit?: AuditPort;
     auditQuery?: AuditQueryPort;
     subscriptionContractRepository?: SubscriptionContractRepository;
+    /**
+     * Enables the checkout offer scenarios: an offer is consumed once, and a
+     * consume on a transaction that rolls back leaves it open. Neither shipped
+     * adapter provides one; an application that implements the port wires it
+     * here.
+     */
+    checkoutOfferRepository?: CheckoutOfferRepository;
     /**
      * Enables the atomic plan-binding scenarios. Adapters should expose this
      * member only for a mode that promises to keep `plan`,
@@ -172,6 +180,7 @@ export type ContractGap =
     | 'audit'
     | 'mfa'
     | 'subscriptionContracts'
+    | 'checkoutOffers'
     | 'appliedSettings';
 
 export interface PersistenceAdapterContractOptions {

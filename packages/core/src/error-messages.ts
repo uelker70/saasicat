@@ -248,6 +248,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         "Checkout offer '{offerId}' has already been consumed and cannot be {action}",
     CHECKOUT_OFFER_NOT_CONSUMED:
         "CheckoutOffer '{offerId}' must be consumed before the contract is created",
+    CHECKOUT_OFFER_CHANGED:
+        "Checkout offer '{offerId}' changed while it was being concluded. Load it again.",
     SUBSCRIPTION_CONTRACT_NOT_FOUND: "SubscriptionContract '{contractId}' not found",
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'No active subscription contract for tenant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: "SubscriptionContract '{contractId}' is already closed",

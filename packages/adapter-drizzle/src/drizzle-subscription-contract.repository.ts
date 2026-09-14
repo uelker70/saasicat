@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
 import type {
     CreateSubscriptionContractData,
     NewContractLineItemData,
@@ -97,13 +97,31 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
         return (await this.withLineItems(db, rows))[0] ?? null;
     }
 
-    async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
+    async findByOriginalOfferId(
+        offerId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null> {
+        const db = resolveDb(this.db, tx);
+        const rows = await db
+            .select()
+            .from(subscriptionContracts)
+            .where(eq(subscriptionContracts.originalOfferId, offerId))
+            .orderBy(asc(subscriptionContracts.createdAt), asc(subscriptionContracts.id))
+            .limit(1);
+        return (await this.withLineItems(db, rows))[0] ?? null;
+    }
+
+    async create(
+        data: CreateSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord> {
         const now = new Date();
         const contractId = randomUUID();
         // The contract and its lines are one document: a contract without its
         // line items prices nothing, and lines without their contract belong to
-        // nobody. Both or neither.
-        return this.db.transaction(async (transaction) => {
+        // nobody. Both or neither — on the caller's transaction when it has one,
+        // where this becomes a savepoint and is undone with the rest.
+        return resolveDb(this.db, tx).transaction(async (transaction) => {
             const db = transaction as unknown as DrizzleClient;
             const rows = await db
                 .insert(subscriptionContracts)

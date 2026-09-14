@@ -274,6 +274,12 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         return active ? this.cloneRecord(active) : null;
     }
 
+    async findByOriginalOfferId(offerId: string): Promise<SubscriptionContractRecord | null> {
+        // Map order is insertion order, which is creation order here.
+        const first = [...this.byId.values()].find((row) => row.originalOfferId === offerId);
+        return first ? this.cloneRecord(first) : null;
+    }
+
     async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
         const now = new Date();
         const id = `contract-${this.nextContractId++}`;
