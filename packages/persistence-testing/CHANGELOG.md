@@ -1,5 +1,60 @@
 # @saasicat/persistence-testing
 
+## 1.0.0-rc.14
+
+### Major Changes
+
+- 82410a0: A port the harness leaves out fails the persistence contract unless it is
+  declared
+
+    A scenario group whose port or seed writer the harness does not provide used to
+    report as skipped, and a suite could pass with a whole group unchecked. It now
+    fails, naming the part. An adapter that deliberately does not provide a part
+    lists it in the new `gaps` option of `persistenceAdapterContract`, and its
+    scenarios report as skipped as before; a gap listed there that the harness does
+    provide fails the suite. Groups ruled out by the adapter's `capabilities`, such
+    as the lock scenarios, still skip.
+
+    - A harness that wires every port its adapter ships changes nothing.
+    - A harness that relied on skips either wires the missing ports or declares
+      them: `gaps: ['appliedSettings']`. `ContractGap` lists the names, and a name
+      that is not one fails the suite as unknown.
+    - Which parts a port provides can follow its options: `@saasicat/adapter-prisma`
+      adds `findActivePlanVersion`, `findActiveBundleVersion` and
+      `applyOnboardingSelection` only with `validityWindows` and
+      `atomicOnboardingSelection`. Derive `gaps` from the same options.
+
+- bf2728c: Reading a plan's versions by a key no plan has answers empty
+
+    With `planBinding: { mode: 'normalized-plan-id' }`, `PrismaPlanRepository`'s
+    `listVersions`, `findCurrentDraft`, `findLatestLivePlanVersion` and
+    `findActivePlanVersion`, and `PrismaPlanVersionRepository`'s `findLatestLive`
+    and `findActive`, threw `Plan '…' not found.` for a key no live plan had. A
+    plan removed between listing the catalogue and reading its versions turned
+    publishing a bundle version into a server error, and the versions of a retired
+    plan could not be listed at all.
+
+    - A key no plan row has now reads as an empty list or `null`.
+    - A retired plan's versions stay readable, as they already were in the legacy
+      binding and in `@saasicat/adapter-drizzle`: the guard that decides whether a
+      plan may be deleted counts them.
+    - Writes to a plan that is not live still refuse. `PlanVersionsService`
+      refuses to create a draft for a retired plan, or to publish one left over
+      from before it was retired, with `PLAN_NOT_FOUND`: `POST /plans/:planId/versions`
+      and publishing a plan version answer 404 for a retired plan, on every
+      adapter.
+    - The exported `PrismaPlanBindingResolver` interface gains the member
+      `findStoragePlanId`; a hand-written implementation of it adds one.
+    - The persistence contract checks both, so an adapter that throws for an
+      unknown key, or hides a retired plan's versions, now fails it.
+
+### Patch Changes
+
+- Updated dependencies [a87cc4e]
+- Updated dependencies [cd89334]
+- Updated dependencies [a87cc4e]
+    - @saasicat/core@1.0.0-rc.14
+
 ## 1.0.0-rc.13
 
 ### Patch Changes
