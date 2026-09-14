@@ -4971,6 +4971,7 @@ _Tested by:_
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
+        - a rate ${what} stops the migration and is named
         - a free plan frozen from the catalogue keeps its rate as it stands
         - a free plan frozen from the catalogue keeps a rate below 1 as it stands
         - a free plan concluded from an offer that states per cent keeps its rate as it stands
@@ -11687,6 +11688,8 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - and the installation is exactly as it was afterwards
+    - a line item learns the money it was booked with
+        - a contract with ${what} stops the migration and is named
 
 <!-- END proof -->
 

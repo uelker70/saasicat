@@ -111,6 +111,8 @@ _Tested by:_
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
         - and the installation is exactly as it was afterwards
+    - a line item learns the money it was booked with
+        - a contract with ${what} stops the migration and is named
 
 <!-- END proof -->
 

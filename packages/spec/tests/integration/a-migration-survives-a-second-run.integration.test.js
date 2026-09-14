@@ -451,7 +451,6 @@ describe('a line item learns the money it was booked with', () => {
         assert.deepEqual(await linesById(), afterFirst, 'the second run relabelled history');
     });
 
-    // @requirement SC-PRIV-009 — A migration that would destroy data stops and says what it found
     const totals = { totalNet: 100, totalGross: 119 };
     for (const [what, snapshot] of [
         ['no currency at all', { vatRate: 19, ...totals }],
@@ -461,6 +460,7 @@ describe('a line item learns the money it was booked with', () => {
         ['no totals to read the unit from', { currency: 'EUR', vatRate: 19 }],
         ['totals that are not numbers', { currency: 'EUR', vatRate: 19, totalNet: '100' }],
     ]) {
+        // @requirement SC-PRIV-009 — A migration that would destroy data stops and says what it found
         test(`a contract with ${what} stops the migration and is named`, async () => {
             await beforeTheMigration();
             await seedContract('c-broken', snapshot);
@@ -493,7 +493,6 @@ describe('a line item learns the money it was booked with', () => {
         assert.equal(rows.length, 0, 'the refusal left half a migration behind');
     });
 
-    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
     for (const [what, snapshot, priceGross] of [
         [
             'above 100 per cent',
@@ -507,6 +506,7 @@ describe('a line item learns the money it was booked with', () => {
             '250.00',
         ],
     ]) {
+        // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
         test(`a rate ${what} stops the migration and is named`, async () => {
             await beforeTheMigration();
             await seedContract('c-out-of-range', snapshot, 'offer-9');
