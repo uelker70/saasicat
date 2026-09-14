@@ -28,19 +28,21 @@
 -- totals: whichever of the two readings alone explains the gross it recorded
 -- is the one it was written in. Where both explain it (totals of zero, which
 -- every rate explains) or neither does (a total summed from rounded lines can
--- sit a cent beside both), the size of the rate: a fraction above 1 would be a
--- tax above 100 per cent, which the guard below refuses, so a rate above 1 is
--- per cent. A rate of exactly 1 is still 100 per cent as a fraction, so from 1
--- down the size settles nothing. There, where both readings explain the
--- totals, the contract's provenance decides: `originalOfferId` is set only
--- where the contract was concluded from an offer, so a null one holds per cent
--- and a set one the platform's fraction. Where neither does, nothing in the
--- row says which unit it is, and the migration refuses rather than guessing.
+-- sit a cent beside both), the size of the rate. A rate of 0 is 0 in either
+-- unit, so it is recorded as it stands whatever the totals say. A fraction
+-- above 1 would be a tax above 100 per cent, which the guard below refuses, so
+-- a rate above 1 is per cent. A rate of exactly 1 is still 100 per cent as a
+-- fraction, so from 1 down to 0 the size settles nothing. There, where both
+-- readings explain the totals, the contract's provenance decides:
+-- `originalOfferId` is set only where the contract was concluded from an
+-- offer, so a null one holds per cent and a set one the platform's fraction.
+-- Where neither does, nothing in the row says which unit it is, and the
+-- migration refuses rather than guessing.
 --
 -- What it will not do is invent a value. A contract whose snapshot does not
 -- state a currency, or does not state the numbers this needs, or leaves the
--- unit of a rate of 1 or below open, or yields a rate outside 0–100, stops the
--- migration with a sentence naming the contract —
+-- unit of a rate between 0 and 1 open, or yields a rate outside 0–100, stops
+-- the migration with a sentence naming the contract —
 -- because a row labelled EUR because EUR is common is worse than a migration
 -- that did not run.
 --
@@ -96,17 +98,21 @@ BEGIN
                        THEN round(snap.rate, 2)
                    WHEN reading.as_fraction AND NOT reading.as_percent
                        THEN round(snap.rate * 100, 2)
-                   -- They explain both or neither. A fraction above 1 would
-                   -- be a tax above 100 per cent, so this rate is per cent
-                   -- whatever the totals say. Exactly 1 is not settled here:
-                   -- as a fraction it is 100 per cent, which the guard allows.
+                   -- They explain both or neither. A rate of 0 is 0 in either
+                   -- unit, whatever the totals say.
+                   WHEN snap.rate = 0
+                       THEN 0
+                   -- A fraction above 1 would be a tax above 100 per cent, so
+                   -- this rate is per cent whatever the totals say. Exactly 1
+                   -- is not settled here: as a fraction it is 100 per cent,
+                   -- which the guard allows.
                    WHEN snap.rate > 1
                        THEN round(snap.rate, 2)
-                   -- 1 or below and explained by neither reading: the unit is
-                   -- open, and the guard below refuses the NULL.
+                   -- Above 0, up to 1, and explained by neither reading: the
+                   -- unit is open, and the guard below refuses the NULL.
                    WHEN NOT reading.as_percent
                        THEN NULL
-                   -- 1 or below and explained by both: provenance decides.
+                   -- Above 0, up to 1, and explained by both: provenance decides.
                    WHEN c."originalOfferId" IS NULL
                        THEN round(snap.rate, 2)
                    ELSE round(snap.rate * 100, 2)
@@ -156,9 +162,9 @@ BEGIN
         RAISE EXCEPTION
             'Cannot record the money facts of % contract(s): their priceSnapshot does not state a '
             'currency, or does not state the vatRate, totalNet and totalGross this needs as '
-            'numbers, or states a rate of 1 or below whose unit neither its totals nor its size settle, '
-            'or yields a rate outside 0-100 (%). The snapshot is the only record of what '
-            'was agreed, so this migration will not guess. Repair those snapshots and run it '
+            'numbers, or states a rate above 0 and up to 1 whose unit neither its totals nor its '
+            'size settle, or yields a rate outside 0-100 (%). The snapshot is the only record of '
+            'what was agreed, so this migration will not guess. Repair those snapshots and run it '
             'again. A line named on its own has no contract row at all.',
             array_length(unfillable, 1),
             array_to_string(unfillable[1:10], ', ')

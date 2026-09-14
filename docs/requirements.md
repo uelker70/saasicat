@@ -4979,6 +4979,7 @@ _Tested by:_
         - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
         - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
         - a rate of exactly 1 that no reading explains stops the migration and is named
+        - a rate of 0 is recorded as 0 whatever its totals say
         - a rate below 1 that no reading explains stops the migration and is named
 
 <!-- END proof -->
@@ -12010,6 +12011,7 @@ _Tested by:_
         - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
         - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
         - a rate of exactly 1 that no reading explains stops the migration and is named
+        - a rate of 0 is recorded as 0 whatever its totals say
         - a rate below 1 that no reading explains stops the migration and is named
         - a rate a checkout offer stated as a fraction is recorded in per cent
         - a value already in a column is kept, and a row missing only one is still found
@@ -12076,6 +12078,7 @@ _Tested by:_
         - a free plan concluded from an offer at a rate of exactly 1 keeps it as the fraction it is
         - and one frozen from the catalogue at a rate of exactly 1 keeps it in per cent
         - a rate of exactly 1 that no reading explains stops the migration and is named
+        - a rate of 0 is recorded as 0 whatever its totals say
         - a rate below 1 that no reading explains stops the migration and is named
         - a rate a checkout offer stated as a fraction is recorded in per cent
         - a value already in a column is kept, and a row missing only one is still found

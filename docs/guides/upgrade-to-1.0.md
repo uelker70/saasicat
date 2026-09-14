@@ -661,8 +661,8 @@ psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-line-items-record-th
 It adds the columns, fills them from each line's own contract — `priceSnapshot` already records the
 currency and the VAT rate that were agreed, written in the same moment as the lines — and only then
 makes them required. It will not invent a currency or a rate: a contract whose snapshot does not
-state one, states a rate that is not a number between 0 and 100, or states a rate of 1 or below
-whose unit nothing in the snapshot settles, **stops the migration and is named**, with nothing
+state one, states a rate that is not a number between 0 and 100, or states a rate above 0 and up to
+1 whose unit nothing in the snapshot settles, **stops the migration and is named**, with nothing
 half-applied. Running it again does nothing, and on a database whose schema already has the columns
 it does nothing at all.
 
@@ -697,6 +697,7 @@ WITH snapshot AS (
                WHEN stated_rate IS NULL THEN NULL
                WHEN as_percent AND NOT as_fraction THEN round(stated_rate, 2)
                WHEN as_fraction AND NOT as_percent THEN round(stated_rate * 100, 2)
+               WHEN stated_rate = 0 THEN 0
                WHEN stated_rate > 1 THEN round(stated_rate, 2)
                WHEN NOT as_percent THEN NULL
                WHEN NOT from_an_offer THEN round(stated_rate, 2)
@@ -716,10 +717,10 @@ the catalogue states per cent, and one concluded from a checkout offer states th
 did — a fraction where the platform's offer priced its lines, per cent where your own code wrote it
 that way. So `stated` of `0.19` and `rate` of `19` are the same rate. Three things settle the unit,
 in this order: the snapshot's totals, where exactly one reading explains them; otherwise the size of
-the rate, because a fraction above 1 would be a tax above 100 per cent; and from 1 down, where both
-readings explain the totals — a free plan, whose totals are zero — `originalOfferId`. A rate of 1 or
-below that neither reading explains is reported with an empty `rate`: nothing in the row says which
-unit it is in.
+the rate, because a rate of 0 is 0 in either unit and a fraction above 1 would be a tax above 100
+per cent; and above 0 up to 1, where both readings explain the totals — a free plan, whose totals
+are zero — `originalOfferId`. A rate above 0 and up to 1 that neither reading explains is reported
+with an empty `rate`: nothing in the row says which unit it is in.
 
 Repair those snapshots to say what was actually agreed — they are the record the lines are filled
 from, so a wrong value here becomes a wrong value on every line of that contract.

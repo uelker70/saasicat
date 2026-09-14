@@ -679,6 +679,26 @@ describe('a line item learns the money it was booked with', () => {
     });
 
     // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
+    test('a rate of 0 is recorded as 0 whatever its totals say', async () => {
+        // 0 per cent and a fraction of 0 are the same rate, so there is no unit
+        // to settle, and totals that neither reading explains are no reason to
+        // stop: a rate of 19 a cent beside its totals goes through as well.
+        await beforeTheMigration();
+        await seedContract(
+            'c-zero-off',
+            { currency: 'EUR', vatRate: 0, totalNet: 100, totalGross: 100.01 },
+            'offer-8',
+        );
+        await seedLine('l-zero-off', 'c-zero-off', 'plan', '100.00', '100.01');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await linesById(), [
+            { id: 'l-zero-off', currency: 'EUR', taxRate: '0.00', taxAmount: '0.01' },
+        ]);
+    });
+
+    // @requirement SC-PRIC-017 — The tax rate and the tax amount are recorded, not re-derived
     test('a rate below 1 that no reading explains stops the migration and is named', async () => {
         // 100 at 0.19 per cent is 100.19, at a fraction of 0.19 it is 119; the
         // snapshot says 118. Below 1 the size does not settle the unit, and
@@ -816,6 +836,12 @@ describe('a line item learns the money it was booked with', () => {
         );
         await seedLine('l-one-unclear', 'c-one-unclear', 'plan', '100.00', '150.00');
         await seedContract(
+            'c-zero-off',
+            { currency: 'EUR', vatRate: 0, totalNet: 100, totalGross: 100.01 },
+            'offer-8',
+        );
+        await seedLine('l-zero-off', 'c-zero-off', 'plan', '100.00', '100.01');
+        await seedContract(
             'c-free-percent-offer',
             { currency: 'EUR', vatRate: 19, totalNet: 0, totalGross: 0 },
             'offer-3',
@@ -839,7 +865,7 @@ describe('a line item learns the money it was booked with', () => {
                 for (const id of reported) {
                     assert.ok(said.includes(id), `the refusal did not name ${id}`);
                 }
-                for (const fine of ['c-good', 'c-free-percent-offer']) {
+                for (const fine of ['c-good', 'c-free-percent-offer', 'c-zero-off']) {
                     assert.equal(
                         said.includes(fine),
                         false,
