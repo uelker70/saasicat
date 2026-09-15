@@ -393,6 +393,11 @@ export const PAYMENT_ERROR_CODES = {
     PAYMENT_GATEWAY_ACCOUNT_UNKNOWN: 'PAYMENT_GATEWAY_ACCOUNT_UNKNOWN',
     /** A callback the gateway did not send: its signature does not verify. */
     PAYMENT_CALLBACK_REJECTED: 'PAYMENT_CALLBACK_REJECTED',
+    /**
+     * A success or cancel URL at an origin `config/saas.yaml#payments.returnUrlOrigins`
+     * does not name. Carries `field`.
+     */
+    PAYMENT_RETURN_URL_NOT_ALLOWED: 'PAYMENT_RETURN_URL_NOT_ALLOWED',
 } as const;
 
 export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[keyof typeof PAYMENT_ERROR_CODES];

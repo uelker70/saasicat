@@ -143,6 +143,12 @@ export interface PlanCatalog {
          */
         newPaymentMethods?: string;
         /**
+         * The origins a gateway's form may send a person back to, e.g. `https://app.example.com`: the scheme, the host and a port, no path. A sign-up or a tenant naming a success or cancel URL at any other origin is refused, so the operator's own payment form cannot be made to forward somebody to a page of a stranger's choosing.
+         *
+         * @minItems 1
+         */
+        returnUrlOrigins: [string, ...string[]];
+        /**
          * Every gateway account by the name its webhook route carries: `/webhooks/payment/<name>`. An account that still holds a payment method in use stays listed after another takes the new ones, so its callbacks keep being handled; a start that finds a stored reference to an account missing here refuses, naming the account.
          */
         accounts: {

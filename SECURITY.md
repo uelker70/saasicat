@@ -107,6 +107,9 @@ nothing is claimed or created from it.
   anything it cannot verify with the account's secret.
 - `DevPaymentGateway` confirms payment methods nobody gave. It refuses to run with
   `NODE_ENV=production`; never bind it where real customers sign up.
+- Name the origins the gateway's form may send a person back to in
+  `config/saas.yaml#payments.returnUrlOrigins`. A success or cancel URL at any other origin is refused,
+  so the operator's own payment form cannot forward somebody to a page of a stranger's choosing.
 - Keep each account's keys and webhook secret in the environment. `config/saas.yaml` refuses a
   variable named like a credential, so they are bound in code, not written into the file.
 

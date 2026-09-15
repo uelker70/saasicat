@@ -198,13 +198,23 @@
         "payments": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["accounts"],
+            "required": ["accounts", "returnUrlOrigins"],
             "description": "The payment gateway accounts this installation takes payment methods through. SaaSiCat keeps the gateway's reference to a payment method and its masked details, never a card number or an IBAN. The keys and the webhook secret of each account are bound in the application's code from the environment and never written here.",
             "properties": {
                 "newPaymentMethods": {
                     "type": "string",
                     "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
                     "description": "The account a new payment method is taken at, at sign-up and when a tenant changes its payment method. It names one of `accounts`, which then has to list its `methods`. Omitted, no new payment method is taken, and the accounts listed stay for the references they hold."
+                },
+                "returnUrlOrigins": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "pattern": "^https?://[^/?#\\s]+$"
+                    },
+                    "description": "The origins a gateway's form may send a person back to, e.g. `https://app.example.com`: the scheme, the host and a port, no path. A sign-up or a tenant naming a success or cancel URL at any other origin is refused, so the operator's own payment form cannot be made to forward somebody to a page of a stranger's choosing."
                 },
                 "accounts": {
                     "type": "object",

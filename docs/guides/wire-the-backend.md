@@ -394,11 +394,13 @@ page shows the one in use and opens the form for a new one.
 
 Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
 webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,
-with the `methods` its form offers:
+with the `methods` its form offers. `returnUrlOrigins` names where the form may send a person back
+to; a success or cancel URL at any other origin is refused with `PAYMENT_RETURN_URL_NOT_ALLOWED`:
 
 ```yaml
 payments:
     newPaymentMethods: main
+    returnUrlOrigins: [https://app.example.com]
     accounts:
         main:
             provider: dev
@@ -448,7 +450,9 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   billing permission, reading included; a user without the permission is refused with
   `BILLING_PERMISSION_REQUIRED`. The setup takes `successUrl` and `cancelUrl` and answers the form's
   `redirectUrl`; nothing changes until the gateway confirms, and the confirmed payment method
-  replaces the one in use, which stays as history.
+  replaces the one in use, which stays as history. Opening the form records the setup, and a
+  confirmation is recorded only for the account, session and subscriber of an open setup — a
+  callback that names another subscriber changes nobody's payment method.
 - **At start**, the application refuses to boot when the bound gateways and the accounts in the file
   disagree, when a payment method in use belongs to an account the file no longer names, and when
   a sign-up is still waiting for its payment method at such an account — each named in the message.

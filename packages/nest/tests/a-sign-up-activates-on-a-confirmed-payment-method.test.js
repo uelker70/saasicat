@@ -277,6 +277,35 @@ describe('step 4 takes the billing address and opens the gateway form', () => {
         });
     }
 
+    for (const [field, url] of [
+        ['successUrl', 'https://phishing.example/welcome'],
+        ['successUrl', 'https://app.example.phishing.example/welcome'],
+        ['cancelUrl', 'http://app.example/step-4'],
+        ['cancelUrl', 'not a url'],
+    ]) {
+        test(`a ${field} of ${url} is refused before anything is stored or asked`, async () => {
+            const ctx = await signUpApp();
+            const pendingId = await atStepFour(ctx);
+
+            await assert.rejects(
+                ctx.service.startCheckout({
+                    pendingRegistrationId: pendingId,
+                    billingDetails: BILLING,
+                    ...URLS,
+                    [field]: url,
+                }),
+                (error) =>
+                    codeOf(error) === 'PAYMENT_RETURN_URL_NOT_ALLOWED' &&
+                    error.getStatus() === 400 &&
+                    error.getResponse().params.field === field,
+            );
+            assert.deepEqual(ctx.gateway.setups, []);
+            const stored = await ctx.repo.findById(pendingId);
+            assert.equal(stored.status, 'PLAN_SELECTED');
+            assert.equal(stored.addressLine1, null);
+        });
+    }
+
     test('a country that is not a two-letter code is refused', async () => {
         const ctx = await signUpApp();
         const pendingId = await atStepFour(ctx);

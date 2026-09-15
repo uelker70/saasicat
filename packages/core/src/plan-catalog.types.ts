@@ -169,6 +169,8 @@ export interface PlanCatalogPaymentAccount {
 export interface PlanCatalogPayments {
     /** The account a new payment method is taken at. Omitted, none is taken. */
     newPaymentMethods?: string;
+    /** The origins a gateway's form may send a person back to, such as `https://app.example.com`. */
+    returnUrlOrigins: string[];
     /** Every account taking new payment methods or holding a reference in use. */
     accounts: Record<string, PlanCatalogPaymentAccount>;
 }

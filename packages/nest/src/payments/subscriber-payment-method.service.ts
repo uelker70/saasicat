@@ -14,6 +14,7 @@ import {
     type PaymentMethodConfirmedEvent,
 } from './payment-callback.service.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
+import { refuseForeignReturnUrls } from './return-urls.js';
 import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from './payments.tokens.js';
 
 export interface StartPaymentMethodChange {
@@ -69,6 +70,7 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
         tenantId: string,
         input: StartPaymentMethodChange,
     ): Promise<{ redirectUrl: string }> {
+        refuseForeignReturnUrls(input, this.registry.returnUrlOrigins());
         const subscriber = await this.subscribers.requireForTenant(tenantId);
         const account = this.registry.forNewPaymentMethods();
         if (!account) {

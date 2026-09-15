@@ -720,7 +720,8 @@ reach you if you build line items yourself and hand them to `create` — a contr
 and an invoice stating one currency in its total and another on every line is a record nobody can
 correct afterwards.
 
-**If you implement the ports yourself, your build breaks here, on purpose.** `ContractLineItemRecord`
+**If you implement the ports yourself, your build breaks here, on purpose.**
+`ContractLineItemRecord`
 and `InvoiceLineItemSnapshot` require the three fields, so a repository adapter stops compiling
 until it reads and writes them. `NewContractLineItemData` requires them too — but the one port a
 consumer supplies lines through, `ContractFreezeSourcePort.loadBookedBundles`, deliberately does
@@ -794,7 +795,8 @@ endpoint is left out.
 
 On the Prisma path, `saasicat schema check` reports the two models until you copy them from
 `prisma-fragments/12-applied-settings.prisma` into your `schema.prisma`. An installation whose
-persistence adapter provides no `core.appliedSettings` port still starts — the platform says once, at
+persistence adapter provides no `core.appliedSettings` port still starts — the platform says once,
+at
 boot, that it is not recording — so a custom adapter is not broken by this, only silent until it
 implements `AppliedSettingsPort`.
 
@@ -828,7 +830,8 @@ the record of the applied settings had no file to name on this path, only a sent
 values came in as code. Now there is nothing in the option to type a setting into, and the record
 names the file on both paths.
 
-**A `dbCatalog` that still carries the values refuses the boot** — `catalog.db-catalog-names-the-file`,
+**A `dbCatalog` that still carries the values refuses the boot** —
+`catalog.db-catalog-names-the-file`,
 naming what the option takes now — rather than being read: the values it carries are the ones the
 operator believes are running. So does one that names the path and still carries a value beside
 it, and that refusal names the value: an upgrade that stopped halfway must not run on the file
@@ -966,7 +969,8 @@ The sign-up configurator showed a yearly price of the monthly price times
 `ConfiguratorCatalog.cycleDiscount`, while the offer and the contract charge the yearly price the
 plan version carries. Where the two differed, say 9.99 a month and 99.00 a year, the configurator
 showed 99.90 and a promo code preview worked on that figure. `computeBreakdown` now takes each
-model's `yearlyNet`, and the saving it reports is twelve monthly prices minus that, never below zero.
+model's `yearlyNet`, and the saving it reports is twelve monthly prices minus that, never below
+zero.
 
 - **`ConfiguratorCatalog.cycleDiscount` and `ConfiguratorMarketingProvider.getCycleDiscount()` are
   gone.** Delete `getCycleDiscount` from your marketing provider; an object literal typed as the
@@ -1118,7 +1122,8 @@ say, so the codemod names the lines and leaves the edit to you.
 
 **Every object member it prints, by file and line.** Not because the shapes are unclear, but because
 telling one apart from a declaration of your own is not something a text scan can do: in TypeScript
-`{ projectKey: 'app', apiBase: string }` is a valid _type_ and `{ projectKey: 'app', apiBase: '/a' }`
+`{ projectKey: 'app', apiBase: string }` is a valid _type_ and `{ projectKey: 'app', apiBase: '/a'
+}`
 is a valid _value_, and they are the same tokens. A codemod that guessed would occasionally delete a
 member of your own interface, and you would find out later. So it errs towards leaving work for you
 rather than removing yours.
@@ -1143,7 +1148,8 @@ written into `config/saas.yaml`.
 
 `@saasicat/persistence-testing` checks two reads of `PlanRepository` it did not check before. A key
 no plan row has answers `listVersions`, `findCurrentDraft`, `findLatestLivePlanVersion`,
-`findActivePlanVersion`, `PlanVersionRepository.findLatestLive` and `PlanVersionRepository.findActive`
+`findActivePlanVersion`, `PlanVersionRepository.findLatestLive` and
+`PlanVersionRepository.findActive`
 with an empty list or `null`,
 not an error: a plan can go between listing the catalogue and reading its versions. A retired plan
 keeps its versions readable, because the guard that decides whether a plan may be deleted counts
@@ -1158,7 +1164,8 @@ them.
 A contract hung on the tenant and said nothing about whom it was concluded with, and the fragment
 suggested a cascade from the tenant, so deleting a tenant deleted the record of what it had agreed
 to. A tenant now holds the application's data, and the **subscriber** is the party to the contract:
-a customer number and the master data a contract names ([ADR 0012](../explanation/adr/0012-the-subscriber-owns-the-commercial-record.md)).
+a customer number and the master data a contract names ([ADR
+0012](../explanation/adr/0012-the-subscriber-owns-the-commercial-record.md)).
 A contract belongs to its subscriber and copies both parties on the day it is concluded, and no
 contract is written, no plan changed and no add-on booked for a tenant without one.
 
@@ -1282,14 +1289,16 @@ the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractMod
 - **Refused without a subscriber, with `SUBSCRIBER_REQUIRED`**: `SubscriptionContractService.create`
   and `replaceActiveContract`, `CheckoutOfferService.conclude`, the contract freeze, and — where the
   contract freeze is wired — a plan change and booking or reactivating an add-on, before anything
-  is written. Cancelling stays open. `conclude` refuses a `subscriber` for a tenant that has one with
+  is written. Cancelling stays open. `conclude` refuses a `subscriber` for a tenant that has one
+  with
   `SUBSCRIBER_ALREADY_EXISTS`.
 - **Wiring.** `prismaPersistence` and `drizzlePersistence` supply
   `entitlement.subscriberRepository`, and `SaaSiCatModule.forRoot` wires it wherever contracts are
   written. By hand, `SubscriptionContractModule.forRoot`, the `conclusion` of
   `CheckoutOfferModule.forRoot` and `tenantBilling.contractFreeze` each take `subscriberRepository`
   beside `subscriptionContractRepository`, and refuse to start without it. `SubscriberService` reads
-  the prefix and the issuer from `PLAN_CATALOG_TOKEN`, so a `SubscriptionContractModule` wired by hand
+  the prefix and the issuer from `PLAN_CATALOG_TOKEN`, so a `SubscriptionContractModule` wired by
+  hand
   needs a `PlanCatalogModule` in scope, which `SaaSiCatModule.forRoot` provides globally.
 - **`ContractFreezePort`** gains `assertPartyFor(tenantId)`, which the plan-change and add-on routes
   call before they write. An implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds
@@ -1298,7 +1307,8 @@ the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractMod
   copied at conclusion, the issuer `null` where none was named — and `partiesMigrated`. A
   `SubscriptionContractRepository` of your own writes `data.parties` on `create`.
 - **`config/saas.yaml`** takes an optional `issuer` — `legalName`, and optionally `addressLine1`,
-  `addressLine2`, `postalCode`, `city`, `country`, `vatId`, `taxNumber` — which every contract copies
+  `addressLine2`, `postalCode`, `city`, `country`, `vatId`, `taxNumber` — which every contract
+  copies
   from then on, and `subscribers.customerNumberPrefix`.
 - **Your persistence contract harness** wires `subscriberRepository` and the seed writer
   `createSubscriber({ legalName })`, which the contract scenarios need for the party a contract
@@ -1322,7 +1332,8 @@ changes for an application that already runs:
 psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-payment-method-is-a-gateway-reference.postgres.sql
 ```
 
-It creates `subscriber_payment_methods`, makes a gateway event unique per account in
+It creates `subscriber_payment_methods` and `subscriber_payment_method_setups`, makes a gateway
+event unique per account in
 `"PaymentEventLog"` — an event recorded before carries its `provider` as its account — and adds the
 billing details, `checkoutGatewayAccount` and `gatewayCustomerRef` to `"PendingRegistration"`. Each
 part is skipped where its table is missing, and a second run does nothing. A sign-up whose checkout
@@ -1331,7 +1342,8 @@ started before the migration has no account beside its session and repeats step 
 **Take the new fragment, and drop the old model once nothing writes to it.**
 `SubscriptionPaymentMethod` and the enum `SubscriptionPaymentType` are gone from
 `01-subscription.prisma`, with `Subscription.paymentMethod`; `SubscriberPaymentMethod` and
-`PaymentEventLog` are in `14-payments.prisma`, and `Subscriber` gains `paymentMethods`. The
+`SubscriberPaymentMethodSetup` and `PaymentEventLog` are in `14-payments.prisma`, and `Subscriber`
+gains `paymentMethods` and `paymentMethodSetups`. The
 migration leaves the old table and its rows alone, because they are your application's. Once your
 application no longer writes there:
 
@@ -1346,9 +1358,11 @@ reference a gateway can charge, so each subscriber gives its payment method agai
 **Wiring.**
 
 - **`config/saas.yaml`** takes a `payments` block: the gateway accounts by name, and which one takes
-  new payment methods with the `methods` it offers. `SaaSiCatModule.forRoot` takes
+  new payment methods with the `methods` it offers, and the `returnUrlOrigins` a success or cancel
+  URL has to be at. `SaaSiCatModule.forRoot` takes
   `payments: { gateways }`, one adapter per account, and `prismaPersistence` and
-  `drizzlePersistence` supply the new `persistence.payments` slice. By hand, `PaymentsModule.forRoot`
+  `drizzlePersistence` supply the new `persistence.payments` slice. By hand,
+  `PaymentsModule.forRoot`
   from `@saasicat/nest/payments` takes the same pieces.
 - **Create the application with `rawBody: true`**, and let a global authentication guard return
   early for `isSaaSiCatPublicRoute(reflector, context)`: the gateway's callbacks arrive at
@@ -1361,11 +1375,13 @@ reference a gateway can charge, so each subscriber gives its payment method agai
   not start without the payments module beside it. `PaymentProvider`, `CheckoutSession` and
   `PaymentEventStatus` are gone from `@saasicat/core`; a gateway adapter implements `PaymentGateway`
   instead, and `DevPaymentGateway` stands in for a dev stub of your own.
-- **`ActivationOrchestrator.activate(pending)`** becomes `activate(pending, { tx })`. Write every row
+- **`ActivationOrchestrator.activate(pending)`** becomes `activate(pending, { tx })`. Write every
+  row
   on `tx` and open no transaction of your own; pass `tx` to `CheckoutOfferService.conclude`, which
   now takes it, and to `SubscriberService.createForTenant`.
 - **`PendingRegistrationRepository`**: `findByCheckoutSession(sessionId)` becomes
-  `findByCheckoutSession(gatewayAccount, sessionId)`, and `findOpenCheckoutAccounts(now)` is new.
+  `findByCheckoutSession(gatewayAccount, sessionId)`, `delete(id, tx)` deletes on the transaction it
+  is handed — the activation deletes the sign-up there — and `findOpenCheckoutAccounts(now)` is new.
   `PendingRegistration` gains `addressLine1`, `addressLine2`, `postalCode`, `city`, `country`,
   `vatId`, `taxNumber`, `checkoutGatewayAccount` and `gatewayCustomerRef`.
 - **`startCheckout`** takes `billingDetails`: `addressLine1`, `postalCode`, `city` and `country` are
@@ -1374,7 +1390,8 @@ reference a gateway can charge, so each subscriber gives its payment method agai
   `subscriberFromRegistration(pending)` copies them onto the subscriber.
 - **`PaymentEventLog`** is `claim(claim, tx)` instead of `tryClaim(eventId, payload)`, and the
   adapters implement it; a duplicate answers `false` without raising. `RegistrationAuditEventType`
-  loses `PAYMENT_DUPLICATE_IGNORED`.
+  loses `PAYMENT_DUPLICATE_IGNORED`: a duplicate callback is handled before any registration code
+  sees it, and is logged rather than audited.
 - **The tenant's plan page** shows the payment method in use to whoever holds the billing
   permission, and `GET`/`POST /billing/payment-method` require it: the tenant's administrator,
   unless `payments.billingPermissionGuards` names others.

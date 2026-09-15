@@ -28,6 +28,7 @@ import {
 } from '../payments/payment-callback.service.js';
 import { PaymentGatewayRegistry } from '../payments/payment-gateway-registry.js';
 import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../payments/payments.tokens.js';
+import { refuseForeignReturnUrls } from '../payments/return-urls.js';
 import { settleBillingDetails } from './billing-details.js';
 import {
     ACTIVATION_ORCHESTRATOR_TOKEN,
@@ -114,6 +115,7 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         urls: RegistrationSetupUrls,
     ): Promise<RegistrationSetupStarted> {
         const { registry } = this.payments();
+        refuseForeignReturnUrls(urls, registry.returnUrlOrigins());
         const billing = settleBillingDetails(pending, billingDetails);
         const account = registry.forNewPaymentMethods();
         if (!account) {

@@ -19,7 +19,8 @@ subscriber, tenant, subscription and payment method are written on the
 transaction the confirmation is claimed on, so a failure rolls all of it back
 and the gateway's retry activates.
 
-- New `payments` block in `config/saas.yaml` naming the gateway accounts, and
+- New `payments` block in `config/saas.yaml` naming the gateway accounts and the
+  `returnUrlOrigins` a success or cancel URL has to be at, and
   `SaaSiCatModule.forRoot({ payments: { gateways } })` binding one
   `PaymentGateway` per account. `PaymentsModule` in `@saasicat/nest/payments`
   mounts `POST /webhooks/payment/:account`, which needs the application created
@@ -38,10 +39,15 @@ and the gateway's retry activates.
   `paymentEventLog`. `ActivationOrchestrator.activate` receives `{ tx }` and
   writes on it; `CheckoutOfferService.conclude` takes `tx`.
   `PendingRegistrationRepository.findByCheckoutSession` takes the gateway
-  account, and `findOpenCheckoutAccounts` is new. `startCheckout` requires
+  account, `delete` takes `tx`, and `findOpenCheckoutAccounts` is new. A
+  duplicate callback is logged, no longer audited as
+  `PAYMENT_DUPLICATE_IGNORED`. `startCheckout` requires
   `billingDetails`. `PaymentEventLog.tryClaim` becomes `claim(claim, tx)`.
+- A tenant's change records the setup it opened, and a confirmation is recorded
+  only for the account, session and subscriber of an open setup.
 - Breaking: the `SubscriptionPaymentMethod` fragment is removed.
-  `SubscriberPaymentMethod` and `PaymentEventLog` are in `14-payments.prisma`;
+  `SubscriberPaymentMethod`, `SubscriberPaymentMethodSetup` and
+  `PaymentEventLog` are in `14-payments.prisma`;
   run `sql/1.0-a-payment-method-is-a-gateway-reference.postgres.sql` before
   `db push`, and drop `subscription_payment_methods` once nothing writes there.
 - Fixed: a fresh database no longer stops at the settings migrations — the

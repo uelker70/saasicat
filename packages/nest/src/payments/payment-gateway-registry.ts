@@ -54,6 +54,11 @@ export class PaymentGatewayRegistry {
         return [...new Set(held)].filter((name) => !this.accounts.has(name));
     }
 
+    /** The origins a gateway's form may send a person back to. */
+    returnUrlOrigins(): readonly string[] {
+        return this.catalog.payments!.returnUrlOrigins;
+    }
+
     /** The account a new payment method is taken at, or `null` when none takes new ones. */
     forNewPaymentMethods(): NewPaymentMethodAccount | null {
         if (this.takesNew === undefined) return null;

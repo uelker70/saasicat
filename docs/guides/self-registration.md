@@ -1,7 +1,8 @@
 # Self-registration — advanced, hand-wired
 
 `RegistrationModule` implements the flow where a **prospect signs themselves up**:
-mail address, OTP, plan choice, billing address and payment method, activation. It is the one substantial
+mail address, OTP, plan choice, billing address and payment method, activation. It is the one
+substantial
 subsystem `SaaSiCatModule` does not compose for you, and this page exists so you
 find that out here rather than three days in.
 
@@ -43,13 +44,18 @@ Optional: `resumeTokenSigner`, `resumeDelivery`, `configuratorLookup`,
 (ISO 3166-1 alpha-2) are required, `addressLine2`, `vatId` and `taxNumber` optional — and opens the
 payment form of the gateway account `config/saas.yaml#payments.newPaymentMethods` names. It answers
 with `checkoutUrl`, where you send the person; a missing or malformed detail is refused with
-`SUBSCRIBER_DETAIL_INVALID` before the gateway is asked. Nothing is activated when the form opens.
+`SUBSCRIBER_DETAIL_INVALID`, and a success or cancel URL outside
+`config/saas.yaml#payments.returnUrlOrigins` with `PAYMENT_RETURN_URL_NOT_ALLOWED`, before the
+gateway
+is asked. Nothing is activated when the form opens.
 
 The gateway confirms the payment method through its callback to
 `POST /webhooks/payment/<account>`. The platform verifies it, claims it and activates the sign-up on
 **one transaction**: it opens it, claims the confirmation on it, and hands it to your orchestrator
 as `activate(pending, { tx })`; once `activate` returns, it records the payment method for the
-subscriber on the same transaction. A failure anywhere rolls all of it back — the claim included —
+subscriber and deletes the pending registration on the same transaction — so a sign-up is either
+still waiting or activated, and a later confirmation finds nothing to activate twice. A failure
+anywhere rolls all of it back — the claim included —
 so the gateway's retry activates the sign-up rather than being discarded as a duplicate. Write every
 row on `tx` and open no transaction of your own: a write beside it would survive the rollback that
 undoes the rest.
@@ -78,7 +84,8 @@ async activate(pending: PendingRegistration, { tx }: RegistrationActivation) {
 
 `pendingRegistrationRepository` finds a sign-up by the gateway account and the session together —
 `findByCheckoutSession(gatewayAccount, sessionId)` — because a session identifier is unique only
-within its account, and names the accounts sign-ups are still waiting at —
+within its account —, deletes with `delete(id, tx)` on the transaction it is handed, and names the
+accounts sign-ups are still waiting at —
 `findOpenCheckoutAccounts(now)` — so the application refuses to start while one of them is no longer
 configured.
 

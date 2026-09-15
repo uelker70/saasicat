@@ -11,6 +11,9 @@ import { PaymentCallbackRejectedError, subscriberPaymentMethodColumns } from '@s
 /** The account every test takes payment methods at, unless it names another. */
 export const MAIN_ACCOUNT = 'stripe-main';
 
+/** The origin the tests' applications run at, and the only one they return to. */
+export const APP_ORIGIN = 'https://app.example';
+
 /** A catalogue with `payments`, and nothing else a payment test reads. */
 export function paymentsCatalog(
     payments = {
@@ -24,7 +27,7 @@ export function paymentsCatalog(
         currency: 'EUR',
         vatRate: 19,
         plans: [],
-        payments,
+        payments: { returnUrlOrigins: [APP_ORIGIN], ...payments },
     };
 }
 

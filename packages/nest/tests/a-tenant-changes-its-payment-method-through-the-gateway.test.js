@@ -385,6 +385,22 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
         );
     });
 
+    test('a return URL at another origin is refused, and neither the gateway nor a setup is touched', async () => {
+        const ctx = await withSubscriber();
+
+        await assert.rejects(
+            ctx.routes.startSetup(adminOf('tenant-1'), {
+                ...URLS,
+                successUrl: 'https://phishing.example/plan',
+            }),
+            (error) =>
+                codeOf(error) === 'PAYMENT_RETURN_URL_NOT_ALLOWED' &&
+                error.getResponse().params.field === 'successUrl',
+        );
+        assert.deepEqual(ctx.gateway.setups, []);
+        assert.deepEqual(ctx.methods.setups, []);
+    });
+
     test('opening the form records the setup for this subscriber and this session', async () => {
         const ctx = await withSubscriber();
 

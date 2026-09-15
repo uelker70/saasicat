@@ -78,6 +78,12 @@ subscribers:
 # a payment method in use belongs to it.
 payments:
     newPaymentMethods: dev
+    # Where the gateway's form may send a person back to: the tenant web app, in
+    # the container and on the Vite dev server. Any other success or cancel URL
+    # is refused.
+    returnUrlOrigins:
+        - http://localhost:8080
+        - http://localhost:9200
     accounts:
         dev:
             provider: dev

@@ -291,6 +291,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PAYMENTS_NOT_CONFIGURED: 'Payment methods cannot be set up here yet.',
     PAYMENT_GATEWAY_ACCOUNT_UNKNOWN: "No payment gateway account is configured under '{account}'.",
     PAYMENT_CALLBACK_REJECTED: 'The payment callback could not be verified.',
+    PAYMENT_RETURN_URL_NOT_ALLOWED: 'The {field} leads to a site this installation does not return to.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Feature {featureKeys} is not included in the current plan.',
     // ── settings ──
