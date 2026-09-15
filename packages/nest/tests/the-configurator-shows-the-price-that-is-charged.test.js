@@ -88,6 +88,7 @@ function configurator(answer = () => ({ discountAmount: 5, percent: 5 })) {
     return { service, save, previews, pendingId: pending.id };
 }
 
+// @requirement SC-REG-014 — Prices in the sign-up flow are worked out by the server
 describe('the configurator breakdown', () => {
     test('a monthly plan costs its monthly price and saves nothing', async () => {
         const { breakdown } = await configurator().save('basic', 'MONTHLY');

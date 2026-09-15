@@ -1684,6 +1684,43 @@ list nor a download, and a request built by hand is refused where it is served (
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - the billing permission
+        - the tenant's administrator holds it unless the application says otherwise
+        - the application's guards decide who holds it, instead of the role
+        - the guards passed to the module are the ones the routes ask
+        - every route of the payment method is behind authentication and the permission, reading
+          included
+- `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
+    - loading the payment method
+        - a user holding the permission sees the one in use
+        - a subscriber without one yet is shown the card, empty
+        - a ${status} hides the card without an error: ${why}
+        - any other failure keeps the card and says it failed
+        - the prefix the billing routes sit under is used as given
+    - changing the payment method
+        - asks for the gateway form with both URLs, and answers where to go
+        - a refusal reaches the caller with its code
+- `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
+    - who sees the card
+        - a user holding the billing permission sees the payment method in use
+        - a user without it sees nothing at all, not even the heading
+        - nor does anyone where the installation takes no payment methods
+        - a failure to load is said, and offers no change it could not show the result of
+    - what the card says
+        - a subscriber without a payment method is offered to add one
+        - a direct debit names its account and the mandate it is collected under
+        - in German too, and a card whose network the provider did not name
+    - changing it
+        - opens the provider's form and sends the person there, back to this page
+        - a form that could not be opened is said on the card, and nobody is sent anywhere
+
+<!-- END proof -->
+
 ### SC-UI-024 — A tenant's invoice list says what each invoice stands for
 
 🟡 _(Decided, not yet delivered.)_ 💰 Each entry shows its number, issue date, period, total and due

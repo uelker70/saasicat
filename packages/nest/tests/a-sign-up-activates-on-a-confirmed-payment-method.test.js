@@ -553,6 +553,7 @@ describe('the confirmation of the payment method activates the sign-up', () => {
         assert.equal((await ctx.repo.findById(pendingId)).status, 'CHECKOUT_STARTED');
     });
 
+    // @requirement SC-REG-018 — Whether a payment confirmation is genuine is the integrator's to verify
     // @requirement SC-REG-021 — A payment confirmation is verified before anything is created from it
     test('a confirmation the gateway did not sign is refused before anything is claimed or created', async () => {
         const ctx = await signUpApp();

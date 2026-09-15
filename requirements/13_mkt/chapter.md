@@ -526,6 +526,7 @@ _Tested by:_
 - `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
     - concluding an offer
         - consumes it, writes its contract and runs the application on one transaction
+        - on a transaction the caller holds, opens none of its own and writes everything on that one
         - undoes all of it when the application’s own write fails, and can be concluded again
         - refuses a contract the offer cannot become before anything is written
         - refuses an offer whose amounts no longer match before anything is written
