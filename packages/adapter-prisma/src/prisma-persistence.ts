@@ -26,6 +26,7 @@ import { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 import { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.adapter.js';
 import { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.adapter.js';
 import { PrismaPlanRepository } from './prisma-plan.repository.js';
+import { PrismaPaymentEventLog } from './prisma-payment-event-log.adapter.js';
 import { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';
 import { PrismaPromotionRepository } from './prisma-promotion.repository.js';
 import { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';
@@ -34,6 +35,7 @@ import { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-vali
 import { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.adapter.js';
 import { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
 import { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
+import { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 import { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
 import { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
@@ -57,6 +59,8 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriber: unknown;
     subscriberTenant: unknown;
     subscriberCorrection: unknown;
+    subscriberPaymentMethod: unknown;
+    subscriberPaymentMethodSetup: unknown;
 }
 
 export interface PrismaPersistenceOptions {
@@ -214,6 +218,12 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             ),
             subscriptionLookup: provide((prisma) => new PrismaPromoSubscriptionLookup(prisma)),
             revenueAggregator: new ZeroPromoRevenueDeductionAggregator(),
+        },
+        payments: {
+            paymentEventLog: provide((prisma) => new PrismaPaymentEventLog(prisma)),
+            subscriberPaymentMethodRepository: provide(
+                (prisma) => new PrismaSubscriberPaymentMethodRepository(canonical(prisma)),
+            ),
         },
         planCatalogReadSink: provide(
             (prisma) => new PrismaPlanCatalogReadSink(prisma, options.schema),

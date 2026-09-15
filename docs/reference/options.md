@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 19 rules, in 11 areas.
+There are 21 rules, in 12 areas.
 
 ## core
 
@@ -106,6 +106,20 @@ SubscriptionContract is enabled, but no subscriber repository is available:
 every contract names the subscriber it is concluded with. Set
 `subscriptionContract.subscriberRepository` or use a persistence bundle
 providing `persistence.entitlement.subscriberRepository`.
+
+## payments
+
+### payments.requires-persistence
+
+Payments is enabled, but these adapters are missing: paymentEventLog,
+subscriberPaymentMethodRepository, subscriberRepository, transactionRunner. A
+gateway event is claimed and its effect written on one transaction, so all of
+them come from one persistence bundle.
+
+### payments.requires-accounts-in-the-file
+
+Payments is enabled, and config/saas.yaml has no `payments` block naming the
+gateway accounts the bound gateways belong to.
 
 ## tenant-billing
 

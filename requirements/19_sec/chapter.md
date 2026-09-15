@@ -58,6 +58,10 @@ _Source:_ `docs/guides/build-the-admin-frontend.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - the billing permission
+        - every route of the payment method is behind authentication and the permission, reading
+          included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards
@@ -76,6 +80,11 @@ _Source:_ internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - the request for step 4 is validated where it arrives
+        - a complete request passes, the tax identifiers left out
+        - a request without billing details is refused
+        - a missing address line, a lower-case country and a script URL are each refused
 - `packages/nest/tests/bundle-dtos-validate.test.js`
     - CreateBundleDto
         - accepts a complete bundle

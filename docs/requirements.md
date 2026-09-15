@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 484 entries: 🟢 413 stand today, 🟡 69 decided but not yet delivered, ⚪ 0 drafts,
-🔵 2 superseded, 🔴 0 withdrawn.
+Of 484 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+🔵 2 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -176,7 +176,6 @@ Of 484 entries: 🟢 413 stand today, 🟡 69 decided but not yet delivered, ⚪
 [SC-PRIC-048](#sc-pric-048--a-billing-period-whose-charges-are-all-zero-issues-no-invoice),
 [SC-PRIC-049](#sc-pric-049--a-subscribers-account-is-shown-to-the-tenants-users-holding-the-billing-permission),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
-[SC-REG-022](#sc-reg-022--the-account-subscriber-tenant-subscription-and-payment-method-are-created-together),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
@@ -207,6 +206,8 @@ Of 484 entries: 🟢 413 stand today, 🟡 69 decided but not yet delivered, ⚪
 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
+
+🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
 Generated from `requirements/` — 484 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
@@ -3702,7 +3703,8 @@ _Tested by:_
         - reactivating one is refused as well, being a purchase again
         - while cancelling one is not refused: a cancellation is a declaration
     - a completed sign-up names its subscriber from what it collected
-        - the registered name as the legal name, and the verified address for invoices
+        - the registered name as the legal name, the verified address for invoices, and the billing
+          details of step 4
 - `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
     - the party an offer is concluded with
         - a subscriber passed in is created on the transaction, before the contract that names it
@@ -5480,6 +5482,60 @@ asking for a new payment method there.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-payment-method-row-becomes-a-record.test.js`
+    - a payment method row becomes a record
+        - every column is carried over as it is
+        - both payment method types and both statuses are read
+        - a ${column} of '${value}' stops the read, naming the row and the column
+    - the columns a confirmed payment method is written with
+        - are the confirmation, and nothing a caller put beside it
+    - a callback a gateway adapter cannot verify
+        - is recognised by its code, also from another copy of the class
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - an open sign-up keeps its account configured
+        - the start refuses while a sign-up waits at an account the configuration no longer names
+        - and starts once that account is configured again
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - the form opens for the subscriber, and nothing changes until the gateway confirms
+        - the customer the subscriber has at that account is reused
+        - a customer at another account is not handed to this one
+        - without an invoice email, the gateway is given the requesting user's address
+        - the confirmation makes the new payment method the one in use, and keeps the one it
+          replaced
+        - a confirmation whose recording fails leaves the claim and the setup open for the retry
+        - a return URL at another origin is refused, and neither the gateway nor a setup is touched
+        - opening the form records the setup for this subscriber and this session
+        - a confirmation naming another subscriber than the session was opened for changes nobody's
+          payment method
+        - a confirmation for a session nobody opened, or for a setup already completed, records
+          nothing
+        - without an account for new payment methods the change is refused, and the gateway is not
+          asked
+        - the development gateway replaces the payment method on the spot
+    - the accounts the file names and the gateways the application binds
+        - a payment method in use at an account the file no longer names stops the start, and is
+          named
+- `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
+    - who sees the card
+        - a user holding the billing permission sees the payment method in use
+        - a user without it sees nothing at all, not even the heading
+        - nor does anyone where the installation takes no payment methods
+        - a failure to load is said, and offers no change it could not show the result of
+    - what the card says
+        - a subscriber without a payment method is offered to add one
+        - a direct debit names its account and the mandate it is collected under
+        - in German too, and a card whose network the provider did not name
+    - changing it
+        - opens the provider's form and sends the person there, back to this page
+        - a form that could not be opened is said on the card, and nobody is sent anywhere
+
+<!-- END proof -->
+
 ### SC-PRIC-031 — A returned debit or a chargeback is recorded, and what the payment settled opens again
 
 🟡 _(Decided, not yet delivered.)_ 💰 Either is recorded as a counter-entry rather than an edit of
@@ -6922,8 +6978,15 @@ _Source:_ release 1.0.0-rc.7
 
 _Tested by:_
 
-- `packages/nest/tests/registration-service.test.js`
-    - startCheckout() calls provider with correct params
+- `packages/nest/tests/the-configurator-shows-the-price-that-is-charged.test.js`
+    - the configurator breakdown
+        - a monthly plan costs its monthly price and saves nothing
+        - a yearly plan costs the yearly price its plan version carries
+        - a yearly price above twelve monthly ones saves nothing rather than a negative amount
+        - a promo code is previewed on the yearly price that is charged
+        - a promo discount is taken off in net, not the gross amount the preview answers
+        - a discount above the price takes it to nothing, not below
+        - resuming the step shows the same yearly figure
 
 <!-- END proof -->
 
@@ -6944,18 +7007,11 @@ _Tested by:_
 
 ### SC-REG-016 — The account, the tenant and the subscription are created together or not at all
 
-🟢 Only after payment succeeded, and a partial creation is undone.
+🔴 _(Withdrawn on 2026-09-15.)_ `SC-REG-022` covers this ground, with the subscriber and the
+payment method created in the same step. Only after payment succeeded, and a partial creation is
+undone.
 
 _Source:_ release 1.0.0-rc.7
-
-<!-- BEGIN proof -->
-
-_Tested by:_
-
-- `packages/nest/tests/registration-service.test.js`
-    - handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription created
-
-<!-- END proof -->
 
 ### SC-REG-017 — Add-ons chosen during sign-up never cost somebody their plan
 
@@ -6975,7 +7031,8 @@ _Tested by:_
 ### SC-REG-018 — Whether a payment confirmation is genuine is the integrator's to verify
 
 🟢 SaaSiCat cannot know the provider or the secret. An unverified callback lets anyone forge a
-payment confirmation, so verification sits in front of the route.
+payment confirmation, so the gateway adapter the integrator binds verifies it before the route reads
+anything from it.
 
 _Source:_ `SECURITY.md`
 
@@ -6983,9 +7040,9 @@ _Source:_ `SECURITY.md`
 
 _Tested by:_
 
-- `packages/nest/tests/registration-service.test.js`
-    - startCheckout() calls provider with correct params
-    - handlePaymentEvent() without sessionId → MISSING_SESSION_ID
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - the confirmation of the payment method activates the sign-up
+        - a confirmation the gateway did not sign is refused before anything is claimed or created
 
 <!-- END proof -->
 
@@ -6999,11 +7056,12 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/nest/tests/registration-service.test.js`
-    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
-    - handlePaymentEvent() FAILED → no activation, but event claimed
-    - audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate →
-      PAYMENT_DUPLICATE_IGNORED
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - the confirmation of the payment method activates the sign-up
+        - the same confirmation delivered twice activates once
+        - a session confirmed once is not confirmed again under another event identifier
+        - once activated the sign-up is gone: a later confirmation with another payment method
+          activates nothing, and step 4 is refused
 
 <!-- END proof -->
 
@@ -7027,20 +7085,71 @@ _Tested by:_
 ### SC-REG-021 — A payment confirmation is verified before anything is created from it
 
 🟡 _(Decided, not yet delivered.)_ 🔒 A gateway adapter SaaSiCat ships verifies the confirmation
-with the gateway's secret. An integrator who binds a provider of their own verifies it in front
-of the route, as before. This entry supersedes `SC-REG-018` in the change that delivers it.
+with the gateway's secret. An integrator who binds a provider of their own verifies it in the
+adapter they bind, as before. This entry supersedes `SC-REG-018` in the change that delivers it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - the confirmation of the payment method activates the sign-up
+        - a confirmation the gateway did not sign is refused before anything is claimed or created
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - the webhook route
+        - is public, one route per account, and hands the gateway the body as it arrived
+        - an account the configuration does not name is refused
+        - a JSON or form callback without its raw body is a setup error, and says how to keep the
+          body
+        - a body no gateway sends is refused as unverifiable, not reported as a setup error
+
+<!-- END proof -->
 
 ### SC-REG-022 — The account, subscriber, tenant, subscription and payment method are created together
 
-🟡 _(Decided, not yet delivered.)_ Or not at all: only after the gateway confirmed the payment
+🟢 Or not at all: only after the gateway confirmed the payment
 method, which sign-up asks for in the gateway's own form, together with the master data an invoice
 needs (`SC-PRIC-032`), and a partial creation is undone. A first collection that then fails leaves
-an invoice unpaid like any other, with the grace period of `SC-PRIC-035`. This entry supersedes
-`SC-REG-016` in the change that delivers it.
+an invoice unpaid like any other, with the grace period of `SC-PRIC-035`.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 takes the billing address and opens the gateway form
+        - the address is kept as the subscriber will have it, and the form opens at the account for
+          new payment methods
+        - a sign-up without ${field} is refused before the gateway is asked
+        - a ${field} of ${url} is refused before anything is stored or asked
+        - a country that is not a two-letter code is refused
+        - step 4 repeated at the same account reuses the customer the gateway created
+        - step 4 repeated after new payment methods moved to another account asks for a new customer
+          there
+        - without an account for new payment methods, step 4 is refused and nothing is kept
+    - the confirmation of the payment method activates the sign-up
+        - everything is written on the transaction the confirmation is claimed on, the payment
+          method included
+        - an activation that fails leaves nothing behind, and the gateway retry activates
+        - the same confirmation delivered twice activates once
+        - a session confirmed once is not confirmed again under another event identifier
+        - once activated the sign-up is gone: a later confirmation with another payment method
+          activates nothing, and step 4 is refused
+        - a sign-up whose deletion fails is not activated either, and the gateway retry activates it
+          once
+        - a confirmation for a session no sign-up waits for activates nothing
+        - a confirmation naming another sign-up than its session belongs to activates neither
+        - a session is looked up with the account that sent the confirmation, not by its identifier
+          alone
+        - a setup the gateway reports as failed is recorded, and the sign-up can try again
+        - a confirmation the gateway did not sign is refused before anything is claimed or created
+        - the development gateway confirms on the spot, through the same claim and transaction
+
+<!-- END proof -->
 
 ## 13. The public catalogue, checkout and contracts
 
@@ -7568,6 +7677,7 @@ _Tested by:_
 - `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
     - concluding an offer
         - consumes it, writes its contract and runs the application on one transaction
+        - on a transaction the caller holds, opens none of its own and writes everything on that one
         - undoes all of it when the application’s own write fails, and can be concluded again
         - refuses a contract the offer cannot become before anything is written
         - refuses an offer whose amounts no longer match before anything is written
@@ -10076,6 +10186,44 @@ list nor a download, and a request built by hand is refused where it is served (
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - the billing permission
+        - the tenant's administrator holds it unless the application says otherwise
+        - the application's guards decide who holds it, instead of the role
+        - the guards passed to the module are the ones the routes ask
+        - every route of the payment method is behind authentication and the permission, reading
+          included
+- `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
+    - loading the payment method
+        - a user holding the permission sees the one in use
+        - a subscriber without one yet is shown the card, empty
+        - a ${status} hides the card without an error: ${why}
+        - any other failure keeps the card and says it failed
+        - an answer in another shape is an error, not a subscriber without a payment method
+        - the prefix the billing routes sit under is used as given
+    - changing the payment method
+        - asks for the gateway form with both URLs, and answers where to go
+        - a refusal reaches the caller with its code
+- `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
+    - who sees the card
+        - a user holding the billing permission sees the payment method in use
+        - a user without it sees nothing at all, not even the heading
+        - nor does anyone where the installation takes no payment methods
+        - a failure to load is said, and offers no change it could not show the result of
+    - what the card says
+        - a subscriber without a payment method is offered to add one
+        - a direct debit names its account and the mandate it is collected under
+        - in German too, and a card whose network the provider did not name
+    - changing it
+        - opens the provider's form and sends the person there, back to this page
+        - a form that could not be opened is said on the card, and nobody is sent anywhere
+
+<!-- END proof -->
+
 ### SC-UI-024 — A tenant's invoice list says what each invoice stands for
 
 🟡 _(Decided, not yet delivered.)_ 💰 Each entry shows its number, issue date, period, total and due
@@ -12274,6 +12422,10 @@ _Source:_ `docs/guides/build-the-admin-frontend.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - the billing permission
+        - every route of the payment method is behind authentication and the permission, reading
+          included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards
@@ -12292,6 +12444,11 @@ _Source:_ internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - the request for step 4 is validated where it arrives
+        - a complete request passes, the tax identifiers left out
+        - a request without billing details is refused
+        - a missing address line, a lower-case country and a script URL are each refused
 - `packages/nest/tests/bundle-dtos-validate.test.js`
     - CreateBundleDto
         - accepts a complete bundle
@@ -12782,8 +12939,6 @@ _Tested by:_
 - `packages/nest/tests/registration-service.test.js`
     - audit: start() logs REGISTRATION_STARTED + pendingId
     - audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED
-    - audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate →
-      PAYMENT_DUPLICATE_IGNORED
 
 <!-- END proof -->
 
@@ -12998,7 +13153,6 @@ _Tested by:_
         - a booking whose cancellation has landed is not counted
         - a version nobody booked counts zero
 - `packages/nest/tests/registration-service.test.js`
-    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
     - runCleanup() without expired → deleted=0, idempotent
 
 <!-- END proof -->
@@ -13109,6 +13263,11 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a shipped migration leaves an installation without its tables alone
+        - ${name} runs on a database with none of the platform tables, twice
+    - a table a migration creates has the shape the fragments declare
+        - every table the migrations create on an empty database, in the order a consumer applies
+          them
     - a migration that would merge rows stops instead
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
@@ -13152,6 +13311,13 @@ _Tested by:_
         - once it has run through, a run as a role under row-level security does nothing
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
+    - a payment method is the gateway reference, kept for the subscriber
+        - a database from before ends up with the schema the fragments declare
+        - an event recorded before carries its provider as its account, and stays unique
+        - a second run leaves the accounts the first one gave, an event recorded in between included
+        - an installation without self-registration gets the payment methods and nothing else
+        - an installation without subscribers is left without the payment methods, and runs through
+        - the old masked payment methods an application wrote are left where they are
     - customer numbers count from 10001
         - on the reference schema, and again after the identity is restarted
         - and the constraints applied again move a sequence that has handed numbers out nowhere
@@ -13188,6 +13354,11 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a shipped migration leaves an installation without its tables alone
+        - ${name} runs on a database with none of the platform tables, twice
+    - a table a migration creates has the shape the fragments declare
+        - every table the migrations create on an empty database, in the order a consumer applies
+          them
     - a migration that would merge rows stops instead
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
@@ -13231,6 +13402,13 @@ _Tested by:_
         - once it has run through, a run as a role under row-level security does nothing
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
+    - a payment method is the gateway reference, kept for the subscriber
+        - a database from before ends up with the schema the fragments declare
+        - an event recorded before carries its provider as its account, and stays unique
+        - a second run leaves the accounts the first one gave, an event recorded in between included
+        - an installation without self-registration gets the payment methods and nothing else
+        - an installation without subscribers is left without the payment methods, and runs through
+        - the old masked payment methods an application wrote are left where they are
     - customer numbers count from 10001
         - on the reference schema, and again after the identity is restarted
         - and the constraints applied again move a sequence that has handed numbers out nowhere
@@ -13272,8 +13450,9 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/nest/tests/registration-service.test.js`
-    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - the confirmation of the payment method activates the sign-up
+        - the same confirmation delivered twice activates once
 
 <!-- END proof -->
 

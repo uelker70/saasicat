@@ -166,7 +166,7 @@ because the CommonJS build is one bundle behind thin re-export stubs (see
 applications take the narrower `/platform` entry.
 
 `RegistrationModule` is the one entry `SaaSiCatModule` does not compose: it takes
-ten ports no persistence bundle supplies, and you wire it yourself. See
+ports no persistence bundle supplies, and you wire it yourself. See
 [self-registration](../guides/self-registration.md) for the port list, the reason, and the
 two things that bite. Every other entry above is composed for you.
 

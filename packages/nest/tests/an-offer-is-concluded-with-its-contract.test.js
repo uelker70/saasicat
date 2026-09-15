@@ -184,6 +184,35 @@ describe('concluding an offer', () => {
         assert.equal(seen[0].result.contract.id, concluded.contract.id);
     });
 
+    test('on a transaction the caller holds, opens none of its own and writes everything on that one', async () => {
+        // A sign-up concludes its offer inside its activation, on the
+        // transaction the gateway's confirmation is claimed on. A transaction
+        // of its own would commit the offer and the contract apart from that
+        // claim, and a rollback of the activation would leave them behind.
+        const { service, offers, subscriberRepo, transactions, offer } = await concluding({
+            subscribedTenants: ['tenant-other'],
+        });
+        const activation = { id: 'the-activation-transaction' };
+        const seen = [];
+
+        const concluded = await service.conclude(
+            offer.id,
+            { ...OPTIONS, subscriber: { legalName: 'Meier GmbH' }, tx: activation },
+            async (tx) => {
+                seen.push(tx);
+            },
+        );
+
+        assert.deepEqual(transactions.runs, [], 'a transaction of its own was opened');
+        assert.equal(offers.consumedOn.get(offer.id), activation);
+        assert.equal(
+            subscriberRepo.rows.find((row) => row.tenantId === 'tenant-meier')?.tx,
+            activation,
+        );
+        assert.equal(concluded.contract.tx, activation);
+        assert.deepEqual(seen, [activation]);
+    });
+
     test('undoes all of it when the application’s own write fails, and can be concluded again', async () => {
         const { service, offers, contractRepo, offer } = await concluding();
         const failure = new Error('the subscription could not be started');

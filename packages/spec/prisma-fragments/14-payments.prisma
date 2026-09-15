@@ -1,0 +1,100 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriberPaymentMethod, its setups, PaymentEventLog
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// How a subscriber pays, as the payment gateway's reference to it. The card
+// number or the IBAN never reaches this table: the person enters them in the
+// gateway's own form, and what is kept is the gateway's reference and the
+// masked details that tell one payment method from another (ADR 0012).
+//
+// A reference means something only to the gateway account that issued it —
+// the merchant account named in `config/saas.yaml#payments.accounts` — so
+// every row records that account. A subscriber has at most one `ACTIVE`
+// payment method, a partial unique index in sql/constraints.postgres.sql;
+// the one a newer payment method replaced stays as `REPLACED`.
+//
+// Contract: @saasicat/core (SubscriberPaymentMethodRepository, PaymentEventLog).
+// Both are needed wherever payment methods are taken — self-registration or
+// not — because every gateway callback is claimed in `PaymentEventLog`.
+
+model SubscriberPaymentMethod {
+    id           String @id @default(uuid())
+    subscriberId String
+
+    // The account the references below belong to, and its provider when the
+    // payment method was confirmed.
+    gatewayAccount   String
+    provider         String
+    customerRef      String
+    paymentMethodRef String
+
+    // What tells the payment method apart, never enough to pay with it.
+    type             String // card | sepa_debit
+    brand            String?
+    last4            String
+    expiryMonth      Int?
+    expiryYear       Int?
+    country          String? // ISO 3166-1 alpha-2
+    bankCode         String?
+    mandateReference String?
+
+    status      String    @default("ACTIVE") // ACTIVE | REPLACED
+    confirmedAt DateTime
+    replacedAt  DateTime?
+    createdAt   DateTime  @default(now())
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@unique([gatewayAccount, paymentMethodRef])
+    @@index([subscriberId, status])
+    @@index([gatewayAccount, status])
+    @@map("subscriber_payment_methods")
+}
+
+// A change of payment method a tenant started: the gateway session opened for
+// the subscriber. A confirmation is recorded only against the setup whose
+// account, session and subscriber it names, and completes it on the same
+// transaction — so a callback naming another subscriber than the session was
+// opened for changes nobody's payment method. A setup nobody finishes stays
+// open; it holds no reference that could be charged.
+model SubscriberPaymentMethodSetup {
+    id             String    @id @default(uuid())
+    subscriberId   String
+    gatewayAccount String
+    sessionRef     String
+    customerRef    String
+    startedAt      DateTime  @default(now())
+    completedAt    DateTime?
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@unique([gatewayAccount, sessionRef])
+    @@index([subscriberId])
+    @@map("subscriber_payment_method_setups")
+}
+
+// PaymentEventLog — every payment gateway event, handled once.
+// Gateways deliver at least once. An event is claimed on the transaction that
+// writes what it changes, so a retry after a rollback is handled and a retry
+// after a commit finds the claim. `eventId` is unique only within the gateway
+// account that sent it — two accounts side by side never take each other's
+// event for a duplicate. `status` holds the event's kind as SaaSiCat read it
+// (`payment-method-confirmed`, …) and `payload` a summary that names no person.
+// One session is confirmed once, however many events report it: a partial
+// unique index in sql/constraints.postgres.sql, where the reasoning is.
+model PaymentEventLog {
+    id             String   @id @default(cuid())
+    gatewayAccount String
+    eventId        String
+    provider       String
+    sessionId      String?
+    status         String
+    payload        Json?
+    processedAt    DateTime @default(now())
+
+    @@unique([gatewayAccount, eventId])
+    @@index([sessionId])
+    @@index([status, processedAt])
+}

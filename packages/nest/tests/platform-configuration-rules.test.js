@@ -255,6 +255,7 @@ describe('every rule can actually fail', () => {
             catalog: {},
             tenantBilling: {},
             subscriptionBundles: {},
+            payments: {},
             adminResources: true,
             promoCodes: {},
             setup: true,
@@ -293,6 +294,15 @@ describe('every rule can actually fail', () => {
                     entitlement: {},
                     capabilities: { transactions: false, pessimisticLocking: false },
                 },
+            },
+            adapters: CORE_ADAPTERS,
+        },
+        // Gateways bound for accounts the file does not name.
+        {
+            options: {
+                planCatalog: MINIMAL_CATALOG,
+                controller: { guards: [] },
+                payments: { gateways: {} },
             },
             adapters: CORE_ADAPTERS,
         },

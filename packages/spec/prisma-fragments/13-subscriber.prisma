@@ -47,9 +47,11 @@ model Subscriber {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    tenants     SubscriberTenant[]
-    corrections SubscriberCorrection[]
-    contracts   SubscriptionContract[]
+    tenants        SubscriberTenant[]
+    corrections    SubscriberCorrection[]
+    contracts      SubscriptionContract[]
+    paymentMethods      SubscriberPaymentMethod[] // see 14-payments.prisma
+    paymentMethodSetups SubscriberPaymentMethodSetup[]
 
     @@map("subscribers")
 }

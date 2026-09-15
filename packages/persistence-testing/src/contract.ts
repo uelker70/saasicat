@@ -12,10 +12,13 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test, type TestContext } from 'node:test';
 import type {
     AppliedSettingsValues,
+    ConfirmedPaymentMethod,
     CreateCheckoutOfferData,
     CreateSubscriberData,
     NewContractLineItemData,
     NewSubscriptionContractData,
+    PaymentEventClaim,
+    RecordSubscriberPaymentMethodData,
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
@@ -69,6 +72,53 @@ function partiesWith(subscriberId: string, legalName: string): SubscriptionContr
             city: 'München',
             country: 'DE',
         },
+    };
+}
+
+/** A gateway event at `gatewayAccount`, as the log records it. */
+function eventAt(
+    gatewayAccount: string,
+    eventId: string,
+    about: Partial<PaymentEventClaim> = {},
+): PaymentEventClaim {
+    return {
+        gatewayAccount,
+        eventId,
+        provider: 'stripe',
+        sessionId: `cs_${eventId}`,
+        kind: 'payment-method-confirmed',
+        summary: { type: 'card', last4: '4242' },
+        ...about,
+    };
+}
+
+/** A card confirmed at `gatewayAccount` under `paymentMethodRef`, every optional detail unknown but the ones a card has. */
+const CARD: ConfirmedPaymentMethod = {
+    type: 'card',
+    brand: 'visa',
+    last4: '4242',
+    expiryMonth: 12,
+    expiryYear: 2030,
+    country: null,
+    bankCode: null,
+    mandateReference: null,
+    customerRef: 'cus_1',
+    paymentMethodRef: 'pm_card',
+};
+
+function paymentMethodFor(
+    subscriberId: string,
+    paymentMethodRef: string,
+    confirmedAt: string,
+    gatewayAccount = 'stripe-main',
+): RecordSubscriberPaymentMethodData {
+    return {
+        ...CARD,
+        paymentMethodRef,
+        subscriberId,
+        gatewayAccount,
+        provider: 'stripe',
+        confirmedAt: new Date(confirmedAt),
     };
 }
 
@@ -258,6 +308,15 @@ const CONTRACT_GAPS: Record<
     subscribers: {
         reason: 'adapter provides no SubscriberRepository',
         present: ({ adapter }) => Boolean(adapter.subscriberRepository),
+    },
+    paymentEventLog: {
+        reason: 'adapter provides no PaymentEventLog',
+        present: ({ adapter }) => Boolean(adapter.paymentEventLog),
+    },
+    subscriberPaymentMethods: {
+        reason: 'adapter provides no SubscriberPaymentMethodRepository, or no subscriber seed for it',
+        present: ({ adapter, seed }) =>
+            Boolean(adapter.subscriberPaymentMethodRepository && seed.createSubscriber),
     },
     checkoutOffers: {
         reason: 'adapter provides no CheckoutOfferRepository',
@@ -2522,6 +2581,507 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 'Vorher GmbH',
                 'the contract followed a correction of the live record',
             );
+        });
+
+        // -------------------------------------------------------------
+        // Payments — gateway events claimed once, and payment methods
+        // -------------------------------------------------------------
+
+        test('a gateway event is claimed once per account, and a duplicate leaves the transaction usable', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            const claims = await adapter.transactionRunner.run(async (tx) => [
+                await log.claim(eventAt('stripe-main', 'evt_1'), tx),
+                await log.claim(eventAt('stripe-main', 'evt_1'), tx),
+                // The same identifier from another account is another event.
+                await log.claim(eventAt('stripe-old', 'evt_1'), tx),
+                // A duplicate that raised would have aborted the transaction here.
+                await log.claim(eventAt('stripe-main', 'evt_2'), tx),
+            ]);
+            assert.deepEqual(claims, [true, false, true, true]);
+
+            const later = await adapter.transactionRunner.run((tx) =>
+                log.claim(eventAt('stripe-main', 'evt_1'), tx),
+            );
+            assert.equal(later, false, 'a committed claim was claimed again');
+        });
+
+        test('one gateway session is confirmed once, however many events report it', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            const session = 'cs_reported_twice';
+            const claims = await adapter.transactionRunner.run(async (tx) => [
+                await log.claim(
+                    eventAt('stripe-main', 'evt_form_done', { sessionId: session }),
+                    tx,
+                ),
+                // The same session, reported again under another identifier:
+                // recording it would set the session's payment method up twice.
+                await log.claim(
+                    eventAt('stripe-main', 'evt_method_on', { sessionId: session }),
+                    tx,
+                ),
+                // Another account's session of that name is another session.
+                await log.claim(eventAt('stripe-old', 'evt_elsewhere', { sessionId: session }), tx),
+                // A kind that says nothing about the session being confirmed.
+                await log.claim(
+                    eventAt('stripe-main', 'evt_gave_up', {
+                        sessionId: session,
+                        kind: 'payment-method-setup-failed',
+                    }),
+                    tx,
+                ),
+                // Events about no session at all do not collide with each other.
+                await log.claim(
+                    eventAt('stripe-main', 'evt_other_1', { sessionId: null, kind: 'unhandled' }),
+                    tx,
+                ),
+                await log.claim(
+                    eventAt('stripe-main', 'evt_other_2', { sessionId: null, kind: 'unhandled' }),
+                    tx,
+                ),
+            ]);
+            assert.deepEqual(claims, [true, false, true, true, true, true]);
+
+            const later = await adapter.transactionRunner.run((tx) =>
+                log.claim(eventAt('stripe-main', 'evt_late', { sessionId: session }), tx),
+            );
+            assert.equal(later, false, 'a session already confirmed was confirmed again');
+        });
+
+        test('a claim rolled back with its transaction is free for the retry', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    assert.equal(await log.claim(eventAt('stripe-main', 'evt_retry'), tx), true);
+                    throw new Error('recording what the event changes failed');
+                }),
+                /recording what the event changes failed/,
+            );
+            const retry = await adapter.transactionRunner.run((tx) =>
+                log.claim(eventAt('stripe-main', 'evt_retry'), tx),
+            );
+            assert.equal(retry, true, 'the retry was discarded as a duplicate');
+        });
+
+        test('a delivery that meets a claim still open waits for it, and answers by its outcome', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            if (!adapter.capabilities.pessimisticLocking) {
+                t.skip(
+                    'adapter declares no pessimistic locking: an open claim cannot be waited on',
+                );
+                return;
+            }
+            // Committed: the second delivery is the duplicate.
+            const [committed, afterCommit] = await Promise.all([
+                adapter.transactionRunner.run(async (tx) => {
+                    const claimed = await log.claim(eventAt('stripe-main', 'evt_race'), tx);
+                    await sleep(LOCK_HOLD_MS);
+                    return claimed;
+                }),
+                sleep(LOCK_HOLD_MS / 3).then(() =>
+                    adapter.transactionRunner.run((tx) =>
+                        log.claim(eventAt('stripe-main', 'evt_race'), tx),
+                    ),
+                ),
+            ]);
+            assert.deepEqual([committed, afterCommit], [true, false]);
+
+            // Rolled back: the second delivery is the one that handles it.
+            const [rolledBack, afterRollback] = await Promise.allSettled([
+                adapter.transactionRunner.run(async (tx) => {
+                    await log.claim(eventAt('stripe-main', 'evt_race_back'), tx);
+                    await sleep(LOCK_HOLD_MS);
+                    throw new Error('the first delivery failed');
+                }),
+                sleep(LOCK_HOLD_MS / 3).then(() =>
+                    adapter.transactionRunner.run((tx) =>
+                        log.claim(eventAt('stripe-main', 'evt_race_back'), tx),
+                    ),
+                ),
+            ]);
+            assert.equal(rolledBack.status, 'rejected');
+            assert.deepEqual(afterRollback, { status: 'fulfilled', value: true });
+        });
+
+        test('two events confirming one session at once end with one claim', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            if (!adapter.capabilities.pessimisticLocking) {
+                t.skip(
+                    'adapter declares no pessimistic locking: an open claim cannot be waited on',
+                );
+                return;
+            }
+            // Two identifiers, one session, delivered together: without the
+            // session's own index both would be claimed, and each would set the
+            // session's payment method up — a second tenant for one sign-up.
+            const session = 'cs_at_once';
+            const [first, second] = await Promise.all([
+                adapter.transactionRunner.run(async (tx) => {
+                    const claimed = await log.claim(
+                        eventAt('stripe-main', 'evt_at_once_a', { sessionId: session }),
+                        tx,
+                    );
+                    await sleep(LOCK_HOLD_MS);
+                    return claimed;
+                }),
+                sleep(LOCK_HOLD_MS / 3).then(() =>
+                    adapter.transactionRunner.run((tx) =>
+                        log.claim(
+                            eventAt('stripe-main', 'evt_at_once_b', { sessionId: session }),
+                            tx,
+                        ),
+                    ),
+                ),
+            ]);
+            assert.deepEqual([first, second], [true, false]);
+        });
+
+        test("a confirmed payment method becomes the subscriber's, with its references and masked details", async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Karte GmbH' });
+            const debit = {
+                ...paymentMethodFor(subscriberId, 'pm_sepa', '2026-09-01T10:00:00.000Z'),
+                type: 'sepa_debit' as const,
+                brand: null,
+                last4: '3000',
+                expiryMonth: null,
+                expiryYear: null,
+                country: 'DE',
+                bankCode: '37040044',
+                mandateReference: 'MANDATE-1',
+            };
+
+            const result = await methods.recordConfirmed(debit);
+
+            assert.equal(result.outcome, 'activated');
+            const { id, createdAt, ...stored } = result.method;
+            assert.ok(id);
+            assert.ok(createdAt instanceof Date);
+            assert.deepEqual(stored, { ...debit, status: 'ACTIVE', replacedAt: null });
+            assert.deepEqual(await methods.findActive(subscriberId), result.method);
+            assert.deepEqual(
+                await methods.findByReference('stripe-main', 'pm_sepa'),
+                result.method,
+            );
+            // A reference is meaningful only to its own account.
+            assert.equal(await methods.findByReference('stripe-old', 'pm_sepa'), null);
+            const other = await createSubscriber({ legalName: 'Second Customer GmbH' });
+            assert.equal(await methods.findActive(other.subscriberId), null);
+        });
+
+        test('a newer payment method takes over, and the one it replaced stays as history', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Wechsel GmbH' });
+            await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_first', '2026-09-01T10:00:00.000Z'),
+            );
+
+            const second = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_second', '2026-09-02T10:00:00.000Z'),
+            );
+
+            assert.equal(second.outcome, 'activated');
+            assert.equal((await methods.findActive(subscriberId))?.paymentMethodRef, 'pm_second');
+            const first = await methods.findByReference('stripe-main', 'pm_first');
+            assert.equal(first?.status, 'REPLACED');
+            assert.equal(first?.replacedAt?.toISOString(), '2026-09-02T10:00:00.000Z');
+        });
+
+        test('a confirmation recorded again is recognised, and changes nothing', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Doppelt GmbH' });
+            const confirmation = paymentMethodFor(
+                subscriberId,
+                'pm_twice',
+                '2026-09-01T10:00:00.000Z',
+            );
+            const first = await methods.recordConfirmed(confirmation);
+
+            const again = await methods.recordConfirmed({
+                ...confirmation,
+                confirmedAt: new Date('2026-09-03T10:00:00.000Z'),
+            });
+
+            assert.equal(again.outcome, 'already-recorded');
+            assert.deepEqual(again.method, first.method);
+            assert.deepEqual(await methods.findActive(subscriberId), first.method);
+        });
+
+        test('a confirmation older than the payment method in use is recorded as already replaced', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Reihenfolge GmbH' });
+            // The form filled in second was confirmed first.
+            await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_later', '2026-09-02T10:00:00.000Z'),
+            );
+
+            const earlier = await methods.recordConfirmed(
+                paymentMethodFor(subscriberId, 'pm_earlier', '2026-09-01T10:00:00.000Z'),
+            );
+
+            assert.equal(earlier.outcome, 'superseded');
+            assert.equal(earlier.method.status, 'REPLACED');
+            assert.equal(earlier.method.replacedAt?.toISOString(), '2026-09-02T10:00:00.000Z');
+            assert.equal((await methods.findActive(subscriberId))?.paymentMethodRef, 'pm_later');
+        });
+
+        test('two confirmations for one subscriber at once leave one payment method in use', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Gleichzeitig GmbH' });
+
+            const results = await Promise.all([
+                methods.recordConfirmed(
+                    paymentMethodFor(subscriberId, 'pm_at_once_a', '2026-09-01T10:00:00.000Z'),
+                ),
+                methods.recordConfirmed(
+                    paymentMethodFor(subscriberId, 'pm_at_once_b', '2026-09-01T10:00:01.000Z'),
+                ),
+            ]);
+
+            // Whichever takes the lock first, the later confirmation ends in use:
+            // the earlier one is either replaced by it or recorded as replaced.
+            for (const result of results) {
+                assert.ok(
+                    result.outcome === 'activated' || result.outcome === 'superseded',
+                    result.outcome,
+                );
+            }
+            const statuses = await Promise.all(
+                ['pm_at_once_a', 'pm_at_once_b'].map(
+                    async (ref) => (await methods.findByReference('stripe-main', ref))?.status,
+                ),
+            );
+            assert.deepEqual(statuses, ['REPLACED', 'ACTIVE']);
+            assert.equal(
+                (await methods.findActive(subscriberId))?.paymentMethodRef,
+                'pm_at_once_b',
+            );
+        });
+
+        test('a payment method written on a transaction is undone with it', async (t) => {
+            const { adapter } = harness;
+            const methods = adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Rolled Back GmbH' });
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    await methods.recordConfirmed(
+                        paymentMethodFor(
+                            subscriberId,
+                            'pm_rolled_back',
+                            '2026-09-01T10:00:00.000Z',
+                        ),
+                        tx,
+                    );
+                    throw new Error('the activation failed after all');
+                }),
+                /the activation failed after all/,
+            );
+            assert.equal(await methods.findActive(subscriberId), null);
+            assert.equal(await methods.findByReference('stripe-main', 'pm_rolled_back'), null);
+        });
+
+        test('a payment method for a subscriber that does not exist is refused', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            if (!methods || !harness.seed.createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            await assert.rejects(
+                methods.recordConfirmed(
+                    paymentMethodFor(
+                        'subscriber-nobody-created',
+                        'pm_nobody',
+                        '2026-09-01T10:00:00.000Z',
+                    ),
+                ),
+            );
+            assert.equal(await methods.findByReference('stripe-main', 'pm_nobody'), null);
+        });
+
+        test('the accounts in use are those holding a payment method in use, each once', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            assert.deepEqual(await methods.accountsInUse(), []);
+            const moved = await createSubscriber({ legalName: 'Umgezogen GmbH' });
+            const stayed = await createSubscriber({ legalName: 'Geblieben GmbH' });
+            await methods.recordConfirmed(
+                paymentMethodFor(
+                    moved.subscriberId,
+                    'pm_old_account',
+                    '2026-09-01T10:00:00.000Z',
+                    'stripe-old',
+                ),
+            );
+            await methods.recordConfirmed(
+                paymentMethodFor(
+                    moved.subscriberId,
+                    'pm_new_account',
+                    '2026-09-02T10:00:00.000Z',
+                    'stripe-main',
+                ),
+            );
+            await methods.recordConfirmed(
+                paymentMethodFor(
+                    stayed.subscriberId,
+                    'pm_main',
+                    '2026-09-02T10:00:00.000Z',
+                    'stripe-main',
+                ),
+            );
+
+            // `stripe-old` holds a reference, but only one a newer payment method replaced.
+            assert.deepEqual(await methods.accountsInUse(), ['stripe-main']);
+        });
+
+        test('a setup is completed once, and only by the account, session and subscriber it was started with', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Setup GmbH' });
+            const other = await createSubscriber({ legalName: 'Other Tenant GmbH' });
+            await methods.recordSetup({
+                subscriberId,
+                gatewayAccount: 'stripe-main',
+                sessionRef: 'cs_setup',
+                customerRef: 'cus_setup',
+                startedAt: new Date('2026-09-15T10:00:00.000Z'),
+            });
+            const at = new Date('2026-09-15T10:05:00.000Z');
+            const match = { gatewayAccount: 'stripe-main', sessionRef: 'cs_setup', subscriberId };
+
+            // A callback naming another subscriber than the session was opened for.
+            assert.equal(
+                await methods.completeSetup({ ...match, subscriberId: other.subscriberId }, at),
+                false,
+            );
+            assert.equal(
+                await methods.completeSetup({ ...match, gatewayAccount: 'stripe-old' }, at),
+                false,
+            );
+            assert.equal(
+                await methods.completeSetup({ ...match, sessionRef: 'cs_nobody_opened' }, at),
+                false,
+            );
+
+            assert.equal(await methods.completeSetup(match, at), true);
+            assert.equal(
+                await methods.completeSetup(match, at),
+                false,
+                'a setup was completed twice',
+            );
+        });
+
+        test('a setup completed on a transaction that rolls back is open again', async (t) => {
+            const { adapter } = harness;
+            const methods = adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Retry GmbH' });
+            const match = { gatewayAccount: 'stripe-main', sessionRef: 'cs_retry', subscriberId };
+            await methods.recordSetup({
+                ...match,
+                customerRef: 'cus_retry',
+                startedAt: new Date('2026-09-15T10:00:00.000Z'),
+            });
+            const at = new Date('2026-09-15T10:05:00.000Z');
+
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    assert.equal(await methods.completeSetup(match, at, tx), true);
+                    throw new Error('recording the payment method failed');
+                }),
+                /recording the payment method failed/,
+            );
+
+            assert.equal(
+                await methods.completeSetup(match, at),
+                true,
+                'the rollback kept the completion',
+            );
+        });
+
+        test('one session is one setup, however often it is recorded', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Once GmbH' });
+            const setup = {
+                subscriberId,
+                gatewayAccount: 'stripe-main',
+                sessionRef: 'cs_once',
+                customerRef: 'cus_once',
+                startedAt: new Date('2026-09-15T10:00:00.000Z'),
+            };
+            await methods.recordSetup(setup);
+
+            await assert.rejects(methods.recordSetup(setup));
         });
 
         // -------------------------------------------------------------

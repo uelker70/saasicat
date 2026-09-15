@@ -145,6 +145,86 @@ describe('a shipped migration survives a second run', () => {
     }
 });
 
+describe('a shipped migration leaves an installation without its tables alone', () => {
+    // A fresh installation applies every file before `db push` has created a
+    // table — the notesapp entrypoint does exactly that, under `set -e` — and an
+    // application that never adopted a fragment applies them too. Either way a
+    // file whose tables are missing has nothing to migrate, and saying so is
+    // the only defined outcome: an error stops the container on its first start.
+
+    // The constraints are the exception, and by design: they are applied after
+    // `db push`, to the tables it created, and a constraint on a table that is
+    // not there has nothing to hold.
+    const beforeTheTables = migrations().filter((name) => name !== 'constraints.postgres.sql');
+
+    for (const name of beforeTheTables) {
+        test(`${name} runs on a database with none of the platform tables, twice`, async () => {
+            await client.query('ROLLBACK').catch(() => {});
+            await client.query('DROP SCHEMA IF EXISTS public CASCADE');
+            await client.query('CREATE SCHEMA public');
+
+            await apply(name);
+            await apply(name);
+        });
+    }
+});
+
+describe('a table a migration creates has the shape the fragments declare', () => {
+    // A fresh installation applies every file in name order before `db push`,
+    // and a file that creates a table creates it for good: `CREATE TABLE IF NOT
+    // EXISTS` never revisits it. A table created in an older shape than the
+    // fragments declare is then left to `db push` to finish — which refuses a
+    // unique index on a table it cannot see is empty, and stops the container.
+
+    /** Columns and indexes per table, as comparable strings. */
+    async function shapes() {
+        const columns = await client.query(
+            `SELECT table_name, column_name, data_type, is_nullable, column_default
+               FROM information_schema.columns
+              WHERE table_schema = current_schema()
+              ORDER BY table_name, column_name`,
+        );
+        const indexes = await client.query(
+            `SELECT tablename, indexname, indexdef FROM pg_indexes
+              WHERE schemaname = current_schema() ORDER BY tablename, indexname`,
+        );
+        const byTable = new Map();
+        const entry = (table) => {
+            if (!byTable.has(table)) byTable.set(table, { columns: [], indexes: [] });
+            return byTable.get(table);
+        };
+        for (const row of columns.rows) {
+            const { table_name: table, ...column } = row;
+            entry(table).columns.push(column);
+        }
+        for (const row of indexes.rows) {
+            entry(row.tablename).indexes.push([row.indexname, row.indexdef]);
+        }
+        return byTable;
+    }
+
+    test('every table the migrations create on an empty database, in the order a consumer applies them', async () => {
+        await freshGround();
+        const declared = await shapes();
+
+        await client.query('DROP SCHEMA IF EXISTS public CASCADE');
+        await client.query('CREATE SCHEMA public');
+        for (const name of migrations().filter((file) => file !== 'constraints.postgres.sql')) {
+            await apply(name);
+        }
+        const created = await shapes();
+
+        assert.ok(created.size > 0, 'no migration created a table, so nothing was compared');
+        for (const [table, shape] of created) {
+            assert.deepEqual(
+                shape,
+                declared.get(table),
+                `${table} is created by a migration in another shape than the fragments declare`,
+            );
+        }
+    });
+});
+
 describe('a migration that would merge rows stops instead', () => {
     // The 1.0 migration drops `projectKey` and puts a unique index where it
     // was. On an installation that only ever used one key that is a rename; on
@@ -831,7 +911,11 @@ describe('every contract names the subscriber it is concluded with', () => {
      */
     async function beforeTheMigration({ foreignKey = true } = {}) {
         await freshGround();
-        await client.query('DROP TABLE "subscriber_corrections", "subscriber_tenants"');
+        // Payment methods came later still, and point at the subscribers.
+        await client.query(
+            'DROP TABLE "subscriber_payment_method_setups", "subscriber_payment_methods", ' +
+                '"subscriber_corrections", "subscriber_tenants"',
+        );
         await client.query(
             'ALTER TABLE "subscription_contracts" DROP COLUMN "subscriberId", ' +
                 'DROP COLUMN "subscriberSnapshot", DROP COLUMN "issuerSnapshot", ' +
@@ -1242,6 +1326,175 @@ describe('every contract names the subscriber it is concluded with', () => {
                 ['c-late', 't-late', true],
             ],
         );
+    });
+});
+
+describe('a payment method is the gateway reference, kept for the subscriber', () => {
+    // The migration adds the subscriber's payment methods, makes a gateway
+    // event unique per account, and gives a sign-up its billing details. The
+    // second-run suite runs it on the reference schema, where every object is
+    // already there; these start from the schema as it stood before.
+
+    const MIGRATION = '1.0-a-payment-method-is-a-gateway-reference.postgres.sql';
+
+    /** The reference schema with this migration's objects taken back out. */
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query(
+            'DROP TABLE "subscriber_payment_method_setups", "subscriber_payment_methods"',
+        );
+        await client.query('DROP INDEX "PaymentEventLog_gatewayAccount_eventId_key"');
+        await client.query('ALTER TABLE "PaymentEventLog" DROP COLUMN "gatewayAccount"');
+        await client.query(
+            'CREATE UNIQUE INDEX "PaymentEventLog_eventId_key" ON "PaymentEventLog"("eventId")',
+        );
+        await client.query(
+            'ALTER TABLE "PendingRegistration" DROP COLUMN "addressLine1", ' +
+                'DROP COLUMN "addressLine2", DROP COLUMN "postalCode", DROP COLUMN "city", ' +
+                'DROP COLUMN "country", DROP COLUMN "vatId", DROP COLUMN "taxNumber", ' +
+                'DROP COLUMN "checkoutGatewayAccount", DROP COLUMN "gatewayCustomerRef"',
+        );
+    }
+
+    const seedEvent = (id, eventId, provider) =>
+        client.query(
+            'INSERT INTO "PaymentEventLog" ("id", "eventId", "provider", "status") ' +
+                `VALUES ($1, $2, $3, 'SUCCEEDED')`,
+            [id, eventId, provider],
+        );
+
+    async function events() {
+        const { rows } = await client.query(
+            'SELECT "eventId", "provider", "gatewayAccount" FROM "PaymentEventLog" ORDER BY "id"',
+        );
+        return rows;
+    }
+
+    async function referenceFingerprint() {
+        await freshGround();
+        return fingerprint(client);
+    }
+
+    test('a database from before ends up with the schema the fragments declare', async () => {
+        const reference = await referenceFingerprint();
+        await beforeTheMigration();
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+        const { rows } = await client.query(
+            `SELECT conname FROM pg_constraint WHERE conname IN ` +
+                `('subscriber_payment_methods_subscriberId_fkey', ` +
+                `'subscriber_payment_method_setups_subscriberId_fkey') ORDER BY conname`,
+        );
+        assert.deepEqual(
+            rows.map((row) => row.conname),
+            [
+                'subscriber_payment_method_setups_subscriberId_fkey',
+                'subscriber_payment_methods_subscriberId_fkey',
+            ],
+            'the payment methods or their setups do not point at their subscriber',
+        );
+    });
+
+    test('an event recorded before carries its provider as its account, and stays unique', async () => {
+        await beforeTheMigration();
+        await seedEvent('e1', 'evt_1', 'dev-stub');
+        await seedEvent('e2', 'evt_2', 'stripe');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await events(), [
+            { eventId: 'evt_1', provider: 'dev-stub', gatewayAccount: 'dev-stub' },
+            { eventId: 'evt_2', provider: 'stripe', gatewayAccount: 'stripe' },
+        ]);
+        // The same identifier from another account is another event now.
+        await client.query(
+            'INSERT INTO "PaymentEventLog" ("id", "gatewayAccount", "eventId", "provider", "status") ' +
+                `VALUES ('e3', 'stripe-main', 'evt_1', 'stripe', 'payment-method-confirmed')`,
+        );
+        await assert.rejects(
+            client.query(
+                'INSERT INTO "PaymentEventLog" ("id", "gatewayAccount", "eventId", "provider", "status") ' +
+                    `VALUES ('e4', 'stripe-main', 'evt_1', 'stripe', 'payment-method-confirmed')`,
+            ),
+            /duplicate key value/,
+        );
+    });
+
+    test('a second run leaves the accounts the first one gave, an event recorded in between included', async () => {
+        await beforeTheMigration();
+        await seedEvent('e1', 'evt_1', 'dev-stub');
+        await apply(MIGRATION);
+        const schemaAfterFirst = await fingerprint(client);
+        await client.query(
+            'INSERT INTO "PaymentEventLog" ("id", "gatewayAccount", "eventId", "provider", "status") ' +
+                `VALUES ('e2', 'stripe-main', 'evt_2', 'stripe', 'payment-method-confirmed')`,
+        );
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), schemaAfterFirst);
+        assert.deepEqual(await events(), [
+            { eventId: 'evt_1', provider: 'dev-stub', gatewayAccount: 'dev-stub' },
+            { eventId: 'evt_2', provider: 'stripe', gatewayAccount: 'stripe-main' },
+        ]);
+    });
+
+    test('an installation without self-registration gets the payment methods and nothing else', async () => {
+        await beforeTheMigration();
+        await client.query('DROP TABLE "PendingRegistration", "PaymentEventLog"');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscriber_payment_methods') AS methods, ` +
+                `to_regclass('"PaymentEventLog"') AS events, ` +
+                `to_regclass('"PendingRegistration"') AS pending`,
+        );
+        assert.deepEqual(rows[0], {
+            methods: 'subscriber_payment_methods',
+            events: null,
+            pending: null,
+        });
+    });
+
+    test('an installation without subscribers is left without the payment methods, and runs through', async () => {
+        await beforeTheMigration();
+        await client.query('DROP TABLE "subscribers" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscriber_payment_methods') AS methods`,
+        );
+        assert.equal(rows[0].methods, null);
+    });
+
+    test('the old masked payment methods an application wrote are left where they are', async () => {
+        await beforeTheMigration();
+        await client.query(
+            `CREATE TYPE "SubscriptionPaymentType" AS ENUM ('CARD', 'SEPA', 'PAYPAL', 'KLARNA', 'INVOICE')`,
+        );
+        await client.query(
+            'CREATE TABLE "subscription_payment_methods" ("id" TEXT PRIMARY KEY, ' +
+                '"type" "SubscriptionPaymentType" NOT NULL, "cardLast4" TEXT)',
+        );
+        await client.query(
+            `INSERT INTO "subscription_payment_methods" VALUES ('old', 'CARD', '4242')`,
+        );
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query('SELECT * FROM "subscription_payment_methods"');
+        assert.deepEqual(rows, [{ id: 'old', type: 'CARD', cardLast4: '4242' }]);
     });
 });
 

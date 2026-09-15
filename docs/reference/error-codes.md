@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 171 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 176 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -26,17 +26,18 @@ The first-run bootstrap endpoints.
 
 Sign-in, TOTP enrolment and verification.
 
-| Code                         | Shipped English text                                      |
-| ---------------------------- | --------------------------------------------------------- |
-| `AUTH_GUARDS_NOT_CONFIGURED` | TenantBillingModule.forRoot.authGuards is not configured. |
-| `MFA_FAILED`                 | Invalid TOTP code.                                        |
-| `MFA_NOT_SET_UP`             | Run the MFA setup via the CLI first.                      |
-| `MFA_REQUIRED`               | TOTP code required in the X-Mfa-Code header.              |
-| `NOT_AUTHENTICATED`          | Not authenticated                                         |
-| `NO_TENANT_ASSIGNED`         | No tenant assigned                                        |
-| `SUPER_ADMIN_REQUIRED`       | Only the SUPER_ADMIN role is allowed                      |
-| `TENANT_ADMIN_REQUIRED`      | This action requires the TENANT_ADMIN role.               |
-| `TENANT_CONTEXT_MISSING`     | No tenant ID found on the request                         |
+| Code                          | Shipped English text                                           |
+| ----------------------------- | -------------------------------------------------------------- |
+| `AUTH_GUARDS_NOT_CONFIGURED`  | TenantBillingModule.forRoot.authGuards is not configured.      |
+| `BILLING_PERMISSION_REQUIRED` | This part of the billing area requires the billing permission. |
+| `MFA_FAILED`                  | Invalid TOTP code.                                             |
+| `MFA_NOT_SET_UP`              | Run the MFA setup via the CLI first.                           |
+| `MFA_REQUIRED`                | TOTP code required in the X-Mfa-Code header.                   |
+| `NOT_AUTHENTICATED`           | Not authenticated                                              |
+| `NO_TENANT_ASSIGNED`          | No tenant assigned                                             |
+| `SUPER_ADMIN_REQUIRED`        | Only the SUPER_ADMIN role is allowed                           |
+| `TENANT_ADMIN_REQUIRED`       | This action requires the TENANT_ADMIN role.                    |
+| `TENANT_CONTEXT_MISSING`      | No tenant ID found on the request                              |
 
 ## Registration
 
@@ -214,6 +215,17 @@ The party a contract is concluded with.
 | `SUBSCRIBER_NOT_FOUND`                  | Subscriber '{subscriberId}' not found                                                                                              |
 | `SUBSCRIBER_REQUIRED`                   | Tenant '{tenantId}' has no subscriber. Nothing is agreed or charged without the party to it: create the tenant's subscriber first. |
 | `SUBSCRIBER_TAKEOVER_IS_A_TRANSFER`     | Another legal entity taking over a subscriber is a transfer, not a correction, and cannot be recorded as an edit.                  |
+
+## Payments
+
+Payment methods and the gateway callbacks that confirm them.
+
+| Code                              | Shipped English text                                              |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `PAYMENTS_NOT_CONFIGURED`         | Payment methods cannot be set up here yet.                        |
+| `PAYMENT_CALLBACK_REJECTED`       | The payment callback could not be verified.                       |
+| `PAYMENT_GATEWAY_ACCOUNT_UNKNOWN` | No payment gateway account is configured under '{account}'.       |
+| `PAYMENT_RETURN_URL_NOT_ALLOWED`  | The {field} leads to a site this installation does not return to. |
 
 ## Promo codes
 

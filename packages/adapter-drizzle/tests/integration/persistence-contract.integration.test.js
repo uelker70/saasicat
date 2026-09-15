@@ -36,6 +36,8 @@ import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '..
 import { DrizzleAppliedSettingsRepository } from '../../dist/index.js';
 import {
     DrizzlePlanRepository,
+    DrizzlePaymentEventLog,
+    DrizzleSubscriberPaymentMethodRepository,
     DrizzleSubscriberRepository,
     DrizzleSubscriptionContractRepository,
     DrizzleTenantSubscriptionWrite,
@@ -59,6 +61,9 @@ const PLATFORM_TABLES = [
     'super_admin_users',
     'applied_settings',
     'settings_changes',
+    'subscriber_payment_methods',
+    'subscriber_payment_method_setups',
+    '"PaymentEventLog"',
     'subscriber_corrections',
     'subscriber_tenants',
     'subscribers',
@@ -88,6 +93,8 @@ function createHarness() {
             tenantSubscriptionWrite: new DrizzleTenantSubscriptionWrite(db),
             subscriptionContractRepository: new DrizzleSubscriptionContractRepository(db),
             subscriberRepository: new DrizzleSubscriberRepository(db),
+            paymentEventLog: new DrizzlePaymentEventLog(db),
+            subscriberPaymentMethodRepository: new DrizzleSubscriberPaymentMethodRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
         },
         seed: {

@@ -77,6 +77,14 @@ export interface ConcludeCheckoutOfferOptions extends CreateContractFromOfferOpt
      * with `SUBSCRIBER_ALREADY_EXISTS`.
      */
     subscriber?: NewSubscriberDetails;
+    /**
+     * The transaction to conclude on, when the caller already holds one. A
+     * sign-up's activation does: the gateway's confirmation is claimed on it,
+     * and the offer, the subscriber, the contract and `within` are written on
+     * it and undone with it. Left out, the conclusion opens a transaction of
+     * its own.
+     */
+    tx?: TransactionContext;
 }
 
 /**
@@ -253,7 +261,7 @@ export class CheckoutOfferService {
         within?: ConcludeCheckoutOfferWithin,
     ): Promise<ConcludedCheckoutOffer> {
         const { contracts, transactions, subscribers } = this.conclusionPorts();
-        const { subscriber, ...contractOptions } = options;
+        const { subscriber, tx: callersTransaction, ...contractOptions } = options;
         const { tenantId } = contractOptions;
         const standing = await this.standingConclusion(await this.getById(id), contracts, tenantId);
         if (standing) return standing;
@@ -262,30 +270,33 @@ export class CheckoutOfferService {
         const checked = contracts.prepareFromOffer(existing, contractOptions);
         await this.assertParty(subscribers, contracts, tenantId, subscriber);
         let consumeFailed = false;
+        const concludeOn = async (tx: TransactionContext): Promise<ConcludedCheckoutOffer> => {
+            // Per attempt: a runner may run this again, and a consume refused
+            // in an earlier attempt says nothing about the one that failed.
+            consumeFailed = false;
+            let offer: CheckoutOfferRow;
+            try {
+                offer = await this.repo.consume(id, tx);
+            } catch (error) {
+                consumeFailed = true;
+                throw error;
+            }
+            // The checks read the offer before this transaction, and an open
+            // offer can still be changed in between. The contract has to be
+            // the one the consumed row describes, so it is built from that row
+            // and must be the contract that was checked.
+            const data = contracts.prepareFromOffer(offer, contractOptions);
+            if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
+            if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
+            const contract = await contracts.create(data, tx);
+            const concluded = { offer, contract };
+            if (within) await within(tx, concluded);
+            return concluded;
+        };
         try {
-            return await transactions.run(async (tx) => {
-                // Per attempt: a runner may run this again, and a consume refused
-                // in an earlier attempt says nothing about the one that failed.
-                consumeFailed = false;
-                let offer: CheckoutOfferRow;
-                try {
-                    offer = await this.repo.consume(id, tx);
-                } catch (error) {
-                    consumeFailed = true;
-                    throw error;
-                }
-                // The checks read the offer before this transaction, and an open
-                // offer can still be changed in between. The contract has to be
-                // the one the consumed row describes, so it is built from that row
-                // and must be the contract that was checked.
-                const data = contracts.prepareFromOffer(offer, contractOptions);
-                if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
-                if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
-                const contract = await contracts.create(data, tx);
-                const concluded = { offer, contract };
-                if (within) await within(tx, concluded);
-                return concluded;
-            });
+            return await (callersTransaction === undefined
+                ? transactions.run(concludeOn)
+                : concludeOn(callersTransaction));
         } catch (error) {
             // Only a consume that failed can have lost a race: the condition on it
             // refuses a caller that another one beat to the offer after the checks

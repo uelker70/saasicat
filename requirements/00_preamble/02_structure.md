@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 484 entries: 🟢 413 stand today, 🟡 69 decided but not yet delivered, ⚪ 0 drafts,
-🔵 2 superseded, 🔴 0 withdrawn.
+Of 484 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+🔵 2 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -144,7 +144,6 @@ Of 484 entries: 🟢 413 stand today, 🟡 69 decided but not yet delivered, ⚪
 [SC-PRIC-048](#sc-pric-048--a-billing-period-whose-charges-are-all-zero-issues-no-invoice),
 [SC-PRIC-049](#sc-pric-049--a-subscribers-account-is-shown-to-the-tenants-users-holding-the-billing-permission),
 [SC-REG-021](#sc-reg-021--a-payment-confirmation-is-verified-before-anything-is-created-from-it),
-[SC-REG-022](#sc-reg-022--the-account-subscriber-tenant-subscription-and-payment-method-are-created-together),
 [SC-ADM-019](#sc-adm-019--early-deletion-cancelling-an-invoice-and-joining-a-subscriber-need-a-second-factor),
 [SC-ADM-020](#sc-adm-020--six-actions-require-a-written-reason-cancelling-an-invoice-among-them),
 [SC-ADM-021](#sc-adm-021--an-operator-finds-everything-about-a-subscriber-in-one-record),
@@ -175,5 +174,7 @@ Of 484 entries: 🟢 413 stand today, 🟡 69 decided but not yet delivered, ⚪
 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
+
+🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
 <!-- END chapters -->

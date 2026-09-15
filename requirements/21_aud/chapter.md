@@ -29,8 +29,6 @@ _Tested by:_
 - `packages/nest/tests/registration-service.test.js`
     - audit: start() logs REGISTRATION_STARTED + pendingId
     - audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED
-    - audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate →
-      PAYMENT_DUPLICATE_IGNORED
 
 <!-- END proof -->
 
