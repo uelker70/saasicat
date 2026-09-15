@@ -23,7 +23,10 @@
 --      on `eventId` alone is replaced by one on both. An event recorded before
 --      this file carries no account; it is given its `provider` as one, which
 --      keeps the old identifiers unique and matches no account a gateway sends
---      from now on.
+--      from now on. A second index holds one confirmation per gateway session
+--      (`sql/constraints.postgres.sql` says what it is for). It matches no row
+--      recorded before this file: `status` then held the old provider's own
+--      wording, never the event kinds SaaSiCat reads today.
 --   3. `"PendingRegistration"` — gains the billing details step 4 asks for,
 --      `checkoutGatewayAccount` and `gatewayCustomerRef`. A sign-up whose
 --      checkout started before this file has no account beside its session, so
@@ -129,6 +132,9 @@ BEGIN
         DROP INDEX IF EXISTS "PaymentEventLog_eventId_key";
         CREATE UNIQUE INDEX IF NOT EXISTS "PaymentEventLog_gatewayAccount_eventId_key"
             ON "PaymentEventLog"("gatewayAccount", "eventId");
+        CREATE UNIQUE INDEX IF NOT EXISTS payment_event_log_confirmation_per_session
+            ON "PaymentEventLog"("gatewayAccount", "sessionId")
+            WHERE "status" = 'payment-method-confirmed';
     END IF;
 
     -- 3. Sign-up: billing details and the account a session belongs to -------

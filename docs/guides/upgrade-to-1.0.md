@@ -1382,6 +1382,10 @@ reference a gateway can charge, so each subscriber gives its payment method agai
 - **`PendingRegistrationRepository`**: `findByCheckoutSession(sessionId)` becomes
   `findByCheckoutSession(gatewayAccount, sessionId)`, `delete(id, tx)` deletes on the transaction it
   is handed — the activation deletes the sign-up there — and `findOpenCheckoutAccounts(now)` is new.
+  Use the transaction: an implementation that ignores it still compiles, and then the sign-up
+  survives a rollback it should not have survived. It also means the deletion is now part of the
+  activation, so anything in your schema that can make it fail — a foreign key to
+  `PendingRegistration`, a trigger — fails the whole activation, and every gateway retry repeats it.
   `PendingRegistration` gains `addressLine1`, `addressLine2`, `postalCode`, `city`, `country`,
   `vatId`, `taxNumber`, `checkoutGatewayAccount` and `gatewayCustomerRef`.
 - **`startCheckout`** takes `billingDetails`: `addressLine1`, `postalCode`, `city` and `country` are
@@ -1389,7 +1393,9 @@ reference a gateway can charge, so each subscriber gives its payment method agai
   `StartRegistrationCheckoutDto` validates them, and its URLs now require `http` or `https`.
   `subscriberFromRegistration(pending)` copies them onto the subscriber.
 - **`PaymentEventLog`** is `claim(claim, tx)` instead of `tryClaim(eventId, payload)`, and the
-  adapters implement it; a duplicate answers `false` without raising. `RegistrationAuditEventType`
+  adapters implement it; a duplicate answers `false` without raising. So is a confirmation of a
+  session the account has confirmed already, whatever its event identifier — the migration adds the
+  partial unique index that holds it. `RegistrationAuditEventType`
   loses `PAYMENT_DUPLICATE_IGNORED`: a duplicate callback is handled before any registration code
   sees it, and is logged rather than audited.
 - **The tenant's plan page** shows the payment method in use to whoever holds the billing

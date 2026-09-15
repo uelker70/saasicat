@@ -43,6 +43,12 @@ export interface PaymentEventLog {
      * usable. An `INSERT … ON CONFLICT DO NOTHING` does both — and when another
      * transaction holds the same claim uncommitted, it waits for that one and
      * answers by its outcome.
+     *
+     * A confirmation of a session this account already confirmed is a duplicate
+     * as well, whatever its `eventId`: one session is set up once, and a gateway
+     * may report it through more than one event. `sql/constraints.postgres.sql`
+     * holds that as a second unique index, and the untargeted `DO NOTHING`
+     * answers for it too.
      */
     claim(claim: PaymentEventClaim, tx: TransactionContext): Promise<boolean>;
 }
@@ -69,7 +75,13 @@ export interface SubscriberPaymentMethodRepository {
         subscriberId: string,
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null>;
-    /** The payment method an account's reference names, whatever its status. */
+    /**
+     * The payment method an account's reference names, whatever its status.
+     *
+     * The one read that reaches a payment method a newer one replaced, which is
+     * how `@saasicat/persistence-testing` verifies that an implementation keeps
+     * the history rather than overwriting the row (`SC-PRIC-030`).
+     */
     findByReference(
         gatewayAccount: string,
         paymentMethodRef: string,
@@ -77,7 +89,15 @@ export interface SubscriberPaymentMethodRepository {
     ): Promise<SubscriberPaymentMethodRecord | null>;
     /** Every account that holds a payment method in use, each once. */
     accountsInUse(): Promise<string[]>;
-    /** Records a change of payment method a tenant started, open until its confirmation completes it. */
+    /**
+     * Records a change of payment method a tenant started, open until its
+     * confirmation completes it.
+     *
+     * One session is one setup: the account and the session are unique together,
+     * and a second setup for a session already recorded raises. A gateway hands
+     * out a session per start, so an adapter that returns one twice is the
+     * defect this refuses to write over.
+     */
     recordSetup(data: SubscriberPaymentMethodSetupData, tx?: TransactionContext): Promise<void>;
     /**
      * Completes the open setup the account, the session and the subscriber all

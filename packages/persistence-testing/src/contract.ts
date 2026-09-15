@@ -76,7 +76,11 @@ function partiesWith(subscriberId: string, legalName: string): SubscriptionContr
 }
 
 /** A gateway event at `gatewayAccount`, as the log records it. */
-function eventAt(gatewayAccount: string, eventId: string): PaymentEventClaim {
+function eventAt(
+    gatewayAccount: string,
+    eventId: string,
+    about: Partial<PaymentEventClaim> = {},
+): PaymentEventClaim {
     return {
         gatewayAccount,
         eventId,
@@ -84,6 +88,7 @@ function eventAt(gatewayAccount: string, eventId: string): PaymentEventClaim {
         sessionId: `cs_${eventId}`,
         kind: 'payment-method-confirmed',
         summary: { type: 'card', last4: '4242' },
+        ...about,
     };
 }
 
@@ -2605,6 +2610,53 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(later, false, 'a committed claim was claimed again');
         });
 
+        test('one gateway session is confirmed once, however many events report it', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            const session = 'cs_reported_twice';
+            const claims = await adapter.transactionRunner.run(async (tx) => [
+                await log.claim(
+                    eventAt('stripe-main', 'evt_form_done', { sessionId: session }),
+                    tx,
+                ),
+                // The same session, reported again under another identifier:
+                // recording it would set the session's payment method up twice.
+                await log.claim(
+                    eventAt('stripe-main', 'evt_method_on', { sessionId: session }),
+                    tx,
+                ),
+                // Another account's session of that name is another session.
+                await log.claim(eventAt('stripe-old', 'evt_elsewhere', { sessionId: session }), tx),
+                // A kind that says nothing about the session being confirmed.
+                await log.claim(
+                    eventAt('stripe-main', 'evt_gave_up', {
+                        sessionId: session,
+                        kind: 'payment-method-setup-failed',
+                    }),
+                    tx,
+                ),
+                // Events about no session at all do not collide with each other.
+                await log.claim(
+                    eventAt('stripe-main', 'evt_other_1', { sessionId: null, kind: 'unhandled' }),
+                    tx,
+                ),
+                await log.claim(
+                    eventAt('stripe-main', 'evt_other_2', { sessionId: null, kind: 'unhandled' }),
+                    tx,
+                ),
+            ]);
+            assert.deepEqual(claims, [true, false, true, true, true, true]);
+
+            const later = await adapter.transactionRunner.run((tx) =>
+                log.claim(eventAt('stripe-main', 'evt_late', { sessionId: session }), tx),
+            );
+            assert.equal(later, false, 'a session already confirmed was confirmed again');
+        });
+
         test('a claim rolled back with its transaction is free for the retry', async (t) => {
             const { adapter } = harness;
             const log = adapter.paymentEventLog;
@@ -2668,6 +2720,44 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             ]);
             assert.equal(rolledBack.status, 'rejected');
             assert.deepEqual(afterRollback, { status: 'fulfilled', value: true });
+        });
+
+        test('two events confirming one session at once end with one claim', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            if (!adapter.capabilities.pessimisticLocking) {
+                t.skip(
+                    'adapter declares no pessimistic locking: an open claim cannot be waited on',
+                );
+                return;
+            }
+            // Two identifiers, one session, delivered together: without the
+            // session's own index both would be claimed, and each would set the
+            // session's payment method up — a second tenant for one sign-up.
+            const session = 'cs_at_once';
+            const [first, second] = await Promise.all([
+                adapter.transactionRunner.run(async (tx) => {
+                    const claimed = await log.claim(
+                        eventAt('stripe-main', 'evt_at_once_a', { sessionId: session }),
+                        tx,
+                    );
+                    await sleep(LOCK_HOLD_MS);
+                    return claimed;
+                }),
+                sleep(LOCK_HOLD_MS / 3).then(() =>
+                    adapter.transactionRunner.run((tx) =>
+                        log.claim(
+                            eventAt('stripe-main', 'evt_at_once_b', { sessionId: session }),
+                            tx,
+                        ),
+                    ),
+                ),
+            ]);
+            assert.deepEqual([first, second], [true, false]);
         });
 
         test("a confirmed payment method becomes the subscriber's, with its references and masked details", async (t) => {

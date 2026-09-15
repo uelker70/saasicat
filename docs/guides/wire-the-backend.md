@@ -444,7 +444,9 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
 - **One transaction per callback.** The event is claimed in `PaymentEventLog`, unique per account,
   and what it changes is written on the same transaction. A failure rolls both back, and the
   gateway's retry is handled; a delivery that arrives again after a commit is a duplicate and
-  changes nothing.
+  changes nothing. A gateway that reports one session through more than one event is a duplicate
+  too: a session is confirmed once, which the log holds whether the two arrive after one another or
+  together.
 - **`GET /billing/payment-method`** and **`POST /billing/payment-method/setup`** — the tenant's
   payment method, with `tenantBilling` enabled. Both sit behind `tenantBilling.authGuards` and the
   billing permission, reading included; a user without the permission is refused with
@@ -452,7 +454,10 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   `redirectUrl`; nothing changes until the gateway confirms, and the confirmed payment method
   replaces the one in use, which stays as history. Opening the form records the setup, and a
   confirmation is recorded only for the account, session and subscriber of an open setup — a
-  callback that names another subscriber changes nobody's payment method.
+  callback that names another subscriber changes nobody's payment method. Such a callback is logged
+  at error level and leaves its setup open, which is where it is found afterwards: the tenant keeps
+  the payment method it had, so a gateway adapter that reports a session under a name of its own
+  shows up as changes that never arrive.
 - **At start**, the application refuses to boot when the bound gateways and the accounts in the file
   disagree, when a payment method in use belongs to an account the file no longer names, and when
   a sign-up is still waiting for its payment method at such an account — each named in the message.

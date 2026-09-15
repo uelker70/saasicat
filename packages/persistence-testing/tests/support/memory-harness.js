@@ -650,10 +650,18 @@ export function createMemoryHarness() {
 
     const paymentEventLog = {
         async claim(claim) {
+            const confirmation = claim.kind === 'payment-method-confirmed';
             const taken = state.paymentEvents.some(
                 (event) =>
                     event.gatewayAccount === claim.gatewayAccount &&
-                    event.eventId === claim.eventId,
+                    (event.eventId === claim.eventId ||
+                        // One session is confirmed once, whatever the event is
+                        // called: the partial unique index in
+                        // sql/constraints.postgres.sql.
+                        (confirmation &&
+                            event.kind === 'payment-method-confirmed' &&
+                            claim.sessionId !== null &&
+                            event.sessionId === claim.sessionId)),
             );
             if (taken) return false;
             state.paymentEvents.push(structuredClone(claim));

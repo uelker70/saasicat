@@ -7059,6 +7059,7 @@ _Tested by:_
 - `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
     - the confirmation of the payment method activates the sign-up
         - the same confirmation delivered twice activates once
+        - a session confirmed once is not confirmed again under another event identifier
         - once activated the sign-up is gone: a later confirmation with another payment method
           activates nothing, and step 4 is refused
 
@@ -7135,6 +7136,7 @@ _Tested by:_
           method included
         - an activation that fails leaves nothing behind, and the gateway retry activates
         - the same confirmation delivered twice activates once
+        - a session confirmed once is not confirmed again under another event identifier
         - once activated the sign-up is gone: a later confirmation with another payment method
           activates nothing, and step 4 is refused
         - a sign-up whose deletion fails is not activated either, and the gateway retry activates it

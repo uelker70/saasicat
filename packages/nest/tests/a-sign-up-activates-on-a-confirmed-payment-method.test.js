@@ -503,6 +503,44 @@ describe('the confirmation of the payment method activates the sign-up', () => {
     });
 
     // @requirement SC-REG-019 — The same payment event applied twice changes nothing
+    test('a session confirmed once is not confirmed again under another event identifier', async () => {
+        const ctx = await signUpApp();
+        const { pendingId, sessionRef } = await throughTheForm(ctx);
+        const subject = { kind: 'registration', pendingRegistrationId: pendingId };
+
+        assert.equal(
+            await ctx.callbacks.handle(
+                MAIN_ACCOUNT,
+                signedCallback(confirmation({ eventId: 'evt_form_done', sessionRef, subject })),
+            ),
+            'handled',
+        );
+        // The gateway reports the same session through a second event of its
+        // own. It is refused where a duplicate is refused — at the claim —
+        // rather than being handled and finding nothing left to do, which is
+        // what keeps two deliveries at once from activating twice.
+        assert.equal(
+            await ctx.callbacks.handle(
+                MAIN_ACCOUNT,
+                signedCallback(
+                    confirmation({
+                        eventId: 'evt_method_on',
+                        sessionRef,
+                        subject,
+                        paymentMethodRef: 'pm_card_2',
+                        customerRef: 'cus_2',
+                    }),
+                ),
+            ),
+            'duplicate',
+        );
+
+        assert.equal(ctx.orchestrator.calls.length, 1);
+        assert.equal(ctx.methods.rows.length, 1);
+        assert.equal(ctx.audit.byType('ACTIVATION_COMPLETED').length, 1);
+    });
+
+    // @requirement SC-REG-019 — The same payment event applied twice changes nothing
     test('once activated the sign-up is gone: a later confirmation with another payment method activates nothing, and step 4 is refused', async () => {
         const ctx = await signUpApp();
         const { pendingId, sessionRef } = await throughTheForm(ctx);

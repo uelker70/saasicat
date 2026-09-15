@@ -82,6 +82,8 @@ model SubscriberPaymentMethodSetup {
 // account that sent it — two accounts side by side never take each other's
 // event for a duplicate. `status` holds the event's kind as SaaSiCat read it
 // (`payment-method-confirmed`, …) and `payload` a summary that names no person.
+// One session is confirmed once, however many events report it: a partial
+// unique index in sql/constraints.postgres.sql, where the reasoning is.
 model PaymentEventLog {
     id             String   @id @default(cuid())
     gatewayAccount String

@@ -335,6 +335,24 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
 
         assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, callback), 'handled');
         assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, callback), 'duplicate');
+        // A second event about the same session is a duplicate as well: the
+        // session was set up once, whatever the gateway calls its events.
+        assert.equal(
+            await ctx.callbacks.handle(
+                MAIN_ACCOUNT,
+                signedCallback(
+                    confirmation({
+                        eventId: 'evt_change_again',
+                        sessionRef: 'cs_1',
+                        subject: { kind: 'subscriber', subscriberId: ctx.subscriber.id },
+                        paymentMethodRef: 'pm_newer',
+                        customerRef: 'cus_known',
+                        occurredAt: '2026-09-15T10:05:00.000Z',
+                    }),
+                ),
+            ),
+            'duplicate',
+        );
 
         assert.deepEqual(
             ctx.methods.rows.map(({ paymentMethodRef, status, replacedAt }) => ({

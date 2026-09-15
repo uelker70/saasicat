@@ -116,8 +116,11 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
         if (!completed) {
             // Nothing opened this session for this subscriber, or its payment
             // method was recorded already: a callback naming someone else's
-            // subscriber changes nobody's payment method.
-            this.logger.warn(
+            // subscriber changes nobody's payment method. At error level
+            // because nothing else marks it: the subscriber keeps the payment
+            // method it had, and the setup that was opened stays open — which
+            // is also where an operator finds this afterwards.
+            this.logger.error(
                 `Payment event ${event.eventId} at '${context.gatewayAccount}' names subscriber ` +
                     `${event.subject.subscriberId} and session ${event.sessionRef}, which no open setup matches; nothing recorded.`,
             );

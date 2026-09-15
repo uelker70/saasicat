@@ -44,7 +44,10 @@ and the gateway's retry activates.
   `PAYMENT_DUPLICATE_IGNORED`. `startCheckout` requires
   `billingDetails`. `PaymentEventLog.tryClaim` becomes `claim(claim, tx)`.
 - A tenant's change records the setup it opened, and a confirmation is recorded
-  only for the account, session and subscriber of an open setup.
+  only for the account, session and subscriber of an open setup. A gateway
+  session is confirmed once, however many events report it: a partial unique
+  index in `sql/constraints.postgres.sql` makes the second confirmation a
+  duplicate rather than a second payment method.
 - Breaking: the `SubscriptionPaymentMethod` fragment is removed.
   `SubscriberPaymentMethod`, `SubscriberPaymentMethodSetup` and
   `PaymentEventLog` are in `14-payments.prisma`;

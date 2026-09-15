@@ -115,9 +115,17 @@ export class MemoryPaymentEventLog {
 
     async claim(claim, tx) {
         if (tx === undefined) throw new Error('a gateway event was claimed outside a transaction');
+        const confirmation = claim.kind === 'payment-method-confirmed';
         const taken = this.claims.some(
             (held) =>
-                held.gatewayAccount === claim.gatewayAccount && held.eventId === claim.eventId,
+                held.gatewayAccount === claim.gatewayAccount &&
+                (held.eventId === claim.eventId ||
+                    // One session is confirmed once, as the partial unique index
+                    // in sql/constraints.postgres.sql holds it.
+                    (confirmation &&
+                        held.kind === 'payment-method-confirmed' &&
+                        claim.sessionId !== null &&
+                        held.sessionId === claim.sessionId)),
         );
         if (taken) return false;
         this.claims.push(structuredClone(claim));
