@@ -199,6 +199,22 @@ export interface TenantPlanSectionI18n {
     myBundlesBundleVersionIdPlaceholder: string;
     myBundlesMinimumTermLabel: string;
     myBundlesMinimumTermPlaceholder: string;
+    /** The payment method on the plan page, shown to whoever holds the billing permission. */
+    paymentMethodTitle: string;
+    paymentMethodNone: string;
+    /** `{brand}`, `{last4}` and `{expiry}` (MM/YYYY). */
+    paymentMethodCard: string;
+    /** Said in place of `{brand}` when the gateway names no card network. */
+    paymentMethodCardFallback: string;
+    /** `{last4}` of the IBAN. */
+    paymentMethodSepa: string;
+    /** `{reference}` of the direct debit mandate. */
+    paymentMethodMandate: string;
+    paymentMethodAdd: string;
+    paymentMethodChange: string;
+    paymentMethodGatewayNote: string;
+    paymentMethodLoadFailed: string;
+    paymentMethodChangeFailed: string;
     /**
      * Texts for the coded blockers and warnings a plan-change preview returns,
      * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
@@ -408,6 +424,18 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     myBundlesBundleVersionIdPlaceholder: 'UUID der gewünschten Bundle-Version',
     myBundlesMinimumTermLabel: 'Mindestlaufzeit (Monate, optional)',
     myBundlesMinimumTermPlaceholder: 'Default: 12',
+    paymentMethodTitle: 'Zahlungsmethode',
+    paymentMethodNone: 'Noch keine Zahlungsmethode hinterlegt.',
+    paymentMethodCard: '{brand} mit Endziffern {last4}, gültig bis {expiry}',
+    paymentMethodCardFallback: 'Karte',
+    paymentMethodSepa: 'SEPA-Lastschrift vom Konto mit Endziffern {last4}',
+    paymentMethodMandate: 'Mandatsreferenz {reference}',
+    paymentMethodAdd: 'Zahlungsmethode hinterlegen',
+    paymentMethodChange: 'Zahlungsmethode ändern',
+    paymentMethodGatewayNote:
+        'Karte oder IBAN gibst du im Formular des Zahlungsanbieters ein. Hier wird nur ein Verweis darauf gespeichert.',
+    paymentMethodLoadFailed: 'Die Zahlungsmethode konnte nicht geladen werden.',
+    paymentMethodChangeFailed: 'Das Formular des Zahlungsanbieters konnte nicht geöffnet werden.',
     issueMessages: ERROR_MESSAGES_DE,
 };
 
@@ -605,6 +633,18 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     myBundlesBundleVersionIdPlaceholder: 'UUID of the desired bundle version',
     myBundlesMinimumTermLabel: 'Minimum term (months, optional)',
     myBundlesMinimumTermPlaceholder: 'Default: 12',
+    paymentMethodTitle: 'Payment method',
+    paymentMethodNone: 'No payment method yet.',
+    paymentMethodCard: '{brand} ending in {last4}, valid until {expiry}',
+    paymentMethodCardFallback: 'Card',
+    paymentMethodSepa: 'SEPA Direct Debit from the account ending in {last4}',
+    paymentMethodMandate: 'Mandate reference {reference}',
+    paymentMethodAdd: 'Add payment method',
+    paymentMethodChange: 'Change payment method',
+    paymentMethodGatewayNote:
+        "You enter the card or IBAN in the payment provider's form. Only a reference to it is kept here.",
+    paymentMethodLoadFailed: 'The payment method could not be loaded.',
+    paymentMethodChangeFailed: "The payment provider's form could not be opened.",
     issueMessages: ERROR_MESSAGES_EN,
 };
 
