@@ -1023,10 +1023,16 @@ describe('every contract names the subscriber it is concluded with', () => {
         assert.equal(rows[0].n, 0);
     });
 
-    test('a second run creates no second subscriber, and a tenant that came in between gets its own', async () => {
+    test('a second run leaves everything as the first one left it, a tenant added in between included', async () => {
+        // Once the link is required the migration is done. A tenant an
+        // application creates after that without a subscriber is the
+        // application's to give one: a migration that went on naming them from
+        // the tenant table on every container start would cover the gap with
+        // copies marked as migrated instead of letting it show.
         await beforeTheMigration();
         await threeCustomers();
         await apply(MIGRATION);
+        const subscribersAfterFirst = await subscribers();
         const copiesAfterFirst = await contracts();
         // A correction after the first run: the copies on the contracts stay as
         // the migration made them.
@@ -1039,12 +1045,13 @@ describe('every contract names the subscriber it is concluded with', () => {
 
         await apply(MIGRATION);
 
-        assert.deepEqual(await subscribers(), [
-            ['t-early', '10001', 'Early Motors Holding GmbH', true],
-            ['t-member', '10002', 'TSV Example e.V.', true],
-            ['t-late', '10003', 'Late Software AG', true],
-            ['t-next', '10004', 'Next Customer GmbH', true],
-        ]);
+        assert.deepEqual(
+            await subscribers(),
+            subscribersAfterFirst.map((row) =>
+                row[0] === 't-early' ? [row[0], row[1], 'Early Motors Holding GmbH', row[3]] : row,
+            ),
+            'the second run created or renamed a subscriber',
+        );
         assert.deepEqual(await contracts(), copiesAfterFirst, 'the second run rewrote a copy');
     });
 
@@ -1115,11 +1122,11 @@ describe('every contract names the subscriber it is concluded with', () => {
         );
     });
 
-    test('a role row-level security hides contracts from stops it, naming the table and the role', async () => {
-        // A consumer that forces row-level security onto its contracts and runs
-        // the file as the table owner sees none of them without a tenant set.
-        await beforeTheMigration();
-        await threeCustomers();
+    /**
+     * Runs `fn` as a role that owns every table and has no way around
+     * row-level security, the shape of an application's own database role.
+     */
+    async function asOwningRole(fn) {
         await client.query('DROP ROLE IF EXISTS saasicat_migrator');
         await client.query('CREATE ROLE saasicat_migrator');
         await client.query('GRANT ALL ON SCHEMA public TO saasicat_migrator');
@@ -1129,40 +1136,85 @@ describe('every contract names the subscriber it is concluded with', () => {
         for (const { tablename } of tables) {
             await client.query(`ALTER TABLE "${tablename}" OWNER TO saasicat_migrator`);
         }
-        await client.query('ALTER TABLE "subscription_contracts" ENABLE ROW LEVEL SECURITY');
-        await client.query('ALTER TABLE "subscription_contracts" FORCE ROW LEVEL SECURITY');
-
-        await client.query('SET ROLE saasicat_migrator');
         try {
-            await assert.rejects(
-                () => apply(MIGRATION),
-                (error) => {
-                    const said = String(error.message);
-                    assert.ok(
-                        said.includes('Cannot see every row of subscription_contracts'),
-                        said,
-                    );
-                    assert.ok(said.includes('saasicat_migrator'), said);
-                    return true;
-                },
-            );
-            await client.query('ROLLBACK').catch(() => {});
-            const { rows } = await client.query('SELECT count(*)::int AS n FROM "subscribers"');
-            assert.equal(rows[0].n, 0);
-
-            // The counter-check: the owner of a table whose security is not
-            // forced sees every row, and the migration goes through.
-            await client.query('RESET ROLE');
-            await client.query('ALTER TABLE "subscription_contracts" NO FORCE ROW LEVEL SECURITY');
-            await client.query('SET ROLE saasicat_migrator');
-            await apply(MIGRATION);
-            assert.equal((await subscribers()).length, 3);
+            await fn({
+                become: () => client.query('SET ROLE saasicat_migrator'),
+                leave: () => client.query('RESET ROLE'),
+            });
         } finally {
             await client.query('ROLLBACK').catch(() => {});
             await client.query('RESET ROLE');
             await client.query('DROP OWNED BY saasicat_migrator CASCADE');
             await client.query('DROP ROLE IF EXISTS saasicat_migrator');
         }
+    }
+
+    const forceRowLevelSecurity = async (table) => {
+        await client.query(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
+        await client.query(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
+    };
+
+    const refusedFor = (table) => (error) => {
+        const said = String(error.message);
+        assert.ok(said.includes(`Cannot see every row of ${table} `), said);
+        assert.ok(said.includes('saasicat_migrator'), said);
+        return true;
+    };
+
+    test('a role row-level security hides contracts from stops it, naming the table and the role', async () => {
+        // A consumer that forces row-level security onto its contracts and runs
+        // the file as the table owner sees none of them without a tenant set.
+        await beforeTheMigration();
+        await threeCustomers();
+        await asOwningRole(async ({ become, leave }) => {
+            await forceRowLevelSecurity('subscription_contracts');
+            await become();
+
+            await assert.rejects(() => apply(MIGRATION), refusedFor('subscription_contracts'));
+            await client.query('ROLLBACK').catch(() => {});
+            const { rows } = await client.query('SELECT count(*)::int AS n FROM "subscribers"');
+            assert.equal(rows[0].n, 0);
+
+            // The counter-check: the owner of a table whose security is not
+            // forced sees every row, and the migration goes through.
+            await leave();
+            await client.query('ALTER TABLE "subscription_contracts" NO FORCE ROW LEVEL SECURITY');
+            await become();
+            await apply(MIGRATION);
+            assert.equal((await subscribers()).length, 3);
+        });
+    });
+
+    test('and so does row-level security on the tenant table the legal names come from', async () => {
+        // Hidden tenant rows would otherwise be reported as tenants without a
+        // name, of rows that are there.
+        await beforeTheMigration();
+        await threeCustomers();
+        await asOwningRole(async ({ become }) => {
+            await forceRowLevelSecurity('tenants');
+            await become();
+
+            await assert.rejects(() => apply(MIGRATION), refusedFor('tenants'));
+        });
+    });
+
+    test('once it has run through, a run as a role under row-level security does nothing', async () => {
+        // The upgrade is run once as a role that bypasses row-level security,
+        // and an entrypoint applies the file again on the next start as the
+        // application's own role.
+        await beforeTheMigration();
+        await threeCustomers();
+        await apply(MIGRATION);
+        const afterFirst = await subscribers();
+        await asOwningRole(async ({ become, leave }) => {
+            await forceRowLevelSecurity('subscription_contracts');
+            await become();
+
+            await apply(MIGRATION);
+
+            await leave();
+            assert.deepEqual(await subscribers(), afterFirst);
+        });
     });
 
     test('the statement the guide shows creates the subscribers it could not, and it then goes through', async () => {

@@ -26,7 +26,8 @@ is kept as a trace without a relation to the tenant.
   It gives every tenant with a subscription or a contract a subscriber named
   from your tenant table's `name`, attaches its contracts with copies marked
   `partiesMigrated`, and makes the link required; it stops, naming the tenants,
-  where it cannot name one. Safe to run twice.
+  where it cannot name one or row-level security hides their rows. Once the
+  link is required a later run does nothing, as any role.
 - `SubscriberService` in the new `@saasicat/nest/subscriber` entry creates the
   subscriber where your application creates a tenant, on the same transaction,
   with only the legal name required. Customer numbers count from 10001 behind
@@ -42,7 +43,11 @@ is kept as a trace without a relation to the tenant.
   `FinalActivationResult` carries `subscriberId`.
 - `SubscriptionContractModule`, the `conclusion` of `CheckoutOfferModule` and
   `tenantBilling.contractFreeze` require `subscriberRepository`; both shipped
-  persistence bundles supply it.
+  persistence bundles supply it. `SubscriberService` reads the plan catalogue,
+  so `SubscriptionContractModule` wired by hand needs `PlanCatalogModule` in
+  scope, as `SaaSiCatModule` provides it.
+- `ContractFreezePort` gains `assertPartyFor(tenantId)`; an implementation of
+  your own adds it.
 - `config/saas.yaml` takes an optional `issuer`. A database catalogue now
   carries every settings block of the file, this one included.
 - `persistenceAdapterContract` checks the subscriber port under the new gap

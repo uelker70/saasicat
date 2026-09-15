@@ -258,13 +258,13 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         "SubscriptionContract '{contractId}' ist bereits geschlossen",
     // ── subscriber ──
     SUBSCRIBER_REQUIRED:
-        "Mandant '{tenantId}' hat keinen Rechnungsempfänger. Ohne Vertragspartei wird nichts vereinbart oder berechnet: Zuerst muss der Rechnungsempfänger des Mandanten angelegt werden.",
-    SUBSCRIBER_ALREADY_EXISTS: "Mandant '{tenantId}' hat bereits einen Rechnungsempfänger.",
-    SUBSCRIBER_NOT_FOUND: "Rechnungsempfänger '{subscriberId}' nicht gefunden",
-    SUBSCRIBER_LEGAL_NAME_REQUIRED: 'Ein Rechnungsempfänger braucht seinen rechtlichen Namen.',
-    SUBSCRIBER_DETAIL_INVALID: 'Das Feld {field} des Rechnungsempfängers ist ungültig.',
+        "Mandant '{tenantId}' hat keinen Vertragspartner. Ohne ihn wird nichts vereinbart oder berechnet: Zuerst muss der Vertragspartner des Mandanten angelegt werden.",
+    SUBSCRIBER_ALREADY_EXISTS: "Mandant '{tenantId}' hat bereits einen Vertragspartner.",
+    SUBSCRIBER_NOT_FOUND: "Vertragspartner '{subscriberId}' nicht gefunden",
+    SUBSCRIBER_LEGAL_NAME_REQUIRED: 'Ein Vertragspartner braucht seinen rechtlichen Namen.',
+    SUBSCRIBER_DETAIL_INVALID: 'Das Feld {field} des Vertragspartners ist ungültig.',
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
-        '{field} gehört zur rechtlichen Identität des Rechnungsempfängers und ändert sich nur als Korrektur mit Begründung.',
+        '{field} gehört zur rechtlichen Identität des Vertragspartners und ändert sich nur als Korrektur mit Begründung.',
     SUBSCRIBER_CORRECTION_REASON_REQUIRED:
         'Eine Korrektur der rechtlichen Identität braucht eine Begründung.',
     SUBSCRIBER_CORRECTION_ACTOR_REQUIRED:

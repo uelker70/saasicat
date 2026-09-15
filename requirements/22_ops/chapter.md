@@ -186,12 +186,15 @@ _Tested by:_
         - a prefix set for the session numbers the migrated subscribers the way new ones are
           numbered
         - a prefix the configuration would refuse creates no subscriber
-        - a second run creates no second subscriber, and a tenant that came in between gets its own
+        - a second run leaves everything as the first one left it, a tenant added in between
+          included
         - without a foreign key naming the tenant table it stops, names the tenants, and leaves the
           tables in place
         - a tenant table without a name column stops it, naming the table
         - a tenant with no row or an empty name stops it, and both are named
         - a role row-level security hides contracts from stops it, naming the table and the role
+        - and so does row-level security on the tenant table the legal names come from
+        - once it has run through, a run as a role under row-level security does nothing
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
     - customer numbers count from 10001
@@ -262,12 +265,15 @@ _Tested by:_
         - a prefix set for the session numbers the migrated subscribers the way new ones are
           numbered
         - a prefix the configuration would refuse creates no subscriber
-        - a second run creates no second subscriber, and a tenant that came in between gets its own
+        - a second run leaves everything as the first one left it, a tenant added in between
+          included
         - without a foreign key naming the tenant table it stops, names the tenants, and leaves the
           tables in place
         - a tenant table without a name column stops it, naming the table
         - a tenant with no row or an empty name stops it, and both are named
         - a role row-level security hides contracts from stops it, naming the table and the role
+        - and so does row-level security on the tenant table the legal names come from
+        - once it has run through, a run as a role under row-level security does nothing
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
     - customer numbers count from 10001

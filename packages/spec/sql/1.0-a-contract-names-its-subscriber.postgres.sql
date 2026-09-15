@@ -51,15 +51,18 @@
 -- Without it they carry the number alone. A value the configuration would
 -- refuse stops the migration.
 --
--- Row-level security. Where `subscription_contracts` or `subscriptions` has it
--- and this role would see only some of their rows, the file stops before it
--- creates a subscriber: run it as a role that bypasses row-level security.
+-- Row-level security. Where `subscription_contracts`, `subscriptions` or the
+-- tenant table has it and this role would see only some of their rows, the file
+-- stops before it creates a subscriber: run it as a role that bypasses
+-- row-level security.
 --
--- Safe to run again: every object is created only where it is missing, a
--- tenant that has a live subscriber gets no second one, a contract that names a
--- subscriber is not touched, and the numbering is moved only while it has never
--- handed out a number. On a database created from
--- `reference-schema.postgres.sql` the whole file does nothing at all.
+-- Safe to run again: every object is created only where it is missing, and once
+-- the link is required the second transaction returns before it reads a row —
+-- so a later run, as any role, creates nothing. A tenant an application creates
+-- after that without a subscriber is the application's to give one; this file
+-- does not paper over it. The numbering is moved only while it has never handed
+-- out a number. On a database created from `reference-schema.postgres.sql` the
+-- whole file does nothing at all.
 
 BEGIN;
 
@@ -192,14 +195,47 @@ BEGIN
         RETURN;  -- said once already, by the first transaction
     END IF;
 
+    -- Run through already: the link is required, and nothing below is left to
+    -- do. Asked of the catalogue rather than of the rows, so row-level security
+    -- cannot change the answer, and an entrypoint that applies this file again
+    -- as the application's own role is not stopped by the guard below. From
+    -- here on, a tenant without a subscriber is the application's to give one.
+    IF (SELECT attnotnull FROM pg_attribute
+         WHERE attrelid = to_regclass('subscription_contracts')
+           AND attname = 'subscriberId'
+           AND attnum > 0
+           AND NOT attisdropped) THEN
+        RETURN;
+    END IF;
+
+    -- The application's tenant table: the one a single-column foreign key on
+    -- "tenantId" points at, from the subscriptions first. Read off the
+    -- catalogue, before any row is.
+    SELECT c.confrelid::regclass, referenced.attname
+      INTO tenant_table, tenant_key
+      FROM pg_constraint c
+      JOIN pg_attribute referencing
+        ON referencing.attrelid = c.conrelid AND referencing.attnum = c.conkey[1]
+      JOIN pg_attribute referenced
+        ON referenced.attrelid = c.confrelid AND referenced.attnum = c.confkey[1]
+     WHERE c.contype = 'f'
+       AND cardinality(c.conkey) = 1
+       AND referencing.attname = 'tenantId'
+       AND c.conrelid IN (to_regclass('subscriptions'), to_regclass('subscription_contracts'))
+     ORDER BY c.conrelid = to_regclass('subscriptions') DESC, c.conname
+     LIMIT 1;
+
     -- A table under row-level security shows this role only the rows its
-    -- policies allow. The migration would give subscribers to the tenants it
-    -- can see, and then fail to make the link required for the contracts it
-    -- could not — with a message about null values rather than about the role.
+    -- policies allow. Hidden contracts or subscriptions would leave tenants
+    -- without a subscriber and fail the required link with a message about
+    -- null values; hidden rows of the tenant table would be reported as tenants
+    -- without a name. Either way the message would name the wrong cause.
     SELECT array_agg(c.relname::text ORDER BY c.relname)
       INTO hidden
       FROM pg_class c
-     WHERE c.oid IN (to_regclass('subscription_contracts'), to_regclass('subscriptions'))
+     WHERE c.oid IN (
+               to_regclass('subscription_contracts'), to_regclass('subscriptions'), tenant_table
+           )
        AND c.relrowsecurity
        AND (c.relforcerowsecurity OR NOT pg_has_role(current_user, c.relowner, 'MEMBER'))
        AND NOT EXISTS (
@@ -209,8 +245,8 @@ BEGIN
     IF hidden IS NOT NULL THEN
         RAISE EXCEPTION
             'Cannot see every row of % under row-level security as role %, so subscribers would '
-            'be missing for the tenants it hides. Run this file as a role that bypasses '
-            'row-level security. No subscriber was created.',
+            'be missing or unnamed for the tenants it hides. Run this file as a role that '
+            'bypasses row-level security. No subscriber was created.',
             array_to_string(hidden, ', '),
             current_user;
     END IF;
@@ -251,22 +287,6 @@ BEGIN
      );
 
     IF EXISTS (SELECT 1 FROM _saasicat_tenants) THEN
-        -- The application's tenant table: the one a single-column foreign key on
-        -- "tenantId" points at, from the subscriptions first.
-        SELECT c.confrelid::regclass, referenced.attname
-          INTO tenant_table, tenant_key
-          FROM pg_constraint c
-          JOIN pg_attribute referencing
-            ON referencing.attrelid = c.conrelid AND referencing.attnum = c.conkey[1]
-          JOIN pg_attribute referenced
-            ON referenced.attrelid = c.confrelid AND referenced.attnum = c.confkey[1]
-         WHERE c.contype = 'f'
-           AND cardinality(c.conkey) = 1
-           AND referencing.attname = 'tenantId'
-           AND c.conrelid IN (to_regclass('subscriptions'), to_regclass('subscription_contracts'))
-         ORDER BY c.conrelid = to_regclass('subscriptions') DESC, c.conname
-         LIMIT 1;
-
         IF tenant_table IS NULL THEN
             RAISE EXCEPTION
                 'Cannot create the subscribers of % tenant(s) (%): no foreign key on '

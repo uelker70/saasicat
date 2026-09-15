@@ -1190,14 +1190,16 @@ psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-contract-names-its
 It creates the three subscriber tables and the new contract columns, gives every tenant that has a
 subscription or a contract a subscriber of its own, numbered from 10001 in the order the tenants
 came in and marked `migrated`, attaches each contract to it with a copy marked `partiesMigrated`,
-and makes the link required. It copies no issuer: it cannot read `config/saas.yaml`. Running it
-again creates nothing twice, and on a database whose schema already has the tables it does nothing
-at all.
+and makes the link required. It copies no issuer: it cannot read `config/saas.yaml`. Once the link
+is required a later run does nothing, as any role — including for a tenant your application created
+since without a subscriber, which is your application's to give one — and on a database whose schema
+already has the tables it does nothing at all.
 
-Where `subscription_contracts` or `subscriptions` is under row-level security, run the migration as
-a role that bypasses it; a role that would see only some of their rows is stopped before a subscriber
-is created, with the table named. The three new tables carry no policy: `subscribers` has no
-`tenantId`, so a tenant policy for it goes through `subscriber_tenants`.
+Where `subscription_contracts`, `subscriptions` or your tenant table is under row-level security,
+run the migration as a role that bypasses it; a role that would see only some of their rows is
+stopped before a subscriber is created, with the table named. The three new tables carry no
+policy: `subscribers` has no `tenantId`, so a tenant policy for it goes through
+`subscriber_tenants`.
 
 The legal name comes from your own tenant table, which the migration finds through the foreign key
 you declared on `subscriptions."tenantId"` — or on `subscription_contracts."tenantId"` — and its
@@ -1284,7 +1286,12 @@ the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractMod
   `entitlement.subscriberRepository`, and `SaaSiCatModule.forRoot` wires it wherever contracts are
   written. By hand, `SubscriptionContractModule.forRoot`, the `conclusion` of
   `CheckoutOfferModule.forRoot` and `tenantBilling.contractFreeze` each take `subscriberRepository`
-  beside `subscriptionContractRepository`, and refuse to start without it.
+  beside `subscriptionContractRepository`, and refuse to start without it. `SubscriberService` reads
+  the prefix and the issuer from `PLAN_CATALOG_TOKEN`, so a `SubscriptionContractModule` wired by hand
+  needs a `PlanCatalogModule` in scope, which `SaaSiCatModule.forRoot` provides globally.
+- **`ContractFreezePort`** gains `assertPartyFor(tenantId)`, which the plan-change and add-on routes
+  call before they write. An implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds
+  it: refuse a tenant without a subscriber, as `SubscriptionContractService.assertPartyFor` does.
 - **`SubscriptionContractRecord`** gains `subscriberId`, `subscriber` and `issuer` — the parties as
   copied at conclusion, the issuer `null` where none was named — and `partiesMigrated`. A
   `SubscriptionContractRepository` of your own writes `data.parties` on `create`.
