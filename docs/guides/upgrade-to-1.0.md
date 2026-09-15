@@ -1307,6 +1307,78 @@ the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractMod
 - **A copy the migration made says so**, with `partiesMigrated`: either party may have changed
   since the contract was concluded, so such a copy is never shown as what was agreed.
 
+### A payment method is taken through a gateway
+
+A payment method is entered in the payment gateway's own form now, and SaaSiCat keeps the gateway's
+reference to it for the subscriber. Self-registration activates once the gateway confirmed the
+payment method, and the confirmation is claimed and activated on one transaction. How to wire it is
+[payment methods through a gateway](wire-the-backend.md#payment-methods-through-a-gateway); what
+changes for an application that already runs:
+
+**Run the migration once, against your database**, after
+`1.0-a-contract-names-its-subscriber.postgres.sql` and before `db push`:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-payment-method-is-a-gateway-reference.postgres.sql
+```
+
+It creates `subscriber_payment_methods`, makes a gateway event unique per account in
+`"PaymentEventLog"` — an event recorded before carries its `provider` as its account — and adds the
+billing details, `checkoutGatewayAccount` and `gatewayCustomerRef` to `"PendingRegistration"`. Each
+part is skipped where its table is missing, and a second run does nothing. A sign-up whose checkout
+started before the migration has no account beside its session and repeats step 4.
+
+**Take the new fragment, and drop the old model once nothing writes to it.**
+`SubscriptionPaymentMethod` and the enum `SubscriptionPaymentType` are gone from
+`01-subscription.prisma`, with `Subscription.paymentMethod`; `SubscriberPaymentMethod` and
+`PaymentEventLog` are in `14-payments.prisma`, and `Subscriber` gains `paymentMethods`. The
+migration leaves the old table and its rows alone, because they are your application's. Once your
+application no longer writes there:
+
+```sql
+DROP TABLE IF EXISTS "subscription_payment_methods";
+DROP TYPE IF EXISTS "SubscriptionPaymentType";
+```
+
+Nothing here copies those rows into `subscriber_payment_methods`: they hold what a form typed, not a
+reference a gateway can charge, so each subscriber gives its payment method again.
+
+**Wiring.**
+
+- **`config/saas.yaml`** takes a `payments` block: the gateway accounts by name, and which one takes
+  new payment methods with the `methods` it offers. `SaaSiCatModule.forRoot` takes
+  `payments: { gateways }`, one adapter per account, and `prismaPersistence` and
+  `drizzlePersistence` supply the new `persistence.payments` slice. By hand, `PaymentsModule.forRoot`
+  from `@saasicat/nest/payments` takes the same pieces.
+- **Create the application with `rawBody: true`**, and let a global authentication guard return
+  early for `isSaaSiCatPublicRoute(reflector, context)`: the gateway's callbacks arrive at
+  `POST /webhooks/payment/<account>` without a session and are verified against the exact bytes they
+  arrived as.
+- **Remove your own payment webhook route.** `PaymentWebhookDto` and
+  `PendingRegistrationService.handlePaymentEvent` are gone, with `HandlePaymentEventInput`,
+  `HandlePaymentEventResult` and `HandlePaymentEventReason`.
+- **`RegistrationModule.forRoot`** no longer takes `paymentProvider` or `paymentEventLog`, and does
+  not start without the payments module beside it. `PaymentProvider`, `CheckoutSession` and
+  `PaymentEventStatus` are gone from `@saasicat/core`; a gateway adapter implements `PaymentGateway`
+  instead, and `DevPaymentGateway` stands in for a dev stub of your own.
+- **`ActivationOrchestrator.activate(pending)`** becomes `activate(pending, { tx })`. Write every row
+  on `tx` and open no transaction of your own; pass `tx` to `CheckoutOfferService.conclude`, which
+  now takes it, and to `SubscriberService.createForTenant`.
+- **`PendingRegistrationRepository`**: `findByCheckoutSession(sessionId)` becomes
+  `findByCheckoutSession(gatewayAccount, sessionId)`, and `findOpenCheckoutAccounts(now)` is new.
+  `PendingRegistration` gains `addressLine1`, `addressLine2`, `postalCode`, `city`, `country`,
+  `vatId`, `taxNumber`, `checkoutGatewayAccount` and `gatewayCustomerRef`.
+- **`startCheckout`** takes `billingDetails`: `addressLine1`, `postalCode`, `city` and `country` are
+  required, and a missing one is refused with `SUBSCRIBER_DETAIL_INVALID`.
+  `StartRegistrationCheckoutDto` validates them, and its URLs now require `http` or `https`.
+  `subscriberFromRegistration(pending)` copies them onto the subscriber.
+- **`PaymentEventLog`** is `claim(claim, tx)` instead of `tryClaim(eventId, payload)`, and the
+  adapters implement it; a duplicate answers `false` without raising. `RegistrationAuditEventType`
+  loses `PAYMENT_DUPLICATE_IGNORED`.
+- **The tenant's plan page** shows the payment method in use to whoever holds the billing
+  permission, and `GET`/`POST /billing/payment-method` require it: the tenant's administrator,
+  unless `payments.billingPermissionGuards` names others.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

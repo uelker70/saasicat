@@ -306,7 +306,7 @@ export interface SaaSiCatSubscriptionContractOptions extends Omit<
  *
  * That is a decision with a reason and a plan, not an omission: those ports
  * have no executable contract yet (`@saasicat/persistence-testing` covers the
- * catalogue, subscription, promo and audit ports and none of these), and
+ * ports a persistence bundle supplies and none of these), and
  * folding unverified ports into a bundle would move the problem rather than
  * check it. See `docs/guides/self-registration.md`.
  *

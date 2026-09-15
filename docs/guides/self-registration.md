@@ -1,7 +1,7 @@
 # Self-registration — advanced, hand-wired
 
 `RegistrationModule` implements the flow where a **prospect signs themselves up**:
-mail address, OTP, plan choice, payment, activation. It is the one substantial
+mail address, OTP, plan choice, billing address and payment method, activation. It is the one substantial
 subsystem `SaaSiCatModule` does not compose for you, and this page exists so you
 find that out here rather than three days in.
 
@@ -16,9 +16,12 @@ anyone at your company touching anything.
 
 ## What it costs
 
-`RegistrationModule.forRoot()` takes **ten required ports** and offers six
-optional ones. No persistence bundle supplies any of them, and the module is not
-reachable through `SaaSiCatModule` — you import and wire it yourself.
+`RegistrationModule.forRoot()` takes the required ports below and offers optional
+ones. No persistence bundle supplies any of them, and the module is not reachable
+through `SaaSiCatModule` — you import and wire it yourself. The payment method is
+the exception: it is taken through the payments module, which `SaaSiCatModule`
+composes, so `payments` has to be enabled there — see
+[payment methods through a gateway](wire-the-backend.md#payment-methods-through-a-gateway).
 
 | Port                            | What it does                                                                  |
 | ------------------------------- | ----------------------------------------------------------------------------- |
@@ -28,34 +31,59 @@ reachable through `SaaSiCatModule` — you import and wire it yourself.
 | `slugAvailabilityCheck`         | Answers "is this tenant slug free?"                                           |
 | `passwordHasher`                | Your hashing choice — the platform does not pick one                          |
 | `planCatalogLookup`             | The plans a prospect may choose from                                          |
-| `paymentProvider`               | Your payment integration                                                      |
-| `paymentEventLog`               | Records what the provider said                                                |
 | `activationOrchestrator`        | Turns a completed registration into a real tenant, and creates its subscriber |
 | `auditLogger`                   | Records the steps for the audit trail                                         |
 
 Optional: `resumeTokenSigner`, `resumeDelivery`, `configuratorLookup`,
 `promoPreview`, and the two configurator lookups behind them.
 
-The orchestrator creates the tenant's **subscriber** on the same transaction as the tenant,
-before any contract, and returns its id as `subscriberId`: every contract names the party it is
-concluded with, and a tenant without one is refused a contract. Concluding a checkout offer, pass
-it to `conclude`, which creates it on the transaction it concludes the offer on; otherwise call
-`SubscriberService.createForTenant` on your own transaction. `subscriberFromRegistration(pending)`
-from `@saasicat/core` gives the details a sign-up has — the tenant name as the legal name, the
-verified address for invoices:
+## Step 4: the billing address and the payment method
+
+`startCheckout` takes the billing address — `addressLine1`, `postalCode`, `city` and `country`
+(ISO 3166-1 alpha-2) are required, `addressLine2`, `vatId` and `taxNumber` optional — and opens the
+payment form of the gateway account `config/saas.yaml#payments.newPaymentMethods` names. It answers
+with `checkoutUrl`, where you send the person; a missing or malformed detail is refused with
+`SUBSCRIBER_DETAIL_INVALID` before the gateway is asked. Nothing is activated when the form opens.
+
+The gateway confirms the payment method through its callback to
+`POST /webhooks/payment/<account>`. The platform verifies it, claims it and activates the sign-up on
+**one transaction**: it opens it, claims the confirmation on it, and hands it to your orchestrator
+as `activate(pending, { tx })`; once `activate` returns, it records the payment method for the
+subscriber on the same transaction. A failure anywhere rolls all of it back — the claim included —
+so the gateway's retry activates the sign-up rather than being discarded as a duplicate. Write every
+row on `tx` and open no transaction of your own: a write beside it would survive the rollback that
+undoes the rest.
+
+The orchestrator creates the tenant's **subscriber** on that transaction, before any contract, and
+returns its id as `subscriberId`: every contract names the party it is concluded with, and a tenant
+without one is refused a contract. `subscriberFromRegistration(pending)` from `@saasicat/core` gives
+the details a sign-up has — the tenant name as the legal name, the verified address for invoices,
+and the billing address and tax identifiers of step 4. Concluding a checkout offer, pass the
+subscriber and the transaction to `conclude`; otherwise call `SubscriberService.createForTenant` on
+`tx`:
 
 ```ts
-await checkoutOffers.conclude(
-    offerId,
-    { tenantId, effectiveFrom: now, subscriber: subscriberFromRegistration(pending) },
-    async (tx) => {
-        /* create the tenant, its user and its subscription on tx */
-    },
-);
+async activate(pending: PendingRegistration, { tx }: RegistrationActivation) {
+    const tenantId = await createTenant(pending, tx);
+    await checkoutOffers.conclude(
+        offerId,
+        { tenantId, effectiveFrom: new Date(), subscriber: subscriberFromRegistration(pending), tx },
+        async (tx) => {
+            /* create the tenant's user and its subscription on tx */
+        },
+    );
+    /* … return { userId, tenantId, subscriberId, subscriptionId } */
+}
 ```
 
-Several of those are genuinely app-specific — `paymentProvider` and
-`activationOrchestrator` encode decisions no framework can make for you. Others
+`pendingRegistrationRepository` finds a sign-up by the gateway account and the session together —
+`findByCheckoutSession(gatewayAccount, sessionId)` — because a session identifier is unique only
+within its account, and names the accounts sign-ups are still waiting at —
+`findOpenCheckoutAccounts(now)` — so the application refuses to start while one of them is no longer
+configured.
+
+Several of the ports are genuinely app-specific — `activationOrchestrator` encodes decisions no
+framework can make for you. Others
 (`pendingRegistrationRepository`, `slugAvailabilityCheck`) are the kind of thing
 a persistence bundle would normally supply, and one day should.
 
@@ -68,9 +96,9 @@ Three options were weighed:
 3. Leave it where it is and document the cliff.
 
 **Three, for now.** The ports have no executable contract:
-`@saasicat/persistence-testing` covers the catalogue, subscription, promo and
-audit ports against a real PostgreSQL for both adapters, and covers none of
-these ten. Folding unverified ports into a bundle, or cutting a package around
+`@saasicat/persistence-testing` covers the catalogue, subscription, promo, audit
+and payment ports against a real PostgreSQL for both adapters, and covers none of
+these. Folding unverified ports into a bundle, or cutting a package around
 them, moves the problem without checking it — and a bundle that supplies a
 `pendingRegistrationRepository` nothing holds to a contract is a promise the
 project cannot keep.
@@ -90,7 +118,7 @@ import { RegistrationModule } from '@saasicat/nest/registration';
             // tokens become resolvable inside the module's scope.
             pendingRegistrationRepository: MyPendingRegistrationRepository,
             otpDelivery: MyOtpDelivery,
-            // … the remaining eight
+            // … the remaining ports
             imports: [PrismaModule, MailModule],
             extraProviders: [MyPendingRegistrationRepository, MyOtpDelivery],
         }),

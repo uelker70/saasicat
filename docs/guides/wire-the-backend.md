@@ -382,9 +382,77 @@ written and the reason the read failed.
 
 Use the low-level `CatalogModule`, `EntitlementModule`,
 `TenantBillingModule`, `SubscriptionBundleModule` and adapter options only
-when the standard behavior does not fit. Payment-provider integration is a
-separate future adapter boundary; it does not change capability discovery,
-contracts or backend enforcement.
+when the standard behavior does not fit.
+
+## Payment Methods Through a Gateway
+
+A payment method is entered in the payment gateway's own form, and SaaSiCat keeps the gateway's
+reference to it for the subscriber, with the details that tell one payment method from another —
+the card network, the last four digits, the expiry, a direct debit's mandate reference — and never a
+card number or an IBAN. Self-registration takes its payment method this way, and the tenant's plan
+page shows the one in use and opens the form for a new one.
+
+Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
+webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,
+with the `methods` its form offers:
+
+```yaml
+payments:
+    newPaymentMethods: main
+    accounts:
+        main:
+            provider: dev
+            methods: [card, sepa_debit]
+```
+
+Bind one gateway adapter per account, built with that account's keys from the environment. The
+file refuses a variable named like a credential, which is why the keys are bound here and not
+written there. `DevPaymentGateway` from `@saasicat/nest/payments` confirms every payment method on
+the spot without a provider behind it, for development and tests, and refuses to run with
+`NODE_ENV=production`:
+
+```ts
+import { DevPaymentGateway } from '@saasicat/nest/payments';
+
+defineSaaSiCat({
+    // … the rest of your wiring …
+    persistence, // supplies `payments` and `entitlement.subscriberRepository`
+    tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
+    payments: {
+        gateways: { main: new DevPaymentGateway() },
+        // Who holds the billing permission. Without it, the tenant's administrator does.
+        // billingPermissionGuards: [AccountingRoleGuard],
+    },
+});
+```
+
+A gateway adapter implements `PaymentGateway` from `@saasicat/core`: it opens the form for a
+payment method, and it reads a callback, verifying it with the account's secret before a single
+field is trusted. `config/saas.yaml` names the provider each account is at, and a start refuses an
+adapter that names another.
+
+What `payments` mounts and asks of the application:
+
+- **`POST ${globalPrefix}/webhooks/payment/<account>`** — where each account's callbacks arrive.
+  Register that URL at the gateway. The route is public, because a gateway has no session, and it
+  verifies against the exact bytes that arrived, so create the application with `rawBody: true`,
+  and let a global authentication guard return early for `isSaaSiCatPublicRoute(reflector,
+context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJECTED`, and one
+  for an account the file does not name with `PAYMENT_GATEWAY_ACCOUNT_UNKNOWN`.
+- **One transaction per callback.** The event is claimed in `PaymentEventLog`, unique per account,
+  and what it changes is written on the same transaction. A failure rolls both back, and the
+  gateway's retry is handled; a delivery that arrives again after a commit is a duplicate and
+  changes nothing.
+- **`GET /billing/payment-method`** and **`POST /billing/payment-method/setup`** — the tenant's
+  payment method, with `tenantBilling` enabled. Both sit behind `tenantBilling.authGuards` and the
+  billing permission, reading included; a user without the permission is refused with
+  `BILLING_PERMISSION_REQUIRED`. The setup takes `successUrl` and `cancelUrl` and answers the form's
+  `redirectUrl`; nothing changes until the gateway confirms, and the confirmed payment method
+  replaces the one in use, which stays as history.
+- **At start**, the application refuses to boot when the bound gateways and the accounts in the file
+  disagree, when a payment method in use belongs to an account the file no longer names, and when
+  a sign-up is still waiting for its payment method at such an account — each named in the message.
+  An account stays listed until nothing in use belongs to it.
 
 ## Admin Module
 

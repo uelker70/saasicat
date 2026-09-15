@@ -89,16 +89,26 @@ and consumers cannot add their own bypass switches.
 **Required:** always run production with `NODE_ENV=production`. Never set these flags
 in any internet-facing environment, staging included.
 
-### 5. Payment webhook: signature verification is the integrator's job
+### 5. Payment webhooks: verified by the gateway adapter, reachable without a session
 
-The registration/checkout flow ships the webhook DTOs and processing logic, but it
-does **not** verify payment-provider signatures — it cannot know your provider or
-secret.
+`POST /webhooks/payment/:account` is public, because a payment gateway has no session. Nothing in a
+callback is read before the account's gateway adapter has verified its signature against the exact
+bytes that arrived; a callback that does not verify is refused with `PAYMENT_CALLBACK_REJECTED`, and
+nothing is claimed or created from it.
 
-**Required:** put a signature-verification guard (e.g. validating Stripe's
-`Stripe-Signature` header against the raw request body) in front of the webhook
-route, **before** body parsing and DTO validation. An unauthenticated webhook
-endpoint lets anyone forge payment confirmations.
+**Required:**
+
+- Create the application with `rawBody: true`. Without the raw body a JSON callback cannot be
+  verified and is answered with a server error.
+- A global authentication guard (`APP_GUARD`) returns early for
+  `isSaaSiCatPublicRoute(reflector, context)`, or it refuses the gateway's callbacks before they are
+  verified.
+- A gateway adapter of your own throws `PaymentCallbackRejectedError` from `readCallback` for
+  anything it cannot verify with the account's secret.
+- `DevPaymentGateway` confirms payment methods nobody gave. It refuses to run with
+  `NODE_ENV=production`; never bind it where real customers sign up.
+- Keep each account's keys and webhook secret in the environment. `config/saas.yaml` refuses a
+  variable named like a credential, so they are bound in code, not written into the file.
 
 ### 6. Guard order on super-admin routes
 
