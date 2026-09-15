@@ -294,7 +294,10 @@ export const SUBSCRIBER_ERROR_CODES = {
     SUBSCRIBER_ALREADY_EXISTS: 'SUBSCRIBER_ALREADY_EXISTS',
     SUBSCRIBER_NOT_FOUND: 'SUBSCRIBER_NOT_FOUND',
     SUBSCRIBER_LEGAL_NAME_REQUIRED: 'SUBSCRIBER_LEGAL_NAME_REQUIRED',
-    /** A detail that has a form — the country, the invoice email — is not in it. Carries `field`. */
+    /**
+     * A detail that has a form — the country, the invoice email — is not in it,
+     * or one sign-up requires — the billing address — is missing. Carries `field`.
+     */
     SUBSCRIBER_DETAIL_INVALID: 'SUBSCRIBER_DETAIL_INVALID',
     /** A contact change named a field of the legal identity. Carries `field`. */
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT: 'SUBSCRIBER_IDENTITY_NOT_A_CONTACT',
@@ -325,8 +328,6 @@ export const REGISTRATION_ERROR_CODES = {
     PLAN_NOT_AVAILABLE: 'PLAN_NOT_AVAILABLE',
     PLAN_NOT_SELECTED: 'PLAN_NOT_SELECTED',
     MODEL_NOT_AVAILABLE: 'MODEL_NOT_AVAILABLE',
-    /** A billing detail step 4 requires is missing, or one that has a form is not in it. Carries `field`. */
-    BILLING_DETAIL_INVALID: 'BILLING_DETAIL_INVALID',
 } as const;
 
 export type RegistrationErrorCode =

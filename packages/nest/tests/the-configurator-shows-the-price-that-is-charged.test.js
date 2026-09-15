@@ -73,8 +73,6 @@ function configurator(answer = () => ({ discountAmount: 5, percent: 5 })) {
         unused,
         unused,
         unused,
-        unused,
-        unused,
         { log: async () => {} },
         undefined,
         undefined,

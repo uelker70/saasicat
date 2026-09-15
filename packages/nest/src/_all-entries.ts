@@ -1,6 +1,6 @@
 // Synthetic barrel for the CJS build — not a public entry point.
 //
-// esbuild only code-splits ESM, so building the 11 public entries as separate
+// esbuild only code-splits ESM, so building the public entries as separate
 // CJS bundles copies every shared module into each one. Each copy has its own
 // class objects, and Nest matches providers by class reference: a service
 // registered through `@saasicat/nest/platform` then fails to resolve when the
@@ -26,6 +26,7 @@ export * as catalogNs from './catalog/index.js';
 export * as checkoutOfferNs from './checkout-offer/index.js';
 export * as discoveryNs from './discovery/index.js';
 export * as entitlementNs from './entitlement/index.js';
+export * as paymentsNs from './payments/index.js';
 export * as platformNs from './platform/index.js';
 export * as promoNs from './promo/index.js';
 export * as registrationNs from './registration/index.js';

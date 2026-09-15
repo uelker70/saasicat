@@ -19,242 +19,29 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OTP_VERIFY_MAX_ATTEMPTS } from '@saasicat/core';
 import { PendingRegistrationService, hashOtpCode } from '../dist/registration/index.js';
+import {
+    FakeAuditLogger,
+    FakeOtpDelivery,
+    FakePasswordHasher,
+    FakePlanCatalog,
+    FakeRepository,
+    FakeResumeDelivery,
+    FakeResumeTokenSigner,
+    FakeSlugCheck,
+    FakeUserLookup,
+    baseInput,
+} from './helpers/registration.js';
 
-// ─── Test doubles ───────────────────────────────────────────────────────────
+/**
+ * Step 4 is not the subject here: `a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+ * boots it with the payments module. A registration that reaches it fails the test.
+ */
+const BILLING = { addressLine1: 'Hauptstraße 1', postalCode: '10115', city: 'Berlin', country: 'DE' };
 
-class FakeRepository {
-    constructor() {
-        this.rows = new Map();
-        this.nextId = 1;
-    }
-    async findById(id) {
-        return this.rows.get(id) ?? null;
-    }
-    async findByEmail(email) {
-        for (const row of this.rows.values()) {
-            if (row.email === email) return row;
-        }
-        return null;
-    }
-    async findByCheckoutSession(sessionId) {
-        for (const row of this.rows.values()) {
-            if (row.checkoutSessionId === sessionId) return row;
-        }
-        return null;
-    }
-    async findExpired(now, limit) {
-        const expired = [];
-        for (const row of this.rows.values()) {
-            if (row.expiresAt.getTime() < now.getTime()) {
-                expired.push(row);
-                if (expired.length >= limit) break;
-            }
-        }
-        return expired;
-    }
-    async create(input) {
-        const id = `pending_${this.nextId++}`;
-        const now = new Date();
-        const row = {
-            id,
-            tenantName: input.tenantName,
-            tenantSlug: input.tenantSlug,
-            salutation: input.salutation,
-            firstName: input.firstName,
-            lastName: input.lastName,
-            email: input.email,
-            passwordHash: input.passwordHash,
-            locale: input.locale,
-            status: 'PENDING_EMAIL_VERIFICATION',
-            currentStep: 2,
-            emailVerifiedAt: null,
-            otpHash: input.otpHash,
-            otpExpiresAt: input.otpExpiresAt,
-            otpSendCount: 1,
-            lastOtpSentAt: now,
-            otpAttemptCount: 0,
-            selectedPlanId: null,
-            checkoutSessionId: null,
-            checkoutStartedAt: null,
-            expiresAt: input.expiresAt,
-            createdAt: now,
-            updatedAt: now,
-        };
-        this.rows.set(id, row);
-        return row;
-    }
-    // Deliberately last-write-wins (like an UPDATE ... SET in the DB): parallel
-    // writers with a stale read state overwrite each other.
-    async update(id, input) {
-        const existing = this.rows.get(id);
-        if (!existing) throw new Error(`pending ${id} not found`);
-        const updated = { ...existing, ...input, updatedAt: new Date() };
-        this.rows.set(id, updated);
-        return updated;
-    }
-    // Truly atomic: reads the state at execution time, not a
-    // previously read snapshot — analogous to Prisma `{ increment: 1 }`.
-    async incrementOtpAttemptCount(id) {
-        const existing = this.rows.get(id);
-        if (!existing) throw new Error(`pending ${id} not found`);
-        const updated = {
-            ...existing,
-            otpAttemptCount: existing.otpAttemptCount + 1,
-            updatedAt: new Date(),
-        };
-        this.rows.set(id, updated);
-        return updated.otpAttemptCount;
-    }
-    async delete(id) {
-        this.rows.delete(id);
-    }
-}
-
-class FakeOtpDelivery {
-    constructor() {
-        this.sent = [];
-    }
-    async sendVerificationOtp(params) {
-        this.sent.push(params);
-    }
-}
-
-class FakeUserLookup {
-    constructor(activeEmails = []) {
-        this.activeEmails = new Set(activeEmails);
-    }
-    async hasActiveUser(email) {
-        return this.activeEmails.has(email);
-    }
-}
-
-class FakeSlugCheck {
-    constructor(takenSlugs = []) {
-        this.taken = new Set(takenSlugs);
-    }
-    async isSlugAvailable(slug) {
-        return !this.taken.has(slug);
-    }
-}
-
-class FakePasswordHasher {
-    async hash(plain) {
-        return `hashed:${plain}`;
-    }
-    async verify(hash, plain) {
-        return hash === `hashed:${plain}`;
-    }
-}
-
-class FakeResumeTokenSigner {
-    constructor() {
-        this.tokens = new Map();
-        this.next = 1;
-    }
-    async sign(params) {
-        const t = `resume_${this.next++}`;
-        this.tokens.set(t, params.pendingRegistrationId);
-        return t;
-    }
-    async verify(token) {
-        const pid = this.tokens.get(token);
-        if (!pid) throw new Error('invalid');
-        return { pendingRegistrationId: pid };
-    }
-}
-
-class FakeResumeDelivery {
-    constructor() {
-        this.sent = [];
-    }
-    async sendResumeEmail(params) {
-        this.sent.push(params);
-    }
-}
-
-class FakeAuditLogger {
-    constructor() {
-        this.events = [];
-    }
-    async log(event) {
-        this.events.push(event);
-    }
-    byType(type) {
-        return this.events.filter((e) => e.eventType === type);
-    }
-}
-
-class FakePaymentEventLog {
-    constructor() {
-        this.claimed = new Map();
-    }
-    async tryClaim(eventId, payload) {
-        if (this.claimed.has(eventId)) return false;
-        this.claimed.set(eventId, { ...payload, at: new Date() });
-        return true;
-    }
-}
-
-class FakeActivationOrchestrator {
-    constructor() {
-        this.calls = [];
-        this.nextId = 1;
-    }
-    async activate(pending) {
-        this.calls.push(pending);
-        const n = this.nextId++;
-        return {
-            userId: `user_${n}`,
-            tenantId: `tenant_${n}`,
-            subscriberId: `subscriber_${n}`,
-            subscriptionId: `sub_${n}`,
-        };
-    }
-}
-
-class FakePaymentProvider {
-    constructor() {
-        this.calls = [];
-    }
-    async createCheckoutSession(params) {
-        this.calls.push(params);
-        return {
-            sessionId: `stub_${this.calls.length}`,
-            checkoutUrl: `https://stub.example/checkout/${this.calls.length}?ref=${params.pendingRegistrationId}`,
-            provider: 'fake',
-        };
-    }
-}
-
-class FakePlanCatalog {
-    constructor(
-        plans = [
-            {
-                id: 'STANDARD',
-                name: 'Standard',
-                monthlyNet: 19,
-                yearlyNet: 190,
-                features: ['members'],
-            },
-            {
-                id: 'PROFESSIONAL',
-                name: 'Professional',
-                monthlyNet: 49,
-                yearlyNet: 490,
-                popular: true,
-                features: ['members', 'finance'],
-            },
-        ],
-    ) {
-        this.plans = plans;
-    }
-    async listPublicSignupPlans() {
-        return this.plans;
-    }
-    async findPublicSignupPlan(id) {
-        return this.plans.find((p) => p.id === id) ?? null;
-    }
-}
+const PAYMENTS_NOT_REACHED = {
+    startSetup: async () => assert.fail('step 4 was reached'),
+    confirm: async () => assert.fail('step 4 was reached'),
+};
 
 function makeService(overrides = {}) {
     const repo = overrides.repo ?? new FakeRepository();
@@ -263,10 +50,6 @@ function makeService(overrides = {}) {
     const slugCheck = overrides.slugCheck ?? new FakeSlugCheck();
     const hasher = overrides.hasher ?? new FakePasswordHasher();
     const planCatalog = overrides.planCatalog ?? new FakePlanCatalog();
-    const paymentProvider = overrides.paymentProvider ?? new FakePaymentProvider();
-    const paymentEventLog = overrides.paymentEventLog ?? new FakePaymentEventLog();
-    const activationOrchestrator =
-        overrides.activationOrchestrator ?? new FakeActivationOrchestrator();
     const audit = overrides.audit ?? new FakeAuditLogger();
     const resumeTokenSigner =
         overrides.resumeTokenSigner === undefined
@@ -285,9 +68,7 @@ function makeService(overrides = {}) {
             slugCheck,
             hasher,
             planCatalog,
-            paymentProvider,
-            paymentEventLog,
-            activationOrchestrator,
+            PAYMENTS_NOT_REACHED,
             audit,
             resumeTokenSigner ?? undefined,
             resumeDelivery ?? undefined,
@@ -299,26 +80,12 @@ function makeService(overrides = {}) {
         slugCheck,
         hasher,
         planCatalog,
-        paymentProvider,
-        paymentEventLog,
-        activationOrchestrator,
         audit,
         resumeTokenSigner,
         resumeDelivery,
     };
 }
 
-function baseInput(overrides = {}) {
-    return {
-        tenantName: 'Mein Verein',
-        firstName: 'Max',
-        lastName: 'Mustermann',
-        email: 'max@example.com',
-        password: 'Password123',
-        locale: 'de',
-        ...overrides,
-    };
-}
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -741,33 +508,6 @@ test('listPublicPlans() passes the plan list through', async () => {
 
 // ─── Step 4: startCheckout ──────────────────────────────────────────────────
 
-async function startVerifyPlan(ctx, email = 'checkout@example.com', planId = 'STANDARD') {
-    await ctx.service.start(baseInput({ email }));
-    const code = ctx.delivery.sent[ctx.delivery.sent.length - 1].code;
-    const verify = await ctx.service.verifyOtp(email, code);
-    await ctx.service.selectPlan({ pendingRegistrationId: verify.pendingRegistrationId, planId });
-    return verify.pendingRegistrationId;
-}
-
-test('startCheckout() success → status CHECKOUT_STARTED + url + sessionId', async () => {
-    const ctx = makeService();
-    const pendingId = await startVerifyPlan(ctx);
-    const result = await ctx.service.startCheckout({
-        pendingRegistrationId: pendingId,
-        successUrl: 'https://app.example/success',
-        cancelUrl: 'https://app.example/cancel',
-    });
-    assert.equal(result.status, 'CHECKOUT_STARTED');
-    assert.equal(result.nextStep, 4);
-    assert.match(result.checkoutSessionId, /^stub_/);
-    assert.match(result.checkoutUrl, /^https:\/\/stub\.example\/checkout/);
-
-    const stored = await ctx.repo.findById(pendingId);
-    assert.equal(stored.status, 'CHECKOUT_STARTED');
-    assert.equal(stored.checkoutSessionId, result.checkoutSessionId);
-    assert.ok(stored.checkoutStartedAt instanceof Date);
-});
-
 // @requirement SC-REG-011 — The steps come in order
 test('startCheckout() without plan selection → PLAN_NOT_SELECTED', async () => {
     const ctx = makeService();
@@ -778,6 +518,7 @@ test('startCheckout() without plan selection → PLAN_NOT_SELECTED', async () =>
         () =>
             ctx.service.startCheckout({
                 pendingRegistrationId: verify.pendingRegistrationId,
+                billingDetails: BILLING,
                 successUrl: 'https://app.example/s',
                 cancelUrl: 'https://app.example/c',
             }),
@@ -791,143 +532,12 @@ test('startCheckout() unknown Pending → PENDING_REGISTRATION_NOT_FOUND', async
         () =>
             ctx.service.startCheckout({
                 pendingRegistrationId: 'none',
+                billingDetails: BILLING,
                 successUrl: 'https://app.example/s',
                 cancelUrl: 'https://app.example/c',
             }),
         (err) => err.getResponse().code === 'PENDING_REGISTRATION_NOT_FOUND',
     );
-});
-
-// @requirement SC-REG-014 — Prices in the sign-up flow are worked out by the server
-// @requirement SC-REG-018 — Whether a payment confirmation is genuine is the integrator's to verify
-test('startCheckout() calls provider with correct params', async () => {
-    const ctx = makeService();
-    const pendingId = await startVerifyPlan(ctx, 'p@example.com', 'PROFESSIONAL');
-    await ctx.service.startCheckout({
-        pendingRegistrationId: pendingId,
-        successUrl: 'https://app.example/s',
-        cancelUrl: 'https://app.example/c',
-    });
-    assert.equal(ctx.paymentProvider.calls.length, 1);
-    const call = ctx.paymentProvider.calls[0];
-    assert.equal(call.planId, 'PROFESSIONAL');
-    assert.equal(call.pendingRegistrationId, pendingId);
-    assert.equal(call.email, 'p@example.com');
-});
-
-test('startCheckout() again in status CHECKOUT_STARTED → creates new session (resume allowed)', async () => {
-    const ctx = makeService();
-    const pendingId = await startVerifyPlan(ctx);
-    const first = await ctx.service.startCheckout({
-        pendingRegistrationId: pendingId,
-        successUrl: 'https://app.example/s',
-        cancelUrl: 'https://app.example/c',
-    });
-    const second = await ctx.service.startCheckout({
-        pendingRegistrationId: pendingId,
-        successUrl: 'https://app.example/s',
-        cancelUrl: 'https://app.example/c',
-    });
-    assert.notEqual(second.checkoutSessionId, first.checkoutSessionId);
-});
-
-// ─── Webhook + activation (Phase 2.3) ───────────────────────────────────────
-
-async function startThroughCheckout(ctx, email = 'pay@example.com') {
-    const pendingId = await startVerifyPlan(ctx, email);
-    const checkout = await ctx.service.startCheckout({
-        pendingRegistrationId: pendingId,
-        successUrl: 'https://app.example/s',
-        cancelUrl: 'https://app.example/c',
-    });
-    return { pendingId, sessionId: checkout.checkoutSessionId };
-}
-
-// @requirement SC-REG-016 — The account, the tenant and the subscription are created together or not at all
-test('handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription created', async () => {
-    const ctx = makeService();
-    const { pendingId, sessionId } = await startThroughCheckout(ctx);
-    const result = await ctx.service.handlePaymentEvent({
-        eventId: 'evt_1',
-        sessionId,
-        provider: 'fake',
-        status: 'SUCCEEDED',
-    });
-    assert.equal(result.activated, true);
-    assert.ok(result.result?.userId);
-    assert.ok(result.result?.tenantId);
-    assert.ok(result.result?.subscriptionId);
-    assert.equal(ctx.activationOrchestrator.calls.length, 1);
-    assert.equal(await ctx.repo.findById(pendingId), null, 'PendingRegistration was deleted');
-});
-
-// @requirement SC-REG-019 — The same payment event applied twice changes nothing
-// @requirement SC-OPS-001 — An operator can retry a failed deployment
-// @requirement SC-OPS-006 — Applying the same external event twice changes nothing
-test('handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation', async () => {
-    const ctx = makeService();
-    const { sessionId } = await startThroughCheckout(ctx);
-    const first = await ctx.service.handlePaymentEvent({
-        eventId: 'evt_idem',
-        sessionId,
-        provider: 'fake',
-        status: 'SUCCEEDED',
-    });
-    assert.equal(first.activated, true);
-
-    const second = await ctx.service.handlePaymentEvent({
-        eventId: 'evt_idem',
-        sessionId,
-        provider: 'fake',
-        status: 'SUCCEEDED',
-    });
-    assert.equal(second.activated, false);
-    assert.equal(second.reason, 'ALREADY_PROCESSED');
-    assert.equal(ctx.activationOrchestrator.calls.length, 1, 'Activated only once');
-});
-
-// @requirement SC-REG-019 — The same payment event applied twice changes nothing
-test('handlePaymentEvent() FAILED → no activation, but event claimed', async () => {
-    const ctx = makeService();
-    const { pendingId, sessionId } = await startThroughCheckout(ctx);
-    const result = await ctx.service.handlePaymentEvent({
-        eventId: 'evt_fail',
-        sessionId,
-        provider: 'fake',
-        status: 'FAILED',
-    });
-    assert.equal(result.activated, false);
-    assert.equal(result.reason, 'PAYMENT_NOT_SUCCEEDED');
-    assert.equal(ctx.activationOrchestrator.calls.length, 0);
-    // Pending remains, user can pay again:
-    const stored = await ctx.repo.findById(pendingId);
-    assert.ok(stored);
-    assert.equal(stored.status, 'CHECKOUT_STARTED');
-});
-
-test('handlePaymentEvent() unknown session → PENDING_REGISTRATION_NOT_FOUND', async () => {
-    const ctx = makeService();
-    const result = await ctx.service.handlePaymentEvent({
-        eventId: 'evt_x',
-        sessionId: 'no-such-session',
-        provider: 'fake',
-        status: 'SUCCEEDED',
-    });
-    assert.equal(result.activated, false);
-    assert.equal(result.reason, 'PENDING_REGISTRATION_NOT_FOUND');
-});
-
-// @requirement SC-REG-018 — Whether a payment confirmation is genuine is the integrator's to verify
-test('handlePaymentEvent() without sessionId → MISSING_SESSION_ID', async () => {
-    const ctx = makeService();
-    const result = await ctx.service.handlePaymentEvent({
-        eventId: 'evt_no_session',
-        sessionId: null,
-        provider: 'fake',
-        status: 'SUCCEEDED',
-    });
-    assert.equal(result.activated, false);
-    assert.equal(result.reason, 'MISSING_SESSION_ID');
 });
 
 // ─── Phase 3.1: runCleanup ──────────────────────────────────────────────────
@@ -1036,33 +646,6 @@ test('audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED', a
     // Correct
     await ctx.service.verifyOtp('max@example.com', code);
     assert.equal(ctx.audit.byType('OTP_VERIFIED').length, 1);
-});
-
-// @requirement SC-AUD-001 — Every administrative action records who did it, from where, and when
-// @requirement SC-REG-019 — The same payment event applied twice changes nothing
-test('audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate → PAYMENT_DUPLICATE_IGNORED', async () => {
-    const ctx = makeService();
-    const { sessionId } = await startThroughCheckout(ctx);
-
-    await ctx.service.handlePaymentEvent({
-        eventId: 'evt_audit_1',
-        sessionId,
-        provider: 'fake',
-        status: 'SUCCEEDED',
-    });
-    assert.equal(ctx.audit.byType('PAYMENT_RECEIVED').length, 1);
-    assert.equal(ctx.audit.byType('ACTIVATION_COMPLETED').length, 1);
-    // The record names the party the tenant's contracts are concluded with.
-    assert.equal(ctx.audit.byType('ACTIVATION_COMPLETED')[0].metadata.subscriberId, 'subscriber_1');
-
-    // Duplicate
-    await ctx.service.handlePaymentEvent({
-        eventId: 'evt_audit_1',
-        sessionId,
-        provider: 'fake',
-        status: 'SUCCEEDED',
-    });
-    assert.equal(ctx.audit.byType('PAYMENT_DUPLICATE_IGNORED').length, 1);
 });
 
 // ─── Phase 3.4: Resume-Token ────────────────────────────────────────────────

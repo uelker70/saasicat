@@ -294,7 +294,6 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_NOT_AVAILABLE: 'Dieser Plan steht nicht zur Verfügung.',
     PLAN_NOT_SELECTED: 'Bitte wähle zuerst einen Plan aus.',
     MODEL_NOT_AVAILABLE: 'Diese Option steht nicht zur Verfügung.',
-    BILLING_DETAIL_INVALID: 'Bitte prüfe die Rechnungsangabe {field}.',
     // ── payments ──
     PAYMENTS_NOT_CONFIGURED: 'Zahlungsmethoden können hier noch nicht hinterlegt werden.',
     PAYMENT_GATEWAY_ACCOUNT_UNKNOWN: "Unter '{account}' ist kein Konto eines Zahlungsanbieters eingerichtet.",

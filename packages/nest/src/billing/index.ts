@@ -58,6 +58,7 @@ export {
 export * from './tenant-billing.tokens.js';
 export * from './composed-tenant-auth.guard.js';
 export * from './tenant-admin.guard.js';
+export * from './billing-permission.guard.js';
 export * from './self-service-policy.js';
 export * from './proration.js';
 export * from './plan-change-preview.service.js';

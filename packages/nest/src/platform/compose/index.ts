@@ -20,6 +20,7 @@ import {
     composeSetup,
     composeSubscriptionContract,
 } from './optional-modules.js';
+import { composePayments } from './payments.js';
 import { composePromoCodes } from './promo-codes.js';
 import { composeSubscriptionBundles, composeTenantBilling } from './tenant-billing.js';
 
@@ -34,6 +35,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     // Before the bundles — see the note above.
     composeTenantBilling,
     composeSubscriptionBundles,
+    // After tenant billing too: its tenant routes share the guards.
+    composePayments,
     composeSetup,
     composeAdminStats,
     composeCheckoutOffer,

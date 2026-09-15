@@ -7,14 +7,9 @@ import {
     Optional,
 } from '@nestjs/common';
 import type {
-    ActivationOrchestrator,
     CleanupResult,
     ConfiguratorCatalog,
     ConfiguratorPriceBreakdown,
-    HandlePaymentEventInput,
-    HandlePaymentEventResult,
-    PaymentEventLog,
-    PaymentProvider,
     PendingRegistration,
     PendingRegistrationRepository,
     PendingRegistrationSnapshot,
@@ -48,7 +43,6 @@ import {
     OTP_RATE_LIMIT_WINDOW_MINUTES,
     OTP_TTL_MINUTES,
     OTP_VERIFY_MAX_ATTEMPTS,
-    PENDING_CHECKOUT_TTL_DAYS,
     PENDING_EMAIL_TTL_HOURS,
     PENDING_ONBOARDING_TTL_DAYS,
     REGISTRATION_STEP_BY_STATUS,
@@ -56,11 +50,9 @@ import {
 import { codedError } from '../errors/coded-error.js';
 import { generateOtpCode, hashOtpCode, slugify, verifyOtpCode } from './helpers.js';
 import { computeBreakdown } from './pricing.js';
+import { RegistrationPaymentService } from './registration-payment.service.js';
 import {
-    ACTIVATION_ORCHESTRATOR_TOKEN,
     PASSWORD_HASHER_TOKEN,
-    PAYMENT_EVENT_LOG_TOKEN,
-    PAYMENT_PROVIDER_TOKEN,
     PENDING_REGISTRATION_REPOSITORY_TOKEN,
     PLAN_CATALOG_LOOKUP_TOKEN,
     REGISTRATION_AUDIT_LOGGER_TOKEN,
@@ -107,12 +99,7 @@ export class PendingRegistrationService {
         private readonly passwordHasher: PasswordHasher,
         @Inject(PLAN_CATALOG_LOOKUP_TOKEN)
         private readonly planCatalog: PlanCatalogLookup,
-        @Inject(PAYMENT_PROVIDER_TOKEN)
-        private readonly paymentProvider: PaymentProvider,
-        @Inject(PAYMENT_EVENT_LOG_TOKEN)
-        private readonly paymentEventLog: PaymentEventLog,
-        @Inject(ACTIVATION_ORCHESTRATOR_TOKEN)
-        private readonly activationOrchestrator: ActivationOrchestrator,
+        private readonly payments: RegistrationPaymentService,
         @Inject(REGISTRATION_AUDIT_LOGGER_TOKEN)
         private readonly audit: RegistrationAuditLogger,
         @Optional()
@@ -240,108 +227,22 @@ export class PendingRegistrationService {
             throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.PLAN_NOT_AVAILABLE));
         }
 
-        const session = await this.paymentProvider.createCheckoutSession({
-            pendingRegistrationId: pending.id,
-            planId: pending.selectedPlanId,
-            email: pending.email,
+        const started = await this.payments.startSetup(pending, input.billingDetails, {
             successUrl: input.successUrl,
             cancelUrl: input.cancelUrl,
         });
-
-        const now = new Date();
-        const expiresAt = new Date(now.getTime() + PENDING_CHECKOUT_TTL_DAYS * 24 * 60 * 60 * 1000);
-        const updated = await this.repo.update(pending.id, {
-            status: 'CHECKOUT_STARTED',
-            currentStep: 4,
-            checkoutSessionId: session.sessionId,
-            checkoutStartedAt: now,
-            expiresAt,
+        await this.record('CHECKOUT_STARTED', pending.id, context, {
+            sessionId: started.sessionRef,
+            gatewayAccount: started.updated.checkoutGatewayAccount,
         });
-
-        await this.record('CHECKOUT_STARTED', updated.id, context, {
-            sessionId: session.sessionId,
-            provider: session.provider,
-        });
+        await this.payments.confirm(started);
         return {
-            pendingRegistrationId: updated.id,
-            status: updated.status,
-            nextStep: REGISTRATION_STEP_BY_STATUS[updated.status],
-            checkoutSessionId: session.sessionId,
-            checkoutUrl: session.checkoutUrl,
+            pendingRegistrationId: pending.id,
+            status: started.updated.status,
+            nextStep: REGISTRATION_STEP_BY_STATUS[started.updated.status],
+            checkoutSessionId: started.sessionRef,
+            checkoutUrl: started.redirectUrl,
         };
-    }
-
-    /**
-     * Processes a payment webhook idempotently:
-     *  1. `tryClaim` pins the event ID via a @unique INSERT. Duplicates are
-     *     dropped silently (`ALREADY_PROCESSED`).
-     *  2. On status `SUCCEEDED` the PendingRegistration is resolved from the
-     *     checkout session and the ActivationOrchestrator triggers the final
-     *     user+tenant+subscriber+subscription creation in a single transaction.
-     *  3. After activation the PendingRegistration is deleted.
-     *
-     * On errors in step 2/3 the EventLog entry remains — provider retries then
-     * run into ALREADY_PROCESSED. Operational repair is done manually (status
-     * inspection + cleanup).
-     */
-    async handlePaymentEvent(
-        input: HandlePaymentEventInput,
-        context?: RegistrationAuditContext,
-    ): Promise<HandlePaymentEventResult> {
-        const claimed = await this.paymentEventLog.tryClaim(input.eventId, {
-            provider: input.provider,
-            sessionId: input.sessionId,
-            status: input.status,
-            rawPayload: input.rawPayload,
-        });
-        if (!claimed) {
-            this.logger.warn(
-                `Idempotency: payment event ${input.eventId} already processed — duplicate discarded.`,
-            );
-            await this.record('PAYMENT_DUPLICATE_IGNORED', null, context, {
-                eventId: input.eventId,
-                sessionId: input.sessionId,
-            });
-            return { activated: false, reason: 'ALREADY_PROCESSED' };
-        }
-        if (input.status !== 'SUCCEEDED') {
-            await this.record('PAYMENT_FAILED', null, context, {
-                eventId: input.eventId,
-                sessionId: input.sessionId,
-            });
-            return { activated: false, reason: 'PAYMENT_NOT_SUCCEEDED' };
-        }
-        if (!input.sessionId) {
-            return { activated: false, reason: 'MISSING_SESSION_ID' };
-        }
-        const pending = await this.repo.findByCheckoutSession(input.sessionId);
-        if (!pending) {
-            return { activated: false, reason: 'PENDING_REGISTRATION_NOT_FOUND' };
-        }
-        // Allow PLAN_SELECTED: if the webhook arrives *before* the startCheckout
-        // update roundtrip (race), the status would still be PLAN_SELECTED.
-        // CHECKOUT_STARTED is the standard case.
-        if (pending.status !== 'CHECKOUT_STARTED' && pending.status !== 'PLAN_SELECTED') {
-            return { activated: false, reason: 'INVALID_STATE' };
-        }
-
-        await this.record('PAYMENT_RECEIVED', pending.id, context, {
-            eventId: input.eventId,
-            sessionId: input.sessionId,
-        });
-        const result = await this.activationOrchestrator.activate(pending);
-        await this.repo.delete(pending.id);
-        await this.record('ACTIVATION_COMPLETED', pending.id, context, {
-            userId: result.userId,
-            tenantId: result.tenantId,
-            subscriberId: result.subscriberId,
-            subscriptionId: result.subscriptionId,
-        });
-
-        this.logger.log(
-            `Activation succeeded: pending=${pending.id} → user=${result.userId} tenant=${result.tenantId} subscriber=${result.subscriberId} subscription=${result.subscriptionId}`,
-        );
-        return { activated: true, result };
     }
 
     /**
@@ -937,7 +838,22 @@ function toSnapshot(pending: PendingRegistration): PendingRegistrationSnapshot {
         config: pending.configJson,
         billingCycle: pending.billingCycle,
         appliedPromoCode: pending.appliedPromoCode,
+        billingDetails: billingDetailsOf(pending),
         checkoutSessionId: pending.checkoutSessionId,
+    };
+}
+
+/** What step 4 took, once it took the address; `null` before. */
+function billingDetailsOf(pending: PendingRegistration): PendingRegistrationSnapshot['billingDetails'] {
+    if (!pending.addressLine1 || !pending.postalCode || !pending.city || !pending.country) return null;
+    return {
+        addressLine1: pending.addressLine1,
+        addressLine2: pending.addressLine2,
+        postalCode: pending.postalCode,
+        city: pending.city,
+        country: pending.country,
+        vatId: pending.vatId,
+        taxNumber: pending.taxNumber,
     };
 }
 

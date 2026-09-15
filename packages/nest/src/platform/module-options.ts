@@ -60,6 +60,10 @@ import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution
 import { type PromoCodesModuleOptions } from '../promo/promo.module.js';
 import { type SetupModuleOptions } from '../setup/setup.module.js';
 import { type CheckoutOfferModuleOptions } from '../checkout-offer/checkout-offer.module.js';
+import {
+    type PaymentsModuleOptions,
+    type PaymentsTenantRoutesOptions,
+} from '../payments/payments.module.js';
 import { type SubscriptionContractModuleOptions } from '../subscription-contract/subscription-contract.module.js';
 import { type PlanResolverPort } from './plan-resolver.port.js';
 
@@ -158,6 +162,23 @@ export interface SaaSiCatTenantBillingOptions extends Omit<
     subscriptionUsagePort?: ProviderSpec<SubscriptionUsagePort>;
     usageSnapshotPort?: ProviderSpec<UsageSnapshotPort>;
     subscriptionWritePort?: ProviderSpec<TenantSubscriptionWritePort>;
+}
+
+/**
+ * Payment methods through a payment gateway. The event log and the payment
+ * methods come from `persistence.payments`, the subscribers from
+ * `persistence.entitlement`, and the tenant's routes share `tenantBilling`'s
+ * authentication and resolvers.
+ */
+export interface SaaSiCatPaymentsOptions extends Pick<
+    PaymentsModuleOptions,
+    'gateways' | 'imports' | 'extraProviders'
+> {
+    /**
+     * Who of a tenant's users holds the billing permission, which the tenant's
+     * payment method routes require. Default: the tenant's administrator.
+     */
+    billingPermissionGuards?: PaymentsTenantRoutesOptions['billingPermissionGuards'];
 }
 
 export interface SaaSiCatSubscriptionBundlesOptions extends Omit<
@@ -277,11 +298,13 @@ export interface SaaSiCatSubscriptionContractOptions extends Omit<
  * What `SaaSiCatModule.forRoot()` composes.
  *
  * One subsystem is deliberately absent: **self-registration**. A prospect
- * signing themselves up — mail address, OTP, plan choice, payment, activation —
- * is `RegistrationModule` from `@saasicat/nest/registration`, and it is
- * hand-wired: ten required ports, none of which a persistence bundle supplies.
+ * signing themselves up — mail address, OTP, plan choice, payment method,
+ * activation — is `RegistrationModule` from `@saasicat/nest/registration`, and
+ * it is hand-wired: its required ports are ones no persistence bundle
+ * supplies. Its payment method is taken through `payments`, which is composed
+ * here.
  *
- * That is a decision with a reason and a plan, not an omission: the ten ports
+ * That is a decision with a reason and a plan, not an omission: those ports
  * have no executable contract yet (`@saasicat/persistence-testing` covers the
  * catalogue, subscription, promo and audit ports and none of these), and
  * folding unverified ports into a bundle would move the problem rather than
@@ -483,6 +506,13 @@ export interface SaaSiCatModuleOptions {
      * `quotaProviders` unless explicitly overridden.
      */
     tenantBilling?: false | SaaSiCatTenantBillingOptions;
+    /**
+     * Payment methods through a payment gateway: the webhook route for every
+     * account in `config/saas.yaml#payments`, and — with `tenantBilling` — the
+     * tenant's payment method behind the billing permission. Self-registration
+     * takes a sign-up's payment method through it.
+     */
+    payments?: false | SaaSiCatPaymentsOptions;
     /**
      * Add-on bundle service and tenant controller. `true` uses defaults and
      * reuses tenant-billing auth/usage; an object customizes policy.

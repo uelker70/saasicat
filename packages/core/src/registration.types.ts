@@ -167,6 +167,13 @@ export interface PendingRegistrationRepository {
      * cron service iterates sequentially.
      */
     findExpired(now: Date, limit: number): Promise<PendingRegistration[]>;
+    /**
+     * Every gateway account a checkout session is still open at: the distinct
+     * `checkoutGatewayAccount` of records in `CHECKOUT_STARTED` whose
+     * `expiresAt` is after `now`. The start refuses when one of them is no
+     * longer configured, because that sign-up's confirmation could not arrive.
+     */
+    findOpenCheckoutAccounts(now: Date): Promise<string[]>;
     create(input: PendingRegistrationCreateInput): Promise<PendingRegistration>;
     update(id: string, input: PendingRegistrationUpdateInput): Promise<PendingRegistration>;
     /**
