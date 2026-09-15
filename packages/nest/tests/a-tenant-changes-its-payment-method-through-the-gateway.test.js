@@ -413,10 +413,27 @@ describe('the webhook route', () => {
         );
     });
 
-    test('without the raw body it refuses, and says how to keep it', async () => {
+    test('a JSON or form callback without its raw body is a setup error, and says how to keep the body', async () => {
         const ctx = await paymentsApp();
 
-        await assert.rejects(ctx.webhook.receive(MAIN_ACCOUNT, { headers: {} }), /rawBody: true/);
+        for (const contentType of ['application/json; charset=utf-8', 'application/x-www-form-urlencoded']) {
+            await assert.rejects(
+                ctx.webhook.receive(MAIN_ACCOUNT, { headers: { 'content-type': contentType } }),
+                /rawBody: true/,
+            );
+        }
+    });
+
+    test('a body no gateway sends is refused as unverifiable, not reported as a setup error', async () => {
+        const ctx = await paymentsApp();
+
+        for (const headers of [{ 'content-type': 'text/plain' }, {}]) {
+            await assert.rejects(
+                ctx.webhook.receive(MAIN_ACCOUNT, { headers }),
+                (error) => codeOf(error) === 'PAYMENT_CALLBACK_REJECTED' && error.getStatus() === 400,
+            );
+        }
+        assert.deepEqual(ctx.log.claims, []);
     });
 });
 

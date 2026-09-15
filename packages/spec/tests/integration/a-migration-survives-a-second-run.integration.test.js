@@ -169,6 +169,62 @@ describe('a shipped migration leaves an installation without its tables alone', 
     }
 });
 
+describe('a table a migration creates has the shape the fragments declare', () => {
+    // A fresh installation applies every file in name order before `db push`,
+    // and a file that creates a table creates it for good: `CREATE TABLE IF NOT
+    // EXISTS` never revisits it. A table created in an older shape than the
+    // fragments declare is then left to `db push` to finish — which refuses a
+    // unique index on a table it cannot see is empty, and stops the container.
+
+    /** Columns and indexes per table, as comparable strings. */
+    async function shapes() {
+        const columns = await client.query(
+            `SELECT table_name, column_name, data_type, is_nullable, column_default
+               FROM information_schema.columns
+              WHERE table_schema = current_schema()
+              ORDER BY table_name, column_name`,
+        );
+        const indexes = await client.query(
+            `SELECT tablename, indexname, indexdef FROM pg_indexes
+              WHERE schemaname = current_schema() ORDER BY tablename, indexname`,
+        );
+        const byTable = new Map();
+        const entry = (table) => {
+            if (!byTable.has(table)) byTable.set(table, { columns: [], indexes: [] });
+            return byTable.get(table);
+        };
+        for (const row of columns.rows) {
+            const { table_name: table, ...column } = row;
+            entry(table).columns.push(column);
+        }
+        for (const row of indexes.rows) {
+            entry(row.tablename).indexes.push([row.indexname, row.indexdef]);
+        }
+        return byTable;
+    }
+
+    test('every table the migrations create on an empty database, in the order a consumer applies them', async () => {
+        await freshGround();
+        const declared = await shapes();
+
+        await client.query('DROP SCHEMA IF EXISTS public CASCADE');
+        await client.query('CREATE SCHEMA public');
+        for (const name of migrations().filter((file) => file !== 'constraints.postgres.sql')) {
+            await apply(name);
+        }
+        const created = await shapes();
+
+        assert.ok(created.size > 0, 'no migration created a table, so nothing was compared');
+        for (const [table, shape] of created) {
+            assert.deepEqual(
+                shape,
+                declared.get(table),
+                `${table} is created by a migration in another shape than the fragments declare`,
+            );
+        }
+    });
+});
+
 describe('a migration that would merge rows stops instead', () => {
     // The 1.0 migration drops `projectKey` and puts a unique index where it
     // was. On an installation that only ever used one key that is a rename; on
