@@ -60,6 +60,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriberTenant: unknown;
     subscriberCorrection: unknown;
     subscriberPaymentMethod: unknown;
+    subscriberPaymentMethodSetup: unknown;
 }
 
 export interface PrismaPersistenceOptions {

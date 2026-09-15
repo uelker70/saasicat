@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import type {
     RecordSubscriberPaymentMethodData,
     RecordSubscriberPaymentMethodResult,
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodRepository,
+    SubscriberPaymentMethodSetupData,
+    SubscriberPaymentMethodSetupMatch,
     TransactionContext,
 } from '@saasicat/core';
 import { subscriberPaymentMethodColumns, toSubscriberPaymentMethodRecord } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
-import { subscriberPaymentMethods, subscribers } from './schema.js';
+import { subscriberPaymentMethodSetups, subscriberPaymentMethods, subscribers } from './schema.js';
 
 /** `SubscriberPaymentMethodRepository` against `subscriber_payment_methods`. */
 @Injectable()
@@ -106,6 +108,42 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
             .where(eq(subscriberPaymentMethods.status, 'ACTIVE'))
             .orderBy(asc(subscriberPaymentMethods.gatewayAccount));
         return rows.map((row) => row.gatewayAccount);
+    }
+
+    async recordSetup(
+        data: SubscriberPaymentMethodSetupData,
+        tx?: TransactionContext,
+    ): Promise<void> {
+        await resolveDb(this.db, tx).insert(subscriberPaymentMethodSetups).values({
+            id: randomUUID(),
+            subscriberId: data.subscriberId,
+            gatewayAccount: data.gatewayAccount,
+            sessionRef: data.sessionRef,
+            customerRef: data.customerRef,
+            startedAt: data.startedAt,
+        });
+    }
+
+    async completeSetup(
+        match: SubscriberPaymentMethodSetupMatch,
+        completedAt: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        // One conditional write: of two confirmations for one setup, the second
+        // finds `completedAt` set and changes nothing.
+        const completed = await resolveDb(this.db, tx)
+            .update(subscriberPaymentMethodSetups)
+            .set({ completedAt })
+            .where(
+                and(
+                    eq(subscriberPaymentMethodSetups.gatewayAccount, match.gatewayAccount),
+                    eq(subscriberPaymentMethodSetups.sessionRef, match.sessionRef),
+                    eq(subscriberPaymentMethodSetups.subscriberId, match.subscriberId),
+                    isNull(subscriberPaymentMethodSetups.completedAt),
+                ),
+            )
+            .returning({ id: subscriberPaymentMethodSetups.id });
+        return completed.length === 1;
     }
 
     private activeOf(subscriberId: string) {

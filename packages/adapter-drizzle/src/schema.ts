@@ -428,6 +428,16 @@ export const subscriberCorrections = pgTable('subscriber_corrections', {
 // `ACTIVE` payment method; the unique indexes that hold both are in the
 // reference schema and `constraints.postgres.sql`.
 
+export const subscriberPaymentMethodSetups = pgTable('subscriber_payment_method_setups', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    sessionRef: text('sessionRef').notNull(),
+    customerRef: text('customerRef').notNull(),
+    startedAt: ts('startedAt').notNull().defaultNow(),
+    completedAt: ts('completedAt'),
+});
+
 export const paymentEventLog = pgTable('PaymentEventLog', {
     id: text('id').primaryKey(),
     gatewayAccount: text('gatewayAccount').notNull(),

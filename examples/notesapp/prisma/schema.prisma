@@ -1282,7 +1282,8 @@ model Subscriber {
     tenants        SubscriberTenant[]
     corrections    SubscriberCorrection[]
     contracts      SubscriptionContract[]
-    paymentMethods SubscriberPaymentMethod[]
+    paymentMethods      SubscriberPaymentMethod[]
+    paymentMethodSetups SubscriberPaymentMethodSetup[]
 
     @@map("subscribers")
 }
@@ -1361,6 +1362,28 @@ model SubscriberPaymentMethod {
     @@index([subscriberId, status])
     @@index([gatewayAccount, status])
     @@map("subscriber_payment_methods")
+}
+
+// A change of payment method a tenant started: the gateway session opened for
+// the subscriber. A confirmation is recorded only against the setup whose
+// account, session and subscriber it names, and completes it on the same
+// transaction — so a callback naming another subscriber than the session was
+// opened for changes nobody's payment method. A setup nobody finishes stays
+// open; it holds no reference that could be charged.
+model SubscriberPaymentMethodSetup {
+    id             String    @id @default(uuid())
+    subscriberId   String
+    gatewayAccount String
+    sessionRef     String
+    customerRef    String
+    startedAt      DateTime  @default(now())
+    completedAt    DateTime?
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@unique([gatewayAccount, sessionRef])
+    @@index([subscriberId])
+    @@map("subscriber_payment_method_setups")
 }
 
 // PaymentEventLog — every payment gateway event, handled once.

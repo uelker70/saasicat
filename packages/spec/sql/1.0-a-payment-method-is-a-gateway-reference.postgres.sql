@@ -15,7 +15,9 @@
 --
 --   1. `subscriber_payment_methods` — created with its indexes, its foreign key
 --      to `subscribers` and the partial unique index that allows one payment
---      method in use per subscriber. Skipped where `subscribers` is missing.
+--      method in use per subscriber — and `subscriber_payment_method_setups`,
+--      the changes of payment method a tenant started. Skipped where
+--      `subscribers` is missing.
 --   2. `"PaymentEventLog"` — gains `gatewayAccount`. An event identifier is
 --      unique only within the gateway account that sent it, so the unique index
 --      on `eventId` alone is replaced by one on both. An event recorded before
@@ -78,6 +80,21 @@ BEGIN
         CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
             ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
 
+        CREATE TABLE IF NOT EXISTS "subscriber_payment_method_setups" (
+            "id" TEXT NOT NULL,
+            "subscriberId" TEXT NOT NULL,
+            "gatewayAccount" TEXT NOT NULL,
+            "sessionRef" TEXT NOT NULL,
+            "customerRef" TEXT NOT NULL,
+            "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "completedAt" TIMESTAMP(3),
+            CONSTRAINT "subscriber_payment_method_setups_pkey" PRIMARY KEY ("id")
+        );
+        CREATE INDEX IF NOT EXISTS "subscriber_payment_method_setups_subscriberId_idx"
+            ON "subscriber_payment_method_setups"("subscriberId");
+        CREATE UNIQUE INDEX IF NOT EXISTS "subscriber_payment_method_setups_gatewayAccount_sessionRef_key"
+            ON "subscriber_payment_method_setups"("gatewayAccount", "sessionRef");
+
         -- `ADD CONSTRAINT` has no `IF NOT EXISTS`.
         IF NOT EXISTS (
             SELECT 1 FROM pg_constraint
@@ -86,6 +103,16 @@ BEGIN
         ) THEN
             ALTER TABLE "subscriber_payment_methods"
                 ADD CONSTRAINT "subscriber_payment_methods_subscriberId_fkey"
+                FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id")
+                ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+             WHERE conrelid = to_regclass('subscriber_payment_method_setups')
+               AND conname = 'subscriber_payment_method_setups_subscriberId_fkey'
+        ) THEN
+            ALTER TABLE "subscriber_payment_method_setups"
+                ADD CONSTRAINT "subscriber_payment_method_setups_subscriberId_fkey"
                 FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id")
                 ON DELETE RESTRICT ON UPDATE CASCADE;
         END IF;

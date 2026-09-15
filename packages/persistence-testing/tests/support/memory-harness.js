@@ -52,6 +52,7 @@ export function createMemoryHarness() {
         subscriberCorrections: [],
         paymentEvents: [],
         paymentMethods: [],
+        paymentMethodSetups: [],
         nextCustomerSequence: FIRST_CUSTOMER_NUMBER,
         checkoutOffers: [],
         appliedSettings: null,
@@ -713,6 +714,27 @@ export function createMemoryHarness() {
                     candidate.paymentMethodRef === paymentMethodRef,
             );
             return row ? structuredClone(row) : null;
+        },
+        async recordSetup(data) {
+            const taken = state.paymentMethodSetups.some(
+                (setup) =>
+                    setup.gatewayAccount === data.gatewayAccount &&
+                    setup.sessionRef === data.sessionRef,
+            );
+            if (taken) throw new Error(`Session '${data.sessionRef}' already has a setup.`);
+            state.paymentMethodSetups.push({ ...data, completedAt: null });
+        },
+        async completeSetup(match, completedAt) {
+            const setup = state.paymentMethodSetups.find(
+                (candidate) =>
+                    candidate.gatewayAccount === match.gatewayAccount &&
+                    candidate.sessionRef === match.sessionRef &&
+                    candidate.subscriberId === match.subscriberId &&
+                    candidate.completedAt === null,
+            );
+            if (!setup) return false;
+            setup.completedAt = completedAt;
+            return true;
         },
         async accountsInUse() {
             const accounts = state.paymentMethods

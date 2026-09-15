@@ -913,7 +913,8 @@ describe('every contract names the subscriber it is concluded with', () => {
         await freshGround();
         // Payment methods came later still, and point at the subscribers.
         await client.query(
-            'DROP TABLE "subscriber_payment_methods", "subscriber_corrections", "subscriber_tenants"',
+            'DROP TABLE "subscriber_payment_method_setups", "subscriber_payment_methods", ' +
+                '"subscriber_corrections", "subscriber_tenants"',
         );
         await client.query(
             'ALTER TABLE "subscription_contracts" DROP COLUMN "subscriberId", ' +
@@ -1339,7 +1340,9 @@ describe('a payment method is the gateway reference, kept for the subscriber', (
     /** The reference schema with this migration's objects taken back out. */
     async function beforeTheMigration() {
         await freshGround();
-        await client.query('DROP TABLE "subscriber_payment_methods"');
+        await client.query(
+            'DROP TABLE "subscriber_payment_method_setups", "subscriber_payment_methods"',
+        );
         await client.query('DROP INDEX "PaymentEventLog_gatewayAccount_eventId_key"');
         await client.query('ALTER TABLE "PaymentEventLog" DROP COLUMN "gatewayAccount"');
         await client.query(
@@ -1385,9 +1388,18 @@ describe('a payment method is the gateway reference, kept for the subscriber', (
 
         assert.equal(await fingerprint(client), reference);
         const { rows } = await client.query(
-            `SELECT 1 FROM pg_constraint WHERE conname = 'subscriber_payment_methods_subscriberId_fkey'`,
+            `SELECT conname FROM pg_constraint WHERE conname IN ` +
+                `('subscriber_payment_methods_subscriberId_fkey', ` +
+                `'subscriber_payment_method_setups_subscriberId_fkey') ORDER BY conname`,
         );
-        assert.equal(rows.length, 1, 'the payment methods do not point at their subscriber');
+        assert.deepEqual(
+            rows.map((row) => row.conname),
+            [
+                'subscriber_payment_method_setups_subscriberId_fkey',
+                'subscriber_payment_methods_subscriberId_fkey',
+            ],
+            'the payment methods or their setups do not point at their subscriber',
+        );
     });
 
     test('an event recorded before carries its provider as its account, and stays unique', async () => {

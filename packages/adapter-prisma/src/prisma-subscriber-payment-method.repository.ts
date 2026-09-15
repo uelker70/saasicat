@@ -5,6 +5,8 @@ import type {
     RecordSubscriberPaymentMethodResult,
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodRepository,
+    SubscriberPaymentMethodSetupData,
+    SubscriberPaymentMethodSetupMatch,
     TransactionContext,
 } from '@saasicat/core';
 import { subscriberPaymentMethodColumns, toSubscriberPaymentMethodRecord } from '@saasicat/core';
@@ -13,6 +15,7 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
 interface PaymentMethodPrisma {
     subscriberPaymentMethod: PrismaModelDelegateLike<CanonicalSubscriberPaymentMethodRow>;
+    subscriberPaymentMethodSetup: PrismaModelDelegateLike<unknown>;
     $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
 }
 
@@ -130,5 +133,39 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
             orderBy: { gatewayAccount: 'asc' },
         });
         return rows.map((row) => row.gatewayAccount);
+    }
+
+    async recordSetup(
+        data: SubscriberPaymentMethodSetupData,
+        tx?: TransactionContext,
+    ): Promise<void> {
+        await this.db(tx).subscriberPaymentMethodSetup.create({
+            data: {
+                subscriberId: data.subscriberId,
+                gatewayAccount: data.gatewayAccount,
+                sessionRef: data.sessionRef,
+                customerRef: data.customerRef,
+                startedAt: data.startedAt,
+            },
+        });
+    }
+
+    async completeSetup(
+        match: SubscriberPaymentMethodSetupMatch,
+        completedAt: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        // One conditional write: of two confirmations for one setup, the second
+        // finds `completedAt` set and changes nothing.
+        const { count } = await this.db(tx).subscriberPaymentMethodSetup.updateMany({
+            where: {
+                gatewayAccount: match.gatewayAccount,
+                sessionRef: match.sessionRef,
+                subscriberId: match.subscriberId,
+                completedAt: null,
+            },
+            data: { completedAt },
+        });
+        return count === 1;
     }
 }

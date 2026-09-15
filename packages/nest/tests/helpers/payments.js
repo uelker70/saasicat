@@ -125,15 +125,41 @@ export class MemoryPaymentEventLog {
 export class MemoryPaymentMethods {
     constructor() {
         this.rows = [];
+        this.setups = [];
         this.writes = [];
     }
 
     snapshot() {
-        return structuredClone(this.rows);
+        return structuredClone({ rows: this.rows, setups: this.setups });
     }
 
-    restore(rows) {
+    restore({ rows, setups }) {
         this.rows = rows;
+        this.setups = setups;
+    }
+
+    async recordSetup(data) {
+        if (
+            this.setups.some(
+                (s) => s.gatewayAccount === data.gatewayAccount && s.sessionRef === data.sessionRef,
+            )
+        ) {
+            throw new Error(`session ${data.sessionRef} already has a setup`);
+        }
+        this.setups.push({ ...data, completedAt: null });
+    }
+
+    async completeSetup(match, completedAt) {
+        const setup = this.setups.find(
+            (s) =>
+                s.gatewayAccount === match.gatewayAccount &&
+                s.sessionRef === match.sessionRef &&
+                s.subscriberId === match.subscriberId &&
+                s.completedAt === null,
+        );
+        if (!setup) return false;
+        setup.completedAt = completedAt;
+        return true;
     }
 
     async recordConfirmed(data, tx) {

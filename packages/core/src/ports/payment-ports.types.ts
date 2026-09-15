@@ -4,6 +4,8 @@ import type {
     RecordSubscriberPaymentMethodData,
     RecordSubscriberPaymentMethodResult,
     SubscriberPaymentMethodRecord,
+    SubscriberPaymentMethodSetupData,
+    SubscriberPaymentMethodSetupMatch,
 } from '../subscriber-payment-method.types.js';
 
 // =============================================================================
@@ -75,4 +77,18 @@ export interface SubscriberPaymentMethodRepository {
     ): Promise<SubscriberPaymentMethodRecord | null>;
     /** Every account that holds a payment method in use, each once. */
     accountsInUse(): Promise<string[]>;
+    /** Records a change of payment method a tenant started, open until its confirmation completes it. */
+    recordSetup(data: SubscriberPaymentMethodSetupData, tx?: TransactionContext): Promise<void>;
+    /**
+     * Completes the open setup the account, the session and the subscriber all
+     * name, and returns `true` — or returns `false`, writing nothing, when no
+     * open setup matches all three: none was started, it was started for another
+     * subscriber, or it is complete already. A single conditional write, so two
+     * confirmations for one setup complete it once.
+     */
+    completeSetup(
+        match: SubscriberPaymentMethodSetupMatch,
+        completedAt: Date,
+        tx?: TransactionContext,
+    ): Promise<boolean>;
 }

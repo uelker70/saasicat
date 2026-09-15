@@ -321,6 +321,7 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
     test('the confirmation makes the new payment method the one in use, and keeps the one it replaced', async () => {
         const ctx = await withSubscriber();
         await inUse(ctx, MAIN_ACCOUNT, 'cus_known');
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
         const callback = signedCallback(
             confirmation({
                 eventId: 'evt_change',
@@ -357,8 +358,9 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
         );
     });
 
-    test('a confirmation whose recording fails leaves the claim open for the retry', async () => {
+    test('a confirmation whose recording fails leaves the claim and the setup open for the retry', async () => {
         const ctx = await withSubscriber();
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
         const record = ctx.methods.recordConfirmed.bind(ctx.methods);
         ctx.methods.recordConfirmed = async () => {
             ctx.methods.recordConfirmed = record;
@@ -374,11 +376,108 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
 
         await assert.rejects(ctx.callbacks.handle(MAIN_ACCOUNT, callback), /went away/);
         assert.deepEqual(ctx.log.claims, []);
+        assert.equal(ctx.methods.setups[0].completedAt, null, 'the setup stayed completed');
 
         assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, callback), 'handled');
         assert.equal(
             (await ctx.methods.findActive(ctx.subscriber.id))?.paymentMethodRef,
             'pm_card_1',
+        );
+    });
+
+    test('opening the form records the setup for this subscriber and this session', async () => {
+        const ctx = await withSubscriber();
+
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+
+        assert.deepEqual(
+            ctx.methods.setups.map(({ startedAt, ...setup }) => ({
+                ...setup,
+                started: startedAt instanceof Date,
+            })),
+            [
+                {
+                    subscriberId: ctx.subscriber.id,
+                    gatewayAccount: MAIN_ACCOUNT,
+                    sessionRef: 'cs_1',
+                    customerRef: 'cus_1',
+                    completedAt: null,
+                    started: true,
+                },
+            ],
+        );
+    });
+
+    test("a confirmation naming another subscriber than the session was opened for changes nobody's payment method", async () => {
+        const ctx = await withSubscriber();
+        const other = await ctx.subscribers.createForTenant('tenant-2', {
+            legalName: 'Other Tenant GmbH',
+        });
+        await ctx.methods.recordConfirmed({
+            ...confirmation({ eventId: 'e', sessionRef: 's', subject: {} }).paymentMethod,
+            paymentMethodRef: 'pm_of_the_other_tenant',
+            subscriberId: other.id,
+            gatewayAccount: MAIN_ACCOUNT,
+            provider: 'stripe',
+            confirmedAt: new Date('2026-09-01T08:00:00.000Z'),
+        });
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+
+        const outcome = await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                confirmation({
+                    eventId: 'evt_crossed',
+                    sessionRef: 'cs_1',
+                    subject: { kind: 'subscriber', subscriberId: other.id },
+                    paymentMethodRef: 'pm_wrongly_attributed',
+                }),
+            ),
+        );
+
+        assert.equal(outcome, 'handled');
+        assert.equal(
+            (await ctx.methods.findActive(other.id))?.paymentMethodRef,
+            'pm_of_the_other_tenant',
+        );
+        assert.equal(
+            await ctx.methods.findByReference(MAIN_ACCOUNT, 'pm_wrongly_attributed'),
+            null,
+        );
+        assert.equal(ctx.methods.setups[0].completedAt, null, "tenant-1's setup was used up");
+    });
+
+    test('a confirmation for a session nobody opened, or for a setup already completed, records nothing', async () => {
+        const ctx = await withSubscriber();
+        const subject = { kind: 'subscriber', subscriberId: ctx.subscriber.id };
+        await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                confirmation({ eventId: 'evt_unopened', sessionRef: 'cs_nobody_opened', subject }),
+            ),
+        );
+        assert.deepEqual(ctx.methods.rows, []);
+
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+        await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(confirmation({ eventId: 'evt_first', sessionRef: 'cs_1', subject })),
+        );
+        await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                confirmation({
+                    eventId: 'evt_again',
+                    sessionRef: 'cs_1',
+                    subject,
+                    paymentMethodRef: 'pm_card_2',
+                }),
+            ),
+        );
+
+        assert.deepEqual(
+            ctx.methods.rows.map((row) => [row.paymentMethodRef, row.status]),
+            [['pm_card_1', 'ACTIVE']],
         );
     });
 

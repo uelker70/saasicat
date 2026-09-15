@@ -2901,6 +2901,99 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(await methods.accountsInUse(), ['stripe-main']);
         });
 
+        test('a setup is completed once, and only by the account, session and subscriber it was started with', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Setup GmbH' });
+            const other = await createSubscriber({ legalName: 'Other Tenant GmbH' });
+            await methods.recordSetup({
+                subscriberId,
+                gatewayAccount: 'stripe-main',
+                sessionRef: 'cs_setup',
+                customerRef: 'cus_setup',
+                startedAt: new Date('2026-09-15T10:00:00.000Z'),
+            });
+            const at = new Date('2026-09-15T10:05:00.000Z');
+            const match = { gatewayAccount: 'stripe-main', sessionRef: 'cs_setup', subscriberId };
+
+            // A callback naming another subscriber than the session was opened for.
+            assert.equal(
+                await methods.completeSetup({ ...match, subscriberId: other.subscriberId }, at),
+                false,
+            );
+            assert.equal(
+                await methods.completeSetup({ ...match, gatewayAccount: 'stripe-old' }, at),
+                false,
+            );
+            assert.equal(
+                await methods.completeSetup({ ...match, sessionRef: 'cs_nobody_opened' }, at),
+                false,
+            );
+
+            assert.equal(await methods.completeSetup(match, at), true);
+            assert.equal(
+                await methods.completeSetup(match, at),
+                false,
+                'a setup was completed twice',
+            );
+        });
+
+        test('a setup completed on a transaction that rolls back is open again', async (t) => {
+            const { adapter } = harness;
+            const methods = adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Retry GmbH' });
+            const match = { gatewayAccount: 'stripe-main', sessionRef: 'cs_retry', subscriberId };
+            await methods.recordSetup({
+                ...match,
+                customerRef: 'cus_retry',
+                startedAt: new Date('2026-09-15T10:00:00.000Z'),
+            });
+            const at = new Date('2026-09-15T10:05:00.000Z');
+
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    assert.equal(await methods.completeSetup(match, at, tx), true);
+                    throw new Error('recording the payment method failed');
+                }),
+                /recording the payment method failed/,
+            );
+
+            assert.equal(
+                await methods.completeSetup(match, at),
+                true,
+                'the rollback kept the completion',
+            );
+        });
+
+        test('one session is one setup, however often it is recorded', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Once GmbH' });
+            const setup = {
+                subscriberId,
+                gatewayAccount: 'stripe-main',
+                sessionRef: 'cs_once',
+                customerRef: 'cus_once',
+                startedAt: new Date('2026-09-15T10:00:00.000Z'),
+            };
+            await methods.recordSetup(setup);
+
+            await assert.rejects(methods.recordSetup(setup));
+        });
+
         // -------------------------------------------------------------
         // Checkout offers — consumed once, and undone with their transaction
         // -------------------------------------------------------------

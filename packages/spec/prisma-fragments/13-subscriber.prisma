@@ -50,7 +50,8 @@ model Subscriber {
     tenants        SubscriberTenant[]
     corrections    SubscriberCorrection[]
     contracts      SubscriptionContract[]
-    paymentMethods SubscriberPaymentMethod[] // see 14-payments.prisma
+    paymentMethods      SubscriberPaymentMethod[] // see 14-payments.prisma
+    paymentMethodSetups SubscriberPaymentMethodSetup[]
 
     @@map("subscribers")
 }

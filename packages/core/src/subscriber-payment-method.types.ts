@@ -43,6 +43,29 @@ export interface RecordSubscriberPaymentMethodData extends ConfirmedPaymentMetho
  */
 export type RecordSubscriberPaymentMethodOutcome = 'activated' | 'already-recorded' | 'superseded';
 
+/**
+ * A change of payment method a tenant started: the gateway session it opened
+ * for the subscriber. A confirmation is recorded only against the setup it
+ * belongs to, so a callback that names another subscriber than the session was
+ * opened for changes nobody's payment method.
+ */
+export interface SubscriberPaymentMethodSetupData {
+    subscriberId: string;
+    gatewayAccount: string;
+    /** The gateway's session, unique within the account. */
+    sessionRef: string;
+    /** The customer the gateway keeps the payment method under. */
+    customerRef: string;
+    startedAt: Date;
+}
+
+/** Which setup a confirmation claims to complete. */
+export interface SubscriberPaymentMethodSetupMatch {
+    gatewayAccount: string;
+    sessionRef: string;
+    subscriberId: string;
+}
+
 export interface RecordSubscriberPaymentMethodResult {
     method: SubscriberPaymentMethodRecord;
     outcome: RecordSubscriberPaymentMethodOutcome;

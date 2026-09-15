@@ -645,6 +645,19 @@ CREATE TABLE "subscriber_payment_methods" (
 );
 
 -- CreateTable
+CREATE TABLE "subscriber_payment_method_setups" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "gatewayAccount" TEXT NOT NULL,
+    "sessionRef" TEXT NOT NULL,
+    "customerRef" TEXT NOT NULL,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "subscriber_payment_method_setups_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PaymentEventLog" (
     "id" TEXT NOT NULL,
     "gatewayAccount" TEXT NOT NULL,
@@ -860,6 +873,12 @@ CREATE INDEX "subscriber_payment_methods_gatewayAccount_status_idx" ON "subscrib
 CREATE UNIQUE INDEX "subscriber_payment_methods_gatewayAccount_paymentMethodRef_key" ON "subscriber_payment_methods"("gatewayAccount", "paymentMethodRef");
 
 -- CreateIndex
+CREATE INDEX "subscriber_payment_method_setups_subscriberId_idx" ON "subscriber_payment_method_setups"("subscriberId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_payment_method_setups_gatewayAccount_sessionRef_key" ON "subscriber_payment_method_setups"("gatewayAccount", "sessionRef");
+
+-- CreateIndex
 CREATE INDEX "PaymentEventLog_sessionId_idx" ON "PaymentEventLog"("sessionId");
 
 -- CreateIndex
@@ -912,6 +931,9 @@ ALTER TABLE "subscriber_corrections" ADD CONSTRAINT "subscriber_corrections_subs
 
 -- AddForeignKey
 ALTER TABLE "subscriber_payment_methods" ADD CONSTRAINT "subscriber_payment_methods_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_payment_method_setups" ADD CONSTRAINT "subscriber_payment_method_setups_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.

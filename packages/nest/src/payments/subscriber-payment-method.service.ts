@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type {
     SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodRepository,
@@ -33,6 +33,8 @@ export interface StartPaymentMethodChange {
  */
 @Injectable()
 export class SubscriberPaymentMethodService implements OnModuleInit {
+    private readonly logger = new Logger(SubscriberPaymentMethodService.name);
+
     constructor(
         @Inject(SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN)
         private readonly methods: SubscriberPaymentMethodRepository,
@@ -80,6 +82,15 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
             successUrl: input.successUrl,
             cancelUrl: input.cancelUrl,
         });
+        // Recorded before the person reaches the form: the confirmation is
+        // accepted only for a session opened here, for this subscriber.
+        await this.methods.recordSetup({
+            subscriberId: subscriber.id,
+            gatewayAccount: account.name,
+            sessionRef: session.sessionRef,
+            customerRef: session.customerRef,
+            startedAt: new Date(),
+        });
         if (session.immediateCallback) {
             await this.callbacks.handle(account.name, session.immediateCallback);
         }
@@ -91,6 +102,25 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
         context: PaymentEventContext,
     ): Promise<void> {
         if (event.subject.kind !== 'subscriber') return;
+        const completed = await this.methods.completeSetup(
+            {
+                gatewayAccount: context.gatewayAccount,
+                sessionRef: event.sessionRef,
+                subscriberId: event.subject.subscriberId,
+            },
+            event.occurredAt,
+            context.tx,
+        );
+        if (!completed) {
+            // Nothing opened this session for this subscriber, or its payment
+            // method was recorded already: a callback naming someone else's
+            // subscriber changes nobody's payment method.
+            this.logger.warn(
+                `Payment event ${event.eventId} at '${context.gatewayAccount}' names subscriber ` +
+                    `${event.subject.subscriberId} and session ${event.sessionRef}, which no open setup matches; nothing recorded.`,
+            );
+            return;
+        }
         await this.methods.recordConfirmed(
             {
                 ...event.paymentMethod,
