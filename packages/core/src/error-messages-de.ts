@@ -300,7 +300,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PAYMENT_GATEWAY_ACCOUNT_UNKNOWN:
         "Unter '{account}' ist kein Konto eines Zahlungsanbieters eingerichtet.",
     PAYMENT_CALLBACK_REJECTED: 'Die Rückmeldung des Zahlungsanbieters ließ sich nicht prüfen.',
-    PAYMENT_RETURN_URL_NOT_ALLOWED: 'Die {field} führt auf eine Seite, zu der diese Installation nicht zurückleitet.',
+    PAYMENT_RETURN_URL_NOT_ALLOWED:
+        'Die {field} führt auf eine Seite, zu der diese Installation nicht zurückleitet.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Das Feature {featureKeys} ist im aktuellen Plan nicht enthalten.',
     // ── settings ──

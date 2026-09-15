@@ -18,7 +18,10 @@ export interface PaymentReturnUrls {
  * somebody to a site of their choosing. Compared as parsed origins rather than
  * as text: a prefix match would let `https://app.example.com.evil.test` through.
  */
-export function refuseForeignReturnUrls(urls: PaymentReturnUrls, allowedOrigins: readonly string[]): void {
+export function refuseForeignReturnUrls(
+    urls: PaymentReturnUrls,
+    allowedOrigins: readonly string[],
+): void {
     const allowed = new Set(allowedOrigins.map(originOf));
     for (const field of ['successUrl', 'cancelUrl'] as const) {
         const origin = originOf(urls[field]);

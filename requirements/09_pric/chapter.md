@@ -613,7 +613,13 @@ _Tested by:_
         - without an invoice email, the gateway is given the requesting user's address
         - the confirmation makes the new payment method the one in use, and keeps the one it
           replaced
-        - a confirmation whose recording fails leaves the claim open for the retry
+        - a confirmation whose recording fails leaves the claim and the setup open for the retry
+        - a return URL at another origin is refused, and neither the gateway nor a setup is touched
+        - opening the form records the setup for this subscriber and this session
+        - a confirmation naming another subscriber than the session was opened for changes nobody's
+          payment method
+        - a confirmation for a session nobody opened, or for a setup already completed, records
+          nothing
         - without an account for new payment methods the change is refused, and the gateway is not
           asked
         - the development gateway replaces the payment method on the spot

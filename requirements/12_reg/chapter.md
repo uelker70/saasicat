@@ -306,8 +306,8 @@ _Tested by:_
 - `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
     - the confirmation of the payment method activates the sign-up
         - the same confirmation delivered twice activates once
-        - a second event confirming the same payment method creates no second tenant, even with the
-          sign-up left behind
+        - once activated the sign-up is gone: a later confirmation with another payment method
+          activates nothing, and step 4 is refused
 
 <!-- END proof -->
 
@@ -371,6 +371,7 @@ _Tested by:_
         - the address is kept as the subscriber will have it, and the form opens at the account for
           new payment methods
         - a sign-up without ${field} is refused before the gateway is asked
+        - a ${field} of ${url} is refused before anything is stored or asked
         - a country that is not a two-letter code is refused
         - step 4 repeated at the same account reuses the customer the gateway created
         - step 4 repeated after new payment methods moved to another account asks for a new customer
@@ -381,8 +382,10 @@ _Tested by:_
           method included
         - an activation that fails leaves nothing behind, and the gateway retry activates
         - the same confirmation delivered twice activates once
-        - a second event confirming the same payment method creates no second tenant, even with the
-          sign-up left behind
+        - once activated the sign-up is gone: a later confirmation with another payment method
+          activates nothing, and step 4 is refused
+        - a sign-up whose deletion fails is not activated either, and the gateway retry activates it
+          once
         - a confirmation for a session no sign-up waits for activates nothing
         - a confirmation naming another sign-up than its session belongs to activates neither
         - a session is looked up with the account that sent the confirmation, not by its identifier

@@ -559,7 +559,7 @@ describe('the confirmation of the payment method activates the sign-up', () => {
             }),
         );
         const deleteOnce = ctx.repo.delete.bind(ctx.repo);
-        ctx.repo.delete = async (id, tx) => {
+        ctx.repo.delete = async (id) => {
             ctx.repo.delete = deleteOnce;
             throw new Error(`could not delete ${id}`);
         };
