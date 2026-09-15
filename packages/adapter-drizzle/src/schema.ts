@@ -138,6 +138,11 @@ export const subscriptionContracts = pgTable('subscription_contracts', {
     promotionSnapshots: jsonb('promotionSnapshots').notNull(),
     promoCodeSnapshots: jsonb('promoCodeSnapshots').notNull(),
     termsSnapshot: jsonb('termsSnapshot'),
+    // Who the contract is between, copied when it was concluded.
+    subscriberId: text('subscriberId').notNull(),
+    subscriberSnapshot: jsonb('subscriberSnapshot').notNull(),
+    issuerSnapshot: jsonb('issuerSnapshot'),
+    partiesMigrated: boolean('partiesMigrated').notNull().default(false),
     createdAt: ts('createdAt').notNull().defaultNow(),
     updatedAt: ts('updatedAt').notNull(),
 });
@@ -367,4 +372,50 @@ export const settingsChanges = pgTable('settings_changes', {
     current: jsonb('current').notNull(),
     acknowledgedAt: ts('acknowledgedAt'),
     acknowledgedBy: text('acknowledgedBy'),
+});
+
+// ---------------------------------------------------------------------------
+// Subscribers — the party a contract is concluded with
+// ---------------------------------------------------------------------------
+//
+// A subscriber has at most one live tenant and a tenant at most one live
+// subscriber; the partial unique indexes that hold both are in
+// `constraints.postgres.sql`, and a link that ended keeps its row.
+
+export const subscribers = pgTable('subscribers', {
+    id: text('id').primaryKey(),
+    // Counted by the database, from where `constraints.postgres.sql` starts it.
+    // Never set by the adapter.
+    customerSequence: serial('customerSequence').notNull(),
+    customerNumberPrefix: text('customerNumberPrefix').notNull().default(''),
+    legalName: text('legalName').notNull(),
+    vatId: text('vatId'),
+    taxNumber: text('taxNumber'),
+    addressLine1: text('addressLine1'),
+    addressLine2: text('addressLine2'),
+    postalCode: text('postalCode'),
+    city: text('city'),
+    country: text('country'),
+    invoiceEmail: text('invoiceEmail'),
+    migrated: boolean('migrated').notNull().default(false),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+    updatedAt: ts('updatedAt').notNull(),
+});
+
+export const subscriberTenants = pgTable('subscriber_tenants', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    tenantId: text('tenantId').notNull(),
+    linkedAt: ts('linkedAt').notNull().defaultNow(),
+    unlinkedAt: ts('unlinkedAt'),
+});
+
+export const subscriberCorrections = pgTable('subscriber_corrections', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    previous: jsonb('previous').notNull(),
+    corrected: jsonb('corrected').notNull(),
+    reason: text('reason').notNull(),
+    correctedBy: text('correctedBy').notNull(),
+    correctedAt: ts('correctedAt').notNull(),
 });

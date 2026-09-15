@@ -8,6 +8,7 @@ import {
     SubscriptionContractService,
 } from '../dist/subscription-contract/index.js';
 import { FakeSubscriptionContractRepository } from '../dist/testing/index.js';
+import { subscribersFor } from './helpers/subscribers.js';
 
 const EFFECTIVE_FROM = new Date('2026-06-01T00:00:00.000Z');
 const BUNDLE_MINIMUM_TERM_UNTIL = new Date('2027-06-01T00:00:00.000Z');
@@ -128,9 +129,12 @@ describe('SubscriptionContractService', () => {
     let repo;
     let service;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         repo = new FakeSubscriptionContractRepository();
-        service = new SubscriptionContractService(repo);
+        service = new SubscriptionContractService(
+            repo,
+            (await subscribersFor(['tenant-1'])).service,
+        );
     });
 
     test('createFromOffer creates immutable contract line items from a consumed offer', async () => {
@@ -461,7 +465,10 @@ describe('SubscriptionContractService', () => {
 // @requirement SC-PRIC-016 — A tax rate has a validity window
 describe('the money facts a contract inherits from its offer', () => {
     async function conclude(offer) {
-        const service = new SubscriptionContractService(new FakeSubscriptionContractRepository());
+        const service = new SubscriptionContractService(
+            new FakeSubscriptionContractRepository(),
+            (await subscribersFor(['tenant-1'])).service,
+        );
         return service.createFromOffer(offer, {
             tenantId: 'tenant-1',
             effectiveFrom: EFFECTIVE_FROM,
@@ -539,7 +546,10 @@ describe('the money facts a contract inherits from its offer', () => {
 describe('an offer whose tax rate is not a percentage', () => {
     async function refusal(priceBreakdown) {
         const repo = new FakeSubscriptionContractRepository();
-        const service = new SubscriptionContractService(repo);
+        const service = new SubscriptionContractService(
+            repo,
+            (await subscribersFor(['tenant-1'])).service,
+        );
         const offer = consumedOffer();
         offer.priceBreakdown = { ...offer.priceBreakdown, ...priceBreakdown };
         const outcome = await service

@@ -539,15 +539,25 @@ _Tested by:_
         - keeps its own failure when another call concludes the offer during the rollback
         - keeps its own failure under a runner that retries after a refused consume
         - refuses an offer consumed without a contract, rather than concluding it twice over
+    - the party an offer is concluded with
+        - a subscriber passed in is created on the transaction, before the contract that names it
+        - a failure after it undoes the subscriber with the contract, and the next attempt creates
+          one
+        - a tenant with no subscriber and none passed in is refused before anything is written
+        - a subscriber passed in for a tenant that has one is refused before anything is written
+        - a subscriber without a legal name is refused before anything is written
+        - a retry after the conclusion answers with it and creates no second subscriber
     - a promo code on the offer
         - is not checked again after the redemption took its last slot
         - whose redemption is refused inside the transaction undoes the conclusion
     - without what concluding writes through
         - the service refuses to conclude rather than writing the two apart
         - the module does not start with half of it
+        - the module does not start without the parties a contract names
 - `packages/nest/tests/platform-composition.test.js`
     - the checkout offer composer
         - wires concluding from a bundle that has contracts and a transaction runner
+        - leaves it unwired where the bundle has contracts but no subscribers
         - leaves it unwired where the bundle has no contract repository
         - refuses to start when the application names half of it and nothing supplies the rest
         - leaves it unwired without a transaction runner

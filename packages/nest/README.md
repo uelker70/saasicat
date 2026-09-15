@@ -30,20 +30,21 @@ for why that is safe and what it costs.
 import { computeDiscountGross, buildLabel, round2 } from '@saasicat/nest/promo';
 ```
 
-| Entry                     | What is in it                                                                    | When you take it                                     |
-| ------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `.`                       | `SaaSiCatModule`, `defineSaaSiCat` and the option types — the whole composition. | The standard integration, and existing consumers.    |
-| `./platform`              | The same composition, without the rest of the root surface.                      | A new application. Prefer this over `.`.             |
-| `./discovery`             | `DiscoveryModule` and the four decorators that declare capabilities and quotas.  | You are annotating your controllers.                 |
-| `./entitlement`           | `EntitlementModule`, `EntitlementService`, `LimitExceededError`, aggregation.    | You enforce limits yourself instead of by decorator. |
-| `./catalog`               | `CatalogModule` — plans, bundles, marketing projections, promotions.             | You touch the catalogue outside the admin pages.     |
-| `./billing`               | Billing periods, plan-catalog loading and import.                                | You compute periods or load a catalogue yourself.    |
-| `./promo`                 | Pure promo arithmetic: discounts, cycles, labels, VAT.                           | You price something outside a checkout.              |
-| `./checkout-offer`        | `CheckoutOfferModule` — the frozen offer between catalogue and contract.         | Your own checkout writes offers.                     |
-| `./subscription-contract` | `SubscriptionContractModule` and the invoice-shaped projections of a contract.   | You bill from contracts.                             |
-| `./admin`                 | `AdminModule`, the SuperAdmin guards, the port tokens, the manifest surface.     | You extend or replace part of the admin backend.     |
-| `./registration`          | `RegistrationModule` — the only entry `SaaSiCatModule` does not compose.         | You offer self-registration.                         |
-| `./testing`               | Fake adapters for every repository port, plus a `TransactionRunner`.             | You unit-test code that depends on the platform.     |
+| Entry                     | What is in it                                                                      | When you take it                                     |
+| ------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `.`                       | `SaaSiCatModule`, `defineSaaSiCat` and the option types — the whole composition.   | The standard integration, and existing consumers.    |
+| `./platform`              | The same composition, without the rest of the root surface.                        | A new application. Prefer this over `.`.             |
+| `./discovery`             | `DiscoveryModule` and the four decorators that declare capabilities and quotas.    | You are annotating your controllers.                 |
+| `./entitlement`           | `EntitlementModule`, `EntitlementService`, `LimitExceededError`, aggregation.      | You enforce limits yourself instead of by decorator. |
+| `./catalog`               | `CatalogModule` — plans, bundles, marketing projections, promotions.               | You touch the catalogue outside the admin pages.     |
+| `./billing`               | Billing periods, plan-catalog loading and import.                                  | You compute periods or load a catalogue yourself.    |
+| `./promo`                 | Pure promo arithmetic: discounts, cycles, labels, VAT.                             | You price something outside a checkout.              |
+| `./checkout-offer`        | `CheckoutOfferModule` — the frozen offer between catalogue and contract.           | Your own checkout writes offers.                     |
+| `./subscription-contract` | `SubscriptionContractModule` and the invoice-shaped projections of a contract.     | You bill from contracts.                             |
+| `./subscriber`            | `SubscriberService` — the party a contract is concluded with, and its corrections. | Your application creates tenants.                    |
+| `./admin`                 | `AdminModule`, the SuperAdmin guards, the port tokens, the manifest surface.       | You extend or replace part of the admin backend.     |
+| `./registration`          | `RegistrationModule` — the only entry `SaaSiCatModule` does not compose.           | You offer self-registration.                         |
+| `./testing`               | Fake adapters for every repository port, plus a `TransactionRunner`.               | You unit-test code that depends on the platform.     |
 
 ## Usage
 

@@ -15,6 +15,7 @@
 --   prisma-fragments/10-super-admin.prisma
 --   prisma-fragments/11-subscription-bundle.prisma
 --   prisma-fragments/12-applied-settings.prisma
+--   prisma-fragments/13-subscriber.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -437,6 +438,10 @@ CREATE TABLE "promotions" (
 CREATE TABLE "subscription_contracts" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "subscriberSnapshot" JSONB NOT NULL,
+    "issuerSnapshot" JSONB,
+    "partiesMigrated" BOOLEAN NOT NULL DEFAULT false,
     "status" "SubscriptionContractStatus" NOT NULL DEFAULT 'active',
     "effectiveFrom" TIMESTAMP(3) NOT NULL,
     "effectiveUntil" TIMESTAMP(3),
@@ -595,6 +600,51 @@ CREATE TABLE "settings_changes" (
     CONSTRAINT "settings_changes_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "subscribers" (
+    "id" TEXT NOT NULL,
+    "customerSequence" SERIAL NOT NULL,
+    "customerNumberPrefix" TEXT NOT NULL DEFAULT '',
+    "legalName" TEXT NOT NULL,
+    "vatId" TEXT,
+    "taxNumber" TEXT,
+    "addressLine1" TEXT,
+    "addressLine2" TEXT,
+    "postalCode" TEXT,
+    "city" TEXT,
+    "country" TEXT,
+    "invoiceEmail" TEXT,
+    "migrated" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscribers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_tenants" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "linkedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "unlinkedAt" TIMESTAMP(3),
+
+    CONSTRAINT "subscriber_tenants_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "subscriber_corrections" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "previous" JSONB NOT NULL,
+    "corrected" JSONB NOT NULL,
+    "reason" TEXT NOT NULL,
+    "correctedBy" TEXT NOT NULL,
+    "correctedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscriber_corrections_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -731,6 +781,9 @@ CREATE INDEX "promotions_targetType_validFrom_validTo_idx" ON "promotions"("targ
 CREATE INDEX "subscription_contracts_tenantId_status_effectiveFrom_idx" ON "subscription_contracts"("tenantId", "status", "effectiveFrom");
 
 -- CreateIndex
+CREATE INDEX "subscription_contracts_subscriberId_idx" ON "subscription_contracts"("subscriberId");
+
+-- CreateIndex
 CREATE INDEX "subscription_contracts_status_idx" ON "subscription_contracts"("status");
 
 -- CreateIndex
@@ -781,6 +834,18 @@ CREATE UNIQUE INDEX "settings_changes_seq_key" ON "settings_changes"("seq");
 -- CreateIndex
 CREATE INDEX "settings_changes_acknowledgedAt_noticedAt_idx" ON "settings_changes"("acknowledgedAt", "noticedAt");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "subscribers_customerSequence_key" ON "subscribers"("customerSequence");
+
+-- CreateIndex
+CREATE INDEX "subscriber_tenants_tenantId_idx" ON "subscriber_tenants"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "subscriber_tenants_subscriberId_idx" ON "subscriber_tenants"("subscriberId");
+
+-- CreateIndex
+CREATE INDEX "subscriber_corrections_subscriberId_correctedAt_idx" ON "subscriber_corrections"("subscriberId", "correctedAt");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -809,6 +874,9 @@ ALTER TABLE "bundle_versions" ADD CONSTRAINT "bundle_versions_bundleId_fkey" FOR
 ALTER TABLE "bundle_versions" ADD CONSTRAINT "bundle_versions_baseVersionId_fkey" FOREIGN KEY ("baseVersionId") REFERENCES "bundle_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "subscription_contracts" ADD CONSTRAINT "subscription_contracts_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "contract_line_items" ADD CONSTRAINT "contract_line_items_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -816,6 +884,12 @@ ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_subscrip
 
 -- AddForeignKey
 ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_bundleVersionId_fkey" FOREIGN KEY ("bundleVersionId") REFERENCES "bundle_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_tenants" ADD CONSTRAINT "subscriber_tenants_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_corrections" ADD CONSTRAINT "subscriber_corrections_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.
@@ -865,3 +939,27 @@ ALTER TABLE applied_settings
     DROP CONSTRAINT IF EXISTS applied_settings_is_a_singleton;
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
+
+-- A subscriber is live for at most ONE tenant, and a tenant has at most ONE
+-- live subscriber. A link that ended keeps its row with `unlinkedAt` set, so the
+-- tenants a subscriber had before stay in its history. Two partial unique
+-- indexes, because a link that is over must not count against the next one.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_tenant
+    ON subscriber_tenants ("tenantId") WHERE "unlinkedAt" IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
+    ON subscriber_tenants ("subscriberId") WHERE "unlinkedAt" IS NULL;
+
+-- Customer numbers count from 10001, so a number has five digits up to 99999
+-- and none reads as a count of subscribers. Two statements: the first makes
+-- 10001 where the sequence starts over, which a restart of its identity reads,
+-- and the second moves a sequence that has never handed out a number there. A
+-- second run finds the start already set and the sequence used, and an
+-- installation without the subscriber tables has no such sequence.
+ALTER SEQUENCE IF EXISTS "subscribers_customerSequence_seq" START WITH 10001;
+
+SELECT setval(format('%I.%I', schemaname, sequencename)::regclass, 10001, false)
+  FROM pg_sequences
+ WHERE schemaname = current_schema()
+   AND sequencename = 'subscribers_customerSequence_seq'
+   AND last_value IS NULL;

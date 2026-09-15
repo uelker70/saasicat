@@ -21,6 +21,7 @@ import type {
 } from '@saasicat/core';
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
+import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { round2 } from '../promo/math.js';
 import { type PricedContractLineItem, recordLineItemMoney } from './contract-line-item-money.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
@@ -45,6 +46,9 @@ export class SubscriptionContractService {
     constructor(
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly repo: SubscriptionContractRepository,
+        // tsup build has no emitDecoratorMetadata — class type args explicitly @Inject.
+        @Inject(SubscriberService)
+        private readonly subscribers: SubscriberService,
     ) {}
 
     list(filter: Parameters<SubscriptionContractRepository['list']>[0]) {
@@ -85,13 +89,33 @@ export class SubscriptionContractService {
         return subscriptionContractToInvoiceSnapshot(contract);
     }
 
-    /** With `tx`, the contract is written on that transaction and undone with it. */
+    /**
+     * Writes the contract between the tenant's subscriber and the issuer
+     * `config/saas.yaml` names, copying both as they stand. With `tx`, the
+     * contract is written on that transaction and undone with it, and the
+     * subscriber is read there too — so one created earlier on the same
+     * transaction is found.
+     *
+     * Refused with `SUBSCRIBER_REQUIRED` for a tenant without a subscriber:
+     * nothing is agreed without the party to it.
+     */
     async create(
         data: CreateSubscriptionContractData,
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord> {
         this.assertCreateData(data);
-        return this.repo.create(this.cloneCreateData(data), tx);
+        const parties = await this.subscribers.contractPartiesFor(data.tenantId, tx);
+        return this.repo.create({ ...this.cloneCreateData(data), parties }, tx);
+    }
+
+    /**
+     * Refuses, with `SUBSCRIBER_REQUIRED`, a contract this tenant could not
+     * have. For callers that change something before the contract is written —
+     * closing the one in force, changing a plan — and must refuse before that
+     * rather than after.
+     */
+    async assertPartyFor(tenantId: string, tx?: TransactionContext): Promise<void> {
+        await this.subscribers.requireForTenant(tenantId, tx);
     }
 
     /** The contract concluded from a checkout offer, or `null` when none was. */
@@ -120,6 +144,7 @@ export class SubscriptionContractService {
         // Checked before the previous contract is closed: `create` checks again,
         // but a refusal there would come after a termination nothing can undo.
         this.assertCreateData(nextData);
+        await this.assertPartyFor(tenantId);
         const previous = await this.repo.findActiveByTenantId(tenantId, terminateAt);
         if (previous) {
             await this.terminate(previous.id, {

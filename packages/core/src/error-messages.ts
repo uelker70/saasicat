@@ -253,6 +253,22 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_CONTRACT_NOT_FOUND: "SubscriptionContract '{contractId}' not found",
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'No active subscription contract for tenant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: "SubscriptionContract '{contractId}' is already closed",
+    // ── subscriber ──
+    SUBSCRIBER_REQUIRED:
+        "Tenant '{tenantId}' has no subscriber. Nothing is agreed or charged without the party to it: create the tenant's subscriber first.",
+    SUBSCRIBER_ALREADY_EXISTS: "Tenant '{tenantId}' already has a subscriber.",
+    SUBSCRIBER_NOT_FOUND: "Subscriber '{subscriberId}' not found",
+    SUBSCRIBER_LEGAL_NAME_REQUIRED: 'A subscriber needs its legal name.',
+    SUBSCRIBER_DETAIL_INVALID: "The subscriber's {field} is not valid.",
+    SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
+        "{field} is part of the subscriber's legal identity and changes only as a correction, with a reason.",
+    SUBSCRIBER_CORRECTION_REASON_REQUIRED: 'A correction of the legal identity needs a reason.',
+    SUBSCRIBER_CORRECTION_ACTOR_REQUIRED:
+        'A correction of the legal identity has to say who makes it.',
+    SUBSCRIBER_CORRECTION_CHANGES_NOTHING:
+        'The correction changes nothing: every value it names is already recorded.',
+    SUBSCRIBER_TAKEOVER_IS_A_TRANSFER:
+        'Another legal entity taking over a subscriber is a transfer, not a correction, and cannot be recorded as an edit.',
     // ── registration ──
     PENDING_REGISTRATION_NOT_FOUND:
         'This registration could not be found. It may have already been completed or discarded.',

@@ -3,9 +3,14 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile, readdir } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+
 import {
     blankStringLiterals,
     checkSchema,
+    modelsKeptPastTheTenant,
     parseEnumValues,
     parseFields,
     parseSchema,
@@ -344,5 +349,97 @@ describe('blankStringLiterals', () => {
         blankStringLiterals(evil);
         const ms = Number(process.hrtime.bigint() - started) / 1e6;
         assert.ok(ms < 500, `took ${ms}ms — expected linear behaviour`);
+    });
+});
+
+// @requirement SC-COMP-007 — A change that would otherwise be silent breaks the integrator's build instead
+describe('a record kept past its tenant is not deleted with it', () => {
+    // A contract belongs to its subscriber and outlives the tenant it was
+    // concluded for. The fragment names no relation to `Tenant` for it, so an
+    // application that kept the cascade from an earlier version would go on
+    // deleting the tax record with every tenant, and nothing else would say so.
+    const KEPT_SPEC = `
+model SubscriptionContract {
+    id       String @id
+    tenantId String
+    @@map("subscription_contracts")
+}
+
+model Subscription {
+    id       String @id
+    tenantId String @unique
+    // tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+    @@map("subscriptions")
+}
+`;
+
+    const appWith = (contractRelation, subscriptionRelation = '') => `
+model Tenant {
+    id String @id
+}
+
+model SubscriptionContract {
+    id       String @id
+    tenantId String
+    ${contractRelation}
+    @@map("subscription_contracts")
+}
+
+model Subscription {
+    id       String @id
+    tenantId String @unique
+    ${subscriptionRelation}
+    @@map("subscriptions")
+}
+`;
+
+    test('a cascade from the tenant onto the contract fails the check, naming the relation', () => {
+        const report = checkSchema(
+            KEPT_SPEC,
+            appWith(
+                'tenant   Tenant @relation(fields: [ tenantId ], references: [id], onDelete: Cascade)',
+            ),
+        );
+        assert.deepEqual(report.tenantCascades, [
+            { model: 'SubscriptionContract', field: 'tenant' },
+        ]);
+        assert.equal(report.ok, false);
+    });
+
+    test('a restriction, no relation, or a commented one passes', () => {
+        for (const relation of [
+            'tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)',
+            '',
+            '// tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)',
+        ]) {
+            const report = checkSchema(KEPT_SPEC, appWith(relation));
+            assert.deepEqual(report.tenantCascades, [], relation);
+            assert.equal(report.ok, true, relation);
+        }
+    });
+
+    test('while a model the fragments point at the tenant keeps its cascade', () => {
+        const report = checkSchema(
+            KEPT_SPEC,
+            appWith(
+                '',
+                'tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)',
+            ),
+        );
+        assert.deepEqual(report.tenantCascades, []);
+        assert.equal(report.ok, true);
+    });
+
+    test('the shipped fragments keep the contract past its tenant', async () => {
+        const require = createRequire(import.meta.url);
+        const fragmentsDir = join(dirname(require.resolve('@saasicat/spec')), 'prisma-fragments');
+        const files = (await readdir(fragmentsDir)).filter((file) => file.endsWith('.prisma'));
+        const spec = (
+            await Promise.all(files.map((file) => readFile(join(fragmentsDir, file), 'utf8')))
+        ).join('\n');
+
+        const kept = modelsKeptPastTheTenant(spec);
+        assert.ok(kept.includes('SubscriptionContract'), kept.join(', '));
+        assert.equal(kept.includes('Subscription'), false, 'a pointed model counted as kept');
     });
 });

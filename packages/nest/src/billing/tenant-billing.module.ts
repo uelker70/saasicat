@@ -11,12 +11,14 @@ import { planCatalogSchema } from '@saasicat/spec';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
     PlanCatalog,
+    SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
 } from '@saasicat/core';
+import { subscriberProviders } from '../subscriber/subscriber.module.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
@@ -209,6 +211,11 @@ export interface TenantBillingModuleOptions {
     contractFreeze?: {
         sourcePort: ProviderSpec<ContractFreezeSourcePort>;
         subscriptionContractRepository: ProviderSpec<SubscriptionContractRepository>;
+        /**
+         * The parties a frozen contract is between. A plan change or a booking
+         * for a tenant without a subscriber is refused before anything changes.
+         */
+        subscriberRepository: ProviderSpec<SubscriberRepository>;
     };
 
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
@@ -299,12 +306,20 @@ export class TenantBillingModule {
         }
         const hasContractFreeze = Boolean(options.contractFreeze);
         if (options.contractFreeze) {
+            if (!options.contractFreeze.subscriberRepository) {
+                throw new Error(
+                    'TenantBillingModule: `contractFreeze` needs `subscriberRepository` — a frozen ' +
+                        'contract names the subscriber it is concluded with, and a plan change for a ' +
+                        'tenant without one is refused before anything changes.',
+                );
+            }
             providers.push(
                 asProvider(CONTRACT_FREEZE_SOURCE_PORT_TOKEN, options.contractFreeze.sourcePort),
                 asProvider(
                     SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
                     options.contractFreeze.subscriptionContractRepository,
                 ),
+                ...subscriberProviders(options.contractFreeze.subscriberRepository),
                 SubscriptionContractService,
                 {
                     provide: CONTRACT_FREEZE_PORT_TOKEN,

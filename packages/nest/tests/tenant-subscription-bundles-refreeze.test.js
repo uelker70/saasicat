@@ -64,6 +64,7 @@ test('add re-freezes the contract with an unchanged plan', async () => {
     const freezeCalls = [];
     const { ctrl } = buildController({
         contractFreeze: {
+            assertPartyFor: async () => {},
             freezeOnPlanChange: async (...args) => freezeCalls.push(args),
         },
     });
@@ -79,6 +80,7 @@ test('cancel re-freezes the contract', async () => {
     const freezeCalls = [];
     const { ctrl } = buildController({
         contractFreeze: {
+            assertPartyFor: async () => {},
             freezeOnPlanChange: async (...args) => freezeCalls.push(args),
         },
     });
@@ -97,6 +99,7 @@ test('without a ContractFreezePort, add works unchanged', async () => {
 test('freeze error is non-fatal — the mutation result still comes back', async () => {
     const { ctrl } = buildController({
         contractFreeze: {
+            assertPartyFor: async () => {},
             freezeOnPlanChange: async () => {
                 throw new Error('freeze kaputt');
             },

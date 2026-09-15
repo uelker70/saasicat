@@ -76,6 +76,7 @@ function controllerFor(sub) {
         { findForTenant: async () => sub },
         (req) => req.user?.tenantId ?? null,
         {
+            async assertPartyFor() {},
             async freezeOnPlanChange(tenantId, plan, cycle, effectiveFrom, endsAt) {
                 calls.frozen.push({ effectiveFrom, endsAt });
             },

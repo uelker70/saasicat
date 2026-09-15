@@ -24,8 +24,15 @@ import type {
     PlanVersionRepository,
     PlanVersionRow,
     CancelSubscriptionBundleData,
-    CreateSubscriptionContractData,
+    CreateSubscriberData,
     CreateSubscriptionBundleData,
+    NewSubscriptionContractData,
+    SubscriberContactChange,
+    SubscriberCorrectionData,
+    SubscriberCorrectionRecord,
+    SubscriberCorrectionResult,
+    SubscriberRecord,
+    SubscriberRepository,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
@@ -43,7 +50,7 @@ import type {
     UpdatePlanVersionDraftData,
     VersionChange,
 } from '@saasicat/core';
-import { startOfUtcDay } from '@saasicat/core';
+import { formatCustomerNumber, identityCorrectionDelta, startOfUtcDay } from '@saasicat/core';
 
 /**
  * In-memory FakeSubscriptionRepository — stores subscriptions by
@@ -280,12 +287,16 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         return first ? this.cloneRecord(first) : null;
     }
 
-    async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
+    async create(data: NewSubscriptionContractData): Promise<SubscriptionContractRecord> {
         const now = new Date();
         const id = `contract-${this.nextContractId++}`;
         const row: SubscriptionContractRecord = {
             id,
             tenantId: data.tenantId,
+            subscriberId: data.parties.subscriberId,
+            subscriber: { ...data.parties.subscriber },
+            issuer: data.parties.issuer ? { ...data.parties.issuer } : null,
+            partiesMigrated: false,
             status: data.status ?? 'active',
             effectiveFrom: new Date(data.effectiveFrom),
             effectiveUntil: data.effectiveUntil ? new Date(data.effectiveUntil) : null,
@@ -349,6 +360,8 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
     private cloneRecord(row: SubscriptionContractRecord): SubscriptionContractRecord {
         return {
             ...row,
+            subscriber: { ...row.subscriber },
+            issuer: row.issuer ? { ...row.issuer } : null,
             effectiveFrom: new Date(row.effectiveFrom),
             effectiveUntil: row.effectiveUntil ? new Date(row.effectiveUntil) : null,
             originalBundleVersionIds: [...row.originalBundleVersionIds],
@@ -374,6 +387,101 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt),
         };
+    }
+}
+
+/**
+ * In-memory FakeSubscriberRepository — one live subscriber per tenant, customer
+ * numbers counted from 10001 like the canonical schema, and corrections
+ * recorded with the values they replaced. No transactions: `tx` is accepted and
+ * ignored.
+ */
+export class FakeSubscriberRepository implements SubscriberRepository {
+    /** Where the canonical schema starts counting (`sql/constraints.postgres.sql`). */
+    static readonly FIRST_CUSTOMER_NUMBER = 10001;
+
+    private readonly byId = new Map<string, SubscriberRecord>();
+    private readonly corrections: SubscriberCorrectionRecord[] = [];
+    private nextSequence = FakeSubscriberRepository.FIRST_CUSTOMER_NUMBER;
+    private nextCorrectionId = 1;
+
+    async createForTenant(data: CreateSubscriberData): Promise<SubscriberRecord | null> {
+        if (this.liveFor(data.tenantId)) return null;
+        const now = new Date();
+        const sequence = this.nextSequence++;
+        const { tenantId, customerNumberPrefix, ...details } = data;
+        const record: SubscriberRecord = {
+            ...details,
+            id: `subscriber-${sequence}`,
+            customerNumber: formatCustomerNumber(customerNumberPrefix, sequence),
+            tenantId,
+            migrated: false,
+            createdAt: now,
+            updatedAt: now,
+        };
+        this.byId.set(record.id, record);
+        return { ...record };
+    }
+
+    async findById(subscriberId: string): Promise<SubscriberRecord | null> {
+        const record = this.byId.get(subscriberId);
+        return record ? { ...record } : null;
+    }
+
+    async findByTenantId(tenantId: string): Promise<SubscriberRecord | null> {
+        const record = this.liveFor(tenantId);
+        return record ? { ...record } : null;
+    }
+
+    async updateContact(
+        subscriberId: string,
+        change: SubscriberContactChange,
+    ): Promise<SubscriberRecord | null> {
+        const record = this.byId.get(subscriberId);
+        if (!record) return null;
+        const updated = { ...record, ...change, updatedAt: new Date() };
+        this.byId.set(subscriberId, updated);
+        return { ...updated };
+    }
+
+    async correctIdentity(
+        subscriberId: string,
+        data: SubscriberCorrectionData,
+    ): Promise<SubscriberCorrectionResult | null> {
+        const record = this.byId.get(subscriberId);
+        if (!record) return null;
+        const delta = identityCorrectionDelta(record, data.corrected);
+        if (Object.keys(delta.corrected).length === 0) {
+            return { subscriber: { ...record }, correction: null };
+        }
+        const updated = {
+            ...record,
+            ...delta.corrected,
+            updatedAt: new Date(),
+        } as SubscriberRecord;
+        this.byId.set(subscriberId, updated);
+        const correction: SubscriberCorrectionRecord = {
+            id: `correction-${this.nextCorrectionId++}`,
+            subscriberId,
+            previous: delta.previous,
+            corrected: delta.corrected,
+            reason: data.reason,
+            correctedBy: data.correctedBy,
+            correctedAt: data.correctedAt,
+        };
+        this.corrections.push(correction);
+        return { subscriber: { ...updated }, correction: { ...correction } };
+    }
+
+    async listCorrections(subscriberId: string): Promise<SubscriberCorrectionRecord[]> {
+        return this.corrections
+            .filter((correction) => correction.subscriberId === subscriberId)
+            .reverse()
+            .map((correction) => ({ ...correction }));
+    }
+
+    private liveFor(tenantId: string): SubscriberRecord | undefined {
+        return [...this.byId.values()].find((record) => record.tenantId === tenantId);
     }
 }
 

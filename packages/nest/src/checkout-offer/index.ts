@@ -3,6 +3,7 @@
 
 export {
     CheckoutOfferService,
+    type ConcludeCheckoutOfferOptions,
     type ConcludeCheckoutOfferWithin,
     type ConcludedCheckoutOffer,
 } from './checkout-offer.service.js';

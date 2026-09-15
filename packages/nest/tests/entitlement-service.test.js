@@ -169,6 +169,23 @@ describe('EntitlementService — computeLimits + Cache', () => {
     });
 });
 
+/** Who the contracts below are between. Entitlement reads none of it. */
+const PARTIES = {
+    subscriberId: 'subscriber-t1',
+    subscriber: {
+        customerNumber: '10001',
+        legalName: 'Tenant One GmbH',
+        vatId: null,
+        taxNumber: null,
+        addressLine1: null,
+        addressLine2: null,
+        postalCode: null,
+        city: null,
+        country: null,
+    },
+    issuer: null,
+};
+
 // @requirement SC-ENTL-001 — What a tenant may do is their plan plus the add-ons they booked
 // @requirement SC-ENTL-021 — A commercial edit does not reach a running contract; a feature losing its code does
 describe('EntitlementService — deriveLimits + Resolution', () => {
@@ -207,6 +224,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
         subRepo.set(buildSub());
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             priceSnapshot: {
                 currency: 'EUR',
@@ -264,6 +282,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
         subRepo.set(buildSub());
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             entitlementSnapshot: {
                 plan: 'SNAPSHOT_PLAN',
@@ -606,6 +625,7 @@ describe('EntitlementService — a feature the catalog says is not built yet', (
         subRepo.set(buildSub());
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             entitlementSnapshot: {
                 plan: 'STANDARD',
@@ -623,6 +643,7 @@ describe('EntitlementService — a feature the catalog says is not built yet', (
         subRepo.set(buildSub());
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             lineItems: [
                 {
@@ -692,6 +713,7 @@ describe('EntitlementService — a feature the catalog says is not built yet', (
         subRepo.set(buildSub());
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             entitlementSnapshot: {
                 plan: 'STANDARD',
@@ -709,6 +731,7 @@ describe('EntitlementService — a feature the catalog says is not built yet', (
         subRepo.set(buildSub());
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             entitlementSnapshot: {
                 plan: 'STANDARD',
@@ -777,6 +800,7 @@ describe('EntitlementService — bundles booked after the contract was signed', 
     async function createSnapshotContract(contractRepo, extra = {}) {
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             priceSnapshot: PRICE,
             entitlementSnapshot: {
@@ -839,6 +863,7 @@ describe('EntitlementService — bundles booked after the contract was signed', 
         subRepo.set(buildSub());
         await contractRepo.create({
             tenantId: 't1',
+            parties: PARTIES,
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             priceSnapshot: PRICE,
             lineItems: [

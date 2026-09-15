@@ -55,6 +55,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             planVersionRepository: REPO,
             subscriptionBundleRepository: REPO,
             subscriptionContractRepository: REPO,
+            subscriberRepository: REPO,
         },
         adminResources: { resources: REPO },
         promo: {

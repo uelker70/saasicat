@@ -94,7 +94,7 @@ persistenceAdapterContract({
     }),
     // The parts this adapter deliberately does not provide. A part named here
     // that the harness does provide fails the suite as well.
-    gaps: ['subscriptionContracts', 'checkoutOffers', 'appliedSettings'],
+    gaps: ['subscriptionContracts', 'subscribers', 'checkoutOffers', 'appliedSettings'],
 });
 ```
 

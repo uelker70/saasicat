@@ -48,6 +48,24 @@ marketing:
 #   notifications:
 #       settingsChanged: [ops@example.com]
 
+# The operator's side of every contract this installation concludes. A contract
+# copies it on the day it is concluded, so it keeps naming its counterparty after
+# this block changes. Only the legal name is required until invoicing requires
+# the rest. The company here is an example, not a real one.
+issuer:
+    legalName: NotesApp Example GmbH
+    addressLine1: Beispielstraße 1
+    postalCode: '10115'
+    city: Berlin
+    country: DE
+    vatId: DE000000000
+
+# Put in front of every customer number assigned from the next start on. A
+# number keeps the prefix it was assigned with, so changing this renumbers
+# nobody.
+subscribers:
+    customerNumberPrefix: K-
+
 # Static quickstart path: plans live directly in the YAML. Apps that manage
 # plans in the SuperAdmin UI omit this block and use the DB catalog instead
 # (SaaSiCatModule.forRoot({ persistence, dbCatalog: { path: 'config/saas.yaml' } }))

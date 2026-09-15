@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 18 rules, in 11 areas.
+There are 19 rules, in 11 areas.
 
 ## core
 
@@ -99,6 +99,13 @@ AdminStats is enabled, but no auditStatsPort is available. Set
 SubscriptionContract is enabled, but no repository is available. Set
 `subscriptionContract.subscriptionContractRepository` or use a compatible
 persistence bundle.
+
+### subscription-contract.requires-subscriber-repository
+
+SubscriptionContract is enabled, but no subscriber repository is available:
+every contract names the subscriber it is concluded with. Set
+`subscriptionContract.subscriberRepository` or use a persistence bundle
+providing `persistence.entitlement.subscriberRepository`.
 
 ## tenant-billing
 

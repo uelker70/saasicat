@@ -1,0 +1,92 @@
+// =============================================================================
+// SaaS platform Prisma fragment: Subscriber, its tenants, its corrections
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// A tenant is where the application keeps a customer's data. The subscriber is
+// the party the contract is with: a customer number and the master data a
+// contract names. A tenant can be deleted; its subscriber stays for as long as
+// a document that has to be kept belongs to it (ADR 0012). That is why nothing
+// here points at the application's `Tenant` model with a cascade — the link
+// below names the tenant as a value and stays after the tenant row is gone.
+//
+// Every model carries `Subscriber` in its name, so it cannot collide with a
+// `Customer` an application already keeps for the people it sells to.
+
+model Subscriber {
+    id String @id @default(uuid())
+
+    // The customer number, counted per installation. The number orders; the
+    // prefix is the one `config/saas.yaml` named when the subscriber was
+    // created, kept beside it so a later prefix renames nobody. Counting starts
+    // at 10001 (sql/constraints.postgres.sql), so numbers have five digits long
+    // before they need a sixth.
+    customerSequence     Int    @unique @default(autoincrement())
+    customerNumberPrefix String @default("")
+
+    // The legal identity. Only the name is required until invoicing requires
+    // the rest; under a running contract these change only as a correction,
+    // recorded in `SubscriberCorrection`.
+    legalName String
+    vatId     String?
+    taxNumber String?
+
+    // Contact details, which change at any time.
+    addressLine1 String?
+    addressLine2 String?
+    postalCode   String?
+    city         String?
+    country      String? // ISO 3166-1 alpha-2
+    invoiceEmail String?
+
+    // Created by the migration that gave every existing tenant its subscriber,
+    // from the application's own tenant record.
+    migrated Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    tenants     SubscriberTenant[]
+    corrections SubscriberCorrection[]
+    contracts   SubscriptionContract[]
+
+    @@map("subscribers")
+}
+
+// Which tenant a subscriber is live for, and which it was before. A subscriber
+// has at most one live tenant and a tenant at most one live subscriber — two
+// partial unique indexes in sql/constraints.postgres.sql, which Prisma cannot
+// express. `unlinkedAt` stays null while the link is live.
+model SubscriberTenant {
+    id           String    @id @default(uuid())
+    subscriberId String
+    tenantId     String
+    linkedAt     DateTime  @default(now())
+    unlinkedAt   DateTime?
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@index([tenantId])
+    @@index([subscriberId])
+    @@map("subscriber_tenants")
+}
+
+// A correction of a subscriber's legal identity: the values it replaced, the
+// values it wrote, why, and who made it. Only the fields that moved are in the
+// two JSON objects. Written in the same transaction as the change, and never
+// rewritten.
+model SubscriberCorrection {
+    id           String   @id @default(uuid())
+    subscriberId String
+    previous     Json
+    corrected    Json
+    reason       String
+    correctedBy  String
+    correctedAt  DateTime
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@index([subscriberId, correctedAt])
+    @@map("subscriber_corrections")
+}

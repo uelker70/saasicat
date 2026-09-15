@@ -35,6 +35,7 @@ import {
     PrismaPromoCodeRepository,
     PrismaPromoSubscriptionLookup,
     PrismaAppliedSettingsRepository,
+    PrismaSubscriberRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
     PrismaTenantSubscriptionWriteAdapter,
@@ -127,6 +128,9 @@ const PLATFORM_TABLES = [
     'super_admin_users',
     'applied_settings',
     'settings_changes',
+    'subscriber_corrections',
+    'subscriber_tenants',
+    'subscribers',
 ];
 
 function createHarness() {
@@ -163,6 +167,7 @@ function createHarness() {
                 },
             }),
             subscriptionContractRepository: new PrismaSubscriptionContractRepository(prisma),
+            subscriberRepository: new PrismaSubscriberRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
         },
         seed: {
@@ -220,6 +225,12 @@ function createHarness() {
                     where: { id: subscriptionBundleId },
                     data: { canceledAt: null },
                 });
+            },
+            async createSubscriber(input) {
+                const row = await prisma.subscriber.create({
+                    data: { legalName: input.legalName },
+                });
+                return { subscriberId: row.id };
             },
             async createPromoCode(input) {
                 const row = await prisma.promoCode.create({

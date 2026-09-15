@@ -132,14 +132,13 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 484 entries: 🟢 412 stand today, 🟡 70 decided but not yet delivered, ⚪ 0 drafts,
+Of 484 entries: 🟢 413 stand today, 🟡 69 decided but not yet delivered, ⚪ 0 drafts,
 🔵 2 superseded, 🔴 0 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
 [SC-SCOPE-013](#sc-scope-013--subscriber-and-invoice-models-avoid-the-applications-own-names-and-a-clash-is-reported),
 [SC-PLAN-007](#sc-plan-007--publishing-says-what-changed),
-[SC-SUB-016](#sc-sub-016--a-subscription-always-has-its-subscriber-whichever-path-created-the-tenant),
 [SC-SUB-017](#sc-sub-017--a-subscribers-legal-identity-can-be-corrected-not-replaced-under-a-running-contract),
 [SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-021](#sc-canc-021--the-read-only-period-and-the-deletion-date-are-stated-before-a-tenant-cancels),
@@ -3681,12 +3680,46 @@ _Tested by:_
 
 ### SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
 
-🟡 _(Decided, not yet delivered.)_ 💰 Self-registration creates both together (`SC-REG-022`), and
+🟢 💰 Self-registration creates both together (`SC-REG-022`), and
 a tenant an operator creates through the administration, a command or the integrator's own form
 (`SC-SCOPE-006`) gets its subscriber in the same step, so no contract is ever frozen and no
 charge ever arises without a party to it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
+    - no contract arises without its subscriber
+        - a contract for a tenant without one is refused, and nothing is written
+        - replacing the contract in force is refused before that contract is closed
+        - a frozen contract is refused before the one in force is closed
+    - a change that ends in a contract asks for the subscriber before it is written
+        - a plan change is refused, and no plan is written
+        - booking an add-on is refused, and nothing is booked
+        - reactivating one is refused as well, being a purchase again
+        - while cancelling one is not refused: a cancellation is a declaration
+    - a completed sign-up names its subscriber from what it collected
+        - the registered name as the legal name, and the verified address for invoices
+- `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
+    - the party an offer is concluded with
+        - a subscriber passed in is created on the transaction, before the contract that names it
+        - a failure after it undoes the subscriber with the contract, and the next attempt creates
+          one
+        - a tenant with no subscriber and none passed in is refused before anything is written
+        - a subscriber passed in for a tenant that has one is refused before anything is written
+        - a subscriber without a legal name is refused before anything is written
+        - a retry after the conclusion answers with it and creates no second subscriber
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a tenant without a subscriber is refused before the contract in force is closed
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - every contract names the subscriber it is concluded with
+        - every tenant with a subscription or a contract gets one subscriber, named from its own
+          table, in the order it came
+
+<!-- END proof -->
 
 ### SC-SUB-017 — A subscriber's legal identity can be corrected, not replaced, under a running contract
 
@@ -3701,6 +3734,25 @@ another legal entity taking over, so the operator declares which it is: a takeov
 or a new contract rather than an edit, the same rule `SC-PRIC-026` applies to the issuer.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
+    - a contract names the parties it is concluded with
+        - a later correction of the subscriber leaves the copy on the contract
+- `packages/nest/tests/a-subscriber-identity-is-corrected-not-replaced.test.js`
+    - contact details
+        - change at any time: what is named is written, null clears, the rest is kept
+        - do not include ${field}, which is refused rather than dropped
+    - a correction of the legal identity
+        - writes the corrected values and records the ones it replaced, why, and by whom
+        - declared as another legal entity taking over is refused, and nothing changes
+        - ${what} is refused, and nothing is recorded
+        - of a subscriber that does not exist is refused as not found
+
+<!-- END proof -->
 
 ## 6. Changing a plan
 
@@ -7529,15 +7581,25 @@ _Tested by:_
         - keeps its own failure when another call concludes the offer during the rollback
         - keeps its own failure under a runner that retries after a refused consume
         - refuses an offer consumed without a contract, rather than concluding it twice over
+    - the party an offer is concluded with
+        - a subscriber passed in is created on the transaction, before the contract that names it
+        - a failure after it undoes the subscriber with the contract, and the next attempt creates
+          one
+        - a tenant with no subscriber and none passed in is refused before anything is written
+        - a subscriber passed in for a tenant that has one is refused before anything is written
+        - a subscriber without a legal name is refused before anything is written
+        - a retry after the conclusion answers with it and creates no second subscriber
     - a promo code on the offer
         - is not checked again after the redemption took its last slot
         - whose redemption is refused inside the transaction undoes the conclusion
     - without what concluding writes through
         - the service refuses to conclude rather than writing the two apart
         - the module does not start with half of it
+        - the module does not start without the parties a contract names
 - `packages/nest/tests/platform-composition.test.js`
     - the checkout offer composer
         - wires concluding from a bundle that has contracts and a transaction runner
+        - leaves it unwired where the bundle has contracts but no subscribers
         - leaves it unwired where the bundle has no contract repository
         - refuses to start when the application names half of it and nothing supplies the rest
         - leaves it unwired without a transaction runner
@@ -12837,6 +12899,21 @@ invoiced; until then it is not.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
+    - a contract names the parties it is concluded with
+        - it copies the tenant's subscriber and the issuer the configuration names
+        - where the configuration names no issuer, the contract says none was named
+        - a party a caller names itself is not the one written
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - every contract names the subscriber it is concluded with
+        - each contract names its tenant's subscriber, with a copy that says the migration made it
+
+<!-- END proof -->
+
 ### SC-AUD-013 — Every invoice line can be traced to the charge and the contract line it came from
 
 🟡 _(Decided, not yet delivered.)_ 💰 The charge already names its agreement line (`SC-AUD-010`);
@@ -12993,6 +13070,10 @@ _Tested by:_
     - a diverging @@map fails the check and names both sides
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
+    - a cascade from the tenant onto the contract fails the check, naming the relation
+    - a restriction, no relation, or a commented one passes
+    - while a model the fragments point at the tenant keeps its cascade
+    - the shipped fragments keep the contract past its tenant
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line
@@ -13053,6 +13134,23 @@ _Tested by:_
         - a line whose contract is gone is named as itself, not as an empty space
         - the query the guide ships finds exactly what the migration refuses
         - a contract that records both goes through
+    - every contract names the subscriber it is concluded with
+        - every tenant with a subscription or a contract gets one subscriber, named from its own
+          table, in the order it came
+        - each contract names its tenant's subscriber, with a copy that says the migration made it
+        - a prefix set for the session numbers the migrated subscribers the way new ones are
+          numbered
+        - a prefix the configuration would refuse creates no subscriber
+        - a second run creates no second subscriber, and a tenant that came in between gets its own
+        - without a foreign key naming the tenant table it stops, names the tenants, and leaves the
+          tables in place
+        - a tenant table without a name column stops it, naming the table
+        - a tenant with no row or an empty name stops it, and both are named
+        - the statement the guide shows creates the subscribers it could not, and it then goes
+          through
+    - customer numbers count from 10001
+        - on the reference schema, and again after the identity is restarted
+        - and the constraints applied again move a sequence that has handed numbers out nowhere
 
 <!-- END proof -->
 
@@ -13111,6 +13209,23 @@ _Tested by:_
         - a line whose contract is gone is named as itself, not as an empty space
         - the query the guide ships finds exactly what the migration refuses
         - a contract that records both goes through
+    - every contract names the subscriber it is concluded with
+        - every tenant with a subscription or a contract gets one subscriber, named from its own
+          table, in the order it came
+        - each contract names its tenant's subscriber, with a copy that says the migration made it
+        - a prefix set for the session numbers the migrated subscribers the way new ones are
+          numbered
+        - a prefix the configuration would refuse creates no subscriber
+        - a second run creates no second subscriber, and a tenant that came in between gets its own
+        - without a foreign key naming the tenant table it stops, names the tenants, and leaves the
+          tables in place
+        - a tenant table without a name column stops it, naming the table
+        - a tenant with no row or an empty name stops it, and both are named
+        - the statement the guide shows creates the subscribers it could not, and it then goes
+          through
+    - customer numbers count from 10001
+        - on the reference schema, and again after the identity is restarted
+        - and the constraints applied again move a sequence that has handed numbers out nowhere
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit
@@ -13700,6 +13815,10 @@ _Tested by:_
     - a diverging @@map fails the check and names both sides
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
+    - a cascade from the tenant onto the contract fails the check, naming the relation
+    - a restriction, no relation, or a commented one passes
+    - while a model the fragments point at the tenant keeps its cascade
+    - the shipped fragments keep the contract past its tenant
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line

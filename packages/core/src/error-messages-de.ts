@@ -256,6 +256,23 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'Kein aktiver Abo-Vertrag für Mandant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED:
         "SubscriptionContract '{contractId}' ist bereits geschlossen",
+    // ── subscriber ──
+    SUBSCRIBER_REQUIRED:
+        "Mandant '{tenantId}' hat keinen Rechnungsempfänger. Ohne Vertragspartei wird nichts vereinbart oder berechnet: Zuerst muss der Rechnungsempfänger des Mandanten angelegt werden.",
+    SUBSCRIBER_ALREADY_EXISTS: "Mandant '{tenantId}' hat bereits einen Rechnungsempfänger.",
+    SUBSCRIBER_NOT_FOUND: "Rechnungsempfänger '{subscriberId}' nicht gefunden",
+    SUBSCRIBER_LEGAL_NAME_REQUIRED: 'Ein Rechnungsempfänger braucht seinen rechtlichen Namen.',
+    SUBSCRIBER_DETAIL_INVALID: 'Das Feld {field} des Rechnungsempfängers ist ungültig.',
+    SUBSCRIBER_IDENTITY_NOT_A_CONTACT:
+        '{field} gehört zur rechtlichen Identität des Rechnungsempfängers und ändert sich nur als Korrektur mit Begründung.',
+    SUBSCRIBER_CORRECTION_REASON_REQUIRED:
+        'Eine Korrektur der rechtlichen Identität braucht eine Begründung.',
+    SUBSCRIBER_CORRECTION_ACTOR_REQUIRED:
+        'Eine Korrektur der rechtlichen Identität muss nennen, wer sie vornimmt.',
+    SUBSCRIBER_CORRECTION_CHANGES_NOTHING:
+        'Die Korrektur ändert nichts: Jeder genannte Wert ist bereits erfasst.',
+    SUBSCRIBER_TAKEOVER_IS_A_TRANSFER:
+        'Übernimmt eine andere Rechtsperson, ist das eine Übertragung und keine Korrektur; sie lässt sich nicht als Änderung erfassen.',
     // ── registration ──
     PENDING_REGISTRATION_NOT_FOUND:
         'Diese Registrierung konnten wir nicht finden. Vielleicht ist sie bereits abgeschlossen oder verworfen.',

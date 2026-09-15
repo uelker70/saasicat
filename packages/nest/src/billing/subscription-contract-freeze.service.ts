@@ -51,6 +51,10 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         private readonly source: ContractFreezeSourcePort,
     ) {}
 
+    assertPartyFor(tenantId: string): Promise<void> {
+        return this.contracts.assertPartyFor(tenantId);
+    }
+
     async endOnCancellation(tenantId: string, effectiveAt: Date): Promise<void> {
         // The contract ends when the subscription does, and nothing replaces
         // it. `findActiveByTenantId` is asked as of the effective date rather
@@ -88,6 +92,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         if (planDef && isPlanNotSoldInCycle(planDef, billingCycle)) {
             throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));
         }
+        await this.contracts.assertPartyFor(tenantId);
 
         const bundles = await this.source.loadBookedBundles(tenantId, cycle, vatRate);
         const livePlanVersionId = await this.source.findLivePlanVersionId(newPlan);

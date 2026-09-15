@@ -8,6 +8,12 @@
 // V3 rule: billing and entitlement must not depend on live-mutable catalog
 // tables. `SubscriptionContract` and `ContractLineItem` therefore store full
 // snapshots. Catalog FKs are optional and only audit/trace references.
+//
+// A contract belongs to its subscriber (13-subscriber.prisma), not to the
+// tenant, and outlives the tenant (ADR 0012). `tenantId` is kept as a trace of
+// the tenant it was concluded for, and deliberately has no relation to the
+// application's `Tenant` model: a cascade there deletes the tax record with the
+// tenant, and a restriction keeps a tenant from ever being deleted.
 
 enum SubscriptionContractStatus {
     active
@@ -27,6 +33,19 @@ enum ContractLineItemKind {
 model SubscriptionContract {
     id       String @id @default(uuid())
     tenantId String
+
+    // Who the contract is between, copied on the day it is concluded: the
+    // subscriber as its record stood, and the issuer as `config/saas.yaml`
+    // named it — null where it named none. Neither copy follows a later change
+    // to the subscriber or the configuration. The invoice email is not copied:
+    // it says how the party is reached, not who it is.
+    subscriberId       String
+    subscriberSnapshot Json
+    issuerSnapshot     Json?
+    // The copies were made by the migration that attached contracts concluded
+    // before subscribers existed, not at conclusion, and are never presented as
+    // what was agreed.
+    partiesMigrated    Boolean @default(false)
 
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
@@ -50,9 +69,10 @@ model SubscriptionContract {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    // tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
 
     @@index([tenantId, status, effectiveFrom])
+    @@index([subscriberId])
     @@index([status])
     @@index([originalOfferId])
     @@map("subscription_contracts")

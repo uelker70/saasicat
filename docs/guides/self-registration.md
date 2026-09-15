@@ -20,21 +20,39 @@ anyone at your company touching anything.
 optional ones. No persistence bundle supplies any of them, and the module is not
 reachable through `SaaSiCatModule` — you import and wire it yourself.
 
-| Port                            | What it does                                         |
-| ------------------------------- | ---------------------------------------------------- |
-| `pendingRegistrationRepository` | Half-finished registrations (8 methods)              |
-| `otpDelivery`                   | Sends the verification code                          |
-| `userAccountLookup`             | Answers "is this mail address already an account?"   |
-| `slugAvailabilityCheck`         | Answers "is this tenant slug free?"                  |
-| `passwordHasher`                | Your hashing choice — the platform does not pick one |
-| `planCatalogLookup`             | The plans a prospect may choose from                 |
-| `paymentProvider`               | Your payment integration                             |
-| `paymentEventLog`               | Records what the provider said                       |
-| `activationOrchestrator`        | Turns a completed registration into a real tenant    |
-| `auditLogger`                   | Records the steps for the audit trail                |
+| Port                            | What it does                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------- |
+| `pendingRegistrationRepository` | Half-finished registrations (8 methods)                                       |
+| `otpDelivery`                   | Sends the verification code                                                   |
+| `userAccountLookup`             | Answers "is this mail address already an account?"                            |
+| `slugAvailabilityCheck`         | Answers "is this tenant slug free?"                                           |
+| `passwordHasher`                | Your hashing choice — the platform does not pick one                          |
+| `planCatalogLookup`             | The plans a prospect may choose from                                          |
+| `paymentProvider`               | Your payment integration                                                      |
+| `paymentEventLog`               | Records what the provider said                                                |
+| `activationOrchestrator`        | Turns a completed registration into a real tenant, and creates its subscriber |
+| `auditLogger`                   | Records the steps for the audit trail                                         |
 
 Optional: `resumeTokenSigner`, `resumeDelivery`, `configuratorLookup`,
 `promoPreview`, and the two configurator lookups behind them.
+
+The orchestrator creates the tenant's **subscriber** on the same transaction as the tenant,
+before any contract, and returns its id as `subscriberId`: every contract names the party it is
+concluded with, and a tenant without one is refused a contract. Concluding a checkout offer, pass
+it to `conclude`, which creates it on the transaction it concludes the offer on; otherwise call
+`SubscriberService.createForTenant` on your own transaction. `subscriberFromRegistration(pending)`
+from `@saasicat/core` gives the details a sign-up has — the tenant name as the legal name, the
+verified address for invoices:
+
+```ts
+await checkoutOffers.conclude(
+    offerId,
+    { tenantId, effectiveFrom: now, subscriber: subscriberFromRegistration(pending) },
+    async (tx) => {
+        /* create the tenant, its user and its subscription on tx */
+    },
+);
+```
 
 Several of those are genuinely app-specific — `paymentProvider` and
 `activationOrchestrator` encode decisions no framework can make for you. Others

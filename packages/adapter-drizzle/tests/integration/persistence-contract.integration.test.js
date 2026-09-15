@@ -36,6 +36,7 @@ import { DrizzleBundleRepository, DrizzleSubscriptionBundleRepository } from '..
 import { DrizzleAppliedSettingsRepository } from '../../dist/index.js';
 import {
     DrizzlePlanRepository,
+    DrizzleSubscriberRepository,
     DrizzleSubscriptionContractRepository,
     DrizzleTenantSubscriptionWrite,
 } from '../../dist/index.js';
@@ -58,6 +59,9 @@ const PLATFORM_TABLES = [
     'super_admin_users',
     'applied_settings',
     'settings_changes',
+    'subscriber_corrections',
+    'subscriber_tenants',
+    'subscribers',
 ];
 
 function createHarness() {
@@ -83,6 +87,7 @@ function createHarness() {
             planRepository: new DrizzlePlanRepository(db, { validityWindows: true }),
             tenantSubscriptionWrite: new DrizzleTenantSubscriptionWrite(db),
             subscriptionContractRepository: new DrizzleSubscriptionContractRepository(db),
+            subscriberRepository: new DrizzleSubscriberRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
         },
         seed: {
@@ -150,6 +155,15 @@ function createHarness() {
                     .update(saasicatSchema.subscriptionBundles)
                     .set({ canceledAt: null })
                     .where(eq(saasicatSchema.subscriptionBundles.id, subscriptionBundleId));
+            },
+            async createSubscriber(input) {
+                const id = randomUUID();
+                await db.insert(saasicatSchema.subscribers).values({
+                    id,
+                    legalName: input.legalName,
+                    updatedAt: new Date(),
+                });
+                return { subscriberId: id };
             },
             async createPromoCode(input) {
                 const id = randomUUID();

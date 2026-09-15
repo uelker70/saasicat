@@ -290,6 +290,16 @@ function printCheckReport(report) {
         console.log('');
     }
 
+    if (report.tenantCascades.length > 0) {
+        console.log(`✗ Deleted together with the tenant (${report.tenantCascades.length}):`);
+        for (const { model, field } of report.tenantCascades) {
+            console.log(`    ${`${model}.${field}`.padEnd(44)} onDelete: Cascade`);
+        }
+        console.log('  These records outlive their tenant — a contract is kept for tax purposes.');
+        console.log('  Remove the relation; `tenantId` stays as a trace.');
+        console.log('');
+    }
+
     const breaking = report.missingBlockAttributes.filter((a) => a.kind !== 'index');
     if (breaking.length > 0) {
         console.log(`✗ Missing constraints (${breaking.length}):`);

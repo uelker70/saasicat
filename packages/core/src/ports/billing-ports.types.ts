@@ -6,11 +6,19 @@ import type {
     SubscriptionBundleRecord,
 } from '../subscription.types.js';
 import type {
-    CreateSubscriptionContractData,
+    NewSubscriptionContractData,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     TerminateSubscriptionContractData,
 } from '../subscription-contract.types.js';
+import type {
+    CreateSubscriberData,
+    SubscriberContactChange,
+    SubscriberCorrectionData,
+    SubscriberCorrectionRecord,
+    SubscriberCorrectionResult,
+    SubscriberRecord,
+} from '../subscriber.types.js';
 
 // -----------------------------------------------------------------------------
 // Billing repository and tenant self-service ports
@@ -197,9 +205,12 @@ export interface SubscriptionContractRepository {
         asOf?: Date,
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord | null>;
-    /** With `tx`, the contract is written on that transaction and undone with it. */
+    /**
+     * Writes the contract with the parties it names. With `tx`, the contract is
+     * written on that transaction and undone with it.
+     */
     create(
-        data: CreateSubscriptionContractData,
+        data: NewSubscriptionContractData,
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord>;
     /**
@@ -216,6 +227,51 @@ export interface SubscriptionContractRepository {
         contractId: string,
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord>;
+}
+
+/**
+ * The parties contracts are concluded with, their link to the tenant they are
+ * live for, and the corrections of their legal identity.
+ *
+ * A subscriber has at most one live tenant and a tenant at most one live
+ * subscriber; the database holds both, so two callers creating one for the
+ * same tenant at once end with one.
+ */
+export interface SubscriberRepository {
+    /**
+     * Creates a subscriber, assigns its customer number, and makes it the
+     * tenant's live subscriber — all or nothing. `null` when the tenant already
+     * has a live subscriber, in which case nothing is written and the caller's
+     * transaction stays usable.
+     */
+    createForTenant(
+        data: CreateSubscriberData,
+        tx?: TransactionContext,
+    ): Promise<SubscriberRecord | null>;
+    findById(subscriberId: string, tx?: TransactionContext): Promise<SubscriberRecord | null>;
+    /** The subscriber live for this tenant, or `null` when it has none. */
+    findByTenantId(tenantId: string, tx?: TransactionContext): Promise<SubscriberRecord | null>;
+    /** Writes the members given and keeps the rest; `null` when no such subscriber exists. */
+    updateContact(
+        subscriberId: string,
+        change: SubscriberContactChange,
+        tx?: TransactionContext,
+    ): Promise<SubscriberRecord | null>;
+    /**
+     * Writes a correction of the legal identity and records it, in one step:
+     * the subscriber is read and changed under a lock, so the values recorded
+     * as replaced are the ones this write replaced even when two corrections
+     * arrive at once. A field whose stored value already equals the corrected
+     * one is left out of the record, and when none differs nothing is written
+     * and `correction` is `null`. `null` when no such subscriber exists.
+     */
+    correctIdentity(
+        subscriberId: string,
+        data: SubscriberCorrectionData,
+        tx?: TransactionContext,
+    ): Promise<SubscriberCorrectionResult | null>;
+    /** Every correction of this subscriber, the latest first. */
+    listCorrections(subscriberId: string): Promise<SubscriberCorrectionRecord[]>;
 }
 
 // -----------------------------------------------------------------------------

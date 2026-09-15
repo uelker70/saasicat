@@ -2,8 +2,8 @@
 // `PlanCatalog` snapshot from DB reads.
 //
 // Inputs:
-//  - App-global settings (app identity, currency, vatRate) —
-//    build-time identity, provided statically by the AppModule.
+//  - The settings of `config/saas.yaml` — every block that is not the
+//    catalogue, handed on whole.
 //  - DB snapshot with Plans + live PlanVersions + FeatureCatalogEntries.
 //
 // Output: `PlanCatalog` (same wire format as the YAML loader).
@@ -17,26 +17,17 @@ import type {
     FeatureKey,
     PlanCatalog,
     PlanCatalogReadSnapshot,
+    PlanCatalogSettings,
     PlanDef,
     QuotaKey,
 } from '@saasicat/core';
 
-export interface PlanCatalogBuildSettings {
-    /** App identity (branding + version) from `config/saas.yaml#app`. */
-    app: PlanCatalog['app'];
-    currency: string;
-    vatRate: number;
-    /**
-     * Commercial self-service settings from `config/saas.yaml#tenantBilling`.
-     * Required, like the two above: the database carries plans and features,
-     * never the settings, so this can only come from the file.
-     */
-    tenantBilling: PlanCatalog['tenantBilling'];
-    /** App-wide marketing configuration. Optional. */
-    marketing?: PlanCatalog['marketing'];
-    /** Who is told when the settings change. Optional, from the same file. */
-    notifications?: PlanCatalog['notifications'];
-}
+/**
+ * The settings a database catalogue runs on. The database carries plans and
+ * features, never the settings, so they can only come from the file — every
+ * block of it, which is why this is the settings type rather than a list.
+ */
+export type PlanCatalogBuildSettings = PlanCatalogSettings;
 
 export function buildPlanCatalogFromSnapshot(
     settings: PlanCatalogBuildSettings,
@@ -90,15 +81,10 @@ export function buildPlanCatalogFromSnapshot(
             plannedOnly: row.plannedOnly,
         }));
 
-    return {
-        schemaVersion: 1,
-        app: settings.app,
-        currency: settings.currency,
-        vatRate: settings.vatRate,
-        tenantBilling: settings.tenantBilling,
-        ...(settings.marketing ? { marketing: settings.marketing } : {}),
-        ...(settings.notifications ? { notifications: settings.notifications } : {}),
-        features,
-        plans,
-    };
+    // A block left out stays out, rather than arriving as a member that holds
+    // `undefined` — the file loader never produces one.
+    const given = Object.fromEntries(
+        Object.entries(settings).filter(([, value]) => value !== undefined),
+    ) as PlanCatalogSettings;
+    return { schemaVersion: 1, ...given, features, plans };
 }

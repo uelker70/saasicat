@@ -18,6 +18,12 @@ bundles, promo codes and the standard admin resources. It also composes
 `SetupModule`, `AdminStatsModule`, `CheckoutOfferModule` and
 `SubscriptionContractModule` when their options are enabled.
 
+**Where your application creates a tenant, it creates the tenant's subscriber** — the party the
+tenant's contracts are concluded with — in the same transaction, with
+`SubscriberService.createForTenant(tenantId, { legalName, … }, tx)` from
+`@saasicat/nest/subscriber`. SaaSiCat creates no tenants, so it cannot do this for you, and every
+way a contract arises refuses a tenant without one.
+
 Expect the savings to come from **wiring**, not from your domain code.
 Application-specific workflows, controllers and adapters stay in the consumer
 because the platform cannot know their domain semantics or database shape.

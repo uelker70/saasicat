@@ -25,6 +25,7 @@ import type {
     CheckoutOfferRow,
     CheckoutOfferSelection,
     CheckoutOfferSelectionUpdate,
+    NewSubscriberDetails,
     PlanRepository,
     SubscriptionContractRecord,
     TransactionContext,
@@ -32,6 +33,7 @@ import type {
 } from '@saasicat/core';
 import {
     CONTRACT_ERROR_CODES,
+    SUBSCRIBER_ERROR_CODES,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
 } from '@saasicat/core';
@@ -46,6 +48,9 @@ import {
     type CreateContractFromOfferOptions,
     SubscriptionContractService,
 } from '../subscription-contract/subscription-contract.service.js';
+import { settleNewSubscriberDetails } from '../subscriber/subscriber-details.js';
+import { SubscriberService } from '../subscriber/subscriber.service.js';
+import { codedError } from '../errors/coded-error.js';
 import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
 import {
     CHECKOUT_OFFER_REPOSITORY_TOKEN,
@@ -59,6 +64,19 @@ const DEFAULT_OFFER_LOCALE = 'de';
 export interface ConcludedCheckoutOffer {
     offer: CheckoutOfferRow;
     contract: SubscriptionContractRecord;
+}
+
+/** How an offer is concluded, and for whom. */
+export interface ConcludeCheckoutOfferOptions extends CreateContractFromOfferOptions {
+    /**
+     * The subscriber of a tenant that does not have one yet, created on the
+     * conclusion's transaction before its contract — what a sign-up passes,
+     * `subscriberFromRegistration(pending)` giving the details. Left out, the
+     * tenant's existing subscriber is the party; a tenant with neither is
+     * refused with `SUBSCRIBER_REQUIRED`, and one that already has a subscriber
+     * with `SUBSCRIBER_ALREADY_EXISTS`.
+     */
+    subscriber?: NewSubscriberDetails;
 }
 
 /**
@@ -98,6 +116,9 @@ export class CheckoutOfferService {
         @Optional()
         @Inject(CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN)
         private readonly transactions: TransactionRunner | null = null,
+        @Optional()
+        @Inject(SubscriberService)
+        private readonly subscribers: SubscriberService | null = null,
     ) {}
 
     list(filter: CheckoutOfferFilter): Promise<CheckoutOfferRow[]> {
@@ -212,6 +233,12 @@ export class CheckoutOfferService {
      * `CHECKOUT_OFFER_ALREADY_CONSUMED`, and an offer changed between the checks
      * and the transaction with `CHECKOUT_OFFER_CHANGED`, nothing written.
      *
+     * The contract is between the tenant's subscriber and the configured
+     * issuer. A sign-up creates the tenant in `within` and has no subscriber
+     * yet, so it passes `subscriber`, which is created on the same transaction
+     * before the contract; whether one may be created, or whether the tenant
+     * has one, is asked before the transaction with the other checks.
+     *
      * A promo code on the offer is redeemed in `within`, with
      * `PromoCodesService.redeemInTransaction` on the same transaction. Before
      * the transaction the code is only checked the way pricing checks it; the
@@ -222,16 +249,18 @@ export class CheckoutOfferService {
      */
     async conclude(
         id: string,
-        options: CreateContractFromOfferOptions,
+        options: ConcludeCheckoutOfferOptions,
         within?: ConcludeCheckoutOfferWithin,
     ): Promise<ConcludedCheckoutOffer> {
-        const { contracts, transactions } = this.conclusionPorts();
-        const { tenantId } = options;
+        const { contracts, transactions, subscribers } = this.conclusionPorts();
+        const { subscriber, ...contractOptions } = options;
+        const { tenantId } = contractOptions;
         const standing = await this.standingConclusion(await this.getById(id), contracts, tenantId);
         if (standing) return standing;
 
         const existing = await this.assertConsumable(id);
-        const checked = contracts.prepareFromOffer(existing, options);
+        const checked = contracts.prepareFromOffer(existing, contractOptions);
+        await this.assertParty(subscribers, contracts, tenantId, subscriber);
         let consumeFailed = false;
         try {
             return await transactions.run(async (tx) => {
@@ -249,8 +278,9 @@ export class CheckoutOfferService {
                 // offer can still be changed in between. The contract has to be
                 // the one the consumed row describes, so it is built from that row
                 // and must be the contract that was checked.
-                const data = contracts.prepareFromOffer(offer, options);
+                const data = contracts.prepareFromOffer(offer, contractOptions);
                 if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
+                if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
                 const contract = await contracts.create(data, tx);
                 const concluded = { offer, contract };
                 if (within) await within(tx, concluded);
@@ -301,15 +331,43 @@ export class CheckoutOfferService {
     private conclusionPorts(): {
         contracts: SubscriptionContractService;
         transactions: TransactionRunner;
+        subscribers: SubscriberService;
     } {
-        if (!this.contracts || !this.transactions) {
+        if (!this.contracts || !this.transactions || !this.subscribers) {
             throw new Error(
-                'CheckoutOfferService.conclude needs the subscription contract repository and a ' +
-                    'transaction runner: pass `conclusion` to CheckoutOfferModule.forRoot, or give ' +
-                    'SaaSiCatModule.forRoot a persistence bundle that has both.',
+                'CheckoutOfferService.conclude needs the subscription contract repository, the ' +
+                    'subscriber repository and a transaction runner: pass `conclusion` to ' +
+                    'CheckoutOfferModule.forRoot, or give SaaSiCatModule.forRoot a persistence ' +
+                    'bundle that has all three.',
             );
         }
-        return { contracts: this.contracts, transactions: this.transactions };
+        return {
+            contracts: this.contracts,
+            transactions: this.transactions,
+            subscribers: this.subscribers,
+        };
+    }
+
+    /**
+     * Before anything is written: the subscriber to create is one that may be
+     * created, or the tenant already has the party the contract is with.
+     */
+    private async assertParty(
+        subscribers: SubscriberService,
+        contracts: SubscriptionContractService,
+        tenantId: string,
+        subscriber: NewSubscriberDetails | undefined,
+    ): Promise<void> {
+        if (!subscriber) {
+            await contracts.assertPartyFor(tenantId);
+            return;
+        }
+        settleNewSubscriberDetails(subscriber);
+        if (await subscribers.findByTenantId(tenantId)) {
+            throw new ConflictException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_ALREADY_EXISTS, { tenantId }),
+            );
+        }
     }
 
     /**

@@ -137,6 +137,64 @@
                 }
             }
         },
+        "issuer": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["legalName"],
+            "description": "The legal entity on the operator's side of every contract this installation concludes, and later of every invoice it issues. A contract copies it on the day it is concluded, so the contract keeps naming its counterparty after this block changes. Optional for now: a contract concluded while it is absent records that no issuer was named.",
+            "properties": {
+                "legalName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The registered name, legal form included, as a contract names the party (e.g. \"Example Software GmbH\")."
+                },
+                "addressLine1": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Street and number."
+                },
+                "addressLine2": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "A second address line, such as a building or a c/o."
+                },
+                "postalCode": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "city": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "country": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2}$",
+                    "description": "ISO 3166-1 alpha-2 country code, e.g. DE."
+                },
+                "vatId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "VAT identification number, e.g. DE123456789."
+                },
+                "taxNumber": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The tax number the issuer's tax office assigned, where it is stated beside or instead of the VAT identification number."
+                }
+            }
+        },
+        "subscribers": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "How the parties this installation concludes contracts with are numbered.",
+            "properties": {
+                "customerNumberPrefix": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._/-]{1,16}$",
+                    "description": "Put in front of every customer number assigned from the next start on: `K-` gives K-10001. A customer number keeps the prefix it was assigned with, so changing this renumbers nobody. Omitted, a customer number is the number alone."
+                }
+            }
+        },
         "features": {
             "type": "array",
             "items": {

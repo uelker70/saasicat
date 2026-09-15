@@ -194,6 +194,7 @@ describe('SaaSiCatModule.forRoot', () => {
             },
             subscriptionContract: {
                 subscriptionContractRepository: {},
+                subscriberRepository: {},
             },
         });
 
@@ -235,6 +236,7 @@ describe('SaaSiCatModule.forRoot', () => {
                     subscriptionRepository: {},
                     planVersionRepository: {},
                     subscriptionContractRepository: contractRepository,
+                    subscriberRepository: {},
                 },
             },
             setup: true,
@@ -265,7 +267,10 @@ describe('SaaSiCatModule.forRoot', () => {
                         auditStatsPort: {},
                     },
                     checkoutOffer: { checkoutOfferRepository: {}, planRepository: {} },
-                    subscriptionContract: { subscriptionContractRepository: {} },
+                    subscriptionContract: {
+                        subscriptionContractRepository: {},
+                        subscriberRepository: {},
+                    },
                 }),
                 OptionalServicesConsumerModule,
             ],

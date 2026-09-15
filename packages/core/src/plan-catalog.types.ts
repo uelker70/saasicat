@@ -126,8 +126,40 @@ export interface PlanCatalogNotifications {
     settingsChanged?: string[];
 }
 
-export interface PlanCatalog {
-    schemaVersion: 1;
+/**
+ * The legal entity on the operator's side of every contract the installation
+ * concludes. A contract copies it on the day it is concluded; only the legal
+ * name is required while nothing is invoiced.
+ */
+export interface PlanCatalogIssuer {
+    legalName: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    postalCode?: string;
+    city?: string;
+    /** ISO 3166-1 alpha-2. */
+    country?: string;
+    vatId?: string;
+    taxNumber?: string;
+}
+
+/** How the parties contracts are concluded with are numbered. */
+export interface PlanCatalogSubscribers {
+    /**
+     * Put in front of every customer number assigned from the next start on.
+     * A number keeps the prefix it was assigned with.
+     */
+    customerNumberPrefix?: string;
+}
+
+/**
+ * The part of `config/saas.yaml` that is configuration rather than catalogue.
+ *
+ * Declared apart so it can be handed on whole — a database catalogue takes its
+ * settings from the file and its plans from the database — without anybody
+ * listing the blocks again. `CATALOGUE_KEYS` names what is left over.
+ */
+export interface PlanCatalogSettings {
     /** App identity (branding + version), see PlanCatalogApp. */
     app: PlanCatalogApp;
     /** ISO-4217 currency code. */
@@ -140,6 +172,14 @@ export interface PlanCatalog {
     marketing?: PlanCatalogMarketing;
     /** Who is told when the settings change between two starts. Optional. */
     notifications?: PlanCatalogNotifications;
+    /** The operator's side of every contract. Optional until invoicing requires it. */
+    issuer?: PlanCatalogIssuer;
+    /** How subscribers are numbered. Optional. */
+    subscribers?: PlanCatalogSubscribers;
+}
+
+export interface PlanCatalog extends PlanCatalogSettings {
+    schemaVersion: 1;
     features?: FeatureDef[];
     /**
      * Optional. When omitted, plans come exclusively from the

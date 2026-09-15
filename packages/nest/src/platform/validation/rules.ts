@@ -323,6 +323,20 @@ const RULE_SPECS: readonly RuleSpec[] = [
             'persistence bundle.',
     },
     {
+        id: 'subscription-contract.requires-subscriber-repository',
+        when: (c) => Boolean(c.options.subscriptionContract),
+        assert: (c) =>
+            Boolean(
+                optionsOf(c.options.subscriptionContract)?.subscriberRepository ??
+                bundle(c)?.entitlement?.subscriberRepository,
+            ),
+        message:
+            'subscriptionContract is enabled, but no subscriber repository is available: every ' +
+            'contract names the subscriber it is concluded with. Set ' +
+            '`subscriptionContract.subscriberRepository` or use a persistence bundle providing ' +
+            '`persistence.entitlement.subscriberRepository`.',
+    },
+    {
         id: 'promo-codes.public-preview-requires-first-time-check',
         when: (c) => {
             const config = optionsOf(c.options.promoCodes);

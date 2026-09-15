@@ -42,6 +42,7 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`10-super-admin.prisma`](10-super-admin.prisma)                     | `SuperAdminUser`, `SuperAdminMfa`                                    |
 | [`11-subscription-bundle.prisma`](11-subscription-bundle.prisma)     | `SubscriptionBundle`                                                 |
 | [`12-applied-settings.prisma`](12-applied-settings.prisma)           | `AppliedSettings`, `SettingsChange`                                  |
+| [`13-subscriber.prisma`](13-subscriber.prisma)                       | `Subscriber`, `SubscriberTenant`, `SubscriberCorrection`             |
 
 ## How the consumer uses the fragments
 
@@ -83,6 +84,12 @@ Fields such as `tenantId String` and `userId String?` remain as plain
 string columns in the fragments; the corresponding `@relation` is left as a
 comment. The consumer enables them using their own `Tenant`/`User` model names.
 
+Two models deliberately carry no such pointer: `SubscriptionContract` and
+`SubscriberTenant`. A contract belongs to its subscriber and outlives the tenant
+it was concluded for, so its `tenantId` is a trace — a cascade from the tenant
+would delete the tax record with it, and a restriction would keep the tenant
+from ever being deleted.
+
 ### 3. Table names (`@@map`) are canonical
 
 `subscriptions`, `subscription_payment_methods`, `checkout_offers`, `plans`,
@@ -92,7 +99,8 @@ comment. The consumer enables them using their own `Tenant`/`User` model names.
 `quota_catalog_entries`, `marketing_projections`, `marketing_settings`,
 `promotions`, `subscription_contracts`, `contract_line_items`,
 `pending_registrations`, `payment_event_logs`, `super_admin_users`,
-`super_admin_mfa`, `subscription_bundles`.
+`super_admin_mfa`, `subscription_bundles`, `subscribers`, `subscriber_tenants`,
+`subscriber_corrections`.
 Please do **not change** them — otherwise platform migration scripts and the
 `@saasicat/cli` commands that rely on these names will break.
 

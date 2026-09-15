@@ -1,4 +1,5 @@
 import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
+import type { LegalIdentity, PartyAddress } from './subscriber.types.js';
 
 export type ContractLineItemKind = 'plan' | 'bundle' | 'discount';
 export type SubscriptionContractStatus = 'active' | 'scheduled' | 'terminated' | 'superseded';
@@ -82,9 +83,42 @@ export interface SubscriptionContractPriceSnapshot {
     totalGross: number;
 }
 
-export interface SubscriptionContractRecord {
+/**
+ * The subscriber as a contract copied it on the day it was concluded.
+ *
+ * The invoice email is not part of it: it says how the party is reached, not
+ * who the party is, and a contract is kept for years after an address like that
+ * stopped mattering.
+ */
+export interface ContractSubscriberParty extends LegalIdentity, PartyAddress {
+    customerNumber: string;
+}
+
+/** The issuer as `config/saas.yaml` named it on the day a contract was concluded. */
+export interface ContractIssuerParty extends LegalIdentity, PartyAddress {}
+
+/** Who a contract is between, copied when it is concluded. */
+export interface SubscriptionContractParties {
+    subscriberId: string;
+    subscriber: ContractSubscriberParty;
+    /** `null` where `config/saas.yaml` named no issuer that day. */
+    issuer: ContractIssuerParty | null;
+}
+
+export interface SubscriptionContractRecord extends SubscriptionContractParties {
     id: string;
+    /**
+     * The tenant the contract was concluded for, kept as a trace. The contract
+     * belongs to its subscriber and outlives the tenant.
+     */
     tenantId: string;
+    /**
+     * The parties were copied by the migration that attached contracts
+     * concluded before subscribers existed, not on the day the contract was
+     * concluded. Either party may have changed in between, so such a copy is
+     * never presented as what was agreed.
+     */
+    partiesMigrated: boolean;
     status: SubscriptionContractStatus;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -106,6 +140,11 @@ export type NewContractLineItemData = Omit<
     'id' | 'contractId' | 'createdAt'
 >;
 
+/**
+ * A contract as a caller asks for it. The parties are not among it: the
+ * platform copies them from the tenant's subscriber and the configuration when
+ * the contract is written, so no caller can name a party of its own.
+ */
 export interface CreateSubscriptionContractData {
     tenantId: string;
     status?: SubscriptionContractStatus;
@@ -120,6 +159,11 @@ export interface CreateSubscriptionContractData {
     promoCodeSnapshots?: unknown[];
     termsSnapshot?: Record<string, unknown> | null;
     lineItems: NewContractLineItemData[];
+}
+
+/** What a repository writes: the contract as asked for, with the parties the platform copied. */
+export interface NewSubscriptionContractData extends CreateSubscriptionContractData {
+    parties: SubscriptionContractParties;
 }
 
 export interface TerminateSubscriptionContractData {
