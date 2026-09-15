@@ -23,6 +23,7 @@
     "a-bundle-runs-with-its-plan",
     "a-change-is-reported",
     "a-contract-gap-is-declared",
+    "a-contract-names-its-subscriber",
     "a-key-belongs-to-the-installation",
     "a-line-records-its-money",
     "a-notice-period-fits-its-cycle",
