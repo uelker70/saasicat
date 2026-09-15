@@ -1191,9 +1191,11 @@ It creates the three subscriber tables and the new contract columns, gives every
 subscription or a contract a subscriber of its own, numbered from 10001 in the order the tenants
 came in and marked `migrated`, attaches each contract to it with a copy marked `partiesMigrated`,
 and makes the link required. It copies no issuer: it cannot read `config/saas.yaml`. Once the link
-is required a later run does nothing, as any role — including for a tenant your application created
-since without a subscriber, which is your application's to give one — and on a database whose schema
-already has the tables it does nothing at all.
+is required, a later run by a role that owns the tables does nothing, under row-level security too,
+and on a database whose schema already has the tables it does nothing at all. That includes a tenant
+created since without a subscriber: your application gives it one, and a tenant created while the
+migration was already in place but your application's upgrade was not gets its subscriber from the
+statement under "When the migration cannot name a tenant".
 
 Where `subscription_contracts`, `subscriptions` or your tenant table is under row-level security,
 run the migration as a role that bypasses it; a role that would see only some of their rows is

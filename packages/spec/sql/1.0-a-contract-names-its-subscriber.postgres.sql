@@ -57,10 +57,11 @@
 -- row-level security.
 --
 -- Safe to run again: every object is created only where it is missing, and once
--- the link is required the second transaction returns before it reads a row —
--- so a later run, as any role, creates nothing. A tenant an application creates
--- after that without a subscriber is the application's to give one; this file
--- does not paper over it. The numbering is moved only while it has never handed
+-- the link is required the second transaction returns before it reads a row, so
+-- a later run creates nothing and row-level security cannot stop it. The first
+-- transaction still needs a role that owns the tables, as `db push` does. A
+-- tenant an application creates after that without a subscriber is the
+-- application's to give one; this file does not paper over it. The numbering is moved only while it has never handed
 -- out a number. On a database created from `reference-schema.postgres.sql` the
 -- whole file does nothing at all.
 

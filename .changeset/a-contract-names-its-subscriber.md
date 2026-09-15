@@ -27,7 +27,8 @@ is kept as a trace without a relation to the tenant.
   from your tenant table's `name`, attaches its contracts with copies marked
   `partiesMigrated`, and makes the link required; it stops, naming the tenants,
   where it cannot name one or row-level security hides their rows. Once the
-  link is required a later run does nothing, as any role.
+  link is required, a later run by a role that owns the tables does nothing,
+  under row-level security too.
 - `SubscriberService` in the new `@saasicat/nest/subscriber` entry creates the
   subscriber where your application creates a tenant, on the same transaction,
   with only the legal name required. Customer numbers count from 10001 behind
