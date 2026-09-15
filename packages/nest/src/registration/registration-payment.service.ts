@@ -177,19 +177,6 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         const pending = await this.pendingFor(event, context);
         if (!pending) return;
         const { methods } = this.payments();
-        // A sign-up activated through another event for the same payment method
-        // is not activated again: that would be a second tenant.
-        const recorded = await methods.findByReference(
-            context.gatewayAccount,
-            event.paymentMethod.paymentMethodRef,
-            context.tx,
-        );
-        if (recorded) {
-            this.logger.warn(
-                `Sign-up ${pending.id} was activated before with this payment method; event ${event.eventId} changes nothing.`,
-            );
-            return;
-        }
         const result = await this.orchestrator.activate(pending, { tx: context.tx });
         await methods.recordConfirmed(
             {
@@ -201,8 +188,11 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
             },
             context.tx,
         );
+        // On the same transaction: the sign-up is gone exactly when its tenant
+        // exists. Any later confirmation — another event, another session opened
+        // from a stale tab — finds nothing to activate a second time.
+        await this.repo.delete(pending.id, context.tx);
         context.afterCommit(async () => {
-            await this.repo.delete(pending.id);
             await this.record({
                 eventType: 'PAYMENT_RECEIVED',
                 pendingRegistrationId: pending.id,

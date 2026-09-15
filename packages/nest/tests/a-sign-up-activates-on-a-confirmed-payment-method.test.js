@@ -129,7 +129,7 @@ async function signUpApp({
                 paymentEventLog: log,
                 subscriberPaymentMethodRepository: methods,
                 subscriberRepository,
-                transactionRunner: new RollbackRunner([log, methods]),
+                transactionRunner: new RollbackRunner([log, methods, repo]),
             }),
         );
     }
@@ -410,6 +410,7 @@ describe('the confirmation of the payment method activates the sign-up', () => {
         const { tx } = ctx.orchestrator.calls[0];
         assert.ok(tx, 'the application was handed no transaction');
         assert.deepEqual(ctx.methods.writes, [{ paymentMethodRef: 'pm_card_1', tx }]);
+        assert.deepEqual(ctx.repo.deletes, [{ id: pendingId, tx }], 'the sign-up deleted on it');
         assert.deepEqual(
             ctx.log.claims.map((claim) => [claim.gatewayAccount, claim.eventId]),
             [[MAIN_ACCOUNT, 'evt_1']],
@@ -473,30 +474,75 @@ describe('the confirmation of the payment method activates the sign-up', () => {
     });
 
     // @requirement SC-REG-019 — The same payment event applied twice changes nothing
-    test('a second event confirming the same payment method creates no second tenant, even with the sign-up left behind', async () => {
+    test('once activated the sign-up is gone: a later confirmation with another payment method activates nothing, and step 4 is refused', async () => {
         const ctx = await signUpApp();
         const { pendingId, sessionRef } = await throughTheForm(ctx);
         const subject = { kind: 'registration', pendingRegistrationId: pendingId };
-        // The sign-up is deleted after the commit. When that fails, the record
-        // is still there for the next event to find.
+        // The first deletion of the sign-up fails. Whether that undoes the
+        // activation or leaves the sign-up behind, it must not open a way to a
+        // second tenant.
         const deleteOnce = ctx.repo.delete.bind(ctx.repo);
         ctx.repo.delete = async (id) => {
             ctx.repo.delete = deleteOnce;
             throw new Error(`could not delete ${id}`);
         };
+        await ctx.callbacks
+            .handle(
+                MAIN_ACCOUNT,
+                signedCallback(confirmation({ eventId: 'evt_first', sessionRef, subject })),
+            )
+            .catch(() => undefined);
 
+        // Another event, another payment method: what a form opened from a
+        // stale tab before the activation would send.
         await ctx.callbacks.handle(
             MAIN_ACCOUNT,
-            signedCallback(confirmation({ eventId: 'evt_a', sessionRef, subject })),
-        );
-        assert.ok(await ctx.repo.findById(pendingId), 'the delete did not fail as arranged');
-        await ctx.callbacks.handle(
-            MAIN_ACCOUNT,
-            signedCallback(confirmation({ eventId: 'evt_b', sessionRef, subject })),
+            signedCallback(
+                confirmation({
+                    eventId: 'evt_later',
+                    sessionRef,
+                    subject,
+                    paymentMethodRef: 'pm_card_2',
+                    customerRef: 'cus_2',
+                }),
+            ),
         );
 
-        assert.equal(ctx.orchestrator.calls.length, 1);
+        assert.equal(ctx.methods.rows.length, 1, 'a second tenant was activated');
+        await assert.rejects(
+            ctx.service.startCheckout({
+                pendingRegistrationId: pendingId,
+                billingDetails: BILLING,
+                ...URLS,
+            }),
+            (error) => codeOf(error) === 'PENDING_REGISTRATION_NOT_FOUND',
+        );
+    });
+
+    test('a sign-up whose deletion fails is not activated either, and the gateway retry activates it once', async () => {
+        const ctx = await signUpApp();
+        const { pendingId, sessionRef } = await throughTheForm(ctx);
+        const callback = signedCallback(
+            confirmation({
+                eventId: 'evt_delete_fails',
+                sessionRef,
+                subject: { kind: 'registration', pendingRegistrationId: pendingId },
+            }),
+        );
+        const deleteOnce = ctx.repo.delete.bind(ctx.repo);
+        ctx.repo.delete = async (id, tx) => {
+            ctx.repo.delete = deleteOnce;
+            throw new Error(`could not delete ${id}`);
+        };
+
+        await assert.rejects(ctx.callbacks.handle(MAIN_ACCOUNT, callback), /could not delete/);
+        assert.deepEqual(ctx.methods.rows, [], 'the payment method outlived the rollback');
+        assert.deepEqual(ctx.log.claims, []);
+        assert.equal((await ctx.repo.findById(pendingId)).status, 'CHECKOUT_STARTED');
+
+        assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, callback), 'handled');
         assert.equal(ctx.methods.rows.length, 1);
+        assert.equal(await ctx.repo.findById(pendingId), null);
     });
 
     test('a confirmation for a session no sign-up waits for activates nothing', async () => {

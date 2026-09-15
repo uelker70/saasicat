@@ -6,6 +6,15 @@ export class FakeRepository {
     constructor() {
         this.rows = new Map();
         this.nextId = 1;
+        /** Every delete, with the transaction it was made on. */
+        this.deletes = [];
+    }
+    /** For a transaction runner that puts the rows back on a rollback. */
+    snapshot() {
+        return new Map([...this.rows].map(([id, row]) => [id, { ...row }]));
+    }
+    restore(rows) {
+        this.rows = rows;
     }
     async findById(id) {
         return this.rows.get(id) ?? null;
@@ -105,7 +114,8 @@ export class FakeRepository {
         this.rows.set(id, updated);
         return updated.otpAttemptCount;
     }
-    async delete(id) {
+    async delete(id, tx) {
+        this.deletes.push({ id, tx });
         this.rows.delete(id);
     }
 }

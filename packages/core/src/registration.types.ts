@@ -183,7 +183,13 @@ export interface PendingRegistrationRepository {
      * value is the authoritative threshold for the lockout check.
      */
     incrementOtpAttemptCount(id: string): Promise<number>;
-    delete(id: string): Promise<void>;
+    /**
+     * Removes the record. With `tx` it is removed on that transaction and comes
+     * back with its rollback — an activation deletes the sign-up on the
+     * transaction that creates the tenant, so a sign-up is either still waiting
+     * or activated, never both.
+     */
+    delete(id: string, tx?: TransactionContext): Promise<void>;
 }
 
 /** Adapter port: detects whether a full user account (verified) exists for this email. */
