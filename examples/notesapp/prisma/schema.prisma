@@ -2,7 +2,7 @@
 //
 // App-owned tables (Tenant, User, Note) plus the full V3 platform surface
 // from the canonical @saasicat/spec prisma-fragments:
-//   01 (Subscription + payment method + checkout offer)
+//   01 (Subscription + checkout offer)
 //   02 (PromoCode + redemption + validation log)
 //   03 (Plan + PlanVersion)
 //   04 (AuditLog)
@@ -12,6 +12,8 @@
 //   08 (SubscriptionContract + ContractLineItem)
 //   10 (SuperAdmin + MFA)
 //   12 (the applied settings and their changes)
+//   13 (Subscriber, its tenants and corrections)
+//   14 (the subscriber's payment method and the gateway events)
 // The platform blocks below are hand-maintained copies of the fragments, with
 // the consumer relations to Tenant/User enabled. `schema apply` seeds them —
 // enums and models — into a fresh schema, but does not update blocks that
@@ -506,14 +508,6 @@ enum SubscriptionStatus {
     PENDING_SALES
 }
 
-enum SubscriptionPaymentType {
-    CARD
-    SEPA
-    PAYPAL
-    KLARNA
-    INVOICE
-}
-
 // -----------------------------------------------------------------------------
 // Subscription — one per Tenant. Binds to PlanVersion (see 03-plan-versions).
 // -----------------------------------------------------------------------------
@@ -584,7 +578,6 @@ model Subscription {
 
     // Relations.
     tenant              Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-    paymentMethod       SubscriptionPaymentMethod?
     promoRedemption     PromoCodeRedemption? // see 02-promo-code.prisma
     planVersion         PlanVersion                 @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
@@ -596,39 +589,6 @@ model Subscription {
     @@index([pendingPlanVersionId])
     @@index([currentPeriodEnd])
     @@map("subscriptions")
-}
-
-// -----------------------------------------------------------------------------
-// SubscriptionPaymentMethod — masked payment data per Subscription.
-// -----------------------------------------------------------------------------
-
-model SubscriptionPaymentMethod {
-    id             String                  @id @default(uuid())
-    subscriptionId String                  @unique
-    type           SubscriptionPaymentType
-
-    // Card (masked)
-    cardName  String?
-    cardBrand String?
-    cardLast4 String?
-    cardExp   String?
-
-    // SEPA (masked)
-    ibanLast4 String?
-    ibanName  String?
-
-    // PayPal
-    paypalEmail String?
-
-    // Klarna
-    klarnaPlan String? // "invoice" | "instalments"
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-    @@map("subscription_payment_methods")
 }
 
 // -----------------------------------------------------------------------------
@@ -1319,9 +1279,10 @@ model Subscriber {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    tenants     SubscriberTenant[]
-    corrections SubscriberCorrection[]
-    contracts   SubscriptionContract[]
+    tenants        SubscriberTenant[]
+    corrections    SubscriberCorrection[]
+    contracts      SubscriptionContract[]
+    paymentMethods SubscriberPaymentMethod[]
 
     @@map("subscribers")
 }
@@ -1361,4 +1322,65 @@ model SubscriberCorrection {
 
     @@index([subscriberId, correctedAt])
     @@map("subscriber_corrections")
+}
+
+// =============================================================================
+// Payments — the subscriber's payment method and the gateway events
+// (14-payments.prisma)
+// =============================================================================
+
+model SubscriberPaymentMethod {
+    id           String @id @default(uuid())
+    subscriberId String
+
+    // The account the references below belong to, and its provider when the
+    // payment method was confirmed.
+    gatewayAccount   String
+    provider         String
+    customerRef      String
+    paymentMethodRef String
+
+    // What tells the payment method apart, never enough to pay with it.
+    type             String // card | sepa_debit
+    brand            String?
+    last4            String
+    expiryMonth      Int?
+    expiryYear       Int?
+    country          String? // ISO 3166-1 alpha-2
+    bankCode         String?
+    mandateReference String?
+
+    status      String    @default("ACTIVE") // ACTIVE | REPLACED
+    confirmedAt DateTime
+    replacedAt  DateTime?
+    createdAt   DateTime  @default(now())
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@unique([gatewayAccount, paymentMethodRef])
+    @@index([subscriberId, status])
+    @@index([gatewayAccount, status])
+    @@map("subscriber_payment_methods")
+}
+
+// PaymentEventLog — every payment gateway event, handled once.
+// Gateways deliver at least once. An event is claimed on the transaction that
+// writes what it changes, so a retry after a rollback is handled and a retry
+// after a commit finds the claim. `eventId` is unique only within the gateway
+// account that sent it — two accounts side by side never take each other's
+// event for a duplicate. `status` holds the event's kind as SaaSiCat read it
+// (`payment-method-confirmed`, …) and `payload` a summary that names no person.
+model PaymentEventLog {
+    id             String   @id @default(cuid())
+    gatewayAccount String
+    eventId        String
+    provider       String
+    sessionId      String?
+    status         String
+    payload        Json?
+    processedAt    DateTime @default(now())
+
+    @@unique([gatewayAccount, eventId])
+    @@index([sessionId])
+    @@index([status, processedAt])
 }

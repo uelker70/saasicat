@@ -16,7 +16,7 @@
 --   prisma-fragments/11-subscription-bundle.prisma
 --   prisma-fragments/12-applied-settings.prisma
 --   prisma-fragments/13-subscriber.prisma
---   prisma-fragments/14-subscriber-payment-method.prisma
+--   prisma-fragments/14-payments.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -506,20 +506,6 @@ CREATE TABLE "PendingRegistration" (
 );
 
 -- CreateTable
-CREATE TABLE "PaymentEventLog" (
-    "id" TEXT NOT NULL,
-    "gatewayAccount" TEXT NOT NULL,
-    "eventId" TEXT NOT NULL,
-    "provider" TEXT NOT NULL,
-    "sessionId" TEXT,
-    "status" TEXT NOT NULL,
-    "payload" JSONB,
-    "processedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "PaymentEventLog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "super_admin_users" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -656,6 +642,20 @@ CREATE TABLE "subscriber_payment_methods" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "subscriber_payment_methods_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PaymentEventLog" (
+    "id" TEXT NOT NULL,
+    "gatewayAccount" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "sessionId" TEXT,
+    "status" TEXT NOT NULL,
+    "payload" JSONB,
+    "processedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PaymentEventLog_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -818,15 +818,6 @@ CREATE INDEX "PendingRegistration_tenantSlug_idx" ON "PendingRegistration"("tena
 CREATE INDEX "PendingRegistration_checkoutGatewayAccount_checkoutSessionI_idx" ON "PendingRegistration"("checkoutGatewayAccount", "checkoutSessionId");
 
 -- CreateIndex
-CREATE INDEX "PaymentEventLog_sessionId_idx" ON "PaymentEventLog"("sessionId");
-
--- CreateIndex
-CREATE INDEX "PaymentEventLog_status_processedAt_idx" ON "PaymentEventLog"("status", "processedAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "PaymentEventLog_gatewayAccount_eventId_key" ON "PaymentEventLog"("gatewayAccount", "eventId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "super_admin_users_email_key" ON "super_admin_users"("email");
 
 -- CreateIndex
@@ -867,6 +858,15 @@ CREATE INDEX "subscriber_payment_methods_gatewayAccount_status_idx" ON "subscrib
 
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriber_payment_methods_gatewayAccount_paymentMethodRef_key" ON "subscriber_payment_methods"("gatewayAccount", "paymentMethodRef");
+
+-- CreateIndex
+CREATE INDEX "PaymentEventLog_sessionId_idx" ON "PaymentEventLog"("sessionId");
+
+-- CreateIndex
+CREATE INDEX "PaymentEventLog_status_processedAt_idx" ON "PaymentEventLog"("status", "processedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PaymentEventLog_gatewayAccount_eventId_key" ON "PaymentEventLog"("gatewayAccount", "eventId");
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

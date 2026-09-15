@@ -145,6 +145,30 @@ describe('a shipped migration survives a second run', () => {
     }
 });
 
+describe('a shipped migration leaves an installation without its tables alone', () => {
+    // A fresh installation applies every file before `db push` has created a
+    // table — the notesapp entrypoint does exactly that, under `set -e` — and an
+    // application that never adopted a fragment applies them too. Either way a
+    // file whose tables are missing has nothing to migrate, and saying so is
+    // the only defined outcome: an error stops the container on its first start.
+
+    // The constraints are the exception, and by design: they are applied after
+    // `db push`, to the tables it created, and a constraint on a table that is
+    // not there has nothing to hold.
+    const beforeTheTables = migrations().filter((name) => name !== 'constraints.postgres.sql');
+
+    for (const name of beforeTheTables) {
+        test(`${name} runs on a database with none of the platform tables, twice`, async () => {
+            await client.query('ROLLBACK').catch(() => {});
+            await client.query('DROP SCHEMA IF EXISTS public CASCADE');
+            await client.query('CREATE SCHEMA public');
+
+            await apply(name);
+            await apply(name);
+        });
+    }
+});
+
 describe('a migration that would merge rows stops instead', () => {
     // The 1.0 migration drops `projectKey` and puts a unique index where it
     // was. On an installation that only ever used one key that is a rename; on

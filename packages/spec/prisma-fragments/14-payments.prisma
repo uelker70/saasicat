@@ -1,5 +1,5 @@
 // =============================================================================
-// SaaS platform Prisma fragment: SubscriberPaymentMethod
+// SaaS platform Prisma fragment: SubscriberPaymentMethod + PaymentEventLog
 // =============================================================================
 //
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
@@ -15,7 +15,9 @@
 // payment method, a partial unique index in sql/constraints.postgres.sql;
 // the one a newer payment method replaced stays as `REPLACED`.
 //
-// Contract: @saasicat/core (SubscriberPaymentMethodRepository).
+// Contract: @saasicat/core (SubscriberPaymentMethodRepository, PaymentEventLog).
+// Both are needed wherever payment methods are taken — self-registration or
+// not — because every gateway callback is claimed in `PaymentEventLog`.
 
 model SubscriberPaymentMethod {
     id           String @id @default(uuid())
@@ -49,4 +51,26 @@ model SubscriberPaymentMethod {
     @@index([subscriberId, status])
     @@index([gatewayAccount, status])
     @@map("subscriber_payment_methods")
+}
+
+// PaymentEventLog — every payment gateway event, handled once.
+// Gateways deliver at least once. An event is claimed on the transaction that
+// writes what it changes, so a retry after a rollback is handled and a retry
+// after a commit finds the claim. `eventId` is unique only within the gateway
+// account that sent it — two accounts side by side never take each other's
+// event for a duplicate. `status` holds the event's kind as SaaSiCat read it
+// (`payment-method-confirmed`, …) and `payload` a summary that names no person.
+model PaymentEventLog {
+    id             String   @id @default(cuid())
+    gatewayAccount String
+    eventId        String
+    provider       String
+    sessionId      String?
+    status         String
+    payload        Json?
+    processedAt    DateTime @default(now())
+
+    @@unique([gatewayAccount, eventId])
+    @@index([sessionId])
+    @@index([status, processedAt])
 }

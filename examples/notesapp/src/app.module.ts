@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { prismaPersistence } from '@saasicat/adapter-prisma';
 import { LimitExceededFilter, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
+import { DevPaymentGateway } from '@saasicat/nest/payments';
 import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
 
 import { DemoAuthGuard } from './auth/demo-auth.guard';
@@ -59,6 +60,15 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                     // here refuses the boot rather than being ignored.
                 },
                 subscriptionBundles: true,
+                // One gateway per account in `config/saas.yaml#payments`. An app
+                // that takes real payment methods binds its provider's gateway
+                // adapter here, built with its keys from the environment.
+                // The tenant's payment method card needs the billing permission,
+                // which the tenant's administrator holds unless
+                // `billingPermissionGuards` says otherwise.
+                payments: {
+                    gateways: { dev: new DevPaymentGateway() },
+                },
                 adminResources: true,
                 promoCodes: true,
                 quotaProviders: [NotesQuotaProvider],

@@ -16,7 +16,8 @@
 --
 --   psql "$DATABASE_URL" -f 1.0-a-settings-change-carries-its-order.postgres.sql
 --
--- Safe to run again: the block runs only while the column is missing. Rows
+-- An installation without `settings_changes` is left alone. Safe to run again:
+-- the block runs only while the column is missing. Rows
 -- recorded before it existed are numbered in the order they were listed until
 -- now — `noticedAt`, then `id` — so nothing an operator saw changes place, and
 -- the numbering continues after them. The unique index is created afterwards,
@@ -28,6 +29,11 @@ BEGIN;
 
 DO $$
 BEGIN
+    IF to_regclass('settings_changes') IS NULL THEN
+        RAISE NOTICE 'settings_changes is not present — nothing to migrate.';
+        RETURN;
+    END IF;
+
     IF EXISTS (
         SELECT 1
         FROM information_schema.columns
@@ -56,6 +62,12 @@ BEGIN
     );
 END $$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS "settings_changes_seq_key" ON "settings_changes"("seq");
+DO $$
+BEGIN
+    IF to_regclass('settings_changes') IS NULL THEN
+        RETURN;  -- said once already, by the block above
+    END IF;
+    CREATE UNIQUE INDEX IF NOT EXISTS "settings_changes_seq_key" ON "settings_changes"("seq");
+END $$;
 
 COMMIT;

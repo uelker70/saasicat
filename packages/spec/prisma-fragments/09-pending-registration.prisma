@@ -1,5 +1,5 @@
 // =============================================================================
-// SaaS Platform Prisma fragment: PendingRegistration + PaymentEventLog
+// SaaS Platform Prisma fragment: PendingRegistration
 // =============================================================================
 //
 // REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
@@ -17,7 +17,9 @@
 // default names — a subsequent `@@map` would only force a table rename.
 //
 // Contract: @saasicat/core (src/registration.types.ts) (PendingRegistration,
-//           PendingRegistrationRepository, PaymentEventLog).
+//           PendingRegistrationRepository). The gateway events a sign-up's
+//           confirmation is claimed in are `PaymentEventLog`, in
+//           14-payments.prisma.
 // Service logic: @saasicat/nest/registration (PendingRegistrationService).
 
 // Multi-step registration flow: status of a PendingRegistration
@@ -96,26 +98,4 @@ model PendingRegistration {
     @@index([status, expiresAt])
     @@index([tenantSlug])
     @@index([checkoutGatewayAccount, checkoutSessionId])
-}
-
-// PaymentEventLog — every payment gateway event, handled once.
-// Gateways deliver at least once. An event is claimed on the transaction that
-// writes what it changes, so a retry after a rollback is handled and a retry
-// after a commit finds the claim. `eventId` is unique only within the gateway
-// account that sent it — two accounts side by side never take each other's
-// event for a duplicate. `status` holds the event's kind as SaaSiCat read it
-// (`payment-method-confirmed`, …) and `payload` a summary that names no person.
-model PaymentEventLog {
-    id             String   @id @default(cuid())
-    gatewayAccount String
-    eventId        String
-    provider       String
-    sessionId      String?
-    status         String
-    payload        Json?
-    processedAt    DateTime @default(now())
-
-    @@unique([gatewayAccount, eventId])
-    @@index([sessionId])
-    @@index([status, processedAt])
 }
