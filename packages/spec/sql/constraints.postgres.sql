@@ -57,6 +57,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_tenant
 CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
     ON subscriber_tenants ("subscriberId") WHERE "unlinkedAt" IS NULL;
 
+-- A subscriber has at most ONE payment method in use. The one a newer payment
+-- method replaced keeps its row as `REPLACED`, so it does not count here.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
+    ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
+
 -- Customer numbers count from 10001, so a number has five digits up to 99999
 -- and none reads as a count of subscribers. Two statements: the first makes
 -- 10001 where the sequence starts over, which a restart of its identity reads,

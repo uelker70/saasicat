@@ -1,5 +1,5 @@
 // =============================================================================
-// SaaS-Platform Prisma fragment: Subscription + Payment method
+// SaaS-Platform Prisma fragment: Subscription + CheckoutOffer
 // =============================================================================
 //
 // REFERENCE SNIPPET — not a standalone schema. Consumers copy
@@ -37,14 +37,6 @@ enum SubscriptionStatus {
     PAST_DUE
     CANCELED
     PENDING_SALES
-}
-
-enum SubscriptionPaymentType {
-    CARD
-    SEPA
-    PAYPAL
-    KLARNA
-    INVOICE
 }
 
 // -----------------------------------------------------------------------------
@@ -140,7 +132,6 @@ model Subscription {
 
     // Relations — consumer must define `Tenant` and enable the relation.
     // tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-    paymentMethod       SubscriptionPaymentMethod?
     promoRedemption     PromoCodeRedemption? // see 02-promo-code.prisma
     planVersion         PlanVersion                 @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
@@ -152,39 +143,6 @@ model Subscription {
     @@index([pendingPlanVersionId])
     @@index([currentPeriodEnd])
     @@map("subscriptions")
-}
-
-// -----------------------------------------------------------------------------
-// SubscriptionPaymentMethod — masked payment data per Subscription.
-// -----------------------------------------------------------------------------
-
-model SubscriptionPaymentMethod {
-    id             String                  @id @default(uuid())
-    subscriptionId String                  @unique
-    type           SubscriptionPaymentType
-
-    // Card (masked)
-    cardName  String?
-    cardBrand String?
-    cardLast4 String?
-    cardExp   String?
-
-    // SEPA (masked)
-    ibanLast4 String?
-    ibanName  String?
-
-    // PayPal
-    paypalEmail String?
-
-    // Klarna
-    klarnaPlan String? // "invoice" | "instalments"
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-    @@map("subscription_payment_methods")
 }
 
 // -----------------------------------------------------------------------------

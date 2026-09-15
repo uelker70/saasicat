@@ -135,6 +135,21 @@ export interface PlanCatalog {
         customerNumberPrefix?: string;
     };
     /**
+     * The payment gateway accounts this installation takes payment methods through. SaaSiCat keeps the gateway's reference to a payment method and its masked details, never a card number or an IBAN. The keys and the webhook secret of each account are bound in the application's code from the environment and never written here.
+     */
+    payments?: {
+        /**
+         * The account a new payment method is taken at, at sign-up and when a tenant changes its payment method. It names one of `accounts`, which then has to list its `methods`. Omitted, no new payment method is taken, and the accounts listed stay for the references they hold.
+         */
+        newPaymentMethods?: string;
+        /**
+         * Every gateway account by the name its webhook route carries: `/webhooks/payment/<name>`. An account that still holds a payment method in use stays listed after another takes the new ones, so its callbacks keep being handled; a start that finds a stored reference to an account missing here refuses, naming the account.
+         */
+        accounts: {
+            [k: string]: PaymentGatewayAccount;
+        };
+    };
+    /**
      * Master list of all feature flags of the project. Plans may only reference keys declared here.
      */
     features?: FeatureDef[];
@@ -142,6 +157,21 @@ export interface PlanCatalog {
      * Optional. When omitted, plans come exclusively from the AdminUI / DB.
      */
     plans?: PlanDef[];
+}
+/**
+ * One account at a payment gateway: a merchant account whose keys the application binds.
+ */
+export interface PaymentGatewayAccount {
+    /**
+     * The gateway the account is at, as its adapter names itself: `stripe` for @saasicat/payment-stripe. A start refuses an account whose bound adapter names another.
+     */
+    provider: string;
+    /**
+     * The payment methods a new payment method may be at this account: `card`, `sepa_debit`. Required for the account `newPaymentMethods` names and read for no other.
+     *
+     * @minItems 1
+     */
+    methods?: ['card' | 'sepa_debit', ...('card' | 'sepa_debit')[]];
 }
 export interface FeatureDef {
     /**

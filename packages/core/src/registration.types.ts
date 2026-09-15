@@ -2,9 +2,12 @@
 // onboarding flow.
 //
 // A PendingRegistration holds the intermediate state between step 1
-// (capturing sign-up data) and the final activation (step 4: payment).
-// Only after successful payment does it become User + Tenant + Subscription.
+// (capturing sign-up data) and the final activation (step 4: the billing
+// address and the payment method). Only once the payment gateway confirmed the
+// payment method does it become User + Tenant + Subscriber + Subscription.
 // Until then the record stays decoupled from the production user model.
+
+import type { TransactionContext } from './ports/core-ports.types.js';
 
 export const PENDING_EMAIL_TTL_HOURS = 72;
 export const PENDING_ONBOARDING_TTL_DAYS = 14;
@@ -78,7 +81,26 @@ export interface PendingRegistration {
     /** Plaintext code (UI display). Validation runs fresh every time. */
     appliedPromoCode: string | null;
 
+    /**
+     * The billing address and tax identifiers step 4 asks for, which the
+     * subscriber is created with. The address is required before a payment
+     * method is set up; the tax identifiers stay optional.
+     */
+    addressLine1: string | null;
+    addressLine2: string | null;
+    postalCode: string | null;
+    city: string | null;
+    /** ISO 3166-1 alpha-2, upper case. */
+    country: string | null;
+    vatId: string | null;
+    taxNumber: string | null;
+
+    /** The gateway's session for the payment method, unique within `checkoutGatewayAccount`. */
     checkoutSessionId: string | null;
+    /** The account in `config/saas.yaml#payments.accounts` the session was opened at. */
+    checkoutGatewayAccount: string | null;
+    /** The customer the gateway created for the sign-up, reused when step 4 is repeated. */
+    gatewayCustomerRef: string | null;
     checkoutStartedAt: Date | null;
 
     expiresAt: Date;
@@ -113,7 +135,16 @@ export interface PendingRegistrationUpdateInput {
     configJson?: RegistrationConfigSelection | null;
     billingCycle?: 'MONTHLY' | 'YEARLY' | null;
     appliedPromoCode?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+    country?: string | null;
+    vatId?: string | null;
+    taxNumber?: string | null;
     checkoutSessionId?: string | null;
+    checkoutGatewayAccount?: string | null;
+    gatewayCustomerRef?: string | null;
     checkoutStartedAt?: Date | null;
     expiresAt?: Date;
 }
@@ -122,8 +153,14 @@ export interface PendingRegistrationUpdateInput {
 export interface PendingRegistrationRepository {
     findById(id: string): Promise<PendingRegistration | null>;
     findByEmail(email: string): Promise<PendingRegistration | null>;
-    /** Webhook lookup: finds the pending record for the provider session. */
-    findByCheckoutSession(sessionId: string): Promise<PendingRegistration | null>;
+    /**
+     * Finds the pending record a gateway session belongs to. A session
+     * identifier is unique only within its account, so both are matched.
+     */
+    findByCheckoutSession(
+        gatewayAccount: string,
+        sessionId: string,
+    ): Promise<PendingRegistration | null>;
     /**
      * Cleanup lookup: all pending records with `expiresAt < now`, max
      * `limit` entries per call (batch protection). Ordering irrelevant, the
@@ -152,44 +189,6 @@ export interface SlugAvailabilityCheck {
     isSlugAvailable(slug: string): Promise<boolean>;
 }
 
-/** Wire format of a created checkout session (provider-agnostic). */
-export interface CheckoutSession {
-    /** Provider-specific session ID (e.g. Stripe `cs_…`). */
-    sessionId: string;
-    /** Payment URL to be opened by the frontend. */
-    checkoutUrl: string;
-    /** Optional: provider name (`stripe`, `dev-stub`) for logging/audit. */
-    provider?: string;
-}
-
-export type PaymentEventStatus = 'SUCCEEDED' | 'FAILED';
-
-/**
- * Adapter port: idempotency log for payment webhooks. Stripe (and most
- * other providers) deliver events at-least-once — the service calls
- * `tryClaim` as an atomic race guard BEFORE it triggers the final
- * activation.
- */
-export interface PaymentEventLog {
-    /**
-     * Tries to insert an event record via `@unique` INSERT. Returns
-     * `true` if it was newly created (webhook seen for the first time),
-     * `false` if it already exists (duplicate → silently drop).
-     *
-     * Implementations must return a DB unique-constraint-violation error
-     * (Prisma P2002) as `false`.
-     */
-    tryClaim(
-        eventId: string,
-        payload: {
-            provider: string;
-            sessionId: string | null;
-            status: PaymentEventStatus;
-            rawPayload?: unknown;
-        },
-    ): Promise<boolean>;
-}
-
 export interface FinalActivationResult {
     userId: string;
     tenantId: string;
@@ -202,41 +201,35 @@ export interface FinalActivationResult {
     subscriberId: string;
 }
 
+/** The transaction a sign-up is activated on. */
+export interface RegistrationActivation {
+    /**
+     * Opened by the platform, which has already claimed the gateway's
+     * confirmation on it and records the confirmed payment method on it once
+     * `activate` returns. Every row the activation writes goes through it, so
+     * a failure anywhere rolls back all of it — the claim included, and the
+     * gateway's retry is handled rather than discarded as a duplicate.
+     */
+    tx: TransactionContext;
+}
+
 /**
- * Adapter port: orchestrates the final creation of User + Tenant +
- * Subscriber + Subscription after successful payment. App-specific — each app
- * has its own schema (e.g. Tenant + TenantUser + Role + UserRole +
- * Subscription).
+ * Adapter port: creates User + Tenant + Subscriber + Subscription once the
+ * gateway confirmed the sign-up's payment method. App-specific — each app has
+ * its own schema (e.g. Tenant + TenantUser + Role + UserRole + Subscription).
  *
- * Implementations MUST perform the creation in a DB transaction so that
- * partial creations are fully rolled back on errors. The subscriber is created
- * there too, before any contract: `SubscriberService.createForTenant(tenantId,
- * details, tx)`, or `CheckoutOfferService.conclude` with `subscriber`, which
- * creates it on the transaction it concludes the offer on.
+ * Implementations write on `activation.tx` and open no transaction of their
+ * own: a write beside it would survive the rollback that undoes the rest. The
+ * subscriber is created there too, before any contract:
+ * `SubscriberService.createForTenant(tenantId, subscriberFromRegistration(pending),
+ * activation.tx)`, or `CheckoutOfferService.conclude` with `subscriber` and
+ * that transaction.
  */
 export interface ActivationOrchestrator {
-    activate(pending: PendingRegistration): Promise<FinalActivationResult>;
-}
-
-export interface HandlePaymentEventInput {
-    eventId: string;
-    sessionId: string | null;
-    provider: string;
-    status: PaymentEventStatus;
-    rawPayload?: unknown;
-}
-
-export type HandlePaymentEventReason =
-    | 'ALREADY_PROCESSED'
-    | 'PAYMENT_NOT_SUCCEEDED'
-    | 'MISSING_SESSION_ID'
-    | 'PENDING_REGISTRATION_NOT_FOUND'
-    | 'INVALID_STATE';
-
-export interface HandlePaymentEventResult {
-    activated: boolean;
-    reason?: HandlePaymentEventReason;
-    result?: FinalActivationResult;
+    activate(
+        pending: PendingRegistration,
+        activation: RegistrationActivation,
+    ): Promise<FinalActivationResult>;
 }
 
 export interface CleanupResult {
@@ -261,7 +254,6 @@ export type RegistrationAuditEventType =
     | 'PLAN_SELECTED'
     | 'CHECKOUT_STARTED'
     | 'PAYMENT_RECEIVED'
-    | 'PAYMENT_DUPLICATE_IGNORED'
     | 'PAYMENT_FAILED'
     | 'ACTIVATION_COMPLETED'
     | 'LOGIN_SUCCEEDED'
@@ -530,6 +522,8 @@ export interface PendingRegistrationSnapshot {
     config: RegistrationConfigSelection | null;
     billingCycle: 'MONTHLY' | 'YEARLY' | null;
     appliedPromoCode: string | null;
+    /** The billing details step 4 already took, to fill its form again. */
+    billingDetails: RegistrationBillingDetails | null;
     checkoutSessionId: string | null;
 }
 
@@ -538,28 +532,6 @@ export interface ResumeRegistrationResult {
     status: RegistrationStatus;
     nextStep: RegistrationStep;
     snapshot: PendingRegistrationSnapshot;
-}
-
-/** Adapter port: payment provider (Stripe, Dev-Stub, Mollie, ...). */
-export interface PaymentProvider {
-    /**
-     * Creates a checkout session at the payment provider and returns the URL
-     * that the frontend should redirect to.
-     *
-     * @param params.pendingRegistrationId Stored as `client_reference_id` (or similar)
-     *   in the provider — the webhook needs it to link back.
-     * @param params.planId The chosen plan (Stripe price/product mapping lives
-     *   in the adapter).
-     * @param params.successUrl Where to go after successful payment.
-     * @param params.cancelUrl Where to go on cancellation.
-     */
-    createCheckoutSession(params: {
-        pendingRegistrationId: string;
-        planId: string;
-        email: string;
-        successUrl: string;
-        cancelUrl: string;
-    }): Promise<CheckoutSession>;
 }
 
 /** Adapter port: OTP delivery via email (or another channel). */
@@ -635,9 +607,28 @@ export interface SelectPlanResult {
     selectedPlanId: string;
 }
 
+/**
+ * The billing address and tax identifiers a sign-up gives in step 4, which its
+ * subscriber is created with. The address is required; the tax identifiers
+ * stay optional until the tax adapter says when one is needed.
+ */
+export interface RegistrationBillingDetails {
+    addressLine1: string;
+    addressLine2?: string | null;
+    postalCode: string;
+    city: string;
+    /** ISO 3166-1 alpha-2, upper case. */
+    country: string;
+    vatId?: string | null;
+    taxNumber?: string | null;
+}
+
 export interface StartCheckoutInput {
     pendingRegistrationId: string;
+    billingDetails: RegistrationBillingDetails;
+    /** Where the gateway's form sends the person once the payment method is set up. */
     successUrl: string;
+    /** Where the gateway's form sends the person who leaves it. */
     cancelUrl: string;
 }
 

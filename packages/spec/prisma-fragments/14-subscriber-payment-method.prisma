@@ -1,0 +1,52 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriberPaymentMethod
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// How a subscriber pays, as the payment gateway's reference to it. The card
+// number or the IBAN never reaches this table: the person enters them in the
+// gateway's own form, and what is kept is the gateway's reference and the
+// masked details that tell one payment method from another (ADR 0012).
+//
+// A reference means something only to the gateway account that issued it —
+// the merchant account named in `config/saas.yaml#payments.accounts` — so
+// every row records that account. A subscriber has at most one `ACTIVE`
+// payment method, a partial unique index in sql/constraints.postgres.sql;
+// the one a newer payment method replaced stays as `REPLACED`.
+//
+// Contract: @saasicat/core (SubscriberPaymentMethodRepository).
+
+model SubscriberPaymentMethod {
+    id           String @id @default(uuid())
+    subscriberId String
+
+    // The account the references below belong to, and its provider when the
+    // payment method was confirmed.
+    gatewayAccount   String
+    provider         String
+    customerRef      String
+    paymentMethodRef String
+
+    // What tells the payment method apart, never enough to pay with it.
+    type             String // card | sepa_debit
+    brand            String?
+    last4            String
+    expiryMonth      Int?
+    expiryYear       Int?
+    country          String? // ISO 3166-1 alpha-2
+    bankCode         String?
+    mandateReference String?
+
+    status      String    @default("ACTIVE") // ACTIVE | REPLACED
+    confirmedAt DateTime
+    replacedAt  DateTime?
+    createdAt   DateTime  @default(now())
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@unique([gatewayAccount, paymentMethodRef])
+    @@index([subscriberId, status])
+    @@index([gatewayAccount, status])
+    @@map("subscriber_payment_methods")
+}

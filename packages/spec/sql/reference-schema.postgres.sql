@@ -16,6 +16,7 @@
 --   prisma-fragments/11-subscription-bundle.prisma
 --   prisma-fragments/12-applied-settings.prisma
 --   prisma-fragments/13-subscriber.prisma
+--   prisma-fragments/14-subscriber-payment-method.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -27,9 +28,6 @@ CREATE TYPE "BillingCycle" AS ENUM ('MONTHLY', 'YEARLY');
 
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'PENDING_SALES');
-
--- CreateEnum
-CREATE TYPE "SubscriptionPaymentType" AS ENUM ('CARD', 'SEPA', 'PAYPAL', 'KLARNA', 'INVOICE');
 
 -- CreateEnum
 CREATE TYPE "PromoCodeValueType" AS ENUM ('PERCENT', 'ABSOLUTE');
@@ -92,25 +90,6 @@ CREATE TABLE "subscriptions" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "subscription_payment_methods" (
-    "id" TEXT NOT NULL,
-    "subscriptionId" TEXT NOT NULL,
-    "type" "SubscriptionPaymentType" NOT NULL,
-    "cardName" TEXT,
-    "cardBrand" TEXT,
-    "cardLast4" TEXT,
-    "cardExp" TEXT,
-    "ibanLast4" TEXT,
-    "ibanName" TEXT,
-    "paypalEmail" TEXT,
-    "klarnaPlan" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "subscription_payment_methods_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -508,7 +487,16 @@ CREATE TABLE "PendingRegistration" (
     "configJson" JSONB,
     "billingCycle" TEXT,
     "appliedPromoCode" TEXT,
+    "addressLine1" TEXT,
+    "addressLine2" TEXT,
+    "postalCode" TEXT,
+    "city" TEXT,
+    "country" TEXT,
+    "vatId" TEXT,
+    "taxNumber" TEXT,
     "checkoutSessionId" TEXT,
+    "checkoutGatewayAccount" TEXT,
+    "gatewayCustomerRef" TEXT,
     "checkoutStartedAt" TIMESTAMP(3),
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -520,6 +508,7 @@ CREATE TABLE "PendingRegistration" (
 -- CreateTable
 CREATE TABLE "PaymentEventLog" (
     "id" TEXT NOT NULL,
+    "gatewayAccount" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
     "sessionId" TEXT,
@@ -645,6 +634,30 @@ CREATE TABLE "subscriber_corrections" (
     CONSTRAINT "subscriber_corrections_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "subscriber_payment_methods" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "gatewayAccount" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "customerRef" TEXT NOT NULL,
+    "paymentMethodRef" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "brand" TEXT,
+    "last4" TEXT NOT NULL,
+    "expiryMonth" INTEGER,
+    "expiryYear" INTEGER,
+    "country" TEXT,
+    "bankCode" TEXT,
+    "mandateReference" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "confirmedAt" TIMESTAMP(3) NOT NULL,
+    "replacedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "subscriber_payment_methods_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -659,9 +672,6 @@ CREATE INDEX "subscriptions_pendingPlanVersionId_idx" ON "subscriptions"("pendin
 
 -- CreateIndex
 CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "subscriptions"("currentPeriodEnd");
-
--- CreateIndex
-CREATE UNIQUE INDEX "subscription_payment_methods_subscriptionId_key" ON "subscription_payment_methods"("subscriptionId");
 
 -- CreateIndex
 CREATE INDEX "checkout_offers_status_idx" ON "checkout_offers"("status");
@@ -805,13 +815,16 @@ CREATE INDEX "PendingRegistration_status_expiresAt_idx" ON "PendingRegistration"
 CREATE INDEX "PendingRegistration_tenantSlug_idx" ON "PendingRegistration"("tenantSlug");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PaymentEventLog_eventId_key" ON "PaymentEventLog"("eventId");
+CREATE INDEX "PendingRegistration_checkoutGatewayAccount_checkoutSessionI_idx" ON "PendingRegistration"("checkoutGatewayAccount", "checkoutSessionId");
 
 -- CreateIndex
 CREATE INDEX "PaymentEventLog_sessionId_idx" ON "PaymentEventLog"("sessionId");
 
 -- CreateIndex
 CREATE INDEX "PaymentEventLog_status_processedAt_idx" ON "PaymentEventLog"("status", "processedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PaymentEventLog_gatewayAccount_eventId_key" ON "PaymentEventLog"("gatewayAccount", "eventId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "super_admin_users_email_key" ON "super_admin_users"("email");
@@ -846,14 +859,20 @@ CREATE INDEX "subscriber_tenants_subscriberId_idx" ON "subscriber_tenants"("subs
 -- CreateIndex
 CREATE INDEX "subscriber_corrections_subscriberId_correctedAt_idx" ON "subscriber_corrections"("subscriberId", "correctedAt");
 
+-- CreateIndex
+CREATE INDEX "subscriber_payment_methods_subscriberId_status_idx" ON "subscriber_payment_methods"("subscriberId", "status");
+
+-- CreateIndex
+CREATE INDEX "subscriber_payment_methods_gatewayAccount_status_idx" ON "subscriber_payment_methods"("gatewayAccount", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_payment_methods_gatewayAccount_paymentMethodRef_key" ON "subscriber_payment_methods"("gatewayAccount", "paymentMethodRef");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_pendingPlanVersionId_fkey" FOREIGN KEY ("pendingPlanVersionId") REFERENCES "plan_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "subscription_payment_methods" ADD CONSTRAINT "subscription_payment_methods_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "promo_code_redemptions" ADD CONSTRAINT "promo_code_redemptions_promoCodeId_fkey" FOREIGN KEY ("promoCodeId") REFERENCES "promo_codes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -890,6 +909,9 @@ ALTER TABLE "subscriber_tenants" ADD CONSTRAINT "subscriber_tenants_subscriberId
 
 -- AddForeignKey
 ALTER TABLE "subscriber_corrections" ADD CONSTRAINT "subscriber_corrections_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_payment_methods" ADD CONSTRAINT "subscriber_payment_methods_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.
@@ -949,6 +971,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_tenant
 
 CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
     ON subscriber_tenants ("subscriberId") WHERE "unlinkedAt" IS NULL;
+
+-- A subscriber has at most ONE payment method in use. The one a newer payment
+-- method replaced keeps its row as `REPLACED`, so it does not count here.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
+    ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
 
 -- Customer numbers count from 10001, so a number has five digits up to 99999
 -- and none reads as a count of subscribers. Two statements: the first makes

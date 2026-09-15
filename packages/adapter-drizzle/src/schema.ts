@@ -419,3 +419,43 @@ export const subscriberCorrections = pgTable('subscriber_corrections', {
     correctedBy: text('correctedBy').notNull(),
     correctedAt: ts('correctedAt').notNull(),
 });
+
+// ---------------------------------------------------------------------------
+// Payments — gateway events and the payment methods they confirm
+// ---------------------------------------------------------------------------
+//
+// An event is unique per gateway account, and a subscriber has at most one
+// `ACTIVE` payment method; the unique indexes that hold both are in the
+// reference schema and `constraints.postgres.sql`.
+
+export const paymentEventLog = pgTable('PaymentEventLog', {
+    id: text('id').primaryKey(),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    eventId: text('eventId').notNull(),
+    provider: text('provider').notNull(),
+    sessionId: text('sessionId'),
+    status: text('status').notNull(),
+    payload: jsonb('payload'),
+    processedAt: ts('processedAt').notNull().defaultNow(),
+});
+
+export const subscriberPaymentMethods = pgTable('subscriber_payment_methods', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    gatewayAccount: text('gatewayAccount').notNull(),
+    provider: text('provider').notNull(),
+    customerRef: text('customerRef').notNull(),
+    paymentMethodRef: text('paymentMethodRef').notNull(),
+    type: text('type').notNull(),
+    brand: text('brand'),
+    last4: text('last4').notNull(),
+    expiryMonth: integer('expiryMonth'),
+    expiryYear: integer('expiryYear'),
+    country: text('country'),
+    bankCode: text('bankCode'),
+    mandateReference: text('mandateReference'),
+    status: text('status').notNull().default('ACTIVE'),
+    confirmedAt: ts('confirmedAt').notNull(),
+    replacedAt: ts('replacedAt'),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+});

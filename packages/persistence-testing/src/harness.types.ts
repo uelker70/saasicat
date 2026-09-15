@@ -11,12 +11,14 @@ import type {
     BundleRepository,
     CheckoutOfferRepository,
     MfaPort,
+    PaymentEventLog,
     PersistenceCapabilities,
     PlanRepository,
     PlanVersionRepository,
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
     PromoSubscriptionLookup,
+    SubscriberPaymentMethodRepository,
     SubscriberRepository,
     SubscriptionContractRepository,
     SubscriptionBundleRepository,
@@ -51,6 +53,19 @@ export interface ContractAdapterInstances {
      * through `seed.createSubscriber` rather than through this port.
      */
     subscriberRepository?: SubscriberRepository;
+    /**
+     * Enables the gateway event scenarios: an event is claimed once per
+     * account, a duplicate leaves the caller's transaction usable, and a claim
+     * rolled back with its transaction is free for the gateway's retry.
+     */
+    paymentEventLog?: PaymentEventLog;
+    /**
+     * Enables the payment method scenarios: one payment method in use per
+     * subscriber however many confirmations arrive at once, the one it
+     * replaced kept as history, and a confirmation recorded twice recognised.
+     * Its subscribers come from `seed.createSubscriber`.
+     */
+    subscriberPaymentMethodRepository?: SubscriberPaymentMethodRepository;
     /**
      * Enables the checkout offer scenarios: an offer is consumed once, and a
      * consume on a transaction that rolls back leaves it open. Neither shipped
@@ -199,6 +214,8 @@ export type ContractGap =
     | 'mfa'
     | 'subscriptionContracts'
     | 'subscribers'
+    | 'paymentEventLog'
+    | 'subscriberPaymentMethods'
     | 'checkoutOffers'
     | 'appliedSettings';
 

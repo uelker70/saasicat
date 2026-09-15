@@ -195,6 +195,30 @@
                 }
             }
         },
+        "payments": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["accounts"],
+            "description": "The payment gateway accounts this installation takes payment methods through. SaaSiCat keeps the gateway's reference to a payment method and its masked details, never a card number or an IBAN. The keys and the webhook secret of each account are bound in the application's code from the environment and never written here.",
+            "properties": {
+                "newPaymentMethods": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+                    "description": "The account a new payment method is taken at, at sign-up and when a tenant changes its payment method. It names one of `accounts`, which then has to list its `methods`. Omitted, no new payment method is taken, and the accounts listed stay for the references they hold."
+                },
+                "accounts": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "propertyNames": {
+                        "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+                    },
+                    "additionalProperties": {
+                        "$ref": "#/$defs/PaymentGatewayAccount"
+                    },
+                    "description": "Every gateway account by the name its webhook route carries: `/webhooks/payment/<name>`. An account that still holds a payment method in use stays listed after another takes the new ones, so its callbacks keep being handled; a start that finds a stored reference to an account missing here refuses, naming the account."
+                }
+            }
+        },
         "features": {
             "type": "array",
             "items": {
@@ -211,6 +235,29 @@
         }
     },
     "$defs": {
+        "PaymentGatewayAccount": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["provider"],
+            "description": "One account at a payment gateway: a merchant account whose keys the application binds.",
+            "properties": {
+                "provider": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+                    "description": "The gateway the account is at, as its adapter names itself: `stripe` for @saasicat/payment-stripe. A start refuses an account whose bound adapter names another."
+                },
+                "methods": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string",
+                        "enum": ["card", "sepa_debit"]
+                    },
+                    "description": "The payment methods a new payment method may be at this account: `card`, `sepa_debit`. Required for the account `newPaymentMethods` names and read for no other."
+                }
+            }
+        },
         "FeatureDef": {
             "type": "object",
             "required": ["key"],

@@ -831,7 +831,10 @@ describe('every contract names the subscriber it is concluded with', () => {
      */
     async function beforeTheMigration({ foreignKey = true } = {}) {
         await freshGround();
-        await client.query('DROP TABLE "subscriber_corrections", "subscriber_tenants"');
+        // Payment methods came later still, and point at the subscribers.
+        await client.query(
+            'DROP TABLE "subscriber_payment_methods", "subscriber_corrections", "subscriber_tenants"',
+        );
         await client.query(
             'ALTER TABLE "subscription_contracts" DROP COLUMN "subscriberId", ' +
                 'DROP COLUMN "subscriberSnapshot", DROP COLUMN "issuerSnapshot", ' +
@@ -1242,6 +1245,156 @@ describe('every contract names the subscriber it is concluded with', () => {
                 ['c-late', 't-late', true],
             ],
         );
+    });
+});
+
+describe('a payment method is the gateway reference, kept for the subscriber', () => {
+    // The migration adds the subscriber's payment methods, makes a gateway
+    // event unique per account, and gives a sign-up its billing details. The
+    // second-run suite runs it on the reference schema, where every object is
+    // already there; these start from the schema as it stood before.
+
+    const MIGRATION = '1.0-a-payment-method-is-a-gateway-reference.postgres.sql';
+
+    /** The reference schema with this migration's objects taken back out. */
+    async function beforeTheMigration() {
+        await freshGround();
+        await client.query('DROP TABLE "subscriber_payment_methods"');
+        await client.query('DROP INDEX "PaymentEventLog_gatewayAccount_eventId_key"');
+        await client.query('ALTER TABLE "PaymentEventLog" DROP COLUMN "gatewayAccount"');
+        await client.query(
+            'CREATE UNIQUE INDEX "PaymentEventLog_eventId_key" ON "PaymentEventLog"("eventId")',
+        );
+        await client.query(
+            'ALTER TABLE "PendingRegistration" DROP COLUMN "addressLine1", ' +
+                'DROP COLUMN "addressLine2", DROP COLUMN "postalCode", DROP COLUMN "city", ' +
+                'DROP COLUMN "country", DROP COLUMN "vatId", DROP COLUMN "taxNumber", ' +
+                'DROP COLUMN "checkoutGatewayAccount", DROP COLUMN "gatewayCustomerRef"',
+        );
+    }
+
+    const seedEvent = (id, eventId, provider) =>
+        client.query(
+            'INSERT INTO "PaymentEventLog" ("id", "eventId", "provider", "status") ' +
+                `VALUES ($1, $2, $3, 'SUCCEEDED')`,
+            [id, eventId, provider],
+        );
+
+    async function events() {
+        const { rows } = await client.query(
+            'SELECT "eventId", "provider", "gatewayAccount" FROM "PaymentEventLog" ORDER BY "id"',
+        );
+        return rows;
+    }
+
+    async function referenceFingerprint() {
+        await freshGround();
+        return fingerprint(client);
+    }
+
+    test('a database from before ends up with the schema the fragments declare', async () => {
+        const reference = await referenceFingerprint();
+        await beforeTheMigration();
+        assert.notEqual(await fingerprint(client), reference, 'nothing was taken out to begin with');
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), reference);
+        const { rows } = await client.query(
+            `SELECT 1 FROM pg_constraint WHERE conname = 'subscriber_payment_methods_subscriberId_fkey'`,
+        );
+        assert.equal(rows.length, 1, 'the payment methods do not point at their subscriber');
+    });
+
+    test('an event recorded before carries its provider as its account, and stays unique', async () => {
+        await beforeTheMigration();
+        await seedEvent('e1', 'evt_1', 'dev-stub');
+        await seedEvent('e2', 'evt_2', 'stripe');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await events(), [
+            { eventId: 'evt_1', provider: 'dev-stub', gatewayAccount: 'dev-stub' },
+            { eventId: 'evt_2', provider: 'stripe', gatewayAccount: 'stripe' },
+        ]);
+        // The same identifier from another account is another event now.
+        await client.query(
+            'INSERT INTO "PaymentEventLog" ("id", "gatewayAccount", "eventId", "provider", "status") ' +
+                `VALUES ('e3', 'stripe-main', 'evt_1', 'stripe', 'payment-method-confirmed')`,
+        );
+        await assert.rejects(
+            client.query(
+                'INSERT INTO "PaymentEventLog" ("id", "gatewayAccount", "eventId", "provider", "status") ' +
+                    `VALUES ('e4', 'stripe-main', 'evt_1', 'stripe', 'payment-method-confirmed')`,
+            ),
+            /duplicate key value/,
+        );
+    });
+
+    test('a second run leaves the accounts the first one gave, an event recorded in between included', async () => {
+        await beforeTheMigration();
+        await seedEvent('e1', 'evt_1', 'dev-stub');
+        await apply(MIGRATION);
+        const schemaAfterFirst = await fingerprint(client);
+        await client.query(
+            'INSERT INTO "PaymentEventLog" ("id", "gatewayAccount", "eventId", "provider", "status") ' +
+                `VALUES ('e2', 'stripe-main', 'evt_2', 'stripe', 'payment-method-confirmed')`,
+        );
+
+        await apply(MIGRATION);
+
+        assert.equal(await fingerprint(client), schemaAfterFirst);
+        assert.deepEqual(await events(), [
+            { eventId: 'evt_1', provider: 'dev-stub', gatewayAccount: 'dev-stub' },
+            { eventId: 'evt_2', provider: 'stripe', gatewayAccount: 'stripe-main' },
+        ]);
+    });
+
+    test('an installation without self-registration gets the payment methods and nothing else', async () => {
+        await beforeTheMigration();
+        await client.query('DROP TABLE "PendingRegistration", "PaymentEventLog"');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscriber_payment_methods') AS methods, ` +
+                `to_regclass('"PaymentEventLog"') AS events, ` +
+                `to_regclass('"PendingRegistration"') AS pending`,
+        );
+        assert.deepEqual(rows[0], { methods: 'subscriber_payment_methods', events: null, pending: null });
+    });
+
+    test('an installation without subscribers is left without the payment methods, and runs through', async () => {
+        await beforeTheMigration();
+        await client.query('DROP TABLE "subscribers" CASCADE');
+
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+
+        const { rows } = await client.query(
+            `SELECT to_regclass('subscriber_payment_methods') AS methods`,
+        );
+        assert.equal(rows[0].methods, null);
+    });
+
+    test('the old masked payment methods an application wrote are left where they are', async () => {
+        await beforeTheMigration();
+        await client.query(
+            `CREATE TYPE "SubscriptionPaymentType" AS ENUM ('CARD', 'SEPA', 'PAYPAL', 'KLARNA', 'INVOICE')`,
+        );
+        await client.query(
+            'CREATE TABLE "subscription_payment_methods" ("id" TEXT PRIMARY KEY, ' +
+                '"type" "SubscriptionPaymentType" NOT NULL, "cardLast4" TEXT)',
+        );
+        await client.query(
+            `INSERT INTO "subscription_payment_methods" VALUES ('old', 'CARD', '4242')`,
+        );
+
+        await apply(MIGRATION);
+
+        const { rows } = await client.query('SELECT * FROM "subscription_payment_methods"');
+        assert.deepEqual(rows, [{ id: 'old', type: 'CARD', cardLast4: '4242' }]);
     });
 });
 

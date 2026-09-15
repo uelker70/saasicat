@@ -7,8 +7,9 @@
 // Persistence of the multi-step registration and onboarding flow
 // (`PendingRegistrationService`). A PendingRegistration holds the
 // intermediate state between step 1 (capturing sign-up data) and the final
-// activation (step 4: payment). Only after successful payment does it become
-// User + Tenant + Subscription — until then the record deliberately stays
+// activation (step 4: billing address and payment method). Only once the
+// payment gateway confirmed the payment method does it become User + Tenant +
+// Subscriber + Subscription — until then the record deliberately stays
 // without a foreign key to consumer models.
 //
 // Unlike the other fragments, WITHOUT `@@map`: the model was adopted back from
@@ -21,7 +22,7 @@
 
 // Multi-step registration flow: status of a PendingRegistration
 // between sign-up-data capture (step 1) and final activation
-// after payment (step 4).
+// once the payment method is confirmed (step 4).
 enum RegistrationStatus {
     PENDING_EMAIL_VERIFICATION
     EMAIL_VERIFIED
@@ -64,11 +65,29 @@ model PendingRegistration {
     // - billingCycle: 'MONTHLY' | 'YEARLY' — determines the price calculation.
     // - appliedPromoCode: last-applied code (plaintext, only for UI display;
     //   validation runs fresh every time via PromoCodesService).
-    configJson        Json?
-    billingCycle      String?
-    appliedPromoCode  String?
-    checkoutSessionId String?
-    checkoutStartedAt DateTime?
+    configJson       Json?
+    billingCycle     String?
+    appliedPromoCode String?
+
+    // Billing details (step 4), which the subscriber is created with. The
+    // address is required before a payment method is set up; the tax
+    // identifiers stay optional.
+    addressLine1 String?
+    addressLine2 String?
+    postalCode   String?
+    city         String?
+    country      String? // ISO 3166-1 alpha-2
+    vatId        String?
+    taxNumber    String?
+
+    // The payment gateway's session for the payment method. A session id is
+    // unique only within the gateway account that opened it, so the account
+    // is kept beside it; the customer the gateway created is reused when the
+    // step is repeated.
+    checkoutSessionId      String?
+    checkoutGatewayAccount String?
+    gatewayCustomerRef     String?
+    checkoutStartedAt      DateTime?
 
     expiresAt DateTime
     createdAt DateTime @default(now())
@@ -76,21 +95,27 @@ model PendingRegistration {
 
     @@index([status, expiresAt])
     @@index([tenantSlug])
+    @@index([checkoutGatewayAccount, checkoutSessionId])
 }
 
-// PaymentEventLog — idempotency key for payment webhooks.
-// Prevents a doubly delivered webhook (Stripe at-least-once) from triggering
-// the final activation more than once. `eventId` is the provider event ID
-// (Stripe `event.id`), `tryClaim` uses a @unique INSERT as race protection.
+// PaymentEventLog — every payment gateway event, handled once.
+// Gateways deliver at least once. An event is claimed on the transaction that
+// writes what it changes, so a retry after a rollback is handled and a retry
+// after a commit finds the claim. `eventId` is unique only within the gateway
+// account that sent it — two accounts side by side never take each other's
+// event for a duplicate. `status` holds the event's kind as SaaSiCat read it
+// (`payment-method-confirmed`, …) and `payload` a summary that names no person.
 model PaymentEventLog {
-    id          String   @id @default(cuid())
-    eventId     String   @unique
-    provider    String
-    sessionId   String?
-    status      String
-    payload     Json?
-    processedAt DateTime @default(now())
+    id             String   @id @default(cuid())
+    gatewayAccount String
+    eventId        String
+    provider       String
+    sessionId      String?
+    status         String
+    payload        Json?
+    processedAt    DateTime @default(now())
 
+    @@unique([gatewayAccount, eventId])
     @@index([sessionId])
     @@index([status, processedAt])
 }

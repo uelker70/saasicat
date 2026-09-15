@@ -9,6 +9,7 @@ import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
     formatCustomerNumber,
     identityCorrectionDelta,
+    subscriberPaymentMethodColumns,
 } from '@saasicat/core';
 
 // A fixed instant: this harness has no clock of its own, and a timestamp that
@@ -49,6 +50,8 @@ export function createMemoryHarness() {
         contractLines: [],
         subscribers: [],
         subscriberCorrections: [],
+        paymentEvents: [],
+        paymentMethods: [],
         nextCustomerSequence: FIRST_CUSTOMER_NUMBER,
         checkoutOffers: [],
         appliedSettings: null,
@@ -644,6 +647,76 @@ export function createMemoryHarness() {
         },
     };
 
+    const paymentEventLog = {
+        async claim(claim) {
+            const taken = state.paymentEvents.some(
+                (event) =>
+                    event.gatewayAccount === claim.gatewayAccount && event.eventId === claim.eventId,
+            );
+            if (taken) return false;
+            state.paymentEvents.push(structuredClone(claim));
+            return true;
+        },
+    };
+
+    const subscriberPaymentMethodRepository = {
+        async recordConfirmed(data) {
+            if (!state.subscribers.some((subscriber) => subscriber.id === data.subscriberId)) {
+                throw new Error(`Subscriber '${data.subscriberId}' does not exist.`);
+            }
+            const recorded = state.paymentMethods.find(
+                (row) =>
+                    row.gatewayAccount === data.gatewayAccount &&
+                    row.paymentMethodRef === data.paymentMethodRef,
+            );
+            if (recorded) {
+                return { method: structuredClone(recorded), outcome: 'already-recorded' };
+            }
+            const active = state.paymentMethods.find(
+                (row) => row.subscriberId === data.subscriberId && row.status === 'ACTIVE',
+            );
+            const row = {
+                ...subscriberPaymentMethodColumns(data),
+                id: nextId('payment-method'),
+                createdAt: FIXED_NOW,
+            };
+            if (active && active.confirmedAt.getTime() > data.confirmedAt.getTime()) {
+                state.paymentMethods.push({
+                    ...row,
+                    status: 'REPLACED',
+                    replacedAt: active.confirmedAt,
+                });
+                return { method: structuredClone(state.paymentMethods.at(-1)), outcome: 'superseded' };
+            }
+            if (active) {
+                active.status = 'REPLACED';
+                active.replacedAt = data.confirmedAt;
+            }
+            state.paymentMethods.push({ ...row, status: 'ACTIVE', replacedAt: null });
+            return { method: structuredClone(state.paymentMethods.at(-1)), outcome: 'activated' };
+        },
+        async findActive(subscriberId) {
+            const row = state.paymentMethods.find(
+                (candidate) => candidate.subscriberId === subscriberId && candidate.status === 'ACTIVE',
+            );
+            return row ? structuredClone(row) : null;
+        },
+        async findByReference(gatewayAccount, paymentMethodRef) {
+            const row = state.paymentMethods.find(
+                (candidate) =>
+                    candidate.gatewayAccount === gatewayAccount &&
+                    candidate.paymentMethodRef === paymentMethodRef,
+            );
+            return row ? structuredClone(row) : null;
+        },
+        async accountsInUse() {
+            const accounts = state.paymentMethods
+                .filter((row) => row.status === 'ACTIVE')
+                .map((row) => row.gatewayAccount);
+            return [...new Set(accounts)].sort();
+        },
+    };
+
     const seed = {
         async createSubscriber(input) {
             const row = {
@@ -845,6 +918,8 @@ export function createMemoryHarness() {
             transactionRunner,
             subscriptionRepository,
             planVersionRepository,
+            paymentEventLog,
+            subscriberPaymentMethodRepository,
             promoCodeRepository,
             promoCodeRedemptionRepository,
             audit,

@@ -26,6 +26,8 @@ export {
 } from './drizzle-plan.repository.js';
 export { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.js';
 export { DrizzleSubscriptionContractRepository } from './drizzle-subscription-contract.repository.js';
+export { DrizzlePaymentEventLog } from './drizzle-payment-event-log.adapter.js';
+export { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';
 export { DrizzleSubscriberRepository } from './drizzle-subscriber.repository.js';
 export { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
 export { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';

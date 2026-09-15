@@ -1,0 +1,49 @@
+// Subscriber payment method — the gateway's reference to how a subscriber pays.
+//
+// A subscriber has one payment method in use at a time. A new one that the
+// gateway confirms takes its place, and the one it replaced stays as history:
+// a collection, a mandate reference or a dispute can still name it later.
+
+import type { ConfirmedPaymentMethod } from './payment-gateway.types.js';
+
+/** `ACTIVE` is the one in use; `REPLACED` is one a later payment method took over from. */
+export type SubscriberPaymentMethodStatus = 'ACTIVE' | 'REPLACED';
+
+export interface SubscriberPaymentMethodRecord extends ConfirmedPaymentMethod {
+    id: string;
+    subscriberId: string;
+    /** The account in `config/saas.yaml#payments.accounts` the references belong to. */
+    gatewayAccount: string;
+    /** The provider of that account when the payment method was confirmed. */
+    provider: string;
+    status: SubscriberPaymentMethodStatus;
+    /** When the gateway confirmed the payment method. */
+    confirmedAt: Date;
+    /** When a later payment method took over; `null` while this one is in use. */
+    replacedAt: Date | null;
+    createdAt: Date;
+}
+
+/** What a repository records for a payment method the gateway confirmed. */
+export interface RecordSubscriberPaymentMethodData extends ConfirmedPaymentMethod {
+    subscriberId: string;
+    gatewayAccount: string;
+    provider: string;
+    confirmedAt: Date;
+}
+
+/**
+ * - `activated`: it is the subscriber's payment method now, and the one it
+ *   replaced, if any, is `REPLACED`.
+ * - `already-recorded`: the account's reference was recorded before; nothing
+ *   was written, and `method` is the row that holds it.
+ * - `superseded`: the subscriber's payment method in use was confirmed after
+ *   this one, so this one is recorded as already replaced — confirmations can
+ *   arrive in another order than the forms were filled in.
+ */
+export type RecordSubscriberPaymentMethodOutcome = 'activated' | 'already-recorded' | 'superseded';
+
+export interface RecordSubscriberPaymentMethodResult {
+    method: SubscriberPaymentMethodRecord;
+    outcome: RecordSubscriberPaymentMethodOutcome;
+}

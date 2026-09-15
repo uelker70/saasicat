@@ -32,6 +32,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     NO_TENANT_ASSIGNED: 'No tenant assigned',
     TENANT_CONTEXT_MISSING: 'No tenant ID found on the request',
     TENANT_ADMIN_REQUIRED: 'This action requires the TENANT_ADMIN role.',
+    BILLING_PERMISSION_REQUIRED: 'This part of the billing area requires the billing permission.',
     SUPER_ADMIN_REQUIRED: 'Only the SUPER_ADMIN role is allowed',
     MFA_NOT_SET_UP: 'Run the MFA setup via the CLI first.',
     MFA_REQUIRED: 'TOTP code required in the X-Mfa-Code header.',
@@ -286,6 +287,11 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_NOT_AVAILABLE: 'This plan is not available.',
     PLAN_NOT_SELECTED: 'Please select a plan first.',
     MODEL_NOT_AVAILABLE: 'This option is not available.',
+    BILLING_DETAIL_INVALID: 'Please check the billing detail {field}.',
+    // ── payments ──
+    PAYMENTS_NOT_CONFIGURED: 'Payment methods cannot be set up here yet.',
+    PAYMENT_GATEWAY_ACCOUNT_UNKNOWN: "No payment gateway account is configured under '{account}'.",
+    PAYMENT_CALLBACK_REJECTED: 'The payment callback could not be verified.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Feature {featureKeys} is not included in the current plan.',
     // ── settings ──

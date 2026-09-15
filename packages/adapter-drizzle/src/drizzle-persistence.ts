@@ -13,12 +13,14 @@ import { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
 import { DrizzleMfaAdapter } from './drizzle-mfa.adapter.js';
 import { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';
 import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
+import { DrizzlePaymentEventLog } from './drizzle-payment-event-log.adapter.js';
 import { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.js';
 import { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';
 import { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 import { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
 import { DrizzlePlanRepository } from './drizzle-plan.repository.js';
 import { DrizzleSubscriptionContractRepository } from './drizzle-subscription-contract.repository.js';
+import { DrizzleSubscriberPaymentMethodRepository } from './drizzle-subscriber-payment-method.repository.js';
 import { DrizzleSubscriberRepository } from './drizzle-subscriber.repository.js';
 import { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
 import { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';
@@ -166,6 +168,12 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             ),
             subscriptionLookup: provide((client) => new DrizzlePromoSubscriptionLookup(client)),
             revenueAggregator: new ZeroPromoRevenueDeductionAggregator(),
+        },
+        payments: {
+            paymentEventLog: provide((client) => new DrizzlePaymentEventLog(client)),
+            subscriberPaymentMethodRepository: provide(
+                (client) => new DrizzleSubscriberPaymentMethodRepository(client),
+            ),
         },
         planCatalogReadSink: provide((client) => new DrizzlePlanCatalogReadSink(client)),
         planCatalogImportSink: provide((client) => new DrizzlePlanCatalogImportSink(client)),
