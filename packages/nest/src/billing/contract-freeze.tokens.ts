@@ -26,6 +26,17 @@ export const CONTRACT_FREEZE_SOURCE_PORT_TOKEN = Symbol.for(
 
 export interface ContractFreezePort {
     /**
+     * Refuses, with `SUBSCRIBER_REQUIRED`, a tenant that has no subscriber.
+     *
+     * A frozen contract names the party it is concluded with, and a freeze
+     * runs after the change that asks for it — a plan change already written,
+     * an add-on already booked. Asked first, the change is refused while
+     * nothing has moved; asked only by the freeze, the tenant would be on the
+     * new plan with the old contract still in force.
+     */
+    assertPartyFor(tenantId: string): Promise<void>;
+
+    /**
      * Freezes the agreed service at `effectiveFrom` as the new active
      * `SubscriptionContract` (supersedes the previous one). Non-fatal for the
      * caller — the plan change is already persisted.

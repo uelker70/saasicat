@@ -158,6 +158,9 @@ export function buildTenantSubscriptionBundlesController(
         async add(@Req() req: RequestLike, @Body() dto: AddSubscriptionBundleDto) {
             const tenantId = this.requireTenantId(req);
             const sub = await this.requireRunningSubscription(tenantId);
+            // The booking re-freezes the contract, after it is written. Without
+            // the party that contract is between, it is refused before.
+            await this.contractFreeze?.assertPartyFor(tenantId);
             const result = await this.service.addBundleToSubscription({
                 subscriptionId: this.requireSubscriptionPk(sub),
                 bundleVersionId: dto.bundleVersionId,
@@ -257,6 +260,7 @@ export function buildTenantSubscriptionBundlesController(
             const tenantId = this.requireTenantId(req);
             // Reactivating is buying again, so it closes with the till.
             const sub = await this.requireRunningSubscription(tenantId);
+            await this.contractFreeze?.assertPartyFor(tenantId);
             const result = await this.service.reactivateBundle(subscriptionBundleId);
             await this.refreezeContract(tenantId, sub);
             return result;

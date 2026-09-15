@@ -95,6 +95,46 @@ export interface PlanCatalog {
         settingsChanged?: string[];
     };
     /**
+     * The legal entity on the operator's side of every contract this installation concludes, and later of every invoice it issues. A contract copies it on the day it is concluded, so the contract keeps naming its counterparty after this block changes. Optional for now: a contract concluded while it is absent records that no issuer was named.
+     */
+    issuer?: {
+        /**
+         * The registered name, legal form included, as a contract names the party (e.g. "Example Software GmbH").
+         */
+        legalName: string;
+        /**
+         * Street and number.
+         */
+        addressLine1?: string;
+        /**
+         * A second address line, such as a building or a c/o.
+         */
+        addressLine2?: string;
+        postalCode?: string;
+        city?: string;
+        /**
+         * ISO 3166-1 alpha-2 country code, e.g. DE.
+         */
+        country?: string;
+        /**
+         * VAT identification number, e.g. DE123456789.
+         */
+        vatId?: string;
+        /**
+         * The tax number the issuer's tax office assigned, where it is stated beside or instead of the VAT identification number.
+         */
+        taxNumber?: string;
+    };
+    /**
+     * How the parties this installation concludes contracts with are numbered.
+     */
+    subscribers?: {
+        /**
+         * Put in front of every customer number assigned from the next start on: `K-` gives K-10001. A customer number keeps the prefix it was assigned with, so changing this renumbers nobody. Omitted, a customer number is the number alone.
+         */
+        customerNumberPrefix?: string;
+    };
+    /**
      * Master list of all feature flags of the project. Plans may only reference keys declared here.
      */
     features?: FeatureDef[];

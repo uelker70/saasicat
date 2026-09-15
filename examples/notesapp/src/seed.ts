@@ -1,5 +1,8 @@
 import { randomBytes, scryptSync } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
+import { PrismaSubscriberRepository } from '@saasicat/adapter-prisma';
+import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';
+import { SubscriberService } from '@saasicat/nest/subscriber';
 
 /**
  * Seeds the demo data for both surfaces:
@@ -295,6 +298,29 @@ async function seedTenants(prisma: PrismaClient): Promise<void> {
                 })),
             });
         }
+    }
+}
+
+/**
+ * The party each tenant's contracts are concluded with.
+ *
+ * An application that creates tenants creates their subscribers in the same
+ * step, through the platform, which numbers them behind the prefix in
+ * `config/saas.yaml`. Here the tenant's name stands in for the legal name a
+ * sign-up form would ask for. Only where a tenant has none yet, so a second
+ * seed run leaves the customer numbers as they are.
+ */
+async function seedSubscribers(prisma: PrismaClient): Promise<void> {
+    const subscribers = new SubscriberService(
+        new PrismaSubscriberRepository(prisma),
+        loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
+    );
+    for (const tenant of DEMO_TENANTS) {
+        if (await subscribers.findByTenantId(tenant.id)) continue;
+        await subscribers.createForTenant(tenant.id, {
+            legalName: tenant.name,
+            invoiceEmail: `billing@${tenant.slug}.example`,
+        });
     }
 }
 
@@ -623,6 +649,7 @@ async function seed(): Promise<void> {
     const prisma = new PrismaClient();
     try {
         await seedTenants(prisma);
+        await seedSubscribers(prisma);
         await seedSuperAdmin(prisma);
         const otpauthUri = await seedSuperAdminMfa(prisma);
         await seedPlans(prisma);

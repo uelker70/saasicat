@@ -206,6 +206,7 @@ class FakeActivationOrchestrator {
         return {
             userId: `user_${n}`,
             tenantId: `tenant_${n}`,
+            subscriberId: `subscriber_${n}`,
             subscriptionId: `sub_${n}`,
         };
     }
@@ -1051,6 +1052,8 @@ test('audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, dup
     });
     assert.equal(ctx.audit.byType('PAYMENT_RECEIVED').length, 1);
     assert.equal(ctx.audit.byType('ACTIVATION_COMPLETED').length, 1);
+    // The record names the party the tenant's contracts are concluded with.
+    assert.equal(ctx.audit.byType('ACTIVATION_COMPLETED')[0].metadata.subscriberId, 'subscriber_1');
 
     // Duplicate
     await ctx.service.handlePaymentEvent({

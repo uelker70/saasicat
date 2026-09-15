@@ -321,6 +321,7 @@ describe('what else ends when the subscription does', () => {
             null, // auditContextResolver
             null, // subscriptionBundles
             {
+                async assertPartyFor() {},
                 async freezeOnPlanChange() {},
                 async endOnCancellation(tenantId, effectiveAt) {
                     ended.push({ tenantId, effectiveAt });
@@ -370,6 +371,7 @@ describe('what else ends when the subscription does', () => {
             null,
             null,
             {
+                async assertPartyFor() {},
                 async freezeOnPlanChange() {},
                 async endOnCancellation(tenantId, effectiveAt) {
                     ended.push(effectiveAt);

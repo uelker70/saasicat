@@ -30,5 +30,6 @@ export * as platformNs from './platform/index.js';
 export * as promoNs from './promo/index.js';
 export * as registrationNs from './registration/index.js';
 export * as rootNs from './index.js';
+export * as subscriberNs from './subscriber/index.js';
 export * as subscriptionContractNs from './subscription-contract/index.js';
 export * as testingNs from './testing/index.js';

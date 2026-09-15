@@ -17,6 +17,7 @@ import type {
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
     PromoSubscriptionLookup,
+    SubscriberRepository,
     SubscriptionContractRepository,
     SubscriptionBundleRepository,
     SubscriptionRepository,
@@ -42,6 +43,14 @@ export interface ContractAdapterInstances {
     audit?: AuditPort;
     auditQuery?: AuditQueryPort;
     subscriptionContractRepository?: SubscriptionContractRepository;
+    /**
+     * Enables the subscriber scenarios: a customer number the database
+     * counts, one live subscriber per tenant however many callers create one
+     * at once, and a correction that records the values it replaced. A
+     * contract names its subscriber, so the contract scenarios write theirs
+     * through `seed.createSubscriber` rather than through this port.
+     */
+    subscriberRepository?: SubscriberRepository;
     /**
      * Enables the checkout offer scenarios: an offer is consumed once, and a
      * consume on a transaction that rolls back leaves it open. Neither shipped
@@ -141,6 +150,15 @@ export interface ContractSeed {
         maxRedemptions: number | null;
         status?: string;
     }): Promise<{ promoCodeId: string }>;
+    /**
+     * A subscriber row for a contract scenario to name, linked to no tenant.
+     *
+     * A fixture writer for the reason `createBundleVersion` is one: the
+     * subscriber repository is a subject of its own scenarios, and a contract
+     * scenario that failed because of it would say the wrong thing. Optional
+     * like the port it stands beside; the contract scenarios report it missing.
+     */
+    createSubscriber?(input: { legalName: string }): Promise<{ subscriberId: string }>;
 }
 
 export interface PersistenceContractHarness {
@@ -180,6 +198,7 @@ export type ContractGap =
     | 'audit'
     | 'mfa'
     | 'subscriptionContracts'
+    | 'subscribers'
     | 'checkoutOffers'
     | 'appliedSettings';
 

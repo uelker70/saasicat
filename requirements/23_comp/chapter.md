@@ -512,6 +512,10 @@ _Tested by:_
     - a diverging @@map fails the check and names both sides
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
+    - a cascade from the tenant onto the contract fails the check, naming the relation
+    - a restriction, no relation, or a commented one passes
+    - while a model the fragments point at the tenant keeps its cascade
+    - the shipped fragments keep the contract past its tenant
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line

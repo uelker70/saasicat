@@ -5,11 +5,18 @@
 // `pessimisticLocking: false`: in-memory cannot emulate row locks — the same
 // reason the nest fakes must not be used to "verify" adapters.
 
-import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES } from '@saasicat/core';
+import {
+    ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    formatCustomerNumber,
+    identityCorrectionDelta,
+} from '@saasicat/core';
 
 // A fixed instant: this harness has no clock of its own, and a timestamp that
 // moves between two reads is a difference no scenario asked for.
 const FIXED_NOW = new Date('2026-01-01T00:00:00.000Z');
+
+/** Where the canonical schema starts counting customer numbers. */
+const FIRST_CUSTOMER_NUMBER = 10001;
 
 /**
  * The parts this harness deliberately does not provide: it keeps no validity
@@ -40,6 +47,9 @@ export function createMemoryHarness() {
         mfa: new Map(),
         contracts: [],
         contractLines: [],
+        subscribers: [],
+        subscriberCorrections: [],
+        nextCustomerSequence: FIRST_CUSTOMER_NUMBER,
         checkoutOffers: [],
         appliedSettings: null,
         settingsChanges: [],
@@ -348,6 +358,10 @@ export function createMemoryHarness() {
             state.contracts.push({
                 id: contractId,
                 tenantId: data.tenantId,
+                subscriberId: data.parties.subscriberId,
+                subscriber: structuredClone(data.parties.subscriber),
+                issuer: structuredClone(data.parties.issuer),
+                partiesMigrated: false,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,
@@ -409,6 +423,68 @@ export function createMemoryHarness() {
             if (data.status !== null) row.status = data.status;
             row.updatedAt = FIXED_NOW;
             return withLines(row);
+        },
+    };
+
+    // Subscribers, one live per tenant. The link lives on the row as `tenantId`,
+    // which is all a harness without history needs.
+    const subscriberRecord = ({ customerSequence, customerNumberPrefix, ...row }) => ({
+        ...structuredClone(row),
+        customerNumber: formatCustomerNumber(customerNumberPrefix, customerSequence),
+    });
+    const subscriberRepository = {
+        async createForTenant(data) {
+            if (state.subscribers.some((row) => row.tenantId === data.tenantId)) return null;
+            const row = {
+                ...structuredClone(data),
+                id: nextId('subscriber'),
+                customerSequence: state.nextCustomerSequence++,
+                migrated: false,
+                createdAt: FIXED_NOW,
+                updatedAt: FIXED_NOW,
+            };
+            state.subscribers.push(row);
+            return subscriberRecord(row);
+        },
+        async findById(subscriberId) {
+            const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+            return row ? subscriberRecord(row) : null;
+        },
+        async findByTenantId(tenantId) {
+            const row = state.subscribers.find((candidate) => candidate.tenantId === tenantId);
+            return row ? subscriberRecord(row) : null;
+        },
+        async updateContact(subscriberId, change) {
+            const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+            if (!row) return null;
+            Object.assign(row, structuredClone(change));
+            return subscriberRecord(row);
+        },
+        async correctIdentity(subscriberId, data) {
+            const row = state.subscribers.find((candidate) => candidate.id === subscriberId);
+            if (!row) return null;
+            const delta = identityCorrectionDelta(row, data.corrected);
+            if (Object.keys(delta.corrected).length === 0) {
+                return { subscriber: subscriberRecord(row), correction: null };
+            }
+            Object.assign(row, delta.corrected);
+            const correction = {
+                id: nextId('correction'),
+                subscriberId,
+                previous: delta.previous,
+                corrected: delta.corrected,
+                reason: data.reason,
+                correctedBy: data.correctedBy,
+                correctedAt: data.correctedAt,
+            };
+            state.subscriberCorrections.push(correction);
+            return { subscriber: subscriberRecord(row), correction: structuredClone(correction) };
+        },
+        async listCorrections(subscriberId) {
+            return state.subscriberCorrections
+                .filter((correction) => correction.subscriberId === subscriberId)
+                .reverse()
+                .map((correction) => structuredClone(correction));
         },
     };
 
@@ -569,6 +645,17 @@ export function createMemoryHarness() {
     };
 
     const seed = {
+        async createSubscriber(input) {
+            const row = {
+                id: nextId('subscriber'),
+                legalName: input.legalName,
+                customerSequence: state.nextCustomerSequence++,
+                customerNumberPrefix: '',
+                tenantId: null,
+            };
+            state.subscribers.push(row);
+            return { subscriberId: row.id };
+        },
         async clearBookingRequestDate(subscriptionBundleId) {
             const row = state.subscriptionBundles.find(
                 (candidate) => candidate.id === subscriptionBundleId,
@@ -769,6 +856,7 @@ export function createMemoryHarness() {
             planRepository,
             bundleRepository,
             subscriptionContractRepository,
+            subscriberRepository,
             checkoutOfferRepository,
             appliedSettings,
         },

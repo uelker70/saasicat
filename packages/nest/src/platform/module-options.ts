@@ -261,12 +261,16 @@ export interface SaaSiCatCheckoutOfferOptions extends Omit<
     catalogEntryRepository?: CheckoutOfferModuleOptions['catalogEntryRepository'];
 }
 
-/** Subscription-contract service, deriving its repository from persistence by default. */
+/**
+ * Subscription-contract service and the subscriber service beside it, deriving
+ * both repositories from persistence by default.
+ */
 export interface SaaSiCatSubscriptionContractOptions extends Omit<
     SubscriptionContractModuleOptions,
-    'subscriptionContractRepository' | 'global'
+    'subscriptionContractRepository' | 'subscriberRepository' | 'global'
 > {
     subscriptionContractRepository?: SubscriptionContractModuleOptions['subscriptionContractRepository'];
+    subscriberRepository?: SubscriptionContractModuleOptions['subscriberRepository'];
 }
 
 /**

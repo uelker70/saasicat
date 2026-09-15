@@ -12,9 +12,15 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { CheckoutOfferModule } from '../dist/checkout-offer/index.js';
+import { SubscriberService } from '../dist/subscriber/index.js';
 import { SubscriptionContractService } from '../dist/subscription-contract/index.js';
 
-import { START10, buildOfferService, fakePromoCodes } from './helpers/checkout-catalogue.js';
+import {
+    CATALOG,
+    START10,
+    buildOfferService,
+    fakePromoCodes,
+} from './helpers/checkout-catalogue.js';
 
 const OPTIONS = { tenantId: 'tenant-meier', effectiveFrom: new Date('2026-10-01T00:00:00.000Z') };
 
@@ -35,12 +41,53 @@ function fakeContractRepo() {
 }
 
 /**
- * A transaction over the offer store and the contract store: a throw restores
- * both, as a database rolls back. `before` runs once, ahead of the first
+ * Subscribers in memory, one live per tenant, recording the transaction each
+ * was created on. `tenants` already have one.
+ */
+function fakeSubscriberRepo(tenants = []) {
+    const rows = tenants.map((tenantId, index) => subscriberRow(tenantId, index, undefined));
+    return {
+        rows,
+        async createForTenant(data, tx) {
+            if (rows.some((row) => row.tenantId === data.tenantId)) return null;
+            const { customerNumberPrefix, ...details } = data;
+            const row = { ...subscriberRow(data.tenantId, rows.length, tx), ...details };
+            row.customerNumber = `${customerNumberPrefix}${10001 + rows.length}`;
+            rows.push(row);
+            return row;
+        },
+        async findByTenantId(tenantId) {
+            return rows.find((row) => row.tenantId === tenantId) ?? null;
+        },
+    };
+}
+
+function subscriberRow(tenantId, index, tx) {
+    return {
+        id: `subscriber-${index + 1}`,
+        customerNumber: `${10001 + index}`,
+        tenantId,
+        legalName: `Customer of ${tenantId}`,
+        vatId: null,
+        taxNumber: null,
+        addressLine1: null,
+        addressLine2: null,
+        postalCode: null,
+        city: null,
+        country: null,
+        invoiceEmail: null,
+        migrated: false,
+        tx,
+    };
+}
+
+/**
+ * A transaction over the offer store, the contract store and the subscriber
+ * store: a throw restores all three, as a database rolls back. `before` runs once, ahead of the first
  * transaction, and `afterRollback` once, after the first rollback, to put
  * another caller in between.
  */
-function fakeTransactions(offers, contracts, { before, afterRollback } = {}) {
+function fakeTransactions(offers, contracts, { before, afterRollback, subscribers } = {}) {
     const runs = [];
     let rolledBack = false;
     return {
@@ -54,12 +101,14 @@ function fakeTransactions(offers, contracts, { before, afterRollback } = {}) {
             runs.push(tx);
             const savedOffers = structuredClone([...offers.rows.entries()]);
             const savedContracts = [...contracts.rows];
+            const savedSubscribers = [...(subscribers?.rows ?? [])];
             try {
                 return await fn(tx);
             } catch (error) {
                 offers.rows.clear();
                 for (const [id, row] of savedOffers) offers.rows.set(id, row);
                 contracts.rows.splice(0, contracts.rows.length, ...savedContracts);
+                subscribers?.rows.splice(0, subscribers.rows.length, ...savedSubscribers);
                 if (afterRollback && !rolledBack) {
                     rolledBack = true;
                     await afterRollback();
@@ -70,16 +119,33 @@ function fakeTransactions(offers, contracts, { before, afterRollback } = {}) {
     };
 }
 
-/** An offer service that can conclude, and an open offer to conclude. */
-async function concluding({ before, afterRollback, promoCodes, promoCode } = {}) {
+/**
+ * An offer service that can conclude, and an open offer to conclude. The two
+ * tenants the cases conclude for have a subscriber unless `subscribedTenants`
+ * says otherwise.
+ */
+async function concluding({
+    before,
+    afterRollback,
+    promoCodes,
+    promoCode,
+    subscribedTenants = ['tenant-meier', 'tenant-other'],
+} = {}) {
     const built = buildOfferService();
     const contractRepo = fakeContractRepo();
-    const transactions = fakeTransactions(built.repo, contractRepo, { before, afterRollback });
-    const contracts = new SubscriptionContractService(contractRepo);
+    const subscriberRepo = fakeSubscriberRepo(subscribedTenants);
+    const transactions = fakeTransactions(built.repo, contractRepo, {
+        before,
+        afterRollback,
+        subscribers: subscriberRepo,
+    });
+    const subscribers = new SubscriberService(subscriberRepo, CATALOG);
+    const contracts = new SubscriptionContractService(contractRepo, subscribers);
     const { service } = buildOfferService({
         repo: built.repo,
         contracts,
         transactions,
+        subscribers,
         ...(promoCodes ? { promoCodes } : {}),
     });
     const offer = await service.create({
@@ -87,7 +153,7 @@ async function concluding({ before, afterRollback, promoCodes, promoCode } = {})
         billingCycle: 'monthly',
         ...(promoCode ? { promoCode } : {}),
     });
-    return { service, offers: built.repo, contractRepo, transactions, offer };
+    return { service, offers: built.repo, contractRepo, subscriberRepo, transactions, offer };
 }
 
 function refusedWith(code) {
@@ -279,7 +345,8 @@ describe('concluding an offer', () => {
         // must not make the second attempt's own failure look like a lost race.
         const offers = buildOfferService().repo;
         const contractRepo = fakeContractRepo();
-        const contracts = new SubscriptionContractService(contractRepo);
+        const subscribers = new SubscriberService(fakeSubscriberRepo(['tenant-meier']), CATALOG);
+        const contracts = new SubscriptionContractService(contractRepo, subscribers);
         const consume = offers.consume.bind(offers);
         let consumes = 0;
         offers.consume = async (id, tx) => {
@@ -290,6 +357,7 @@ describe('concluding an offer', () => {
         const other = buildOfferService({
             repo: offers,
             contracts,
+            subscribers,
             transactions: fakeTransactions(offers, contractRepo),
         }).service;
         const retrying = {
@@ -312,7 +380,12 @@ describe('concluding an offer', () => {
                 }
             },
         };
-        const { service } = buildOfferService({ repo: offers, contracts, transactions: retrying });
+        const { service } = buildOfferService({
+            repo: offers,
+            contracts,
+            subscribers,
+            transactions: retrying,
+        });
         const offer = await service.create({ planKey: 'STANDARD', billingCycle: 'monthly' });
         const failure = new Error('the subscription could not be started');
 
@@ -335,6 +408,117 @@ describe('concluding an offer', () => {
             refusedWith('CHECKOUT_OFFER_ALREADY_CONSUMED'),
         );
         assert.deepEqual(contractRepo.rows, []);
+    });
+});
+
+// @requirement SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
+describe('the party an offer is concluded with', () => {
+    // A sign-up creates its tenant on the conclusion's transaction, so there is
+    // no subscriber before it: it passes one, which is created there, before
+    // the contract that names it. Every other caller concludes for a tenant
+    // that already has its subscriber.
+
+    const MEIER = { legalName: 'Meier Software GmbH', invoiceEmail: 'anna@meier.example' };
+
+    test('a subscriber passed in is created on the transaction, before the contract that names it', async () => {
+        const { service, subscriberRepo, offer } = await concluding({ subscribedTenants: [] });
+        const order = [];
+        const create = subscriberRepo.createForTenant.bind(subscriberRepo);
+        subscriberRepo.createForTenant = async (data, tx) => {
+            order.push('subscriber');
+            return create(data, tx);
+        };
+
+        const concluded = await service.conclude(
+            offer.id,
+            { ...OPTIONS, subscriber: MEIER },
+            async (tx, { contract }) => {
+                order.push(`application after contract ${contract.id}`);
+            },
+        );
+
+        assert.equal(subscriberRepo.rows.length, 1);
+        const [subscriber] = subscriberRepo.rows;
+        assert.equal(subscriber.tenantId, 'tenant-meier');
+        assert.equal(subscriber.legalName, 'Meier Software GmbH');
+        assert.equal(subscriber.invoiceEmail, 'anna@meier.example');
+        assert.equal(
+            subscriber.tx,
+            concluded.contract.tx,
+            'on the transaction the contract is written on',
+        );
+        assert.equal(concluded.contract.parties.subscriberId, subscriber.id);
+        assert.equal(concluded.contract.parties.subscriber.legalName, 'Meier Software GmbH');
+        assert.deepEqual(order, [
+            'subscriber',
+            `application after contract ${concluded.contract.id}`,
+        ]);
+    });
+
+    test('a failure after it undoes the subscriber with the contract, and the next attempt creates one', async () => {
+        const { service, offers, contractRepo, subscriberRepo, offer } = await concluding({
+            subscribedTenants: [],
+        });
+
+        await assert.rejects(() =>
+            service.conclude(offer.id, { ...OPTIONS, subscriber: MEIER }, async () => {
+                throw new Error('the tenant could not be created');
+            }),
+        );
+        assert.deepEqual(subscriberRepo.rows, [], 'a subscriber outlived its tenant');
+        assert.equal(offers.rows.get(offer.id).status, 'open');
+
+        await service.conclude(offer.id, { ...OPTIONS, subscriber: MEIER });
+        assert.equal(subscriberRepo.rows.length, 1);
+        assert.equal(contractRepo.rows.length, 1);
+    });
+
+    test('a tenant with no subscriber and none passed in is refused before anything is written', async () => {
+        const { service, offers, contractRepo, transactions, offer } = await concluding({
+            subscribedTenants: [],
+        });
+
+        await assert.rejects(
+            () => service.conclude(offer.id, OPTIONS),
+            refusedWith('SUBSCRIBER_REQUIRED'),
+        );
+        assert.deepEqual(transactions.runs, [], 'no transaction was opened');
+        assert.equal(offers.rows.get(offer.id).status, 'open');
+        assert.deepEqual(contractRepo.rows, []);
+    });
+
+    test('a subscriber passed in for a tenant that has one is refused before anything is written', async () => {
+        const { service, subscriberRepo, transactions, offer } = await concluding();
+
+        await assert.rejects(
+            () => service.conclude(offer.id, { ...OPTIONS, subscriber: MEIER }),
+            refusedWith('SUBSCRIBER_ALREADY_EXISTS'),
+        );
+        assert.deepEqual(transactions.runs, []);
+        assert.equal(subscriberRepo.rows.length, 2, 'the tenants kept the subscribers they had');
+    });
+
+    test('a subscriber without a legal name is refused before anything is written', async () => {
+        const { service, subscriberRepo, transactions, offer } = await concluding({
+            subscribedTenants: [],
+        });
+
+        await assert.rejects(
+            () => service.conclude(offer.id, { ...OPTIONS, subscriber: { legalName: '   ' } }),
+            refusedWith('SUBSCRIBER_LEGAL_NAME_REQUIRED'),
+        );
+        assert.deepEqual(transactions.runs, []);
+        assert.deepEqual(subscriberRepo.rows, []);
+    });
+
+    test('a retry after the conclusion answers with it and creates no second subscriber', async () => {
+        const { service, subscriberRepo, offer } = await concluding({ subscribedTenants: [] });
+        const first = await service.conclude(offer.id, { ...OPTIONS, subscriber: MEIER });
+
+        const again = await service.conclude(offer.id, { ...OPTIONS, subscriber: MEIER });
+
+        assert.equal(again.contract.id, first.contract.id);
+        assert.equal(subscriberRepo.rows.length, 1);
     });
 });
 
@@ -396,6 +580,18 @@ describe('without what concluding writes through', () => {
                     conclusion: { subscriptionContractRepository: {} },
                 }),
             /transactionRunner/,
+        );
+    });
+
+    test('the module does not start without the parties a contract names', () => {
+        assert.throws(
+            () =>
+                CheckoutOfferModule.forRoot({
+                    checkoutOfferRepository: {},
+                    planRepository: {},
+                    conclusion: { subscriptionContractRepository: {}, transactionRunner: {} },
+                }),
+            /subscriberRepository/,
         );
     });
 });

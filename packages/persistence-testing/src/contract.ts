@@ -13,8 +13,10 @@ import { after, before, beforeEach, describe, test, type TestContext } from 'nod
 import type {
     AppliedSettingsValues,
     CreateCheckoutOfferData,
-    CreateSubscriptionContractData,
+    CreateSubscriberData,
     NewContractLineItemData,
+    NewSubscriptionContractData,
+    SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
 import type {
@@ -42,10 +44,59 @@ const OFFER: CreateCheckoutOfferData = {
     },
 };
 
+/** The parties of a contract with the subscriber `subscriberId`, as copied at conclusion. */
+function partiesWith(subscriberId: string, legalName: string): SubscriptionContractParties {
+    return {
+        subscriberId,
+        subscriber: {
+            customerNumber: 'K-10001',
+            legalName,
+            vatId: 'DE123456789',
+            taxNumber: null,
+            addressLine1: 'Hauptstraße 1',
+            addressLine2: null,
+            postalCode: '10115',
+            city: 'Berlin',
+            country: 'DE',
+        },
+        issuer: {
+            legalName: 'Example Software GmbH',
+            vatId: 'DE987654321',
+            taxNumber: '12/345/67890',
+            addressLine1: 'Werkstraße 5',
+            addressLine2: null,
+            postalCode: '80331',
+            city: 'München',
+            country: 'DE',
+        },
+    };
+}
+
+/** A new subscriber for the tenant `tenantId`, every detail but the legal name unknown. */
+function subscriberFor(tenantId: string, legalName: string): CreateSubscriberData {
+    return {
+        tenantId,
+        legalName,
+        vatId: null,
+        taxNumber: null,
+        addressLine1: null,
+        addressLine2: null,
+        postalCode: null,
+        city: null,
+        country: null,
+        invoiceEmail: null,
+        customerNumberPrefix: '',
+    };
+}
+
 /** The contract concluded from the offer `offerId`: one plan line, as agreed. */
-function contractFromOffer(offerId: string): CreateSubscriptionContractData {
+function contractFromOffer(
+    offerId: string,
+    parties: SubscriptionContractParties,
+): NewSubscriptionContractData {
     return {
         tenantId: `tenant-${offerId}`,
+        parties,
         effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
         originalOfferId: offerId,
         priceSnapshot: {
@@ -200,8 +251,13 @@ const CONTRACT_GAPS: Record<
         present: ({ adapter }) => Boolean(adapter.mfa),
     },
     subscriptionContracts: {
-        reason: 'adapter provides no SubscriptionContractRepository',
-        present: ({ adapter }) => Boolean(adapter.subscriptionContractRepository),
+        reason: 'adapter provides no SubscriptionContractRepository, or no subscriber seed for it',
+        present: ({ adapter, seed }) =>
+            Boolean(adapter.subscriptionContractRepository && seed.createSubscriber),
+    },
+    subscribers: {
+        reason: 'adapter provides no SubscriberRepository',
+        present: ({ adapter }) => Boolean(adapter.subscriberRepository),
     },
     checkoutOffers: {
         reason: 'adapter provides no CheckoutOfferRepository',
@@ -1664,14 +1720,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // -------------------------------------------------------------
         test('a contract keeps what was agreed, and ending it does not rewrite it', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
-            if (!contracts) {
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
             }
             const tenantId = 'tenant-contract-lifecycle';
             const signedAt = new Date('2026-01-01T00:00:00.000Z');
+            const { subscriberId } = await createSubscriber({ legalName: 'Meier GmbH' });
+            const parties = partiesWith(subscriberId, 'Meier GmbH');
             const created = await contracts.create({
                 tenantId,
+                parties,
                 effectiveFrom: signedAt,
                 priceSnapshot: {
                     currency: 'EUR',
@@ -1735,6 +1795,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // evidence a dispute is settled against.
             assert.equal(created.status, 'active');
             assert.equal(created.tenantId, tenantId);
+            // And whom it was agreed with: both parties, every member of both,
+            // and not marked as a copy a migration made.
+            assert.equal(created.subscriberId, subscriberId);
+            assert.deepEqual(created.subscriber, parties.subscriber);
+            assert.deepEqual(created.issuer, parties.issuer);
+            assert.equal(created.partiesMigrated, false);
             assert.equal(created.lineItems.length, 2);
             assert.deepEqual(created.originalBundleVersionIds, ['bundle-version-1']);
             assert.deepEqual(created.termsSnapshot, { noticePeriodDays: 30 });
@@ -1770,6 +1836,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             const readBack = await contracts.findById(created.id);
             assert.ok(readBack, 'contract expected by id');
+            assert.deepEqual(readBack.subscriber, parties.subscriber, 'the copy is stored');
+            assert.deepEqual(readBack.issuer, parties.issuer);
             assert.equal(
                 readBack.lineItems.length,
                 2,
@@ -1839,11 +1907,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
         test('a successor takes over without erasing the contract it replaces', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
-            if (!contracts) {
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
             }
             const tenantId = 'tenant-contract-succession';
+            const { subscriberId } = await createSubscriber({ legalName: 'Nachfolger KG' });
+            const parties = partiesWith(subscriberId, 'Nachfolger KG');
             const handover = new Date('2026-04-01T00:00:00.000Z');
             // Setup, not subject: this test is about which contract is in
             // force, so the line is built once and repriced per contract.
@@ -1877,6 +1948,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             const first = await contracts.create({
                 tenantId,
+                parties,
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: priceAt(19.9, 23.68),
                 lineItems: [lineAt(19.9, 23.68)],
@@ -1897,6 +1969,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             });
             const second = await contracts.create({
                 tenantId,
+                parties,
                 effectiveFrom: handover,
                 priceSnapshot: priceAt(24.9, 29.63),
                 lineItems: [lineAt(24.9, 29.63)],
@@ -1962,13 +2035,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         // -------------------------------------------------------------
         test('a line keeps the currency and the tax it was booked with', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
-            if (!contracts) {
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
             }
             const tenantId = 'tenant-contract-money-facts';
+            const { subscriberId } = await createSubscriber({ legalName: 'Zürich AG' });
+            // No issuer named that day: the copy says so, rather than an empty party.
+            const parties = { ...partiesWith(subscriberId, 'Zürich AG'), issuer: null };
             const created = await contracts.create({
                 tenantId,
+                parties,
                 effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
                 priceSnapshot: {
                     currency: 'CHF',
@@ -2052,9 +2130,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             // consumes the offer, and a retry asks for the contract by offer.
             // An adapter that wrote past the transaction would leave a contract
             // for an offer that is still open.
-            const { adapter } = harness;
+            const { adapter, seed } = harness;
             const contracts = adapter.subscriptionContractRepository;
-            if (!contracts) {
+            if (!contracts || !seed.createSubscriber) {
                 missing(t, 'subscriptionContracts');
                 return;
             }
@@ -2062,10 +2140,12 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 t.skip('adapter declares no transaction capability');
                 return;
             }
+            const { subscriberId } = await seed.createSubscriber({ legalName: 'Angebot GmbH' });
+            const parties = partiesWith(subscriberId, 'Angebot GmbH');
 
             await assert.rejects(
                 adapter.transactionRunner.run(async (tx) => {
-                    await contracts.create(contractFromOffer('offer-rolled-back'), tx);
+                    await contracts.create(contractFromOffer('offer-rolled-back', parties), tx);
                     throw new Error('the conclusion fails after the contract is written');
                 }),
             );
@@ -2076,12 +2156,372 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
 
             const kept = await adapter.transactionRunner.run((tx) =>
-                contracts.create(contractFromOffer('offer-kept'), tx),
+                contracts.create(contractFromOffer('offer-kept', parties), tx),
             );
             const found = await contracts.findByOriginalOfferId('offer-kept');
             assert.equal(found?.id, kept.id);
             assert.equal(found?.lineItems.length, 1, 'with its lines');
             assert.equal(await contracts.findByOriginalOfferId('offer-nobody-concluded'), null);
+        });
+
+        // -------------------------------------------------------------
+        // Subscribers — the party a contract is concluded with
+        // -------------------------------------------------------------
+
+        test('a subscriber is created live for its tenant, and numbered by the database', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const first = await subscribers.createForTenant({
+                ...subscriberFor('tenant-subscriber-first', 'Erste Autohaus GmbH'),
+                vatId: 'DE123456789',
+                addressLine1: 'Hauptstraße 1',
+                postalCode: '10115',
+                city: 'Berlin',
+                country: 'DE',
+                invoiceEmail: 'rechnung@erste.example',
+                customerNumberPrefix: 'K-',
+            });
+            const second = await subscribers.createForTenant(
+                subscriberFor('tenant-subscriber-second', 'Zweiter Verein e.V.'),
+            );
+            assert.ok(first && second, 'both tenants had no subscriber');
+
+            // The number is the database's, counted on; the prefix is the one
+            // each was created with, and a later one renames nobody.
+            const numberOf = (customerNumber: string) => Number(customerNumber.replace('K-', ''));
+            assert.ok(first.customerNumber.startsWith('K-'), first.customerNumber);
+            assert.equal(numberOf(second.customerNumber), numberOf(first.customerNumber) + 1);
+            assert.ok(numberOf(first.customerNumber) >= 10001, first.customerNumber);
+
+            const found = await subscribers.findByTenantId('tenant-subscriber-first');
+            assert.deepEqual(
+                found && {
+                    id: found.id,
+                    customerNumber: found.customerNumber,
+                    tenantId: found.tenantId,
+                    legalName: found.legalName,
+                    vatId: found.vatId,
+                    taxNumber: found.taxNumber,
+                    addressLine1: found.addressLine1,
+                    addressLine2: found.addressLine2,
+                    postalCode: found.postalCode,
+                    city: found.city,
+                    country: found.country,
+                    invoiceEmail: found.invoiceEmail,
+                    migrated: found.migrated,
+                },
+                {
+                    id: first.id,
+                    customerNumber: first.customerNumber,
+                    tenantId: 'tenant-subscriber-first',
+                    legalName: 'Erste Autohaus GmbH',
+                    vatId: 'DE123456789',
+                    // The nullable half, so an adapter writing '' is caught too.
+                    taxNumber: null,
+                    addressLine1: 'Hauptstraße 1',
+                    addressLine2: null,
+                    postalCode: '10115',
+                    city: 'Berlin',
+                    country: 'DE',
+                    invoiceEmail: 'rechnung@erste.example',
+                    migrated: false,
+                },
+            );
+            assert.equal(
+                (await subscribers.findById(second.id))?.tenantId,
+                'tenant-subscriber-second',
+            );
+            assert.equal(await subscribers.findByTenantId('tenant-without-subscriber'), null);
+            assert.equal(await subscribers.findById('subscriber-nobody-created'), null);
+        });
+
+        test('a tenant has one live subscriber: a second is refused, and the transaction survives it', async (t) => {
+            const { adapter } = harness;
+            const subscribers = adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            if (!adapter.capabilities.transactions) {
+                t.skip('adapter declares no transaction capability');
+                return;
+            }
+            const first = await subscribers.createForTenant(
+                subscriberFor('tenant-one-subscriber', 'Einzig GmbH'),
+            );
+
+            const afterRefusal = await adapter.transactionRunner.run(async (tx) => {
+                const refused = await subscribers.createForTenant(
+                    subscriberFor('tenant-one-subscriber', 'Doppelt GmbH'),
+                    tx,
+                );
+                assert.equal(refused, null, 'a second live subscriber was created');
+                // A refusal that aborted the transaction would fail this write.
+                return subscribers.createForTenant(
+                    subscriberFor('tenant-after-refusal', 'Danach GmbH'),
+                    tx,
+                );
+            });
+
+            assert.equal(
+                (await subscribers.findByTenantId('tenant-one-subscriber'))?.id,
+                first?.id,
+            );
+            assert.equal(
+                (await subscribers.findByTenantId('tenant-after-refusal'))?.id,
+                afterRefusal?.id,
+                'the transaction did not survive the refusal',
+            );
+        });
+
+        test('creating a subscriber for one tenant twice at once ends with one', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const results = await Promise.all([
+                subscribers.createForTenant(subscriberFor('tenant-at-once', 'Gleichzeitig A')),
+                subscribers.createForTenant(subscriberFor('tenant-at-once', 'Gleichzeitig B')),
+            ]);
+            const created = results.filter((result) => result !== null);
+            assert.equal(created.length, 1, `${created.length} subscribers were created`);
+            assert.equal((await subscribers.findByTenantId('tenant-at-once'))?.id, created[0]!.id);
+        });
+
+        test('a subscriber written on a transaction is undone with it', async (t) => {
+            const { adapter } = harness;
+            const subscribers = adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            if (!adapter.capabilities.transactions) {
+                t.skip('adapter declares no transaction capability');
+                return;
+            }
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    await subscribers.createForTenant(
+                        subscriberFor('tenant-rolled-back', 'Zurückgerollt GmbH'),
+                        tx,
+                    );
+                    throw new Error('the tenant is not created after all');
+                }),
+            );
+            assert.equal(await subscribers.findByTenantId('tenant-rolled-back'), null);
+            // And the tenant is free for the attempt that goes through.
+            assert.ok(
+                await subscribers.createForTenant(
+                    subscriberFor('tenant-rolled-back', 'Zurückgerollt GmbH'),
+                ),
+            );
+        });
+
+        test('a contact change writes what it names and keeps the rest', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const created = await subscribers.createForTenant({
+                ...subscriberFor('tenant-contact', 'Kontakt GmbH'),
+                addressLine2: 'Hinterhaus',
+                city: 'Hamburg',
+            });
+            assert.ok(created);
+
+            const changed = await subscribers.updateContact(created.id, {
+                city: 'Bremen',
+                addressLine2: null,
+                invoiceEmail: 'buchhaltung@kontakt.example',
+            });
+
+            assert.deepEqual(
+                changed && [
+                    changed.city,
+                    changed.addressLine2,
+                    changed.invoiceEmail,
+                    changed.legalName,
+                    changed.tenantId,
+                ],
+                ['Bremen', null, 'buchhaltung@kontakt.example', 'Kontakt GmbH', 'tenant-contact'],
+            );
+            assert.equal((await subscribers.findById(created.id))?.city, 'Bremen');
+            assert.equal(
+                await subscribers.updateContact('subscriber-nobody-created', { city: 'Kiel' }),
+                null,
+            );
+        });
+
+        test('a correction records the values it replaced, and nothing when nothing moves', async (t) => {
+            const subscribers = harness.adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            const created = await subscribers.createForTenant(
+                subscriberFor('tenant-correction', 'Mueller GmbH'),
+            );
+            assert.ok(created);
+            const at = (day: number) => new Date(Date.UTC(2026, 8, day));
+
+            const first = await subscribers.correctIdentity(created.id, {
+                corrected: { legalName: 'Müller GmbH', vatId: 'DE123456789', taxNumber: null },
+                reason: 'Umlaut lost when the registration was typed',
+                correctedBy: 'operator:anna',
+                correctedAt: at(1),
+            });
+            // `taxNumber` was already null, so it moved nothing and is not recorded.
+            assert.deepEqual(
+                first?.correction && {
+                    previous: first.correction.previous,
+                    corrected: first.correction.corrected,
+                    reason: first.correction.reason,
+                    correctedBy: first.correction.correctedBy,
+                    correctedAt: first.correction.correctedAt.getTime(),
+                },
+                {
+                    previous: { legalName: 'Mueller GmbH', vatId: null },
+                    corrected: { legalName: 'Müller GmbH', vatId: 'DE123456789' },
+                    reason: 'Umlaut lost when the registration was typed',
+                    correctedBy: 'operator:anna',
+                    correctedAt: at(1).getTime(),
+                },
+            );
+            assert.equal(first?.subscriber.legalName, 'Müller GmbH');
+            assert.equal((await subscribers.findById(created.id))?.vatId, 'DE123456789');
+
+            const unchanged = await subscribers.correctIdentity(created.id, {
+                corrected: { legalName: 'Müller GmbH' },
+                reason: 'Clicked twice',
+                correctedBy: 'operator:anna',
+                correctedAt: at(2),
+            });
+            assert.equal(
+                unchanged?.correction,
+                null,
+                'a correction that moved nothing was recorded',
+            );
+
+            await subscribers.correctIdentity(created.id, {
+                corrected: { vatId: 'DE999999999' },
+                reason: 'Wrong VAT id on the first correction',
+                correctedBy: 'operator:ben',
+                correctedAt: at(3),
+            });
+            const listed = await subscribers.listCorrections(created.id);
+            assert.deepEqual(
+                listed.map((correction) => correction.reason),
+                [
+                    'Wrong VAT id on the first correction',
+                    'Umlaut lost when the registration was typed',
+                ],
+                'corrections come back the latest first, and only the two that moved something',
+            );
+            assert.equal(
+                await subscribers.correctIdentity('subscriber-nobody-created', {
+                    corrected: { legalName: 'Niemand' },
+                    reason: 'none',
+                    correctedBy: 'operator:anna',
+                    correctedAt: at(4),
+                }),
+                null,
+            );
+        });
+
+        test('two corrections at once each record the value the other left behind', async (t) => {
+            const { adapter } = harness;
+            const subscribers = adapter.subscriberRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            if (!adapter.capabilities.transactions || !adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no transactions or no row locks');
+                return;
+            }
+            const created = await subscribers.createForTenant(
+                subscriberFor('tenant-corrected-twice', 'Original GmbH'),
+            );
+            assert.ok(created);
+            // Each correction holds its transaction open a moment after writing,
+            // so the other one arrives while it is uncommitted. Without a lock the
+            // second reads 'Original GmbH' and records that as what it replaced.
+            const correctTo = (legalName: string) =>
+                adapter.transactionRunner.run(async (tx) => {
+                    await subscribers.correctIdentity(
+                        created.id,
+                        {
+                            corrected: { legalName },
+                            reason: `to ${legalName}`,
+                            correctedBy: 'operator:anna',
+                            correctedAt: new Date(),
+                        },
+                        tx,
+                    );
+                    await sleep(LOCK_HOLD_MS);
+                });
+            await Promise.all([
+                correctTo('Erste Korrektur GmbH'),
+                correctTo('Zweite Korrektur GmbH'),
+            ]);
+
+            const listed = await subscribers.listCorrections(created.id);
+            assert.equal(listed.length, 2);
+            const replaced = listed.map((correction) => correction.previous.legalName).sort();
+            const written = listed.map((correction) => correction.corrected.legalName);
+            const current = (await subscribers.findById(created.id))?.legalName;
+            // One replaced the original; the other replaced what the first wrote.
+            assert.ok(replaced.includes('Original GmbH'), JSON.stringify(listed));
+            const secondReplaced = replaced.find((name) => name !== 'Original GmbH');
+            assert.ok(
+                secondReplaced !== undefined && written.includes(secondReplaced),
+                `a correction recorded a value it did not replace: ${JSON.stringify(listed)}`,
+            );
+            assert.ok(current !== undefined && written.includes(current));
+            assert.notEqual(secondReplaced, current);
+        });
+
+        test("a contract keeps its subscriber's copy after the subscriber is corrected", async (t) => {
+            const { adapter } = harness;
+            const subscribers = adapter.subscriberRepository;
+            const contracts = adapter.subscriptionContractRepository;
+            if (!subscribers) {
+                missing(t, 'subscribers');
+                return;
+            }
+            if (!contracts || !harness.seed.createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const subscriber = await subscribers.createForTenant(
+                subscriberFor('tenant-copy-kept', 'Vorher GmbH'),
+            );
+            assert.ok(subscriber);
+            const parties = partiesWith(subscriber.id, 'Vorher GmbH');
+            const contract = await contracts.create({
+                ...contractFromOffer('offer-copy-kept', parties),
+                tenantId: 'tenant-copy-kept',
+            });
+
+            await subscribers.correctIdentity(subscriber.id, {
+                corrected: { legalName: 'Nachher GmbH' },
+                reason: 'Change of name of the same company',
+                correctedBy: 'operator:anna',
+                correctedAt: new Date(),
+            });
+
+            const readBack = await contracts.findById(contract.id);
+            assert.equal(readBack?.subscriberId, subscriber.id);
+            assert.equal(
+                readBack?.subscriber.legalName,
+                'Vorher GmbH',
+                'the contract followed a correction of the live record',
+            );
         });
 
         // -------------------------------------------------------------

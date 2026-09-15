@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
 import type {
-    CreateSubscriptionContractData,
     NewContractLineItemData,
+    NewSubscriptionContractData,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
@@ -112,7 +112,7 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
     }
 
     async create(
-        data: CreateSubscriptionContractData,
+        data: NewSubscriptionContractData,
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord> {
         const now = new Date();
@@ -139,6 +139,9 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                     promotionSnapshots: data.promotionSnapshots ?? [],
                     promoCodeSnapshots: data.promoCodeSnapshots ?? [],
                     termsSnapshot: data.termsSnapshot ?? null,
+                    subscriberId: data.parties.subscriberId,
+                    subscriberSnapshot: data.parties.subscriber,
+                    issuerSnapshot: data.parties.issuer,
                     createdAt: now,
                     updatedAt: now,
                 })

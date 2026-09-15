@@ -29,6 +29,7 @@ function makeService({
     previousContract = null,
     bundles = { lineItems: [], bundleVersionIds: [] },
     catalog = CATALOG,
+    tenantHasSubscriber = true,
 } = {}) {
     const calls = { terminated: [], created: [], invalidated: 0 };
     const entitlements = {
@@ -44,6 +45,13 @@ function makeService({
         },
     };
     const contracts = {
+        async assertPartyFor(tenantId) {
+            if (!tenantHasSubscriber) {
+                throw Object.assign(new Error(`Tenant '${tenantId}' has no subscriber.`), {
+                    code: 'SUBSCRIBER_REQUIRED',
+                });
+            }
+        },
         async findActiveByTenantId() {
             return previousContract;
         },
@@ -422,4 +430,28 @@ describe('what a frozen line records about its money', () => {
         const contract = await freeze({ catalog: { ...CATALOG, currency: 'CHF' } });
         assert.equal(contract.lineItems[0].currency, 'CHF');
     });
+});
+
+// @requirement SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
+test('a tenant without a subscriber is refused before the contract in force is closed', async () => {
+    // The freeze runs after a plan change is written, and a refusal after the
+    // termination below would leave the tenant with no contract at all.
+    const { calls, service } = makeService({
+        previousContract: { id: 'old-contract', status: 'active' },
+        tenantHasSubscriber: false,
+    });
+
+    await assert.rejects(
+        () =>
+            service.freezeOnPlanChange(
+                't1',
+                'STANDARD',
+                'MONTHLY',
+                new Date('2026-06-01T00:00:00.000Z'),
+                null,
+            ),
+        { code: 'SUBSCRIBER_REQUIRED' },
+    );
+    assert.deepEqual(calls.terminated, [], 'the contract in force was closed anyway');
+    assert.deepEqual(calls.created, []);
 });

@@ -15,6 +15,7 @@ import type {
     PlanCatalogReadSink,
     RlsBypassPort,
 } from '@saasicat/core';
+import { planCatalogSettingsOf } from '@saasicat/core';
 
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
 import { AdminModule } from '../../admin/admin.module.js';
@@ -120,12 +121,7 @@ export function composePlanCatalog(
     // here; the plans and the features come from the sink, which
     // `catalog.identity-or-sink` has already refused a configuration without.
     return PlanCatalogModule.forRoot({
-        app: catalog.app,
-        currency: catalog.currency,
-        vatRate: catalog.vatRate,
-        tenantBilling: catalog.tenantBilling,
-        marketing: catalog.marketing,
-        notifications: catalog.notifications,
+        ...planCatalogSettingsOf(catalog),
         sink: sink as ProviderSpec<PlanCatalogReadSink>,
         imports: options.imports,
     });

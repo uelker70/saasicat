@@ -339,12 +339,46 @@ _Tested by:_
 
 ### SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
 
-🟡 _(Decided, not yet delivered.)_ 💰 Self-registration creates both together (`SC-REG-022`), and
+🟢 💰 Self-registration creates both together (`SC-REG-022`), and
 a tenant an operator creates through the administration, a command or the integrator's own form
 (`SC-SCOPE-006`) gets its subscriber in the same step, so no contract is ever frozen and no
 charge ever arises without a party to it.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
+    - no contract arises without its subscriber
+        - a contract for a tenant without one is refused, and nothing is written
+        - replacing the contract in force is refused before that contract is closed
+        - a frozen contract is refused before the one in force is closed
+    - a change that ends in a contract asks for the subscriber before it is written
+        - a plan change is refused, and no plan is written
+        - booking an add-on is refused, and nothing is booked
+        - reactivating one is refused as well, being a purchase again
+        - while cancelling one is not refused: a cancellation is a declaration
+    - a completed sign-up names its subscriber from what it collected
+        - the registered name as the legal name, and the verified address for invoices
+- `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
+    - the party an offer is concluded with
+        - a subscriber passed in is created on the transaction, before the contract that names it
+        - a failure after it undoes the subscriber with the contract, and the next attempt creates
+          one
+        - a tenant with no subscriber and none passed in is refused before anything is written
+        - a subscriber passed in for a tenant that has one is refused before anything is written
+        - a subscriber without a legal name is refused before anything is written
+        - a retry after the conclusion answers with it and creates no second subscriber
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a tenant without a subscriber is refused before the contract in force is closed
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - every contract names the subscriber it is concluded with
+        - every tenant with a subscription or a contract gets one subscriber, named from its own
+          table, in the order it came
+
+<!-- END proof -->
 
 ### SC-SUB-017 — A subscriber's legal identity can be corrected, not replaced, under a running contract
 
@@ -359,3 +393,22 @@ another legal entity taking over, so the operator declares which it is: a takeov
 or a new contract rather than an edit, the same rule `SC-PRIC-026` applies to the issuer.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
+    - a contract names the parties it is concluded with
+        - a later correction of the subscriber leaves the copy on the contract
+- `packages/nest/tests/a-subscriber-identity-is-corrected-not-replaced.test.js`
+    - contact details
+        - change at any time: what is named is written, null clears, the rest is kept
+        - do not include ${field}, which is refused rather than dropped
+    - a correction of the legal identity
+        - writes the corrected values and records the ones it replaced, why, and by whom
+        - declared as another legal entity taking over is refused, and nothing changes
+        - ${what} is refused, and nothing is recorded
+        - of a subscriber that does not exist is refused as not found
+
+<!-- END proof -->

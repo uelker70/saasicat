@@ -46,3 +46,27 @@ ALTER TABLE applied_settings
     DROP CONSTRAINT IF EXISTS applied_settings_is_a_singleton;
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
+
+-- A subscriber is live for at most ONE tenant, and a tenant has at most ONE
+-- live subscriber. A link that ended keeps its row with `unlinkedAt` set, so the
+-- tenants a subscriber had before stay in its history. Two partial unique
+-- indexes, because a link that is over must not count against the next one.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_tenant
+    ON subscriber_tenants ("tenantId") WHERE "unlinkedAt" IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
+    ON subscriber_tenants ("subscriberId") WHERE "unlinkedAt" IS NULL;
+
+-- Customer numbers count from 10001, so a number has five digits up to 99999
+-- and none reads as a count of subscribers. Two statements: the first makes
+-- 10001 where the sequence starts over, which a restart of its identity reads,
+-- and the second moves a sequence that has never handed out a number there. A
+-- second run finds the start already set and the sequence used, and an
+-- installation without the subscriber tables has no such sequence.
+ALTER SEQUENCE IF EXISTS "subscribers_customerSequence_seq" START WITH 10001;
+
+SELECT setval(format('%I.%I', schemaname, sequencename)::regclass, 10001, false)
+  FROM pg_sequences
+ WHERE schemaname = current_schema()
+   AND sequencename = 'subscribers_customerSequence_seq'
+   AND last_value IS NULL;

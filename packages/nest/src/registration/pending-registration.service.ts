@@ -277,7 +277,7 @@ export class PendingRegistrationService {
      *     dropped silently (`ALREADY_PROCESSED`).
      *  2. On status `SUCCEEDED` the PendingRegistration is resolved from the
      *     checkout session and the ActivationOrchestrator triggers the final
-     *     user+tenant+subscription creation in a single transaction.
+     *     user+tenant+subscriber+subscription creation in a single transaction.
      *  3. After activation the PendingRegistration is deleted.
      *
      * On errors in step 2/3 the EventLog entry remains — provider retries then
@@ -334,11 +334,12 @@ export class PendingRegistrationService {
         await this.record('ACTIVATION_COMPLETED', pending.id, context, {
             userId: result.userId,
             tenantId: result.tenantId,
+            subscriberId: result.subscriberId,
             subscriptionId: result.subscriptionId,
         });
 
         this.logger.log(
-            `Activation succeeded: pending=${pending.id} → user=${result.userId} tenant=${result.tenantId} subscription=${result.subscriptionId}`,
+            `Activation succeeded: pending=${pending.id} → user=${result.userId} tenant=${result.tenantId} subscriber=${result.subscriberId} subscription=${result.subscriptionId}`,
         );
         return { activated: true, result };
     }

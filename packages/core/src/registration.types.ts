@@ -194,16 +194,25 @@ export interface FinalActivationResult {
     userId: string;
     tenantId: string;
     subscriptionId: string;
+    /**
+     * The subscriber created for the tenant in the same transaction — the party
+     * its contracts are concluded with. `subscriberFromRegistration(pending)`
+     * says what it is created with.
+     */
+    subscriberId: string;
 }
 
 /**
  * Adapter port: orchestrates the final creation of User + Tenant +
- * Subscription after successful payment. App-specific — each app has its
- * own schema (e.g. Tenant + TenantUser + Role + UserRole +
+ * Subscriber + Subscription after successful payment. App-specific — each app
+ * has its own schema (e.g. Tenant + TenantUser + Role + UserRole +
  * Subscription).
  *
  * Implementations MUST perform the creation in a DB transaction so that
- * partial creations are fully rolled back on errors.
+ * partial creations are fully rolled back on errors. The subscriber is created
+ * there too, before any contract: `SubscriberService.createForTenant(tenantId,
+ * details, tx)`, or `CheckoutOfferService.conclude` with `subscriber`, which
+ * creates it on the transaction it concludes the offer on.
  */
 export interface ActivationOrchestrator {
     activate(pending: PendingRegistration): Promise<FinalActivationResult>;

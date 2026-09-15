@@ -28,6 +28,7 @@ import type {
     CheckoutOfferRepository,
     PlanRepository,
     PromotionRepository,
+    SubscriberRepository,
     SubscriptionContractRepository,
     TransactionRunner,
 } from '@saasicat/core';
@@ -39,6 +40,7 @@ import {
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
+import { subscriberProviders } from '../subscriber/subscriber.module.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
@@ -58,6 +60,8 @@ export interface CheckoutOfferControllerConfig {
 export interface CheckoutOfferConclusionOptions {
     /** Writes the contract an offer becomes, on the conclusion's transaction. */
     subscriptionContractRepository: ProviderSpec<SubscriptionContractRepository>;
+    /** Finds the party the contract is with, or creates a sign-up's on the same transaction. */
+    subscriberRepository: ProviderSpec<SubscriberRepository>;
     /** The transaction consuming the offer, the contract and the application's writes share. */
     transactionRunner: ProviderSpec<TransactionRunner>;
 }
@@ -112,12 +116,14 @@ export class CheckoutOfferModule {
         if (
             options.conclusion &&
             (!options.conclusion.subscriptionContractRepository ||
+                !options.conclusion.subscriberRepository ||
                 !options.conclusion.transactionRunner)
         ) {
             throw new Error(
-                'CheckoutOfferModule: `conclusion` needs both `subscriptionContractRepository` and ' +
-                    '`transactionRunner` — concluding an offer writes the contract and consumes the ' +
-                    'offer in one transaction, and without either it would do only half.',
+                'CheckoutOfferModule: `conclusion` needs `subscriptionContractRepository`, ' +
+                    '`subscriberRepository` and `transactionRunner` — concluding an offer writes ' +
+                    'the contract with its party and consumes the offer in one transaction, and ' +
+                    'without any of them it would do only part of that.',
             );
         }
         const controllers: Type[] = [];
@@ -151,6 +157,7 @@ export class CheckoutOfferModule {
                               CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN,
                               options.conclusion.transactionRunner,
                           ),
+                          ...subscriberProviders(options.conclusion.subscriberRepository),
                           SubscriptionContractService,
                       ]
                     : []),

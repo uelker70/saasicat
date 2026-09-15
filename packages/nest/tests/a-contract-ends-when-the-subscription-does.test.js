@@ -37,6 +37,7 @@ function contractStore() {
     return {
         row,
         created,
+        async assertPartyFor() {},
         async create(data) {
             created.push(data);
             return { ...data, id: `c${created.length + 1}`, lineItems: [] };

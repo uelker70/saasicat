@@ -1153,6 +1153,160 @@ them.
 - **An adapter of your own** that throws for an unknown key, or filters retired plans out of those
   reads, fails the new scenario until it answers the same way.
 
+### A contract names the subscriber it is concluded with
+
+A contract hung on the tenant and said nothing about whom it was concluded with, and the fragment
+suggested a cascade from the tenant, so deleting a tenant deleted the record of what it had agreed
+to. A tenant now holds the application's data, and the **subscriber** is the party to the contract:
+a customer number and the master data a contract names ([ADR 0012](../explanation/adr/0012-the-subscriber-owns-the-commercial-record.md)).
+A contract belongs to its subscriber and copies both parties on the day it is concluded, and no
+contract is written, no plan changed and no add-on booked for a tenant without one.
+
+```prisma
+model Subscriber { /* new — 13-subscriber.prisma, with SubscriberTenant and SubscriberCorrection */ }
+
+model SubscriptionContract {
+    // …
+    subscriberId       String                    // new: the party the contract is with
+    subscriberSnapshot Json                      // new: that party, as it stood
+    issuerSnapshot     Json?                     // new: the issuer, as config/saas.yaml named it
+    partiesMigrated    Boolean @default(false)   // new: the copies were made by the migration
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    // tenant Tenant @relation(…, onDelete: Cascade)   <- remove this line and Tenant's back-relation
+}
+```
+
+**Remove the relation from `SubscriptionContract` to your `Tenant` model**, and the list of
+contracts on `Tenant`. `tenantId` stays as a trace of the tenant the contract was concluded for. A
+cascade there deletes the tax record with the tenant, and a restriction keeps the tenant from ever
+being deleted. `saasicat schema check` fails while it cascades.
+
+**Run the migration once, against your database**, and before `db push`:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-contract-names-its-subscriber.postgres.sql
+```
+
+It creates the three subscriber tables and the new contract columns, gives every tenant that has a
+subscription or a contract a subscriber of its own, numbered from 10001 in the order the tenants
+came in and marked `migrated`, attaches each contract to it with a copy marked `partiesMigrated`,
+and makes the link required. It copies no issuer: it cannot read `config/saas.yaml`. Once the link
+is required, a later run by a role that owns the tables does nothing, under row-level security too,
+and on a database whose schema already has the tables it does nothing at all. That includes a tenant
+created since without a subscriber: your application gives it one, and a tenant created while the
+migration was already in place but your application's upgrade was not gets its subscriber from the
+statement under "When the migration cannot name a tenant".
+
+Where `subscription_contracts`, `subscriptions` or your tenant table is under row-level security,
+run the migration as a role that bypasses it; a role that would see only some of their rows is
+stopped before a subscriber is created, with the table named. The three new tables carry no
+policy: `subscribers` has no `tenantId`, so a tenant policy for it goes through
+`subscriber_tenants`.
+
+The legal name comes from your own tenant table, which the migration finds through the foreign key
+you declared on `subscriptions."tenantId"` — or on `subscription_contracts."tenantId"` — and its
+`name` column. To number the migrated subscribers with the prefix your installation will use, set
+it for the session:
+
+```bash
+psql "$DATABASE_URL" -c "SET saasicat.customer_number_prefix = 'K-'" \
+     -f node_modules/@saasicat/spec/sql/1.0-a-contract-names-its-subscriber.postgres.sql
+```
+
+**List what it will create, before you run it.** Replace `tenants` and `name` with your tenant
+table and the column it takes the legal name from:
+
+```sql
+SELECT t."tenantId", a."name" AS "legalName"
+  FROM (SELECT "tenantId" FROM "subscriptions"
+        UNION
+        SELECT "tenantId" FROM "subscription_contracts") t
+  LEFT JOIN "tenants" a ON a."id" = t."tenantId"
+ ORDER BY t."tenantId";
+```
+
+A row without a `legalName` is one the migration refuses: it will not name a subscriber after an
+identifier.
+
+**When the migration cannot name a tenant.** Without such a foreign key, without a `name` column,
+or for a tenant whose row is gone or whose name is empty, the migration stops and names the
+tenants. The tables are in place by then. Create those subscribers with this statement, adapted to
+where your application keeps the legal name — and for a tenant whose row is gone, with the name from
+your own records — then run the migration again:
+
+```sql
+CREATE TEMP TABLE saasicat_subscriber_source AS
+SELECT t."id" AS tenant_id, btrim(t."name") AS legal_name, gen_random_uuid()::text AS subscriber_id
+  FROM "tenants" t
+ WHERE (EXISTS (SELECT 1 FROM "subscriptions" s WHERE s."tenantId" = t."id")
+        OR EXISTS (SELECT 1 FROM "subscription_contracts" c WHERE c."tenantId" = t."id"))
+   AND NOT EXISTS (SELECT 1 FROM "subscriber_tenants" l
+                    WHERE l."tenantId" = t."id" AND l."unlinkedAt" IS NULL);
+
+INSERT INTO "subscribers" ("id", "customerNumberPrefix", "legalName", "migrated", "updatedAt")
+SELECT subscriber_id, '', legal_name, true, CURRENT_TIMESTAMP
+  FROM saasicat_subscriber_source ORDER BY tenant_id;
+
+INSERT INTO "subscriber_tenants" ("id", "subscriberId", "tenantId")
+SELECT gen_random_uuid()::text, subscriber_id, tenant_id FROM saasicat_subscriber_source;
+```
+
+Put your prefix in place of `''`.
+
+**Create the subscriber wherever your application creates a tenant**, on the same transaction.
+SaaSiCat creates no tenants, so it cannot do it for you:
+
+```ts
+import { SubscriberService } from '@saasicat/nest/subscriber';
+
+await prisma.$transaction(async (tx) => {
+    const tenant = await tx.tenant.create({ data: { name: dto.companyName /* … */ } });
+    await subscribers.createForTenant(
+        tenant.id,
+        { legalName: dto.companyName, vatId: dto.vatId, country: dto.country },
+        tx,
+    );
+});
+```
+
+Only the legal name is required; the address, the country (ISO 3166-1 alpha-2), the VAT id, the tax
+number and the invoice email are recorded where given. The customer number is assigned then, behind
+the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractModule` provides
+`SubscriberService`; `SubscriberModule` does on its own.
+
+- **A sign-up** creates the subscriber in `ActivationOrchestrator.activate`, before any contract,
+  and returns it: `FinalActivationResult` gains `subscriberId`. Concluding an offer, pass
+  `subscriber: subscriberFromRegistration(pending)` to `CheckoutOfferService.conclude`, which
+  creates it on the transaction it concludes the offer on; otherwise call `createForTenant` on your
+  transaction. See [self-registration](self-registration.md).
+- **Refused without a subscriber, with `SUBSCRIBER_REQUIRED`**: `SubscriptionContractService.create`
+  and `replaceActiveContract`, `CheckoutOfferService.conclude`, the contract freeze, and — where the
+  contract freeze is wired — a plan change and booking or reactivating an add-on, before anything
+  is written. Cancelling stays open. `conclude` refuses a `subscriber` for a tenant that has one with
+  `SUBSCRIBER_ALREADY_EXISTS`.
+- **Wiring.** `prismaPersistence` and `drizzlePersistence` supply
+  `entitlement.subscriberRepository`, and `SaaSiCatModule.forRoot` wires it wherever contracts are
+  written. By hand, `SubscriptionContractModule.forRoot`, the `conclusion` of
+  `CheckoutOfferModule.forRoot` and `tenantBilling.contractFreeze` each take `subscriberRepository`
+  beside `subscriptionContractRepository`, and refuse to start without it. `SubscriberService` reads
+  the prefix and the issuer from `PLAN_CATALOG_TOKEN`, so a `SubscriptionContractModule` wired by hand
+  needs a `PlanCatalogModule` in scope, which `SaaSiCatModule.forRoot` provides globally.
+- **`ContractFreezePort`** gains `assertPartyFor(tenantId)`, which the plan-change and add-on routes
+  call before they write. An implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds
+  it: refuse a tenant without a subscriber, as `SubscriptionContractService.assertPartyFor` does.
+- **`SubscriptionContractRecord`** gains `subscriberId`, `subscriber` and `issuer` — the parties as
+  copied at conclusion, the issuer `null` where none was named — and `partiesMigrated`. A
+  `SubscriptionContractRepository` of your own writes `data.parties` on `create`.
+- **`config/saas.yaml`** takes an optional `issuer` — `legalName`, and optionally `addressLine1`,
+  `addressLine2`, `postalCode`, `city`, `country`, `vatId`, `taxNumber` — which every contract copies
+  from then on, and `subscribers.customerNumberPrefix`.
+- **Your persistence contract harness** wires `subscriberRepository` and the seed writer
+  `createSubscriber({ legalName })`, which the contract scenarios need for the party a contract
+  names; a harness without the port declares `gaps: ['subscribers']`, and one without the seed
+  writer `gaps: ['subscriptionContracts']`.
+- **A copy the migration made says so**, with `partiesMigrated`: either party may have changed
+  since the contract was concluded, so such a copy is never shown as what was agreed.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

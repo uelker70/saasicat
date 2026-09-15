@@ -358,14 +358,27 @@ describe('a line item learns the money it was booked with', () => {
      * nothing about the rate, which is a percentage either way, and the cases
      * that pass one show exactly that.
      */
-    const seedContract = (id, priceSnapshot, offerId = null) =>
-        client.query(
-            'INSERT INTO "subscription_contracts" ' +
-                '("id", "tenantId", "effectiveFrom", "priceSnapshot", "originalOfferId", ' +
-                ' "updatedAt") ' +
-                'VALUES ($1, $2, NOW(), $3, $4, NOW())',
-            [id, `tenant-${id}`, JSON.stringify(priceSnapshot), offerId],
+    const seedContract = async (id, priceSnapshot, offerId = null) => {
+        // A contract names its subscriber, which this migration does not look at.
+        await client.query(
+            'INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ($1, $2, NOW())',
+            [`subscriber-${id}`, `Customer ${id}`],
         );
+        await client.query(
+            'INSERT INTO "subscription_contracts" ' +
+                '("id", "tenantId", "subscriberId", "subscriberSnapshot", "effectiveFrom", ' +
+                ' "priceSnapshot", "originalOfferId", "updatedAt") ' +
+                'VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW())',
+            [
+                id,
+                `tenant-${id}`,
+                `subscriber-${id}`,
+                JSON.stringify({ legalName: `Customer ${id}` }),
+                JSON.stringify(priceSnapshot),
+                offerId,
+            ],
+        );
+    };
 
     const seedLine = (id, contractId, kind, priceNet, priceGross) =>
         client.query(
@@ -801,6 +814,492 @@ describe('a line item learns the money it was booked with', () => {
         ]);
     });
 });
+
+describe('every contract names the subscriber it is concluded with', () => {
+    // The migration gives every tenant that has a subscription or a contract a
+    // subscriber, named from the application's own tenant table, and attaches
+    // the contracts with a copy of it. Against the database, because the
+    // second-run suite runs it on the reference schema, where there is nothing
+    // to attach — which is exactly where it proves nothing.
+
+    const MIGRATION = '1.0-a-contract-names-its-subscriber.postgres.sql';
+
+    /**
+     * The platform tables as they stood before subscribers, beside an
+     * application's own `tenants` table — with the foreign key an application
+     * declares on `subscriptions."tenantId"`, unless asked not to.
+     */
+    async function beforeTheMigration({ foreignKey = true } = {}) {
+        await freshGround();
+        await client.query('DROP TABLE "subscriber_corrections", "subscriber_tenants"');
+        await client.query(
+            'ALTER TABLE "subscription_contracts" DROP COLUMN "subscriberId", ' +
+                'DROP COLUMN "subscriberSnapshot", DROP COLUMN "issuerSnapshot", ' +
+                'DROP COLUMN "partiesMigrated"',
+        );
+        await client.query('DROP TABLE "subscribers"');
+        await client.query('CREATE TABLE "tenants" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL)');
+        if (foreignKey) {
+            await client.query(
+                'ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_tenantId_fkey" ' +
+                    'FOREIGN KEY ("tenantId") REFERENCES "tenants"("id") ON DELETE CASCADE',
+            );
+        }
+        await client.query(
+            `INSERT INTO "plans" ("id", "planKey", "label", "updatedAt") ` +
+                `VALUES ('plan-1', 'STANDARD', 'Standard', NOW())`,
+        );
+        await client.query(
+            'INSERT INTO "plan_versions" ("id", "planId", "version", "features", "quotas", ' +
+                ' "monthlyNet", "yearlyNet", "changeNote", "updatedAt") ' +
+                `VALUES ('pv-1', 'plan-1', 1, '[]', '{}', 49, 490, 'first', NOW())`,
+        );
+    }
+
+    const seedTenant = (id, name) =>
+        client.query('INSERT INTO "tenants" ("id", "name") VALUES ($1, $2)', [id, name]);
+    const seedSubscription = (tenantId, createdAt) =>
+        client.query(
+            'INSERT INTO "subscriptions" ("id", "tenantId", "plan", "planVersionId", ' +
+                ' "createdAt", "updatedAt") ' +
+                `VALUES ($1, $2, 'STANDARD', 'pv-1', $3, NOW())`,
+            [`sub-${tenantId}`, tenantId, createdAt],
+        );
+    const seedContract = (id, tenantId, createdAt) =>
+        client.query(
+            'INSERT INTO "subscription_contracts" ("id", "tenantId", "effectiveFrom", ' +
+                ' "priceSnapshot", "createdAt", "updatedAt") ' +
+                `VALUES ($1, $2, $3, '{}', $3, NOW())`,
+            [id, tenantId, createdAt],
+        );
+
+    /** Three customers who came in a known order, and one who never bought anything. */
+    async function threeCustomers() {
+        await seedTenant('t-early', 'Early Motors GmbH');
+        await seedTenant('t-member', 'TSV Example e.V.');
+        await seedTenant('t-late', 'Late Software AG');
+        await seedTenant('t-idle', 'Just Looking UG');
+        await seedSubscription('t-early', '2026-01-10T09:00:00.000Z');
+        await seedContract('c-early', 't-early', '2026-01-10T09:00:00.000Z');
+        // A subscription and no contract yet: still a customer.
+        await seedSubscription('t-member', '2026-02-01T09:00:00.000Z');
+        // A contract created before its tenant's subscription row was.
+        await seedContract('c-late', 't-late', '2026-03-01T09:00:00.000Z');
+        await seedSubscription('t-late', '2026-03-05T09:00:00.000Z');
+    }
+
+    async function subscribers() {
+        const { rows } = await client.query(
+            'SELECT l."tenantId", s."customerNumberPrefix" || s."customerSequence" AS number, ' +
+                ' s."legalName", s."migrated", l."unlinkedAt" ' +
+                'FROM "subscribers" s JOIN "subscriber_tenants" l ON l."subscriberId" = s."id" ' +
+                'ORDER BY s."customerSequence"',
+        );
+        return rows.map((row) => [row.tenantId, row.number, row.legalName, row.migrated]);
+    }
+
+    async function contracts() {
+        const { rows } = await client.query(
+            'SELECT c."id", l."tenantId" AS "linkedTenant", c."subscriberSnapshot", ' +
+                ' c."issuerSnapshot", c."partiesMigrated" ' +
+                'FROM "subscription_contracts" c ' +
+                'JOIN "subscriber_tenants" l ON l."subscriberId" = c."subscriberId" ' +
+                'ORDER BY c."id"',
+        );
+        return rows;
+    }
+
+    // @requirement SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
+    test('every tenant with a subscription or a contract gets one subscriber, named from its own table, in the order it came', async () => {
+        await beforeTheMigration();
+        await threeCustomers();
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await subscribers(), [
+            ['t-early', '10001', 'Early Motors GmbH', true],
+            ['t-member', '10002', 'TSV Example e.V.', true],
+            ['t-late', '10003', 'Late Software AG', true],
+        ]);
+    });
+
+    // @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
+    test("each contract names its tenant's subscriber, with a copy that says the migration made it", async () => {
+        await beforeTheMigration();
+        await threeCustomers();
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(await contracts(), [
+            {
+                id: 'c-early',
+                linkedTenant: 't-early',
+                subscriberSnapshot: {
+                    customerNumber: '10001',
+                    legalName: 'Early Motors GmbH',
+                    vatId: null,
+                    taxNumber: null,
+                    addressLine1: null,
+                    addressLine2: null,
+                    postalCode: null,
+                    city: null,
+                    country: null,
+                },
+                // The configuration is not readable from here, and a guess at
+                // the issuer would be a party nobody named.
+                issuerSnapshot: null,
+                partiesMigrated: true,
+            },
+            {
+                id: 'c-late',
+                linkedTenant: 't-late',
+                subscriberSnapshot: {
+                    customerNumber: '10003',
+                    legalName: 'Late Software AG',
+                    vatId: null,
+                    taxNumber: null,
+                    addressLine1: null,
+                    addressLine2: null,
+                    postalCode: null,
+                    city: null,
+                    country: null,
+                },
+                issuerSnapshot: null,
+                partiesMigrated: true,
+            },
+        ]);
+        const { rows } = await client.query(
+            'SELECT column_name, is_nullable FROM information_schema.columns ' +
+                "WHERE table_name = 'subscription_contracts' " +
+                "AND column_name IN ('subscriberId', 'subscriberSnapshot') ORDER BY column_name",
+        );
+        assert.deepEqual(
+            rows.map((row) => [row.column_name, row.is_nullable]),
+            [
+                ['subscriberId', 'NO'],
+                ['subscriberSnapshot', 'NO'],
+            ],
+        );
+    });
+
+    test('a prefix set for the session numbers the migrated subscribers the way new ones are numbered', async () => {
+        await beforeTheMigration();
+        await threeCustomers();
+
+        await client.query(`SET saasicat.customer_number_prefix = 'K-'`);
+        try {
+            await apply(MIGRATION);
+        } finally {
+            await client.query('RESET saasicat.customer_number_prefix');
+        }
+
+        assert.deepEqual(
+            (await subscribers()).map(([, number]) => number),
+            ['K-10001', 'K-10002', 'K-10003'],
+        );
+        const copies = (await contracts()).map((row) => row.subscriberSnapshot.customerNumber);
+        assert.deepEqual(copies, ['K-10001', 'K-10003']);
+    });
+
+    test('a prefix the configuration would refuse creates no subscriber', async () => {
+        await beforeTheMigration();
+        await threeCustomers();
+
+        await client.query(`SET saasicat.customer_number_prefix = 'K 1'`);
+        try {
+            await assert.rejects(
+                () => apply(MIGRATION),
+                (error) => {
+                    assert.ok(String(error.message).includes("'K 1'"), error.message);
+                    return true;
+                },
+            );
+        } finally {
+            await client.query('ROLLBACK').catch(() => {});
+            await client.query('RESET saasicat.customer_number_prefix');
+        }
+
+        const { rows } = await client.query('SELECT count(*)::int AS n FROM "subscribers"');
+        assert.equal(rows[0].n, 0);
+    });
+
+    test('a second run leaves everything as the first one left it, a tenant added in between included', async () => {
+        // Once the link is required the migration is done. A tenant an
+        // application creates after that without a subscriber is the
+        // application's to give one: a migration that went on naming them from
+        // the tenant table on every container start would cover the gap with
+        // copies marked as migrated instead of letting it show.
+        await beforeTheMigration();
+        await threeCustomers();
+        await apply(MIGRATION);
+        const subscribersAfterFirst = await subscribers();
+        const copiesAfterFirst = await contracts();
+        // A correction after the first run: the copies on the contracts stay as
+        // the migration made them.
+        await client.query(
+            `UPDATE "subscribers" SET "legalName" = 'Early Motors Holding GmbH' ` +
+                `WHERE "legalName" = 'Early Motors GmbH'`,
+        );
+        await seedTenant('t-next', 'Next Customer GmbH');
+        await seedSubscription('t-next', '2026-04-01T09:00:00.000Z');
+
+        await apply(MIGRATION);
+
+        assert.deepEqual(
+            await subscribers(),
+            subscribersAfterFirst.map((row) =>
+                row[0] === 't-early' ? [row[0], row[1], 'Early Motors Holding GmbH', row[3]] : row,
+            ),
+            'the second run created or renamed a subscriber',
+        );
+        assert.deepEqual(await contracts(), copiesAfterFirst, 'the second run rewrote a copy');
+    });
+
+    test('without a foreign key naming the tenant table it stops, names the tenants, and leaves the tables in place', async () => {
+        await beforeTheMigration({ foreignKey: false });
+        await threeCustomers();
+
+        await assert.rejects(
+            () => apply(MIGRATION),
+            (error) => {
+                const said = String(error.message);
+                assert.ok(said.includes('Cannot create the subscribers of 3 tenant(s)'), said);
+                for (const tenant of ['t-early', 't-late', 't-member']) {
+                    assert.ok(said.includes(tenant), `it did not name ${tenant}`);
+                }
+                assert.ok(said.includes('no foreign key'), said);
+                return true;
+            },
+        );
+        await client.query('ROLLBACK').catch(() => {});
+
+        const { rows } = await client.query(
+            'SELECT (SELECT count(*)::int FROM "subscribers") AS subscribers, ' +
+                ' (SELECT is_nullable FROM information_schema.columns ' +
+                "   WHERE table_name = 'subscription_contracts' AND column_name = 'subscriberId') " +
+                ' AS nullable',
+        );
+        assert.deepEqual(rows[0], { subscribers: 0, nullable: 'YES' });
+    });
+
+    test('a tenant table without a name column stops it, naming the table', async () => {
+        await beforeTheMigration({ foreignKey: false });
+        await client.query('CREATE TABLE "accounts" ("id" TEXT PRIMARY KEY)');
+        await client.query(
+            'ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_tenantId_fkey" ' +
+                'FOREIGN KEY ("tenantId") REFERENCES "accounts"("id")',
+        );
+        await client.query(`INSERT INTO "accounts" ("id") VALUES ('t-early')`);
+        await seedSubscription('t-early', '2026-01-10T09:00:00.000Z');
+
+        await assert.rejects(
+            () => apply(MIGRATION),
+            (error) => {
+                const said = String(error.message);
+                assert.ok(said.includes('accounts has no "name" column'), said);
+                return true;
+            },
+        );
+    });
+
+    test('a tenant with no row or an empty name stops it, and both are named', async () => {
+        await beforeTheMigration();
+        await threeCustomers();
+        await seedTenant('t-blank', '   ');
+        await seedSubscription('t-blank', '2026-05-01T09:00:00.000Z');
+        // The foreign key sits on the subscriptions, so a contract can outlive
+        // its tenant's row.
+        await seedContract('c-orphan', 't-gone', '2026-05-02T09:00:00.000Z');
+
+        await assert.rejects(
+            () => apply(MIGRATION),
+            (error) => {
+                const said = String(error.message);
+                assert.ok(said.includes('of 2 tenant(s) (t-blank, t-gone)'), said);
+                assert.equal(said.includes('t-early'), false, 'it named a tenant it could name');
+                return true;
+            },
+        );
+    });
+
+    /**
+     * Runs `fn` as a role that owns every table and has no way around
+     * row-level security, the shape of an application's own database role.
+     */
+    async function asOwningRole(fn) {
+        await client.query('DROP ROLE IF EXISTS saasicat_migrator');
+        await client.query('CREATE ROLE saasicat_migrator');
+        await client.query('GRANT ALL ON SCHEMA public TO saasicat_migrator');
+        const { rows: tables } = await client.query(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
+        );
+        for (const { tablename } of tables) {
+            await client.query(`ALTER TABLE "${tablename}" OWNER TO saasicat_migrator`);
+        }
+        try {
+            await fn({
+                become: () => client.query('SET ROLE saasicat_migrator'),
+                leave: () => client.query('RESET ROLE'),
+            });
+        } finally {
+            await client.query('ROLLBACK').catch(() => {});
+            await client.query('RESET ROLE');
+            await client.query('DROP OWNED BY saasicat_migrator CASCADE');
+            await client.query('DROP ROLE IF EXISTS saasicat_migrator');
+        }
+    }
+
+    const forceRowLevelSecurity = async (table) => {
+        await client.query(`ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`);
+        await client.query(`ALTER TABLE "${table}" FORCE ROW LEVEL SECURITY`);
+    };
+
+    const refusedFor = (table) => (error) => {
+        const said = String(error.message);
+        assert.ok(said.includes(`Cannot see every row of ${table} `), said);
+        assert.ok(said.includes('saasicat_migrator'), said);
+        return true;
+    };
+
+    test('a role row-level security hides contracts from stops it, naming the table and the role', async () => {
+        // A consumer that forces row-level security onto its contracts and runs
+        // the file as the table owner sees none of them without a tenant set.
+        await beforeTheMigration();
+        await threeCustomers();
+        await asOwningRole(async ({ become, leave }) => {
+            await forceRowLevelSecurity('subscription_contracts');
+            await become();
+
+            await assert.rejects(() => apply(MIGRATION), refusedFor('subscription_contracts'));
+            await client.query('ROLLBACK').catch(() => {});
+            const { rows } = await client.query('SELECT count(*)::int AS n FROM "subscribers"');
+            assert.equal(rows[0].n, 0);
+
+            // The counter-check: the owner of a table whose security is not
+            // forced sees every row, and the migration goes through.
+            await leave();
+            await client.query('ALTER TABLE "subscription_contracts" NO FORCE ROW LEVEL SECURITY');
+            await become();
+            await apply(MIGRATION);
+            assert.equal((await subscribers()).length, 3);
+        });
+    });
+
+    test('and so does row-level security on the tenant table the legal names come from', async () => {
+        // Hidden tenant rows would otherwise be reported as tenants without a
+        // name, of rows that are there.
+        await beforeTheMigration();
+        await threeCustomers();
+        await asOwningRole(async ({ become }) => {
+            await forceRowLevelSecurity('tenants');
+            await become();
+
+            await assert.rejects(() => apply(MIGRATION), refusedFor('tenants'));
+        });
+    });
+
+    test('once it has run through, a run as a role under row-level security does nothing', async () => {
+        // The upgrade is run once as a role that bypasses row-level security,
+        // and an entrypoint applies the file again on the next start as the
+        // application's own role.
+        await beforeTheMigration();
+        await threeCustomers();
+        await apply(MIGRATION);
+        const afterFirst = await subscribers();
+        await asOwningRole(async ({ become, leave }) => {
+            await forceRowLevelSecurity('subscription_contracts');
+            await become();
+
+            await apply(MIGRATION);
+
+            await leave();
+            assert.deepEqual(await subscribers(), afterFirst);
+        });
+    });
+
+    test('the statement the guide shows creates the subscribers it could not, and it then goes through', async () => {
+        await beforeTheMigration({ foreignKey: false });
+        await threeCustomers();
+        await apply(MIGRATION).catch(() => {});
+        await client.query('ROLLBACK').catch(() => {});
+
+        await client.query(subscriberStatementFromTheGuide());
+        await apply(MIGRATION);
+
+        const numbered = await subscribers();
+        assert.deepEqual(
+            numbered.map(([tenant, , name, migrated]) => [tenant, name, migrated]),
+            [
+                ['t-early', 'Early Motors GmbH', true],
+                ['t-late', 'Late Software AG', true],
+                ['t-member', 'TSV Example e.V.', true],
+            ],
+        );
+        assert.deepEqual(
+            (await contracts()).map((row) => [row.id, row.linkedTenant, row.partiesMigrated]),
+            [
+                ['c-early', 't-early', true],
+                ['c-late', 't-late', true],
+            ],
+        );
+    });
+});
+
+describe('customer numbers count from 10001', () => {
+    // A number with fewer digits reads as a count of customers, and a sequence
+    // that starts over at 1 after a restart of its identity — which a test
+    // harness truncating its tables does — hands out numbers that were issued
+    // once already. The constraints set both where the count starts and where
+    // it starts over.
+    const insert = (id) =>
+        client.query(
+            'INSERT INTO "subscribers" ("id", "legalName", "updatedAt") VALUES ($1, $1, NOW())',
+            [id],
+        );
+    const numbers = async () =>
+        (await client.query('SELECT "customerSequence" FROM "subscribers" ORDER BY 1')).rows.map(
+            (row) => row.customerSequence,
+        );
+
+    test('on the reference schema, and again after the identity is restarted', async () => {
+        await freshGround();
+        await insert('first');
+        await insert('second');
+        assert.deepEqual(await numbers(), [10001, 10002]);
+
+        await client.query('TRUNCATE TABLE "subscribers" RESTART IDENTITY CASCADE');
+        await insert('after-restart');
+        assert.deepEqual(await numbers(), [10001]);
+    });
+
+    test('and the constraints applied again move a sequence that has handed numbers out nowhere', async () => {
+        await freshGround();
+        await insert('first');
+        await apply('constraints.postgres.sql');
+        await insert('second');
+        assert.deepEqual(await numbers(), [10001, 10002], 'the second run reset the count');
+    });
+});
+
+/**
+ * The statement out of the upgrade guide that creates subscribers by hand, as an
+ * operator would copy it — cut the same way as the pre-flight query below.
+ */
+function subscriberStatementFromTheGuide() {
+    const guide = readFileSync(
+        join(SQL_DIR, '..', '..', '..', 'docs', 'guides', 'upgrade-to-1.0.md'),
+        'utf8',
+    );
+    const heading = guide.indexOf('### A contract names the subscriber it is concluded with');
+    assert.notEqual(heading, -1, 'the section this migration is documented in has been renamed');
+    const marker = guide.indexOf('**When the migration cannot name a tenant.**', heading);
+    assert.notEqual(marker, -1, 'the guide no longer shows how to create subscribers by hand');
+    const opens = guide.indexOf('```sql', marker);
+    const body = opens + '```sql'.length;
+    const closes = guide.indexOf('```', body);
+    assert.ok(opens !== -1 && closes !== -1, 'the statement block is not closed');
+    return guide.slice(body, closes).trim();
+}
 
 /**
  * The pre-flight query out of the upgrade guide, as an operator would copy it.

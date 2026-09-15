@@ -146,6 +146,21 @@ invoiced; until then it is not.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
+    - a contract names the parties it is concluded with
+        - it copies the tenant's subscriber and the issuer the configuration names
+        - where the configuration names no issuer, the contract says none was named
+        - a party a caller names itself is not the one written
+- `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
+    - every contract names the subscriber it is concluded with
+        - each contract names its tenant's subscriber, with a copy that says the migration made it
+
+<!-- END proof -->
+
 ### SC-AUD-013 — Every invoice line can be traced to the charge and the contract line it came from
 
 🟡 _(Decided, not yet delivered.)_ 💰 The charge already names its agreement line (`SC-AUD-010`);

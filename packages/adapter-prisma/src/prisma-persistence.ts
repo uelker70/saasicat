@@ -34,6 +34,7 @@ import { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-vali
 import { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.adapter.js';
 import { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
 import { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
+import { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
 import { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
 import { PrismaSuperAdminBootstrapAdapter } from './prisma-super-admin-bootstrap.adapter.js';
@@ -53,6 +54,9 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     marketingSettings: unknown;
     appliedSettings: unknown;
     settingsChange: unknown;
+    subscriber: unknown;
+    subscriberTenant: unknown;
+    subscriberCorrection: unknown;
 }
 
 export interface PrismaPersistenceOptions {
@@ -151,6 +155,9 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             ),
             subscriptionContractRepository: provide(
                 (prisma) => new PrismaSubscriptionContractRepository(prisma),
+            ),
+            subscriberRepository: provide(
+                (prisma) => new PrismaSubscriberRepository(canonical(prisma)),
             ),
             subscriptionBundleRepository: provide(
                 (prisma) => new PrismaSubscriptionBundleRepository(canonical(prisma)),

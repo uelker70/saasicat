@@ -282,6 +282,32 @@ export const CONTRACT_ERROR_CODES = {
 
 export type ContractErrorCode = (typeof CONTRACT_ERROR_CODES)[keyof typeof CONTRACT_ERROR_CODES];
 
+/** The parties contracts are concluded with (`SubscriberService`), and their absence. */
+export const SUBSCRIBER_ERROR_CODES = {
+    /**
+     * A contract, a plan change or a booking for a tenant that has no
+     * subscriber. Nothing is agreed or charged without the party to it.
+     * Carries `tenantId`.
+     */
+    SUBSCRIBER_REQUIRED: 'SUBSCRIBER_REQUIRED',
+    /** The tenant already has a live subscriber. Carries `tenantId`. */
+    SUBSCRIBER_ALREADY_EXISTS: 'SUBSCRIBER_ALREADY_EXISTS',
+    SUBSCRIBER_NOT_FOUND: 'SUBSCRIBER_NOT_FOUND',
+    SUBSCRIBER_LEGAL_NAME_REQUIRED: 'SUBSCRIBER_LEGAL_NAME_REQUIRED',
+    /** A detail that has a form — the country, the invoice email — is not in it. Carries `field`. */
+    SUBSCRIBER_DETAIL_INVALID: 'SUBSCRIBER_DETAIL_INVALID',
+    /** A contact change named a field of the legal identity. Carries `field`. */
+    SUBSCRIBER_IDENTITY_NOT_A_CONTACT: 'SUBSCRIBER_IDENTITY_NOT_A_CONTACT',
+    SUBSCRIBER_CORRECTION_REASON_REQUIRED: 'SUBSCRIBER_CORRECTION_REASON_REQUIRED',
+    SUBSCRIBER_CORRECTION_ACTOR_REQUIRED: 'SUBSCRIBER_CORRECTION_ACTOR_REQUIRED',
+    SUBSCRIBER_CORRECTION_CHANGES_NOTHING: 'SUBSCRIBER_CORRECTION_CHANGES_NOTHING',
+    /** The operator declared another legal entity: that is a transfer, not an edit. */
+    SUBSCRIBER_TAKEOVER_IS_A_TRANSFER: 'SUBSCRIBER_TAKEOVER_IS_A_TRANSFER',
+} as const;
+
+export type SubscriberErrorCode =
+    (typeof SUBSCRIBER_ERROR_CODES)[keyof typeof SUBSCRIBER_ERROR_CODES];
+
 /** Self-service registration funnel (`PendingRegistration`). */
 export const REGISTRATION_ERROR_CODES = {
     PENDING_REGISTRATION_NOT_FOUND: 'PENDING_REGISTRATION_NOT_FOUND',
@@ -368,6 +394,7 @@ export const PLATFORM_ERROR_CODES = {
     ...CATALOG_ERROR_CODES,
     ...BILLING_ERROR_CODES,
     ...CONTRACT_ERROR_CODES,
+    ...SUBSCRIBER_ERROR_CODES,
     ...REGISTRATION_ERROR_CODES,
     ...SETTINGS_ERROR_CODES,
 } as const;
@@ -379,6 +406,7 @@ export type PlatformErrorCode =
     | CatalogErrorCode
     | BillingErrorCode
     | ContractErrorCode
+    | SubscriberErrorCode
     | RegistrationErrorCode
     | SettingsErrorCode;
 

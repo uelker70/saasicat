@@ -73,7 +73,7 @@ const PERSISTENCE = {
         promotionRepository: REPO,
         marketingSettingsRepository: REPO,
     },
-    entitlement: { subscriptionBundleRepository: REPO },
+    entitlement: { subscriptionBundleRepository: REPO, subscriberRepository: REPO },
     adminResources: { resources: REPO },
     promo: {
         promoCodeRepository: REPO,
@@ -294,9 +294,26 @@ describe('the checkout offer composer', () => {
         const ctx = everythingOn();
         ctx.persistence = {
             ...PERSISTENCE,
-            entitlement: { ...PERSISTENCE.entitlement, subscriptionContractRepository: REPO },
+            entitlement: {
+                ...PERSISTENCE.entitlement,
+                subscriptionContractRepository: REPO,
+                subscriberRepository: REPO,
+            },
         };
         assert.equal(concludes(ctx), true);
+    });
+
+    test('leaves it unwired where the bundle has contracts but no subscribers', () => {
+        // A contract names its subscriber, so a conclusion wired without one
+        // would refuse every offer it was asked to conclude.
+        const ctx = everythingOn();
+        const entitlement = { ...PERSISTENCE.entitlement, subscriptionContractRepository: REPO };
+        delete entitlement.subscriberRepository;
+        ctx.persistence = { ...PERSISTENCE, entitlement };
+        // The contract module refuses to mount without one on its own; this asks
+        // about the checkout offer alone.
+        ctx.options.subscriptionContract = false;
+        assert.equal(concludes(ctx), false);
     });
 
     test('leaves it unwired where the bundle has no contract repository', () => {
@@ -313,7 +330,11 @@ describe('the checkout offer composer', () => {
         const ctx = everythingOn();
         ctx.persistence = {
             ...PERSISTENCE,
-            entitlement: { ...PERSISTENCE.entitlement, subscriptionContractRepository: REPO },
+            entitlement: {
+                ...PERSISTENCE.entitlement,
+                subscriptionContractRepository: REPO,
+                subscriberRepository: REPO,
+            },
         };
         delete ctx.adapters.transactionRunner;
         assert.equal(concludes(ctx), false);

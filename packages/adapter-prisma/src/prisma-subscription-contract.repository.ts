@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
-    CreateSubscriptionContractData,
     NewContractLineItemData,
+    NewSubscriptionContractData,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
@@ -124,12 +124,14 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     }
 
     async create(
-        data: CreateSubscriptionContractData,
+        data: NewSubscriptionContractData,
         tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord> {
         const row = await this.db(tx).subscriptionContract.create({
             data: {
                 tenantId: data.tenantId,
+                subscriberId: data.parties.subscriberId,
+                subscriberSnapshot: data.parties.subscriber,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,
@@ -145,6 +147,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
                     ? { entitlementSnapshot: data.entitlementSnapshot }
                     : {}),
                 ...(data.termsSnapshot != null ? { termsSnapshot: data.termsSnapshot } : {}),
+                ...(data.parties.issuer != null ? { issuerSnapshot: data.parties.issuer } : {}),
                 lineItems: { create: data.lineItems.map(toLineItemCreate) },
             },
             include: { lineItems: true },

@@ -22,6 +22,7 @@ import type {
 } from './admin-ports.types.js';
 import type {
     PlanVersionRepository,
+    SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionRepository,
@@ -123,6 +124,8 @@ export interface SaaSiCatPersistenceEntitlement {
     subscriptionRepository: PersistenceProvider<SubscriptionRepository>;
     planVersionRepository: PersistenceProvider<PlanVersionRepository>;
     subscriptionContractRepository?: PersistenceProvider<SubscriptionContractRepository>;
+    /** The parties contracts are concluded with; required wherever contracts are written. */
+    subscriberRepository?: PersistenceProvider<SubscriberRepository>;
     subscriptionBundleRepository?: PersistenceProvider<SubscriptionBundleRepository>;
     bundleRepository?: PersistenceProvider<BundleRepository>;
 }

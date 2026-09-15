@@ -332,6 +332,11 @@ export class TenantBillingController {
             });
         }
 
+        // Where contracts are frozen, a plan change ends in one naming the
+        // tenant's subscriber. Refused here, while nothing has moved: the
+        // freeze runs after the plan is written and only logs its refusal.
+        await this.contractFreeze?.assertPartyFor(tenantId);
+
         // A contract that is over cannot be changed, only started again — and
         // there is no route for that yet, deliberately. Without this the
         // immediate branch would prorate an upgrade and charge for it while

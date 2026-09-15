@@ -18,6 +18,7 @@
 //                    CRUD in SuperAdmin
 //   ./checkout-offer — CheckoutOfferModule/Service for package snapshots
 //   ./subscription-contract — immutable SubscriptionContract service for V3
+//   ./subscriber   — SubscriberService/Module: the party a contract is concluded with
 //   ./testing      — fake adapters (FakeSubscriptionRepository, …) for tests
 
 export * from './core/di.js';
@@ -33,6 +34,7 @@ export * from './discovery/index.js';
 export * from './catalog/index.js';
 export * from './checkout-offer/index.js';
 export * from './subscription-contract/index.js';
+export * from './subscriber/index.js';
 export * from './settings/index.js';
 
 // High-level composition is also exported from the root entry so existing

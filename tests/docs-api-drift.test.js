@@ -15,6 +15,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -365,11 +366,32 @@ function parseDeclarationFile(file) {
 
 /** `../chunk.js` next to a `.d.ts` is `../chunk.d.ts` on disk. */
 function neighbouringDeclaration(from, specifier) {
-    if (!specifier.startsWith('.')) return null;
+    if (!specifier.startsWith('.')) return packageDeclaration(from, specifier);
     const withoutExtension = specifier.endsWith('.js') ? specifier.slice(0, -3) : specifier;
     for (const candidate of [`${withoutExtension}.d.ts`, join(withoutExtension, 'index.d.ts')]) {
         const path = join(dirname(from), candidate);
         if (existsSync(path)) return path;
+    }
+    return null;
+}
+
+/**
+ * The declaration file of a package one entry imports from another, such as a
+ * `@saasicat/core` type an option interface of `@saasicat/nest` extends. Only
+ * the workspace's own packages: an option type that extends a third party's
+ * would need that package's declarations read as well, and none does.
+ */
+function packageDeclaration(from, specifier) {
+    if (!specifier.startsWith('@saasicat/')) return null;
+    let entry;
+    try {
+        entry = createRequire(from).resolve(specifier);
+    } catch {
+        return null;
+    }
+    const base = entry.slice(0, entry.lastIndexOf('.'));
+    for (const candidate of [`${base}.d.ts`, `${base}.d.cts`]) {
+        if (existsSync(candidate)) return candidate;
     }
     return null;
 }

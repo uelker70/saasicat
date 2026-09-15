@@ -251,7 +251,9 @@ describe('against the fragments as shipped', () => {
                 `${file}: the strict pattern missed a pointer the loose one found`,
             );
         }
-        assert.ok(recognised >= 5, `only ${recognised} pointers found across the fragments`);
+        // A floor, so a scan that matches nothing cannot pass. The contract
+        // fragment names no tenant pointer: a contract outlives its tenant.
+        assert.ok(recognised >= 4, `only ${recognised} pointers found across the fragments`);
     });
 });
 

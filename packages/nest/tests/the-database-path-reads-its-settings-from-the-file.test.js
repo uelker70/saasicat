@@ -40,6 +40,8 @@ const LINES = [
     '  selfServiceBlockedPlans: { asTarget: [ENTERPRISE], asSource: [] }',
     'marketing: { availableLocales: [en, de] }',
     'notifications: { settingsChanged: [ops@example.com] }',
+    'issuer: { legalName: Example Software GmbH, country: DE, vatId: DE123456789 }',
+    'subscribers: { customerNumberPrefix: K- }',
     'plans:',
     '  - { id: SEED, name: Seed, monthlyNet: 1, yearlyNet: 10, features: [], quotas: { users: 1 } }',
 ];

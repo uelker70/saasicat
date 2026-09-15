@@ -14,6 +14,7 @@ const CATALOGUES = [
     ['CATALOG_ERROR_CODES', 'Catalogue', 'Plans, versions, bundles, marketing entries.'],
     ['BILLING_ERROR_CODES', 'Billing', 'Subscriptions, plan changes, entitlements.'],
     ['CONTRACT_ERROR_CODES', 'Contracts', 'Checkout offers and subscription contracts.'],
+    ['SUBSCRIBER_ERROR_CODES', 'Subscribers', 'The party a contract is concluded with.'],
     ['PROMO_ERROR_CODES', 'Promo codes', 'Redemption, validity and limits.'],
     ['SETTINGS_ERROR_CODES', 'Settings', 'The record of the applied configuration.'],
 ];

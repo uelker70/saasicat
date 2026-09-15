@@ -14,8 +14,10 @@
 
 import { readQuotaRecord } from './quota-value.js';
 import type {
+    ContractIssuerParty,
     ContractLineItemKind,
     ContractLineItemRecord,
+    ContractSubscriberParty,
     SubscriptionContractPriceSnapshot,
     SubscriptionContractRecord,
     SubscriptionContractStatus,
@@ -26,6 +28,10 @@ import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
 export interface CanonicalContractRow {
     id: string;
     tenantId: string;
+    subscriberId: string;
+    subscriberSnapshot: unknown;
+    issuerSnapshot: unknown;
+    partiesMigrated: boolean;
     status: string;
     effectiveFrom: Date;
     effectiveUntil: Date | null;
@@ -72,6 +78,10 @@ export function toSubscriptionContractRecord(
     return {
         id: row.id,
         tenantId: row.tenantId,
+        subscriberId: row.subscriberId,
+        subscriber: toSubscriberParty(row.subscriberSnapshot),
+        issuer: isPlainObject(row.issuerSnapshot) ? toIssuerParty(row.issuerSnapshot) : null,
+        partiesMigrated: row.partiesMigrated,
         status: row.status as SubscriptionContractStatus,
         effectiveFrom: row.effectiveFrom,
         effectiveUntil: row.effectiveUntil,
@@ -116,6 +126,42 @@ export function toContractLineItemRecord(
         metadata: toRecordOrNull(row.metadata),
         createdAt: row.createdAt,
     };
+}
+
+/**
+ * The subscriber copy as it was written. The column is NOT NULL and the
+ * platform writes every member, so a member that is not a string can only come
+ * from a row written by hand; it reads as unknown rather than as a value
+ * nobody wrote.
+ */
+function toSubscriberParty(value: unknown): ContractSubscriberParty {
+    const source = isPlainObject(value) ? (value as Record<string, unknown>) : {};
+    return {
+        customerNumber: stringOr(source.customerNumber, ''),
+        ...toIssuerParty(source),
+    };
+}
+
+function toIssuerParty(value: unknown): ContractIssuerParty {
+    const source = value as Record<string, unknown>;
+    return {
+        legalName: stringOr(source.legalName, ''),
+        vatId: stringOrNull(source.vatId),
+        taxNumber: stringOrNull(source.taxNumber),
+        addressLine1: stringOrNull(source.addressLine1),
+        addressLine2: stringOrNull(source.addressLine2),
+        postalCode: stringOrNull(source.postalCode),
+        city: stringOrNull(source.city),
+        country: stringOrNull(source.country),
+    };
+}
+
+function stringOr(value: unknown, fallback: string): string {
+    return typeof value === 'string' ? value : fallback;
+}
+
+function stringOrNull(value: unknown): string | null {
+    return typeof value === 'string' ? value : null;
 }
 
 function isPlainObject(value: unknown): boolean {

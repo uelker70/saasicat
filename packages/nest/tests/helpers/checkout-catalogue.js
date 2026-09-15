@@ -152,6 +152,7 @@ export function buildOfferService(overrides = {}) {
         catalogEntries: null,
         contracts: null,
         transactions: null,
+        subscribers: null,
         ...overrides,
     };
     const pricing = new CheckoutOfferPricing(
@@ -169,6 +170,7 @@ export function buildOfferService(overrides = {}) {
         deps.catalogEntries,
         deps.contracts,
         deps.transactions,
+        deps.subscribers,
     );
     return { service, ...deps };
 }

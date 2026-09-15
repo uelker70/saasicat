@@ -4,7 +4,7 @@
 // this selects, and the admin UI shows what `diffSettings` finds.
 
 import type { AppliedSettingsValues, SettingsDifference } from './applied-settings.types.js';
-import type { PlanCatalog } from './plan-catalog.types.js';
+import type { PlanCatalog, PlanCatalogSettings } from './plan-catalog.types.js';
 
 /**
  * The top-level blocks of `config/saas.yaml` that are the catalogue rather than
@@ -26,6 +26,17 @@ export const CATALOGUE_KEYS: ReadonlySet<keyof PlanCatalog> = new Set<keyof Plan
     'features',
     'plans',
 ]);
+
+/**
+ * The settings of a catalogue, typed, for handing them on as a whole.
+ *
+ * The same selection as `settingsSubtreeOf`, which is why it is that function:
+ * a caller that listed the blocks it passes on would drop the next one the
+ * schema gains, and nothing would say so.
+ */
+export function planCatalogSettingsOf(catalog: PlanCatalog): PlanCatalogSettings {
+    return settingsSubtreeOf(catalog) as unknown as PlanCatalogSettings;
+}
 
 /** Everything in the catalogue that is configuration, as it was resolved. */
 export function settingsSubtreeOf(catalog: PlanCatalog): AppliedSettingsValues {

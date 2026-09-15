@@ -453,6 +453,7 @@ test('atomic path: successful non-trial plan change freezes the subscription con
             findForTenant: async () => buildSub({ status: 'ACTIVE' }),
         },
         contractFreeze: {
+            async assertPartyFor() {},
             async freezeOnPlanChange(tenantId, plan, cycle, now) {
                 freezeCalls.push({ tenantId, plan, cycle, now });
             },

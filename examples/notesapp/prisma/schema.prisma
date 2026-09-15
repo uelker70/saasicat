@@ -48,7 +48,6 @@ model Tenant {
 
     subscription          Subscription?
     promoCodeRedemptions  PromoCodeRedemption[]
-    subscriptionContracts SubscriptionContract[]
 
     @@map("tenants")
 }
@@ -1119,6 +1118,19 @@ model SubscriptionContract {
     id       String @id @default(uuid())
     tenantId String
 
+    // Who the contract is between, copied on the day it is concluded: the
+    // subscriber as its record stood, and the issuer as `config/saas.yaml`
+    // named it — null where it named none. Neither copy follows a later change
+    // to the subscriber or the configuration. The invoice email is not copied:
+    // it says how the party is reached, not who it is.
+    subscriberId       String
+    subscriberSnapshot Json
+    issuerSnapshot     Json?
+    // The copies were made by the migration that attached contracts concluded
+    // before subscribers existed, not at conclusion, and are never presented as
+    // what was agreed.
+    partiesMigrated    Boolean @default(false)
+
     status         SubscriptionContractStatus @default(active)
     effectiveFrom  DateTime
     effectiveUntil DateTime?
@@ -1141,9 +1153,12 @@ model SubscriptionContract {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+    // No relation to `Tenant`: the contract belongs to its subscriber and
+    // outlives the tenant, whose id stays here as a trace.
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
 
     @@index([tenantId, status, effectiveFrom])
+    @@index([subscriberId])
     @@index([status])
     @@index([originalOfferId])
     @@map("subscription_contracts")
@@ -1265,4 +1280,85 @@ model SettingsChange {
 
     @@index([acknowledgedAt, noticedAt])
     @@map("settings_changes")
+}
+
+// =============================================================================
+// Subscriber — the party a contract is concluded with (13-subscriber.prisma)
+// =============================================================================
+
+model Subscriber {
+    id String @id @default(uuid())
+
+    // The customer number, counted per installation. The number orders; the
+    // prefix is the one `config/saas.yaml` named when the subscriber was
+    // created, kept beside it so a later prefix renames nobody. Counting starts
+    // at 10001 (sql/constraints.postgres.sql), so numbers have five digits long
+    // before they need a sixth.
+    customerSequence     Int    @unique @default(autoincrement())
+    customerNumberPrefix String @default("")
+
+    // The legal identity. Only the name is required until invoicing requires
+    // the rest; under a running contract these change only as a correction,
+    // recorded in `SubscriberCorrection`.
+    legalName String
+    vatId     String?
+    taxNumber String?
+
+    // Contact details, which change at any time.
+    addressLine1 String?
+    addressLine2 String?
+    postalCode   String?
+    city         String?
+    country      String? // ISO 3166-1 alpha-2
+    invoiceEmail String?
+
+    // Created by the migration that gave every existing tenant its subscriber,
+    // from the application's own tenant record.
+    migrated Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    tenants     SubscriberTenant[]
+    corrections SubscriberCorrection[]
+    contracts   SubscriptionContract[]
+
+    @@map("subscribers")
+}
+
+// Which tenant a subscriber is live for, and which it was before. A subscriber
+// has at most one live tenant and a tenant at most one live subscriber — two
+// partial unique indexes in sql/constraints.postgres.sql, which Prisma cannot
+// express. `unlinkedAt` stays null while the link is live.
+model SubscriberTenant {
+    id           String    @id @default(uuid())
+    subscriberId String
+    tenantId     String
+    linkedAt     DateTime  @default(now())
+    unlinkedAt   DateTime?
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@index([tenantId])
+    @@index([subscriberId])
+    @@map("subscriber_tenants")
+}
+
+// A correction of a subscriber's legal identity: the values it replaced, the
+// values it wrote, why, and who made it. Only the fields that moved are in the
+// two JSON objects. Written in the same transaction as the change, and never
+// rewritten.
+model SubscriberCorrection {
+    id           String   @id @default(uuid())
+    subscriberId String
+    previous     Json
+    corrected    Json
+    reason       String
+    correctedBy  String
+    correctedAt  DateTime
+
+    subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+
+    @@index([subscriberId, correctedAt])
+    @@map("subscriber_corrections")
 }

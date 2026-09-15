@@ -117,6 +117,16 @@
                 "default": "./dist/subscription-contract/index.cjs"
             }
         },
+        "./subscriber": {
+            "import": {
+                "types": "./dist/subscriber/index.d.ts",
+                "default": "./dist/subscriber/index.js"
+            },
+            "require": {
+                "types": "./dist/subscriber/index.d.cts",
+                "default": "./dist/subscriber/index.cjs"
+            }
+        },
         "./platform": {
             "import": {
                 "types": "./dist/platform/index.d.ts",

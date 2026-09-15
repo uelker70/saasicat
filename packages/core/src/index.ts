@@ -29,6 +29,7 @@ export {
     CATALOGUE_KEYS,
     canonicalJson,
     diffSettings,
+    planCatalogSettingsOf,
     settingsSubtreeOf,
 } from './settings-subtree.js';
 export * from './plan-catalog-import.types.js';
@@ -54,6 +55,8 @@ export * from './upsell.types.js';
 export * from './registration.types.js';
 export * from './setup.types.js';
 export * from './plan-mapping.js';
+export * from './subscriber-mapping.js';
+export * from './subscriber.types.js';
 export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';

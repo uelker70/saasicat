@@ -115,6 +115,10 @@ _Tested by:_
     - a diverging @@map fails the check and names both sides
     - whitespace and attribute options do not create false findings
     - extra consumer indexes are not reported
+    - a cascade from the tenant onto the contract fails the check, naming the relation
+    - a restriction, no relation, or a commented one passes
+    - while a model the fragments point at the tenant keeps its cascade
+    - the shipped fragments keep the contract past its tenant
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line
@@ -175,6 +179,27 @@ _Tested by:_
         - a line whose contract is gone is named as itself, not as an empty space
         - the query the guide ships finds exactly what the migration refuses
         - a contract that records both goes through
+    - every contract names the subscriber it is concluded with
+        - every tenant with a subscription or a contract gets one subscriber, named from its own
+          table, in the order it came
+        - each contract names its tenant's subscriber, with a copy that says the migration made it
+        - a prefix set for the session numbers the migrated subscribers the way new ones are
+          numbered
+        - a prefix the configuration would refuse creates no subscriber
+        - a second run leaves everything as the first one left it, a tenant added in between
+          included
+        - without a foreign key naming the tenant table it stops, names the tenants, and leaves the
+          tables in place
+        - a tenant table without a name column stops it, naming the table
+        - a tenant with no row or an empty name stops it, and both are named
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - and so does row-level security on the tenant table the legal names come from
+        - once it has run through, a run as a role under row-level security does nothing
+        - the statement the guide shows creates the subscribers it could not, and it then goes
+          through
+    - customer numbers count from 10001
+        - on the reference schema, and again after the identity is restarted
+        - and the constraints applied again move a sequence that has handed numbers out nowhere
 
 <!-- END proof -->
 
@@ -233,6 +258,27 @@ _Tested by:_
         - a line whose contract is gone is named as itself, not as an empty space
         - the query the guide ships finds exactly what the migration refuses
         - a contract that records both goes through
+    - every contract names the subscriber it is concluded with
+        - every tenant with a subscription or a contract gets one subscriber, named from its own
+          table, in the order it came
+        - each contract names its tenant's subscriber, with a copy that says the migration made it
+        - a prefix set for the session numbers the migrated subscribers the way new ones are
+          numbered
+        - a prefix the configuration would refuse creates no subscriber
+        - a second run leaves everything as the first one left it, a tenant added in between
+          included
+        - without a foreign key naming the tenant table it stops, names the tenants, and leaves the
+          tables in place
+        - a tenant table without a name column stops it, naming the table
+        - a tenant with no row or an empty name stops it, and both are named
+        - a role row-level security hides contracts from stops it, naming the table and the role
+        - and so does row-level security on the tenant table the legal names come from
+        - once it has run through, a run as a role under row-level security does nothing
+        - the statement the guide shows creates the subscribers it could not, and it then goes
+          through
+    - customer numbers count from 10001
+        - on the reference schema, and again after the identity is restarted
+        - and the constraints applied again move a sequence that has handed numbers out nowhere
 - `tests/build-stamp.test.js`
     - the build stamp
         - is stable across runs and changes with a source edit

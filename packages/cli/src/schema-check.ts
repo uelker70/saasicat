@@ -14,7 +14,13 @@
 //     consumer adopted the fragment and fell behind. That breaks platform code
 //     at runtime, so it fails the check.
 
-import { blockBodyLines, extractBlocks, stripLineComment } from './prisma-blocks.js';
+import { findFkPointers } from './fk-pointers.js';
+import {
+    blockBodyLines,
+    extractBlocks,
+    stripLineComment,
+    structuralOnly,
+} from './prisma-blocks.js';
 
 export interface FieldSignature {
     name: string;
@@ -72,6 +78,16 @@ export interface MissingBlockAttribute {
     actual?: string;
 }
 
+/**
+ * A relation that deletes a record the platform keeps past its tenant, together
+ * with the tenant.
+ */
+export interface TenantCascade {
+    model: string;
+    /** The relation field that cascades, e.g. `tenant`. */
+    field: string;
+}
+
 export interface SchemaCheckReport {
     /** Platform models the consumer does not carry — informational. */
     absentModels: string[];
@@ -85,6 +101,11 @@ export interface SchemaCheckReport {
      * `@@index`, `@@unique`, and a diverging `@@map`.
      */
     missingBlockAttributes: MissingBlockAttribute[];
+    /**
+     * Relations that cascade from the tenant onto a model the platform keeps
+     * after the tenant is gone, such as a contract.
+     */
+    tenantCascades: TenantCascade[];
     /** Models present in both schemas, i.e. actually compared. */
     checkedModelCount: number;
     /** Enums present in both schemas, i.e. actually compared. */
@@ -260,6 +281,46 @@ export function breaksContract(attribute: MissingBlockAttribute): boolean {
 }
 
 /**
+ * The platform models that outlive their tenant: the ones whose fragment
+ * declares `tenantId` and deliberately comments no relation to `Tenant`.
+ *
+ * Read off the fragments rather than listed, so the next model kept past its
+ * tenant is covered by being written that way. Every other model with a
+ * `tenantId` ships the pointer a consumer enables, cascade and all.
+ */
+export function modelsKeptPastTheTenant(specSchema: string): string[] {
+    const pointed = new Set(
+        findFkPointers(specSchema)
+            .filter((pointer) => pointer.target === 'Tenant')
+            .map((pointer) => pointer.model),
+    );
+    return [...parseSchema(specSchema).models]
+        .filter(([model, fields]) => fields.has('tenantId') && !pointed.has(model))
+        .map(([model]) => model);
+}
+
+/**
+ * The relations in a consumer's model that cascade from its `tenantId`.
+ *
+ * Compared without whitespace and on the structural part of each line, so a
+ * relation commented out does not count and spacing does not hide one.
+ */
+function cascadesFromTenant(model: string, block: string): TenantCascade[] {
+    const found: TenantCascade[] = [];
+    for (const line of block.split('\n')) {
+        const compact = structuralOnly(line).replace(/\s+/g, '');
+        if (
+            compact.includes('@relation(') &&
+            compact.includes('fields:[tenantId]') &&
+            compact.includes('onDelete:Cascade')
+        ) {
+            found.push({ model, field: line.trim().split(/\s/)[0] });
+        }
+    }
+    return found;
+}
+
+/**
  * Compares a consumer schema against the canonical fragments. `specSchema` is
  * the concatenation of the fragments the check should cover.
  */
@@ -286,6 +347,12 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
         }
     }
 
+    const appBlocks = extractBlocks(appSchema, 'model');
+    const tenantCascades = modelsKeptPastTheTenant(specSchema).flatMap((model) => {
+        const block = appBlocks.get(model);
+        return block ? cascadesFromTenant(model, block) : [];
+    });
+
     const absentEnums: string[] = [];
     const missingEnumValues: MissingEnumValue[] = [];
 
@@ -309,12 +376,14 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
         missingEnumValues,
         fieldMismatches,
         missingBlockAttributes,
+        tenantCascades,
         checkedModelCount: spec.models.size - absentModels.length,
         checkedEnumCount: spec.enums.size - absentEnums.length,
         ok:
             missingFields.length === 0 &&
             missingEnumValues.length === 0 &&
             fieldMismatches.length === 0 &&
+            tenantCascades.length === 0 &&
             !missingBlockAttributes.some(breaksContract),
     };
 }
