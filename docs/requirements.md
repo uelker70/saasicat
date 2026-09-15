@@ -13146,6 +13146,7 @@ _Tested by:_
           tables in place
         - a tenant table without a name column stops it, naming the table
         - a tenant with no row or an empty name stops it, and both are named
+        - a role row-level security hides contracts from stops it, naming the table and the role
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
     - customer numbers count from 10001
@@ -13221,6 +13222,7 @@ _Tested by:_
           tables in place
         - a tenant table without a name column stops it, naming the table
         - a tenant with no row or an empty name stops it, and both are named
+        - a role row-level security hides contracts from stops it, naming the table and the role
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
     - customer numbers count from 10001
