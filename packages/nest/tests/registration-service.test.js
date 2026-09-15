@@ -36,7 +36,12 @@ import {
  * Step 4 is not the subject here: `a-sign-up-activates-on-a-confirmed-payment-method.test.js`
  * boots it with the payments module. A registration that reaches it fails the test.
  */
-const BILLING = { addressLine1: 'Hauptstraße 1', postalCode: '10115', city: 'Berlin', country: 'DE' };
+const BILLING = {
+    addressLine1: 'Hauptstraße 1',
+    postalCode: '10115',
+    city: 'Berlin',
+    country: 'DE',
+};
 
 const PAYMENTS_NOT_REACHED = {
     startSetup: async () => assert.fail('step 4 was reached'),
@@ -85,7 +90,6 @@ function makeService(overrides = {}) {
         resumeDelivery,
     };
 }
-
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 

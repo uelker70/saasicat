@@ -48,7 +48,9 @@ export class DevPaymentGateway implements PaymentGateway {
         }
     }
 
-    async startPaymentMethodSetup(input: StartPaymentMethodSetupInput): Promise<PaymentMethodSetupSession> {
+    async startPaymentMethodSetup(
+        input: StartPaymentMethodSetupInput,
+    ): Promise<PaymentMethodSetupSession> {
         const sessionRef = `dev_cs_${randomUUID()}`;
         const customerRef = input.holder.customerRef ?? `dev_cus_${randomUUID()}`;
         const confirmation: DevConfirmation = {
@@ -103,7 +105,9 @@ export class DevPaymentGateway implements PaymentGateway {
 }
 
 /** Test data a real gateway would never hand out: Stripe's documented test card and test IBAN. */
-function maskedDetailsOf(type: PaymentMethodType): Omit<ConfirmedPaymentMethod, 'customerRef' | 'paymentMethodRef'> {
+function maskedDetailsOf(
+    type: PaymentMethodType,
+): Omit<ConfirmedPaymentMethod, 'customerRef' | 'paymentMethodRef'> {
     if (type === 'sepa_debit') {
         return {
             type,

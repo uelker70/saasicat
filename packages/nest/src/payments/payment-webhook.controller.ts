@@ -21,7 +21,10 @@ interface CallbackRequest {
  * The bodies a web framework parses, and therefore keeps raw with `rawBody:
  * true`: JSON, which Stripe sends, and form fields, which Mollie sends.
  */
-const PARSED_BODY_TYPES: readonly string[] = ['application/json', 'application/x-www-form-urlencoded'];
+const PARSED_BODY_TYPES: readonly string[] = [
+    'application/json',
+    'application/x-www-form-urlencoded',
+];
 
 function carriesAParsedBody(contentType: string | string[] | undefined): boolean {
     const header = Array.isArray(contentType) ? contentType[0] : contentType;

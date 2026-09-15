@@ -29,7 +29,11 @@ function scriptedHttp(...answers) {
     return {
         calls,
         client: async (url, init) => {
-            calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(init.body) : undefined });
+            calls.push({
+                url,
+                method: init?.method ?? 'GET',
+                body: init?.body ? JSON.parse(init.body) : undefined,
+            });
             const [status, body] = answers.shift();
             return {
                 status,
@@ -48,7 +52,9 @@ describe('loading the payment method', () => {
 
         await method.reload();
 
-        assert.deepEqual(calls, [{ url: '/billing/payment-method', method: 'GET', body: undefined }]);
+        assert.deepEqual(calls, [
+            { url: '/billing/payment-method', method: 'GET', body: undefined },
+        ]);
         assert.equal(method.available.value, true);
         assert.deepEqual(method.paymentMethod.value, CARD);
         assert.equal(method.error.value, null);
@@ -69,14 +75,21 @@ describe('loading the payment method', () => {
         [404, 'the installation takes no payment methods'],
     ]) {
         test(`a ${status} hides the card without an error: ${why}`, async () => {
-            const { client } = scriptedHttp([200, { paymentMethod: CARD }], [status, { code: 'X' }]);
+            const { client } = scriptedHttp(
+                [200, { paymentMethod: CARD }],
+                [status, { code: 'X' }],
+            );
             const method = useTenantPaymentMethod({ http: client, autoLoad: false });
             await method.reload();
 
             await method.reload();
 
             assert.equal(method.available.value, false);
-            assert.equal(method.paymentMethod.value, null, 'a card hidden after a reload kept its data');
+            assert.equal(
+                method.paymentMethod.value,
+                null,
+                'a card hidden after a reload kept its data',
+            );
             assert.equal(method.error.value, null);
         });
     }
@@ -92,9 +105,24 @@ describe('loading the payment method', () => {
         assert.equal(method.loading.value, false);
     });
 
+    test('an answer in another shape is an error, not a subscriber without a payment method', async () => {
+        const { client } = scriptedHttp([200, []]);
+        const method = useTenantPaymentMethod({ http: client, autoLoad: false });
+
+        await method.reload();
+
+        assert.equal(method.available.value, true);
+        assert.equal(method.paymentMethod.value, null);
+        assert.match(method.error.value?.message ?? '', /did not answer with \{ paymentMethod \}/);
+    });
+
     test('the prefix the billing routes sit under is used as given', async () => {
         const { client, calls } = scriptedHttp([200, { paymentMethod: null }]);
-        const method = useTenantPaymentMethod({ http: client, apiPrefix: '/api/v1/billing/', autoLoad: false });
+        const method = useTenantPaymentMethod({
+            http: client,
+            apiPrefix: '/api/v1/billing/',
+            autoLoad: false,
+        });
 
         await method.reload();
 
@@ -104,12 +132,20 @@ describe('loading the payment method', () => {
 
 describe('changing the payment method', () => {
     test('asks for the gateway form with both URLs, and answers where to go', async () => {
-        const { client, calls } = scriptedHttp([200, { redirectUrl: 'https://gateway.example/form/cs_1' }]);
+        const { client, calls } = scriptedHttp([
+            200,
+            { redirectUrl: 'https://gateway.example/form/cs_1' },
+        ]);
         const method = useTenantPaymentMethod({ http: client, autoLoad: false });
-        const urls = { successUrl: 'https://app.example/plan?changed=1', cancelUrl: 'https://app.example/plan' };
+        const urls = {
+            successUrl: 'https://app.example/plan?changed=1',
+            cancelUrl: 'https://app.example/plan',
+        };
 
         assert.equal(await method.startChange(urls), 'https://gateway.example/form/cs_1');
-        assert.deepEqual(calls, [{ url: '/billing/payment-method/setup', method: 'POST', body: urls }]);
+        assert.deepEqual(calls, [
+            { url: '/billing/payment-method/setup', method: 'POST', body: urls },
+        ]);
     });
 
     test('a refusal reaches the caller with its code', async () => {

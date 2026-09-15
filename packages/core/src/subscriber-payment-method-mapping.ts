@@ -89,7 +89,12 @@ export function subscriberPaymentMethodColumns(
     };
 }
 
-function oneOf<T extends string>(allowed: readonly T[], value: string, column: string, id: string): T {
+function oneOf<T extends string>(
+    allowed: readonly T[],
+    value: string,
+    column: string,
+    id: string,
+): T {
     const match = allowed.find((entry) => entry === value);
     if (match === undefined) {
         throw new Error(

@@ -1062,6 +1062,23 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     // catalogue's own figures here keeps the baseline's wording; the case where
     // they differ is a component test, not a screenshot.
     ['/api/billing/subscription-bundles/prices', TENANT_RESOLVED_BUNDLE_PRICES],
+    // The payment method card, shown as a user holding the billing permission
+    // sees it. A direct debit rather than a card, so the mandate line renders.
+    [
+        '/api/billing/payment-method',
+        {
+            paymentMethod: {
+                type: 'sepa_debit',
+                brand: null,
+                last4: '3000',
+                expiryMonth: null,
+                expiryYear: null,
+                country: 'DE',
+                mandateReference: 'MANDATE-1001',
+                confirmedAt: '2026-01-10T09:00:00.000Z',
+            },
+        },
+    ],
 ];
 
 /**

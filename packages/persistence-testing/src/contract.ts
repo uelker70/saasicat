@@ -2633,7 +2633,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             if (!adapter.capabilities.pessimisticLocking) {
-                t.skip('adapter declares no pessimistic locking: an open claim cannot be waited on');
+                t.skip(
+                    'adapter declares no pessimistic locking: an open claim cannot be waited on',
+                );
                 return;
             }
             // Committed: the second delivery is the duplicate.
@@ -2702,7 +2704,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             // A reference is meaningful only to its own account.
             assert.equal(await methods.findByReference('stripe-old', 'pm_sepa'), null);
-            const other = await createSubscriber({ legalName: 'Ohne GmbH' });
+            const other = await createSubscriber({ legalName: 'Second Customer GmbH' });
             assert.equal(await methods.findActive(other.subscriberId), null);
         });
 
@@ -2737,7 +2739,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             const { subscriberId } = await createSubscriber({ legalName: 'Doppelt GmbH' });
-            const confirmation = paymentMethodFor(subscriberId, 'pm_twice', '2026-09-01T10:00:00.000Z');
+            const confirmation = paymentMethodFor(
+                subscriberId,
+                'pm_twice',
+                '2026-09-01T10:00:00.000Z',
+            );
             const first = await methods.recordConfirmed(confirmation);
 
             const again = await methods.recordConfirmed({
@@ -2800,12 +2806,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 );
             }
             const statuses = await Promise.all(
-                ['pm_at_once_a', 'pm_at_once_b'].map(async (ref) =>
-                    (await methods.findByReference('stripe-main', ref))?.status,
+                ['pm_at_once_a', 'pm_at_once_b'].map(
+                    async (ref) => (await methods.findByReference('stripe-main', ref))?.status,
                 ),
             );
             assert.deepEqual(statuses, ['REPLACED', 'ACTIVE']);
-            assert.equal((await methods.findActive(subscriberId))?.paymentMethodRef, 'pm_at_once_b');
+            assert.equal(
+                (await methods.findActive(subscriberId))?.paymentMethodRef,
+                'pm_at_once_b',
+            );
         });
 
         test('a payment method written on a transaction is undone with it', async (t) => {
@@ -2816,11 +2825,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 missing(t, 'subscriberPaymentMethods');
                 return;
             }
-            const { subscriberId } = await createSubscriber({ legalName: 'Zurück GmbH' });
+            const { subscriberId } = await createSubscriber({ legalName: 'Rolled Back GmbH' });
             await assert.rejects(
                 adapter.transactionRunner.run(async (tx) => {
                     await methods.recordConfirmed(
-                        paymentMethodFor(subscriberId, 'pm_rolled_back', '2026-09-01T10:00:00.000Z'),
+                        paymentMethodFor(
+                            subscriberId,
+                            'pm_rolled_back',
+                            '2026-09-01T10:00:00.000Z',
+                        ),
                         tx,
                     );
                     throw new Error('the activation failed after all');
@@ -2839,7 +2852,11 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             }
             await assert.rejects(
                 methods.recordConfirmed(
-                    paymentMethodFor('subscriber-nobody-created', 'pm_nobody', '2026-09-01T10:00:00.000Z'),
+                    paymentMethodFor(
+                        'subscriber-nobody-created',
+                        'pm_nobody',
+                        '2026-09-01T10:00:00.000Z',
+                    ),
                 ),
             );
             assert.equal(await methods.findByReference('stripe-main', 'pm_nobody'), null);
@@ -2856,13 +2873,28 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const moved = await createSubscriber({ legalName: 'Umgezogen GmbH' });
             const stayed = await createSubscriber({ legalName: 'Geblieben GmbH' });
             await methods.recordConfirmed(
-                paymentMethodFor(moved.subscriberId, 'pm_old_account', '2026-09-01T10:00:00.000Z', 'stripe-old'),
+                paymentMethodFor(
+                    moved.subscriberId,
+                    'pm_old_account',
+                    '2026-09-01T10:00:00.000Z',
+                    'stripe-old',
+                ),
             );
             await methods.recordConfirmed(
-                paymentMethodFor(moved.subscriberId, 'pm_new_account', '2026-09-02T10:00:00.000Z', 'stripe-main'),
+                paymentMethodFor(
+                    moved.subscriberId,
+                    'pm_new_account',
+                    '2026-09-02T10:00:00.000Z',
+                    'stripe-main',
+                ),
             );
             await methods.recordConfirmed(
-                paymentMethodFor(stayed.subscriberId, 'pm_main', '2026-09-02T10:00:00.000Z', 'stripe-main'),
+                paymentMethodFor(
+                    stayed.subscriberId,
+                    'pm_main',
+                    '2026-09-02T10:00:00.000Z',
+                    'stripe-main',
+                ),
             );
 
             // `stripe-old` holds a reference, but only one a newer payment method replaced.

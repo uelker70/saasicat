@@ -1375,7 +1375,11 @@ describe('a payment method is the gateway reference, kept for the subscriber', (
     test('a database from before ends up with the schema the fragments declare', async () => {
         const reference = await referenceFingerprint();
         await beforeTheMigration();
-        assert.notEqual(await fingerprint(client), reference, 'nothing was taken out to begin with');
+        assert.notEqual(
+            await fingerprint(client),
+            reference,
+            'nothing was taken out to begin with',
+        );
 
         await apply(MIGRATION);
 
@@ -1442,7 +1446,11 @@ describe('a payment method is the gateway reference, kept for the subscriber', (
                 `to_regclass('"PaymentEventLog"') AS events, ` +
                 `to_regclass('"PendingRegistration"') AS pending`,
         );
-        assert.deepEqual(rows[0], { methods: 'subscriber_payment_methods', events: null, pending: null });
+        assert.deepEqual(rows[0], {
+            methods: 'subscriber_payment_methods',
+            events: null,
+            pending: null,
+        });
     });
 
     test('an installation without subscribers is left without the payment methods, and runs through', async () => {

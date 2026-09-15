@@ -137,7 +137,9 @@ export interface PaymentGateway {
      * Opens the gateway's form for a payment method. Nothing is confirmed until
      * the gateway says so through `readCallback`.
      */
-    startPaymentMethodSetup(input: StartPaymentMethodSetupInput): Promise<PaymentMethodSetupSession>;
+    startPaymentMethodSetup(
+        input: StartPaymentMethodSetupInput,
+    ): Promise<PaymentMethodSetupSession>;
     /**
      * Verifies a callback with the account's secret and translates it.
      * Throws `PaymentCallbackRejectedError` for anything the gateway did not

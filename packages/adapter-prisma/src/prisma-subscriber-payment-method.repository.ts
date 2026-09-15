@@ -50,7 +50,8 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
         return this.inTransaction(tx, async (db) => {
             // Held until the transaction ends: a second confirmation for the
             // same subscriber waits here and then reads what this one wrote.
-            const locked = await db.$queryRaw`SELECT "id" FROM "subscribers" WHERE "id" = ${data.subscriberId} FOR UPDATE`;
+            const locked =
+                await db.$queryRaw`SELECT "id" FROM "subscribers" WHERE "id" = ${data.subscriberId} FOR UPDATE`;
             if (!Array.isArray(locked) || locked.length === 0) {
                 throw new Error(
                     `Subscriber '${data.subscriberId}' does not exist; its payment method cannot be recorded.`,

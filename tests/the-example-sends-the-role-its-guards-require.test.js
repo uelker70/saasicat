@@ -26,7 +26,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const GUARD = join(ROOT, 'packages/nest/src/billing/tenant-admin.guard.ts');
+const GUARD = join(ROOT, 'packages/nest/src/billing/tenant-roles.ts');
 const CLIENT = join(ROOT, 'examples/notesapp/web/src/services/http.ts');
 const ADMIN_CLIENT = join(ROOT, 'examples/notesapp/admin/src/services/http.ts');
 
@@ -34,7 +34,7 @@ const ADMIN_CLIENT = join(ROOT, 'examples/notesapp/admin/src/services/http.ts');
 function acceptedRoles() {
     const source = readFileSync(GUARD, 'utf8');
     const at = source.indexOf('ADMIN_ROLES');
-    assert.notEqual(at, -1, 'TenantAdminGuard no longer declares ADMIN_ROLES — update this test');
+    assert.notEqual(at, -1, 'the tenant roles no longer declare ADMIN_ROLES — update this test');
     const open = source.indexOf('[', at);
     const close = source.indexOf(']', open);
     assert.ok(open !== -1 && close !== -1, 'ADMIN_ROLES is no longer an array literal');
@@ -111,7 +111,7 @@ describe('the notesapp clients present a role the platform accepts', () => {
     test('the guard still names roles', () => {
         // Vacuously true against an empty set, which is what a refactor of the
         // guard into a decorator would leave behind.
-        assert.ok(roles.length > 0, 'no roles read from TenantAdminGuard');
+        assert.ok(roles.length > 0, 'no roles read from the tenant roles');
         assert.ok(roles.includes('SUPER_ADMIN'));
     });
 

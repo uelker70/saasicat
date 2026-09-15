@@ -15,7 +15,11 @@ const CATALOGUES = [
     ['BILLING_ERROR_CODES', 'Billing', 'Subscriptions, plan changes, entitlements.'],
     ['CONTRACT_ERROR_CODES', 'Contracts', 'Checkout offers and subscription contracts.'],
     ['SUBSCRIBER_ERROR_CODES', 'Subscribers', 'The party a contract is concluded with.'],
-    ['PAYMENT_ERROR_CODES', 'Payments', 'Payment methods and the gateway callbacks that confirm them.'],
+    [
+        'PAYMENT_ERROR_CODES',
+        'Payments',
+        'Payment methods and the gateway callbacks that confirm them.',
+    ],
     ['PROMO_ERROR_CODES', 'Promo codes', 'Redemption, validity and limits.'],
     ['SETTINGS_ERROR_CODES', 'Settings', 'The record of the applied configuration.'],
 ];

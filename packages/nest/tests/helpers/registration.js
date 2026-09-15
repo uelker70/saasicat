@@ -18,7 +18,10 @@ export class FakeRepository {
     }
     async findByCheckoutSession(gatewayAccount, sessionId) {
         for (const row of this.rows.values()) {
-            if (row.checkoutGatewayAccount === gatewayAccount && row.checkoutSessionId === sessionId) {
+            if (
+                row.checkoutGatewayAccount === gatewayAccount &&
+                row.checkoutSessionId === sessionId
+            ) {
                 return row;
             }
         }
@@ -227,7 +230,6 @@ export class FakePlanCatalog {
         return this.plans.find((p) => p.id === id) ?? null;
     }
 }
-
 
 export function baseInput(overrides = {}) {
     return {

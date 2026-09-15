@@ -1,10 +1,4 @@
-import {
-    BadRequestException,
-    Inject,
-    Injectable,
-    Logger,
-    NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type {
     PaymentEventLog,
     PaymentGatewayCallback,
@@ -67,7 +61,10 @@ export type PaymentCallbackOutcome = 'handled' | 'duplicate' | 'unhandled';
 @Injectable()
 export class PaymentCallbackService {
     private readonly logger = new Logger(PaymentCallbackService.name);
-    private readonly handlers = new Map<PaymentMethodSetupSubject['kind'], PaymentSetupEventHandler>();
+    private readonly handlers = new Map<
+        PaymentMethodSetupSubject['kind'],
+        PaymentSetupEventHandler
+    >();
 
     constructor(
         private readonly registry: PaymentGatewayRegistry,
@@ -79,23 +76,37 @@ export class PaymentCallbackService {
      * Names who handles the setups of one kind of subject. Each kind has one
      * handler; a second is a wiring error, not a replacement.
      */
-    handleSetupsOf(kind: PaymentMethodSetupSubject['kind'], handler: PaymentSetupEventHandler): void {
+    handleSetupsOf(
+        kind: PaymentMethodSetupSubject['kind'],
+        handler: PaymentSetupEventHandler,
+    ): void {
         if (this.handlers.has(kind)) {
-            throw new Error(`A handler for payment method setups of '${kind}' is registered twice.`);
+            throw new Error(
+                `A handler for payment method setups of '${kind}' is registered twice.`,
+            );
         }
         this.handlers.set(kind, handler);
     }
 
-    async handle(account: string, callback: PaymentGatewayCallback): Promise<PaymentCallbackOutcome> {
+    async handle(
+        account: string,
+        callback: PaymentGatewayCallback,
+    ): Promise<PaymentCallbackOutcome> {
         const entry = this.registry.account(account);
         if (!entry) {
             throw new NotFoundException(
                 codedError(PAYMENT_ERROR_CODES.PAYMENT_GATEWAY_ACCOUNT_UNKNOWN, { account }),
             );
         }
-        const event = await this.read(entry.gateway.readCallback.bind(entry.gateway), callback, account);
+        const event = await this.read(
+            entry.gateway.readCallback.bind(entry.gateway),
+            callback,
+            account,
+        );
         if (event.kind === 'unhandled') {
-            this.logger.debug(`Payment event ${event.eventId} (${event.type}) at '${account}' needs no action.`);
+            this.logger.debug(
+                `Payment event ${event.eventId} (${event.type}) at '${account}' needs no action.`,
+            );
             return 'unhandled';
         }
         const handler = this.handlerFor(event);
@@ -128,7 +139,9 @@ export class PaymentCallbackService {
             return true;
         });
         if (!claimed) {
-            this.logger.log(`Payment event ${event.eventId} at '${account}' was handled before; duplicate ignored.`);
+            this.logger.log(
+                `Payment event ${event.eventId} at '${account}' was handled before; duplicate ignored.`,
+            );
             return 'duplicate';
         }
         for (const step of afterCommit) {
@@ -154,7 +167,9 @@ export class PaymentCallbackService {
         } catch (error) {
             if (!isPaymentCallbackRejectedError(error)) throw error;
             this.logger.warn(`A payment callback for '${account}' was rejected: ${error.message}`);
-            throw new BadRequestException(codedError(PAYMENT_ERROR_CODES.PAYMENT_CALLBACK_REJECTED));
+            throw new BadRequestException(
+                codedError(PAYMENT_ERROR_CODES.PAYMENT_CALLBACK_REJECTED),
+            );
         }
     }
 

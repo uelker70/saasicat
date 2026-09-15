@@ -63,7 +63,10 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
      * The customer the subscriber has at that account is reused, so the new
      * payment method sits beside the ones the gateway already holds for it.
      */
-    async startChange(tenantId: string, input: StartPaymentMethodChange): Promise<{ redirectUrl: string }> {
+    async startChange(
+        tenantId: string,
+        input: StartPaymentMethodChange,
+    ): Promise<{ redirectUrl: string }> {
         const subscriber = await this.subscribers.requireForTenant(tenantId);
         const account = this.registry.forNewPaymentMethods();
         if (!account) {
@@ -106,7 +109,11 @@ function customerAt(inUse: SubscriberPaymentMethodRecord | null, account: string
     return inUse?.gatewayAccount === account ? inUse.customerRef : null;
 }
 
-function holderOf(subscriber: SubscriberRecord, fallbackEmail: string | null, customerRef: string | null) {
+function holderOf(
+    subscriber: SubscriberRecord,
+    fallbackEmail: string | null,
+    customerRef: string | null,
+) {
     return {
         name: subscriber.legalName,
         email: subscriber.invoiceEmail ?? fallbackEmail,

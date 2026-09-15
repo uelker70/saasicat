@@ -9,7 +9,11 @@ import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Test } from '@nestjs/testing';
 
-import { BillingPermissionGuard, ComposedTenantAuthGuard, PlanCatalogModule } from '../dist/billing/index.js';
+import {
+    BillingPermissionGuard,
+    ComposedTenantAuthGuard,
+    PlanCatalogModule,
+} from '../dist/billing/index.js';
 import { SAASICAT_PUBLIC_ROUTE_KEY } from '../dist/index.js';
 import {
     DevPaymentGateway,
@@ -32,7 +36,10 @@ import {
     signedCallback,
 } from './helpers/payments.js';
 
-const URLS = { successUrl: 'https://app.example/plan?payment-method=changed', cancelUrl: 'https://app.example/plan' };
+const URLS = {
+    successUrl: 'https://app.example/plan?payment-method=changed',
+    cancelUrl: 'https://app.example/plan',
+};
 
 /** Nest's own metadata keys. */
 const GUARDS = '__guards__';
@@ -122,7 +129,12 @@ describe('the billing permission', () => {
     });
 
     test("the application's guards decide who holds it, instead of the role", async () => {
-        const accountingOnly = [{ canActivate: (context) => context.switchToHttp().getRequest().user.role === 'ACCOUNTING' }];
+        const accountingOnly = [
+            {
+                canActivate: (context) =>
+                    context.switchToHttp().getRequest().user.role === 'ACCOUNTING',
+            },
+        ];
         const guard = new BillingPermissionGuard(accountingOnly);
 
         assert.equal(await guard.canActivate(contextFor({ role: 'ACCOUNTING' })), true);
@@ -133,12 +145,20 @@ describe('the billing permission', () => {
     });
 
     test('the guards passed to the module are the ones the routes ask', async () => {
-        const accountingOnly = [{ canActivate: (context) => context.switchToHttp().getRequest().user.role === 'ACCOUNTING' }];
+        const accountingOnly = [
+            {
+                canActivate: (context) =>
+                    context.switchToHttp().getRequest().user.role === 'ACCOUNTING',
+            },
+        ];
         const ctx = await paymentsApp({ billingPermissionGuards: accountingOnly });
         const guard = ctx.app.get(BillingPermissionGuard);
 
         assert.equal(await guard.canActivate(contextFor({ role: 'ACCOUNTING' })), true);
-        await assert.rejects(guard.canActivate(contextFor({ role: 'TENANT_ADMIN' })), (error) => codeOf(error) === 'BILLING_PERMISSION_REQUIRED');
+        await assert.rejects(
+            guard.canActivate(contextFor({ role: 'TENANT_ADMIN' })),
+            (error) => codeOf(error) === 'BILLING_PERMISSION_REQUIRED',
+        );
     });
 
     // @requirement SC-SEC-004 — Every decision that matters is made where the request is served
@@ -163,7 +183,9 @@ describe('the billing permission', () => {
 describe('the tenant sees the payment method in use', () => {
     test('what tells it apart, and nothing that reaches it at the gateway', async () => {
         const ctx = await paymentsApp();
-        const subscriber = await ctx.subscribers.createForTenant('tenant-1', { legalName: 'Meier GmbH' });
+        const subscriber = await ctx.subscribers.createForTenant('tenant-1', {
+            legalName: 'Meier GmbH',
+        });
         await ctx.methods.recordConfirmed({
             ...confirmation({ eventId: 'e', sessionRef: 's', subject: {} }).paymentMethod,
             subscriberId: subscriber.id,
@@ -196,8 +218,14 @@ describe('the tenant sees the payment method in use', () => {
     test('a tenant without a subscriber, and a request without a tenant, are refused', async () => {
         const ctx = await paymentsApp();
 
-        await assert.rejects(ctx.routes.current(adminOf('tenant-without')), (error) => codeOf(error) === 'SUBSCRIBER_REQUIRED');
-        await assert.rejects(ctx.routes.current({ user: { role: 'TENANT_ADMIN' } }), (error) => codeOf(error) === 'TENANT_CONTEXT_MISSING');
+        await assert.rejects(
+            ctx.routes.current(adminOf('tenant-without')),
+            (error) => codeOf(error) === 'SUBSCRIBER_REQUIRED',
+        );
+        await assert.rejects(
+            ctx.routes.current({ user: { role: 'TENANT_ADMIN' } }),
+            (error) => codeOf(error) === 'TENANT_CONTEXT_MISSING',
+        );
     });
 });
 
@@ -314,11 +342,19 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
                 replacedAt: replacedAt?.toISOString() ?? null,
             })),
             [
-                { paymentMethodRef: 'pm_in_use', status: 'REPLACED', replacedAt: '2026-09-15T10:00:00.000Z' },
+                {
+                    paymentMethodRef: 'pm_in_use',
+                    status: 'REPLACED',
+                    replacedAt: '2026-09-15T10:00:00.000Z',
+                },
                 { paymentMethodRef: 'pm_new', status: 'ACTIVE', replacedAt: null },
             ],
         );
-        assert.equal(ctx.methods.writes.at(-1).tx !== undefined, true, 'recorded outside the claim');
+        assert.equal(
+            ctx.methods.writes.at(-1).tx !== undefined,
+            true,
+            'recorded outside the claim',
+        );
     });
 
     test('a confirmation whose recording fails leaves the claim open for the retry', async () => {
@@ -340,7 +376,10 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
         assert.deepEqual(ctx.log.claims, []);
 
         assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, callback), 'handled');
-        assert.equal((await ctx.methods.findActive(ctx.subscriber.id))?.paymentMethodRef, 'pm_card_1');
+        assert.equal(
+            (await ctx.methods.findActive(ctx.subscriber.id))?.paymentMethodRef,
+            'pm_card_1',
+        );
     });
 
     test('without an account for new payment methods the change is refused, and the gateway is not asked', async () => {
@@ -371,7 +410,10 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
         assert.equal(active.type, 'sepa_debit');
         assert.equal(active.last4, '3000');
         assert.match(active.mandateReference, /^DEV-/);
-        assert.equal((await ctx.routes.current(adminOf('tenant-1'))).paymentMethod.type, 'sepa_debit');
+        assert.equal(
+            (await ctx.routes.current(adminOf('tenant-1'))).paymentMethod.type,
+            'sepa_debit',
+        );
     });
 });
 
@@ -379,7 +421,10 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
 describe('the webhook route', () => {
     test('is public, one route per account, and hands the gateway the body as it arrived', async () => {
         const ctx = await paymentsApp();
-        assert.equal(Reflect.getMetadata(SAASICAT_PUBLIC_ROUTE_KEY, PaymentWebhookController), true);
+        assert.equal(
+            Reflect.getMetadata(SAASICAT_PUBLIC_ROUTE_KEY, PaymentWebhookController),
+            true,
+        );
         const seen = [];
         const readCallback = ctx.gateway.readCallback.bind(ctx.gateway);
         ctx.gateway.readCallback = async (callback) => {
@@ -393,16 +438,27 @@ describe('the webhook route', () => {
             type: 'customer.updated',
         });
 
-        assert.deepEqual(await ctx.webhook.receive(MAIN_ACCOUNT, { rawBody: body, headers }), { received: true });
+        assert.deepEqual(await ctx.webhook.receive(MAIN_ACCOUNT, { rawBody: body, headers }), {
+            received: true,
+        });
 
         assert.equal(seen.length, 1);
-        assert.equal(seen[0].body, body, 'the gateway was handed another body than the one that arrived');
+        assert.equal(
+            seen[0].body,
+            body,
+            'the gateway was handed another body than the one that arrived',
+        );
         assert.deepEqual(ctx.log.claims, [], 'an event nothing acts on is not claimed');
     });
 
     test('an account the configuration does not name is refused', async () => {
         const ctx = await paymentsApp();
-        const { body, headers } = signedCallback({ kind: 'unhandled', eventId: 'e', occurredAt: '2026-09-15T10:00:00.000Z', type: 't' });
+        const { body, headers } = signedCallback({
+            kind: 'unhandled',
+            eventId: 'e',
+            occurredAt: '2026-09-15T10:00:00.000Z',
+            type: 't',
+        });
 
         await assert.rejects(
             ctx.webhook.receive('stripe-somebody-elses', { rawBody: body, headers }),
@@ -416,7 +472,10 @@ describe('the webhook route', () => {
     test('a JSON or form callback without its raw body is a setup error, and says how to keep the body', async () => {
         const ctx = await paymentsApp();
 
-        for (const contentType of ['application/json; charset=utf-8', 'application/x-www-form-urlencoded']) {
+        for (const contentType of [
+            'application/json; charset=utf-8',
+            'application/x-www-form-urlencoded',
+        ]) {
             await assert.rejects(
                 ctx.webhook.receive(MAIN_ACCOUNT, { headers: { 'content-type': contentType } }),
                 /rawBody: true/,
@@ -430,7 +489,8 @@ describe('the webhook route', () => {
         for (const headers of [{ 'content-type': 'text/plain' }, {}]) {
             await assert.rejects(
                 ctx.webhook.receive(MAIN_ACCOUNT, { headers }),
-                (error) => codeOf(error) === 'PAYMENT_CALLBACK_REJECTED' && error.getStatus() === 400,
+                (error) =>
+                    codeOf(error) === 'PAYMENT_CALLBACK_REJECTED' && error.getStatus() === 400,
             );
         }
         assert.deepEqual(ctx.log.claims, []);
@@ -441,31 +501,47 @@ describe('the accounts the file names and the gateways the application binds', (
     const cases = [
         {
             what: 'an account without a gateway',
-            catalog: paymentsCatalog({ accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' }, 'stripe-old': { provider: 'stripe' } } }),
+            catalog: paymentsCatalog({
+                accounts: {
+                    [MAIN_ACCOUNT]: { provider: 'stripe' },
+                    'stripe-old': { provider: 'stripe' },
+                },
+            }),
             gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
             message: /names the payment account 'stripe-old', and no gateway is bound/,
         },
         {
             what: 'a gateway without an account',
             catalog: paymentsCatalog({ accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' } } }),
-            gateways: { [MAIN_ACCOUNT]: new ScriptedGateway(), 'stripe-extra': new ScriptedGateway() },
-            message: /bound for the payment account 'stripe-extra', which config\/saas\.yaml#payments\.accounts does not name/,
+            gateways: {
+                [MAIN_ACCOUNT]: new ScriptedGateway(),
+                'stripe-extra': new ScriptedGateway(),
+            },
+            message:
+                /bound for the payment account 'stripe-extra', which config\/saas\.yaml#payments\.accounts does not name/,
         },
         {
             what: 'a gateway at another provider than the file says',
             catalog: paymentsCatalog({ accounts: { [MAIN_ACCOUNT]: { provider: 'mollie' } } }),
             gateways: { [MAIN_ACCOUNT]: new ScriptedGateway('stripe') },
-            message: /'stripe-main' is at 'mollie' in config\/saas\.yaml, but the gateway bound for it is 'stripe'/,
+            message:
+                /'stripe-main' is at 'mollie' in config\/saas\.yaml, but the gateway bound for it is 'stripe'/,
         },
         {
             what: 'new payment methods at an account the file does not list',
-            catalog: paymentsCatalog({ newPaymentMethods: 'stripe-new', accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' } } }),
+            catalog: paymentsCatalog({
+                newPaymentMethods: 'stripe-new',
+                accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' } },
+            }),
             gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
             message: /newPaymentMethods names 'stripe-new', which is not one of its accounts/,
         },
         {
             what: 'new payment methods at an account that offers none',
-            catalog: paymentsCatalog({ newPaymentMethods: MAIN_ACCOUNT, accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' } } }),
+            catalog: paymentsCatalog({
+                newPaymentMethods: MAIN_ACCOUNT,
+                accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' } },
+            }),
             gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
             message: /'stripe-main' takes new payment methods, and lists no `methods`/,
         },
@@ -485,10 +561,17 @@ describe('the accounts the file names and the gateways the application binds', (
     test('every mismatch is named at once', async () => {
         await assert.rejects(
             paymentsApp({
-                catalog: paymentsCatalog({ accounts: { [MAIN_ACCOUNT]: { provider: 'mollie' }, 'stripe-old': { provider: 'stripe' } } }),
+                catalog: paymentsCatalog({
+                    accounts: {
+                        [MAIN_ACCOUNT]: { provider: 'mollie' },
+                        'stripe-old': { provider: 'stripe' },
+                    },
+                }),
                 gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
             }),
-            (error) => /'stripe-old', and no gateway is bound/.test(error.message) && /is at 'mollie'/.test(error.message),
+            (error) =>
+                /'stripe-old', and no gateway is bound/.test(error.message) &&
+                /is at 'mollie'/.test(error.message),
         );
     });
 
@@ -496,7 +579,10 @@ describe('the accounts the file names and the gateways the application binds', (
     test('a payment method in use at an account the file no longer names stops the start, and is named', async () => {
         const methods = new MemoryPaymentMethods();
         const subscribers = new FakeSubscriberRepository();
-        const subscriber = await new SubscriberService(subscribers, paymentsCatalog()).createForTenant('tenant-1', {
+        const subscriber = await new SubscriberService(
+            subscribers,
+            paymentsCatalog(),
+        ).createForTenant('tenant-1', {
             legalName: 'Meier GmbH',
         });
         await methods.recordConfirmed({
@@ -547,13 +633,23 @@ describe('the development gateway', () => {
 describe('SaaSiCatModule composes payments', () => {
     const catalog = paymentsCatalog();
     const persistence = {
-        capabilities: { transactions: true, pessimisticLocking: true, rowLevelSecurity: false, advisoryLocks: false },
+        capabilities: {
+            transactions: true,
+            pessimisticLocking: true,
+            rowLevelSecurity: false,
+            advisoryLocks: false,
+        },
         core: { mfa: {}, audit: {}, rlsBypass: {}, transactionRunner: {} },
-        entitlement: { subscriptionRepository: {}, planVersionRepository: {}, subscriberRepository: {} },
+        entitlement: {
+            subscriptionRepository: {},
+            planVersionRepository: {},
+            subscriberRepository: {},
+        },
         tenantBilling: { subscriptionUsagePort: {}, subscriptionWritePort: {} },
         payments: { paymentEventLog: {}, subscriberPaymentMethodRepository: {} },
     };
-    const paymentsModuleOf = (dyn) => dyn.imports.find((imported) => imported?.module?.name === 'PaymentsModule');
+    const paymentsModuleOf = (dyn) =>
+        dyn.imports.find((imported) => imported?.module?.name === 'PaymentsModule');
 
     test('with tenant billing: the webhook route and the tenant routes, behind the tenant guards', () => {
         const dyn = SaaSiCatModule.forRoot({
@@ -566,7 +662,10 @@ describe('SaaSiCatModule composes payments', () => {
 
         const payments = paymentsModuleOf(dyn);
         assert.ok(payments, 'PaymentsModule is not composed');
-        assert.deepEqual(payments.controllers, [PaymentWebhookController, TenantPaymentMethodController]);
+        assert.deepEqual(payments.controllers, [
+            PaymentWebhookController,
+            TenantPaymentMethodController,
+        ]);
     });
 
     test('without tenant billing: the webhook route alone', () => {

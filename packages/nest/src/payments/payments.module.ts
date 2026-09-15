@@ -115,7 +115,8 @@ export class PaymentsModule {
                     useValue:
                         tenant.tenantIdResolver ??
                         ((req: unknown) =>
-                            (req as { user?: { tenantId?: string | null } }).user?.tenantId ?? null),
+                            (req as { user?: { tenantId?: string | null } }).user?.tenantId ??
+                            null),
                 },
             );
             if (tenant.billingPermissionGuards) {
@@ -124,7 +125,10 @@ export class PaymentsModule {
                 );
             }
             if (tenant.userEmailResolver) {
-                providers.push({ provide: USER_EMAIL_RESOLVER_TOKEN, useValue: tenant.userEmailResolver });
+                providers.push({
+                    provide: USER_EMAIL_RESOLVER_TOKEN,
+                    useValue: tenant.userEmailResolver,
+                });
             }
             controllers.push(TenantPaymentMethodController);
         }

@@ -6,10 +6,7 @@
 // handler that throws takes its claim and its writes with it — the property
 // the persistence contract checks against PostgreSQL.
 
-import {
-    PaymentCallbackRejectedError,
-    subscriberPaymentMethodColumns,
-} from '@saasicat/core';
+import { PaymentCallbackRejectedError, subscriberPaymentMethodColumns } from '@saasicat/core';
 
 /** The account every test takes payment methods at, unless it names another. */
 export const MAIN_ACCOUNT = 'stripe-main';
@@ -116,7 +113,8 @@ export class MemoryPaymentEventLog {
     async claim(claim, tx) {
         if (tx === undefined) throw new Error('a gateway event was claimed outside a transaction');
         const taken = this.claims.some(
-            (held) => held.gatewayAccount === claim.gatewayAccount && held.eventId === claim.eventId,
+            (held) =>
+                held.gatewayAccount === claim.gatewayAccount && held.eventId === claim.eventId,
         );
         if (taken) return false;
         this.claims.push(structuredClone(claim));

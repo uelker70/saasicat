@@ -651,7 +651,8 @@ export function createMemoryHarness() {
         async claim(claim) {
             const taken = state.paymentEvents.some(
                 (event) =>
-                    event.gatewayAccount === claim.gatewayAccount && event.eventId === claim.eventId,
+                    event.gatewayAccount === claim.gatewayAccount &&
+                    event.eventId === claim.eventId,
             );
             if (taken) return false;
             state.paymentEvents.push(structuredClone(claim));
@@ -686,7 +687,10 @@ export function createMemoryHarness() {
                     status: 'REPLACED',
                     replacedAt: active.confirmedAt,
                 });
-                return { method: structuredClone(state.paymentMethods.at(-1)), outcome: 'superseded' };
+                return {
+                    method: structuredClone(state.paymentMethods.at(-1)),
+                    outcome: 'superseded',
+                };
             }
             if (active) {
                 active.status = 'REPLACED';
@@ -697,7 +701,8 @@ export function createMemoryHarness() {
         },
         async findActive(subscriberId) {
             const row = state.paymentMethods.find(
-                (candidate) => candidate.subscriberId === subscriberId && candidate.status === 'ACTIVE',
+                (candidate) =>
+                    candidate.subscriberId === subscriberId && candidate.status === 'ACTIVE',
             );
             return row ? structuredClone(row) : null;
         },

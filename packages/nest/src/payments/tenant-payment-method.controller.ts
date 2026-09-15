@@ -54,7 +54,9 @@ export class TenantPaymentMethodController {
     ) {}
 
     @Get()
-    async current(@Req() request: unknown): Promise<{ paymentMethod: TenantPaymentMethodView | null }> {
+    async current(
+        @Req() request: unknown,
+    ): Promise<{ paymentMethod: TenantPaymentMethodView | null }> {
         const method = await this.paymentMethods.current(this.tenantOf(request));
         return { paymentMethod: method ? viewOf(method) : null };
     }
@@ -74,7 +76,8 @@ export class TenantPaymentMethodController {
 
     private tenantOf(request: unknown): string {
         const tenantId = this.tenantIdResolver(request);
-        if (!tenantId) throw new NotFoundException(codedError(AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING));
+        if (!tenantId)
+            throw new NotFoundException(codedError(AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING));
         return tenantId;
     }
 

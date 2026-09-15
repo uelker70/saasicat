@@ -52,6 +52,17 @@ export interface UseTenantPaymentMethodResult {
     startChange(urls: { successUrl: string; cancelUrl: string }): Promise<string>;
 }
 
+function isPaymentMethodAnswer(
+    value: unknown,
+): value is { paymentMethod: TenantPaymentMethodShape | null } {
+    return (
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        Object.prototype.hasOwnProperty.call(value, 'paymentMethod')
+    );
+}
+
 /** The statuses that say the card is not for this user, rather than that loading it failed. */
 const NOT_SHOWN = new Set([403, 404, 501]);
 
@@ -70,10 +81,12 @@ export function useTenantPaymentMethod(
         loading.value = true;
         error.value = null;
         try {
-            const answer = await getJson<{ paymentMethod: TenantPaymentMethodShape | null }>(
-                http,
-                route,
-            );
+            const answer = await getJson<unknown>(http, route);
+            if (!isPaymentMethodAnswer(answer)) {
+                // An empty card would say "no payment method yet" about a subscriber
+                // the page knows nothing about.
+                throw new Error(`${route} did not answer with { paymentMethod }.`);
+            }
             paymentMethod.value = answer.paymentMethod;
             available.value = true;
         } catch (err) {
@@ -87,7 +100,11 @@ export function useTenantPaymentMethod(
     }
 
     async function startChange(urls: { successUrl: string; cancelUrl: string }): Promise<string> {
-        const { redirectUrl } = await postJson<{ redirectUrl: string }>(http, `${route}/setup`, urls);
+        const { redirectUrl } = await postJson<{ redirectUrl: string }>(
+            http,
+            `${route}/setup`,
+            urls,
+        );
         return redirectUrl;
     }
 

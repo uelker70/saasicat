@@ -844,8 +844,11 @@ function toSnapshot(pending: PendingRegistration): PendingRegistrationSnapshot {
 }
 
 /** What step 4 took, once it took the address; `null` before. */
-function billingDetailsOf(pending: PendingRegistration): PendingRegistrationSnapshot['billingDetails'] {
-    if (!pending.addressLine1 || !pending.postalCode || !pending.city || !pending.country) return null;
+function billingDetailsOf(
+    pending: PendingRegistration,
+): PendingRegistrationSnapshot['billingDetails'] {
+    if (!pending.addressLine1 || !pending.postalCode || !pending.city || !pending.country)
+        return null;
     return {
         addressLine1: pending.addressLine1,
         addressLine2: pending.addressLine2,

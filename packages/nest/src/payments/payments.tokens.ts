@@ -8,4 +8,6 @@ export const PAYMENT_EVENT_LOG_TOKEN = Symbol.for('saasicat/nest/PaymentEventLog
 export const SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN = Symbol.for(
     'saasicat/nest/SubscriberPaymentMethodRepository',
 );
-export const PAYMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for('saasicat/nest/PaymentTransactionRunner');
+export const PAYMENT_TRANSACTION_RUNNER_TOKEN = Symbol.for(
+    'saasicat/nest/PaymentTransactionRunner',
+);

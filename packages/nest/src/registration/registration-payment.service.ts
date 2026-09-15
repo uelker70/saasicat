@@ -132,7 +132,9 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
                     country: billing.country,
                 },
                 customerRef:
-                    pending.checkoutGatewayAccount === account.name ? pending.gatewayCustomerRef : null,
+                    pending.checkoutGatewayAccount === account.name
+                        ? pending.gatewayCustomerRef
+                        : null,
             },
             methods: account.methods,
             successUrl: urls.successUrl,
@@ -162,7 +164,10 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
     /** Handles a confirmation the gateway gave when the setup started, like any callback. */
     async confirm(started: RegistrationSetupStarted): Promise<void> {
         if (!started.immediate) return;
-        await this.payments().callbacks.handle(started.immediate.account, started.immediate.callback);
+        await this.payments().callbacks.handle(
+            started.immediate.account,
+            started.immediate.callback,
+        );
     }
 
     private async activate(
@@ -238,7 +243,10 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         event: PaymentMethodConfirmedEvent | PaymentMethodSetupFailedEvent,
         context: PaymentEventContext,
     ): Promise<PendingRegistration | null> {
-        const pending = await this.repo.findByCheckoutSession(context.gatewayAccount, event.sessionRef);
+        const pending = await this.repo.findByCheckoutSession(
+            context.gatewayAccount,
+            event.sessionRef,
+        );
         const subject = event.subject;
         if (
             !pending ||

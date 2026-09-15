@@ -40,7 +40,11 @@ const SEPA = {
 function httpAnswering(...answers: Array<[number, unknown]>) {
     const calls: Array<{ url: string; method: string; body?: unknown }> = [];
     const http: HttpClient = async (url, init) => {
-        calls.push({ url, method: init?.method ?? 'GET', body: init?.body ? JSON.parse(init.body) : undefined });
+        calls.push({
+            url,
+            method: init?.method ?? 'GET',
+            body: init?.body ? JSON.parse(init.body) : undefined,
+        });
         const [status, body] = answers.shift() ?? [500, {}];
         return {
             status,
@@ -65,7 +69,9 @@ describe('who sees the card', () => {
 
         expect(wrapper.text()).toContain(i18n.paymentMethodTitle);
         expect(wrapper.text()).toContain('Visa ending in 4242, valid until 03/2030');
-        expect(wrapper.find('section').attributes('aria-labelledby')).toBe(wrapper.find('h3').attributes('id'));
+        expect(wrapper.find('section').attributes('aria-labelledby')).toBe(
+            wrapper.find('h3').attributes('id'),
+        );
     });
 
     test('a user without it sees nothing at all, not even the heading', async () => {

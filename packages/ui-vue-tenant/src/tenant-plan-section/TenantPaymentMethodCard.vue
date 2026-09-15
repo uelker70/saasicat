@@ -102,6 +102,7 @@ async function onChange(): Promise<void> {
 .sp-payment-method__title {
     font-size: var(--sa-text-md);
     font-weight: 600;
+    line-height: var(--sa-leading-md);
     margin: 0 0 var(--sa-space-3);
 }
 .sp-payment-method__summary {

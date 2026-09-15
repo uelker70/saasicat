@@ -250,7 +250,11 @@ describe('step 4 takes the billing address and opens the gateway form', () => {
                 ...URLS,
             },
         ]);
-        assert.equal(ctx.orchestrator.calls.length, 0, 'nothing is activated before the gateway confirms');
+        assert.equal(
+            ctx.orchestrator.calls.length,
+            0,
+            'nothing is activated before the gateway confirms',
+        );
     });
 
     for (const field of ['addressLine1', 'postalCode', 'city', 'country']) {
@@ -320,13 +324,20 @@ describe('step 4 takes the billing address and opens the gateway form', () => {
     test('without an account for new payment methods, step 4 is refused and nothing is kept', async () => {
         const ctx = await signUpApp({
             catalog: paymentsCatalog({
-                accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' }, 'stripe-old': { provider: 'stripe' } },
+                accounts: {
+                    [MAIN_ACCOUNT]: { provider: 'stripe' },
+                    'stripe-old': { provider: 'stripe' },
+                },
             }),
         });
         const pendingId = await atStepFour(ctx);
 
         await assert.rejects(
-            ctx.service.startCheckout({ pendingRegistrationId: pendingId, billingDetails: BILLING, ...URLS }),
+            ctx.service.startCheckout({
+                pendingRegistrationId: pendingId,
+                billingDetails: BILLING,
+                ...URLS,
+            }),
             (error) => codeOf(error) === 'PAYMENTS_NOT_CONFIGURED' && error.getStatus() === 409,
         );
         const stored = await ctx.repo.findById(pendingId);
@@ -339,7 +350,12 @@ describe('step 4 takes the billing address and opens the gateway form', () => {
 describe('the request for step 4 is validated where it arrives', () => {
     const valid = {
         pendingRegistrationId: 'pending-1',
-        billingDetails: { addressLine1: 'Hauptstraße 1', postalCode: '10115', city: 'Berlin', country: 'DE' },
+        billingDetails: {
+            addressLine1: 'Hauptstraße 1',
+            postalCode: '10115',
+            city: 'Berlin',
+            country: 'DE',
+        },
         ...URLS,
     };
     const errorsFor = (payload) =>
@@ -349,7 +365,9 @@ describe('the request for step 4 is validated where it arrives', () => {
         });
     const fieldsOf = (errors) =>
         errors.flatMap((error) =>
-            error.children?.length ? error.children.map((child) => `${error.property}.${child.property}`) : [error.property],
+            error.children?.length
+                ? error.children.map((child) => `${error.property}.${child.property}`)
+                : [error.property],
         );
 
     test('a complete request passes, the tax identifiers left out', () => {
@@ -392,9 +410,10 @@ describe('the confirmation of the payment method activates the sign-up', () => {
         const { tx } = ctx.orchestrator.calls[0];
         assert.ok(tx, 'the application was handed no transaction');
         assert.deepEqual(ctx.methods.writes, [{ paymentMethodRef: 'pm_card_1', tx }]);
-        assert.deepEqual(ctx.log.claims.map((claim) => [claim.gatewayAccount, claim.eventId]), [
-            [MAIN_ACCOUNT, 'evt_1'],
-        ]);
+        assert.deepEqual(
+            ctx.log.claims.map((claim) => [claim.gatewayAccount, claim.eventId]),
+            [[MAIN_ACCOUNT, 'evt_1']],
+        );
         const [method] = ctx.methods.rows;
         assert.equal(method.subscriberId, 'subscriber-10001');
         assert.equal(method.status, 'ACTIVE');
@@ -402,10 +421,11 @@ describe('the confirmation of the payment method activates the sign-up', () => {
         assert.equal(method.provider, 'stripe');
         assert.equal(method.confirmedAt.toISOString(), '2026-09-15T10:00:00.000Z');
         assert.equal(await ctx.repo.findById(pendingId), null, 'the sign-up is done');
-        assert.deepEqual(
-            ctx.audit.events.map((entry) => entry.eventType).slice(-3),
-            ['CHECKOUT_STARTED', 'PAYMENT_RECEIVED', 'ACTIVATION_COMPLETED'],
-        );
+        assert.deepEqual(ctx.audit.events.map((entry) => entry.eventType).slice(-3), [
+            'CHECKOUT_STARTED',
+            'PAYMENT_RECEIVED',
+            'ACTIVATION_COMPLETED',
+        ]);
     });
 
     test('an activation that fails leaves nothing behind, and the gateway retry activates', async () => {
@@ -465,9 +485,15 @@ describe('the confirmation of the payment method activates the sign-up', () => {
             throw new Error(`could not delete ${id}`);
         };
 
-        await ctx.callbacks.handle(MAIN_ACCOUNT, signedCallback(confirmation({ eventId: 'evt_a', sessionRef, subject })));
+        await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(confirmation({ eventId: 'evt_a', sessionRef, subject })),
+        );
         assert.ok(await ctx.repo.findById(pendingId), 'the delete did not fail as arranged');
-        await ctx.callbacks.handle(MAIN_ACCOUNT, signedCallback(confirmation({ eventId: 'evt_b', sessionRef, subject })));
+        await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(confirmation({ eventId: 'evt_b', sessionRef, subject })),
+        );
 
         assert.equal(ctx.orchestrator.calls.length, 1);
         assert.equal(ctx.methods.rows.length, 1);
@@ -547,9 +573,10 @@ describe('the confirmation of the payment method activates the sign-up', () => {
         );
 
         assert.equal(ctx.orchestrator.calls.length, 0);
-        assert.deepEqual(ctx.audit.byType('PAYMENT_FAILED').map((entry) => entry.pendingRegistrationId), [
-            pendingId,
-        ]);
+        assert.deepEqual(
+            ctx.audit.byType('PAYMENT_FAILED').map((entry) => entry.pendingRegistrationId),
+            [pendingId],
+        );
         assert.equal((await ctx.repo.findById(pendingId)).status, 'CHECKOUT_STARTED');
     });
 
@@ -596,7 +623,12 @@ describe('the confirmation of the payment method activates the sign-up', () => {
         assert.equal(ctx.log.claims.length, 1);
         assert.equal(ctx.orchestrator.calls.length, 1);
         assert.deepEqual(
-            ctx.methods.rows.map(({ type, brand, last4, status }) => ({ type, brand, last4, status })),
+            ctx.methods.rows.map(({ type, brand, last4, status }) => ({
+                type,
+                brand,
+                last4,
+                status,
+            })),
             [{ type: 'card', brand: 'visa', last4: '4242', status: 'ACTIVE' }],
         );
         assert.equal(await ctx.repo.findById(pendingId), null);
@@ -619,7 +651,11 @@ describe('an open sign-up keeps its account configured', () => {
         });
 
         await assert.rejects(
-            signUpApp({ repo, gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() }, catalog: paymentsCatalog() }),
+            signUpApp({
+                repo,
+                gateways: { [MAIN_ACCOUNT]: new ScriptedGateway() },
+                catalog: paymentsCatalog(),
+            }),
             /Sign-ups are waiting for a payment method at 'stripe-removed'/,
         );
     });
