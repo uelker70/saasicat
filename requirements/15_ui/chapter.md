@@ -1701,6 +1701,7 @@ _Tested by:_
         - a subscriber without one yet is shown the card, empty
         - a ${status} hides the card without an error: ${why}
         - any other failure keeps the card and says it failed
+        - an answer in another shape is an error, not a subscriber without a payment method
         - the prefix the billing routes sit under is used as given
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go

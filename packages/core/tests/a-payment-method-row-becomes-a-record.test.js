@@ -66,7 +66,7 @@ describe('a payment method row becomes a record', () => {
         test(`a ${column} of '${value}' stops the read, naming the row and the column`, () => {
             assert.throws(
                 () => toSubscriberPaymentMethodRecord(row({ [column]: value })),
-                new RegExp(`'pm-row-1' holds ${column} '${value}'`),
+                (error) => error.message.includes(`'pm-row-1' holds ${column} '${value}'`),
             );
         });
     }
@@ -74,7 +74,14 @@ describe('a payment method row becomes a record', () => {
 
 describe('the columns a confirmed payment method is written with', () => {
     test('are the confirmation, and nothing a caller put beside it', () => {
-        const { id, status, replacedAt, createdAt, ...columns } = row();
+        // What the repository adds itself is not a column the confirmation carries.
+        const {
+            id: _id,
+            status: _status,
+            replacedAt: _replaced,
+            createdAt: _created,
+            ...columns
+        } = row();
         const written = subscriberPaymentMethodColumns({
             ...columns,
             // What a gateway adapter's event may carry and the table does not.

@@ -5486,6 +5486,15 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 _Tested by:_
 
+- `packages/core/tests/a-payment-method-row-becomes-a-record.test.js`
+    - a payment method row becomes a record
+        - every column is carried over as it is
+        - both payment method types and both statuses are read
+        - a ${column} of '${value}' stops the read, naming the row and the column
+    - the columns a confirmed payment method is written with
+        - are the confirmation, and nothing a caller put beside it
+    - a callback a gateway adapter cannot verify
+        - is recognised by its code, also from another copy of the class
 - `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
     - an open sign-up keeps its account configured
         - the start refuses while a sign-up waits at an account the configuration no longer names
@@ -10183,6 +10192,7 @@ _Tested by:_
         - a subscriber without one yet is shown the card, empty
         - a ${status} hides the card without an error: ${why}
         - any other failure keeps the card and says it failed
+        - an answer in another shape is an error, not a subscriber without a payment method
         - the prefix the billing routes sit under is used as given
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go
