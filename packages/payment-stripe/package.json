@@ -1,0 +1,56 @@
+{
+    "name": "@saasicat/payment-stripe",
+    "version": "1.0.0-rc.16",
+    "description": "Stripe payment gateway adapter for SaaSiCat: opens Stripe Checkout in setup mode for a card or a SEPA direct debit, verifies the webhook callback with the account's signing secret, and hands the platform the gateway's reference with the masked details. Implements the PaymentGateway port from @saasicat/core.",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-and-prune.mjs tsup",
+        "pretest": "pnpm run build",
+        "test": "node --test 'tests/*.test.js'"
+    },
+    "dependencies": {
+        "@saasicat/core": "workspace:^"
+    },
+    "peerDependencies": {
+        "stripe": ">=22.0.0 <23.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^25.6.0",
+        "stripe": "^22.6.2",
+        "tsup": "^8.0.0",
+        "typescript": "^6.0.0"
+    },
+    "license": "PolyForm-Shield-1.0.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/payment-stripe"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

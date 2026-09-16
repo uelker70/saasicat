@@ -10,6 +10,7 @@
             "@saasicat/adapter-prisma",
             "@saasicat/adapter-drizzle",
             "@saasicat/persistence-testing",
+            "@saasicat/payment-stripe",
             "@saasicat/cli",
             "@saasicat/ui-vue",
             "@saasicat/ui-vue-tenant",

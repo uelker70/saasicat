@@ -433,6 +433,27 @@ payment method, and it reads a callback, verifying it with the account's secret 
 field is trusted. `config/saas.yaml` names the provider each account is at, and a start refuses an
 adapter that names another.
 
+For a real one, `@saasicat/payment-stripe` is shipped:
+
+```ts
+import { StripePaymentGateway } from '@saasicat/payment-stripe';
+
+payments: {
+    gateways: {
+        main: new StripePaymentGateway({
+            secretKey: process.env.STRIPE_SECRET_KEY,
+            webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+            currency: 'EUR',
+        }),
+    },
+},
+```
+
+The account is `provider: stripe` in the file, its webhook endpoint at Stripe points at the route
+below and is subscribed to `checkout.session.completed` and `checkout.session.expired`, and the
+keys stay in the environment. `stripe` is a peer dependency of that package, so install it beside.
+[Its README](../../packages/payment-stripe/README.md) has the rest.
+
 What `payments` mounts and asks of the application:
 
 - **`POST ${globalPrefix}/webhooks/payment/<account>`** — where each account's callbacks arrive.
