@@ -14118,6 +14118,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
+- `packages/cli/tests/schema-check-report.test.js`
+    - the check never prints two answers to one question
+        - an enum a reported field names is not also listed as not adopted
+        - and a model nothing reported still is
 - `packages/cli/tests/schema-check.test.js`
     - parseFields
         - reads name, type and modifiers, skips attributes and comments

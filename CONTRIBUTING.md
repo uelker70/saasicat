@@ -272,7 +272,11 @@ git checkout -- package.json
 `--tag rc` while the group is in pre mode, and nothing otherwise. `--no-git-checks`
 because the line above it leaves the tree dirty on purpose, and pnpm's default
 refusal — `ERR_PNPM_GIT_UNCLEAN` — would land on the one command this section
-exists to get right.
+exists to get right. The last line answers `pathspec … did not match any file(s)`
+where the manifest is not tracked yet, which is the case if you are publishing
+from the branch that adds the package; the publish has happened either way, and
+what is left is a working tree carrying the temporary version. Put it back by
+hand there.
 
 One consequence of `--tag rc`: the package then has no `latest` at all until a
 later release gives it one, so `npm install @saasicat/<package>` answers

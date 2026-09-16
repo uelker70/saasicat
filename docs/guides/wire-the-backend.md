@@ -563,14 +563,13 @@ under `NODE_ENV=production`** — the process does not start, rather than the pa
 switched off:
 
 ```ts
-import { DevPaymentGateway } from '@saasicat/nest/payments';
-
 defineSaaSiCat({
     // … the rest of your wiring …
     persistence, // supplies `payments` and `entitlement.subscriberRepository`
     tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
     payments: {
-        // A factory around the whole map, not around one account: see below.
+        // A factory around the whole map, not around one account, and
+        // `gatewayForMain` is the one below.
         gateways: { useFactory: () => ({ main: gatewayForMain() }) },
         // The modules the factory and the guards here resolve from. Set this
         // where `tenantBilling.imports` is what you have: `payments` falls back

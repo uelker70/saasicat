@@ -51,7 +51,12 @@ function firstPublishCommands() {
             inside = !inside;
             continue;
         }
-        if (inside) lines.push(line.trim());
+        // Commands only. A `#` line inside a fence is prose that happens to be
+        // indented, and reading it as an instruction is how a comment saying
+        // "never npm publish here" would turn this guard red on a document that
+        // is right.
+        const command = line.trim();
+        if (inside && command !== '' && !command.startsWith('#')) lines.push(command);
     }
     assert.ok(lines.length > 0, 'the first-publish section shows no command at all');
     return lines;
