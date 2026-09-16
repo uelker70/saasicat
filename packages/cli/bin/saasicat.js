@@ -320,7 +320,16 @@ function printCheckReport(report) {
         console.log('');
     }
 
-    const absent = [...report.absentModels, ...report.absentEnums];
+    // An enum a reported field names is not a fragment the app went without: the
+    // field above it is the drift, and copying the enum is what fixes both.
+    // Listing it as "not an error" in the same run would print the contradiction
+    // this check exists to avoid — which is exactly what it used to do for a
+    // relation pointing at an unadopted model.
+    const named = new Set(report.missingFields.map((field) => field.type));
+    const absent = [
+        ...report.absentModels,
+        ...report.absentEnums.filter((name) => !named.has(name)),
+    ];
     if (absent.length > 0) {
         console.log(`→ Not adopted (${absent.length}): ${absent.join(', ')}`);
         console.log('  Not an error — the app does not use these fragments.');
@@ -347,7 +356,21 @@ async function cmdSchemaCheck(args) {
     console.log(`→ Checking ${schemaPath} against ${files.length} fragment(s) from @saasicat/spec`);
     console.log('');
 
-    const report = checkSchema(fragments.join('\n'), schema);
+    // Every model the shipped fragments declare, not only the selected ones: a
+    // relation from a selected fragment can point at a model in one that was
+    // left out, and without this the narrowed run would report that field as
+    // missing — the very contradiction the full run stopped producing. Without
+    // a filter the files in hand are already all of them.
+    const allFragments = filter
+        ? await Promise.all(
+              (await selectFragmentFiles(fragmentsDir, null)).map((file) =>
+                  readFile(join(fragmentsDir, file), 'utf8'),
+              ),
+          )
+        : fragments;
+    const knownModels = new Set(extractModelNames(allFragments.join('\n')));
+
+    const report = checkSchema(fragments.join('\n'), schema, knownModels);
     printCheckReport(report);
 
     const checked = `${report.checkedModelCount} Model(s), ${report.checkedEnumCount} Enum(s)`;

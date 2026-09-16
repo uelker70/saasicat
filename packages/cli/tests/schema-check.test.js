@@ -443,3 +443,187 @@ model Subscription {
         assert.equal(kept.includes('Subscription'), false, 'a pointed model counted as kept');
     });
 });
+
+// @requirement SC-COMP-007 — A change that would otherwise be silent breaks the integrator's build instead
+describe('a fragment the consumer did not adopt stays optional', () => {
+    const SPEC_WITH_RELATION = `
+model Subscriber {
+    id             String                   @id @default(uuid())
+    legalName      String
+    paymentMethods SubscriberPaymentMethod[]
+    contracts      SubscriptionContract[]
+    status         RegistrationStatus
+}
+
+model SubscriberPaymentMethod {
+    id           String     @id @default(uuid())
+    subscriberId String
+    subscriber   Subscriber @relation(fields: [subscriberId], references: [id])
+}
+
+model SubscriptionContract {
+    id           String     @id @default(uuid())
+    subscriberId String
+    subscriber   Subscriber @relation(fields: [subscriberId], references: [id])
+}
+
+enum RegistrationStatus {
+    PENDING
+    ACTIVE
+}
+`;
+
+    test('its relation field is not reported as missing, in either direction', () => {
+        // Prisma cannot express a relation to a model that is not there, so the
+        // only way to satisfy a "missing field" here is to adopt the fragment
+        // the same run calls optional. The two statements contradicted each
+        // other, and the contradiction resolved toward compulsory.
+        const app = `
+model Subscriber {
+    id        String @id @default(uuid())
+    legalName String
+}
+`;
+        const report = checkSchema(SPEC_WITH_RELATION, app);
+        assert.deepEqual(
+            report.missingFields.map((f) => `${f.model}.${f.field}`),
+            // The enum field stays: copying an enum is something a consumer
+            // CAN do, so a model adopted without the enum one of its fields
+            // names is a fragment taken halfway, which is drift. Only the two
+            // relations — which Prisma itself refuses without their model —
+            // are the decision, not the defect.
+            ['Subscriber.status'],
+        );
+        assert.deepEqual(report.absentModels.sort(), [
+            'SubscriberPaymentMethod',
+            'SubscriptionContract',
+        ]);
+        assert.deepEqual(report.absentEnums, ['RegistrationStatus']);
+        assert.equal(report.ok, false, 'the half-adopted enum field passed');
+    });
+
+    test('and the field is required again as soon as the model is adopted', () => {
+        // The other half: once the consumer has the model, Prisma needs both
+        // sides of the relation, and so does this.
+        const app = `
+model Subscriber {
+    id        String @id @default(uuid())
+    legalName String
+}
+
+model SubscriberPaymentMethod {
+    id           String     @id @default(uuid())
+    subscriberId String
+    subscriber   Subscriber @relation(fields: [subscriberId], references: [id])
+}
+`;
+        const report = checkSchema(SPEC_WITH_RELATION, app);
+        assert.deepEqual(
+            report.missingFields.map((f) => `${f.model}.${f.field}`),
+            ['Subscriber.paymentMethods', 'Subscriber.status'],
+            'the adopted fragment lost its back-relation and nothing said so',
+        );
+        assert.equal(report.ok, false);
+    });
+
+    test('and the shipped fragments really carry such a relation', async () => {
+        // The rule above is worth nothing if no fragment points at an optional
+        // one. This is the case that was reported from a consumer: adopt
+        // everything except the payments fragment, and the two relation fields
+        // on `Subscriber` that point into it used to fail the check.
+        const require = createRequire(import.meta.url);
+        const fragmentsDir = join(dirname(require.resolve('@saasicat/spec')), 'prisma-fragments');
+        const files = (await readdir(fragmentsDir)).filter((file) => file.endsWith('.prisma'));
+        const read = async (only) =>
+            (
+                await Promise.all(
+                    files.filter(only).map((file) => readFile(join(fragmentsDir, file), 'utf8')),
+                )
+            ).join('\n');
+
+        const spec = await read(() => true);
+        // What the consumer who reported this actually has: the fragments they
+        // adopted, minus the two relations they cannot write without the models
+        // those name — Prisma refuses to load a schema that keeps them (P1012),
+        // so this is not a shape anybody chooses. Taking `13-subscriber.prisma`
+        // verbatim would leave the fields present, the exemption unconsulted,
+        // and this test green whatever the source says.
+        const app = (await read((file) => !file.startsWith('14-')))
+            .split('\n')
+            .filter((line) => !/\bSubscriberPaymentMethod(Setup)?\[\]/.test(line))
+            .join('\n');
+        const report = checkSchema(spec, app);
+
+        assert.ok(
+            report.absentModels.includes('SubscriberPaymentMethod'),
+            'the payments fragment was adopted after all, so this proves nothing',
+        );
+        // The whole list, not the part of it that points into the absent
+        // fragment: `missingFields` can never hold such a field once the fix is
+        // in, so filtering by it would be empty whatever the code does.
+        assert.deepEqual(report.missingFields, []);
+        assert.equal(report.ok, true);
+    });
+
+    test('and a narrowed run behaves like a full one, given the shipped models', async () => {
+        // `schema check --fragments=01,…,13` builds the spec from the selected
+        // fragments, so the model a relation points at may not be in the spec at
+        // all — and the field would be reported as missing on exactly the path a
+        // consumer reaches after `schema apply --fragments=…`. The third
+        // argument is what the command passes: every model the fragments ship.
+        const require = createRequire(import.meta.url);
+        const fragmentsDir = join(dirname(require.resolve('@saasicat/spec')), 'prisma-fragments');
+        const files = (await readdir(fragmentsDir)).filter((file) => file.endsWith('.prisma'));
+        const read = async (only) =>
+            (
+                await Promise.all(
+                    files.filter(only).map((file) => readFile(join(fragmentsDir, file), 'utf8')),
+                )
+            ).join('\n');
+
+        const narrowedSpec = await read((file) => !file.startsWith('14-'));
+        const knownModels = new Set(parseSchema(await read(() => true)).models.keys());
+        // What the consumer has: the same fragments, minus the two relations
+        // they cannot write without the models those name.
+        const app = narrowedSpec
+            .split('\n')
+            .filter((line) => !/\bSubscriberPaymentMethod(Setup)?\[\]/.test(line))
+            .join('\n');
+
+        const narrowed = checkSchema(narrowedSpec, app, knownModels);
+        assert.deepEqual(narrowed.missingFields, []);
+        assert.equal(narrowed.ok, true);
+
+        // Without the third argument — what the command did before — the
+        // narrowed spec does not contain the models those fields name, so the
+        // exemption cannot see them and the fields come back as drift.
+        const blind = checkSchema(narrowedSpec, app);
+        assert.deepEqual(
+            blind.missingFields.map((f) => `${f.model}.${f.field}`),
+            ['Subscriber.paymentMethods', 'Subscriber.paymentMethodSetups'],
+        );
+    });
+
+    test('a type neither schema declares is still drift', () => {
+        // The exemption is bounded by what the SPEC declares. A field naming
+        // something the consumer owns and has not written is theirs to add, and
+        // skipping it would turn the exemption into a hole.
+        const report = checkSchema(
+            `
+model Subscriber {
+    id     String @id @default(uuid())
+    tenant Tenant @relation(fields: [id], references: [id])
+}
+`,
+            `
+model Subscriber {
+    id String @id @default(uuid())
+}
+`,
+        );
+        assert.deepEqual(
+            report.missingFields.map((f) => `${f.model}.${f.field}`),
+            ['Subscriber.tenant'],
+        );
+    });
+});

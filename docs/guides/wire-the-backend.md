@@ -533,7 +533,9 @@ page shows the one in use and opens the form for a new one.
 Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
 webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,
 with the `methods` its form offers. `returnUrlOrigins` names where the form may send a person back
-to; a success or cancel URL at any other origin is refused with `PAYMENT_RETURN_URL_NOT_ALLOWED`:
+to — the **browser's** origin, not your API's, because that is where the person lands. A success or
+cancel URL at any other origin is refused with `PAYMENT_RETURN_URL_NOT_ALLOWED`, which is what a
+front end on a different port than `APP_URL` runs into first:
 
 ```yaml
 payments:
@@ -545,26 +547,78 @@ payments:
             methods: [card, sepa_debit]
 ```
 
+**An account's name and its provider are two different things**, and both have to line up with
+something. The name — `main` above — is yours to choose, and it is the last segment of that
+account's webhook route, so it is what you register at the gateway. The `provider` is the adapter's
+own name, and a start refuses an account whose bound adapter calls itself something else. Keep that
+in mind if you ever write a down-migration: a backfill that sets `gatewayAccount = provider` is
+right for the first run, where every row came from the one account, and wrong for every run after
+it — it turns `main` into `dev`.
+
 Bind one gateway adapter per account, built with that account's keys from the environment. The
 file refuses a variable named like a credential, which is why the keys are bound here and not
 written there. `DevPaymentGateway` from `@saasicat/nest/payments` confirms every payment method on
-the spot without a provider behind it, for development and tests, and refuses to run with
-`NODE_ENV=production`:
+the spot without a provider behind it, for development and tests, and **its constructor throws
+under `NODE_ENV=production`** — the process does not start, rather than the payment function being
+switched off:
 
 ```ts
-import { DevPaymentGateway } from '@saasicat/nest/payments';
-
 defineSaaSiCat({
     // … the rest of your wiring …
     persistence, // supplies `payments` and `entitlement.subscriberRepository`
     tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
     payments: {
-        gateways: { main: new DevPaymentGateway() },
+        // A factory around the whole map, not around one account, and
+        // `gatewayForMain` is the one below.
+        gateways: { useFactory: () => ({ main: gatewayForMain() }) },
+        // The modules the factory and the guards here resolve from. Set this
+        // where `tenantBilling.imports` is what you have: `payments` falls back
+        // to the TOP-LEVEL `imports`, never to another feature's.
+        imports: [AuthModule],
         // Who holds the billing permission. Without it, the tenant's administrator does.
         // billingPermissionGuards: [AccountingRoleGuard],
     },
 });
 ```
+
+### A value is built at import time; a factory is built when it is resolved
+
+`gateways` takes either, and the difference decides when a bad configuration is found.
+`gateways: { main: new DevPaymentGateway() }` reads well and builds the adapter the moment the
+module is loaded — before your own checks run, and whatever `provider:` says in the file. Switching
+providers then means editing two places. A factory builds at resolution, so one `provider` in the
+file can decide.
+
+The factory wraps the **whole map**, not one account: `gateways` is one provider, so
+`{ main: { useFactory: … } }` is an ordinary object with an odd value in it, bound as a value —
+`PaymentGatewayRegistry` then reads no `provider` on it and the start is refused, saying the bound
+gateway is `'undefined'`.
+
+```ts
+const gatewayForMain = () =>
+    process.env.MYAPP_PAYMENT_PROVIDER === 'stripe'
+        ? new StripePaymentGateway({ secretKey, webhookSecret, currency: 'EUR' })
+        : new DevPaymentGateway();
+
+// payments.gateways:
+{ useFactory: () => ({ main: gatewayForMain() }) }
+// and with something to inject:
+{ useFactory: (config: ConfigService) => ({ main: gatewayFor(config) }), inject: [ConfigService] }
+```
+
+One consequence worth knowing before you switch: with a value, a plain `require` of your compiled
+`app.module.js` is enough to find out whether the application can be built at all, because that is
+when the adapter is constructed — cheap enough to run **before** your migration step, with no
+database and no Nest context. With a factory the throw moves into dependency injection, and such a
+check has to build the context and therefore needs the database. Both shapes are fine; the factory
+is the one that keeps the provider in one place, and the preflight is the one that keeps a failed
+start from landing after a migration.
+
+`payments.imports` is its own list, and its fallback is the top-level `imports` — not another
+feature's. An application that puts its modules in `tenantBilling.imports` and nothing at the top
+level therefore gives `payments` an empty list, and a guard resolving from a module of yours fails
+with `Symbol(saasicat/nest/TenantAuthGuards)` and an unresolvable `TenantGuard`, which does not read
+as a missing import.
 
 A gateway adapter implements `PaymentGateway` from `@saasicat/core`: it opens the form for a
 payment method, and it reads a callback, verifying it with the account's secret before a single
@@ -619,10 +673,20 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   at error level and leaves its setup open, which is where it is found afterwards: the tenant keeps
   the payment method it had, so a gateway adapter that reports a session under a name of its own
   shows up as changes that never arrive.
+- **Row-level security and the callback.** A callback arrives with no session and no tenant. If your
+  `subscriber_payment_methods` and `subscriber_payment_method_setups` carry a policy, the callback
+  sees no row, `completeSetup` matches nothing, and the gateway is answered with an error for a
+  callback that was correct. Put the bypass on the controller class,
+  `PaymentWebhookController`, rather than on a path — the route moves with the account name, the
+  class does not. What stops a stranger's callback is not the tenant scope but the open setup,
+  which names the account, the session and the subscriber together.
 - **At start**, the application refuses to boot when the bound gateways and the accounts in the file
   disagree, when a payment method in use belongs to an account the file no longer names, and when
   a sign-up is still waiting for its payment method at such an account — each named in the message.
-  An account stays listed until nothing in use belongs to it.
+  An account stays listed until nothing in use belongs to it. Those checks read platform-wide,
+  before anything is served: the platform wraps them in `RlsBypassPort`, and an implementation of
+  that port which needs a request context, or answers with the caller's tenant scope, turns the
+  check that exists to refuse into one that passes.
 
 ## Admin Module
 

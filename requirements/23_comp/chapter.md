@@ -72,6 +72,9 @@ _Tested by:_
         - the sweep finds the manifests
         - nothing is both a dependency and a devDependency
         - nothing is both a dependency and a peer
+- `tests/a-first-publish-resolves-its-workspace-deps.test.js`
+    - the manual first publish
+        - is told to use the tool that resolves `workspace:`
 - `tests/consumers-dedupe-singleton-peers.test.js`
     - a consumer resolves one copy of every singleton peer
         - the peer set is non-empty and is what we think it is
@@ -502,6 +505,10 @@ _Source:_ `docs/guides/upgrade-to-1.0.md`
 
 _Tested by:_
 
+- `packages/cli/tests/schema-check-report.test.js`
+    - the check never prints two answers to one question
+        - an enum a reported field names is not also listed as not adopted
+        - and a model nothing reported still is
 - `packages/cli/tests/schema-check.test.js`
     - parseFields
         - reads name, type and modifiers, skips attributes and comments
@@ -516,6 +523,11 @@ _Tested by:_
     - a restriction, no relation, or a commented one passes
     - while a model the fragments point at the tenant keeps its cascade
     - the shipped fragments keep the contract past its tenant
+    - its relation field is not reported as missing, in either direction
+    - and the field is required again as soon as the model is adopted
+    - and the shipped fragments really carry such a relation
+    - and a narrowed run behaves like a full one, given the shipped models
+    - a type neither schema declares is still drift
     - parseEnumValues
         - reads members and ignores attributes
         - reads members sharing one line
