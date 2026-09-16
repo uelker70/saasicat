@@ -68,6 +68,23 @@ subscribe it to `checkout.session.completed` and `checkout.session.expired`,
 and create the application with `rawBody: true` — a signature is checked
 against the bytes that arrived, not against a re-serialised object.
 
+### One Stripe account per installation
+
+Stripe delivers an event to every endpoint on the account subscribed to that
+type, and there is no way to send it to one application's endpoint only:
+
+> It's not possible to restrict webhook events for specific applications when
+> using a single Stripe account. All events will be sent to all webhook
+> endpoints on the account that listen for that event type. The recommended
+> approach is to use separate Stripe accounts for each application or website.
+
+Nothing goes wrong if you share one — a confirmation carries its account, its
+session and its subject, and a sibling's callback matches no open setup here.
+What suffers is the log: SaaSiCat writes that mismatch at error level, because
+for one installation per account it can only mean a callback naming a subscriber
+it should not know. Share an account between four and three of every four
+confirmations are an error line in each of them.
+
 ### Every method the file names has to be live at the account
 
 `config/saas.yaml#payments.accounts.<name>.methods` reaches Stripe as

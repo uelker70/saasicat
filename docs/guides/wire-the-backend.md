@@ -530,6 +530,20 @@ the card network, the last four digits, the expiry, a direct debit's mandate ref
 card number or an IBAN. Self-registration takes its payment method this way, and the tenant's plan
 page shows the one in use and opens the form for a new one.
 
+**One gateway account belongs to one installation.** Two installations sharing an account is the
+arrangement to avoid, and it is not a matter of taste: a gateway delivers an event to every endpoint
+registered on the account that subscribes to that type, with no way to route by application. Stripe
+says so itself and recommends an account per application. So each of your installations gets its own
+account at the provider, and the accounts in `config/saas.yaml` are that installation's.
+
+Share one and nothing breaks — a confirmation names its account, its session and its subscriber
+together, so a sibling's callback matches no open setup here and changes nobody's payment method.
+What breaks is the log: that mismatch is written at error level, because with one installation per
+account it can only mean a callback naming a subscriber it has no business naming. With four
+installations on one account, three of every four confirmations are an error line reading "nothing
+recorded" — the same sentence a real defect produces, three times as often as the defect. A log
+nobody can read is the cost, and it falls due at the first real payment method.
+
 Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
 webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,
 with the `methods` its form offers. `returnUrlOrigins` names where the form may send a person back
