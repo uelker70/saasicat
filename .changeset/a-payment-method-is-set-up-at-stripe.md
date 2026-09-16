@@ -26,13 +26,15 @@ masked details.
   failed.
 - Answered as needing nothing: a session the application opened for its own
   business at the same account, an event of another type, a payment method whose
-  shape SaaSiCat has nowhere to put, and a setup that has settled on none of
-  those states for an hour. Asking again would read the same answer, and Stripe
-  turns off an endpoint that keeps failing, which would take every other sign-up
-  at the account with it. Raised so Stripe asks again: a setup still on its way
-  within that hour. Raised as defects: a completed setup session without a setup
-  intent, a succeeded intent without a payment method, and a completed session
-  no customer is named on.
+  shape SaaSiCat has nowhere to put, and a delivery older than twelve hours
+  about a setup that has settled on none of those states. Asking again would
+  read the same answer, and Stripe turns off an endpoint that keeps failing,
+  which would take every other sign-up at the account with it; what is dropped
+  that way names the setup it was. Raised so Stripe asks again: a delivery
+  inside those twelve hours about a setup still on its way, and an error from
+  Stripe itself. Raised as defects: a completed setup session without a setup
+  intent, a succeeded intent without a payment method, and a completed setup
+  neither the session nor the intent names a customer on.
 
 Bind it in `SaaSiCatModule.forRoot({ payments: { gateways } })` under the
 account name `config/saas.yaml#payments.accounts` gives it, point that

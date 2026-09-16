@@ -43,13 +43,19 @@ const SETUP_GAVE_UP: ReadonlySet<Stripe.SetupIntent.Status> = new Set([
  * about again.
  *
  * The state is read after the delivery, so a setup still on its way is a race
- * the next attempt wins — within seconds, for the payment methods this adapter
- * offers. Past that it is not a race any more, and Stripe turns off an endpoint
- * that keeps failing, which would take every other sign-up at the account with
- * it; so the delivery is answered, nothing is recorded, and one setup nobody
- * can use stays the whole loss. It also bounds a state Stripe adds tomorrow.
+ * the next attempt wins. The bound is what keeps a state that never settles
+ * from failing every delivery for ever: Stripe turns off an endpoint that keeps
+ * failing, and that would take every other sign-up at the account with it.
+ *
+ * Twelve hours, because Stripe's retries are front-loaded — the first six land
+ * inside that — while the endpoint is turned off only after days of failing, so
+ * the bound sits well inside the margin it is there for. It leaves room for a
+ * direct debit whose mandate takes hours to register; a payment method whose
+ * setup takes longer than that would need a wider window, and none can be
+ * configured today, because `PaymentMethodType` is the card and the direct
+ * debit.
  */
-const ASK_AGAIN_FOR_MS = 60 * 60 * 1000;
+const ASK_AGAIN_FOR_MS = 12 * 60 * 60 * 1000;
 
 export interface StripePaymentGatewayOptions {
     /**
@@ -230,10 +236,16 @@ export class StripePaymentGateway implements PaymentGateway {
         const intent = await this.stripe.setupIntents.retrieve(intentRef, {
             expand: ['payment_method', 'mandate'],
         });
-        // The setup produced no payment method and is not going to. The port
-        // has an event for that, and a sign-up takes it as its cue to try
-        // again.
-        if (SETUP_GAVE_UP.has(intent.status)) {
+        // The setup produced no payment method and is not going to: an attempt
+        // that failed leaves its error behind, and a cancelled intent is over
+        // whether or not anything was tried. Asking for a payment method with
+        // nothing recorded against it is an intent nobody confirmed yet, which
+        // belongs to the race below rather than here. The port has an event for
+        // a setup that failed, and a sign-up takes it as its cue to try again.
+        if (
+            intent.status === 'canceled' ||
+            (SETUP_GAVE_UP.has(intent.status) && intent.last_setup_error !== null)
+        ) {
             return {
                 kind: 'payment-method-setup-failed',
                 eventId,
@@ -257,7 +269,15 @@ export class StripePaymentGateway implements PaymentGateway {
                         'it settles on.',
                 );
             }
-            return { kind: 'unhandled', eventId, occurredAt, type: 'checkout.session.completed' };
+            // Named, because this is the one answer that drops a session of
+            // ours: the platform logs the type, and `checkout.session.completed`
+            // alone would read like an event nobody acts on.
+            return {
+                kind: 'unhandled',
+                eventId,
+                occurredAt,
+                type: `checkout.session.completed (setup intent ${intentRef} still '${intent.status}')`,
+            };
         }
         const paymentMethod = expanded<Stripe.PaymentMethod>(intent.payment_method);
         if (paymentMethod === null) {
@@ -274,7 +294,12 @@ export class StripePaymentGateway implements PaymentGateway {
         // account rather than a person's doing.
         const masked = maskedDetailsOf(paymentMethod, expanded<Stripe.Mandate>(intent.mandate));
         if (masked === null) {
-            return { kind: 'unhandled', eventId, occurredAt, type: 'checkout.session.completed' };
+            return {
+                kind: 'unhandled',
+                eventId,
+                occurredAt,
+                type: `checkout.session.completed (payment method ${paymentMethod.id} is a ${paymentMethod.type})`,
+            };
         }
         return {
             kind: 'payment-method-confirmed',

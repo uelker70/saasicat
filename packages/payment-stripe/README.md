@@ -27,15 +27,18 @@ the masked details.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
-  put, and a setup that has settled on none of the states above for an hour.
-  Asking again would read the same answer, and Stripe turns off an endpoint
-  that keeps failing, which would take every other sign-up at the account with
-  it. Raised, so that Stripe asks again: a setup still on its way within that
-  hour — `processing` while a mandate is registered, an action outstanding —
-  because the state is read after the delivery and failing it is what brings
-  the next read. Raised as well, as the defects they are: a completed setup
-  session without a setup intent, a succeeded intent without a payment method,
-  and a completed session no customer is named on.
+  put, and a delivery older than twelve hours about a setup that has settled on
+  none of the states above. Asking again would read the same answer, and Stripe
+  turns off an endpoint that keeps failing, which would take every other
+  sign-up at the account with it; what is dropped that way says in its own name
+  which setup it was. Raised, so that Stripe asks again: a delivery inside
+  those twelve hours about a setup still on its way — `processing` while a
+  mandate is registered, an action outstanding — because the state is read
+  after the delivery and failing it is what brings the next read. Raised as
+  well, as the defects they are: a completed setup session without a setup
+  intent, a succeeded intent without a payment method, and a completed setup
+  neither the session nor the intent names a customer on. An error from Stripe
+  itself travels the same way, and the delivery is asked again.
 
 `stripe` is a peer dependency: the consumer installs it, so there is one copy
 and the optional `client` option types against theirs.

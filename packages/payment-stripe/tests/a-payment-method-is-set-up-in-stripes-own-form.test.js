@@ -427,7 +427,10 @@ describe('the callback Stripe sends is read', () => {
             },
         });
 
-        for (const intent of ['seti_1', 'seti_no_iban']) {
+        for (const [intent, said] of [
+            ['seti_1', 'pm_link_1 is a link'],
+            ['seti_no_iban', 'pm_sepa_2 is a sepa_debit'],
+        ]) {
             const read = await ctx.gateway.readCallback(
                 signedCallback(
                     event('checkout.session.completed', { ...SESSION, setup_intent: intent }),
@@ -436,9 +439,11 @@ describe('the callback Stripe sends is read', () => {
             );
             // Answered, not raised: asking again reads the same answer, and an
             // endpoint Stripe turns off takes every other sign-up at this
-            // account with it.
+            // account with it. Named, so a dropped session of ours is not the
+            // same log line as a session that was never ours.
             assert.equal(read.kind, 'unhandled', `${intent} was not answered as unhandled`);
-            assert.equal(read.type, 'checkout.session.completed');
+            assert.ok(read.type.startsWith('checkout.session.completed'), read.type);
+            assert.ok(read.type.includes(said), read.type);
         }
     });
 
@@ -512,11 +517,49 @@ describe('the callback Stripe sends is read', () => {
             });
         }
 
-        // An hour of asking is not a race any more, and an endpoint Stripe
-        // turns off takes every other sign-up at this account with it.
-        const read = await completedAt('seti_processing', 2 * 60 * 60);
+        // Stripe's later attempts still ask, and the last of them is inside
+        // the window; only a delivery older than it is given up on, and it says
+        // which setup it gave up on.
+        await assert.rejects(completedAt('seti_processing', 10 * 60 * 60), (error) => {
+            assert.ok(error.message.includes("seti_processing is '"), error.message);
+            return true;
+        });
+
+        const read = await completedAt('seti_processing', 13 * 60 * 60);
         assert.equal(read.kind, 'unhandled');
-        assert.equal(read.type, 'checkout.session.completed');
+        assert.ok(read.type.includes("seti_processing still 'processing'"), read.type);
+    });
+
+    test('an intent asking for a payment method with nothing tried yet is still on its way', async () => {
+        const ctx = await gatewayOver({
+            'GET /v1/setup_intents/seti_untried': {
+                ...CARD_INTENT,
+                id: 'seti_untried',
+                status: 'requires_payment_method',
+                last_setup_error: null,
+            },
+        });
+
+        // Only an attempt that left an error behind is a setup that failed;
+        // without one, nothing has been tried, so the next read decides.
+        await assert.rejects(
+            ctx.gateway.readCallback(
+                signedCallback(
+                    {
+                        ...event('checkout.session.completed', {
+                            ...SESSION,
+                            setup_intent: 'seti_untried',
+                        }),
+                        created: Math.floor(Date.now() / 1000),
+                    },
+                    WEBHOOK_SECRET,
+                ),
+            ),
+            (error) => {
+                assert.ok(error.message.includes("seti_untried is '"), error.message);
+                return true;
+            },
+        );
     });
 });
 
