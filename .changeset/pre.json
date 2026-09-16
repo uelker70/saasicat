@@ -44,6 +44,7 @@
     "an-offer-is-concluded-with-its-contract",
     "an-offer-is-priced-from-the-catalogue",
     "an-operator-corrects-its-own-details",
+    "an-optional-fragment-stays-optional",
     "apply-carries-the-enums",
     "bundle-actions-by-object",
     "bundle-cycle-choice",

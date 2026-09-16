@@ -1,5 +1,11 @@
 # @saasicat/persistence-testing
 
+## 1.0.0-rc.20
+
+### Patch Changes
+
+- @saasicat/core@1.0.0-rc.20
+
 ## 1.0.0-rc.19
 
 ### Major Changes
