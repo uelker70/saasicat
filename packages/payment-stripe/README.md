@@ -21,13 +21,18 @@ the masked details.
 - **`checkout.session.completed`** in setup mode becomes a confirmed payment
   method: the card's network, last four digits and expiry, or the direct
   debit's last four digits, bank code and mandate reference.
-  **`checkout.session.expired`** becomes a setup that failed, so the sign-up
-  can try again. Everything else is answered as needing nothing — including a
-  session the application opened for its own business at the same account, and
-  a setup Stripe has not finished or whose payment method is neither a card nor
-  a direct debit. Nothing is raised at a callback that verifies: Stripe turns
-  off an endpoint that keeps failing, and that would take every other sign-up
-  at the account with it.
+  **`checkout.session.expired`**, and a setup intent Stripe reports as
+  `canceled`, become a setup that failed, so the sign-up can try again.
+- **What is answered, and what is raised.** A session the application opened
+  for its own business at the same account, an event of another type, and a
+  payment method whose shape SaaSiCat has nowhere to put are answered as
+  needing nothing: asking again reads the same answer, and Stripe turns off an
+  endpoint that keeps failing, which would take every other sign-up at the
+  account with it. A setup that is still on its way — `processing` while a
+  mandate is registered, an action outstanding — is raised instead, because the
+  state is read after the delivery and failing it is what makes Stripe ask
+  again once the setup has settled. So is a session Stripe reports as completed
+  without a setup intent, and a succeeded intent without a payment method.
 
 `stripe` is a peer dependency: the consumer installs it, so there is one copy
 and the optional `client` option types against theirs.

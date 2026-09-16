@@ -20,13 +20,14 @@ masked details.
   `PaymentCallbackRejectedError`.
 - `checkout.session.completed` in setup mode becomes a confirmed payment method
   — the card's network, last four digits and expiry, or the direct debit's last
-  four digits, bank code and mandate reference. `checkout.session.expired`
-  becomes a setup that failed. Everything else is answered as needing nothing —
-  a session the application opened for its own business at the same account, a
-  setup Stripe has not finished, and a payment method that is neither a card nor
-  a direct debit. A callback that verifies never raises, because Stripe turns
-  off an endpoint that keeps failing and that would take every other sign-up at
-  the account with it.
+  four digits, bank code and mandate reference. `checkout.session.expired`, and
+  a setup intent Stripe reports as `canceled`, become a setup that failed.
+- A session the application opened for its own business at the same account, an
+  event of another type, and a payment method whose shape SaaSiCat has nowhere
+  to put are answered as needing nothing: asking again reads the same answer,
+  and Stripe turns off an endpoint that keeps failing, which would take every
+  other sign-up at the account with it. A setup still on its way is raised
+  instead, so Stripe asks again once it has settled.
 
 Bind it in `SaaSiCatModule.forRoot({ payments: { gateways } })` under the
 account name `config/saas.yaml#payments.accounts` gives it, point that

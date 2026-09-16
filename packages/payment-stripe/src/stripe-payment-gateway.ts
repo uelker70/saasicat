@@ -206,21 +206,45 @@ export class StripePaymentGateway implements PaymentGateway {
         const intent = await this.stripe.setupIntents.retrieve(intentRef, {
             expand: ['payment_method', 'mandate'],
         });
+        // The setup was given up on. The port has an event for that, and a
+        // sign-up takes it as its cue to try again.
+        if (intent.status === 'canceled') {
+            return {
+                kind: 'payment-method-setup-failed',
+                eventId,
+                occurredAt,
+                sessionRef: session.id,
+                subject,
+            };
+        }
+        // Still on its way — `processing` while a direct debit's mandate is
+        // registered, or an action still outstanding. The state is read on this
+        // second request, after the delivery, so it is a race and not a verdict:
+        // failing the delivery is what makes Stripe ask again, and the next ask
+        // reads the state it settled on. Answering it `200` would end the
+        // matter with nothing recorded, and no other event picks a session back
+        // up.
+        if (intent.status !== 'succeeded') {
+            throw new Error(
+                `Stripe reported checkout session ${session.id} as completed while setup intent ` +
+                    `${intentRef} is '${intent.status}'; asking again reads the state it settles on.`,
+            );
+        }
         const paymentMethod = expanded<Stripe.PaymentMethod>(intent.payment_method);
         if (paymentMethod === null) {
             throw new Error(
-                `Stripe reported setup intent ${intentRef} as completed without a payment method.`,
+                `Stripe reported setup intent ${intentRef} as succeeded without a payment method.`,
             );
         }
-        // A payment method that is not set up yet, and one whose shape SaaSiCat
-        // has nowhere to put: neither is recorded, and neither fails the
-        // delivery. Stripe turns an endpoint that keeps failing off, and that
-        // would take every other sign-up at this account with it — a single
-        // setup nobody can use is the smaller loss. The account offers what
-        // `config/saas.yaml` names, so this is a misconfigured account rather
-        // than a person's doing.
+        // A payment method whose shape SaaSiCat has nowhere to put is not
+        // recorded, and does not fail the delivery either: asking again would
+        // read the same answer, and Stripe turns an endpoint that keeps failing
+        // off, which would take every other sign-up at this account with it. A
+        // single setup nobody can use is the smaller loss, and the account
+        // offers what `config/saas.yaml` names, so this is a misconfigured
+        // account rather than a person's doing.
         const masked = maskedDetailsOf(paymentMethod, expanded<Stripe.Mandate>(intent.mandate));
-        if (intent.status !== 'succeeded' || masked === null) {
+        if (masked === null) {
             return { kind: 'unhandled', eventId, occurredAt, type: 'checkout.session.completed' };
         }
         return {

@@ -405,20 +405,15 @@ describe('the callback Stripe sends is read', () => {
         );
         await assert.rejects(
             completed({ ...SESSION, setup_intent: 'seti_empty' }),
-            /seti_empty as completed without a payment method/,
+            /seti_empty as succeeded without a payment method/,
         );
     });
 
-    test('a payment method SaaSiCat has no shape for, and one not set up yet, record nothing and keep the endpoint', async () => {
+    test('a payment method SaaSiCat has no shape for records nothing and keeps the endpoint', async () => {
         const ctx = await gatewayOver({
             'GET /v1/setup_intents/seti_1': {
                 ...CARD_INTENT,
                 payment_method: { id: 'pm_link_1', object: 'payment_method', type: 'link' },
-            },
-            'GET /v1/setup_intents/seti_pending': {
-                ...CARD_INTENT,
-                id: 'seti_pending',
-                status: 'requires_action',
             },
             'GET /v1/setup_intents/seti_no_iban': {
                 ...SEPA_INTENT,
@@ -432,18 +427,64 @@ describe('the callback Stripe sends is read', () => {
             },
         });
 
-        for (const intent of ['seti_1', 'seti_pending', 'seti_no_iban']) {
+        for (const intent of ['seti_1', 'seti_no_iban']) {
             const read = await ctx.gateway.readCallback(
                 signedCallback(
                     event('checkout.session.completed', { ...SESSION, setup_intent: intent }),
                     WEBHOOK_SECRET,
                 ),
             );
-            // Answered, not raised: an endpoint Stripe turns off takes every
-            // other sign-up at this account with it.
+            // Answered, not raised: asking again reads the same answer, and an
+            // endpoint Stripe turns off takes every other sign-up at this
+            // account with it.
             assert.equal(read.kind, 'unhandled', `${intent} was not answered as unhandled`);
             assert.equal(read.type, 'checkout.session.completed');
         }
+    });
+
+    test('a setup still on its way is asked about again, and one given up on is a setup that failed', async () => {
+        const ctx = await gatewayOver({
+            'GET /v1/setup_intents/seti_processing': {
+                ...SEPA_INTENT,
+                id: 'seti_processing',
+                status: 'processing',
+            },
+            'GET /v1/setup_intents/seti_action': {
+                ...CARD_INTENT,
+                id: 'seti_action',
+                status: 'requires_action',
+            },
+            'GET /v1/setup_intents/seti_canceled': {
+                ...CARD_INTENT,
+                id: 'seti_canceled',
+                status: 'canceled',
+            },
+        });
+        const completed = (intent) =>
+            ctx.gateway.readCallback(
+                signedCallback(
+                    event('checkout.session.completed', { ...SESSION, setup_intent: intent }),
+                    WEBHOOK_SECRET,
+                ),
+            );
+
+        // Raised rather than answered: the state is read after the delivery, so
+        // failing it is what makes Stripe ask again once the setup has settled.
+        for (const intent of ['seti_processing', 'seti_action']) {
+            await assert.rejects(completed(intent), (error) => {
+                assert.ok(error.message.includes(`${intent} is '`), error.message);
+                return true;
+            });
+        }
+
+        const read = await completed('seti_canceled');
+        assert.deepEqual(read, {
+            kind: 'payment-method-setup-failed',
+            eventId: 'evt_1',
+            occurredAt: new Date(1_789_000_000_000),
+            sessionRef: 'cs_test_1',
+            subject: { kind: 'registration', pendingRegistrationId: 'pending-1' },
+        });
     });
 });
 
