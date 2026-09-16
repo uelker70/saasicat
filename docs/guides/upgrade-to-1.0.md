@@ -1395,7 +1395,9 @@ reference a gateway can charge, so each subscriber gives its payment method agai
 - **`PaymentEventLog`** is `claim(claim, tx)` instead of `tryClaim(eventId, payload)`, and the
   adapters implement it; a duplicate answers `false` without raising. So is a confirmation of a
   session the account has confirmed already, whatever its event identifier — the migration adds the
-  partial unique index that holds it. `RegistrationAuditEventType`
+  partial unique index that holds it. `releaseSession(gatewayAccount, eventId, tx)` is the second
+  method: it takes the session off a claim whose event changed nothing, so the event that does
+  belong to that session is handled rather than answered as a duplicate. `RegistrationAuditEventType`
   loses `PAYMENT_DUPLICATE_IGNORED`: a duplicate callback is handled before any registration code
   sees it, and is logged rather than audited.
 - **The tenant's plan page** shows the payment method in use to whoever holds the billing

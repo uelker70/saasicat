@@ -1446,6 +1446,35 @@ describe('a payment method is the gateway reference, kept for the subscriber', (
         ]);
     });
 
+    test('two confirmations of one session are refused by name rather than by a unique violation', async () => {
+        await beforeTheMigration();
+        // Only a database run against an unreleased build of this change can
+        // hold these: the wording and the index ship in the same file.
+        for (const id of ['e1', 'e2']) {
+            await client.query(
+                'INSERT INTO "PaymentEventLog" ' +
+                    '("id", "eventId", "provider", "sessionId", "status") ' +
+                    `VALUES ($1, $1, 'stripe', 'cs_twice', 'payment-method-confirmed')`,
+                [id],
+            );
+        }
+
+        await assert.rejects(apply(MIGRATION), (error) => {
+            assert.match(error.message, /holds 2 confirmations of session cs_twice/);
+            assert.match(error.message, /apply this file again/);
+            return true;
+        });
+        await client.query('ROLLBACK').catch(() => {});
+
+        // The whole file rolled back, so the repair is applying it again.
+        await client.query(`DELETE FROM "PaymentEventLog" WHERE "id" = 'e2'`);
+        await apply(MIGRATION);
+        await apply(MIGRATION);
+        assert.deepEqual(await events(), [
+            { eventId: 'e1', provider: 'stripe', gatewayAccount: 'stripe' },
+        ]);
+    });
+
     test('an installation without self-registration gets the payment methods and nothing else', async () => {
         await beforeTheMigration();
         await client.query('DROP TABLE "PendingRegistration", "PaymentEventLog"');

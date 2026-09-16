@@ -53,7 +53,13 @@ export interface PaymentGatewayCallback {
 }
 
 export interface PaymentMethodSetupSession {
-    /** The gateway's identifier of the session, unique within its account. */
+    /**
+     * The gateway's identifier of the session, unique within its account — and
+     * an adapter that has no session of its own makes one per start rather than
+     * a constant. A session is confirmed once, which the event log holds, so a
+     * value two starts share lets the second confirmation through as the
+     * duplicate it is not.
+     */
     sessionRef: string;
     /** The gateway's form, where the person is sent next. */
     redirectUrl: string;

@@ -657,15 +657,23 @@ export function createMemoryHarness() {
                     (event.eventId === claim.eventId ||
                         // One session is confirmed once, whatever the event is
                         // called: the partial unique index in
-                        // sql/constraints.postgres.sql.
+                        // sql/constraints.postgres.sql. A claim without a
+                        // session collides with nothing, as nulls are distinct
+                        // in a unique index.
                         (confirmation &&
                             event.kind === 'payment-method-confirmed' &&
-                            claim.sessionId !== null &&
+                            claim.sessionId != null &&
                             event.sessionId === claim.sessionId)),
             );
             if (taken) return false;
             state.paymentEvents.push(structuredClone(claim));
             return true;
+        },
+        async releaseSession(gatewayAccount, eventId) {
+            const event = state.paymentEvents.find(
+                (held) => held.gatewayAccount === gatewayAccount && held.eventId === eventId,
+            );
+            if (event) event.sessionId = null;
         },
     };
 

@@ -26,7 +26,8 @@ Verified scenarios:
 - audit write → query roundtrip incl. `actorTag` wildcard filters
 - MFA secret roundtrip
 - a gateway event is claimed once per account, a session is confirmed once however many events
-  report it, and a claim rolled back with its transaction is free for the retry
+  report it, an event that changed nothing gives its session back while staying claimed itself, and
+  a claim rolled back with its transaction is free for the retry
 - a confirmed payment method replaces the one in use and keeps it as history, per subscriber
 - a change of payment method a tenant started is completed once, and only for the account, session
   and subscriber it was started for

@@ -205,6 +205,7 @@ _Tested by:_
         - a database from before ends up with the schema the fragments declare
         - an event recorded before carries its provider as its account, and stays unique
         - a second run leaves the accounts the first one gave, an event recorded in between included
+        - two confirmations of one session are refused by name rather than by a unique violation
         - an installation without self-registration gets the payment methods and nothing else
         - an installation without subscribers is left without the payment methods, and runs through
         - the old masked payment methods an application wrote are left where they are
@@ -296,6 +297,7 @@ _Tested by:_
         - a database from before ends up with the schema the fragments declare
         - an event recorded before carries its provider as its account, and stays unique
         - a second run leaves the accounts the first one gave, an event recorded in between included
+        - two confirmations of one session are refused by name rather than by a unique violation
         - an installation without self-registration gets the payment methods and nothing else
         - an installation without subscribers is left without the payment methods, and runs through
         - the old masked payment methods an application wrote are left where they are

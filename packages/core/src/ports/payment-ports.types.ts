@@ -51,6 +51,16 @@ export interface PaymentEventLog {
      * answers for it too.
      */
     claim(claim: PaymentEventClaim, tx: TransactionContext): Promise<boolean>;
+    /**
+     * Takes the session off a claim whose event changed nothing, so the next
+     * event about that session is handled instead of taken for the duplicate it
+     * is not. The claim itself stays: that one event is never handled twice.
+     *
+     * The session is held from the claim onwards, which is what keeps two
+     * confirmations delivered at once from both taking effect; an event that
+     * turned out to have nothing to do gives it back on the same transaction.
+     */
+    releaseSession(gatewayAccount: string, eventId: string, tx: TransactionContext): Promise<void>;
 }
 
 /**

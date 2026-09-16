@@ -121,15 +121,24 @@ export class MemoryPaymentEventLog {
                 held.gatewayAccount === claim.gatewayAccount &&
                 (held.eventId === claim.eventId ||
                     // One session is confirmed once, as the partial unique index
-                    // in sql/constraints.postgres.sql holds it.
+                    // in sql/constraints.postgres.sql holds it. A claim without
+                    // a session collides with nothing: nulls are distinct there.
                     (confirmation &&
                         held.kind === 'payment-method-confirmed' &&
-                        claim.sessionId !== null &&
+                        claim.sessionId != null &&
                         held.sessionId === claim.sessionId)),
         );
         if (taken) return false;
         this.claims.push(structuredClone(claim));
         return true;
+    }
+
+    async releaseSession(gatewayAccount, eventId, tx) {
+        if (tx === undefined) throw new Error('a session was released outside a transaction');
+        const held = this.claims.find(
+            (claim) => claim.gatewayAccount === gatewayAccount && claim.eventId === eventId,
+        );
+        if (held) held.sessionId = null;
     }
 }
 

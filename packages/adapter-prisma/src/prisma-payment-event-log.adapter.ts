@@ -3,7 +3,7 @@ import type { PaymentEventClaim, PaymentEventLog, TransactionContext } from '@sa
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 interface PaymentEventLogPrisma {
-    paymentEventLog: Pick<PrismaModelDelegateLike<unknown>, 'createMany'>;
+    paymentEventLog: Pick<PrismaModelDelegateLike<unknown>, 'createMany' | 'updateMany'>;
 }
 
 /** `PaymentEventLog` against the canonical `"PaymentEventLog"` table. */
@@ -33,5 +33,17 @@ export class PrismaPaymentEventLog implements PaymentEventLog {
             skipDuplicates: true,
         });
         return count === 1;
+    }
+
+    async releaseSession(
+        gatewayAccount: string,
+        eventId: string,
+        tx: TransactionContext,
+    ): Promise<void> {
+        const db = (tx ?? this.prisma) as PaymentEventLogPrisma;
+        await db.paymentEventLog.updateMany({
+            where: { gatewayAccount, eventId },
+            data: { sessionId: null },
+        });
     }
 }

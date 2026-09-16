@@ -479,6 +479,28 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
             null,
         );
         assert.equal(ctx.methods.setups[0].completedAt, null, "tenant-1's setup was used up");
+
+        // The session it named is free again: a confirmation that recorded
+        // nothing must not use up the one slot the session has, or the event
+        // that does belong to it would be answered as a duplicate.
+        assert.equal(
+            await ctx.callbacks.handle(
+                MAIN_ACCOUNT,
+                signedCallback(
+                    confirmation({
+                        eventId: 'evt_correct',
+                        sessionRef: 'cs_1',
+                        subject: { kind: 'subscriber', subscriberId: ctx.subscriber.id },
+                        paymentMethodRef: 'pm_for_tenant_1',
+                    }),
+                ),
+            ),
+            'handled',
+        );
+        assert.equal(
+            (await ctx.methods.findActive(ctx.subscriber.id))?.paymentMethodRef,
+            'pm_for_tenant_1',
+        );
     });
 
     test('a confirmation for a session nobody opened, or for a setup already completed, records nothing', async () => {

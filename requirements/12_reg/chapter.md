@@ -389,6 +389,8 @@ _Tested by:_
         - a sign-up whose deletion fails is not activated either, and the gateway retry activates it
           once
         - a confirmation for a session no sign-up waits for activates nothing
+        - a confirmation that activated nothing leaves its session free for the one that belongs to
+          it
         - a confirmation naming another sign-up than its session belongs to activates neither
         - a session is looked up with the account that sent the confirmation, not by its identifier
           alone

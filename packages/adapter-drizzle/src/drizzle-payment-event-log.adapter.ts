@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { and, eq } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import type { PaymentEventClaim, PaymentEventLog, TransactionContext } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
@@ -26,5 +27,21 @@ export class DrizzlePaymentEventLog implements PaymentEventLog {
             .onConflictDoNothing()
             .returning({ id: paymentEventLog.id });
         return inserted.length === 1;
+    }
+
+    async releaseSession(
+        gatewayAccount: string,
+        eventId: string,
+        tx: TransactionContext,
+    ): Promise<void> {
+        await resolveDb(this.db, tx)
+            .update(paymentEventLog)
+            .set({ sessionId: null })
+            .where(
+                and(
+                    eq(paymentEventLog.gatewayAccount, gatewayAccount),
+                    eq(paymentEventLog.eventId, eventId),
+                ),
+            );
     }
 }

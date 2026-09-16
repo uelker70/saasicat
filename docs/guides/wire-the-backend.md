@@ -446,7 +446,9 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   gateway's retry is handled; a delivery that arrives again after a commit is a duplicate and
   changes nothing. A gateway that reports one session through more than one event is a duplicate
   too: a session is confirmed once, which the log holds whether the two arrive after one another or
-  together.
+  together. A confirmation that changed nothing — a setup nobody opened, a sign-up that is not
+  waiting — gives the session back on that same transaction, so the event that does belong to it is
+  still handled.
 - **`GET /billing/payment-method`** and **`POST /billing/payment-method/setup`** — the tenant's
   payment method, with `tenantBilling` enabled. Both sit behind `tenantBilling.authGuards` and the
   billing permission, reading included; a user without the permission is refused with

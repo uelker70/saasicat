@@ -632,6 +632,36 @@ describe('the confirmation of the payment method activates the sign-up', () => {
         assert.equal((await ctx.repo.findById(pendingId)).status, 'CHECKOUT_STARTED');
     });
 
+    test('a confirmation that activated nothing leaves its session free for the one that belongs to it', async () => {
+        const ctx = await signUpApp();
+        const { pendingId, sessionRef } = await throughTheForm(ctx);
+        const subject = { kind: 'registration', pendingRegistrationId: pendingId };
+
+        // Names the right session and the wrong sign-up, so nothing is
+        // activated — and the session must not be used up by it.
+        await ctx.callbacks.handle(
+            MAIN_ACCOUNT,
+            signedCallback(
+                confirmation({
+                    eventId: 'evt_wrong_sign_up',
+                    sessionRef,
+                    subject: { kind: 'registration', pendingRegistrationId: 'pending-nobody' },
+                }),
+            ),
+        );
+        assert.equal(ctx.orchestrator.calls.length, 0);
+
+        assert.equal(
+            await ctx.callbacks.handle(
+                MAIN_ACCOUNT,
+                signedCallback(confirmation({ eventId: 'evt_right', sessionRef, subject })),
+            ),
+            'handled',
+        );
+        assert.equal(ctx.orchestrator.calls.length, 1);
+        assert.equal(ctx.methods.rows.length, 1);
+    });
+
     test('a confirmation naming another sign-up than its session belongs to activates neither', async () => {
         const ctx = await signUpApp();
         const first = await throughTheForm(ctx, 'first@example.com');

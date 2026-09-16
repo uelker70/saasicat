@@ -23,6 +23,7 @@ import { codedError } from '../errors/coded-error.js';
 import {
     PaymentCallbackService,
     type PaymentEventContext,
+    type PaymentEventEffect,
     type PaymentMethodConfirmedEvent,
     type PaymentMethodSetupFailedEvent,
 } from '../payments/payment-callback.service.js';
@@ -175,9 +176,9 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
     private async activate(
         event: PaymentMethodConfirmedEvent,
         context: PaymentEventContext,
-    ): Promise<void> {
+    ): Promise<PaymentEventEffect> {
         const pending = await this.pendingFor(event, context);
-        if (!pending) return;
+        if (!pending) return 'nothing-to-do';
         const { methods } = this.payments();
         const result = await this.orchestrator.activate(pending, { tx: context.tx });
         await methods.recordConfirmed(
@@ -209,6 +210,7 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
                 `Activation succeeded: pending=${pending.id} → user=${result.userId} tenant=${result.tenantId} subscriber=${result.subscriberId} subscription=${result.subscriptionId}`,
             );
         });
+        return 'took-effect';
     }
 
     private async noteFailure(

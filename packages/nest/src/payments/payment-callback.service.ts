@@ -40,9 +40,21 @@ export interface PaymentEventContext {
     afterCommit(step: () => Promise<void>): void;
 }
 
+/**
+ * What a handler did about a confirmation.
+ *
+ * `nothing-to-do` gives the session back: the confirmation named a setup
+ * nobody opened, or one that is complete, so a later event about that session
+ * has to be handled rather than answered as a duplicate.
+ */
+export type PaymentEventEffect = 'took-effect' | 'nothing-to-do';
+
 /** What a sign-up or a subscriber does with the events about its setup. */
 export interface PaymentSetupEventHandler {
-    confirmed(event: PaymentMethodConfirmedEvent, context: PaymentEventContext): Promise<void>;
+    confirmed(
+        event: PaymentMethodConfirmedEvent,
+        context: PaymentEventContext,
+    ): Promise<PaymentEventEffect>;
     failed(event: PaymentMethodSetupFailedEvent, context: PaymentEventContext): Promise<void>;
 }
 
@@ -132,7 +144,10 @@ export class PaymentCallbackService {
                 afterCommit: (step) => afterCommit.push(step),
             };
             if (event.kind === 'payment-method-confirmed') {
-                await handler.confirmed(event, context);
+                const effect = await handler.confirmed(event, context);
+                if (effect === 'nothing-to-do') {
+                    await this.log.releaseSession(account, event.eventId, tx);
+                }
             } else {
                 await handler.failed(event, context);
             }

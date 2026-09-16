@@ -2722,6 +2722,37 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(afterRollback, { status: 'fulfilled', value: true });
         });
 
+        test('an event that changed nothing gives its session back, and stays claimed itself', async (t) => {
+            const { adapter } = harness;
+            const log = adapter.paymentEventLog;
+            if (!log) {
+                missing(t, 'paymentEventLog');
+                return;
+            }
+            const session = 'cs_nothing_to_do';
+            const released = await adapter.transactionRunner.run(async (tx) => {
+                await log.claim(eventAt('stripe-main', 'evt_missed', { sessionId: session }), tx);
+                // What a handler does when the confirmation names a setup
+                // nobody opened: it gives the session back on this transaction.
+                await log.releaseSession('stripe-main', 'evt_missed', tx);
+                return [
+                    // The next event about that session is handled …
+                    await log.claim(
+                        eventAt('stripe-main', 'evt_correct', { sessionId: session }),
+                        tx,
+                    ),
+                    // … while the event that released it stays claimed.
+                    await log.claim(eventAt('stripe-main', 'evt_missed', { sessionId: null }), tx),
+                ];
+            });
+            assert.deepEqual(released, [true, false]);
+
+            const again = await adapter.transactionRunner.run((tx) =>
+                log.claim(eventAt('stripe-main', 'evt_after_correct', { sessionId: session }), tx),
+            );
+            assert.equal(again, false, 'the session was confirmed and is not free again');
+        });
+
         test('two events confirming one session at once end with one claim', async (t) => {
             const { adapter } = harness;
             const log = adapter.paymentEventLog;

@@ -25,8 +25,11 @@
 --      keeps the old identifiers unique and matches no account a gateway sends
 --      from now on. A second index holds one confirmation per gateway session
 --      (`sql/constraints.postgres.sql` says what it is for). It matches no row
---      recorded before this file: `status` then held the old provider's own
---      wording, never the event kinds SaaSiCat reads today.
+--      recorded before this file: `status` then held `PaymentEventStatus`,
+--      `SUCCEEDED` or `FAILED`, never the event kinds SaaSiCat reads today. A
+--      row that does carry one is refused by name rather than by a unique
+--      violation, which only a database run against an unreleased build of
+--      this change can hold.
 --   3. `"PendingRegistration"` — gains the billing details step 4 asks for,
 --      `checkoutGatewayAccount` and `gatewayCustomerRef`. A sign-up whose
 --      checkout started before this file has no account beside its session, so
@@ -47,6 +50,8 @@
 BEGIN;
 
 DO $$
+DECLARE
+    twice RECORD;
 BEGIN
     -- 1. The payment methods, for the subscriber ------------------------------
 
@@ -132,6 +137,19 @@ BEGIN
         DROP INDEX IF EXISTS "PaymentEventLog_eventId_key";
         CREATE UNIQUE INDEX IF NOT EXISTS "PaymentEventLog_gatewayAccount_eventId_key"
             ON "PaymentEventLog"("gatewayAccount", "eventId");
+        SELECT "gatewayAccount", "sessionId", count(*) AS claims
+          INTO twice
+          FROM "PaymentEventLog"
+         WHERE "status" = 'payment-method-confirmed'
+           AND "sessionId" IS NOT NULL
+         GROUP BY "gatewayAccount", "sessionId"
+        HAVING count(*) > 1
+         LIMIT 1;
+        IF FOUND THEN
+            RAISE EXCEPTION
+                'PaymentEventLog holds % confirmations of session % at account %, and one session is confirmed once. Only a database run against an unreleased build of this change can hold them. Keep the confirmation that was acted on, delete the others, and apply this file again.',
+                twice.claims, twice."sessionId", twice."gatewayAccount";
+        END IF;
         CREATE UNIQUE INDEX IF NOT EXISTS payment_event_log_confirmation_per_session
             ON "PaymentEventLog"("gatewayAccount", "sessionId")
             WHERE "status" = 'payment-method-confirmed';

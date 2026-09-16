@@ -7142,6 +7142,8 @@ _Tested by:_
         - a sign-up whose deletion fails is not activated either, and the gateway retry activates it
           once
         - a confirmation for a session no sign-up waits for activates nothing
+        - a confirmation that activated nothing leaves its session free for the one that belongs to
+          it
         - a confirmation naming another sign-up than its session belongs to activates neither
         - a session is looked up with the account that sent the confirmation, not by its identifier
           alone
@@ -13315,6 +13317,7 @@ _Tested by:_
         - a database from before ends up with the schema the fragments declare
         - an event recorded before carries its provider as its account, and stays unique
         - a second run leaves the accounts the first one gave, an event recorded in between included
+        - two confirmations of one session are refused by name rather than by a unique violation
         - an installation without self-registration gets the payment methods and nothing else
         - an installation without subscribers is left without the payment methods, and runs through
         - the old masked payment methods an application wrote are left where they are
@@ -13406,6 +13409,7 @@ _Tested by:_
         - a database from before ends up with the schema the fragments declare
         - an event recorded before carries its provider as its account, and stays unique
         - a second run leaves the accounts the first one gave, an event recorded in between included
+        - two confirmations of one session are refused by name rather than by a unique violation
         - an installation without self-registration gets the payment methods and nothing else
         - an installation without subscribers is left without the payment methods, and runs through
         - the old masked payment methods an application wrote are left where they are

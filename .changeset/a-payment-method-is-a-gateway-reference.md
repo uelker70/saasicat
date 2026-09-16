@@ -47,7 +47,9 @@ and the gateway's retry activates.
   only for the account, session and subscriber of an open setup. A gateway
   session is confirmed once, however many events report it: a partial unique
   index in `sql/constraints.postgres.sql` makes the second confirmation a
-  duplicate rather than a second payment method.
+  duplicate rather than a second payment method. A confirmation that changed
+  nothing gives the session back through `PaymentEventLog.releaseSession`, so
+  the event that does belong to it is still handled.
 - Breaking: the `SubscriptionPaymentMethod` fragment is removed.
   `SubscriberPaymentMethod`, `SubscriberPaymentMethodSetup` and
   `PaymentEventLog` are in `14-payments.prisma`;

@@ -11,6 +11,7 @@ import { SubscriberService } from '../subscriber/subscriber.service.js';
 import {
     PaymentCallbackService,
     type PaymentEventContext,
+    type PaymentEventEffect,
     type PaymentMethodConfirmedEvent,
 } from './payment-callback.service.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
@@ -102,8 +103,8 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
     private async recordConfirmed(
         event: PaymentMethodConfirmedEvent,
         context: PaymentEventContext,
-    ): Promise<void> {
-        if (event.subject.kind !== 'subscriber') return;
+    ): Promise<PaymentEventEffect> {
+        if (event.subject.kind !== 'subscriber') return 'nothing-to-do';
         const completed = await this.methods.completeSetup(
             {
                 gatewayAccount: context.gatewayAccount,
@@ -124,7 +125,7 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
                 `Payment event ${event.eventId} at '${context.gatewayAccount}' names subscriber ` +
                     `${event.subject.subscriberId} and session ${event.sessionRef}, which no open setup matches; nothing recorded.`,
             );
-            return;
+            return 'nothing-to-do';
         }
         await this.methods.recordConfirmed(
             {
@@ -136,6 +137,7 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
             },
             context.tx,
         );
+        return 'took-effect';
     }
 }
 
