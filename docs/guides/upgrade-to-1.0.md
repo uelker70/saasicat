@@ -1406,6 +1406,15 @@ reference a gateway can charge, so each subscriber gives its payment method agai
   permission, and `GET`/`POST /billing/payment-method` require it: the tenant's administrator,
   unless `payments.billingPermissionGuards` names others.
 
+**One refusal that needs nothing from you to arrive.** A start refuses when a payment method in use
+is held at a gateway account `config/saas.yaml#payments.accounts` no longer names — and until 1.0
+that check read `subscriber_payment_methods` without the RLS bypass, so on an installation with a
+policy on that table it read nothing and passed. It reads through the bypass now. If you have such a
+policy and a stored reference to a retired account, the first restart after this upgrade refuses:
+list that account again with its gateway bound, until its subscribers have a payment method at
+another one. Nothing in your file or your database has to change for this to be the restart that
+finds it.
+
 ### The operator's own legal identity changes only as a declared correction
 
 `config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract

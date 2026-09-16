@@ -248,6 +248,15 @@ export interface SubscriptionContractRepository {
      * month is concluded, its party copy is fixed, and it will be invoiced under
      * the issuer it names.
      *
+     * Platform-wide: unlike every other read here it is anchored by no tenant,
+     * no contract and no offer, and a start makes it before anything is served.
+     * An implementation on a tenant-scoped client must count RLS-exempt, as
+     * `countActiveByPlanKey` must — the platform wraps the call in
+     * `RlsBypassPort`, and one that answers with the caller's tenant scope
+     * instead returns nothing at a boot, where there is no tenant. The
+     * persistence contract runs with no policy forced, so it cannot catch that
+     * for you.
+     *
      * `limit` may be `0`, and a caller that wants only the count passes it:
      * `total` is exact whatever the limit, so nothing has to come back for it.
      * Zero means zero — an implementation that reads a falsy limit as "no limit"

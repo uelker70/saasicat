@@ -97,7 +97,18 @@ export interface SubscriberPaymentMethodRepository {
         paymentMethodRef: string,
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null>;
-    /** Every account that holds a payment method in use, each once. */
+    /**
+     * Every account that holds a payment method in use, each once.
+     *
+     * Platform-wide: anchored by no subscriber and no tenant, and a start makes
+     * it before anything is served, to refuse a configuration that no longer
+     * names an account somebody's payment method is held at. An implementation
+     * on a tenant-scoped client must read RLS-exempt — the platform wraps the
+     * call in `RlsBypassPort`, and one that answers with the caller's tenant
+     * scope instead returns an empty list at a boot, where there is no tenant,
+     * so the check that exists to refuse passes. The persistence contract runs
+     * with no policy forced, so it cannot catch that for you.
+     */
     accountsInUse(): Promise<string[]>;
     /**
      * Records a change of payment method a tenant started, open until its

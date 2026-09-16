@@ -373,7 +373,7 @@ says while nothing has moved what changing the identity would cost:
 
 What it does not do is turn a refusal into a report. Your CLI boots the same
 application, so a configuration the start refuses refuses the CLI too — with the
-message above, before any command runs. That is still ahead of the deploy, which
+refusal shown further up, before any command runs. That is still ahead of the deploy, which
 is the point of running it there; it arrives as a failed start rather than as a
 ✗ line. `IssuerIdentityInspector.inspect()` is the same answer without the hook,
 for a health endpoint or a diagnostic of your own.

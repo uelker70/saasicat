@@ -429,7 +429,15 @@ function describeContract(contract: RunningContractIssuer): string {
     const under = contract.issuerLegalName
         ? `concluded under ${quote(contract.issuerLegalName)}`
         : 'names no issuer';
-    return `  ${contract.id} (tenant ${contract.tenantId}, from ${contract.effectiveFrom.toISOString().slice(0, 10)}, ${under})`;
+    // Rendered outside the guard that makes reading the contracts best-effort,
+    // so it is read the way the rest of that path is: a repository handing back
+    // a string where the port says `Date` should cost the line, not the refusal
+    // the line is decorating.
+    const from =
+        contract.effectiveFrom instanceof Date
+            ? contract.effectiveFrom.toISOString().slice(0, 10)
+            : 'an unreadable date';
+    return `  ${contract.id} (tenant ${contract.tenantId}, from ${from}, ${under})`;
 }
 
 /**
