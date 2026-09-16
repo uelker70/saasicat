@@ -127,6 +127,16 @@
                 "default": "./dist/subscriber/index.cjs"
             }
         },
+        "./payments": {
+            "import": {
+                "types": "./dist/payments/index.d.ts",
+                "default": "./dist/payments/index.js"
+            },
+            "require": {
+                "types": "./dist/payments/index.d.cts",
+                "default": "./dist/payments/index.cjs"
+            }
+        },
         "./platform": {
             "import": {
                 "types": "./dist/platform/index.d.ts",

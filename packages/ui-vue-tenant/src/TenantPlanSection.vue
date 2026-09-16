@@ -87,6 +87,9 @@
                     </TenantFeatureMatrix>
                 </template>
 
+                <!-- What the subscriber pays with; shows itself only to whoever may see it. -->
+                <TenantPaymentMethodCard :http="http" :api-prefix="apiPrefix" />
+
                 <hr v-if="showBundleStore && hasBundleStore" class="sp-divider" />
 
                 <!-- Bundle store (#15): booked + available bundles -->
@@ -265,6 +268,7 @@ import {
 } from './default-i18n.js';
 import BundlePreviewDialog from './tenant-plan-section/BundlePreviewDialog.vue';
 import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
+import TenantPaymentMethodCard from './tenant-plan-section/TenantPaymentMethodCard.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
 import TenantPlanCardHeader from './tenant-plan-section/TenantPlanCardHeader.vue';
 import TenantUsageGrid from './tenant-plan-section/TenantUsageGrid.vue';

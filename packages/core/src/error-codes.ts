@@ -294,7 +294,10 @@ export const SUBSCRIBER_ERROR_CODES = {
     SUBSCRIBER_ALREADY_EXISTS: 'SUBSCRIBER_ALREADY_EXISTS',
     SUBSCRIBER_NOT_FOUND: 'SUBSCRIBER_NOT_FOUND',
     SUBSCRIBER_LEGAL_NAME_REQUIRED: 'SUBSCRIBER_LEGAL_NAME_REQUIRED',
-    /** A detail that has a form — the country, the invoice email — is not in it. Carries `field`. */
+    /**
+     * A detail that has a form — the country, the invoice email — is not in it,
+     * or one sign-up requires — the billing address — is missing. Carries `field`.
+     */
     SUBSCRIBER_DETAIL_INVALID: 'SUBSCRIBER_DETAIL_INVALID',
     /** A contact change named a field of the legal identity. Carries `field`. */
     SUBSCRIBER_IDENTITY_NOT_A_CONTACT: 'SUBSCRIBER_IDENTITY_NOT_A_CONTACT',
@@ -339,6 +342,12 @@ export const AUTH_ERROR_CODES = {
     /** Neither `tenantId` nor `userId` could be resolved from the request. */
     TENANT_CONTEXT_MISSING: 'TENANT_CONTEXT_MISSING',
     TENANT_ADMIN_REQUIRED: 'TENANT_ADMIN_REQUIRED',
+    /**
+     * The tenant's billing area — its payment method, and later its invoices
+     * and account — needs the billing permission, which the application maps
+     * to its roles and the tenant's administrator holds by default.
+     */
+    BILLING_PERMISSION_REQUIRED: 'BILLING_PERMISSION_REQUIRED',
     SUPER_ADMIN_REQUIRED: 'SUPER_ADMIN_REQUIRED',
     /** TOTP MFA has never been set up for this user. */
     MFA_NOT_SET_UP: 'MFA_NOT_SET_UP',
@@ -373,6 +382,26 @@ export const PROMO_ERROR_CODES = {
 
 export type PromoErrorCode = (typeof PROMO_ERROR_CODES)[keyof typeof PROMO_ERROR_CODES];
 
+/** Payment methods and the gateways that confirm them. */
+export const PAYMENT_ERROR_CODES = {
+    /**
+     * No gateway account takes new payment methods:
+     * `config/saas.yaml#payments.newPaymentMethods` names none.
+     */
+    PAYMENTS_NOT_CONFIGURED: 'PAYMENTS_NOT_CONFIGURED',
+    /** A callback arrived for an account `config/saas.yaml#payments.accounts` does not name. Carries `account`. */
+    PAYMENT_GATEWAY_ACCOUNT_UNKNOWN: 'PAYMENT_GATEWAY_ACCOUNT_UNKNOWN',
+    /** A callback the gateway did not send: its signature does not verify. */
+    PAYMENT_CALLBACK_REJECTED: 'PAYMENT_CALLBACK_REJECTED',
+    /**
+     * A success or cancel URL at an origin `config/saas.yaml#payments.returnUrlOrigins`
+     * does not name. Carries `field`.
+     */
+    PAYMENT_RETURN_URL_NOT_ALLOWED: 'PAYMENT_RETURN_URL_NOT_ALLOWED',
+} as const;
+
+export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[keyof typeof PAYMENT_ERROR_CODES];
+
 /** Codes of the settings record (`GET /admin/settings`, the acknowledgement). */
 export const SETTINGS_ERROR_CODES = {
     /** No recorded change has this id, or the installation keeps no record at all. */
@@ -396,6 +425,7 @@ export const PLATFORM_ERROR_CODES = {
     ...CONTRACT_ERROR_CODES,
     ...SUBSCRIBER_ERROR_CODES,
     ...REGISTRATION_ERROR_CODES,
+    ...PAYMENT_ERROR_CODES,
     ...SETTINGS_ERROR_CODES,
 } as const;
 
@@ -408,6 +438,7 @@ export type PlatformErrorCode =
     | ContractErrorCode
     | SubscriberErrorCode
     | RegistrationErrorCode
+    | PaymentErrorCode
     | SettingsErrorCode;
 
 /**

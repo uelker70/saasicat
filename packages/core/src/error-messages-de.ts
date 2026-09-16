@@ -30,6 +30,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     NO_TENANT_ASSIGNED: 'Kein Mandant zugeordnet',
     TENANT_CONTEXT_MISSING: 'Am Request wurde keine Mandanten-ID gefunden',
     TENANT_ADMIN_REQUIRED: 'Diese Aktion erfordert die Rolle TENANT_ADMIN.',
+    BILLING_PERMISSION_REQUIRED:
+        'Dieser Teil der Abrechnung erfordert die Abrechnungs-Berechtigung.',
     SUPER_ADMIN_REQUIRED: 'Nur die Rolle SUPER_ADMIN ist zugelassen',
     MFA_NOT_SET_UP: 'Richte MFA zuerst über die CLI ein.',
     MFA_REQUIRED: 'TOTP-Code im Header X-Mfa-Code erforderlich.',
@@ -293,6 +295,13 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_NOT_AVAILABLE: 'Dieser Plan steht nicht zur Verfügung.',
     PLAN_NOT_SELECTED: 'Bitte wähle zuerst einen Plan aus.',
     MODEL_NOT_AVAILABLE: 'Diese Option steht nicht zur Verfügung.',
+    // ── payments ──
+    PAYMENTS_NOT_CONFIGURED: 'Zahlungsmethoden können hier noch nicht hinterlegt werden.',
+    PAYMENT_GATEWAY_ACCOUNT_UNKNOWN:
+        "Unter '{account}' ist kein Konto eines Zahlungsanbieters eingerichtet.",
+    PAYMENT_CALLBACK_REJECTED: 'Die Rückmeldung des Zahlungsanbieters ließ sich nicht prüfen.',
+    PAYMENT_RETURN_URL_NOT_ALLOWED:
+        'Die {field} führt auf eine Seite, zu der diese Installation nicht zurückleitet.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Das Feature {featureKeys} ist im aktuellen Plan nicht enthalten.',
     // ── settings ──

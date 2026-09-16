@@ -169,13 +169,35 @@ function issuerPartyOf(issuer: NonNullable<PlanCatalog['issuer']>): ContractIssu
 
 /**
  * The subscriber a completed sign-up is created with: the name the tenant was
- * registered under as its legal name, and the address the registration was
- * verified with as its invoice email. Sign-up collects nothing more yet.
+ * registered under as its legal name, the address the registration was
+ * verified with as its invoice email, and the billing address and tax
+ * identifiers step 4 took.
  */
 export function subscriberFromRegistration(
-    pending: Pick<PendingRegistration, 'tenantName' | 'email'>,
+    pending: Pick<
+        PendingRegistration,
+        | 'tenantName'
+        | 'email'
+        | 'addressLine1'
+        | 'addressLine2'
+        | 'postalCode'
+        | 'city'
+        | 'country'
+        | 'vatId'
+        | 'taxNumber'
+    >,
 ): NewSubscriberDetails {
-    return { legalName: pending.tenantName, invoiceEmail: pending.email };
+    return {
+        legalName: pending.tenantName,
+        invoiceEmail: pending.email,
+        addressLine1: pending.addressLine1,
+        addressLine2: pending.addressLine2,
+        postalCode: pending.postalCode,
+        city: pending.city,
+        country: pending.country,
+        vatId: pending.vatId,
+        taxNumber: pending.taxNumber,
+    };
 }
 
 function toIdentityValues(value: unknown): SubscriberIdentityValues {

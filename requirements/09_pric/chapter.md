@@ -588,6 +588,60 @@ asking for a new payment method there.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-payment-method-row-becomes-a-record.test.js`
+    - a payment method row becomes a record
+        - every column is carried over as it is
+        - both payment method types and both statuses are read
+        - a ${column} of '${value}' stops the read, naming the row and the column
+    - the columns a confirmed payment method is written with
+        - are the confirmation, and nothing a caller put beside it
+    - a callback a gateway adapter cannot verify
+        - is recognised by its code, also from another copy of the class
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - an open sign-up keeps its account configured
+        - the start refuses while a sign-up waits at an account the configuration no longer names
+        - and starts once that account is configured again
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - the form opens for the subscriber, and nothing changes until the gateway confirms
+        - the customer the subscriber has at that account is reused
+        - a customer at another account is not handed to this one
+        - without an invoice email, the gateway is given the requesting user's address
+        - the confirmation makes the new payment method the one in use, and keeps the one it
+          replaced
+        - a confirmation whose recording fails leaves the claim and the setup open for the retry
+        - a return URL at another origin is refused, and neither the gateway nor a setup is touched
+        - opening the form records the setup for this subscriber and this session
+        - a confirmation naming another subscriber than the session was opened for changes nobody's
+          payment method
+        - a confirmation for a session nobody opened, or for a setup already completed, records
+          nothing
+        - without an account for new payment methods the change is refused, and the gateway is not
+          asked
+        - the development gateway replaces the payment method on the spot
+    - the accounts the file names and the gateways the application binds
+        - a payment method in use at an account the file no longer names stops the start, and is
+          named
+- `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
+    - who sees the card
+        - a user holding the billing permission sees the payment method in use
+        - a user without it sees nothing at all, not even the heading
+        - nor does anyone where the installation takes no payment methods
+        - a failure to load is said, and offers no change it could not show the result of
+    - what the card says
+        - a subscriber without a payment method is offered to add one
+        - a direct debit names its account and the mandate it is collected under
+        - in German too, and a card whose network the provider did not name
+    - changing it
+        - opens the provider's form and sends the person there, back to this page
+        - a form that could not be opened is said on the card, and nobody is sent anywhere
+
+<!-- END proof -->
+
 ### SC-PRIC-031 — A returned debit or a chargeback is recorded, and what the payment settled opens again
 
 🟡 _(Decided, not yet delivered.)_ 💰 Either is recorded as a counter-entry rather than an edit of

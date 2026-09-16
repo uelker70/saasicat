@@ -337,6 +337,23 @@ const RULE_SPECS: readonly RuleSpec[] = [
             '`persistence.entitlement.subscriberRepository`.',
     },
     {
+        id: 'payments.requires-persistence',
+        when: (c) => Boolean(c.options.payments),
+        assert: (c) => absent(paymentStores(c)).length === 0,
+        message: (c) =>
+            'payments is enabled, but these adapters are missing: ' +
+            `${list(absent(paymentStores(c)))}. A gateway event is claimed and its effect written on ` +
+            'one transaction, so all of them come from one persistence bundle.',
+    },
+    {
+        id: 'payments.requires-accounts-in-the-file',
+        when: (c) => Boolean(c.options.payments) && catalogOf(c) !== undefined,
+        assert: (c) => Boolean(catalogOf(c)?.payments),
+        message:
+            'payments is enabled, and config/saas.yaml has no `payments` block naming the gateway ' +
+            'accounts the bound gateways belong to.',
+    },
+    {
         id: 'promo-codes.public-preview-requires-first-time-check',
         when: (c) => {
             const config = optionsOf(c.options.promoCodes);
@@ -441,6 +458,13 @@ const tenantBillingPorts = (c: PlatformConfiguration) => {
         subscriptionWritePort: config?.subscriptionWritePort,
     };
 };
+
+const paymentStores = (c: PlatformConfiguration) => ({
+    paymentEventLog: bundle(c)?.payments?.paymentEventLog,
+    subscriberPaymentMethodRepository: bundle(c)?.payments?.subscriberPaymentMethodRepository,
+    subscriberRepository: bundle(c)?.entitlement?.subscriberRepository,
+    transactionRunner: c.adapters.transactionRunner,
+});
 
 const bundleRepositories = (c: PlatformConfiguration) => ({
     subscriptionBundleRepository: bundle(c)?.entitlement?.subscriptionBundleRepository,

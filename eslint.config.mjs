@@ -426,7 +426,7 @@ export default tseslint.config(
         // second one.
         //
         // Boundary 1 — no barrel-to-barrel. Not a style question: the package
-        // is bundled into twelve entry points, and a module pulled in through
+        // is bundled into every entry point, and a module pulled in through
         // `../billing/index.js` drags that whole barrel into whichever chunk
         // needed one symbol from it. That is how a class ends up with two
         // identities across two entries — the failure `_entries.cjs` and

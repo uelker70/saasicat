@@ -19,7 +19,13 @@
 -- what holds it to one row — the constant default only lands a caller that
 -- omits the id on the right one.
 --
--- Safe to run again: both tables and the index are created only where they are
+-- A table this file creates has the shape the fragments declare now, the `seq`
+-- that orders the changes included: a fresh installation applies it after
+-- `1.0-a-settings-change-carries-its-order.postgres.sql`, which finds no table
+-- to add the column to, and `db push` refuses to add a unique column to a table
+-- it cannot see is empty.
+--
+-- Safe to run again: both tables and the indexes are created only where they are
 -- missing, and the constraint is dropped before it is added because
 -- `ADD CONSTRAINT` has no `IF NOT EXISTS`. On a database created from
 -- `reference-schema.postgres.sql` the whole file does nothing at all.
@@ -43,6 +49,7 @@ ALTER TABLE "applied_settings"
 
 CREATE TABLE IF NOT EXISTS "settings_changes" (
     "id" TEXT NOT NULL,
+    "seq" SERIAL NOT NULL,
     "noticedAt" TIMESTAMP(3) NOT NULL,
     "source" TEXT NOT NULL,
     "previous" JSONB NOT NULL,
@@ -55,5 +62,6 @@ CREATE TABLE IF NOT EXISTS "settings_changes" (
 
 CREATE INDEX IF NOT EXISTS "settings_changes_acknowledgedAt_noticedAt_idx"
     ON "settings_changes"("acknowledgedAt", "noticedAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "settings_changes_seq_key" ON "settings_changes"("seq");
 
 COMMIT;

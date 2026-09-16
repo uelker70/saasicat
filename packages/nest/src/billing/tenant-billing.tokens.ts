@@ -15,6 +15,12 @@ import type { CanActivate } from '@nestjs/common';
 export const TENANT_AUTH_GUARDS_TOKEN = Symbol.for('saasicat/nest/TenantAuthGuards');
 
 /**
+ * Optional guards deciding who holds the billing permission (`BillingPermissionGuard`).
+ * Without them the tenant's administrator holds it.
+ */
+export const BILLING_PERMISSION_GUARDS_TOKEN = Symbol.for('saasicat/nest/BillingPermissionGuards');
+
+/**
  * Resolver function `(req) => string` that extracts the `tenantId` from the
  * request. Default: `req.user.tenantId`.
  */

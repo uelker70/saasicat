@@ -1,8 +1,9 @@
 // RegistrationModule — DI wrapper around PendingRegistrationService.
 //
-// Consumers pass their five adapter implementations
-// (PendingRegistrationRepository, RegistrationOtpDelivery, UserAccountLookup,
-// SlugAvailabilityCheck, PasswordHasher) through `forRoot({...})`.
+// Consumers pass their adapter implementations through `forRoot({...})`. The
+// payment method a sign-up gives is taken through the payments module
+// (`SaaSiCatModule.forRoot({ payments })` or `PaymentsModule.forRoot`), which
+// has to be wired beside it.
 
 import {
     type DynamicModule,
@@ -13,8 +14,6 @@ import {
 } from '@nestjs/common';
 import type {
     ActivationOrchestrator,
-    PaymentEventLog,
-    PaymentProvider,
     PendingRegistrationRepository,
     PlanCatalogLookup,
     RegistrationAuditLogger,
@@ -28,11 +27,10 @@ import type {
 } from '@saasicat/core';
 import { PendingRegistrationService } from './pending-registration.service.js';
 import { RegistrationCleanupCron } from './cleanup.cron.js';
+import { RegistrationPaymentService } from './registration-payment.service.js';
 import {
     ACTIVATION_ORCHESTRATOR_TOKEN,
     PASSWORD_HASHER_TOKEN,
-    PAYMENT_EVENT_LOG_TOKEN,
-    PAYMENT_PROVIDER_TOKEN,
     PENDING_REGISTRATION_REPOSITORY_TOKEN,
     PLAN_CATALOG_LOOKUP_TOKEN,
     REGISTRATION_AUDIT_LOGGER_TOKEN,
@@ -55,8 +53,6 @@ export interface RegistrationModuleOptions {
     slugAvailabilityCheck: ProviderSpec<SlugAvailabilityCheck>;
     passwordHasher: ProviderSpec<PasswordHasher>;
     planCatalogLookup: ProviderSpec<PlanCatalogLookup>;
-    paymentProvider: ProviderSpec<PaymentProvider>;
-    paymentEventLog: ProviderSpec<PaymentEventLog>;
     activationOrchestrator: ProviderSpec<ActivationOrchestrator>;
     auditLogger: ProviderSpec<RegistrationAuditLogger>;
     /**
@@ -118,10 +114,9 @@ export class RegistrationModule {
             asProvider(SLUG_AVAILABILITY_CHECK_TOKEN, options.slugAvailabilityCheck),
             asProvider(PASSWORD_HASHER_TOKEN, options.passwordHasher),
             asProvider(PLAN_CATALOG_LOOKUP_TOKEN, options.planCatalogLookup),
-            asProvider(PAYMENT_PROVIDER_TOKEN, options.paymentProvider),
-            asProvider(PAYMENT_EVENT_LOG_TOKEN, options.paymentEventLog),
             asProvider(ACTIVATION_ORCHESTRATOR_TOKEN, options.activationOrchestrator),
             asProvider(REGISTRATION_AUDIT_LOGGER_TOKEN, options.auditLogger),
+            RegistrationPaymentService,
             PendingRegistrationService,
         ];
         if (options.resumeTokenSigner) {

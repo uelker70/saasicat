@@ -66,6 +66,29 @@ issuer:
 subscribers:
     customerNumberPrefix: K-
 
+# The payment gateway accounts payment methods are taken through, by the name
+# their webhook route carries: /webhooks/payment/<name>. SaaSiCat keeps the
+# gateway's reference to a card or a direct debit mandate, never the number.
+#
+# This example binds the development gateway, which confirms every payment
+# method on the spot without a provider behind it and refuses to run with
+# NODE_ENV=production. An installation that takes real payment methods names its
+# provider's account here instead and binds that provider's gateway adapter,
+# with its keys from the environment. An account keeps its entry for as long as
+# a payment method in use belongs to it.
+payments:
+    newPaymentMethods: dev
+    # Where the gateway's form may send a person back to: the tenant web app, in
+    # the container and on the Vite dev server. Any other success or cancel URL
+    # is refused.
+    returnUrlOrigins:
+        - http://localhost:8080
+        - http://localhost:9200
+    accounts:
+        dev:
+            provider: dev
+            methods: [card, sepa_debit]
+
 # Static quickstart path: plans live directly in the YAML. Apps that manage
 # plans in the SuperAdmin UI omit this block and use the DB catalog instead
 # (SaaSiCatModule.forRoot({ persistence, dbCatalog: { path: 'config/saas.yaml' } }))

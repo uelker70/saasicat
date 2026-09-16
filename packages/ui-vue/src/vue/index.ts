@@ -34,6 +34,7 @@ export * from './entitlement-provider.js';
 export * from './feature-router-guard.js';
 export * from './use-tenant-billing-catalog.js';
 export * from './use-tenant-billing.js';
+export * from './use-tenant-payment-method.js';
 export * from './use-subscription-draft.js';
 export * from './use-bulk-publish.js';
 export * from './use-plan-editor.js';

@@ -42,6 +42,10 @@ const LINES = [
     'notifications: { settingsChanged: [ops@example.com] }',
     'issuer: { legalName: Example Software GmbH, country: DE, vatId: DE123456789 }',
     'subscribers: { customerNumberPrefix: K- }',
+    'payments:',
+    '  newPaymentMethods: main',
+    "  returnUrlOrigins: ['https://app.example.com']",
+    '  accounts: { main: { provider: stripe, methods: [card] } }',
     'plans:',
     '  - { id: SEED, name: Seed, monthlyNet: 1, yearlyNet: 10, features: [], quotas: { users: 1 } }',
 ];

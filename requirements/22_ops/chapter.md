@@ -43,7 +43,6 @@ _Tested by:_
         - a booking whose cancellation has landed is not counted
         - a version nobody booked counts zero
 - `packages/nest/tests/registration-service.test.js`
-    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
     - runCleanup() without expired → deleted=0, idempotent
 
 <!-- END proof -->
@@ -154,6 +153,11 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a shipped migration leaves an installation without its tables alone
+        - ${name} runs on a database with none of the platform tables, twice
+    - a table a migration creates has the shape the fragments declare
+        - every table the migrations create on an empty database, in the order a consumer applies
+          them
     - a migration that would merge rows stops instead
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
@@ -197,6 +201,14 @@ _Tested by:_
         - once it has run through, a run as a role under row-level security does nothing
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
+    - a payment method is the gateway reference, kept for the subscriber
+        - a database from before ends up with the schema the fragments declare
+        - an event recorded before carries its provider as its account, and stays unique
+        - a second run leaves the accounts the first one gave, an event recorded in between included
+        - two confirmations of one session are refused by name rather than by a unique violation
+        - an installation without self-registration gets the payment methods and nothing else
+        - an installation without subscribers is left without the payment methods, and runs through
+        - the old masked payment methods an application wrote are left where they are
     - customer numbers count from 10001
         - on the reference schema, and again after the identity is restarted
         - and the constraints applied again move a sequence that has handed numbers out nowhere
@@ -233,6 +245,11 @@ _Tested by:_
     - a shipped migration survives a second run
         - there are migrations to check
         - ${name} runs twice, and the second time changes nothing
+    - a shipped migration leaves an installation without its tables alone
+        - ${name} runs on a database with none of the platform tables, twice
+    - a table a migration creates has the shape the fragments declare
+        - every table the migrations create on an empty database, in the order a consumer applies
+          them
     - a migration that would merge rows stops instead
         - two project keys stop it, and the message names them
         - and the installation is exactly as it was afterwards
@@ -276,6 +293,14 @@ _Tested by:_
         - once it has run through, a run as a role under row-level security does nothing
         - the statement the guide shows creates the subscribers it could not, and it then goes
           through
+    - a payment method is the gateway reference, kept for the subscriber
+        - a database from before ends up with the schema the fragments declare
+        - an event recorded before carries its provider as its account, and stays unique
+        - a second run leaves the accounts the first one gave, an event recorded in between included
+        - two confirmations of one session are refused by name rather than by a unique violation
+        - an installation without self-registration gets the payment methods and nothing else
+        - an installation without subscribers is left without the payment methods, and runs through
+        - the old masked payment methods an application wrote are left where they are
     - customer numbers count from 10001
         - on the reference schema, and again after the identity is restarted
         - and the constraints applied again move a sequence that has handed numbers out nowhere
@@ -317,8 +342,9 @@ _Source:_ `docs/explanation/data-model.md`
 
 _Tested by:_
 
-- `packages/nest/tests/registration-service.test.js`
-    - handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - the confirmation of the payment method activates the sign-up
+        - the same confirmation delivered twice activates once
 
 <!-- END proof -->
 

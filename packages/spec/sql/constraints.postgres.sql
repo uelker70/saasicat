@@ -57,6 +57,29 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_tenant
 CREATE UNIQUE INDEX IF NOT EXISTS subscriber_tenants_live_per_subscriber
     ON subscriber_tenants ("subscriberId") WHERE "unlinkedAt" IS NULL;
 
+-- A subscriber has at most ONE payment method in use. The one a newer payment
+-- method replaced keeps its row as `REPLACED`, so it does not count here.
+CREATE UNIQUE INDEX IF NOT EXISTS subscriber_payment_methods_active_per_subscriber
+    ON subscriber_payment_methods ("subscriberId") WHERE "status" = 'ACTIVE';
+
+-- A gateway session is confirmed ONCE.
+--
+-- A gateway delivers every event at least once, and it may report one session
+-- through more than one event — a completed form and the payment method behind
+-- it can arrive as two. `eventId` tells those apart, so both would be claimed,
+-- and both would record the session's payment method: for a sign-up that means
+-- a second tenant for one registration.
+--
+-- Both adapters claim with `ON CONFLICT DO NOTHING` and no conflict target, so
+-- this index turns the second confirmation into no row rather than an error,
+-- and the caller reads it as the duplicate it is. Partial on the kind, because
+-- a failed setup and an event SaaSiCat does not act on say nothing about the
+-- session being confirmed. A claim carrying no session does not collide:
+-- PostgreSQL counts nulls as distinct in a unique index.
+CREATE UNIQUE INDEX IF NOT EXISTS payment_event_log_confirmation_per_session
+    ON "PaymentEventLog" ("gatewayAccount", "sessionId")
+    WHERE "status" = 'payment-method-confirmed';
+
 -- Customer numbers count from 10001, so a number has five digits up to 99999
 -- and none reads as a count of subscribers. Two statements: the first makes
 -- 10001 where the sequence starts over, which a restart of its identity reads,

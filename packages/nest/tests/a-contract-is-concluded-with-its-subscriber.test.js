@@ -398,14 +398,31 @@ describe('a change that ends in a contract asks for the subscriber before it is 
 
 describe('a completed sign-up names its subscriber from what it collected', () => {
     // @requirement SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant
-    test('the registered name as the legal name, and the verified address for invoices', () => {
+    test('the registered name as the legal name, the verified address for invoices, and the billing details of step 4', () => {
         assert.deepEqual(
             subscriberFromRegistration({
                 tenantName: 'Meier Autohaus GmbH',
                 email: 'anna@meier.example',
                 firstName: 'Anna',
+                addressLine1: 'Hauptstraße 1',
+                addressLine2: null,
+                postalCode: '10115',
+                city: 'Berlin',
+                country: 'DE',
+                vatId: 'DE123456789',
+                taxNumber: null,
             }),
-            { legalName: 'Meier Autohaus GmbH', invoiceEmail: 'anna@meier.example' },
+            {
+                legalName: 'Meier Autohaus GmbH',
+                invoiceEmail: 'anna@meier.example',
+                addressLine1: 'Hauptstraße 1',
+                addressLine2: null,
+                postalCode: '10115',
+                city: 'Berlin',
+                country: 'DE',
+                vatId: 'DE123456789',
+                taxNumber: null,
+            },
         );
     });
 });

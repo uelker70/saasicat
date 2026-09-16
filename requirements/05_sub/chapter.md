@@ -361,7 +361,8 @@ _Tested by:_
         - reactivating one is refused as well, being a purchase again
         - while cancelling one is not refused: a cancellation is a declaration
     - a completed sign-up names its subscriber from what it collected
-        - the registered name as the legal name, and the verified address for invoices
+        - the registered name as the legal name, the verified address for invoices, and the billing
+          details of step 4
 - `packages/nest/tests/an-offer-is-concluded-with-its-contract.test.js`
     - the party an offer is concluded with
         - a subscriber passed in is created on the transaction, before the contract that names it

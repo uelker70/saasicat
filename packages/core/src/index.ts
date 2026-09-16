@@ -36,7 +36,7 @@ export * from './plan-catalog-import.types.js';
 export * from './plan-stem.types.js';
 export * from './plan-version-lifecycle.types.js';
 export * from './plan-version-row.types.js';
-// The eight domain port barrels, listed here rather than behind one of their
+// The nine domain port barrels, listed here rather than behind one of their
 // own: this package publishes `.` and nothing else, so a barrel between them
 // and this file could only ever serve imports that its `exports` map refuses.
 export * from './ports/core-ports.types.js';
@@ -46,16 +46,20 @@ export * from './ports/promo-ports.types.js';
 export * from './ports/catalog-ports.types.js';
 export * from './ports/checkout-ports.types.js';
 export * from './ports/persistence-ports.types.js';
+export * from './ports/payment-ports.types.js';
 export * from './ports/settings-ports.types.js';
 export * from './promo-code.types.js';
 export * from './error-codes.js';
 export * from './errors.js';
 export * from './feature-requires.js';
 export * from './upsell.types.js';
+export * from './payment-gateway.types.js';
 export * from './registration.types.js';
 export * from './setup.types.js';
 export * from './plan-mapping.js';
 export * from './subscriber-mapping.js';
+export * from './subscriber-payment-method-mapping.js';
+export * from './subscriber-payment-method.types.js';
 export * from './subscriber.types.js';
 export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';

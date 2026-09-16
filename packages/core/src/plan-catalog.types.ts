@@ -1,6 +1,8 @@
 // PlanCatalog — format of the `config/saas.yaml` file.
 // Schema source: @saasicat/spec/schemas/plan-catalog.schema.json
 
+import type { PaymentMethodType } from './payment-gateway.types.js';
+
 export type FeatureKey = string; // SCREAMING_SNAKE_CASE; own namespace per consumer
 export type PlanId = string; // SCREAMING_SNAKE_CASE; e.g. BASIC, STANDARD, PROFESSIONAL
 export type QuotaKey = string; // camelCase; e.g. users, vehicles, members, storageGb
@@ -152,6 +154,27 @@ export interface PlanCatalogSubscribers {
     customerNumberPrefix?: string;
 }
 
+/** One account at a payment gateway, by the name `PlanCatalogPayments.accounts` gives it. */
+export interface PlanCatalogPaymentAccount {
+    /** The provider its bound adapter names itself as, e.g. `stripe`. */
+    provider: string;
+    /** What a new payment method may be at this account. Read for `newPaymentMethods` only. */
+    methods?: PaymentMethodType[];
+}
+
+/**
+ * The gateway accounts payment methods are taken through. Their keys are bound
+ * in code from the environment, never written into the file.
+ */
+export interface PlanCatalogPayments {
+    /** The account a new payment method is taken at. Omitted, none is taken. */
+    newPaymentMethods?: string;
+    /** The origins a gateway's form may send a person back to, such as `https://app.example.com`. */
+    returnUrlOrigins: string[];
+    /** Every account taking new payment methods or holding a reference in use. */
+    accounts: Record<string, PlanCatalogPaymentAccount>;
+}
+
 /**
  * The part of `config/saas.yaml` that is configuration rather than catalogue.
  *
@@ -176,6 +199,8 @@ export interface PlanCatalogSettings {
     issuer?: PlanCatalogIssuer;
     /** How subscribers are numbered. Optional. */
     subscribers?: PlanCatalogSubscribers;
+    /** The payment gateway accounts. Optional until payment methods are taken. */
+    payments?: PlanCatalogPayments;
 }
 
 export interface PlanCatalog extends PlanCatalogSettings {

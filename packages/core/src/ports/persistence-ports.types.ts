@@ -13,6 +13,7 @@
 // one transaction is undefined behavior.
 
 import type { MfaPort, SuperAdminProvisioningPort, TransactionRunner } from './core-ports.types.js';
+import type { PaymentEventLog, SubscriberPaymentMethodRepository } from './payment-ports.types.js';
 import type {
     AdminResourcesPort,
     AuditPort,
@@ -155,6 +156,16 @@ export interface SaaSiCatPersistenceTenantBilling {
     usageSnapshotPort?: PersistenceProvider<UsageSnapshotPort>;
 }
 
+/**
+ * The record of payment gateway callbacks and the payment methods they confirm
+ * (`payments` in `SaaSiCatModule.forRoot`). Both are written on the transaction
+ * a callback is handled on, so they come from the adapter that runs it.
+ */
+export interface SaaSiCatPersistencePayments {
+    paymentEventLog: PersistenceProvider<PaymentEventLog>;
+    subscriberPaymentMethodRepository: PersistenceProvider<SubscriberPaymentMethodRepository>;
+}
+
 /** Read/write backing for the standard SuperAdmin resource pages. */
 export interface SaaSiCatPersistenceAdminResources {
     resources: PersistenceProvider<AdminResourcesPort>;
@@ -191,6 +202,8 @@ export interface SaaSiCatPersistenceAdapter {
     /** Tenant, user, audit and subscription resources for the SuperAdmin UI. */
     adminResources?: SaaSiCatPersistenceAdminResources;
     promo?: SaaSiCatPersistencePromo;
+    /** Payment gateway callbacks and subscriber payment methods. */
+    payments?: SaaSiCatPersistencePayments;
     /** DB hydration of the plan catalog at boot (`PlanCatalogModule`). */
     planCatalogReadSink?: PersistenceProvider<PlanCatalogReadSink>;
     /** One-shot `saas.yaml → DB` import. */
