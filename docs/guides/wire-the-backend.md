@@ -269,7 +269,9 @@ issuer:
 
 Everything here is optional except `legalName`, and the block itself is optional
 until you invoice: a contract concluded while it is absent records that no issuer
-was named.
+was named. Optional to add, that is — once a start has recorded an identity,
+taking the block away again is refused, for the same reason changing it is. The
+next section says what to do about both.
 
 ### Moving, and being renamed
 
@@ -338,6 +340,13 @@ The issuer in /app/config/saas.yaml is not the legal entity this installation re
   …
 Moving a contract to another legal entity is a transfer, not an edit of a setting. …
 ```
+
+Removing the block once an identity is recorded is refused the same way, and it
+is the one shape a declaration cannot rescue: `correctionOf` lives inside the
+block, and there is no entity left in the file for it to be about. That refusal
+prints the issuer as the installation recorded it, address included, to write
+back — replacing the block where one is still there, because a file with two
+`issuer:` keys is one YAML refuses to read.
 
 Moving a contract to another legal entity is a transfer, and there is no edit of
 a setting that does it. That refusal applies whichever way the identity moves,

@@ -24,6 +24,10 @@ of that same legal entity.
   carries no date of its own: the settings record dates the start that applied
   it. It is needed only for the start that carries the change, and a later deploy
   may drop it; left in, it changes nothing and does not cover the next change.
+- Taking the `issuer` block away once an identity is recorded is refused the same
+  way, and it is the one shape a declaration cannot rescue: `correctionOf` lives
+  inside the block. That refusal prints the issuer as the installation recorded
+  it, address included, to write back.
 - The refusal names the contracts still running and what each was concluded
   under, and prints the declaration to paste. It applies whichever way the
   identity moves, so during a rolling deploy an old replica restarting on the

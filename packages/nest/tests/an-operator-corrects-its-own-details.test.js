@@ -358,6 +358,7 @@ describe('a start that finds another legal entity', () => {
             /correctionOf:/,
             'the block is gone, so a declaration cannot be in it',
         );
+        assert.match(message, / {4}city: "München"/, 'the address the record holds');
     });
 
     test('and refuses a nameless block however well it is declared, leaving the record', async () => {
@@ -385,9 +386,19 @@ describe('a start that finds another legal entity', () => {
         // this would otherwise print — value for value — so printing it back
         // would send them round the same restart into the same message.
         assert.doesNotMatch(message, /correctionOf:/);
-        assert.match(message, /Name the issuer again/);
+        assert.match(message, /Write the issuer block again/);
+        assert.match(message, /a second `issuer:` key is a file YAML refuses to read/);
+        // The whole block, not the three identity fields: pasting those back
+        // would start, with an issuer that has no address — copied onto every
+        // contract concluded from then on, and then written over the values
+        // that could have been printed here.
         assert.match(message, /issuer:\n {4}legalName: "Example Software GmbH"/);
+        assert.match(message, / {4}addressLine1: "Werkstraße 5"/);
+        assert.match(message, / {4}postalCode: "80331"/);
+        assert.match(message, / {4}city: "München"/);
+        assert.match(message, / {4}country: "DE"/);
         assert.match(message, / {4}vatId: "DE123456789"/);
+        assert.doesNotMatch(message, /transfer, not an edit of a setting/);
     });
 
     test('names the contracts up to a limit, and how many more there are', async () => {

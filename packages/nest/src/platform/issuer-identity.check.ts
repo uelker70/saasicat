@@ -34,7 +34,6 @@
 import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
 import {
     classifyIssuerChange,
-    LEGAL_IDENTITY_FIELDS,
     recordedIssuerIdentity,
     type AppliedSettingsPort,
     type AppliedSettingsValues,
@@ -157,7 +156,7 @@ export class IssuerIdentityInspector {
             kind: 'refused',
             change,
             running: running.known ? running.contracts : null,
-            refusal: refusalFor(change, running, this.source),
+            refusal: refusalFor(change, running, this.source, recorded.settings?.issuer),
         };
     }
 
@@ -276,15 +275,19 @@ type KnownContracts =
     { known: true; contracts: RunningContractIssuers } | { known: false; why: string };
 
 /** The sentences a refused start dies with, and `<app> doctor` prints. */
-function refusalFor(change: UndeclaredChange, running: KnownContracts, source: string): string {
+function refusalFor(
+    change: UndeclaredChange,
+    running: KnownContracts,
+    source: string,
+    recordedIssuer: unknown,
+): string {
     return [
         `The issuer in ${source} is not the legal entity this installation recorded.`,
         `  recorded: ${describe(change.recorded)}`,
         `  in the file: ${change.current ? describe(change.current) : 'no issuer is named at all'}`,
         faultSentence(change.fault),
         contractsSentence(running),
-        'Moving a contract to another legal entity is a transfer, not an edit of a setting.',
-        ...wayOut(change),
+        ...wayOut(change, source, recordedIssuer),
     ].join('\n');
 }
 
@@ -297,30 +300,43 @@ function refusalFor(change: UndeclaredChange, running: KnownContracts, source: s
  * the block is present with a blank name the operator already has exactly the
  * declaration this would print, value for value.
  */
-function wayOut(change: UndeclaredChange): string[] {
+function wayOut(change: UndeclaredChange, source: string, recordedIssuer: unknown): string[] {
     if (change.fault.kind === 'names-no-issuer') {
         return [
-            'Name the issuer again, with the identity this installation recorded — and where that ' +
-                'entity has since been corrected, declare the correction beside the corrected ' +
-                'values. A declaration on its own cannot help here: there is nothing in the file ' +
-                'for it to be about.',
-            issuerBlockFor(change.recorded),
+            `Write the issuer block again as this installation recorded it — replacing the one in ` +
+                `${source} where there is still one there, because a second \`issuer:\` key is a ` +
+                'file YAML refuses to read. Where that entity has since been corrected, declare ' +
+                'the correction beside the corrected values. A declaration on its own cannot help ' +
+                'here: there is nothing in the file for it to be about.',
+            issuerBlockFor(recordedIssuer),
         ];
     }
     return [
-        'Where this is the same entity under a new name, or with a tax identifier that was wrong ' +
-            'or missing, declare it beside the values it replaces and start again:',
+        'Moving a contract to another legal entity is a transfer, not an edit of a setting. Where ' +
+            'this is the same entity under a new name, or with a tax identifier that was wrong or ' +
+            'missing, declare it beside the values it replaces and start again:',
         declarationFor(change.recorded, change.moved),
     ];
 }
 
-/** The recorded identity, as the block that would name it again. */
-function issuerBlockFor(recorded: LegalIdentity): string {
-    const named = LEGAL_IDENTITY_FIELDS.filter((field) => recorded[field] !== null);
-    return [
-        'issuer:',
-        ...named.map((field) => `    ${field}: ${JSON.stringify(recorded[field])}`),
-    ].join('\n');
+/**
+ * The recorded issuer, as the block that would name it again.
+ *
+ * The whole block and not the three identity fields: the record carries the
+ * address too, and an operator pasting three lines back would start — with an
+ * issuer that has no address, copied onto every contract concluded from then on,
+ * and then written over the values that could have been printed here. A stale
+ * `correctionOf` is left out: it belongs to a correction already applied.
+ */
+function issuerBlockFor(recordedIssuer: unknown): string {
+    const source =
+        recordedIssuer && typeof recordedIssuer === 'object' && !Array.isArray(recordedIssuer)
+            ? (recordedIssuer as Record<string, unknown>)
+            : {};
+    const lines = Object.entries(source)
+        .filter(([key, value]) => key !== 'correctionOf' && typeof value === 'string')
+        .map(([key, value]) => `    ${key}: ${JSON.stringify(value)}`);
+    return ['issuer:', ...lines].join('\n');
 }
 
 function faultSentence(fault: IssuerCorrectionFault): string {
