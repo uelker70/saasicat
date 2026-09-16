@@ -16,6 +16,10 @@ import Stripe from 'stripe';
  * Returns the recorded requests, a Stripe client pointed at it, and `close`.
  */
 export async function fakeStripe(routes) {
+    // A Map rather than the object itself: a path is whatever the client sent,
+    // and a plain object would answer a key like `constructor` out of its
+    // prototype — with a function, which this then calls.
+    const table = new Map(Object.entries(routes));
     const requests = [];
     const server = createServer((req, res) => {
         const chunks = [];
@@ -30,7 +34,7 @@ export async function fakeStripe(routes) {
                 headers: req.headers,
             };
             requests.push(recorded);
-            const route = routes[`${req.method} ${path}`];
+            const route = table.get(`${req.method} ${path}`);
             if (route === undefined) {
                 res.writeHead(404, { 'content-type': 'application/json' });
                 res.end(JSON.stringify({ error: { message: `no route for ${path}` } }));
