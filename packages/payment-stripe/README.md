@@ -84,9 +84,10 @@ A sibling's callback cannot move what matters: a confirmation carries its
 account, its session and its subject, and one from the installation next door
 matches no open setup here, so no payment method changes hands and no sign-up is
 activated. What it does instead depends on what each installation runs, and the
-worst of it is not a log line: an installation that does not handle what a
-neighbour's event is about answers it with `500`, Stripe retries that and then
-disables the endpoint — the one carrying your own confirmations.
+worst of it is not a log line: an installation that has not wired
+`RegistrationModule` answers a neighbour's sign-up events with `500`, Stripe
+retries those and then disables the endpoint — the one carrying your own
+confirmations.
 [The guide](../../docs/guides/wire-the-backend.md) has the whole account, path by
 path.
 
