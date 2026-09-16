@@ -136,7 +136,9 @@ export class IssuerIdentityInspector {
      * known.
      */
     async runningContractCount(): Promise<number | null> {
-        const running = await this.readRunning();
+        // Nought named: the count is exact whatever the limit, and a report that
+        // wants only the number should not carry a page of rows back for it.
+        const running = await this.readRunning(0);
         return running.known ? running.contracts.total : null;
     }
 
@@ -201,15 +203,12 @@ export class IssuerIdentityInspector {
      * "nothing here writes contracts" and "the query failed" send an operator
      * looking in different places.
      */
-    private async readRunning(): Promise<KnownContracts> {
+    private async readRunning(named: number = CONTRACTS_NAMED): Promise<KnownContracts> {
         if (!this.contracts) {
             return { known: false, why: 'This installation writes no contracts.' };
         }
         try {
-            return {
-                known: true,
-                contracts: await this.contracts.listRunningIssuers(CONTRACTS_NAMED),
-            };
+            return { known: true, contracts: await this.contracts.listRunningIssuers(named) };
         } catch (error) {
             const why = `The contracts still running could not be read: ${messageOf(error)}`;
             this.logger.warn(why);
@@ -217,7 +216,12 @@ export class IssuerIdentityInspector {
         }
     }
 
-    /** The line a start that continues is worth, and nothing where it is worth none. */
+    /**
+     * The line a start that continues is worth, and nothing where it is worth
+     * none. Public because the hook beside this class calls it; not an offer.
+     *
+     * @internal
+     */
     report(verdict: Exclude<IssuerIdentityVerdict, { kind: 'refused' }>): void {
         if (verdict.kind === 'not-compared') {
             // The recorder says the same thing about the record as a whole, and
@@ -289,6 +293,12 @@ function faultSentence(fault: IssuerCorrectionFault): string {
     switch (fault.kind) {
         case 'absent':
             return '`issuer.correctionOf` declares nothing, so nothing says this is the same entity.';
+        case 'names-no-issuer':
+            return (
+                'The file names no issuer for a declaration to be about, so there is no entity ' +
+                'here for the recorded one to be the same as. Name the issuer again, or declare ' +
+                'the change as a correction of the recorded identity.'
+            );
         case 'names-another-value':
             return (
                 `\`issuer.correctionOf.${fault.field}\` names ${quote(fault.declared)}, which is not ` +
@@ -297,9 +307,9 @@ function faultSentence(fault: IssuerCorrectionFault): string {
             );
         case 'leaves-a-field-out':
             return (
-                `\`issuer.correctionOf\` says nothing about \`${fault.field}\`, which moves from ` +
-                `${quote(fault.recorded)} to ${quote(fault.current)}. Every identity field that moves ` +
-                'is named, or the declaration covers only half the change.'
+                `\`issuer.correctionOf\` says nothing about \`${fault.field}\`, which the file moves ` +
+                `away from ${quote(fault.recorded)}. Every identity field that moves is named, or ` +
+                'the declaration covers only half the change.'
             );
     }
 }

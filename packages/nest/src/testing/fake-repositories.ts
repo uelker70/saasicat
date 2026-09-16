@@ -357,9 +357,13 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         const running = [...this.byId.values()]
             .filter((row) => row.status === 'active' || row.status === 'scheduled')
             .filter((row) => row.effectiveUntil === null || row.effectiveUntil > asOf)
+            // The same tie-break the adapters use, `createdAt` included: this
+            // fake is what a consumer's own tests run against, and an order it
+            // decides differently is a test that passes here and fails there.
             .sort(
                 (a, b) =>
                     a.effectiveFrom.getTime() - b.effectiveFrom.getTime() ||
+                    a.createdAt.getTime() - b.createdAt.getTime() ||
                     (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
             );
         return {

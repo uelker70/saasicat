@@ -356,7 +356,8 @@ says while nothing has moved what changing the identity would cost:
 
 ```text
 ✓  Issuer identity against the recorded one: 'Example Software GmbH' is what the
-   installation recorded. Changing the legal name or a tax identifier needs
+   installation recorded. 142 contract(s) are running, and their issuer copies do
+   not follow a change. Changing the legal name or a tax identifier needs
    `issuer.correctionOf` beside the values it replaces; the address and the
    contact details do not.
 ```

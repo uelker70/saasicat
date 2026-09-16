@@ -575,6 +575,7 @@ _Tested by:_
         - a declaration covering half a change covers nothing
         - a declaration fuller than it had to be is still a declaration
         - dropping the issuer block while one is recorded is refused, declaration and all
+        - a block whose name reads as nothing is refused however well it is declared
         - a declaration left in the file after its correction landed changes nothing
         - and it does not license the next change
 - `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
@@ -590,6 +591,7 @@ _Tested by:_
         - names a declaration that covers another change than this one
         - names a field the declaration says nothing about
         - refuses the issuer block being dropped while one is recorded
+        - and refuses a nameless block however well it is declared, leaving the record
         - names the contracts up to a limit, and how many more there are
         - does not count a contract whose term has run out
         - names a legal name that YAML would otherwise not read back
@@ -603,6 +605,8 @@ _Tested by:_
         - a reader afterwards is told the correction, not that nothing moved
         - and the contracts it would be weighed against are counted on request
         - and nothing is counted where no repository answers
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - the issuer names an entity, or the file does not load
 
 <!-- END proof -->
 

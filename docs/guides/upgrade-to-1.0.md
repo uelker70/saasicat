@@ -1437,8 +1437,11 @@ Nothing is required of you unless you change that identity — but three things 
 - **`SUBSCRIBER_IDENTITY_FIELDS` is `LEGAL_IDENTITY_FIELDS`, and `SubscriberIdentityField` is
   `LegalIdentityField`** — the same three fields, now named for what they are: both parties to a
   contract have a legal identity, and the issuer is not a subscriber.
-- **`IssuerIdentityCheck`** is exported from `@saasicat/nest` and `@saasicat/nest/platform`, and is
-  registered for every configuration. `inspect()` answers the same question without acting on it.
+- **`IssuerIdentityInspector` and `IssuerIdentityCheck`** are exported from `@saasicat/nest` and
+  `@saasicat/nest/platform`, and both are registered for every configuration. The inspector answers
+  the question and acts on nothing — `inspect()` is what `<app> doctor` and a health endpoint of
+  your own call, and it is settled once per process. The check is the module hook that turns a
+  refusing answer into a boot that does not happen; it has no `inspect()`.
 
 One limit worth stating: the comparison needs the `core.appliedSettings` port, which both shipped
 persistence bundles provide. Without it the boot log says once that the issuer is compared with

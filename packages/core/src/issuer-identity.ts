@@ -77,6 +77,13 @@ export type IssuerCorrectionFault =
     /** There is no declaration at all. */
     | { kind: 'absent' }
     /**
+     * The file names no issuer for a declaration to be about — the block is
+     * gone, or it is there with a name that reads as nothing. Never a
+     * correction, whatever is declared: there is no entity on this side for the
+     * recorded one to be the same as.
+     */
+    | { kind: 'names-no-issuer' }
+    /**
      * It names a value the record does not hold. Either the declaration is
      * stale — it belongs to a correction already applied — or it is about
      * another entity than the one this installation recorded.
@@ -88,12 +95,7 @@ export type IssuerCorrectionFault =
           recorded: string | null;
       }
     /** It says nothing about a field the change moves, so that field is undeclared. */
-    | {
-          kind: 'leaves-a-field-out';
-          field: LegalIdentityField;
-          recorded: string | null;
-          current: string | null;
-      };
+    | { kind: 'leaves-a-field-out'; field: LegalIdentityField; recorded: string | null };
 
 /** What a start finds when it compares the file's issuer with the recorded one. */
 export type IssuerIdentityChange =
@@ -106,7 +108,7 @@ export type IssuerIdentityChange =
      * concluded under another one, so nothing is declared for it.
      */
     | { kind: 'first-naming'; identity: LegalIdentity }
-    /** The same entity, corrected as the file declares. */
+    /** The same entity, corrected as the file declares. `current` is never absent. */
     | {
           kind: 'corrected';
           recorded: LegalIdentity;
@@ -142,20 +144,28 @@ export function classifyIssuerChange(
     // Dropping the issuer block drops the declaration with it, so a file that
     // names no issuer while one is recorded is always undeclared. What moved is
     // then every field the record actually held a value for.
-    const moved = current
-        ? movedIdentityFields(recorded, current)
-        : LEGAL_IDENTITY_FIELDS.filter((field) => recorded[field] !== null);
-    const fault = faultIn(issuer?.correctionOf, recorded, current, moved);
+    if (!current) {
+        // Refused before the declaration is even read, and that ordering is the
+        // guard: a block whose name reads as nothing yields no identity, so a
+        // declaration naming the recorded values would otherwise pass — and the
+        // start would record a nameless issuer. The next start would read that
+        // record as "none recorded", call every identity after it a first
+        // naming, and never refuse anything again.
+        const moved = LEGAL_IDENTITY_FIELDS.filter((field) => recorded[field] !== null);
+        return {
+            kind: 'undeclared',
+            recorded,
+            current: null,
+            moved,
+            fault: { kind: 'names-no-issuer' },
+        };
+    }
+    const moved = movedIdentityFields(recorded, current);
+    const fault = faultIn(issuer?.correctionOf, recorded, moved);
     if (fault) return { kind: 'undeclared', recorded, current, moved, fault };
     // `faultIn` answers `absent` without a declaration, so there is one here.
     const declaration = issuer?.correctionOf as PlanCatalogIssuerCorrection;
-    return {
-        kind: 'corrected',
-        recorded,
-        current: current as LegalIdentity,
-        moved,
-        reason: declaration.reason,
-    };
+    return { kind: 'corrected', recorded, current, moved, reason: declaration.reason };
 }
 
 /**
@@ -171,7 +181,6 @@ export function classifyIssuerChange(
 function faultIn(
     declaration: PlanCatalogIssuerCorrection | undefined,
     recorded: LegalIdentity,
-    current: LegalIdentity | null,
     moved: readonly LegalIdentityField[],
 ): IssuerCorrectionFault | null {
     if (!declaration) return { kind: 'absent' };
@@ -185,12 +194,7 @@ function faultIn(
     }
     for (const field of moved) {
         if (Object.prototype.hasOwnProperty.call(declaration, field)) continue;
-        return {
-            kind: 'leaves-a-field-out',
-            field,
-            recorded: recorded[field],
-            current: current?.[field] ?? null,
-        };
+        return { kind: 'leaves-a-field-out', field, recorded: recorded[field] };
     }
     return null;
 }

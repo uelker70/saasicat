@@ -204,7 +204,7 @@
                         },
                         "reason": {
                             "type": "string",
-                            "minLength": 1,
+                            "pattern": "\\S",
                             "description": "Why the same entity now reads differently, e.g. \"Change of legal form, registered 2026-07-01\". Kept in the settings record with both value trees."
                         }
                     }

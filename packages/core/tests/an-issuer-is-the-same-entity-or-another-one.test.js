@@ -249,7 +249,6 @@ describe('what a start finds when it compares the two', () => {
             kind: 'leaves-a-field-out',
             field: 'taxNumber',
             recorded: null,
-            current: '12/345/67890',
         });
     });
 
@@ -291,7 +290,6 @@ describe('what a start finds when it compares the two', () => {
             kind: 'leaves-a-field-out',
             field: 'vatId',
             recorded: 'DE123456789',
-            current: 'DE999999999',
         });
     });
 
@@ -320,12 +318,33 @@ describe('what a start finds when it compares the two', () => {
         const change = classifyIssuerChange(GMBH, undefined);
         assert.equal(change.kind, 'undeclared');
         assert.equal(change.current, null);
-        assert.deepEqual(change.fault, { kind: 'absent' });
+        assert.deepEqual(change.fault, { kind: 'names-no-issuer' });
         assert.deepEqual(
             change.moved,
             ['legalName', 'vatId'],
             'the fields the record held a value for',
         );
+    });
+
+    test('a block whose name reads as nothing is refused however well it is declared', () => {
+        // The one shape where a declaration could otherwise buy a start: the
+        // block is there, so `correctionOf` is there, and it names exactly what
+        // the record holds. Accepting it would record a nameless issuer — and
+        // the next start would read that as "none recorded", call every identity
+        // after it a first naming, and never refuse anything again. So the
+        // absence of a readable name is decided before the declaration is read.
+        const nameless = {
+            legalName: '   ',
+            correctionOf: {
+                legalName: 'Example Software GmbH',
+                vatId: 'DE123456789',
+                reason: 'Change of legal form',
+            },
+        };
+        const change = classifyIssuerChange(GMBH, nameless);
+        assert.equal(change.kind, 'undeclared');
+        assert.equal(change.current, null);
+        assert.deepEqual(change.fault, { kind: 'names-no-issuer' });
     });
 
     test('a declaration left in the file after its correction landed changes nothing', () => {

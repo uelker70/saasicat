@@ -352,6 +352,28 @@ describe('a start that finds another legal entity', () => {
             contracts: contractsRunning('Example Software GmbH'),
         });
         assert.match(message, /no issuer is named at all/);
+        assert.match(message, /names no issuer for a declaration to be about/);
+    });
+
+    test('and refuses a nameless block however well it is declared, leaving the record', async () => {
+        // The shape that would have turned the guard off for good: accepted, the
+        // start records a nameless issuer, and every identity after it reads as
+        // a first naming. The record staying put is half the assertion.
+        const settings = settingsOf(catalogWith(GMBH));
+        const port = portRecording(settings);
+        const message = await refusalOf(
+            catalogWith({
+                legalName: '   ',
+                correctionOf: {
+                    legalName: 'Example Software GmbH',
+                    vatId: 'DE123456789',
+                    reason: 'Change of legal form',
+                },
+            }),
+            { port, contracts: contractsRunning('Example Software GmbH') },
+        );
+        assert.match(message, /names no issuer for a declaration to be about/);
+        assert.deepEqual(port.applied.settings, settings, 'a nameless issuer was recorded');
     });
 
     test('names the contracts up to a limit, and how many more there are', async () => {
