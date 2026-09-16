@@ -10,4 +10,6 @@ export default defineConfig({
     // without ever exposing that state.
     external: ['@saasicat/core', 'stripe'],
     target: 'node20',
+    // The adapter imports node:crypto at runtime — keep the protocol.
+    removeNodeProtocol: false,
 });

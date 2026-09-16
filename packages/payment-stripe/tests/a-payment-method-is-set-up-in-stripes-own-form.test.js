@@ -48,6 +48,7 @@ const SESSION = {
 const CARD_INTENT = {
     id: 'seti_1',
     object: 'setup_intent',
+    status: 'succeeded',
     customer: 'cus_1',
     mandate: null,
     payment_method: {
@@ -61,6 +62,7 @@ const CARD_INTENT = {
 const SEPA_INTENT = {
     id: 'seti_2',
     object: 'setup_intent',
+    status: 'succeeded',
     customer: 'cus_2',
     mandate: {
         id: 'mandate_1',
@@ -128,13 +130,16 @@ describe('the form is opened at Stripe', () => {
             'metadata[saasicat_subject_kind]': 'registration',
             'metadata[saasicat_subject_id]': 'pending-1',
         });
-        assert.equal(customer.headers['idempotency-key'], 'saasicat:customer:pending-1');
+        assert.match(
+            customer.headers['idempotency-key'],
+            /^saasicat:customer:pending-1:[0-9a-f]{32}$/,
+        );
         assert.deepEqual(checkout.body, {
             mode: 'setup',
             customer: 'cus_new',
             'payment_method_types[0]': 'card',
             'payment_method_types[1]': 'sepa_debit',
-            currency: 'EUR',
+            currency: 'eur',
             success_url: 'https://app.example/welcome',
             cancel_url: 'https://app.example/step-4',
             'metadata[saasicat_subject_kind]': 'registration',
@@ -195,6 +200,29 @@ describe('the form is opened at Stripe', () => {
         );
     });
 
+    test('the same request repeated keeps its key, and a changed one takes another', async () => {
+        const ctx = await gatewayOver({
+            'POST /v1/customers': { id: 'cus_new', object: 'customer' },
+            'POST /v1/checkout/sessions': SESSION,
+        });
+        const keyFor = async (holder) => {
+            await ctx.gateway.startPaymentMethodSetup({ ...SETUP, holder });
+            return ctx.requests.filter((r) => r.path === '/v1/customers').at(-1).headers[
+                'idempotency-key'
+            ];
+        };
+
+        const first = await keyFor(HOLDER);
+        const again = await keyFor({ ...HOLDER });
+        // Another administrator of the same party, with another address on the
+        // form: a different request, so a key of its own rather than the
+        // refusal Stripe answers a reused key with.
+        const changed = await keyFor({ ...HOLDER, email: 'buchhaltung@meier.example' });
+
+        assert.equal(again, first, 'the same request asked under a different key');
+        assert.notEqual(changed, first, 'a changed request reused the key of another one');
+    });
+
     test('the subject of a subscriber rides along as its own identifier', async () => {
         const ctx = await gatewayOver({
             'POST /v1/customers': { id: 'cus_new', object: 'customer' },
@@ -207,7 +235,10 @@ describe('the form is opened at Stripe', () => {
         });
 
         const [customer, checkout] = ctx.requests;
-        assert.equal(customer.headers['idempotency-key'], 'saasicat:customer:subscriber-7');
+        assert.match(
+            customer.headers['idempotency-key'],
+            /^saasicat:customer:subscriber-7:[0-9a-f]{32}$/,
+        );
         assert.equal(checkout.body['metadata[saasicat_subject_kind]'], 'subscriber');
         assert.equal(checkout.body['metadata[saasicat_subject_id]'], 'subscriber-7');
     });
@@ -355,14 +386,13 @@ describe('the callback Stripe sends is read', () => {
         });
     });
 
-    test('a completed setup without a setup intent, without a customer, or with a payment method of another kind is reported', async () => {
+    test('a completed setup without a setup intent or without a payment method is reported', async () => {
         const ctx = await gatewayOver({
-            'GET /v1/setup_intents/seti_1': {
-                ...CARD_INTENT,
-                customer: null,
-                payment_method: { id: 'pm_link_1', object: 'payment_method', type: 'link' },
+            'GET /v1/setup_intents/seti_empty': {
+                id: 'seti_empty',
+                object: 'setup_intent',
+                status: 'succeeded',
             },
-            'GET /v1/setup_intents/seti_empty': { id: 'seti_empty', object: 'setup_intent' },
         });
         const completed = (session) =>
             ctx.gateway.readCallback(
@@ -377,7 +407,43 @@ describe('the callback Stripe sends is read', () => {
             completed({ ...SESSION, setup_intent: 'seti_empty' }),
             /seti_empty as completed without a payment method/,
         );
-        await assert.rejects(completed({ ...SESSION, customer: null }), /type 'link'/);
+    });
+
+    test('a payment method SaaSiCat has no shape for, and one not set up yet, record nothing and keep the endpoint', async () => {
+        const ctx = await gatewayOver({
+            'GET /v1/setup_intents/seti_1': {
+                ...CARD_INTENT,
+                payment_method: { id: 'pm_link_1', object: 'payment_method', type: 'link' },
+            },
+            'GET /v1/setup_intents/seti_pending': {
+                ...CARD_INTENT,
+                id: 'seti_pending',
+                status: 'requires_action',
+            },
+            'GET /v1/setup_intents/seti_no_iban': {
+                ...SEPA_INTENT,
+                id: 'seti_no_iban',
+                payment_method: {
+                    id: 'pm_sepa_2',
+                    object: 'payment_method',
+                    type: 'sepa_debit',
+                    sepa_debit: { country: 'DE' },
+                },
+            },
+        });
+
+        for (const intent of ['seti_1', 'seti_pending', 'seti_no_iban']) {
+            const read = await ctx.gateway.readCallback(
+                signedCallback(
+                    event('checkout.session.completed', { ...SESSION, setup_intent: intent }),
+                    WEBHOOK_SECRET,
+                ),
+            );
+            // Answered, not raised: an endpoint Stripe turns off takes every
+            // other sign-up at this account with it.
+            assert.equal(read.kind, 'unhandled', `${intent} was not answered as unhandled`);
+            assert.equal(read.type, 'checkout.session.completed');
+        }
     });
 });
 

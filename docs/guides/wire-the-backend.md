@@ -451,7 +451,7 @@ payments: {
 
 The account is `provider: stripe` in the file, its webhook endpoint at Stripe points at the route
 below and is subscribed to `checkout.session.completed` and `checkout.session.expired`, and the
-keys stay in the environment.
+keys stay in the environment. `stripe` is a peer dependency of that package, so install it beside.
 [Its README](../../packages/payment-stripe/README.md) has the rest.
 
 What `payments` mounts and asks of the application:

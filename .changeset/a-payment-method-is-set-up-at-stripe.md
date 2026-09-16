@@ -12,19 +12,24 @@ masked details.
 - Stripe Checkout in `setup` mode for the payment methods the account offers,
   `card` and `sepa_debit`. Nothing is charged.
 - A party without a customer at the account gets one, under an idempotency key
-  from its own identifier, so a repeated step leaves no second customer behind;
-  a party that has one keeps it.
+  made of its identifier and what is being asked for it, so a request whose
+  answer was lost repeats into the same customer; a party that has one keeps
+  it.
 - The callback is verified with the account's webhook signing secret before a
   field of it is read, and anything that does not verify raises
   `PaymentCallbackRejectedError`.
 - `checkout.session.completed` in setup mode becomes a confirmed payment method
   — the card's network, last four digits and expiry, or the direct debit's last
   four digits, bank code and mandate reference. `checkout.session.expired`
-  becomes a setup that failed. Everything else is answered as needing nothing,
-  a session the application opened for its own business at the same account
-  included.
+  becomes a setup that failed. Everything else is answered as needing nothing —
+  a session the application opened for its own business at the same account, a
+  setup Stripe has not finished, and a payment method that is neither a card nor
+  a direct debit. A callback that verifies never raises, because Stripe turns
+  off an endpoint that keeps failing and that would take every other sign-up at
+  the account with it.
 
 Bind it in `SaaSiCatModule.forRoot({ payments: { gateways } })` under the
 account name `config/saas.yaml#payments.accounts` gives it, point that
 account's webhook endpoint at `POST /webhooks/payment/<account>`, and keep the
-keys in the environment.
+keys in the environment. `stripe` is a peer dependency, so the application
+installs it and there is one copy of it.

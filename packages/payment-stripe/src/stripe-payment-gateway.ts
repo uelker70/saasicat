@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import Stripe from 'stripe';
 import type {
     MaskedPaymentMethod,
@@ -63,12 +64,17 @@ export interface StripePaymentGatewayOptions {
 export class StripePaymentGateway implements PaymentGateway {
     readonly provider = STRIPE_PAYMENT_PROVIDER;
     private readonly stripe: Stripe;
-    private readonly webhookSecret: string;
+    // A real private field: a secret that is only unreachable by convention
+    // still turns up in anything that walks the object, a logged provider
+    // among them.
+    readonly #webhookSecret: string;
     private readonly currency: string;
 
     constructor(options: StripePaymentGatewayOptions) {
-        this.webhookSecret = options.webhookSecret;
-        this.currency = options.currency;
+        this.#webhookSecret = options.webhookSecret;
+        // Stripe takes the currency in lower case, and `config/saas.yaml`
+        // writes it the way an invoice does.
+        this.currency = options.currency.toLowerCase();
         this.stripe =
             options.client ??
             new Stripe(options.secretKey, {
@@ -132,24 +138,26 @@ export class StripePaymentGateway implements PaymentGateway {
 
     private async createCustomer(input: StartPaymentMethodSetupInput): Promise<string> {
         const { holder, subject } = input;
-        const customer = await this.stripe.customers.create(
-            {
-                name: holder.name,
-                ...(holder.email === null ? {} : { email: holder.email }),
-                address: {
-                    line1: holder.address.addressLine1 ?? undefined,
-                    line2: holder.address.addressLine2 ?? undefined,
-                    postal_code: holder.address.postalCode ?? undefined,
-                    city: holder.address.city ?? undefined,
-                    country: holder.address.country ?? undefined,
-                },
-                metadata: metadataOf(subject),
+        const params: Stripe.CustomerCreateParams = {
+            name: holder.name,
+            ...(holder.email === null ? {} : { email: holder.email }),
+            address: {
+                line1: holder.address.addressLine1 ?? undefined,
+                line2: holder.address.addressLine2 ?? undefined,
+                postal_code: holder.address.postalCode ?? undefined,
+                city: holder.address.city ?? undefined,
+                country: holder.address.country ?? undefined,
             },
-            // A step the person repeats, or a request whose answer was lost,
-            // asks Stripe for the customer of that same sign-up or subscriber
-            // rather than for a second one.
-            { idempotencyKey: `saasicat:customer:${subjectIdOf(subject)}` },
-        );
+            metadata: metadataOf(subject),
+        };
+        // The party and what is being asked for it. A request whose answer was
+        // lost repeats under the same key and gets the customer it already
+        // made; a second request that differs — another invoice email, a
+        // corrected address — is a different request, and Stripe refuses a key
+        // reused with other values rather than answering with the old customer.
+        const customer = await this.stripe.customers.create(params, {
+            idempotencyKey: `saasicat:customer:${subjectIdOf(subject)}:${fingerprintOf(params)}`,
+        });
         return customer.id;
     }
 
@@ -160,7 +168,7 @@ export class StripePaymentGateway implements PaymentGateway {
         }
         const body = typeof callback.body === 'string' ? callback.body : Buffer.from(callback.body);
         try {
-            return this.stripe.webhooks.constructEvent(body, signature, this.webhookSecret);
+            return this.stripe.webhooks.constructEvent(body, signature, this.#webhookSecret);
         } catch (error) {
             // Stripe's own reason — a signature that does not match, a
             // timestamp outside the tolerance, a body that was parsed and
@@ -204,6 +212,17 @@ export class StripePaymentGateway implements PaymentGateway {
                 `Stripe reported setup intent ${intentRef} as completed without a payment method.`,
             );
         }
+        // A payment method that is not set up yet, and one whose shape SaaSiCat
+        // has nowhere to put: neither is recorded, and neither fails the
+        // delivery. Stripe turns an endpoint that keeps failing off, and that
+        // would take every other sign-up at this account with it — a single
+        // setup nobody can use is the smaller loss. The account offers what
+        // `config/saas.yaml` names, so this is a misconfigured account rather
+        // than a person's doing.
+        const masked = maskedDetailsOf(paymentMethod, expanded<Stripe.Mandate>(intent.mandate));
+        if (intent.status !== 'succeeded' || masked === null) {
+            return { kind: 'unhandled', eventId, occurredAt, type: 'checkout.session.completed' };
+        }
         return {
             kind: 'payment-method-confirmed',
             eventId,
@@ -211,7 +230,7 @@ export class StripePaymentGateway implements PaymentGateway {
             sessionRef: session.id,
             subject,
             paymentMethod: {
-                ...maskedDetailsOf(paymentMethod, expanded<Stripe.Mandate>(intent.mandate)),
+                ...masked,
                 customerRef: customerRefOf(session, intent),
                 paymentMethodRef: paymentMethod.id,
             },
@@ -219,11 +238,14 @@ export class StripePaymentGateway implements PaymentGateway {
     }
 }
 
-/** The masked details of a payment method Stripe confirmed, by its type. */
+/**
+ * The masked details of a payment method Stripe confirmed, by its type, or
+ * `null` where SaaSiCat has no shape for what came back.
+ */
 function maskedDetailsOf(
     paymentMethod: Stripe.PaymentMethod,
     mandate: Stripe.Mandate | null,
-): MaskedPaymentMethod {
+): MaskedPaymentMethod | null {
     if (paymentMethod.type === 'card' && paymentMethod.card) {
         const card = paymentMethod.card;
         return {
@@ -237,12 +259,14 @@ function maskedDetailsOf(
             mandateReference: null,
         };
     }
-    if (paymentMethod.type === 'sepa_debit' && paymentMethod.sepa_debit) {
-        const debit = paymentMethod.sepa_debit;
+    const debit = paymentMethod.type === 'sepa_debit' ? paymentMethod.sepa_debit : undefined;
+    // Without the last four digits there is nothing to tell this payment method
+    // apart by, and the port promises them.
+    if (debit?.last4) {
         return {
             type: 'sepa_debit',
             brand: null,
-            last4: debit.last4 ?? '',
+            last4: debit.last4,
             expiryMonth: null,
             expiryYear: null,
             country: debit.country ?? null,
@@ -250,15 +274,25 @@ function maskedDetailsOf(
             mandateReference: mandate?.payment_method_details?.sepa_debit?.reference ?? null,
         };
     }
-    // The form offers what the account's `methods` name, so another type means
-    // the account takes payment methods SaaSiCat has no shape for. Recording it
-    // as a card would tell the tenant something untrue, so this is reported
-    // instead: the delivery fails, Stripe retries, and the message says what to
-    // take out of the account.
-    throw new Error(
-        `Stripe confirmed a payment method of type '${paymentMethod.type}', and SaaSiCat keeps ` +
-            'card and sepa_debit. Offer only those at this account.',
-    );
+    // Recording another type as a card would tell the tenant something untrue,
+    // and there is no third shape to record it as.
+    return null;
+}
+
+/** What the request asks for, as one short value, so a different request takes a different key. */
+function fingerprintOf(params: Stripe.CustomerCreateParams): string {
+    return createHash('sha256').update(stableJsonOf(params)).digest('hex').slice(0, 32);
+}
+
+/** JSON whose key order does not depend on the order the fields were written in. */
+function stableJsonOf(value: unknown): string {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+    if (Array.isArray(value)) return `[${value.map(stableJsonOf).join(',')}]`;
+    const entries = Object.entries(value as Record<string, unknown>)
+        .filter(([, field]) => field !== undefined)
+        .sort(([one], [other]) => (one < other ? -1 : 1))
+        .map(([key, field]) => `${JSON.stringify(key)}:${stableJsonOf(field)}`);
+    return `{${entries.join(',')}}`;
 }
 
 /** The customer the payment method was set up for, as either object names it. */

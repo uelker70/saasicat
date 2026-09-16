@@ -46,7 +46,7 @@
     },
     "ui-vue": {
         "line": 94.28,
-        "branch": 91.91,
+        "branch": 92.06,
         "funcs": 91.72
     },
     "create-saasicat-admin": {
@@ -55,8 +55,8 @@
         "funcs": 81.82
     },
     "payment-stripe": {
-        "line": 95.33,
-        "branch": 81.25,
+        "line": 95.58,
+        "branch": 83.33,
         "funcs": 100
     }
 }
