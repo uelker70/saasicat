@@ -22,8 +22,9 @@ masked details.
   — the card's network, last four digits and expiry, or the direct debit's last
   four digits, bank code and mandate reference. `checkout.session.expired`, and
   a setup that produced no payment method — an intent back at
-  `requires_payment_method` after a decline, or `canceled` — become a setup that
-  failed.
+  `requires_payment_method` with the decline recorded against it, or `canceled`
+  — become a setup that failed. One asking for a payment method with nothing
+  recorded against it is one nobody confirmed yet, and is asked about again.
 - Answered as needing nothing: a session the application opened for its own
   business at the same account, an event of another type, a payment method whose
   shape SaaSiCat has nowhere to put, and a delivery older than twelve hours

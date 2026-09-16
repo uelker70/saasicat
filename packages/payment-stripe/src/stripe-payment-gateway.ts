@@ -9,7 +9,7 @@ import type {
     PaymentMethodSetupSubject,
     StartPaymentMethodSetupInput,
 } from '@saasicat/core';
-import { PaymentCallbackRejectedError } from '@saasicat/core';
+import { PAYMENT_METHOD_TYPES, PaymentCallbackRejectedError } from '@saasicat/core';
 
 /** The provider name `config/saas.yaml#payments.accounts` gives an account bound to this gateway. */
 export const STRIPE_PAYMENT_PROVIDER = 'stripe';
@@ -298,7 +298,7 @@ export class StripePaymentGateway implements PaymentGateway {
                 kind: 'unhandled',
                 eventId,
                 occurredAt,
-                type: `checkout.session.completed (payment method ${paymentMethod.id} is a ${paymentMethod.type})`,
+                type: `checkout.session.completed (payment method ${paymentMethod.id} ${whyUnusable(paymentMethod)})`,
             };
         }
         return {
@@ -371,6 +371,18 @@ function stableJsonOf(value: unknown): string {
         .sort(([one], [other]) => (one < other ? -1 : 1))
         .map(([key, field]) => `${JSON.stringify(key)}:${stableJsonOf(field)}`);
     return `{${entries.join(',')}}`;
+}
+
+/**
+ * Why a payment method has no masked details: a kind SaaSiCat does not keep, or
+ * one it does with nothing in it to tell this payment method apart. An operator
+ * reading the first at an account that offers exactly that kind would look in
+ * the wrong place.
+ */
+function whyUnusable(paymentMethod: Stripe.PaymentMethod): string {
+    return (PAYMENT_METHOD_TYPES as readonly string[]).includes(paymentMethod.type)
+        ? `is a ${paymentMethod.type} with nothing to tell it apart by`
+        : `is a ${paymentMethod.type}`;
 }
 
 /** The customer the payment method was set up for, as either object names it. */

@@ -429,7 +429,7 @@ describe('the callback Stripe sends is read', () => {
 
         for (const [intent, said] of [
             ['seti_1', 'pm_link_1 is a link'],
-            ['seti_no_iban', 'pm_sepa_2 is a sepa_debit'],
+            ['seti_no_iban', 'pm_sepa_2 is a sepa_debit with nothing to tell it apart by'],
         ]) {
             const read = await ctx.gateway.readCallback(
                 signedCallback(
