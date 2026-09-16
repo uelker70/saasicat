@@ -148,7 +148,14 @@ export class IssuerIdentityDoctorCheck implements DoctorCheck {
             return {
                 severity: 'error',
                 message: verdict.refusal,
-                details: { running: verdict.running },
+                // The number and the identifiers, not the rows: `DoctorReport`
+                // is serialised as JSON, and the dates on a row would come out
+                // as timestamps beside the same dates already written as days in
+                // the message above.
+                details: {
+                    runningContracts: verdict.running?.total ?? null,
+                    named: verdict.running?.contracts.map((row) => row.id) ?? [],
+                },
             };
         }
         if (verdict.kind === 'not-compared') {

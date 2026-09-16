@@ -42,11 +42,13 @@ import {
     type LegalIdentity,
     type LegalIdentityField,
     type PlanCatalog,
+    type RlsBypassPort,
     type RunningContractIssuer,
     type RunningContractIssuers,
     type SubscriptionContractRepository,
 } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from '../settings/settings.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
@@ -63,6 +65,27 @@ const CONTRACTS_NAMED = 5;
 
 /** Why nothing was compared, where the installation keeps no record at all. */
 const NOT_RECORDED = 'this installation records no applied settings';
+
+/**
+ * The members of the issuer block this version knows, in the order it prints
+ * them. `correctionOf` is not one: it belongs to a correction already applied.
+ *
+ * Bounded by this list rather than by whatever the record holds, because a
+ * record written by a newer binary and read after a rollback would otherwise
+ * print a key the running schema rejects under `additionalProperties: false` —
+ * a way out that does not start, which is the defect this block was rewritten to
+ * remove, in its other direction.
+ */
+const ISSUER_BLOCK_KEYS: readonly string[] = [
+    'legalName',
+    'addressLine1',
+    'addressLine2',
+    'postalCode',
+    'city',
+    'country',
+    'vatId',
+    'taxNumber',
+];
 
 /** An undeclared change is the only one that refuses a start. */
 type UndeclaredChange = Extract<IssuerIdentityChange, { kind: 'undeclared' }>;
@@ -110,6 +133,9 @@ export class IssuerIdentityInspector {
         @Optional()
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly contracts: SubscriptionContractRepository | null = null,
+        @Optional()
+        @Inject(RLS_BYPASS_PORT_TOKEN)
+        private readonly rlsBypass: RlsBypassPort | null = null,
     ) {}
 
     /**
@@ -208,12 +234,32 @@ export class IssuerIdentityInspector {
             return { known: false, why: 'This installation writes no contracts.' };
         }
         try {
-            return { known: true, contracts: await this.contracts.listRunningIssuers(named) };
+            // Platform-wide, and at boot there is no tenant: under row-level
+            // security the same read comes back empty, and a refusal would say
+            // "No contract is running." on an installation with hundreds. The
+            // decision does not depend on it — but the count and the list are
+            // the only part an operator can weigh a transfer against, and an
+            // empty one reads as reassurance rather than as blindness.
+            const listed = await this.withBypass(() => this.contracts!.listRunningIssuers(named));
+            return { known: true, contracts: listed };
         } catch (error) {
             const why = `The contracts still running could not be read: ${messageOf(error)}`;
             this.logger.warn(why);
             return { known: false, why };
         }
+    }
+
+    /**
+     * Inside the bypass frame where one is bound, and plainly where none is.
+     *
+     * An installation without row-level security binds a port that only calls
+     * through; one that has it cannot be read platform-wide without this.
+     * `@Optional()` rather than required because a hand-wired application may
+     * have no `AdminModule` in scope, and a boot check is not the place to
+     * refuse to construct over a message.
+     */
+    private withBypass<T>(read: () => Promise<T>): Promise<T> {
+        return this.rlsBypass ? this.rlsBypass.runWithBypass(read) : read();
     }
 
     /**
@@ -333,9 +379,9 @@ function issuerBlockFor(recordedIssuer: unknown): string {
         recordedIssuer && typeof recordedIssuer === 'object' && !Array.isArray(recordedIssuer)
             ? (recordedIssuer as Record<string, unknown>)
             : {};
-    const lines = Object.entries(source)
-        .filter(([key, value]) => key !== 'correctionOf' && typeof value === 'string')
-        .map(([key, value]) => `    ${key}: ${JSON.stringify(value)}`);
+    const lines = ISSUER_BLOCK_KEYS.filter((key) => typeof source[key] === 'string').map(
+        (key) => `    ${key}: ${JSON.stringify(source[key])}`,
+    );
     return ['issuer:', ...lines].join('\n');
 }
 

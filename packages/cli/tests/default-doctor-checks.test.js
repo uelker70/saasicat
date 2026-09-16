@@ -112,12 +112,25 @@ describe('IssuerIdentityDoctorCheck', () => {
         const r = await checkWith({
             kind: 'refused',
             change: { kind: 'undeclared' },
-            running: { total: 2, contracts: [] },
+            running: {
+                total: 2,
+                contracts: [
+                    {
+                        id: 'c-1',
+                        tenantId: 't-1',
+                        issuerLegalName: null,
+                        effectiveFrom: new Date(),
+                    },
+                ],
+            },
             refusal: 'The issuer in config/saas.yaml is not the legal entity …',
         }).run();
         assert.equal(r.severity, 'error');
         assert.match(r.message, /is not the legal entity/);
-        assert.deepEqual(r.details.running, { total: 2, contracts: [] });
+        // The number and the identifiers, not the rows: a report is serialised
+        // as JSON, and a date on a row would come out as a timestamp beside the
+        // same date already written as a day in the message.
+        assert.deepEqual(r.details, { runningContracts: 2, named: ['c-1'] });
     });
 
     test('an installation that records nothing is warned that nothing is compared', async () => {

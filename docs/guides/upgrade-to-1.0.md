@@ -1426,7 +1426,14 @@ that carries the change. The refusal names the contracts still running and what 
 under; `<app> doctor` asks the same question before a deploy, as the new
 `platform.issuer-identity` check.
 
-Nothing is required of you unless you change that identity — but three things moved with it:
+**Two things you may not have had to think about before.** Taking the `issuer` block away once an
+identity is recorded is refused the same way a changed one is, and it is the one shape a declaration
+cannot rescue — `correctionOf` lives inside the block that is gone. That refusal prints the issuer
+as the installation recorded it, address included, to write back. And `issuer.legalName`, `vatId`,
+`taxNumber` and `correctionOf.reason` no longer accept a value made of whitespace: `vatId: "   "`
+validated before 1.0 and now fails at schema validation, before the application assembles.
+
+Nothing else is required of you unless you change that identity — but three things moved with it:
 
 - **`SubscriptionContractRepository` gains `listRunningIssuers(limit, asOf?)`**: how many contracts
   are concluded and not yet over, and the first `limit` of them, oldest first, each with the legal

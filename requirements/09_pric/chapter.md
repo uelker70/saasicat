@@ -592,6 +592,8 @@ _Tested by:_
         - names a field the declaration says nothing about
         - refuses the issuer block being dropped while one is recorded
         - and refuses a nameless block however well it is declared, leaving the record
+        - reads the contracts platform-wide, which needs the bypass frame
+        - and the block it prints carries every issuer member the schema declares
         - names the contracts up to a limit, and how many more there are
         - does not count a contract whose term has run out
         - names a legal name that YAML would otherwise not read back
@@ -701,8 +703,8 @@ _Tested by:_
           asked
         - the development gateway replaces the payment method on the spot
     - the accounts the file names and the gateways the application binds
-        - a payment method in use at an account the file no longer names stops the start, and is
-          named
+        - and it reads them platform-wide, which needs the bypass frame
+        - and it reads them platform-wide, which needs the bypass frame
 - `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
     - who sees the card
         - a user holding the billing permission sees the payment method in use

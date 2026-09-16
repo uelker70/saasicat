@@ -164,12 +164,22 @@ function issuerPartyOf(issuer: NonNullable<PlanCatalog['issuer']>): ContractIssu
         legalName: identity?.legalName ?? '',
         vatId: identity?.vatId ?? null,
         taxNumber: identity?.taxNumber ?? null,
-        addressLine1: issuer.addressLine1 ?? null,
-        addressLine2: issuer.addressLine2 ?? null,
-        postalCode: issuer.postalCode ?? null,
-        city: issuer.city ?? null,
-        country: issuer.country ?? null,
+        // Settled like the three above rather than copied verbatim: one copy
+        // whose halves were settled differently is a row that reads two ways,
+        // and a city written with a trailing space is not another city.
+        addressLine1: settledText(issuer.addressLine1),
+        addressLine2: settledText(issuer.addressLine2),
+        postalCode: settledText(issuer.postalCode),
+        city: settledText(issuer.city),
+        country: settledText(issuer.country),
     };
+}
+
+/** Trimmed, or nothing — the reading `issuerIdentityOf` gives the three beside these. */
+function settledText(value: string | undefined): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
 }
 
 /**

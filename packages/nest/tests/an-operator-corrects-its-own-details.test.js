@@ -15,6 +15,7 @@
 
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -31,6 +32,12 @@ import {
     FakeSubscriberRepository,
 } from '../dist/testing/index.js';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
+
+// Off the sibling package's directory, the way the codegen reads it: the block
+// the refusal prints is held to what the schema declares, not to a second list.
+const planCatalogSchema = JSON.parse(
+    readFileSync(new URL('../../spec/schemas/plan-catalog.schema.json', import.meta.url), 'utf8'),
+);
 
 const NOTICE = { monthly: 14, yearly: 90 };
 const BLOCKED = { asTarget: ['ENTERPRISE'], asSource: [] };
@@ -62,7 +69,14 @@ class FakeJwtGuard {
 
 const spec = {};
 
-function persistenceWith(appliedSettings, contracts) {
+/**
+ * The bypass frame, as an adapter without row-level security implements it:
+ * it calls through. Real here rather than a placeholder, because the check
+ * reads the contracts platform-wide and goes through this to do it.
+ */
+const passThroughBypass = { runWithBypass: (fn) => fn() };
+
+function persistenceWith(appliedSettings, contracts, bypass = passThroughBypass) {
     return {
         capabilities: {
             transactions: true,
@@ -73,7 +87,7 @@ function persistenceWith(appliedSettings, contracts) {
         core: {
             mfa: spec,
             audit: spec,
-            rlsBypass: spec,
+            rlsBypass: bypass,
             transactionRunner: spec,
             ...(appliedSettings ? { appliedSettings } : {}),
         },
@@ -89,14 +103,14 @@ function persistenceWith(appliedSettings, contracts) {
 }
 
 /** Composed the way a consumer composes it, and started — `init` runs the check. */
-async function boot(catalog, { port, contracts } = {}) {
+async function boot(catalog, { port, contracts, bypass } = {}) {
     const app = await Test.createTestingModule({
         imports: [
             SaaSiCatModule.forRoot({
                 planCatalog: catalog,
                 controller: { guards: [FakeJwtGuard] },
                 discoverySnapshotPath: null,
-                persistence: persistenceWith(port, contracts),
+                persistence: persistenceWith(port, contracts, bypass),
                 defaultPlanId: 'PRO',
                 ...(contracts ? { subscriptionContract: true } : {}),
             }),
@@ -399,6 +413,61 @@ describe('a start that finds another legal entity', () => {
         assert.match(message, / {4}country: "DE"/);
         assert.match(message, / {4}vatId: "DE123456789"/);
         assert.doesNotMatch(message, /transfer, not an edit of a setting/);
+    });
+
+    test('reads the contracts platform-wide, which needs the bypass frame', async () => {
+        // At boot there is no tenant, and under row-level security the same read
+        // comes back empty: the refusal would say "No contract is running." on
+        // an installation with hundreds, and `doctor` would report nought as
+        // reassurance. The decision does not depend on it — the message an
+        // operator weighs a transfer against does.
+        const seen = [];
+        const bypass = {
+            runWithBypass: async (fn) => {
+                seen.push('in');
+                return fn();
+            },
+        };
+        const port = portRecording(settingsOf(catalogWith(GMBH)));
+        const message = await refusalOf(catalogWith({ ...GMBH, legalName: 'Other Software AG' }), {
+            port,
+            contracts: contractsRunning(GMBH.legalName),
+            bypass,
+        });
+        assert.deepEqual(seen, ['in'], 'the contracts were read outside the bypass');
+        assert.match(message, /1 contract\(s\) are still running/);
+    });
+
+    test('and the block it prints carries every issuer member the schema declares', async () => {
+        // Derived from the schema rather than from a list beside the one in the
+        // source: a member added there and not to the printed block would be one
+        // an operator silently loses by following the way out. `correctionOf` is
+        // the one exception, and it is named as one.
+        const declared = Object.keys(planCatalogSchema.properties.issuer.properties).filter(
+            (name) => name !== 'correctionOf',
+        );
+        const full = Object.fromEntries(
+            declared.map((name) => [name, name === 'country' ? 'DE' : `value of ${name}`]),
+        );
+        const port = portRecording(settingsOf(catalogWith(full)));
+        const message = await refusalOf(catalogWith(undefined), {
+            port,
+            contracts: contractsRunning(full.legalName),
+        });
+        // Read as data rather than matched as a pattern: a name out of the
+        // schema built into a regex is a pattern that says something else the
+        // day a name carries a metacharacter.
+        const lines = message.split('\n');
+        const block = lines.slice(lines.lastIndexOf('issuer:') + 1);
+        const printed = block
+            .filter((line) => line.startsWith('    ') && !line.startsWith('     '))
+            .map((line) => line.slice(4).split(':')[0]);
+        assert.deepEqual(
+            printed.slice().sort(),
+            declared.slice().sort(),
+            'the block the refusal prints and the members the schema declares',
+        );
+        assert.ok(declared.length >= 8, `only ${declared.length} members scanned`);
     });
 
     test('names the contracts up to a limit, and how many more there are', async () => {

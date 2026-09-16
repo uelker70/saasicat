@@ -123,7 +123,13 @@ describe('the identity of an issuer', () => {
 // @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
 describe('the copy a contract takes of the issuer', () => {
     test('carries the same three fields the start compares, and the address beside them', () => {
-        const { issuer } = contractPartiesOf(SUBSCRIBER, issuerBlock());
+        // Every member settled the same way: one copy whose halves were settled
+        // differently is a row that reads two ways.
+        const { issuer } = contractPartiesOf(SUBSCRIBER, {
+            ...issuerBlock(),
+            city: ' München ',
+            addressLine2: '  ',
+        });
         assert.deepEqual(issuer, {
             ...GMBH,
             addressLine1: 'Werkstraße 5',
