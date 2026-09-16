@@ -2610,11 +2610,18 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 effectiveFrom: new Date('2026-02-01T00:00:00.000Z'),
                 status: 'scheduled',
             });
-            // Active, and its window closed a year ago: nobody terminated it, so
-            // as far as this record goes it is still open.
+            // Active, and its window closed: this is what an ordinary
+            // cancellation leaves behind — `effectiveUntil` at the term end and
+            // the status untouched, because nothing flips it when that day
+            // comes. Counting by status alone would call it running for ever.
             const lapsed = await written('running-lapsed', {
                 effectiveFrom: new Date('2026-03-01T00:00:00.000Z'),
                 effectiveUntil: new Date('2026-04-01T00:00:00.000Z'),
+            });
+            // The other side of that window: ends later, so it is running.
+            const ending = await written('running-ending', {
+                effectiveFrom: new Date('2026-04-01T00:00:00.000Z'),
+                effectiveUntil: new Date('2026-12-01T00:00:00.000Z'),
             });
             // What the migration that attached older contracts leaves: a party
             // copy with no issuer in it.
@@ -2631,13 +2638,25 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 status: 'superseded',
             });
 
-            const listed = await contracts.listRunningIssuers(10);
-            assert.equal(listed.total, 4, 'a contract that ended is not running');
+            const asOf = new Date('2026-06-01T00:00:00.000Z');
+            const listed = await contracts.listRunningIssuers(10, asOf);
+            assert.equal(listed.total, 4, 'a contract that ended or was ended is not running');
             assert.deepEqual(
                 listed.contracts.map((row) => row.id),
-                [oldest.id, scheduled.id, lapsed.id, noIssuer.id],
-                'oldest first',
+                [oldest.id, scheduled.id, ending.id, noIssuer.id],
+                'oldest first, and the one whose term ran out is not among them',
             );
+            assert.ok(
+                !listed.contracts.some((row) => row.id === lapsed.id),
+                'a window that closed ends a contract, whatever its status still says',
+            );
+            // The boundary, from the other side: before it closed, it counts.
+            const earlier = await contracts.listRunningIssuers(
+                10,
+                new Date('2026-03-15T00:00:00.000Z'),
+            );
+            assert.equal(earlier.total, 5);
+            assert.ok(earlier.contracts.some((row) => row.id === lapsed.id));
             assert.equal(listed.contracts[0].tenantId, oldest.tenantId);
             assert.equal(
                 listed.contracts[0].effectiveFrom.getTime(),
@@ -2650,7 +2669,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 'a contract with no issuer copy says so rather than inventing one',
             );
 
-            const capped = await contracts.listRunningIssuers(2);
+            const capped = await contracts.listRunningIssuers(2, asOf);
             assert.equal(capped.total, 4, 'the limit caps the list, not the count');
             assert.deepEqual(
                 capped.contracts.map((row) => row.id),

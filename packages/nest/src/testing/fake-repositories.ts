@@ -350,11 +350,13 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         return this.cloneRecord(updated);
     }
 
-    async listRunningIssuers(limit: number): Promise<RunningContractIssuers> {
-        // Status alone, as the port says: a window that has passed does not end
-        // a contract nobody terminated.
+    async listRunningIssuers(
+        limit: number,
+        asOf: Date = new Date(),
+    ): Promise<RunningContractIssuers> {
         const running = [...this.byId.values()]
             .filter((row) => row.status === 'active' || row.status === 'scheduled')
+            .filter((row) => row.effectiveUntil === null || row.effectiveUntil > asOf)
             .sort(
                 (a, b) =>
                     a.effectiveFrom.getTime() - b.effectiveFrom.getTime() ||

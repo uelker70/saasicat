@@ -1428,11 +1428,12 @@ under; `<app> doctor` asks the same question before a deploy, as the new
 
 Nothing is required of you unless you change that identity — but three things moved with it:
 
-- **`SubscriptionContractRepository` gains `listRunningIssuers(limit)`**: how many contracts are
-  running (`active` or `scheduled`, whatever their window says) and the first `limit` of them,
-  oldest first, each with the legal name on its issuer copy or `null` where it names none. Both
-  shipped adapters implement it; an implementation of your own adds it. The persistence contract
-  covers it.
+- **`SubscriptionContractRepository` gains `listRunningIssuers(limit, asOf?)`**: how many contracts
+  are concluded and not yet over, and the first `limit` of them, oldest first, each with the legal
+  name on its issuer copy or `null` where it names none. Running means `active` or `scheduled` and
+  not ended at `asOf` — status alone would not do, because an ordinary cancellation writes only
+  `effectiveUntil` and nothing flips the status when that day arrives. Both shipped adapters
+  implement it; an implementation of your own adds it. The persistence contract covers it.
 - **`SUBSCRIBER_IDENTITY_FIELDS` is `LEGAL_IDENTITY_FIELDS`, and `SubscriberIdentityField` is
   `LegalIdentityField`** — the same three fields, now named for what they are: both parties to a
   contract have a legal identity, and the issuer is not a subscriber.
@@ -1474,6 +1475,17 @@ against the contract before they are invoiced.
     Only a guard that really enforces `@RequireFeature` may carry the marker: it is the claim the
     check trusts. A guard bound globally as an `APP_GUARD` is the other shape the check cannot see;
     there, `enforcementChainCheck: false` turns the check off and nothing else.
+
+7. **`SUBSCRIBER_IDENTITY_FIELDS` and `SubscriberIdentityField`** — now `LEGAL_IDENTITY_FIELDS` and
+   `LegalIdentityField`. Not in the codemod on purpose: its stems match anywhere in an identifier,
+   so a `SubscriberIdentity → LegalIdentity` rule would also rewrite `SubscriberIdentityValues`,
+   `SubscriberIdentityDelta` and `SubscriberIdentityCorrection`, which keep their names. Two
+   identifiers, by hand.
+
+8. **`listRunningIssuers` on a `SubscriptionContractRepository` of your own** — the contracts
+   concluded and not yet over, oldest first, with the legal name on each one's issuer copy. Both
+   shipped adapters have it; the persistence contract fails an implementation without it. See the
+   section above for what "not yet over" means, and why status alone is not it.
 
 ## Order for a workspace with several apps
 

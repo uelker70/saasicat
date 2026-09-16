@@ -5448,6 +5448,8 @@ _Tested by:_
         - is the three fields a contract names it by, and nothing about how it is reached
         - reads an absent tax identifier as unknown rather than as absent
         - is nothing where the file names no issuer
+        - is settled the same way on both sides, so a stray space is not another entity
+        - and a declaration is settled with them
         - is the same as another when every field matches, and not otherwise
         - is exactly what `issuer.correctionOf` can name in the file
     - the identity a record holds
@@ -5480,6 +5482,8 @@ _Tested by:_
         - names a field the declaration says nothing about
         - refuses the issuer block being dropped while one is recorded
         - names the contracts up to a limit, and how many more there are
+        - does not count a contract whose term has run out
+        - names a legal name that YAML would otherwise not read back
         - says which contracts carry no issuer copy rather than pretending they do
     - what the comparison needs, and what it does without
         - an installation that records nothing compares the issuer with nothing, and says so

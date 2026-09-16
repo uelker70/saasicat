@@ -19,7 +19,12 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
-import { AppliedSettingsRecorder, fingerprintOf, IssuerIdentityCheck } from '../dist/index.js';
+import {
+    AppliedSettingsRecorder,
+    fingerprintOf,
+    IssuerIdentityCheck,
+    IssuerIdentityInspector,
+} from '../dist/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
     FakeSubscriptionContractRepository,
@@ -119,10 +124,17 @@ function settingsOf(catalog) {
     return settings;
 }
 
-/** A repository already holding one running contract under `issuerLegalName`. */
-function contractsRunning(...issuerLegalNames) {
+/**
+ * A repository already holding one contract per entry, under `issuerLegalName`
+ * — `null` for a party copy that names no issuer. An entry may instead be
+ * `{ legalName, endedAt }`, which is how an ordinary cancellation leaves a
+ * contract: a window that has closed, and the status left where it was.
+ */
+function contractsRunning(...entries) {
     const repo = new FakeSubscriptionContractRepository();
-    for (const [index, legalName] of issuerLegalNames.entries()) {
+    for (const [index, entry] of entries.entries()) {
+        const { legalName, endedAt = null } =
+            entry === null || typeof entry === 'string' ? { legalName: entry } : entry;
         repo.create({
             tenantId: `tenant-${index + 1}`,
             parties: {
@@ -131,6 +143,7 @@ function contractsRunning(...issuerLegalNames) {
                 issuer: legalName === null ? null : { legalName },
             },
             effectiveFrom: new Date(`2026-0${index + 1}-01T00:00:00.000Z`),
+            effectiveUntil: endedAt,
             priceSnapshot: {
                 currency: 'EUR',
                 billingCycle: 'monthly',
@@ -299,7 +312,7 @@ describe('a start that finds another legal entity', () => {
             port,
             contracts: new FakeSubscriptionContractRepository(),
         });
-        assert.match(message, /No contract is running under the recorded identity/);
+        assert.match(message, /No contract is running\./);
     });
 
     test('names a declaration that covers another change than this one', async () => {
@@ -355,6 +368,39 @@ describe('a start that finds another legal entity', () => {
             5,
             'a refusal that scrolls loses the line that says the way out',
         );
+    });
+
+    test('does not count a contract whose term has run out', async () => {
+        // How an ordinary cancellation leaves a contract: `effectiveUntil` at the
+        // term end and the status untouched, because nothing flips it when that
+        // day arrives. Counting by status alone would report every customer who
+        // ever left as still running — and, oldest first, name exactly those.
+        const port = portRecording(settingsOf(catalogWith(GMBH)));
+        const contracts = contractsRunning(
+            { legalName: GMBH.legalName, endedAt: new Date('2026-03-01T00:00:00.000Z') },
+            { legalName: GMBH.legalName, endedAt: new Date('2099-01-01T00:00:00.000Z') },
+            GMBH.legalName,
+        );
+        const message = await refusalOf(catalogWith({ ...GMBH, legalName: 'Other Software AG' }), {
+            port,
+            contracts,
+        });
+        assert.match(message, /2 contract\(s\) are still running/);
+        assert.doesNotMatch(message, /contract-1 /, 'the expired one was named');
+        assert.match(message, /contract-2 /);
+        assert.match(message, /contract-3 /);
+    });
+
+    test('names a legal name that YAML would otherwise not read back', async () => {
+        // The block a refusal prints is the way out of it, so it has to parse.
+        // A registered name holding `: ` is ordinary.
+        const awkward = { ...GMBH, legalName: 'Beispiel: Software GmbH' };
+        const port = portRecording(settingsOf(catalogWith(awkward)));
+        const message = await refusalOf(catalogWith({ ...awkward, legalName: 'Other AG' }), {
+            port,
+            contracts: contractsRunning(awkward.legalName),
+        });
+        assert.match(message, /legalName: "Beispiel: Software GmbH"/);
     });
 
     test('says which contracts carry no issuer copy rather than pretending they do', async () => {
@@ -437,6 +483,11 @@ describe('the comparison happens before the record is replaced', () => {
             undefined,
             'a bootstrap hook would race the recorder, which is one',
         );
+        // And the inspector carries no hook at all, so asking the question
+        // costs nothing: `<app> doctor` injects it, and a class whose
+        // construction is also a lifecycle hook could not be injected for that.
+        assert.equal(IssuerIdentityInspector.prototype.onModuleInit, undefined);
+        assert.equal(IssuerIdentityInspector.prototype.onApplicationBootstrap, undefined);
         assert.equal(typeof AppliedSettingsRecorder.prototype.onApplicationBootstrap, 'function');
         assert.equal(
             AppliedSettingsRecorder.prototype.onModuleInit,
@@ -464,7 +515,7 @@ describe('the record is still a mirror', () => {
         };
         const port = portRecording(stale);
         app = await boot(catalogWith(GMBH), { port, contracts: contractsRunning(GMBH.legalName) });
-        const verdict = await app.get(IssuerIdentityCheck).inspect();
+        const verdict = await app.get(IssuerIdentityInspector).inspect();
         assert.equal(verdict.change.kind, 'unchanged');
         assert.equal(port.applied.settings.currency, 'EUR', 'the file is what runs');
         assert.equal(port.applied.settings.issuer.city, 'München');

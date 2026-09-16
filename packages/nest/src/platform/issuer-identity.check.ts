@@ -20,12 +20,16 @@
 // the contracts keep the copy they were concluded with for ever. The contracts
 // are read only to say which ones a refusal is about.
 //
-// Asked in `onModuleInit`, which Nest runs for every module before it runs a
+// Two classes, and the split is the point. `IssuerIdentityInspector` answers the
+// question and acts on nothing, so `<app> doctor` and an application's own
+// diagnostics can ask it; `IssuerIdentityCheck` is the lifecycle hook that turns
+// a refusing answer into a boot that does not happen.
+//
+// The hook is `onModuleInit`, which Nest runs for every module before it runs a
 // single `onApplicationBootstrap` — and `AppliedSettingsRecorder`, which
 // replaces the record, is a bootstrap hook. That ordering is what lets this
-// compare against the record of the *previous* start rather than against the
-// one this start just wrote; `tests/an-operator-corrects-its-own-details.test.js`
-// holds it by asserting that a refused start left the record alone.
+// compare against the record of the *previous* start rather than against the one
+// this start just wrote.
 
 import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
 import {
@@ -83,9 +87,16 @@ export type IssuerIdentityVerdict =
           refusal: string;
       };
 
+/**
+ * The comparison, and nothing else.
+ *
+ * Kept apart from the hook below so that asking the question costs nothing: a
+ * class whose construction is also a lifecycle hook cannot be injected by
+ * anything that only wants the answer.
+ */
 @Injectable()
-export class IssuerIdentityCheck implements OnModuleInit {
-    private readonly logger = new Logger(IssuerIdentityCheck.name);
+export class IssuerIdentityInspector {
+    private readonly logger = new Logger(IssuerIdentityInspector.name);
 
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
@@ -98,17 +109,7 @@ export class IssuerIdentityCheck implements OnModuleInit {
         private readonly contracts: SubscriptionContractRepository | null = null,
     ) {}
 
-    async onModuleInit(): Promise<void> {
-        const verdict = await this.inspect();
-        if (verdict.kind === 'refused') throw new Error(verdict.refusal);
-        this.report(verdict);
-    }
-
-    /**
-     * The comparison, without acting on it, so that `saasicat doctor` can ask
-     * the same question before a deploy and report the answer instead of dying
-     * of it.
-     */
+    /** What the issuer in the file is, against the identity the record holds. */
     async inspect(): Promise<IssuerIdentityVerdict> {
         if (!this.settings) return { kind: 'not-compared', why: NOT_RECORDED };
         const recorded = await this.readRecorded();
@@ -186,7 +187,8 @@ export class IssuerIdentityCheck implements OnModuleInit {
         }
     }
 
-    private report(verdict: Exclude<IssuerIdentityVerdict, { kind: 'refused' }>): void {
+    /** The line a start that continues is worth, and nothing where it is worth none. */
+    report(verdict: Exclude<IssuerIdentityVerdict, { kind: 'refused' }>): void {
         if (verdict.kind === 'not-compared') {
             // The recorder says the same thing about the record as a whole, and
             // says it once. This adds the consequence that is specific to the
@@ -212,6 +214,25 @@ export class IssuerIdentityCheck implements OnModuleInit {
                     'they name; what is issued from now on carries the corrected identity.',
             );
         }
+    }
+}
+
+/**
+ * Refuses a start whose file names another legal entity than the record does.
+ *
+ * A module hook, not a bootstrap one: `AppliedSettingsRecorder` replaces the
+ * record in `onApplicationBootstrap`, and Nest runs every module hook before a
+ * single bootstrap hook. That is what makes the comparison see the previous
+ * start's values rather than this start's own.
+ */
+@Injectable()
+export class IssuerIdentityCheck implements OnModuleInit {
+    constructor(private readonly inspector: IssuerIdentityInspector) {}
+
+    async onModuleInit(): Promise<void> {
+        const verdict = await this.inspector.inspect();
+        if (verdict.kind === 'refused') throw new Error(verdict.refusal);
+        this.inspector.report(verdict);
     }
 }
 
@@ -256,7 +277,10 @@ function faultSentence(fault: IssuerCorrectionFault): string {
 function contractsSentence(running: KnownContracts): string {
     if (!running.known) return running.why;
     const { total, contracts } = running.contracts;
-    if (total === 0) return 'No contract is running under the recorded identity.';
+    // Not "under the recorded identity": the query asks which contracts are
+    // running, not which issuer each names, and a message that claimed the
+    // narrower thing would be read as one.
+    if (total === 0) return 'No contract is running.';
     const rest = total - contracts.length;
     return [
         `${total} contract(s) are still running:`,
@@ -272,9 +296,19 @@ function describeContract(contract: RunningContractIssuer): string {
     return `  ${contract.id} (tenant ${contract.tenantId}, from ${contract.effectiveFrom.toISOString().slice(0, 10)}, ${under})`;
 }
 
-/** The block to paste, carrying the values the record holds for what moved. */
+/**
+ * The block to paste, carrying the values the record holds for what moved.
+ *
+ * Every value is quoted, and by `JSON.stringify` rather than by hand: a legal
+ * name holding `: ` or `#` is ordinary, and unquoted it would make the one block
+ * in this message that has to parse the one that does not. YAML reads a
+ * JSON-quoted scalar, escapes and all.
+ */
 function declarationFor(recorded: LegalIdentity, moved: readonly LegalIdentityField[]): string {
-    const lines = moved.map((field) => `        ${field}: ${recorded[field] ?? 'null'}`);
+    const lines = moved.map(
+        (field) =>
+            `        ${field}: ${recorded[field] === null ? 'null' : JSON.stringify(recorded[field])}`,
+    );
     return [
         'issuer:',
         '    correctionOf:',

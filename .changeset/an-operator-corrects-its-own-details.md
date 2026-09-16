@@ -33,22 +33,35 @@ of that same legal entity.
 - `<app> doctor` gains `platform.issuer-identity`, which asks the same question
   without acting on it, and says what changing the identity would cost while
   nothing has moved.
-- **`SubscriptionContractRepository` gains `listRunningIssuers(limit)`**: how many
-  contracts are running — `active` or `scheduled`, whatever their window says —
-  and the first `limit` of them, oldest first, each with the legal name on its
-  issuer copy or `null` where it names none. Both shipped adapters implement it
-  and the persistence contract covers it; an implementation of your own adds it.
+- **`SubscriptionContractRepository` gains `listRunningIssuers(limit, asOf?)`**:
+  how many contracts are concluded and not yet over, and the first `limit` of
+  them, oldest first, each with the legal name on its issuer copy or `null` where
+  it names none. Running means `active` or `scheduled` and not ended at `asOf`;
+  status alone would not do, because an ordinary cancellation writes only
+  `effectiveUntil`. Both shipped adapters implement it and the persistence
+  contract covers it; an implementation of your own adds it.
+- `issuer.legalName`, `issuer.vatId` and `issuer.taxNumber` are compared with the
+  surrounding whitespace taken off, and the schema now refuses a value that is
+  only whitespace. Both sides are settled the same way, so a stray space cannot
+  make a value differ from itself.
 - **`SUBSCRIBER_IDENTITY_FIELDS` is now `LEGAL_IDENTITY_FIELDS`, and
   `SubscriberIdentityField` is `LegalIdentityField`** — the same three fields,
   named for what they are: both parties to a contract have a legal identity, and
   the issuer is not a subscriber.
-- `IssuerIdentityCheck` is exported from `@saasicat/nest` and
-  `@saasicat/nest/platform` and registered for every configuration; `inspect()`
-  answers the same question without acting on it.
+- `IssuerIdentityInspector` and `IssuerIdentityCheck` are exported from
+  `@saasicat/nest` and `@saasicat/nest/platform` and registered for every
+  configuration. The inspector answers the question and acts on nothing —
+  `inspect()` is what `<app> doctor` and a health endpoint of your own call; the
+  check is the module hook that turns a refusing answer into a boot that does not
+  happen. A CLI that mounts the platform is refused by that hook like any other
+  start, so `doctor` reports the state a start would accept rather than printing
+  a refusal.
 
-Two limits, stated rather than left to be found. The comparison needs the
+Three limits, stated rather than left to be found. The comparison needs the
 `core.appliedSettings` port, which both shipped persistence bundles provide;
-without it the boot log says once that the issuer is compared with nothing. And a
+without it the boot log says once that the issuer is compared with nothing. A
 contract whose party copy the subscriber migration made names no issuer at all —
 those neither block a change nor are blocked by one, and are confirmed against
-the contract before they are invoiced.
+the contract before they are invoiced. And "a later deploy may drop the
+declaration" holds once the start that carried it has recorded it: that write is
+best-effort, so check `GET /admin/settings` before dropping the block.

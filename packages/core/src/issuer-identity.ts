@@ -22,14 +22,18 @@ import {
 } from './legal-identity.js';
 import type { PlanCatalogIssuer, PlanCatalogIssuerCorrection } from './plan-catalog.types.js';
 
-/** The legal identity of the issuer a catalogue names, or none where it names no issuer. */
+/**
+ * The legal identity of the issuer a catalogue names, or none where it names no
+ * issuer.
+ *
+ * Settled through the same reader as the recorded side, and that symmetry is
+ * the point rather than tidiness: the record is a verbatim copy of the file, so
+ * a value whose two sides were settled differently would differ from itself. A
+ * legal name written with a trailing space would then refuse the SECOND start on
+ * a file nobody touched, and no declaration could make it stop happening.
+ */
 export function issuerIdentityOf(issuer: PlanCatalogIssuer | undefined): LegalIdentity | null {
-    if (!issuer) return null;
-    return {
-        legalName: issuer.legalName,
-        vatId: issuer.vatId ?? null,
-        taxNumber: issuer.taxNumber ?? null,
-    };
+    return issuer ? identityOf(issuer as unknown as Record<string, unknown>) : null;
 }
 
 /**
@@ -38,16 +42,21 @@ export function issuerIdentityOf(issuer: PlanCatalogIssuer | undefined): LegalId
  * Read defensively rather than cast: the record is JSON as some earlier version
  * of this platform wrote it, and a tree without an issuer, or with one whose
  * legal name is not a name, is read as "no identity was recorded" — which is
- * the first naming, not a change.
+ * the first naming, not a change. The schema keeps a name of only whitespace out
+ * of the file; this keeps one out of a record written before it did.
  */
 export function recordedIssuerIdentity(
     settings: AppliedSettingsValues | null | undefined,
 ): LegalIdentity | null {
     const issuer = settings?.issuer;
     if (issuer === null || typeof issuer !== 'object' || Array.isArray(issuer)) return null;
-    const source = issuer as Record<string, unknown>;
-    const legalName = typeof source.legalName === 'string' ? source.legalName.trim() : '';
-    if (legalName === '') return null;
+    return identityOf(issuer as Record<string, unknown>);
+}
+
+/** The three fields off an issuer block, settled, or `null` where it has no name. */
+function identityOf(source: Record<string, unknown>): LegalIdentity | null {
+    const legalName = textOrNull(source.legalName);
+    if (legalName === null) return null;
     return {
         legalName,
         vatId: textOrNull(source.vatId),
@@ -160,7 +169,8 @@ function faultIn(
     if (!declaration) return { kind: 'absent' };
     for (const field of LEGAL_IDENTITY_FIELDS) {
         if (!Object.prototype.hasOwnProperty.call(declaration, field)) continue;
-        const declared = declaration[field] ?? null;
+        // Settled like both sides it is compared against, for the same reason.
+        const declared = textOrNull(declaration[field]);
         if (declared !== recorded[field]) {
             return { kind: 'names-another-value', field, declared, recorded: recorded[field] };
         }

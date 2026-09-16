@@ -205,7 +205,7 @@ export interface RunningContractIssuer {
     effectiveFrom: Date;
 }
 
-/** How many contracts are still running, and the first few of them. */
+/** How many contracts are concluded and not yet over, and the first few of them. */
 export interface RunningContractIssuers {
     /** All of them, whether or not the list below holds them all. */
     total: number;

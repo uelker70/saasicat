@@ -38,7 +38,7 @@ import {
     EnforcementChainCheck,
     type EnforcementChainState,
 } from './enforcement-chain.check.js';
-import { IssuerIdentityCheck } from './issuer-identity.check.js';
+import { IssuerIdentityCheck, IssuerIdentityInspector } from './issuer-identity.check.js';
 
 export * from './module-options.js';
 import { assertConfiguration } from './validation/validate.js';
@@ -272,8 +272,8 @@ export class SaaSiCatModule {
         // in scope — and it needs both: the record says which legal entity this
         // installation last ran as, and the contracts say which ones a refusal
         // is about. Exported so `<app> doctor` can ask the same question.
-        lightweightProviders.push(IssuerIdentityCheck);
-        lightweightExports.push(IssuerIdentityCheck);
+        lightweightProviders.push(IssuerIdentityInspector, IssuerIdentityCheck);
+        lightweightExports.push(IssuerIdentityInspector, IssuerIdentityCheck);
 
         const tenantManifest = composeTenantManifest(composition);
         lightweightProviders.push(...tenantManifest.providers);

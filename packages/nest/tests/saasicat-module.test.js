@@ -309,11 +309,11 @@ describe('SaaSiCatModule.forRoot', () => {
         );
         // Standard-manifest registration, the two the inert case adds — the
         // chain check and the state that tells it which case it is in — and the
-        // issuer check, which every configuration gets.
+        // issuer pair, which every configuration gets.
         assert.equal(
             providers.length,
-            4,
-            'manifest registration + the enforcement-chain check + the issuer check',
+            5,
+            'manifest registration + the enforcement-chain check + the issuer pair',
         );
         assert.ok(
             providers.some((p) => typeof p === 'function' && p.name === 'EnforcementChainCheck'),
@@ -322,6 +322,10 @@ describe('SaaSiCatModule.forRoot', () => {
         assert.ok(
             providers.some((p) => typeof p === 'function' && p.name === 'IssuerIdentityCheck'),
             'nothing would notice the operator naming another legal entity',
+        );
+        assert.ok(
+            providers.some((p) => typeof p === 'function' && p.name === 'IssuerIdentityInspector'),
+            'the check could not be constructed, and doctor could not ask',
         );
     });
 

@@ -913,10 +913,15 @@ describe('PrismaSubscriptionContractRepository.listRunningIssuers', () => {
                 effectiveFrom: new Date('2026-02-01T00:00:00.000Z'),
             },
         ]);
+        const asOf = new Date('2026-06-01T00:00:00.000Z');
         const repo = new PrismaSubscriptionContractRepository(prisma);
-        const listed = await repo.listRunningIssuers(1);
+        const listed = await repo.listRunningIssuers(1, asOf);
 
-        assert.deepEqual(seen.count.where, { status: { in: ['active', 'scheduled'] } });
+        assert.deepEqual(seen.count.where, {
+            status: { in: ['active', 'scheduled'] },
+            // Not status alone: an ordinary cancellation writes only the window.
+            OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: asOf } }],
+        });
         assert.deepEqual(seen.findMany.where, seen.count.where, 'the count counts what is listed');
         assert.deepEqual(seen.findMany.select, {
             id: true,

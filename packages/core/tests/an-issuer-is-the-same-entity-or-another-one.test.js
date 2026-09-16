@@ -57,6 +57,33 @@ describe('the identity of an issuer', () => {
         assert.equal(issuerIdentityOf(undefined), null);
     });
 
+    test('is settled the same way on both sides, so a stray space is not another entity', () => {
+        // The record is a verbatim copy of the file. Settle one side and not the
+        // other and a trailing space makes a value differ from itself: the first
+        // start records it, the second refuses, and no declaration stops that
+        // recurring — the file never changed.
+        const spaced = issuerBlock({
+            legalName: '  Example Software GmbH ',
+            vatId: 'DE123456789 ',
+        });
+        assert.deepEqual(issuerIdentityOf(spaced), GMBH);
+        assert.deepEqual(
+            classifyIssuerChange(recordedIssuerIdentity({ issuer: spaced }), issuerBlock()),
+            { kind: 'unchanged', identity: GMBH },
+        );
+    });
+
+    test('and a declaration is settled with them', () => {
+        const change = classifyIssuerChange(
+            GMBH,
+            issuerBlock({
+                legalName: 'Example Software AG',
+                correctionOf: { legalName: ' Example Software GmbH ', reason: 'Change of form' },
+            }),
+        );
+        assert.equal(change.kind, 'corrected');
+    });
+
     test('is the same as another when every field matches, and not otherwise', () => {
         assert.equal(sameLegalIdentity(GMBH, { ...GMBH }), true);
         for (const field of LEGAL_IDENTITY_FIELDS) {

@@ -99,7 +99,7 @@ export interface PlanCatalog {
      */
     issuer?: {
         /**
-         * The registered name, legal form included, as a contract names the party (e.g. "Example Software GmbH").
+         * The registered name, legal form included, as a contract names the party (e.g. "Example Software GmbH"). Compared with the recorded one after the surrounding whitespace is taken off, so a value that is only whitespace is not a name at all.
          */
         legalName: string;
         /**

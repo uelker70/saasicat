@@ -161,10 +161,17 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
         });
     }
 
-    async listRunningIssuers(limit: number): Promise<RunningContractIssuers> {
-        const running = inArray(subscriptionContracts.status, [
-            ...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
-        ]);
+    async listRunningIssuers(
+        limit: number,
+        asOf: Date = new Date(),
+    ): Promise<RunningContractIssuers> {
+        const running = and(
+            inArray(subscriptionContracts.status, [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES]),
+            or(
+                isNull(subscriptionContracts.effectiveUntil),
+                gt(subscriptionContracts.effectiveUntil, asOf),
+            ),
+        );
         const [totals, rows] = await Promise.all([
             this.db.select({ value: count() }).from(subscriptionContracts).where(running),
             // Oldest first, and `id` last so two contracts that start in the

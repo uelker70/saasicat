@@ -43,6 +43,7 @@ export * from './settings/index.js';
 // narrower `@saasicat/nest/platform` entry instead.
 export {
     IssuerIdentityCheck,
+    IssuerIdentityInspector,
     type IssuerIdentityVerdict,
     SaaSiCatModule,
     defineSaaSiCat,

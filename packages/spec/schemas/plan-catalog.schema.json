@@ -145,8 +145,8 @@
             "properties": {
                 "legalName": {
                     "type": "string",
-                    "minLength": 1,
-                    "description": "The registered name, legal form included, as a contract names the party (e.g. \"Example Software GmbH\")."
+                    "pattern": "\\S",
+                    "description": "The registered name, legal form included, as a contract names the party (e.g. \"Example Software GmbH\"). Compared with the recorded one after the surrounding whitespace is taken off, so a value that is only whitespace is not a name at all."
                 },
                 "addressLine1": {
                     "type": "string",
@@ -173,12 +173,12 @@
                 },
                 "vatId": {
                     "type": "string",
-                    "minLength": 1,
+                    "pattern": "\\S",
                     "description": "VAT identification number, e.g. DE123456789."
                 },
                 "taxNumber": {
                     "type": "string",
-                    "minLength": 1,
+                    "pattern": "\\S",
                     "description": "The tax number the issuer's tax office assigned, where it is stated beside or instead of the VAT identification number."
                 },
                 "correctionOf": {
@@ -189,17 +189,17 @@
                     "properties": {
                         "legalName": {
                             "type": ["string", "null"],
-                            "minLength": 1,
+                            "pattern": "\\S",
                             "description": "The registered name being replaced, or `null` where none was recorded."
                         },
                         "vatId": {
                             "type": ["string", "null"],
-                            "minLength": 1,
+                            "pattern": "\\S",
                             "description": "The VAT identification number being replaced, or `null` where none was recorded."
                         },
                         "taxNumber": {
                             "type": ["string", "null"],
-                            "minLength": 1,
+                            "pattern": "\\S",
                             "description": "The tax number being replaced, or `null` where none was recorded."
                         },
                         "reason": {

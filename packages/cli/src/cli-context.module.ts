@@ -45,15 +45,18 @@ export interface CliContextModuleOptions {
      * — `<app> doctor` runs but returns no content. Consumers register
      * project-specific checks.
      *
-     * Note: if `defaultDoctorChecks: true`, the 4 platform standard checks
-     * (PlanCatalog/Discovery/UserPort/AdminManifest) are registered **in
-     * addition** to this list.
+     * Note: if `defaultDoctorChecks: true`, the platform's own checks —
+     * `PLATFORM_DOCTOR_CHECK_PROVIDERS` — are registered **in addition** to
+     * this list. They are named there rather than here: a second list of them
+     * in prose is the copy that goes stale.
      */
     doctorChecks?: ProviderSpec<DoctorCheck[]>;
     /**
-     * Default `false`. If `true`, the platform registers the four standard
-     * checks from `PLATFORM_DOCTOR_CHECK_PROVIDERS` in addition to
-     * `doctorChecks`. Recommended for all apps that take `<app> doctor` seriously.
+     * Default `false`. If `true`, the platform registers the checks from
+     * `PLATFORM_DOCTOR_CHECK_PROVIDERS` in addition to `doctorChecks`. They
+     * resolve what `SaaSiCatModule` provides, so an application that wires the
+     * platform's modules by hand registers the ones it can serve instead.
+     * Recommended for all apps that take `<app> doctor` seriously.
      */
     defaultDoctorChecks?: boolean;
     /**

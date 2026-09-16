@@ -169,8 +169,14 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
         return toSubscriptionContractRecord(row, row.lineItems);
     }
 
-    async listRunningIssuers(limit: number): Promise<RunningContractIssuers> {
-        const where = { status: { in: [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES] } };
+    async listRunningIssuers(
+        limit: number,
+        asOf: Date = new Date(),
+    ): Promise<RunningContractIssuers> {
+        const where = {
+            status: { in: [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES] },
+            OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: asOf } }],
+        };
         const contracts = (this.db() as unknown as RunningContractPrisma).subscriptionContract;
         const [total, rows] = await Promise.all([
             contracts.count({ where }),

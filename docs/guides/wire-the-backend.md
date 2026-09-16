@@ -309,9 +309,16 @@ issuer:
 ```
 
 It is needed only for the start that carries the change; once that start has
-been through, the record holds the corrected identity and a later deploy may
-drop the block. Leaving it in changes nothing — and it does not cover the next
-change either, because it names an identity the record no longer holds.
+recorded it, the record holds the corrected identity and a later deploy may drop
+the block. Leaving it in changes nothing — and it does not cover the next change
+either, because it names an identity the record no longer holds.
+
+"Once that start has recorded it" is the whole condition, and it can fail: the
+record is written best-effort, so a start that applied the correction but could
+not write its record logs that and carries on. Drop the declaration after such a
+start and the next one is refused, because the record still holds the identity
+before it. `GET /admin/settings` shows what was recorded; drop the block once it
+shows the corrected identity.
 
 What it carries is a reason and not a date: the settings record dates the start
 that applied it, and a date typed here would be a second answer to that
@@ -338,12 +345,14 @@ so during a rolling deploy an old replica restarting on the previous file is
 refused too — which is the point: two replicas concluding contracts under two
 different legal entities is what this prevents.
 
-Three things follow from where the comparison happens. It needs the
+Two things follow from where the comparison happens. It needs the
 `core.appliedSettings` port, which both shipped persistence bundles provide;
-without it the boot log says once that the issuer is compared with nothing. An
-installation that has never named an issuer is naming it for the first time, and
-declares nothing. And `<app> doctor` asks the same question without acting on
-it, so a deploy can be told before it is attempted:
+without it the boot log says once that the issuer is compared with nothing, and
+the identity is not guarded. And an installation that has never named an issuer
+is naming it for the first time, so it declares nothing.
+
+`<app> doctor` reports the same comparison as `platform.issuer-identity`, and
+says while nothing has moved what changing the identity would cost:
 
 ```text
 ✓  Issuer identity against the recorded one: 'Example Software GmbH' is what the
@@ -351,6 +360,13 @@ it, so a deploy can be told before it is attempted:
    `issuer.correctionOf` beside the values it replaces; the address and the
    contact details do not.
 ```
+
+What it does not do is turn a refusal into a report. Your CLI boots the same
+application, so a configuration the start refuses refuses the CLI too — with the
+message above, before any command runs. That is still ahead of the deploy, which
+is the point of running it there; it arrives as a failed start rather than as a
+✗ line. `IssuerIdentityInspector.inspect()` is the same answer without the hook,
+for a health endpoint or a diagnostic of your own.
 
 ## Standard Persistence Bundle (Prisma)
 

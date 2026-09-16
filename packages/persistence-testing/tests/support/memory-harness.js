@@ -420,11 +420,13 @@ export function createMemoryHarness() {
                 .sort(byNewestFirst)
                 .map(withLines);
         },
-        async listRunningIssuers(limit) {
-            // Status alone, as the port says: a window that has passed does not
-            // end a contract nobody terminated.
+        async listRunningIssuers(limit, asOf = FIXED_NOW) {
             const running = state.contracts
-                .filter((row) => ACTIVE_CONTRACT_STATUSES.includes(row.status))
+                .filter(
+                    (row) =>
+                        ACTIVE_CONTRACT_STATUSES.includes(row.status) &&
+                        (row.effectiveUntil === null || row.effectiveUntil > asOf),
+                )
                 .sort(
                     (a, b) =>
                         a.effectiveFrom - b.effectiveFrom ||

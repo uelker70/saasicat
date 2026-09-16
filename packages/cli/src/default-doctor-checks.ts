@@ -23,7 +23,7 @@ import { Inject, Injectable, type Type } from '@nestjs/common';
 import {
     AdminManifestService,
     DISCOVERY_SNAPSHOT_TOKEN,
-    IssuerIdentityCheck,
+    IssuerIdentityInspector,
     PLAN_CATALOG_TOKEN,
     type DiscoverySnapshot,
 } from '@saasicat/nest';
@@ -122,21 +122,25 @@ export class AdminManifestDoctorCheck implements DoctorCheck {
 }
 
 /**
- * The issuer identity, before a deploy rather than at the start it refuses.
+ * The issuer identity, and what changing it would cost.
  *
  * A start compares the issuer in `config/saas.yaml` with the identity the
  * installation recorded and refuses an undeclared difference, because moving a
  * contract to another legal entity is a transfer and not an edit of a setting.
- * This asks the same question without acting on it, so the answer arrives while
- * somebody is still at a terminal — and where nothing has moved, it says what a
- * change would cost: how many contracts are running, and that their issuer
- * copies do not follow one.
+ * This asks the same question without acting on it and says, while nothing has
+ * moved, what a change would cost.
+ *
+ * It does NOT turn a refusal into a report where the same application also
+ * mounts the platform's boot check: that check runs at `init()`, so the CLI
+ * process carrying it is refused before any command runs — with the same
+ * message, which is the point. The `refused` branch below is for a diagnostic
+ * that runs without the hook.
  */
 @Injectable()
 export class IssuerIdentityDoctorCheck implements DoctorCheck {
     readonly id = 'platform.issuer-identity';
     readonly label = 'Issuer identity against the recorded one';
-    constructor(private readonly issuer: IssuerIdentityCheck) {}
+    constructor(private readonly issuer: IssuerIdentityInspector) {}
 
     async run(): Promise<DoctorCheckResult> {
         const verdict = await this.issuer.inspect();
