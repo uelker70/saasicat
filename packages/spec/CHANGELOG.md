@@ -1,5 +1,7 @@
 # @saasicat/spec
 
+## 1.0.0-rc.20
+
 ## 1.0.0-rc.19
 
 ### Major Changes

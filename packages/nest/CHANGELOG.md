@@ -1,5 +1,12 @@
 # @saasicat/nest
 
+## 1.0.0-rc.20
+
+### Patch Changes
+
+- @saasicat/spec@1.0.0-rc.20
+- @saasicat/core@1.0.0-rc.20
+
 ## 1.0.0-rc.19
 
 ### Major Changes

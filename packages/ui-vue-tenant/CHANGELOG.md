@@ -1,5 +1,12 @@
 # @saasicat/ui-vue-tenant
 
+## 1.0.0-rc.20
+
+### Patch Changes
+
+- @saasicat/core@1.0.0-rc.20
+- @saasicat/ui-vue@1.0.0-rc.20
+
 ## 1.0.0-rc.19
 
 ### Patch Changes
