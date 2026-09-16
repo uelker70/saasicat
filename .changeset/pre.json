@@ -29,6 +29,7 @@
     "a-line-records-its-money",
     "a-notice-period-fits-its-cycle",
     "a-payment-method-is-a-gateway-reference",
+    "a-payment-method-is-set-up-at-stripe",
     "a-plan-is-sold-in-a-rhythm-it-is-priced-for",
     "a-plan-key-no-plan-has-reads-empty",
     "a-preview-issue-carries-its-values",
