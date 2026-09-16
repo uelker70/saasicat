@@ -6,11 +6,7 @@
 // gives: two copies of it drift without anybody comparing them.
 
 import { issuerIdentityOf } from './issuer-identity.js';
-import {
-    LEGAL_IDENTITY_FIELDS,
-    type LegalIdentity,
-    type LegalIdentityField,
-} from './legal-identity.js';
+import { LEGAL_IDENTITY_FIELDS, type LegalIdentityField } from './legal-identity.js';
 import type { PlanCatalog } from './plan-catalog.types.js';
 import type { PendingRegistration } from './registration.types.js';
 import type {
@@ -153,12 +149,21 @@ export function contractPartiesOf(
 }
 
 function issuerPartyOf(issuer: NonNullable<PlanCatalog['issuer']>): ContractIssuerParty {
+    // The three identity fields come from the one function that reads them, so a
+    // contract copies exactly what the start compares against the record.
+    // `correctionOf` is a declaration about the change, not part of the party,
+    // and is not copied onto anything.
+    //
+    // That function reads no identity out of a block whose name is blank, and
+    // the members are written out rather than spread: spreading the `null` would
+    // leave the copy without any of the three, which is a contract naming a
+    // party it does not name. An empty name is what a party copy has always
+    // carried for "not stated" — see `toIssuerParty`, which reads one back.
+    const identity = issuerIdentityOf(issuer);
     return {
-        // The three identity fields come from the one function that reads them,
-        // so a contract copies exactly what the start compares against the
-        // record. `correctionOf` is a declaration about the change, not part of
-        // the party, and is not copied onto anything.
-        ...(issuerIdentityOf(issuer) as LegalIdentity),
+        legalName: identity?.legalName ?? '',
+        vatId: identity?.vatId ?? null,
+        taxNumber: identity?.taxNumber ?? null,
         addressLine1: issuer.addressLine1 ?? null,
         addressLine2: issuer.addressLine2 ?? null,
         postalCode: issuer.postalCode ?? null,

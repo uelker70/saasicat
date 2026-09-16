@@ -148,6 +148,11 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 _Tested by:_
 
+- `packages/core/tests/an-issuer-is-the-same-entity-or-another-one.test.js`
+    - the copy a contract takes of the issuer
+        - carries the same three fields the start compares, and the address beside them
+        - never loses all three because one of them could not be read
+        - does not carry the declaration, which is about the change and not the party
 - `packages/nest/tests/a-contract-is-concluded-with-its-subscriber.test.js`
     - a contract names the parties it is concluded with
         - it copies the tenant's subscriber and the issuer the configuration names

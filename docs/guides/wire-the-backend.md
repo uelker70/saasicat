@@ -368,6 +368,16 @@ is the point of running it there; it arrives as a failed start rather than as a
 ✗ line. `IssuerIdentityInspector.inspect()` is the same answer without the hook,
 for a health endpoint or a diagnostic of your own.
 
+**Run it on the configuration the installation runs.** Every start records what
+it applied, and a CLI process is a start: booting your application against the
+production database with a _newer_ `config/saas.yaml` applies that file to the
+record, a declared correction included. The running replicas are then on a file
+that names the identity before it, and the next one to restart is refused —
+before your deploy goes out. This was always how the record worked; what is new
+is that the issuer identity has a refusal attached to it. So run `<app> doctor`
+and one-off commands with the file the installation is running, and let the
+deploy be what carries a changed one.
+
 ## Standard Persistence Bundle (Prisma)
 
 On the canonical schema, do not write one forwarding provider per repository.

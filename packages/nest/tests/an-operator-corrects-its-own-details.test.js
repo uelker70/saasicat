@@ -467,6 +467,52 @@ describe('what the comparison needs, and what it does without', () => {
 });
 
 // @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+describe('what this start found stays what this start found', () => {
+    test('a reader afterwards is told the correction, not that nothing moved', async () => {
+        // The recorder replaces the record moments after the comparison, in a
+        // bootstrap hook. Asked again, an unsettled comparison would find the
+        // file agreeing with what this very start wrote — so `<app> doctor`, on
+        // the start that carried a correction through, would report that
+        // nothing had moved.
+        const corrected = {
+            ...GMBH,
+            legalName: 'Example Software AG',
+            correctionOf: { legalName: 'Example Software GmbH', reason: 'Change of legal form' },
+        };
+        const port = portRecording(settingsOf(catalogWith(GMBH)));
+        app = await boot(catalogWith(corrected), {
+            port,
+            contracts: contractsRunning(GMBH.legalName),
+        });
+
+        assert.equal(
+            port.applied.settings.issuer.legalName,
+            'Example Software AG',
+            'the record was replaced, which is what makes this worth asserting',
+        );
+        const verdict = await app.get(IssuerIdentityInspector).inspect();
+        assert.equal(verdict.change.kind, 'corrected');
+        assert.equal(verdict.change.reason, 'Change of legal form');
+    });
+
+    test('and the contracts it would be weighed against are counted on request', async () => {
+        // Not on the verdict: a start needs the contracts only to name them in a
+        // refusal, and no boot should pay for a number nobody reads at a boot.
+        const port = portRecording(settingsOf(catalogWith(GMBH)));
+        app = await boot(catalogWith(GMBH), {
+            port,
+            contracts: contractsRunning(GMBH.legalName, GMBH.legalName, null),
+        });
+        assert.equal(await app.get(IssuerIdentityInspector).runningContractCount(), 3);
+    });
+
+    test('and nothing is counted where no repository answers', async () => {
+        const port = portRecording(settingsOf(catalogWith(GMBH)));
+        app = await boot(catalogWith(GMBH), { port });
+        assert.equal(await app.get(IssuerIdentityInspector).runningContractCount(), null);
+    });
+});
+
 describe('the comparison happens before the record is replaced', () => {
     test('the check is a module hook and the recorder a bootstrap hook', () => {
         // The comparison is against the PREVIOUS start's values, so it has to

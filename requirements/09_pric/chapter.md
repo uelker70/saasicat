@@ -557,6 +557,10 @@ _Tested by:_
         - and a declaration is settled with them
         - is the same as another when every field matches, and not otherwise
         - is exactly what `issuer.correctionOf` can name in the file
+    - the copy a contract takes of the issuer
+        - carries the same three fields the start compares, and the address beside them
+        - never loses all three because one of them could not be read
+        - does not carry the declaration, which is about the change and not the party
     - the identity a record holds
         - is read back out of the settings tree the last start wrote
         - is nothing where the tree names no issuer, or names one without a name
@@ -595,8 +599,10 @@ _Tested by:_
         - a record that cannot be read stops a start that names an issuer
         - and only warns where the file names no issuer at all
         - an installation that writes no contracts at all still refuses another entity
-    - the comparison happens before the record is replaced
-        - the check is a module hook and the recorder a bootstrap hook
+    - what this start found stays what this start found
+        - a reader afterwards is told the correction, not that nothing moved
+        - and the contracts it would be weighed against are counted on request
+        - and nothing is counted where no repository answers
 
 <!-- END proof -->
 

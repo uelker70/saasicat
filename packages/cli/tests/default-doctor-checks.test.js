@@ -101,8 +101,12 @@ describe('AdminManifestDoctorCheck', () => {
 
 // @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
 describe('IssuerIdentityDoctorCheck', () => {
-    /** The verdict the platform's own check would hand back, without booting one. */
-    const checkWith = (verdict) => new IssuerIdentityDoctorCheck({ inspect: async () => verdict });
+    /** The verdict the platform's own inspector would hand back, without booting one. */
+    const checkWith = (verdict, running = null) =>
+        new IssuerIdentityDoctorCheck({
+            inspect: async () => verdict,
+            runningContractCount: async () => running,
+        });
 
     test('a refusal is reported as the error it would be at the next start', async () => {
         const r = await checkWith({
@@ -126,16 +130,25 @@ describe('IssuerIdentityDoctorCheck', () => {
     });
 
     test('an unchanged identity says what changing it would cost', async () => {
-        const r = await checkWith({
+        const unchanged = {
             kind: 'settled',
             change: {
                 kind: 'unchanged',
                 identity: { legalName: 'Example Software GmbH', vatId: null, taxNumber: null },
             },
-        }).run();
+        };
+        const r = await checkWith(unchanged, 142).run();
         assert.equal(r.severity, 'ok');
         assert.match(r.message, /Example Software GmbH/);
+        assert.match(r.message, /142 contract\(s\) are running/);
         assert.match(r.message, /issuer\.correctionOf/);
+
+        // And where nothing can say how many, the sentence that names the cost
+        // is left out rather than made up.
+        const unknown = await checkWith(unchanged).run();
+        assert.equal(unknown.severity, 'ok');
+        assert.doesNotMatch(unknown.message, /contract\(s\) are running/);
+        assert.match(unknown.message, /issuer\.correctionOf/);
     });
 
     test('a declared correction is reported before the start applies it', async () => {

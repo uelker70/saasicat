@@ -176,14 +176,21 @@ export class IssuerIdentityDoctorCheck implements DoctorCheck {
                         `applied at the next start: ${change.reason}. Drop \`issuer.correctionOf\` ` +
                         'once it has been.',
                 };
-            case 'unchanged':
+            case 'unchanged': {
+                const running = await this.issuer.runningContractCount();
+                const weighedAgainst =
+                    running === null
+                        ? ''
+                        : ` ${running} contract(s) are running, and their issuer copies do not follow a change.`;
                 return {
                     severity: 'ok',
                     message:
-                        `'${change.identity.legalName}' is what the installation recorded. Changing ` +
-                        'the legal name or a tax identifier needs `issuer.correctionOf` beside the ' +
-                        'values it replaces; the address and the contact details do not.',
+                        `'${change.identity.legalName}' is what the installation recorded.` +
+                        weighedAgainst +
+                        ' Changing the legal name or a tax identifier needs `issuer.correctionOf` ' +
+                        'beside the values it replaces; the address and the contact details do not.',
                 };
+            }
         }
     }
 }

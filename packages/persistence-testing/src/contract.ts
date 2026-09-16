@@ -2586,9 +2586,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         test('the contracts still running say which issuer each names', async (t) => {
             // What a start reads before it lets the operator's own legal identity
             // move: an undeclared change of it is refused, and the refusal names
-            // these. Status alone decides what is running — a window that has
-            // passed does not end a contract nobody terminated — and a contract
-            // whose party copy the migration made names no issuer at all.
+            // these. Running is `active` or `scheduled` AND not ended at `asOf`
+            // — status alone would count every contract an ordinary cancellation
+            // ended, because that writes only the window. A contract whose party
+            // copy the migration made names no issuer at all.
             const { adapter } = harness;
             const contracts = adapter.subscriptionContractRepository;
             const createSubscriber = harness.seed.createSubscriber;

@@ -98,6 +98,9 @@ export type IssuerIdentityVerdict =
 export class IssuerIdentityInspector {
     private readonly logger = new Logger(IssuerIdentityInspector.name);
 
+    /** This start's answer, settled the first time anything asks for it. */
+    private verdict: Promise<IssuerIdentityVerdict> | null = null;
+
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
         @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
@@ -109,8 +112,35 @@ export class IssuerIdentityInspector {
         private readonly contracts: SubscriptionContractRepository | null = null,
     ) {}
 
-    /** What the issuer in the file is, against the identity the record holds. */
-    async inspect(): Promise<IssuerIdentityVerdict> {
+    /**
+     * What the issuer in the file is, against the identity the record holds.
+     *
+     * Answered once per process, and the cached answer is the point rather than
+     * the saved query: `AppliedSettingsRecorder` replaces the record moments
+     * later, in a bootstrap hook, so a second comparison would find the file
+     * agreeing with what this very start wrote. A reader asking afterwards —
+     * `<app> doctor`, a health endpoint — would then be told that nothing had
+     * moved, on a start that had just carried a correction through. What this
+     * start found is a fact about this start, so it is settled when the start
+     * asks and does not change afterwards.
+     */
+    inspect(): Promise<IssuerIdentityVerdict> {
+        return (this.verdict ??= this.compare());
+    }
+
+    /**
+     * How many contracts are running, for a report that says what changing the
+     * identity would cost. A query of its own rather than a field on the
+     * verdict: a start needs this only to name the contracts in a refusal, and
+     * no boot should pay for a number nobody reads. `null` where they are not
+     * known.
+     */
+    async runningContractCount(): Promise<number | null> {
+        const running = await this.readRunning();
+        return running.known ? running.contracts.total : null;
+    }
+
+    private async compare(): Promise<IssuerIdentityVerdict> {
         if (!this.settings) return { kind: 'not-compared', why: NOT_RECORDED };
         const recorded = await this.readRecorded();
         if (!recorded.read) return { kind: 'not-compared', why: recorded.why };

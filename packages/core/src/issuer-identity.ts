@@ -33,7 +33,15 @@ import type { PlanCatalogIssuer, PlanCatalogIssuerCorrection } from './plan-cata
  * a file nobody touched, and no declaration could make it stop happening.
  */
 export function issuerIdentityOf(issuer: PlanCatalogIssuer | undefined): LegalIdentity | null {
-    return issuer ? identityOf(issuer as unknown as Record<string, unknown>) : null;
+    if (!issuer) return null;
+    // Named field by field rather than cast: the three names are then checked
+    // against `PlanCatalogIssuer`, so a field renamed in the schema is a
+    // compile error here instead of an identity that silently reads as unknown.
+    return identityOf({
+        legalName: issuer.legalName,
+        vatId: issuer.vatId,
+        taxNumber: issuer.taxNumber,
+    });
 }
 
 /**

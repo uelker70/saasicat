@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
 import {
     LEGAL_IDENTITY_FIELDS,
     classifyIssuerChange,
+    contractPartiesOf,
     issuerIdentityOf,
     movedIdentityFields,
     recordedIssuerIdentity,
@@ -25,6 +26,20 @@ const planCatalogSchema = JSON.parse(
 );
 
 const GMBH = { legalName: 'Example Software GmbH', vatId: 'DE123456789', taxNumber: null };
+
+/** A subscriber as its record stands, for the copies a contract takes. */
+const SUBSCRIBER = {
+    id: 'subscriber-1',
+    customerNumber: 'K-10001',
+    legalName: 'Meier GmbH',
+    vatId: null,
+    taxNumber: null,
+    addressLine1: null,
+    addressLine2: null,
+    postalCode: null,
+    city: null,
+    country: null,
+};
 
 /** The issuer block as the file carries it: optional members absent, not null. */
 const issuerBlock = (overrides = {}) => ({
@@ -101,6 +116,58 @@ describe('the identity of an issuer', () => {
             planCatalogSchema.properties.issuer.properties.correctionOf.properties,
         ).filter((name) => name !== 'reason');
         assert.deepEqual(declarable.sort(), [...LEGAL_IDENTITY_FIELDS].sort());
+    });
+});
+
+// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+// @requirement SC-AUD-012 — A contract carries both parties as they were when it was concluded
+describe('the copy a contract takes of the issuer', () => {
+    test('carries the same three fields the start compares, and the address beside them', () => {
+        const { issuer } = contractPartiesOf(SUBSCRIBER, issuerBlock());
+        assert.deepEqual(issuer, {
+            ...GMBH,
+            addressLine1: 'Werkstraße 5',
+            addressLine2: null,
+            postalCode: '80331',
+            city: 'München',
+            country: 'DE',
+        });
+    });
+
+    test('never loses all three because one of them could not be read', () => {
+        // `issuerIdentityOf` answers nothing for a block whose name is blank —
+        // which the schema keeps out of the file, and a catalogue handed in as
+        // an object does not go through. Spread, that nothing would leave the
+        // copy without any of the three: a contract naming a party it does not
+        // name. An empty name is what a copy has always carried for "not
+        // stated", and it is what reading one back produces.
+        const { issuer } = contractPartiesOf(SUBSCRIBER, { legalName: '   ', city: 'Berlin' });
+        assert.deepEqual(issuer, {
+            legalName: '',
+            vatId: null,
+            taxNumber: null,
+            addressLine1: null,
+            addressLine2: null,
+            postalCode: null,
+            city: 'Berlin',
+            country: null,
+        });
+    });
+
+    test('does not carry the declaration, which is about the change and not the party', () => {
+        const declared = issuerBlock({
+            correctionOf: { legalName: 'Example Software OHG', reason: 'Renamed' },
+        });
+        assert.deepEqual(Object.keys(contractPartiesOf(SUBSCRIBER, declared).issuer).sort(), [
+            'addressLine1',
+            'addressLine2',
+            'city',
+            'country',
+            'legalName',
+            'postalCode',
+            'taxNumber',
+            'vatId',
+        ]);
     });
 });
 

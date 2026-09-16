@@ -57,6 +57,13 @@ of that same legal entity.
   start, so `doctor` reports the state a start would accept rather than printing
   a refusal.
 
+One consequence to know before it bites: every start records what it applied, and
+a CLI process is a start. Booting your application against the production
+database with a _newer_ `config/saas.yaml` applies that file to the record, a
+declared correction included — and the replicas still on the previous file are
+then the undeclared change, refused at the next restart. Run one-off commands
+with the file the installation is running.
+
 Three limits, stated rather than left to be found. The comparison needs the
 `core.appliedSettings` port, which both shipped persistence bundles provide;
 without it the boot log says once that the issuer is compared with nothing. A
