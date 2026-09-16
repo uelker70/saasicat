@@ -68,6 +68,37 @@ subscribe it to `checkout.session.completed` and `checkout.session.expired`,
 and create the application with `rawBody: true` — a signature is checked
 against the bytes that arrived, not against a re-serialised object.
 
+### Every method the file names has to be live at the account
+
+`config/saas.yaml#payments.accounts.<name>.methods` reaches Stripe as
+`payment_method_types`, unchanged, and Stripe reads that list as a whole. Name
+one method the account has not activated — `sepa_debit` sitting at
+`available: false`, which is where it stays until Stripe's own verification for
+it is done — and the session is refused before it opens. Not that method: the
+session. The card nobody had a problem with goes with it.
+
+Nothing on this side can see that. The start checks the file against the bound
+adapters, and neither knows what the account is cleared for, so the first sign
+of it is a customer who cannot enter a payment method at all. Name what is live,
+and add a method when the account is cleared for it — `methods: [card]` is the
+honest starting point for an account that is not.
+
+Stripe recommends against `payment_method_types` and points at
+`payment_method_configurations` and dynamic payment methods, which decide the
+list at their end. This adapter sends the list anyway, and the reason is the one
+the rest of SaaSiCat is built on: `config/saas.yaml` is where an installation's
+decisions live, and a list maintained in a provider's dashboard would be a second
+place the same decision could be made — and disagree. The cost is the paragraph
+above, and it is the cost being chosen rather than overlooked.
+
+### The keys come from the dashboard
+
+There is no API that creates an API key, so this part of setting up an account is
+not automatable and no amount of scripting will make it so: `STRIPE_SECRET_KEY`
+and `STRIPE_WEBHOOK_SECRET` are read off Stripe's dashboard by a person. Stripe
+recommends a **restricted key** (`rk_…`) over a secret key — this adapter needs
+customers, checkout sessions and setup intents, and nothing else.
+
 ## What this is not
 
 Not a billing integration. It sets up a payment method and reports what Stripe
