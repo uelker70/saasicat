@@ -27,6 +27,30 @@ const SUBJECT_ID = 'saasicat_subject_id';
 
 const SIGNATURE_HEADER = 'stripe-signature';
 
+/**
+ * The states a setup ends in: `succeeded` is the payment method, and the other
+ * two are the attempt that did not produce one. A failed attempt does not stay
+ * failed in Stripe's vocabulary — the intent goes back to asking for a payment
+ * method, with the error beside it — and one nobody came back to is cancelled.
+ */
+const SETUP_GAVE_UP: ReadonlySet<Stripe.SetupIntent.Status> = new Set([
+    'requires_payment_method',
+    'canceled',
+]);
+
+/**
+ * How long a delivery about a setup that has settled on none of those is asked
+ * about again.
+ *
+ * The state is read after the delivery, so a setup still on its way is a race
+ * the next attempt wins — within seconds, for the payment methods this adapter
+ * offers. Past that it is not a race any more, and Stripe turns off an endpoint
+ * that keeps failing, which would take every other sign-up at the account with
+ * it; so the delivery is answered, nothing is recorded, and one setup nobody
+ * can use stays the whole loss. It also bounds a state Stripe adds tomorrow.
+ */
+const ASK_AGAIN_FOR_MS = 60 * 60 * 1000;
+
 export interface StripePaymentGatewayOptions {
     /**
      * The secret key of the account this gateway is bound to, from the
@@ -206,9 +230,10 @@ export class StripePaymentGateway implements PaymentGateway {
         const intent = await this.stripe.setupIntents.retrieve(intentRef, {
             expand: ['payment_method', 'mandate'],
         });
-        // The setup was given up on. The port has an event for that, and a
-        // sign-up takes it as its cue to try again.
-        if (intent.status === 'canceled') {
+        // The setup produced no payment method and is not going to. The port
+        // has an event for that, and a sign-up takes it as its cue to try
+        // again.
+        if (SETUP_GAVE_UP.has(intent.status)) {
             return {
                 kind: 'payment-method-setup-failed',
                 eventId,
@@ -223,12 +248,16 @@ export class StripePaymentGateway implements PaymentGateway {
         // failing the delivery is what makes Stripe ask again, and the next ask
         // reads the state it settled on. Answering it `200` would end the
         // matter with nothing recorded, and no other event picks a session back
-        // up.
+        // up — until the race is old enough not to be one.
         if (intent.status !== 'succeeded') {
-            throw new Error(
-                `Stripe reported checkout session ${session.id} as completed while setup intent ` +
-                    `${intentRef} is '${intent.status}'; asking again reads the state it settles on.`,
-            );
+            if (Date.now() - occurredAt.getTime() < ASK_AGAIN_FOR_MS) {
+                throw new Error(
+                    `Stripe reported checkout session ${session.id} as completed while setup ` +
+                        `intent ${intentRef} is '${intent.status}'; asking again reads the state ` +
+                        'it settles on.',
+                );
+            }
+            return { kind: 'unhandled', eventId, occurredAt, type: 'checkout.session.completed' };
         }
         const paymentMethod = expanded<Stripe.PaymentMethod>(intent.payment_method);
         if (paymentMethod === null) {

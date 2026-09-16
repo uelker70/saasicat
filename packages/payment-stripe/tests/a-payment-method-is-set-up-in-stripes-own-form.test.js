@@ -442,7 +442,41 @@ describe('the callback Stripe sends is read', () => {
         }
     });
 
-    test('a setup still on its way is asked about again, and one given up on is a setup that failed', async () => {
+    test('a setup that produced no payment method is a setup that failed, whichever state it ended in', async () => {
+        const ctx = await gatewayOver({
+            // Where a failed attempt lands: the intent asks for a payment
+            // method again, with the error beside it.
+            'GET /v1/setup_intents/seti_rejected': {
+                ...SEPA_INTENT,
+                id: 'seti_rejected',
+                status: 'requires_payment_method',
+                last_setup_error: { code: 'payment_method_provider_decline' },
+            },
+            'GET /v1/setup_intents/seti_canceled': {
+                ...CARD_INTENT,
+                id: 'seti_canceled',
+                status: 'canceled',
+            },
+        });
+
+        for (const intent of ['seti_rejected', 'seti_canceled']) {
+            const read = await ctx.gateway.readCallback(
+                signedCallback(
+                    event('checkout.session.completed', { ...SESSION, setup_intent: intent }),
+                    WEBHOOK_SECRET,
+                ),
+            );
+            assert.deepEqual(read, {
+                kind: 'payment-method-setup-failed',
+                eventId: 'evt_1',
+                occurredAt: new Date(1_789_000_000_000),
+                sessionRef: 'cs_test_1',
+                subject: { kind: 'registration', pendingRegistrationId: 'pending-1' },
+            });
+        }
+    });
+
+    test('a setup still on its way is asked about again, and given up on once the race is old', async () => {
         const ctx = await gatewayOver({
             'GET /v1/setup_intents/seti_processing': {
                 ...SEPA_INTENT,
@@ -454,16 +488,17 @@ describe('the callback Stripe sends is read', () => {
                 id: 'seti_action',
                 status: 'requires_action',
             },
-            'GET /v1/setup_intents/seti_canceled': {
-                ...CARD_INTENT,
-                id: 'seti_canceled',
-                status: 'canceled',
-            },
         });
-        const completed = (intent) =>
+        const completedAt = (intent, createdSecondsAgo) =>
             ctx.gateway.readCallback(
                 signedCallback(
-                    event('checkout.session.completed', { ...SESSION, setup_intent: intent }),
+                    {
+                        ...event('checkout.session.completed', {
+                            ...SESSION,
+                            setup_intent: intent,
+                        }),
+                        created: Math.floor(Date.now() / 1000) - createdSecondsAgo,
+                    },
                     WEBHOOK_SECRET,
                 ),
             );
@@ -471,20 +506,17 @@ describe('the callback Stripe sends is read', () => {
         // Raised rather than answered: the state is read after the delivery, so
         // failing it is what makes Stripe ask again once the setup has settled.
         for (const intent of ['seti_processing', 'seti_action']) {
-            await assert.rejects(completed(intent), (error) => {
+            await assert.rejects(completedAt(intent, 5), (error) => {
                 assert.ok(error.message.includes(`${intent} is '`), error.message);
                 return true;
             });
         }
 
-        const read = await completed('seti_canceled');
-        assert.deepEqual(read, {
-            kind: 'payment-method-setup-failed',
-            eventId: 'evt_1',
-            occurredAt: new Date(1_789_000_000_000),
-            sessionRef: 'cs_test_1',
-            subject: { kind: 'registration', pendingRegistrationId: 'pending-1' },
-        });
+        // An hour of asking is not a race any more, and an endpoint Stripe
+        // turns off takes every other sign-up at this account with it.
+        const read = await completedAt('seti_processing', 2 * 60 * 60);
+        assert.equal(read.kind, 'unhandled');
+        assert.equal(read.type, 'checkout.session.completed');
     });
 });
 

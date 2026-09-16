@@ -21,13 +21,18 @@ masked details.
 - `checkout.session.completed` in setup mode becomes a confirmed payment method
   — the card's network, last four digits and expiry, or the direct debit's last
   four digits, bank code and mandate reference. `checkout.session.expired`, and
-  a setup intent Stripe reports as `canceled`, become a setup that failed.
-- A session the application opened for its own business at the same account, an
-  event of another type, and a payment method whose shape SaaSiCat has nowhere
-  to put are answered as needing nothing: asking again reads the same answer,
-  and Stripe turns off an endpoint that keeps failing, which would take every
-  other sign-up at the account with it. A setup still on its way is raised
-  instead, so Stripe asks again once it has settled.
+  a setup that produced no payment method — an intent back at
+  `requires_payment_method` after a decline, or `canceled` — become a setup that
+  failed.
+- Answered as needing nothing: a session the application opened for its own
+  business at the same account, an event of another type, a payment method whose
+  shape SaaSiCat has nowhere to put, and a setup that has settled on none of
+  those states for an hour. Asking again would read the same answer, and Stripe
+  turns off an endpoint that keeps failing, which would take every other sign-up
+  at the account with it. Raised so Stripe asks again: a setup still on its way
+  within that hour. Raised as defects: a completed setup session without a setup
+  intent, a succeeded intent without a payment method, and a completed session
+  no customer is named on.
 
 Bind it in `SaaSiCatModule.forRoot({ payments: { gateways } })` under the
 account name `config/saas.yaml#payments.accounts` gives it, point that
