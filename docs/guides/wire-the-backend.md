@@ -532,9 +532,7 @@ page shows the one in use and opens the form for a new one.
 
 Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
 webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,
-with the `methods` its form offers — and every one of those has to be live at the provider, since
-a list is sent as a list and one method an account has not been cleared for can take the others
-with it. `returnUrlOrigins` names where the form may send a person back
+with the `methods` its form offers. `returnUrlOrigins` names where the form may send a person back
 to — the **browser's** origin, not your API's, because that is where the person lands. A success or
 cancel URL at any other origin is refused with `PAYMENT_RETURN_URL_NOT_ALLOWED`, which is what a
 front end on a different port than `APP_URL` runs into first:
@@ -647,12 +645,14 @@ payments: {
 
 The account is `provider: stripe` in the file, its webhook endpoint at Stripe points at the route
 below and is subscribed to `checkout.session.completed` and `checkout.session.expired`, and the
-keys stay in the environment — read off Stripe's dashboard by a person, because no API creates an
-API key. `stripe` is a peer dependency of that package, so install it beside.
+keys stay in the environment. `stripe` is a peer dependency of that package, so install it beside.
 
-Two things there that nothing here can check for you: every method the file names has to be live at
-that Stripe account, because the list travels as one and a method the account has not been cleared
-for takes the whole session down with it; and Stripe advises a restricted key over a secret one.
+Two things there that nothing on this side can check for you. Every method the account lists in
+`methods` has to be live at **that Stripe account**: the list travels to Stripe as one, so a method
+the account has not been cleared for takes the whole session down with it, and the first sign is a
+customer who cannot enter a payment method at all. And `STRIPE_SECRET_KEY` is read off the dashboard
+by a person, because no API creates an API key — Stripe advises a restricted key over a secret one.
+(The webhook secret is not in that boat: creating the endpoint through the API returns it.)
 [Its README](../../packages/payment-stripe/README.md) has both, and the rest.
 
 What `payments` mounts and asks of the application:

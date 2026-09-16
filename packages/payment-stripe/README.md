@@ -73,8 +73,9 @@ against the bytes that arrived, not against a re-serialised object.
 `config/saas.yaml#payments.accounts.<name>.methods` reaches Stripe as
 `payment_method_types`, unchanged, and Stripe reads that list as a whole. Name
 one method the account has not activated — `sepa_debit` sitting at
-`available: false`, which is where it stays until Stripe's own verification for
-it is done — and the session is refused before it opens. Not that method: the
+`available: false` in the dashboard's payment-method settings, which is where it
+stays until Stripe's own verification for it is done — and the session is refused
+before it opens. Not that method: the
 session. The card nobody had a problem with goes with it.
 
 Nothing on this side can see that. The start checks the file against the bound
@@ -91,13 +92,24 @@ decisions live, and a list maintained in a provider's dashboard would be a secon
 place the same decision could be made — and disagree. The cost is the paragraph
 above, and it is the cost being chosen rather than overlooked.
 
-### The keys come from the dashboard
+### Where the two secrets come from
 
-There is no API that creates an API key, so this part of setting up an account is
-not automatable and no amount of scripting will make it so: `STRIPE_SECRET_KEY`
-and `STRIPE_WEBHOOK_SECRET` are read off Stripe's dashboard by a person. Stripe
-recommends a **restricted key** (`rk_…`) over a secret key — this adapter needs
-customers, checkout sessions and setup intents, and nothing else.
+They are not the same kind of thing, and only one of them has to be fetched by
+hand.
+
+`STRIPE_SECRET_KEY` does: no API creates an API key, so somebody reads it off
+Stripe's dashboard. Stripe recommends a **restricted key** (`rk_…`) over a secret
+one. What this adapter touches, so you can grant that and no more: customers
+(write), checkout sessions (write), setup intents (read) — and the setup intent is
+read with `payment_method` and `mandate` expanded, which Stripe lists as their own
+permissions. Grant from Stripe's own list rather than from this sentence: a
+`checkout.session.completed` whose expansion the key may not follow throws where
+the confirmation is read, every delivery then fails, and Stripe disables an
+endpoint that keeps failing.
+
+`STRIPE_WEBHOOK_SECRET` does not: `POST /v1/webhook_endpoints` creates the
+endpoint and returns its signing secret, so the part described just above — point
+it at the route, subscribe it to the two events — is scriptable end to end.
 
 ## What this is not
 
