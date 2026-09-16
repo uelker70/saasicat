@@ -1,5 +1,12 @@
 # @saasicat/payment-stripe
 
+## 1.0.0-rc.19
+
+### Patch Changes
+
+- Updated dependencies [99cbb89]
+    - @saasicat/core@1.0.0-rc.19
+
 ## 1.0.0-rc.18
 
 ### Minor Changes
