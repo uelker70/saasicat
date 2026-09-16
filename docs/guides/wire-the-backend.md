@@ -530,6 +530,41 @@ the card network, the last four digits, the expiry, a direct debit's mandate ref
 card number or an IBAN. Self-registration takes its payment method this way, and the tenant's plan
 page shows the one in use and opens the form for a new one.
 
+**One gateway account belongs to one installation.** Two installations sharing an account is the
+arrangement to avoid. Stripe delivers an event to every endpoint registered on the account that
+subscribes to that type, with no way to route by application, and recommends an account per
+application for exactly that reason (quoted in
+[the adapter's README](../../packages/payment-stripe/README.md)); assume the next provider behaves
+the same way until its own documentation says otherwise. So each of your installations gets its own
+account at the provider, and the accounts in `config/saas.yaml` are that installation's.
+
+A sibling's callback cannot move what matters: a confirmation names its account, its session and its
+subject together, so one from the installation next door matches no open setup here — no payment
+method changes hands, and no sign-up is activated. What it does instead depends on what each
+installation has wired, so these are three separate cases and not a list that stacks.
+
+**Every installation: your log and your tables fill with other people's work.** A sibling's
+confirmation for a subscriber is written at error level — with one account per installation that can
+only mean a callback naming a subscriber it has no business naming — so four installations on one
+account turn three of every four into an error line reading "nothing recorded", in each of them, in
+the same words a real defect produces. On the sign-up path the same mismatch is a warning. And an
+event this installation can handle is claimed in `payment_event_log` before anything asks whose
+subject it is, so a sibling's confirmations become rows of yours.
+
+**An installation that runs sign-ups: an audit trail with strangers in it.** With
+`RegistrationModule` wired, a sibling's abandoned sign-up checkout writes a `PAYMENT_FAILED` entry
+belonging to no sign-up of yours.
+
+**An installation that does not run sign-ups: it can be taken down by a neighbour's event.** A
+callback is answered with an error when nothing here handles what it is about — deliberately, so a
+confirmation is retried rather than lost while a module is still being wired. Beside an installation
+that does run sign-ups, that fires for events that were never yours: every sibling sign-up event
+answered with `500`, a confirmation and an abandoned checkout alike, since what is missing is decided
+before the two are told apart, and the message advises wiring `RegistrationModule` — neither your
+problem nor your fix. A gateway retries such an event for a long time and then disables an endpoint
+that keeps failing; the endpoint it disables is the one carrying your own confirmations. This is the
+case that makes the heading a rule rather than a preference.
+
 Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
 webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,
 with the `methods` its form offers. `returnUrlOrigins` names where the form may send a person back

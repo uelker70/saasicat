@@ -68,6 +68,29 @@ subscribe it to `checkout.session.completed` and `checkout.session.expired`,
 and create the application with `rawBody: true` — a signature is checked
 against the bytes that arrived, not against a re-serialised object.
 
+### One Stripe account per installation
+
+Stripe delivers an event to every endpoint on the account subscribed to that
+type, and there is no way to send it to one application's endpoint only:
+
+> It's not possible to restrict webhook events for specific applications when
+> using a single Stripe account. All events will be sent to all webhook
+> endpoints on the account that listen for that event type. The recommended
+> approach is to use separate Stripe accounts for each application or website.
+
+— Stripe support, retrieved 2026-09-17.
+
+A sibling's callback cannot move what matters: a confirmation carries its
+account, its session and its subject, and one from the installation next door
+matches no open setup here, so no payment method changes hands and no sign-up is
+activated. What it does instead depends on what each installation runs, and the
+worst of it is not a log line: an installation that has not wired
+`RegistrationModule` answers a neighbour's sign-up events with `500`, Stripe
+retries those and then disables the endpoint — the one carrying your own
+confirmations.
+[The guide](../../docs/guides/wire-the-backend.md) has the whole account, path by
+path.
+
 ### Every method the file names has to be live at the account
 
 `config/saas.yaml#payments.accounts.<name>.methods` reaches Stripe as
