@@ -2676,6 +2676,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 capped.contracts.map((row) => row.id),
                 [oldest.id, scheduled.id],
             );
+
+            // Zero means zero. A caller that wants only the number passes it,
+            // and an implementation reading a falsy limit as "no limit" hands
+            // back every running contract to answer a count — the one shape of
+            // this method that gets slower the more an installation sells.
+            const counted = await contracts.listRunningIssuers(0, asOf);
+            assert.equal(counted.total, 4);
+            assert.deepEqual(counted.contracts, []);
         });
 
         // -------------------------------------------------------------

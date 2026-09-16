@@ -172,9 +172,10 @@ export class IssuerIdentityDoctorCheck implements DoctorCheck {
                 return {
                     severity: 'ok',
                     message:
-                        `A correction of '${change.recorded.legalName}' is declared and will be ` +
-                        `applied at the next start: ${change.reason}. Drop \`issuer.correctionOf\` ` +
-                        'once it has been.',
+                        `A correction of '${change.recorded.legalName}' is declared: ` +
+                        `${change.reason}. This is what the start found; whether it has been ` +
+                        'recorded is what `GET /admin/settings` shows, and `issuer.correctionOf` ' +
+                        'may be dropped once it does.',
                 };
             case 'unchanged': {
                 const running = await this.issuer.runningContractCount();

@@ -120,7 +120,7 @@ export type IssuerIdentityChange =
     | {
           kind: 'undeclared';
           recorded: LegalIdentity;
-          /** `null` where the file dropped the issuer block altogether. */
+          /** `null` where the file names no issuer that has a name — see `names-no-issuer`. */
           current: LegalIdentity | null;
           moved: readonly LegalIdentityField[];
           fault: IssuerCorrectionFault;
@@ -141,9 +141,6 @@ export function classifyIssuerChange(
         return current ? { kind: 'first-naming', identity: current } : { kind: 'none-named' };
     if (current && sameLegalIdentity(recorded, current))
         return { kind: 'unchanged', identity: current };
-    // Dropping the issuer block drops the declaration with it, so a file that
-    // names no issuer while one is recorded is always undeclared. What moved is
-    // then every field the record actually held a value for.
     if (!current) {
         // Refused before the declaration is even read, and that ordering is the
         // guard: a block whose name reads as nothing yields no identity, so a

@@ -247,6 +247,13 @@ export interface SubscriptionContractRepository {
      * The window is open at the bottom on purpose: a contract that starts next
      * month is concluded, its party copy is fixed, and it will be invoiced under
      * the issuer it names.
+     *
+     * `limit` may be `0`, and a caller that wants only the count passes it:
+     * `total` is exact whatever the limit, so nothing has to come back for it.
+     * Zero means zero — an implementation that reads a falsy limit as "no limit"
+     * returns every running contract to a caller asking for none, which is the
+     * one shape of this method that gets slower the more an installation sells.
+     * The executable contract asks for `0`.
      */
     listRunningIssuers(limit: number, asOf?: Date): Promise<RunningContractIssuers>;
 }

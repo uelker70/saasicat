@@ -34,6 +34,7 @@
 import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
 import {
     classifyIssuerChange,
+    LEGAL_IDENTITY_FIELDS,
     recordedIssuerIdentity,
     type AppliedSettingsPort,
     type AppliedSettingsValues,
@@ -282,10 +283,43 @@ function refusalFor(change: UndeclaredChange, running: KnownContracts, source: s
         `  in the file: ${change.current ? describe(change.current) : 'no issuer is named at all'}`,
         faultSentence(change.fault),
         contractsSentence(running),
-        'Moving a contract to another legal entity is a transfer, not an edit of a setting. Where ' +
-            'this is the same entity under a new name, or with a tax identifier that was wrong or ' +
-            'missing, declare it beside the values it replaces and start again:',
+        'Moving a contract to another legal entity is a transfer, not an edit of a setting.',
+        ...wayOut(change),
+    ].join('\n');
+}
+
+/**
+ * What to write, for the fault that was found.
+ *
+ * Two ways out, because there are two things wrong. Printing the declaration at
+ * a file that names no issuer would be an instruction that leads back to the
+ * same message: the declaration is not read at all there, and in the shape where
+ * the block is present with a blank name the operator already has exactly the
+ * declaration this would print, value for value.
+ */
+function wayOut(change: UndeclaredChange): string[] {
+    if (change.fault.kind === 'names-no-issuer') {
+        return [
+            'Name the issuer again, with the identity this installation recorded — and where that ' +
+                'entity has since been corrected, declare the correction beside the corrected ' +
+                'values. A declaration on its own cannot help here: there is nothing in the file ' +
+                'for it to be about.',
+            issuerBlockFor(change.recorded),
+        ];
+    }
+    return [
+        'Where this is the same entity under a new name, or with a tax identifier that was wrong ' +
+            'or missing, declare it beside the values it replaces and start again:',
         declarationFor(change.recorded, change.moved),
+    ];
+}
+
+/** The recorded identity, as the block that would name it again. */
+function issuerBlockFor(recorded: LegalIdentity): string {
+    const named = LEGAL_IDENTITY_FIELDS.filter((field) => recorded[field] !== null);
+    return [
+        'issuer:',
+        ...named.map((field) => `    ${field}: ${JSON.stringify(recorded[field])}`),
     ].join('\n');
 }
 
@@ -296,8 +330,7 @@ function faultSentence(fault: IssuerCorrectionFault): string {
         case 'names-no-issuer':
             return (
                 'The file names no issuer for a declaration to be about, so there is no entity ' +
-                'here for the recorded one to be the same as. Name the issuer again, or declare ' +
-                'the change as a correction of the recorded identity.'
+                'here for the recorded one to be the same as.'
             );
         case 'names-another-value':
             return (

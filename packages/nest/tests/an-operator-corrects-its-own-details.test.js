@@ -284,7 +284,7 @@ describe('a start that finds another legal entity', () => {
         assert.match(message, /2 contract\(s\) are still running/);
         assert.match(message, /tenant tenant-1/);
         assert.match(message, /transfer, not an edit of a setting/);
-        assert.match(message, /correctionOf/);
+        assert.match(message, /issuer:\n {4}correctionOf:\n {8}legalName: "Example Software GmbH"/);
     });
 
     test('leaves the record exactly as the previous start left it', async () => {
@@ -353,6 +353,11 @@ describe('a start that finds another legal entity', () => {
         });
         assert.match(message, /no issuer is named at all/);
         assert.match(message, /names no issuer for a declaration to be about/);
+        assert.doesNotMatch(
+            message,
+            /correctionOf:/,
+            'the block is gone, so a declaration cannot be in it',
+        );
     });
 
     test('and refuses a nameless block however well it is declared, leaving the record', async () => {
@@ -374,6 +379,15 @@ describe('a start that finds another legal entity', () => {
         );
         assert.match(message, /names no issuer for a declaration to be about/);
         assert.deepEqual(port.applied.settings, settings, 'a nameless issuer was recorded');
+
+        // And the way out it prints is one that works. The declaration is not
+        // read on this path at all, and the operator already has exactly the one
+        // this would otherwise print — value for value — so printing it back
+        // would send them round the same restart into the same message.
+        assert.doesNotMatch(message, /correctionOf:/);
+        assert.match(message, /Name the issuer again/);
+        assert.match(message, /issuer:\n {4}legalName: "Example Software GmbH"/);
+        assert.match(message, / {4}vatId: "DE123456789"/);
     });
 
     test('names the contracts up to a limit, and how many more there are', async () => {
