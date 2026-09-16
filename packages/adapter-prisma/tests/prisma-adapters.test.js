@@ -14,6 +14,7 @@ import {
     PrismaPlanVersionRepository,
     PrismaPromoCodeRepository,
     PrismaPromoCodeRedemptionRepository,
+    PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
     PrismaSubscriptionUsageAdapter,
     PrismaSuperAdminBootstrapAdapter,
@@ -869,5 +870,92 @@ describe('prismaPersistence()', () => {
         const hasherToken = Symbol('HASHER');
         const bundle = prismaPersistence({ client: clientToken, passwordHasher: hasherToken });
         assert.deepEqual(bundle.core.superAdminProvisioning.inject, [clientToken, hasherToken]);
+    });
+});
+
+// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+describe('PrismaSubscriptionContractRepository.listRunningIssuers', () => {
+    /** The delegate, recording what it was asked for. */
+    function fakeContracts(rows) {
+        const seen = {};
+        return {
+            seen,
+            prisma: {
+                subscriptionContract: {
+                    async count(args) {
+                        seen.count = args;
+                        return rows.length;
+                    },
+                    async findMany(args) {
+                        seen.findMany = args;
+                        return rows.slice(0, args.take);
+                    },
+                },
+            },
+        };
+    }
+
+    test('asks for the running ones, oldest first, four columns, capped', async () => {
+        // What the contract against a real database cannot tell apart: a query
+        // that reads every column of every contract answers the same way on a
+        // handful of rows and falls over on an installation with thousands.
+        const { seen, prisma } = fakeContracts([
+            {
+                id: 'c-1',
+                tenantId: 't-1',
+                issuerSnapshot: { legalName: 'Example Software GmbH' },
+                effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            },
+            {
+                id: 'c-2',
+                tenantId: 't-2',
+                issuerSnapshot: null,
+                effectiveFrom: new Date('2026-02-01T00:00:00.000Z'),
+            },
+        ]);
+        const asOf = new Date('2026-06-01T00:00:00.000Z');
+        const repo = new PrismaSubscriptionContractRepository(prisma);
+        const listed = await repo.listRunningIssuers(1, asOf);
+
+        assert.deepEqual(seen.count.where, {
+            status: { in: ['active', 'scheduled'] },
+            // Not status alone: an ordinary cancellation writes only the window.
+            OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: asOf } }],
+        });
+        assert.deepEqual(seen.findMany.where, seen.count.where, 'the count counts what is listed');
+        assert.deepEqual(seen.findMany.select, {
+            id: true,
+            tenantId: true,
+            issuerSnapshot: true,
+            effectiveFrom: true,
+        });
+        assert.deepEqual(seen.findMany.orderBy, [
+            { effectiveFrom: 'asc' },
+            { createdAt: 'asc' },
+            { id: 'asc' },
+        ]);
+        assert.equal(seen.findMany.take, 1);
+        assert.equal(listed.total, 2, 'the limit caps the list, not the count');
+        assert.deepEqual(listed.contracts, [
+            {
+                id: 'c-1',
+                tenantId: 't-1',
+                issuerLegalName: 'Example Software GmbH',
+                effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            },
+        ]);
+    });
+
+    test('a contract with no issuer copy says so rather than inventing one', async () => {
+        const { prisma } = fakeContracts([
+            {
+                id: 'c-2',
+                tenantId: 't-2',
+                issuerSnapshot: null,
+                effectiveFrom: new Date('2026-02-01T00:00:00.000Z'),
+            },
+        ]);
+        const listed = await new PrismaSubscriptionContractRepository(prisma).listRunningIssuers(5);
+        assert.equal(listed.contracts[0].issuerLegalName, null);
     });
 });

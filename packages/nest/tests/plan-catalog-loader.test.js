@@ -357,3 +357,39 @@ test('a VAT rate is a percentage: a fraction is refused, and the bounds are perc
         assert.equal(catalog.vatRate, vatRate);
     }
 });
+
+// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+test('the issuer names an entity, or the file does not load', () => {
+    // Every one of these is settled by taking the surrounding whitespace off
+    // before it is compared, so a value made only of whitespace is a value that
+    // reads as nothing. The `reason` is with them because it is the entire
+    // justification for letting a start through with a changed identity.
+    const withIssuer = (block) => VALID_YAML + '\nissuer:\n' + block;
+    const blank = [
+        ["    legalName: '   '", 'legalName'],
+        ["    legalName: Example GmbH\n    vatId: ' '", 'vatId'],
+        ["    legalName: Example GmbH\n    taxNumber: '  '", 'taxNumber'],
+        [
+            "    legalName: Example GmbH\n    correctionOf:\n        legalName: Old GmbH\n        reason: '   '",
+            'reason',
+        ],
+    ];
+    for (const [block, field] of blank) {
+        assert.throws(
+            () => loadPlanCatalogFromString(withIssuer(block), { source: 'issuer-test' }),
+            PlanCatalogValidationError,
+            `${field} made of whitespace loaded`,
+        );
+    }
+    // And the same file with something in each of them does load, so the check
+    // above is not passing because the block is malformed.
+    assert.ok(
+        loadPlanCatalogFromString(
+            withIssuer(
+                '    legalName: Example GmbH\n    vatId: DE123456789\n    taxNumber: 12/345\n' +
+                    '    correctionOf:\n        legalName: Old GmbH\n        reason: Renamed',
+            ),
+            { source: 'issuer-test' },
+        ).issuer,
+    );
+});

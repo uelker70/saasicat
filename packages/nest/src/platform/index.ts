@@ -79,6 +79,11 @@ export {
     EnforcementChainCheck,
     type EnforcementChainState,
 } from './enforcement-chain.check.js';
+export {
+    IssuerIdentityCheck,
+    IssuerIdentityInspector,
+    type IssuerIdentityVerdict,
+} from './issuer-identity.check.js';
 // ─────────────────────────────────────────────────────────────────────────
 // Re-exported from THIS entry on purpose.
 //

@@ -38,6 +38,7 @@ import {
     EnforcementChainCheck,
     type EnforcementChainState,
 } from './enforcement-chain.check.js';
+import { IssuerIdentityCheck, IssuerIdentityInspector } from './issuer-identity.check.js';
 
 export * from './module-options.js';
 import { assertConfiguration } from './validation/validate.js';
@@ -265,6 +266,14 @@ export class SaaSiCatModule {
         // DiscoveryModule can be switched off, and a check that cannot be
         // constructed takes the whole boot down with it.
         if (options.enforcementChainCheck !== false) imports.push(NestDiscoveryModule);
+
+        // Asked here rather than inside `SettingsModule`, because it is the one
+        // place where the settings record and the contract repository are both
+        // in scope — and it needs both: the record says which legal entity this
+        // installation last ran as, and the contracts say which ones a refusal
+        // is about. Exported so `<app> doctor` can ask the same question.
+        lightweightProviders.push(IssuerIdentityInspector, IssuerIdentityCheck);
+        lightweightExports.push(IssuerIdentityInspector, IssuerIdentityCheck);
 
         const tenantManifest = composeTenantManifest(composition);
         lightweightProviders.push(...tenantManifest.providers);

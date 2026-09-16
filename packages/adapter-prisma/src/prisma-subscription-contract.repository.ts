@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
     NewContractLineItemData,
     NewSubscriptionContractData,
+    RunningContractIssuers,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
@@ -10,9 +11,11 @@ import type {
 } from '@saasicat/core';
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    toRunningContractIssuer,
     toSubscriptionContractRecord,
     type CanonicalContractLineItemRow,
     type CanonicalContractRow,
+    type CanonicalRunningContractRow,
 } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
@@ -50,6 +53,17 @@ type SubscriptionContractDbRow = CanonicalContractRow & {
 /** Narrow view of the injected client used by this repository. */
 interface SubscriptionContractPrisma {
     subscriptionContract: PrismaModelDelegateLike<SubscriptionContractDbRow>;
+}
+
+/**
+ * The same delegate, seen as the four columns the issuer check selects.
+ *
+ * Prisma types a `select` by what it selects and this package types delegates
+ * by their row, so the narrow query needs its own view rather than pretending
+ * a four-column row is a whole contract.
+ */
+interface RunningContractPrisma {
+    subscriptionContract: PrismaModelDelegateLike<CanonicalRunningContractRow>;
 }
 
 /**
@@ -153,6 +167,31 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
             include: { lineItems: true },
         });
         return toSubscriptionContractRecord(row, row.lineItems);
+    }
+
+    async listRunningIssuers(
+        limit: number,
+        asOf: Date = new Date(),
+    ): Promise<RunningContractIssuers> {
+        const where = {
+            status: { in: [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES] },
+            OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: asOf } }],
+        };
+        const contracts = (this.db() as unknown as RunningContractPrisma).subscriptionContract;
+        const [total, rows] = await Promise.all([
+            contracts.count({ where }),
+            // Oldest first, and `id` last so two contracts that start in the
+            // same moment are still listed in one order — a refusal that names
+            // a different pair on every restart is one an operator cannot act
+            // on.
+            contracts.findMany({
+                where,
+                select: { id: true, tenantId: true, issuerSnapshot: true, effectiveFrom: true },
+                orderBy: [{ effectiveFrom: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+                take: limit,
+            }),
+        ]);
+        return { total, contracts: rows.map(toRunningContractIssuer) };
     }
 
     async terminate(

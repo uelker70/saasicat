@@ -981,6 +981,7 @@ _Tested by:_
     - a fractional notice period is refused — days are whole
     - an unknown member of the block is refused, not ignored
     - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
+    - the issuer names an entity, or the file does not load
 
 <!-- END proof -->
 
@@ -1023,6 +1024,7 @@ _Tested by:_
     - a fractional notice period is refused — days are whole
     - an unknown member of the block is refused, not ignored
     - a VAT rate is a percentage: a fraction is refused, and the bounds are percentages
+    - the issuer names an entity, or the file does not load
 
 <!-- END proof -->
 

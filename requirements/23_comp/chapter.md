@@ -711,6 +711,9 @@ _Tested by:_
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
         - token client + hasher token → provisioning factory injecting both
+    - PrismaSubscriptionContractRepository.listRunningIssuers
+        - asks for the running ones, oldest first, four columns, capped
+        - a contract with no issuer copy says so rather than inventing one
 - `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
     - the one row
         - the first record is an insert keyed on the installation id that skips a duplicate
@@ -846,6 +849,9 @@ _Tested by:_
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
         - token client + hasher token → provisioning factory injecting both
+    - PrismaSubscriptionContractRepository.listRunningIssuers
+        - asks for the running ones, oldest first, four columns, capped
+        - a contract with no issuer copy says so rather than inventing one
 - `packages/cli/tests/migration-constraints.test.js`
     - which migration the constraints belong to
         - the one that appeared between the two listings

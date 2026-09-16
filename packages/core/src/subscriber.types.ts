@@ -4,39 +4,12 @@
 // who the contract is with: a customer number and the master data a contract
 // and, later, an invoice name. The two are kept apart so that a tenant can go
 // while the record of what was agreed stays (ADR 0012).
+//
+// What names the party itself — `LegalIdentity` and `PartyAddress` — is in
+// `legal-identity.ts`: the operator's issuer is named by the same fields, and
+// the rule about correcting them is the same on both sides of the contract.
 
-/** The address lines a party is named with. Every one of them may be unknown. */
-export interface PartyAddress {
-    /** Street and number. */
-    addressLine1: string | null;
-    /** A second line, such as a building or a c/o. */
-    addressLine2: string | null;
-    postalCode: string | null;
-    city: string | null;
-    /** ISO 3166-1 alpha-2, upper case. */
-    country: string | null;
-}
-
-/**
- * What names a legal entity: the name it is registered under and the
- * identifiers its tax office gave it.
- *
- * For a subscriber these are the party a contract was concluded with. Under a
- * running contract they change only as a correction of that same entity,
- * recorded with the values it replaced and the reason; contact details change
- * freely.
- */
-export interface LegalIdentity {
-    /** The registered name, legal form included. */
-    legalName: string;
-    /** VAT identification number. */
-    vatId: string | null;
-    /** The national tax number, where one is stated beside or instead of the VAT id. */
-    taxNumber: string | null;
-}
-
-/** The fields of the legal identity, the ones a correction may change. */
-export type SubscriberIdentityField = keyof LegalIdentity;
+import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 
 /** How a subscriber is reached, which may change at any time. */
 export interface SubscriberContact extends PartyAddress {

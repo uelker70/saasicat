@@ -743,8 +743,10 @@ async loadBookedBundles(…): Promise<ContractFreezeBundleSnapshot> {
 Two tables arrive, both additive: `applied_settings` holds the one row that says which settings the
 installation applied at its last start — the resolved values, a fingerprint over them, when they
 took effect and from which file — and `settings_changes` holds one row per start that found the
-fingerprint moved. `GET /admin/settings` shows both. Neither is ever read to decide behaviour: the
-record is a mirror of `config/saas.yaml`, never a source.
+fingerprint moved. `GET /admin/settings` shows both. No setting is ever read out of them: the
+record is a mirror of `config/saas.yaml`, never a source of settings. From 1.0 it is read for
+one thing that is not a setting — which legal entity the installation last ran as — and there it
+decides only whether the start continues (see the issuer section below).
 
 ```prisma
 model AppliedSettings {
@@ -1404,6 +1406,67 @@ reference a gateway can charge, so each subscriber gives its payment method agai
   permission, and `GET`/`POST /billing/payment-method` require it: the tenant's administrator,
   unless `payments.billingPermissionGuards` names others.
 
+**One refusal that needs nothing from you to arrive.** A start refuses when a payment method in use
+is held at a gateway account `config/saas.yaml#payments.accounts` no longer names — and until 1.0
+that check read `subscriber_payment_methods` without the RLS bypass, so on an installation with a
+policy on that table it read nothing and passed. It reads through the bypass now. If you have such a
+policy and a stored reference to a retired account, the first restart after this upgrade refuses:
+list that account again with its gateway bound, until its subscribers have a payment method at
+another one. Nothing in your file or your database has to change for this to be the restart that
+finds it.
+
+### The operator's own legal identity changes only as a declared correction
+
+`config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract
+copies it the day it is concluded. Its address and contact details still move freely and take effect
+at the next start. Its `legalName`, `vatId` and `taxNumber` are the party a contract names, so a
+start that finds one of them different from the one the installation recorded refuses, unless the
+file declares the change a correction of that same entity:
+
+```yaml
+issuer:
+    legalName: Example Software AG
+    correctionOf:
+        legalName: Example Software GmbH
+        reason: Change of legal form, registered 2026-07-01
+```
+
+`correctionOf` names, for each identity field that moves, the value the record holds — `null` where
+it holds none, which is how a tax number assigned later is declared. It is needed only for the start
+that carries the change. The refusal names the contracts still running and what each was concluded
+under; `<app> doctor` asks the same question before a deploy, as the new
+`platform.issuer-identity` check.
+
+**Two things you may not have had to think about before.** Taking the `issuer` block away once an
+identity is recorded is refused the same way a changed one is, and it is the one shape a declaration
+cannot rescue — `correctionOf` lives inside the block that is gone. That refusal prints the issuer
+as the installation recorded it, address included, to write back. And `issuer.legalName`, `vatId`,
+`taxNumber` and `correctionOf.reason` no longer accept a value made of whitespace: `vatId: "   "`
+validated before 1.0 and now fails at schema validation, before the application assembles.
+
+Nothing else is required of you unless you change that identity — but three things moved with it:
+
+- **`SubscriptionContractRepository` gains `listRunningIssuers(limit, asOf?)`**: how many contracts
+  are concluded and not yet over, and the first `limit` of them, oldest first, each with the legal
+  name on its issuer copy or `null` where it names none. Running means `active` or `scheduled` and
+  not ended at `asOf` — status alone would not do, because an ordinary cancellation writes only
+  `effectiveUntil` and nothing flips the status when that day arrives. Both shipped adapters
+  implement it; an implementation of your own adds it. The persistence contract covers it.
+- **`SUBSCRIBER_IDENTITY_FIELDS` is `LEGAL_IDENTITY_FIELDS`, and `SubscriberIdentityField` is
+  `LegalIdentityField`** — the same three fields, now named for what they are: both parties to a
+  contract have a legal identity, and the issuer is not a subscriber.
+- **`IssuerIdentityInspector` and `IssuerIdentityCheck`** are exported from `@saasicat/nest` and
+  `@saasicat/nest/platform`, and both are registered for every configuration. The inspector answers
+  the question and acts on nothing — `inspect()` is what `<app> doctor` and a health endpoint of
+  your own call, and it is settled once per process. The check is the module hook that turns a
+  refusing answer into a boot that does not happen; it has no `inspect()`.
+
+One limit worth stating: the comparison needs the `core.appliedSettings` port, which both shipped
+persistence bundles provide. Without it the boot log says once that the issuer is compared with
+nothing, and the identity is not guarded. A contract whose party copy the subscriber migration made
+names no issuer at all; those neither block a change nor are blocked by one, and are confirmed
+against the contract before they are invoiced.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.
@@ -1433,6 +1496,17 @@ reference a gateway can charge, so each subscriber gives its payment method agai
     Only a guard that really enforces `@RequireFeature` may carry the marker: it is the claim the
     check trusts. A guard bound globally as an `APP_GUARD` is the other shape the check cannot see;
     there, `enforcementChainCheck: false` turns the check off and nothing else.
+
+7. **`SUBSCRIBER_IDENTITY_FIELDS` and `SubscriberIdentityField`** — now `LEGAL_IDENTITY_FIELDS` and
+   `LegalIdentityField`. Not in the codemod on purpose: its stems match anywhere in an identifier,
+   so a `SubscriberIdentity → LegalIdentity` rule would also rewrite `SubscriberIdentityValues`,
+   `SubscriberIdentityDelta` and `SubscriberIdentityCorrection`, which keep their names. Two
+   identifiers, by hand.
+
+8. **`listRunningIssuers` on a `SubscriptionContractRepository` of your own** — the contracts
+   concluded and not yet over, oldest first, with the legal name on each one's issuer copy. Both
+   shipped adapters have it; the persistence contract fails an implementation without it. See the
+   section above for what "not yet over" means, and why status alone is not it.
 
 ## Order for a workspace with several apps
 

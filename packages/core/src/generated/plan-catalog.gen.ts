@@ -99,7 +99,7 @@ export interface PlanCatalog {
      */
     issuer?: {
         /**
-         * The registered name, legal form included, as a contract names the party (e.g. "Example Software GmbH").
+         * The registered name, legal form included, as a contract names the party (e.g. "Example Software GmbH"). Compared with the recorded one after the surrounding whitespace is taken off, so a value that is only whitespace is not a name at all.
          */
         legalName: string;
         /**
@@ -124,6 +124,27 @@ export interface PlanCatalog {
          * The tax number the issuer's tax office assigned, where it is stated beside or instead of the VAT identification number.
          */
         taxNumber?: string;
+        /**
+         * Declares that a changed `legalName`, `vatId` or `taxNumber` corrects the same legal entity rather than naming another one -- a misspelt name, a tax identifier that was wrong or missing, a change of name the entity went through. Without it a start that finds a different identity recorded is refused while contracts concluded under the previous one still run, because moving a contract to another legal entity is a transfer and not an edit of a setting. Name here, for every identity field the change moves, the value the installation recorded before it -- `null` where it recorded none. The declaration is needed only for the start that carries the change; a later deploy may drop it. It carries no date of its own: the settings record dates the start that applied it, and where the legal change has a date of its own it belongs in `reason`.
+         */
+        correctionOf?: {
+            /**
+             * The registered name being replaced, or `null` where none was recorded.
+             */
+            legalName?: string | null;
+            /**
+             * The VAT identification number being replaced, or `null` where none was recorded.
+             */
+            vatId?: string | null;
+            /**
+             * The tax number being replaced, or `null` where none was recorded.
+             */
+            taxNumber?: string | null;
+            /**
+             * Why the same entity now reads differently, e.g. "Change of legal form, registered 2026-07-01". Kept in the settings record with both value trees.
+             */
+            reason: string;
+        };
     };
     /**
      * How the parties this installation concludes contracts with are numbered.

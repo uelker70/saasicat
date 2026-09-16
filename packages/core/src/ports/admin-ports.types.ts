@@ -231,11 +231,18 @@ export interface ManifestAccessPort {
  * Adapter for the RLS bypass context. Platform code calls `runWithBypass`,
  * the consumer implementation triggers the Postgres session variable
  * (`set_config('app.bypass_rls', 'true', true)`) or the equivalent in
- * Django/other stacks. The execution context lives for exactly one
- * request pipeline (AsyncLocalStorage / `contextvars` etc.).
+ * Django/other stacks. The execution context lives for the call it wraps
+ * (AsyncLocalStorage / `contextvars` etc.).
  *
  * SuperAdmin operations are platform-wide without tenant scope — without
  * bypass, all RLS-protected reads would come back empty.
+ *
+ * **Not only inside a request.** The platform's boot checks read platform-wide
+ * before anything is served: an implementation that reaches for a
+ * request-scoped connection, or that asserts a request context is open, fails
+ * at start rather than where it is called. Wrap the call the way it is given —
+ * `AsyncLocalStorage.run` is the shape both shipped adapters use, and it is as
+ * good at boot as it is in a request.
  */
 export interface RlsBypassPort {
     runWithBypass<T>(fn: () => Promise<T>): Promise<T>;

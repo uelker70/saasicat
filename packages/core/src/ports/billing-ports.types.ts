@@ -7,6 +7,7 @@ import type {
 } from '../subscription.types.js';
 import type {
     NewSubscriptionContractData,
+    RunningContractIssuers,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     TerminateSubscriptionContractData,
@@ -227,6 +228,43 @@ export interface SubscriptionContractRepository {
         contractId: string,
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord>;
+    /**
+     * The contracts concluded and not yet over, with the issuer each was
+     * concluded under: how many there are, and the first `limit` of them,
+     * oldest first. `limit` caps the list and not the count, so a start refused
+     * over a changed issuer identity says how many contracts it means before it
+     * names any of them.
+     *
+     * Running means `active` or `scheduled` AND not ended at `asOf` — the same
+     * window `findActiveByTenantId` uses on its upper end, and for the same
+     * reason. Status alone is not enough: an ordinary cancellation lands at the
+     * term end and writes only `effectiveUntil`, leaving the status where it
+     * was, and nothing flips it when that day arrives. Counting by status would
+     * therefore report every customer who ever left as still running — and
+     * because the list is oldest first, the ones it names would be exactly the
+     * expired ones.
+     *
+     * The window is open at the bottom on purpose: a contract that starts next
+     * month is concluded, its party copy is fixed, and it will be invoiced under
+     * the issuer it names.
+     *
+     * Platform-wide: unlike every other read here it is anchored by no tenant,
+     * no contract and no offer, and a start makes it before anything is served.
+     * An implementation on a tenant-scoped client must count RLS-exempt, as
+     * `countActiveByPlanKey` must — the platform wraps the call in
+     * `RlsBypassPort`, and one that answers with the caller's tenant scope
+     * instead returns nothing at a boot, where there is no tenant. The
+     * persistence contract runs with no policy forced, so it cannot catch that
+     * for you.
+     *
+     * `limit` may be `0`, and a caller that wants only the count passes it:
+     * `total` is exact whatever the limit, so nothing has to come back for it.
+     * Zero means zero — an implementation that reads a falsy limit as "no limit"
+     * returns every running contract to a caller asking for none, which is the
+     * one shape of this method that gets slower the more an installation sells.
+     * The executable contract asks for `0`.
+     */
+    listRunningIssuers(limit: number, asOf?: Date): Promise<RunningContractIssuers>;
 }
 
 /**

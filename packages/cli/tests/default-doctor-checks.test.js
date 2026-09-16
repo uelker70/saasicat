@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
     AdminManifestDoctorCheck,
     DiscoverySnapshotDoctorCheck,
+    IssuerIdentityDoctorCheck,
     PlanCatalogDoctorCheck,
     PLATFORM_DOCTOR_CHECK_PROVIDERS,
     UserPortDoctorCheck,
@@ -98,12 +99,121 @@ describe('AdminManifestDoctorCheck', () => {
     });
 });
 
+// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+describe('IssuerIdentityDoctorCheck', () => {
+    /** The verdict the platform's own inspector would hand back, without booting one. */
+    const checkWith = (verdict, running = null) =>
+        new IssuerIdentityDoctorCheck({
+            inspect: async () => verdict,
+            runningContractCount: async () => running,
+        });
+
+    test('a refusal is reported as the error it would be at the next start', async () => {
+        const r = await checkWith({
+            kind: 'refused',
+            change: { kind: 'undeclared' },
+            running: {
+                total: 2,
+                contracts: [
+                    {
+                        id: 'c-1',
+                        tenantId: 't-1',
+                        issuerLegalName: null,
+                        effectiveFrom: new Date(),
+                    },
+                ],
+            },
+            refusal: 'The issuer in config/saas.yaml is not the legal entity …',
+        }).run();
+        assert.equal(r.severity, 'error');
+        assert.match(r.message, /is not the legal entity/);
+        // The number and the identifiers, not the rows: a report is serialised
+        // as JSON, and a date on a row would come out as a timestamp beside the
+        // same date already written as a day in the message.
+        assert.deepEqual(r.details, { runningContracts: 2, named: ['c-1'] });
+
+        // One unknown answered once: a null count beside an empty list reads as
+        // "none", which is the opposite of what it means.
+        const unknown = await checkWith({
+            kind: 'refused',
+            change: { kind: 'undeclared' },
+            running: null,
+            refusal: 'The issuer …',
+        }).run();
+        assert.deepEqual(unknown.details, { runningContracts: null, named: null });
+    });
+
+    test('an installation that records nothing is warned that nothing is compared', async () => {
+        const r = await checkWith({
+            kind: 'not-compared',
+            why: 'this installation records no applied settings',
+        }).run();
+        assert.equal(r.severity, 'warning');
+        assert.match(r.message, /records no applied settings/);
+    });
+
+    test('an unchanged identity says what changing it would cost', async () => {
+        const unchanged = {
+            kind: 'settled',
+            change: {
+                kind: 'unchanged',
+                identity: { legalName: 'Example Software GmbH', vatId: null, taxNumber: null },
+            },
+        };
+        const r = await checkWith(unchanged, 142).run();
+        assert.equal(r.severity, 'ok');
+        assert.match(r.message, /Example Software GmbH/);
+        assert.match(r.message, /142 contract\(s\) are running/);
+        assert.match(r.message, /issuer\.correctionOf/);
+
+        // And where nothing can say how many, the sentence that names the cost
+        // is left out rather than made up.
+        const unknown = await checkWith(unchanged).run();
+        assert.equal(unknown.severity, 'ok');
+        assert.doesNotMatch(unknown.message, /contract\(s\) are running/);
+        assert.match(unknown.message, /issuer\.correctionOf/);
+    });
+
+    test('a declared correction is reported before the start applies it', async () => {
+        const r = await checkWith({
+            kind: 'settled',
+            change: {
+                kind: 'corrected',
+                recorded: { legalName: 'Example Software GmbH', vatId: null, taxNumber: null },
+                current: { legalName: 'Example Software AG', vatId: null, taxNumber: null },
+                moved: ['legalName'],
+                reason: 'Change of legal form',
+            },
+        }).run();
+        assert.equal(r.severity, 'ok');
+        assert.match(r.message, /Change of legal form/);
+    });
+
+    test('the first naming, and an installation that names none', async () => {
+        const first = await checkWith({
+            kind: 'settled',
+            change: {
+                kind: 'first-naming',
+                identity: { legalName: 'Example Software GmbH', vatId: null, taxNumber: null },
+            },
+        }).run();
+        assert.equal(first.severity, 'ok');
+        assert.match(first.message, /for the first time/);
+
+        const none = await checkWith({ kind: 'settled', change: { kind: 'none-named' } }).run();
+        assert.equal(none.severity, 'ok');
+        assert.match(none.message, /No issuer is named/);
+    });
+});
+
 describe('PLATFORM_DOCTOR_CHECK_PROVIDERS', () => {
-    test('contains exactly 4 provider classes', () => {
-        assert.equal(PLATFORM_DOCTOR_CHECK_PROVIDERS.length, 4);
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(PlanCatalogDoctorCheck));
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(DiscoverySnapshotDoctorCheck));
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(UserPortDoctorCheck));
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(AdminManifestDoctorCheck));
+    test('holds every platform check, and nothing else', () => {
+        assert.deepEqual(PLATFORM_DOCTOR_CHECK_PROVIDERS, [
+            PlanCatalogDoctorCheck,
+            DiscoverySnapshotDoctorCheck,
+            UserPortDoctorCheck,
+            AdminManifestDoctorCheck,
+            IssuerIdentityDoctorCheck,
+        ]);
     });
 });

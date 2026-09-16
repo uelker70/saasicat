@@ -4,7 +4,7 @@
 // in `CliContextModule.forRoot()` — analogous to
 // `DEFAULT_MANIFEST_CHECKS`.
 //
-// Four platform checks:
+// Five platform checks:
 //
 //   1. **`platform.plan-catalog`** — `PLAN_CATALOG_TOKEN` is available in DI
 //      and contains at least one plan.
@@ -14,12 +14,16 @@
 //      test email (even if `null` comes back — as long as it does not throw).
 //   4. **`platform.admin-manifest`** — `AdminManifestService.getManifest()`
 //      returns without an exception.
+//   5. **`platform.issuer-identity`** — the issuer in `config/saas.yaml` is the
+//      legal entity the installation recorded, and says how many contracts a
+//      change of it would have to be declared against.
 //
 
 import { Inject, Injectable, type Type } from '@nestjs/common';
 import {
     AdminManifestService,
     DISCOVERY_SNAPSHOT_TOKEN,
+    IssuerIdentityInspector,
     PLAN_CATALOG_TOKEN,
     type DiscoverySnapshot,
 } from '@saasicat/nest';
@@ -118,6 +122,93 @@ export class AdminManifestDoctorCheck implements DoctorCheck {
 }
 
 /**
+ * The issuer identity, and what changing it would cost.
+ *
+ * A start compares the issuer in `config/saas.yaml` with the identity the
+ * installation recorded and refuses an undeclared difference, because moving a
+ * contract to another legal entity is a transfer and not an edit of a setting.
+ * This asks the same question without acting on it and says, while nothing has
+ * moved, what a change would cost.
+ *
+ * It does NOT turn a refusal into a report where the same application also
+ * mounts the platform's boot check: that check runs at `init()`, so the CLI
+ * process carrying it is refused before any command runs — with the same
+ * message, which is the point. The `refused` branch below is for a diagnostic
+ * that runs without the hook.
+ */
+@Injectable()
+export class IssuerIdentityDoctorCheck implements DoctorCheck {
+    readonly id = 'platform.issuer-identity';
+    readonly label = 'Issuer identity against the recorded one';
+    constructor(private readonly issuer: IssuerIdentityInspector) {}
+
+    async run(): Promise<DoctorCheckResult> {
+        const verdict = await this.issuer.inspect();
+        if (verdict.kind === 'refused') {
+            return {
+                severity: 'error',
+                message: verdict.refusal,
+                // The number and the identifiers, not the rows: `DoctorReport`
+                // is serialised as JSON, and the dates on a row would come out
+                // as timestamps beside the same dates already written as days in
+                // the message above.
+                // One unknown answered once: `null` for both where the
+                // contracts could not be read, rather than a null count beside
+                // an empty list that reads as "none".
+                details: verdict.running
+                    ? {
+                          runningContracts: verdict.running.total,
+                          named: verdict.running.contracts.map((row) => row.id),
+                      }
+                    : { runningContracts: null, named: null },
+            };
+        }
+        if (verdict.kind === 'not-compared') {
+            return {
+                severity: 'warning',
+                message:
+                    `The issuer in the file is compared with nothing — ${verdict.why} — so a start ` +
+                    'that names another legal entity than the last one is not refused.',
+            };
+        }
+        const change = verdict.change;
+        switch (change.kind) {
+            case 'none-named':
+                return { severity: 'ok', message: 'No issuer is named, and none was recorded.' };
+            case 'first-naming':
+                return {
+                    severity: 'ok',
+                    message: `'${change.identity.legalName}' is named for the first time; no contract can name another.`,
+                };
+            case 'corrected':
+                return {
+                    severity: 'ok',
+                    message:
+                        `A correction of '${change.recorded.legalName}' is declared: ` +
+                        `${change.reason}. This is what the start found; whether it has been ` +
+                        'recorded is what `GET /admin/settings` shows, and `issuer.correctionOf` ' +
+                        'may be dropped once it does.',
+                };
+            case 'unchanged': {
+                const running = await this.issuer.runningContractCount();
+                const weighedAgainst =
+                    running === null
+                        ? ''
+                        : ` ${running} contract(s) are running, and their issuer copies do not follow a change.`;
+                return {
+                    severity: 'ok',
+                    message:
+                        `'${change.identity.legalName}' is what the installation recorded.` +
+                        weighedAgainst +
+                        ' Changing the legal name or a tax identifier needs `issuer.correctionOf` ' +
+                        'beside the values it replaces; the address and the contact details do not.',
+                };
+            }
+        }
+    }
+}
+
+/**
  * Default list that consumers can spread in `CliContextModule.forRoot({ doctorChecks })`:
  *
  * ```ts
@@ -136,4 +227,5 @@ export const PLATFORM_DOCTOR_CHECK_PROVIDERS: Array<Type<DoctorCheck>> = [
     DiscoverySnapshotDoctorCheck,
     UserPortDoctorCheck,
     AdminManifestDoctorCheck,
+    IssuerIdentityDoctorCheck,
 ];

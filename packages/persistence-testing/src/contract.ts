@@ -2583,6 +2583,109 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('the contracts still running say which issuer each names', async (t) => {
+            // What a start reads before it lets the operator's own legal identity
+            // move: an undeclared change of it is refused, and the refusal names
+            // these. Running is `active` or `scheduled` AND not ended at `asOf`
+            // — status alone would count every contract an ordinary cancellation
+            // ended, because that writes only the window. A contract whose party
+            // copy the migration made names no issuer at all.
+            const { adapter } = harness;
+            const contracts = adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Meier GmbH' });
+            const parties = partiesWith(subscriberId, 'Meier GmbH');
+            const written = async (
+                offerId: string,
+                overrides: Partial<NewSubscriptionContractData>,
+            ) => contracts.create({ ...contractFromOffer(offerId, parties), ...overrides });
+
+            const oldest = await written('running-oldest', {
+                effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            });
+            const scheduled = await written('running-scheduled', {
+                effectiveFrom: new Date('2026-02-01T00:00:00.000Z'),
+                status: 'scheduled',
+            });
+            // Active, and its window closed: this is what an ordinary
+            // cancellation leaves behind — `effectiveUntil` at the term end and
+            // the status untouched, because nothing flips it when that day
+            // comes. Counting by status alone would call it running for ever.
+            const lapsed = await written('running-lapsed', {
+                effectiveFrom: new Date('2026-03-01T00:00:00.000Z'),
+                effectiveUntil: new Date('2026-04-01T00:00:00.000Z'),
+            });
+            // The other side of that window: ends later, so it is running.
+            const ending = await written('running-ending', {
+                effectiveFrom: new Date('2026-04-01T00:00:00.000Z'),
+                effectiveUntil: new Date('2026-12-01T00:00:00.000Z'),
+            });
+            // What the migration that attached older contracts leaves: a party
+            // copy with no issuer in it.
+            const noIssuer = await written('running-no-issuer', {
+                effectiveFrom: new Date('2026-05-01T00:00:00.000Z'),
+                parties: { ...parties, issuer: null },
+            });
+            await written('running-terminated', {
+                effectiveFrom: new Date('2025-01-01T00:00:00.000Z'),
+                status: 'terminated',
+            });
+            await written('running-superseded', {
+                effectiveFrom: new Date('2025-02-01T00:00:00.000Z'),
+                status: 'superseded',
+            });
+
+            const asOf = new Date('2026-06-01T00:00:00.000Z');
+            const listed = await contracts.listRunningIssuers(10, asOf);
+            assert.equal(listed.total, 4, 'a contract that ended or was ended is not running');
+            assert.deepEqual(
+                listed.contracts.map((row) => row.id),
+                [oldest.id, scheduled.id, ending.id, noIssuer.id],
+                'oldest first, and the one whose term ran out is not among them',
+            );
+            assert.ok(
+                !listed.contracts.some((row) => row.id === lapsed.id),
+                'a window that closed ends a contract, whatever its status still says',
+            );
+            // The boundary, from the other side: before it closed, it counts.
+            const earlier = await contracts.listRunningIssuers(
+                10,
+                new Date('2026-03-15T00:00:00.000Z'),
+            );
+            assert.equal(earlier.total, 5);
+            assert.ok(earlier.contracts.some((row) => row.id === lapsed.id));
+            assert.equal(listed.contracts[0].tenantId, oldest.tenantId);
+            assert.equal(
+                listed.contracts[0].effectiveFrom.getTime(),
+                new Date('2026-01-01T00:00:00.000Z').getTime(),
+            );
+            assert.equal(listed.contracts[0].issuerLegalName, 'Example Software GmbH');
+            assert.equal(
+                listed.contracts[3].issuerLegalName,
+                null,
+                'a contract with no issuer copy says so rather than inventing one',
+            );
+
+            const capped = await contracts.listRunningIssuers(2, asOf);
+            assert.equal(capped.total, 4, 'the limit caps the list, not the count');
+            assert.deepEqual(
+                capped.contracts.map((row) => row.id),
+                [oldest.id, scheduled.id],
+            );
+
+            // Zero means zero. A caller that wants only the number passes it,
+            // and an implementation reading a falsy limit as "no limit" hands
+            // back every running contract to answer a count — the one shape of
+            // this method that gets slower the more an installation sells.
+            const counted = await contracts.listRunningIssuers(0, asOf);
+            assert.equal(counted.total, 4);
+            assert.deepEqual(counted.contracts, []);
+        });
+
         // -------------------------------------------------------------
         // Payments — gateway events claimed once, and payment methods
         // -------------------------------------------------------------

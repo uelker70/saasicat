@@ -27,6 +27,7 @@ import type {
     CreateSubscriberData,
     CreateSubscriptionBundleData,
     NewSubscriptionContractData,
+    RunningContractIssuers,
     SubscriberContactChange,
     SubscriberCorrectionData,
     SubscriberCorrectionRecord,
@@ -347,6 +348,33 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         };
         this.byId.set(contractId, updated);
         return this.cloneRecord(updated);
+    }
+
+    async listRunningIssuers(
+        limit: number,
+        asOf: Date = new Date(),
+    ): Promise<RunningContractIssuers> {
+        const running = [...this.byId.values()]
+            .filter((row) => row.status === 'active' || row.status === 'scheduled')
+            .filter((row) => row.effectiveUntil === null || row.effectiveUntil > asOf)
+            // The same tie-break the adapters use, `createdAt` included: this
+            // fake is what a consumer's own tests run against, and an order it
+            // decides differently is a test that passes here and fails there.
+            .sort(
+                (a, b) =>
+                    a.effectiveFrom.getTime() - b.effectiveFrom.getTime() ||
+                    a.createdAt.getTime() - b.createdAt.getTime() ||
+                    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+            );
+        return {
+            total: running.length,
+            contracts: running.slice(0, limit).map((row) => ({
+                id: row.id,
+                tenantId: row.tenantId,
+                issuerLegalName: row.issuer?.legalName ?? null,
+                effectiveFrom: new Date(row.effectiveFrom),
+            })),
+        };
     }
 
     private isActiveAt(row: SubscriptionContractRecord, asOf: Date): boolean {

@@ -14,7 +14,7 @@ import {
     ComposedTenantAuthGuard,
     PlanCatalogModule,
 } from '../dist/billing/index.js';
-import { SAASICAT_PUBLIC_ROUTE_KEY } from '../dist/index.js';
+import { RLS_BYPASS_PORT_TOKEN, SAASICAT_PUBLIC_ROUTE_KEY } from '../dist/index.js';
 import {
     DevPaymentGateway,
     PaymentCallbackService,
@@ -73,6 +73,7 @@ async function paymentsApp({
     billingPermissionGuards,
     methods = new MemoryPaymentMethods(),
     subscribers = new FakeSubscriberRepository(),
+    extraProviders,
 } = {}) {
     const gateway = new ScriptedGateway();
     const log = new MemoryPaymentEventLog();
@@ -93,6 +94,7 @@ async function paymentsApp({
                 subscriberRepository: subscribers,
                 transactionRunner: new RollbackRunner([log, methods]),
                 tenantRoutes: { authGuards: [new AllowAll()], billingPermissionGuards },
+                extraProviders,
             }),
         ],
     }).compile();
@@ -728,6 +730,44 @@ describe('the accounts the file names and the gateways the application binds', (
                 /'stripe-old', and no gateway is bound/.test(error.message) &&
                 /is at 'mollie'/.test(error.message),
         );
+    });
+
+    // @requirement SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
+    test('and it reads them platform-wide, which needs the bypass frame', async () => {
+        // There is no tenant at a boot, and under row-level security the read
+        // comes back empty — so a check whose whole job is to refuse would pass,
+        // on exactly the installation that has payment methods nobody can
+        // collect on. Blindness here is not a message that reads oddly.
+        const methods = new MemoryPaymentMethods();
+        const subscribers = new FakeSubscriberRepository();
+        const subscriber = await new SubscriberService(
+            subscribers,
+            paymentsCatalog(),
+        ).createForTenant('tenant-1', { legalName: 'Meier GmbH' });
+        await methods.recordConfirmed({
+            ...confirmation({ eventId: 'e', sessionRef: 's', subject: {} }).paymentMethod,
+            subscriberId: subscriber.id,
+            gatewayAccount: 'stripe-retired',
+            provider: 'stripe',
+            confirmedAt: new Date('2026-09-01T08:00:00.000Z'),
+        });
+        const seen = [];
+        const rlsBypass = {
+            runWithBypass: async (fn) => {
+                seen.push('in');
+                return fn();
+            },
+        };
+
+        await assert.rejects(
+            paymentsApp({
+                methods,
+                subscribers,
+                extraProviders: [{ provide: RLS_BYPASS_PORT_TOKEN, useValue: rlsBypass }],
+            }),
+            /no longer names/,
+        );
+        assert.deepEqual(seen, ['in'], 'the payment methods were read outside the bypass');
     });
 
     // @requirement SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference

@@ -8,15 +8,15 @@
 
 import { UnprocessableEntityException } from '@nestjs/common';
 import type {
+    LegalIdentityField,
     NewSubscriberDetails,
     SubscriberContact,
     SubscriberContactChange,
     SubscriberDetails,
     SubscriberIdentityCorrection,
-    SubscriberIdentityField,
     SubscriberIdentityValues,
 } from '@saasicat/core';
-import { SUBSCRIBER_ERROR_CODES, SUBSCRIBER_IDENTITY_FIELDS } from '@saasicat/core';
+import { SUBSCRIBER_ERROR_CODES, LEGAL_IDENTITY_FIELDS } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
 
@@ -52,7 +52,7 @@ export function settleNewSubscriberDetails(details: NewSubscriberDetails): Subsc
  * succeeded.
  */
 export function settleContactChange(change: SubscriberContactChange): SubscriberContactChange {
-    const identity = SUBSCRIBER_IDENTITY_FIELDS.find(
+    const identity = LEGAL_IDENTITY_FIELDS.find(
         (field) => (change as Record<string, unknown>)[field] !== undefined,
     );
     if (identity) {
@@ -75,14 +75,14 @@ export function settleIdentityCorrection(
     correction: SubscriberIdentityCorrection,
 ): SubscriberIdentityValues {
     const values: Record<string, string | null> = {};
-    for (const field of SUBSCRIBER_IDENTITY_FIELDS) {
+    for (const field of LEGAL_IDENTITY_FIELDS) {
         if (correction[field] === undefined) continue;
         values[field] = settleIdentityValue(field, correction[field]);
     }
     return values as SubscriberIdentityValues;
 }
 
-function settleIdentityValue(field: SubscriberIdentityField, value: unknown): string | null {
+function settleIdentityValue(field: LegalIdentityField, value: unknown): string | null {
     return field === 'legalName' ? settleLegalName(value) : settleText(field, value);
 }
 

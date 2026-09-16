@@ -7,7 +7,7 @@
 // reference is meaningful to, so every reference is stored with the account
 // that issued it.
 
-import type { PartyAddress } from './subscriber.types.js';
+import type { PartyAddress } from './legal-identity.js';
 
 /** The payment methods SaaSiCat takes, by the names `config/saas.yaml` uses. */
 export type PaymentMethodType = 'card' | 'sepa_debit';

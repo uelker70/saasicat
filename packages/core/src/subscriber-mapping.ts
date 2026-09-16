@@ -5,13 +5,14 @@
 // field" is one decision, for the reason `subscription-contract-mapping.ts`
 // gives: two copies of it drift without anybody comparing them.
 
+import { issuerIdentityOf } from './issuer-identity.js';
+import { LEGAL_IDENTITY_FIELDS, type LegalIdentityField } from './legal-identity.js';
 import type { PlanCatalog } from './plan-catalog.types.js';
 import type { PendingRegistration } from './registration.types.js';
 import type {
     NewSubscriberDetails,
     SubscriberCorrectionRecord,
     SubscriberIdentityDelta,
-    SubscriberIdentityField,
     SubscriberIdentityValues,
     SubscriberRecord,
 } from './subscriber.types.js';
@@ -20,13 +21,6 @@ import type {
     ContractSubscriberParty,
     SubscriptionContractParties,
 } from './subscription-contract.types.js';
-
-/** The fields a correction of the legal identity may change, in the order they are shown. */
-export const SUBSCRIBER_IDENTITY_FIELDS: readonly SubscriberIdentityField[] = [
-    'legalName',
-    'vatId',
-    'taxNumber',
-];
 
 /** A `subscribers` row as either adapter reads it back. */
 export interface CanonicalSubscriberRow {
@@ -111,12 +105,12 @@ export function toSubscriberCorrectionRecord(
  * the same way, under the lock they read `current` with.
  */
 export function identityCorrectionDelta(
-    current: Pick<SubscriberRecord, SubscriberIdentityField>,
+    current: Pick<SubscriberRecord, LegalIdentityField>,
     corrected: SubscriberIdentityValues,
 ): SubscriberIdentityDelta {
     const previous: Record<string, string | null> = {};
     const next: Record<string, string | null> = {};
-    for (const field of SUBSCRIBER_IDENTITY_FIELDS) {
+    for (const field of LEGAL_IDENTITY_FIELDS) {
         const value = corrected[field];
         if (value === undefined || value === current[field]) continue;
         previous[field] = current[field];
@@ -155,16 +149,37 @@ export function contractPartiesOf(
 }
 
 function issuerPartyOf(issuer: NonNullable<PlanCatalog['issuer']>): ContractIssuerParty {
+    // The three identity fields come from the one function that reads them, so a
+    // contract copies exactly what the start compares against the record.
+    // `correctionOf` is a declaration about the change, not part of the party,
+    // and is not copied onto anything.
+    //
+    // That function reads no identity out of a block whose name is blank, and
+    // the members are written out rather than spread: spreading the `null` would
+    // leave the copy without any of the three, which is a contract naming a
+    // party it does not name. An empty name is what a party copy has always
+    // carried for "not stated" — see `toIssuerParty`, which reads one back.
+    const identity = issuerIdentityOf(issuer);
     return {
-        legalName: issuer.legalName,
-        vatId: issuer.vatId ?? null,
-        taxNumber: issuer.taxNumber ?? null,
-        addressLine1: issuer.addressLine1 ?? null,
-        addressLine2: issuer.addressLine2 ?? null,
-        postalCode: issuer.postalCode ?? null,
-        city: issuer.city ?? null,
-        country: issuer.country ?? null,
+        legalName: identity?.legalName ?? '',
+        vatId: identity?.vatId ?? null,
+        taxNumber: identity?.taxNumber ?? null,
+        // Settled like the three above rather than copied verbatim: one copy
+        // whose halves were settled differently is a row that reads two ways,
+        // and a city written with a trailing space is not another city.
+        addressLine1: settledText(issuer.addressLine1),
+        addressLine2: settledText(issuer.addressLine2),
+        postalCode: settledText(issuer.postalCode),
+        city: settledText(issuer.city),
+        country: settledText(issuer.country),
     };
+}
+
+/** Trimmed, or nothing — the reading `issuerIdentityOf` gives the three beside these. */
+function settledText(value: string | undefined): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
 }
 
 /**
@@ -204,7 +219,7 @@ function toIdentityValues(value: unknown): SubscriberIdentityValues {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
     const source = value as Record<string, unknown>;
     const values: Record<string, string | null> = {};
-    for (const field of SUBSCRIBER_IDENTITY_FIELDS) {
+    for (const field of LEGAL_IDENTITY_FIELDS) {
         if (!Object.prototype.hasOwnProperty.call(source, field)) continue;
         const entry = source[field];
         values[field] = typeof entry === 'string' ? entry : null;

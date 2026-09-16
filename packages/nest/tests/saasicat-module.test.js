@@ -307,12 +307,25 @@ describe('SaaSiCatModule.forRoot', () => {
             false,
             'no entitlement providers without a resolver',
         );
-        // Standard-manifest registration, plus the two the inert case adds:
-        // the chain check and the state that tells it which case it is in.
-        assert.equal(providers.length, 3, 'manifest registration + the enforcement-chain check');
+        // Standard-manifest registration, the two the inert case adds — the
+        // chain check and the state that tells it which case it is in — and the
+        // issuer pair, which every configuration gets.
+        assert.equal(
+            providers.length,
+            5,
+            'manifest registration + the enforcement-chain check + the issuer pair',
+        );
         assert.ok(
             providers.some((p) => typeof p === 'function' && p.name === 'EnforcementChainCheck'),
             'nothing would ask whether the inert annotations exist',
+        );
+        assert.ok(
+            providers.some((p) => typeof p === 'function' && p.name === 'IssuerIdentityCheck'),
+            'nothing would notice the operator naming another legal entity',
+        );
+        assert.ok(
+            providers.some((p) => typeof p === 'function' && p.name === 'IssuerIdentityInspector'),
+            'the check could not be constructed, and doctor could not ask',
         );
     });
 

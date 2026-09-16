@@ -533,6 +533,85 @@ corrected identity.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/prisma-adapters.test.js`
+    - PrismaSubscriptionContractRepository.listRunningIssuers
+        - asks for the running ones, oldest first, four columns, capped
+        - a contract with no issuer copy says so rather than inventing one
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - IssuerIdentityDoctorCheck
+        - a refusal is reported as the error it would be at the next start
+        - an installation that records nothing is warned that nothing is compared
+        - an unchanged identity says what changing it would cost
+        - a declared correction is reported before the start applies it
+        - the first naming, and an installation that names none
+- `packages/core/tests/an-issuer-is-the-same-entity-or-another-one.test.js`
+    - the identity of an issuer
+        - is the three fields a contract names it by, and nothing about how it is reached
+        - reads an absent tax identifier as unknown rather than as absent
+        - is nothing where the file names no issuer
+        - is settled the same way on both sides, so a stray space is not another entity
+        - and a declaration is settled with them
+        - is the same as another when every field matches, and not otherwise
+        - is exactly what `issuer.correctionOf` can name in the file
+    - the copy a contract takes of the issuer
+        - carries the same three fields the start compares, and the address beside them
+        - never loses all three because one of them could not be read
+        - does not carry the declaration, which is about the change and not the party
+    - the identity a record holds
+        - is read back out of the settings tree the last start wrote
+        - is nothing where the tree names no issuer, or names one without a name
+    - what a start finds when it compares the two
+        - nothing named on either side is nothing to compare
+        - a first issuer where none was recorded is the first naming, declared for nothing
+        - a moved address is not a moved identity
+        - a changed legal name with nothing declared is refused
+        - a changed legal name declared against the recorded one is a correction
+        - a tax number that was missing is declared as the nothing it replaces
+        - a declaration naming a value the record does not hold covers nothing
+        - a declaration covering half a change covers nothing
+        - a declaration fuller than it had to be is still a declaration
+        - dropping the issuer block while one is recorded is refused, declaration and all
+        - a block whose name reads as nothing is refused however well it is declared
+        - a declaration left in the file after its correction landed changes nothing
+        - and it does not license the next change
+- `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
+    - a start that finds the issuer where it left it
+        - names one for the first time, and says so
+        - lets the address move without a word from the operator
+        - carries a declared correction through, and keeps the declaration
+        - lets the same declaration stay in the file afterwards
+    - a start that finds another legal entity
+        - does not start, and names the contracts still running under the previous one
+        - leaves the record exactly as the previous start left it
+        - says so even where no contract is running yet
+        - names a declaration that covers another change than this one
+        - names a field the declaration says nothing about
+        - refuses the issuer block being dropped while one is recorded
+        - and refuses a nameless block however well it is declared, leaving the record
+        - reads the contracts platform-wide, which needs the bypass frame
+        - and the block it prints carries every issuer member the schema declares
+        - names the contracts up to a limit, and how many more there are
+        - does not count a contract whose term has run out
+        - names a legal name that YAML would otherwise not read back
+        - says which contracts carry no issuer copy rather than pretending they do
+    - what the comparison needs, and what it does without
+        - an installation that records nothing compares the issuer with nothing, and says so
+        - a record that cannot be read stops a start that names an issuer
+        - and only warns where the file names no issuer at all
+        - an installation that writes no contracts at all still refuses another entity
+    - what this start found stays what this start found
+        - a reader afterwards is told the correction, not that nothing moved
+        - and the contracts it would be weighed against are counted on request
+        - and nothing is counted where no repository answers
+- `packages/nest/tests/plan-catalog-loader.test.js`
+    - the issuer names an entity, or the file does not load
+
+<!-- END proof -->
+
 ### SC-PRIC-027 — An invoice carries what the tax law of its issuer requires of it
 
 🟡 _(Decided, not yet delivered.)_ 💰 The installation's tax adapter (`SC-PRIC-037`) names that
@@ -624,6 +703,7 @@ _Tested by:_
           asked
         - the development gateway replaces the payment method on the spot
     - the accounts the file names and the gateways the application binds
+        - and it reads them platform-wide, which needs the bypass frame
         - a payment method in use at an account the file no longer names stops the start, and is
           named
 - `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`

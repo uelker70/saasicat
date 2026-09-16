@@ -250,6 +250,144 @@ A recorded change survives in the administration until somebody acknowledges
 it — `POST /admin/settings/changes/{id}/acknowledge`, audited as the operator's
 action, keeping its first author when repeated.
 
+## Your Own Side of Every Contract
+
+`issuer:` names the legal entity a contract is concluded with, on your side. A
+contract copies it the day it is concluded and keeps that copy for ever, so the
+record of what was agreed still names the right party years later:
+
+```yaml
+issuer:
+    legalName: Example Software GmbH
+    addressLine1: Werkstraße 5
+    postalCode: '80331'
+    city: München
+    country: DE
+    vatId: DE123456789
+    taxNumber: 12/345/67890
+```
+
+Everything here is optional except `legalName`, and the block itself is optional
+until you invoice: a contract concluded while it is absent records that no issuer
+was named. Optional to add, that is — once a start has recorded an identity,
+taking the block away again is refused, for the same reason changing it is. The
+next section says what to do about both.
+
+### Moving, and being renamed
+
+The two halves of that block behave differently, and the difference is what a
+contract names.
+
+**The address and the country are details.** Change them, restart, and the new
+ones are what an invoice quotes from that day on — for contracts already running
+too. Nothing is declared for them.
+
+**The legal name and the tax identifiers are the party itself.** A contract
+names them, and SaaSiCat cannot tell your renamed company from its successor:
+both read as a different name in the same file. So a start that finds them
+different from the ones it recorded last time refuses, unless the file says the
+change is a correction of that same entity:
+
+```yaml
+issuer:
+    legalName: Example Software AG
+    vatId: DE123456789
+    correctionOf:
+        legalName: Example Software GmbH
+        reason: Change of legal form, registered 2026-07-01
+```
+
+`correctionOf` names, for every identity field that moves, the value the
+installation recorded before it — `null` where it recorded none, which is how a
+tax number assigned later is declared:
+
+```yaml
+issuer:
+    legalName: Example Software GmbH
+    taxNumber: 12/345/67890
+    correctionOf:
+        taxNumber: null
+        reason: Assigned by the tax office on 2026-07-01
+```
+
+It is needed only for the start that carries the change; once that start has
+recorded it, the record holds the corrected identity and a later deploy may drop
+the block. Leaving it in changes nothing — and it does not cover the next change
+either, because it names an identity the record no longer holds.
+
+"Once that start has recorded it" is the whole condition, and it can fail: the
+record is written best-effort, so a start that applied the correction but could
+not write its record logs that and carries on. Drop the declaration after such a
+start and the next one is refused, because the record still holds the identity
+before it. `GET /admin/settings` shows what was recorded; drop the block once it
+shows the corrected identity.
+
+What it carries is a reason and not a date: the settings record dates the start
+that applied it, and a date typed here would be a second answer to that
+question. Where the legal change has a date of its own, put it in the reason, as
+above.
+
+A start that cannot square the two says so and stops, naming the contracts still
+running and what each of them was concluded under:
+
+```text
+The issuer in /app/config/saas.yaml is not the legal entity this installation recorded.
+  recorded: 'Example Software GmbH' (VAT id 'DE123456789', tax number none)
+  in the file: 'Other Software AG' (VAT id 'DE999999999', tax number none)
+`issuer.correctionOf` declares nothing, so nothing says this is the same entity.
+3 contract(s) are still running:
+  6c1f… (tenant t-17, from 2026-01-01, concluded under 'Example Software GmbH')
+  …
+Moving a contract to another legal entity is a transfer, not an edit of a setting. …
+```
+
+Removing the block once an identity is recorded is refused the same way, and it
+is the one shape a declaration cannot rescue: `correctionOf` lives inside the
+block, and there is no entity left in the file for it to be about. That refusal
+prints the issuer as the installation recorded it, address included, to write
+back — replacing the block where one is still there, because a file with two
+`issuer:` keys is one YAML refuses to read.
+
+Moving a contract to another legal entity is a transfer, and there is no edit of
+a setting that does it. That refusal applies whichever way the identity moves,
+so during a rolling deploy an old replica restarting on the previous file is
+refused too — which is the point: two replicas concluding contracts under two
+different legal entities is what this prevents.
+
+Two things follow from where the comparison happens. It needs the
+`core.appliedSettings` port, which both shipped persistence bundles provide;
+without it the boot log says once that the issuer is compared with nothing, and
+the identity is not guarded. And an installation that has never named an issuer
+is naming it for the first time, so it declares nothing.
+
+`<app> doctor` reports the same comparison as `platform.issuer-identity`, and
+says while nothing has moved what changing the identity would cost:
+
+```text
+✓  Issuer identity against the recorded one: 'Example Software GmbH' is what the
+   installation recorded. 142 contract(s) are running, and their issuer copies do
+   not follow a change. Changing the legal name or a tax identifier needs
+   `issuer.correctionOf` beside the values it replaces; the address and the
+   contact details do not.
+```
+
+What it does not do is turn a refusal into a report. Your CLI boots the same
+application, so a configuration the start refuses refuses the CLI too — with the
+refusal shown further up, before any command runs. That is still ahead of the deploy, which
+is the point of running it there; it arrives as a failed start rather than as a
+✗ line. `IssuerIdentityInspector.inspect()` is the same answer without the hook,
+for a health endpoint or a diagnostic of your own.
+
+**Run it on the configuration the installation runs.** Every start records what
+it applied, and a CLI process is a start: booting your application against the
+production database with a _newer_ `config/saas.yaml` applies that file to the
+record, a declared correction included. The running replicas are then on a file
+that names the identity before it, and the next one to restart is refused —
+before your deploy goes out. This was always how the record worked; what is new
+is that the issuer identity has a refusal attached to it. So run `<app> doctor`
+and one-off commands with the file the installation is running, and let the
+deploy be what carries a changed one.
+
 ## Standard Persistence Bundle (Prisma)
 
 On the canonical schema, do not write one forwarding provider per repository.

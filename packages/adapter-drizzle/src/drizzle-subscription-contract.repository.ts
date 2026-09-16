@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
 import type {
     NewContractLineItemData,
     NewSubscriptionContractData,
+    RunningContractIssuers,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
@@ -12,6 +13,7 @@ import type {
 } from '@saasicat/core';
 import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+    toRunningContractIssuer,
     toSubscriptionContractRecord,
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
@@ -157,6 +159,42 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                           .returning();
             return toSubscriptionContractRecord(rows[0], lineRows);
         });
+    }
+
+    async listRunningIssuers(
+        limit: number,
+        asOf: Date = new Date(),
+    ): Promise<RunningContractIssuers> {
+        const running = and(
+            inArray(subscriptionContracts.status, [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES]),
+            or(
+                isNull(subscriptionContracts.effectiveUntil),
+                gt(subscriptionContracts.effectiveUntil, asOf),
+            ),
+        );
+        const [totals, rows] = await Promise.all([
+            this.db.select({ value: count() }).from(subscriptionContracts).where(running),
+            // Oldest first, and `id` last so two contracts that start in the
+            // same moment are still listed in one order — a refusal that names
+            // a different pair on every restart is one an operator cannot act
+            // on.
+            this.db
+                .select({
+                    id: subscriptionContracts.id,
+                    tenantId: subscriptionContracts.tenantId,
+                    issuerSnapshot: subscriptionContracts.issuerSnapshot,
+                    effectiveFrom: subscriptionContracts.effectiveFrom,
+                })
+                .from(subscriptionContracts)
+                .where(running)
+                .orderBy(
+                    asc(subscriptionContracts.effectiveFrom),
+                    asc(subscriptionContracts.createdAt),
+                    asc(subscriptionContracts.id),
+                )
+                .limit(limit),
+        ]);
+        return { total: totals[0]?.value ?? 0, contracts: rows.map(toRunningContractIssuer) };
     }
 
     async terminate(

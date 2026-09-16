@@ -1,4 +1,4 @@
-// Nothing reads the record of the applied settings to decide behaviour.
+// No setting is read out of the record of the applied settings.
 //
 // The behavioural half of that promise is in `a-boot-records-what-it-applied`:
 // a record disagreeing with the file changes nothing about what runs. This is
@@ -6,12 +6,13 @@
 // started reading `applied_settings` for a default would pass every existing
 // behavioural test right up to the boot where the file and the record disagree.
 //
-// So the port is reachable from exactly the files that mirror and show it, and
+// So the port is reachable from exactly the files that mirror it, show it, wire
+// it, and the one check that reads it for something that is not a setting — and
 // a new importer fails here with its path. Read off the source rather than off
 // `dist/`, because the bundle folds every file into one chunk and the question
 // is which FILE reaches for the token.
 
-// @requirement SC-CFG-026 — The record of the applied configuration is a mirror, never a source
+// @requirement SC-CFG-036 — The record of the applied configuration is a mirror, never a source of settings
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,11 +45,22 @@ function sourceFiles(dir, out = []) {
  * `module-options.ts` declares the slot a consumer overrides it through. Each
  * is listed with its line so a reader can check the claim, and anything else
  * fails.
+ *
+ * The last entry is the one that reads. It takes one thing out of the record
+ * and it is not a setting: which legal entity this installation last ran as,
+ * and what it decides is whether the start continues at all. A list cannot say
+ * that it reads nothing else, so that half is behavioural and lives in
+ * `an-operator-corrects-its-own-details.test.js`: a record disagreeing with the
+ * file about every other value still starts, and still runs on the file's.
  */
 const WIRING = new Map([
     ['platform/saasicat.module.ts', 'merges the bundle slice into the adapter slots'],
     ['platform/module-options.ts', 'declares the `adapters.appliedSettings` slot'],
     ['platform/compose/base.ts', 'hands the port to SettingsModule'],
+    [
+        'platform/issuer-identity.check.ts',
+        'reads the recorded issuer identity to refuse an undeclared change of legal entity',
+    ],
 ]);
 
 describe('the applied-settings port', () => {

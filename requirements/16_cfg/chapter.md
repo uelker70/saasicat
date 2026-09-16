@@ -317,8 +317,14 @@ _Tested by:_
     - AdminManifestDoctorCheck
         - ok with standardPages count
         - error when getManifest throws
+    - IssuerIdentityDoctorCheck
+        - a refusal is reported as the error it would be at the next start
+        - an installation that records nothing is warned that nothing is compared
+        - an unchanged identity says what changing it would cost
+        - a declared correction is reported before the start applies it
+        - the first naming, and an installation that names none
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
-        - contains exactly 4 provider classes
+        - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`
     - DoctorFlow.run
         - all checks ok → overall=ok, exitCode=0
@@ -544,6 +550,9 @@ _Tested by:_
     - an installation whose adapter keeps no record
         - boots, says so once, and answers the endpoint without a record
         - a failing port does not take the boot down, and the log names the file
+- `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
+    - a start that finds the issuer where it left it
+        - carries a declared correction through, and keeps the declaration
 - `packages/nest/tests/the-settings-subtree-reaches-both-catalogue-paths.test.js`
     - the database path carries every setting the schema declares
         - the scan sees the settings, so an empty list is not a broken scan
@@ -553,12 +562,26 @@ _Tested by:_
 
 ### SC-CFG-026 — The record of the applied configuration is a mirror, never a source
 
-🟢 💰 Nothing reads it to decide behaviour. A record that disagrees with the file changes nothing about
-what runs — the file is the one place a setting lives — and the disagreement is what the next start
-records as a change. Held two ways: a start against a record that says otherwise runs on the file's
-values, and no code outside the record's own module and its wiring reaches for the port.
+🔵 _(Superseded on 2026-09-16 by `SC-CFG-036`.)_ 💰 Nothing reads it to decide behaviour. A record
+that disagrees with the file changes nothing about what runs — the file is the one place a setting
+lives — and the disagreement is what the next start records as a change. Held two ways: a start
+against a record that says otherwise runs on the file's values, and no code outside the record's own
+module and its wiring reaches for the port.
 
 _Source:_ #260 · #217
+
+### SC-CFG-036 — The record of the applied configuration is a mirror, never a source of settings
+
+🟢 💰 No setting is ever read out of it: a record that disagrees with the file leaves every value the
+file names in force — the file is the one place a setting lives — and the disagreement is what the
+next start records as a change. It is read for one thing that is not a setting, the legal entity this
+installation last ran as, and there it decides only whether the start continues at all
+(`SC-PRIC-026`); no value from it reaches anything that runs. Held three ways: a start against a
+record that says otherwise runs on the file's values, no code outside the record's own module, its
+wiring and that one check reaches for the port, and a record disagreeing about every other value
+still starts.
+
+_Source:_ #260 · #217 · #293
 
 <!-- BEGIN proof -->
 
@@ -567,6 +590,9 @@ _Tested by:_
 - `packages/nest/tests/a-boot-records-what-it-applied.test.js`
     - the record is a mirror, never a source
         - a record that disagrees with the file changes nothing about what runs
+- `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
+    - the record is still a mirror
+        - a record disagreeing about every other value changes nothing about what runs
 - `packages/nest/tests/the-record-is-a-mirror.test.js`
     - the applied-settings port
         - the scan sees the wiring, so an empty result is not a broken scan
