@@ -260,6 +260,10 @@ once by a maintainer with an npm login before the first release that contains it
 ```bash
 pnpm -r build                           # no package builds itself on publish
 cd packages/<package>
+# The version the RELEASE will carry, read off the open version PR — not
+# whatever this branch happens to say. `pnpm publish` ships the manifest as it
+# finds it.
+npm pkg set version=1.0.0-rc.<N>
 pnpm publish --access public --tag rc   # --tag only while the group is in pre mode
 ```
 
@@ -284,9 +288,12 @@ not be taken back: it was the package's only version, so npm refuses the delete
 ("It will block from republishing a new version for 24 hours"). It was superseded
 by `1.0.0-rc.19` and deprecated.
 
-Two things worth reading off that, because both cost time. The version comes from
-the release the workflow is about to carry, not from your working tree — check
-the version PR, not `packages/<package>/package.json` on your branch. And
+Two things worth reading off that, because both cost time. The version line is
+not a formality: publish what the branch says and the release still finds its own
+target version absent, so the workflow's first `PUT` is still a create and still
+fails — with a second unrecallable version on the registry, from the same block.
+Read it off the open version PR, not `packages/<package>/package.json` on your
+branch. And
 `npm view <package>@<version>` can answer `404` for a quarter of an hour after a
 successful publish: verify against the registry before saying it is there, and
 verify `dependencies` while you are at it.

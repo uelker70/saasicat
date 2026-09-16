@@ -542,8 +542,17 @@ model SubscriberPaymentMethod {
             ).join('\n');
 
         const spec = await read(() => true);
-        const withoutPayments = await read((file) => !file.startsWith('14-'));
-        const report = checkSchema(spec, withoutPayments);
+        // What the consumer who reported this actually has: the fragments they
+        // adopted, minus the two relations they cannot write without the models
+        // those name — Prisma refuses to load a schema that keeps them (P1012),
+        // so this is not a shape anybody chooses. Taking `13-subscriber.prisma`
+        // verbatim would leave the fields present, the exemption unconsulted,
+        // and this test green whatever the source says.
+        const app = (await read((file) => !file.startsWith('14-')))
+            .split('\n')
+            .filter((line) => !/\bSubscriberPaymentMethod(Setup)?\[\]/.test(line))
+            .join('\n');
+        const report = checkSchema(spec, app);
 
         assert.ok(
             report.absentModels.includes('SubscriberPaymentMethod'),

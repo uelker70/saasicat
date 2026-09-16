@@ -572,8 +572,9 @@ defineSaaSiCat({
     payments: {
         // A factory around the whole map, not around one account: see below.
         gateways: { useFactory: () => ({ main: gatewayForMain() }) },
-        // The modules this account's factory and guards resolve from. `payments`
-        // does NOT inherit the top-level `imports` when you set them elsewhere.
+        // The modules the factory and the guards here resolve from. Set this
+        // where `tenantBilling.imports` is what you have: `payments` falls back
+        // to the TOP-LEVEL `imports`, never to another feature's.
         imports: [AuthModule],
         // Who holds the billing permission. Without it, the tenant's administrator does.
         // billingPermissionGuards: [AccountingRoleGuard],
@@ -614,11 +615,11 @@ check has to build the context and therefore needs the database. Both shapes are
 is the one that keeps the provider in one place, and the preflight is the one that keeps a failed
 start from landing after a migration.
 
-`payments.imports` is its own list. `composePayments` reads `payments.imports` and falls back to
-the top-level `imports` — so an application that sets only `tenantBilling.imports` gets the global
-ones here, and a guard that resolves from a module of yours fails with
-`Symbol(saasicat/nest/TenantAuthGuards)` and an unresolvable `TenantGuard`, which does not read as
-a missing import.
+`payments.imports` is its own list, and its fallback is the top-level `imports` — not another
+feature's. An application that puts its modules in `tenantBilling.imports` and nothing at the top
+level therefore gives `payments` an empty list, and a guard resolving from a module of yours fails
+with `Symbol(saasicat/nest/TenantAuthGuards)` and an unresolvable `TenantGuard`, which does not read
+as a missing import.
 
 A gateway adapter implements `PaymentGateway` from `@saasicat/core`: it opens the form for a
 payment method, and it reads a callback, verifying it with the account's secret before a single

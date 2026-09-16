@@ -242,8 +242,13 @@ function compareFields(
         if (!app) {
             // Absent because the model it names is absent: adopting the
             // fragment brings both, and demanding the field alone is a schema
-            // Prisma refuses to load. Reported through the "not adopted" line
-            // that already names the model.
+            // Prisma refuses to load.
+            //
+            // A full run says which model that was, through `absentModels`. A
+            // narrowed one does not: `--fragments=…` was a request to be told
+            // about those fragments, and `knownModels` reaches past them on
+            // purpose, so naming a model the caller did not ask about would
+            // answer a question they did not put.
             if (notAdopted.has(spec.type)) continue;
             missingFields.push({ model, field: name, type: renderType(spec) });
             continue;
