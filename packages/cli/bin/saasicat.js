@@ -347,7 +347,17 @@ async function cmdSchemaCheck(args) {
     console.log(`→ Checking ${schemaPath} against ${files.length} fragment(s) from @saasicat/spec`);
     console.log('');
 
-    const report = checkSchema(fragments.join('\n'), schema);
+    // Every model the shipped fragments declare, not only the selected ones: a
+    // relation from a selected fragment can point at a model in one that was
+    // left out, and without this the narrowed run would report that field as
+    // missing — the very contradiction the full run stopped producing.
+    const allFiles = await selectFragmentFiles(fragmentsDir, null);
+    const allFragments = await Promise.all(
+        allFiles.map((file) => readFile(join(fragmentsDir, file), 'utf8')),
+    );
+    const knownModels = new Set(extractModelNames(allFragments.join('\n')));
+
+    const report = checkSchema(fragments.join('\n'), schema, knownModels);
     printCheckReport(report);
 
     const checked = `${report.checkedModelCount} Model(s), ${report.checkedEnumCount} Enum(s)`;

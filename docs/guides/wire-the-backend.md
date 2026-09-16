@@ -570,8 +570,8 @@ defineSaaSiCat({
     persistence, // supplies `payments` and `entitlement.subscriberRepository`
     tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
     payments: {
-        // A factory, not a value: see below.
-        gateways: { main: { useFactory: () => gatewayForMain() } },
+        // A factory around the whole map, not around one account: see below.
+        gateways: { useFactory: () => ({ main: gatewayForMain() }) },
         // The modules this account's factory and guards resolve from. `payments`
         // does NOT inherit the top-level `imports` when you set them elsewhere.
         imports: [AuthModule],
@@ -587,13 +587,23 @@ defineSaaSiCat({
 `gateways: { main: new DevPaymentGateway() }` reads well and builds the adapter the moment the
 module is loaded — before your own checks run, and whatever `provider:` says in the file. Switching
 providers then means editing two places. A factory builds at resolution, so one `provider` in the
-file can decide:
+file can decide.
+
+The factory wraps the **whole map**, not one account: `gateways` is one provider, so
+`{ main: { useFactory: … } }` is an ordinary object with an odd value in it, bound as a value —
+`PaymentGatewayRegistry` then reads no `provider` on it and the start is refused, saying the bound
+gateway is `'undefined'`.
 
 ```ts
 const gatewayForMain = () =>
     process.env.MYAPP_PAYMENT_PROVIDER === 'stripe'
         ? new StripePaymentGateway({ secretKey, webhookSecret, currency: 'EUR' })
         : new DevPaymentGateway();
+
+// payments.gateways:
+{ useFactory: () => ({ main: gatewayForMain() }) }
+// and with something to inject:
+{ useFactory: (config: ConfigService) => ({ main: gatewayFor(config) }), inject: [ConfigService] }
 ```
 
 One consequence worth knowing before you switch: with a value, a plain `require` of your compiled

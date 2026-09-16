@@ -258,9 +258,15 @@ So adding a package to the fixed group has a step outside the repository, done
 once by a maintainer with an npm login before the first release that contains it:
 
 ```bash
+pnpm -r build                           # no package builds itself on publish
 cd packages/<package>
 pnpm publish --access public --tag rc   # --tag only while the group is in pre mode
 ```
+
+The build line is not decoration: no package here has `prepublishOnly`, `prepack`
+or `prepare`, so publishing from a fresh clone packs whatever `dist/` holds —
+nothing — and puts out a version that exports nothing. Unrecallable in the same
+way, from the same block.
 
 Then on npmjs.com → the package → Settings → Trusted Publisher: this repository,
 workflow `release.yml`. From then on the workflow publishes it like the others.

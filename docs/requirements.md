@@ -13347,6 +13347,7 @@ _Tested by:_
     - its relation field is not reported as missing, in either direction
     - and the field is required again as soon as the model is adopted
     - and the shipped fragments really carry such a relation
+    - and a narrowed run behaves like a full one, given the shipped models
     - a type neither schema declares is still drift
     - parseEnumValues
         - reads members and ignores attributes
@@ -14134,6 +14135,7 @@ _Tested by:_
     - its relation field is not reported as missing, in either direction
     - and the field is required again as soon as the model is adopted
     - and the shipped fragments really carry such a relation
+    - and a narrowed run behaves like a full one, given the shipped models
     - a type neither schema declares is still drift
     - parseEnumValues
         - reads members and ignores attributes

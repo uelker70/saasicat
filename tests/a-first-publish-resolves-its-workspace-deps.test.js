@@ -35,8 +35,12 @@ function firstPublishCommands() {
     const text = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
     const start = text.indexOf('### A new package needs one manual first publish');
     assert.notEqual(start, -1, 'the first-publish section was renamed; this guard points at it');
-    const after = text.indexOf('\n## ', start);
-    const section = text.slice(start, after === -1 ? undefined : after);
+    // To the next heading of any level, not the next chapter: a `###` added
+    // under this chapter later would otherwise be read as part of this section,
+    // and its commands judged by a rule written for another one.
+    const body = text.slice(start + 1);
+    const next = body.search(/\n#{2,3} /);
+    const section = next === -1 ? body : body.slice(0, next);
 
     const lines = [];
     let inside = false;

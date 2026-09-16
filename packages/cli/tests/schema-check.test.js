@@ -485,13 +485,21 @@ model Subscriber {
 }
 `;
         const report = checkSchema(SPEC_WITH_RELATION, app);
-        assert.deepEqual(report.missingFields, []);
+        assert.deepEqual(
+            report.missingFields.map((f) => `${f.model}.${f.field}`),
+            // The enum field stays: copying an enum is something a consumer
+            // CAN do, so a model adopted without the enum one of its fields
+            // names is a fragment taken halfway, which is drift. Only the two
+            // relations — which Prisma itself refuses without their model —
+            // are the decision, not the defect.
+            ['Subscriber.status'],
+        );
         assert.deepEqual(report.absentModels.sort(), [
             'SubscriberPaymentMethod',
             'SubscriptionContract',
         ]);
         assert.deepEqual(report.absentEnums, ['RegistrationStatus']);
-        assert.equal(report.ok, true, 'an unadopted fragment failed the check');
+        assert.equal(report.ok, false, 'the half-adopted enum field passed');
     });
 
     test('and the field is required again as soon as the model is adopted', () => {
@@ -512,7 +520,7 @@ model SubscriberPaymentMethod {
         const report = checkSchema(SPEC_WITH_RELATION, app);
         assert.deepEqual(
             report.missingFields.map((f) => `${f.model}.${f.field}`),
-            ['Subscriber.paymentMethods'],
+            ['Subscriber.paymentMethods', 'Subscriber.status'],
             'the adopted fragment lost its back-relation and nothing said so',
         );
         assert.equal(report.ok, false);
@@ -541,12 +549,49 @@ model SubscriberPaymentMethod {
             report.absentModels.includes('SubscriberPaymentMethod'),
             'the payments fragment was adopted after all, so this proves nothing',
         );
+        // The whole list, not the part of it that points into the absent
+        // fragment: `missingFields` can never hold such a field once the fix is
+        // in, so filtering by it would be empty whatever the code does.
+        assert.deepEqual(report.missingFields, []);
+        assert.equal(report.ok, true);
+    });
+
+    test('and a narrowed run behaves like a full one, given the shipped models', async () => {
+        // `schema check --fragments=01,…,13` builds the spec from the selected
+        // fragments, so the model a relation points at may not be in the spec at
+        // all — and the field would be reported as missing on exactly the path a
+        // consumer reaches after `schema apply --fragments=…`. The third
+        // argument is what the command passes: every model the fragments ship.
+        const require = createRequire(import.meta.url);
+        const fragmentsDir = join(dirname(require.resolve('@saasicat/spec')), 'prisma-fragments');
+        const files = (await readdir(fragmentsDir)).filter((file) => file.endsWith('.prisma'));
+        const read = async (only) =>
+            (
+                await Promise.all(
+                    files.filter(only).map((file) => readFile(join(fragmentsDir, file), 'utf8')),
+                )
+            ).join('\n');
+
+        const narrowedSpec = await read((file) => !file.startsWith('14-'));
+        const knownModels = new Set(parseSchema(await read(() => true)).models.keys());
+        // What the consumer has: the same fragments, minus the two relations
+        // they cannot write without the models those name.
+        const app = narrowedSpec
+            .split('\n')
+            .filter((line) => !/\bSubscriberPaymentMethod(Setup)?\[\]/.test(line))
+            .join('\n');
+
+        const narrowed = checkSchema(narrowedSpec, app, knownModels);
+        assert.deepEqual(narrowed.missingFields, []);
+        assert.equal(narrowed.ok, true);
+
+        // Without the third argument — what the command did before — the
+        // narrowed spec does not contain the models those fields name, so the
+        // exemption cannot see them and the fields come back as drift.
+        const blind = checkSchema(narrowedSpec, app);
         assert.deepEqual(
-            report.missingFields.filter((f) =>
-                report.absentModels.includes(f.type.replace(/[[\]?]/g, '')),
-            ),
-            [],
-            'a field pointing into the fragment that was left out is reported as missing',
+            blind.missingFields.map((f) => `${f.model}.${f.field}`),
+            ['Subscriber.paymentMethods', 'Subscriber.paymentMethodSetups'],
         );
     });
 

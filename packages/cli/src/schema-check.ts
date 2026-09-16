@@ -19,8 +19,15 @@
 // that is not there. Reporting such a field as missing would make the fragment
 // it points at compulsory, in the same run that calls that fragment "not
 // adopted — not an error", and the only way to satisfy both statements is to
-// adopt the optional fragment. So a spec field whose type is a block the
+// adopt the optional fragment. So a spec field whose type is a MODEL the
 // consumer did not adopt belongs to that decision and is not drift.
+//
+// Models only, and the reason is the whole of the argument above: it is Prisma
+// that cannot be satisfied. An enum field is satisfiable — copy the enum — and
+// a model adopted without the enum one of its fields names is a fragment taken
+// halfway, which is exactly the drift this check exists for. A fragment left
+// out whole puts its model in `absentModels`, where no field of it is compared
+// at all, so exempting enums would only ever have covered the partial case.
 
 import { findFkPointers } from './fk-pointers.js';
 import {
@@ -233,10 +240,10 @@ function compareFields(
     for (const [name, spec] of specFields) {
         const app = appFields.get(name);
         if (!app) {
-            // Absent because the block it names is absent: adopting the
+            // Absent because the model it names is absent: adopting the
             // fragment brings both, and demanding the field alone is a schema
             // Prisma refuses to load. Reported through the "not adopted" line
-            // that already names the block.
+            // that already names the model.
             if (notAdopted.has(spec.type)) continue;
             missingFields.push({ model, field: name, type: renderType(spec) });
             continue;
@@ -338,7 +345,16 @@ function cascadesFromTenant(model: string, block: string): TenantCascade[] {
  * Compares a consumer schema against the canonical fragments. `specSchema` is
  * the concatenation of the fragments the check should cover.
  */
-export function checkSchema(specSchema: string, appSchema: string): SchemaCheckReport {
+/**
+ * @param knownModels Every model the shipped fragments declare, where the spec
+ * passed in is a narrowed selection of them (`schema check --fragments=…`).
+ * Omitted, the spec is taken to be the whole of it.
+ */
+export function checkSchema(
+    specSchema: string,
+    appSchema: string,
+    knownModels?: ReadonlySet<string>,
+): SchemaCheckReport {
     const spec = parseSchema(specSchema);
     const app = parseSchema(appSchema);
 
@@ -346,14 +362,23 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
     const fieldMismatches: FieldMismatch[] = [];
     const missingBlockAttributes: MissingBlockAttribute[] = [];
 
-    // Which blocks the consumer did not adopt, before any field is compared:
-    // a field of the first model can name the last one, so the answer cannot be
+    // Which models the consumer did not adopt, before any field is compared: a
+    // field of the first model can name the last one, so the answer cannot be
     // built up as the comparison walks.
     const absentModels = [...spec.models.keys()].filter((name) => !app.models.has(name));
     const absentEnums = [...spec.enums.keys()].filter((name) => !app.enums.has(name));
-    // Only blocks the SPEC declares. A type neither schema has is a reference
-    // to something the consumer owns and has not written, which is still drift.
-    const notAdopted = new Set([...absentModels, ...absentEnums]);
+    // A model the platform ships and the consumer does not have. `known` is the
+    // whole shipped set where a caller passes it and the spec otherwise, which
+    // is what makes `--fragments=…` behave like a full run: with a narrowed
+    // spec, the model a relation points at may not be in `spec` at all, and
+    // without `known` the field would be reported as missing on exactly the
+    // path a consumer reaches after `schema apply --fragments=…`.
+    //
+    // Bounded by what the platform declares either way. A type neither the
+    // fragments nor the consumer have is a reference to something the consumer
+    // owns and has not written, which is still drift.
+    const shipped = knownModels ?? new Set(spec.models.keys());
+    const notAdopted = new Set([...shipped].filter((name) => !app.models.has(name)));
 
     for (const [model, specFields] of spec.models) {
         const appFields = app.models.get(model);
