@@ -131,6 +131,16 @@ describe('IssuerIdentityDoctorCheck', () => {
         // as JSON, and a date on a row would come out as a timestamp beside the
         // same date already written as a day in the message.
         assert.deepEqual(r.details, { runningContracts: 2, named: ['c-1'] });
+
+        // One unknown answered once: a null count beside an empty list reads as
+        // "none", which is the opposite of what it means.
+        const unknown = await checkWith({
+            kind: 'refused',
+            change: { kind: 'undeclared' },
+            running: null,
+            refusal: 'The issuer …',
+        }).run();
+        assert.deepEqual(unknown.details, { runningContracts: null, named: null });
     });
 
     test('an installation that records nothing is warned that nothing is compared', async () => {

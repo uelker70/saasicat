@@ -152,10 +152,15 @@ export class IssuerIdentityDoctorCheck implements DoctorCheck {
                 // is serialised as JSON, and the dates on a row would come out
                 // as timestamps beside the same dates already written as days in
                 // the message above.
-                details: {
-                    runningContracts: verdict.running?.total ?? null,
-                    named: verdict.running?.contracts.map((row) => row.id) ?? [],
-                },
+                // One unknown answered once: `null` for both where the
+                // contracts could not be read, rather than a null count beside
+                // an empty list that reads as "none".
+                details: verdict.running
+                    ? {
+                          runningContracts: verdict.running.total,
+                          named: verdict.running.contracts.map((row) => row.id),
+                      }
+                    : { runningContracts: null, named: null },
             };
         }
         if (verdict.kind === 'not-compared') {

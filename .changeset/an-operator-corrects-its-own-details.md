@@ -44,10 +44,25 @@ of that same legal entity.
   status alone would not do, because an ordinary cancellation writes only
   `effectiveUntil`. Both shipped adapters implement it and the persistence
   contract covers it; an implementation of your own adds it.
-- `issuer.legalName`, `issuer.vatId` and `issuer.taxNumber` are compared with the
-  surrounding whitespace taken off, and the schema now refuses a value that is
-  only whitespace. Both sides are settled the same way, so a stray space cannot
-  make a value differ from itself.
+- `issuer.legalName`, `issuer.vatId`, `issuer.taxNumber` and
+  `issuer.correctionOf.reason` are compared with the surrounding whitespace taken
+  off, and the schema now refuses a value that is only whitespace: `vatId: "   "`
+  validated before and now fails at schema validation. Both sides are settled the
+  same way, so a stray space cannot make a value differ from itself — and a
+  contract's issuer copy stores the address settled like the identity beside it,
+  so party rows written from the next start carry trimmed values.
+- **The boot checks read platform-wide through `RlsBypassPort`.** They always
+  should have: without the frame, an installation with a policy on
+  `subscription_contracts` was told "No contract is running." where hundreds do,
+  and — the one that matters — `StoredPaymentReferencesCheck` read
+  `subscriber_payment_methods` as empty and **passed**, so a start went ahead with
+  payment methods held at an account the file no longer names. That check now
+  sees those rows and refuses such a start at the first restart after this
+  upgrade, on an installation where neither the file nor the database changed:
+  list the account again with its gateway bound, until its subscribers have a
+  payment method at another one. The port's contract says so too — it is now
+  called outside a request pipeline, so an implementation that reaches for a
+  request-scoped connection fails at start rather than where it is called.
 - **`SUBSCRIBER_IDENTITY_FIELDS` is now `LEGAL_IDENTITY_FIELDS`, and
   `SubscriberIdentityField` is `LegalIdentityField`** — the same three fields,
   named for what they are: both parties to a contract have a legal identity, and

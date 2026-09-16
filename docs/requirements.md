@@ -5601,7 +5601,8 @@ _Tested by:_
         - the development gateway replaces the payment method on the spot
     - the accounts the file names and the gateways the application binds
         - and it reads them platform-wide, which needs the bypass frame
-        - and it reads them platform-wide, which needs the bypass frame
+        - a payment method in use at an account the file no longer names stops the start, and is
+          named
 - `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
     - who sees the card
         - a user holding the billing permission sees the payment method in use

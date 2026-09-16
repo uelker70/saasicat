@@ -733,7 +733,6 @@ describe('the accounts the file names and the gateways the application binds', (
     });
 
     // @requirement SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
-    // @requirement SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
     test('and it reads them platform-wide, which needs the bypass frame', async () => {
         // There is no tenant at a boot, and under row-level security the read
         // comes back empty — so a check whose whole job is to refuse would pass,
@@ -771,6 +770,7 @@ describe('the accounts the file names and the gateways the application binds', (
         assert.deepEqual(seen, ['in'], 'the payment methods were read outside the bypass');
     });
 
+    // @requirement SC-PRIC-030 — A payment method is entered in the gateway's own form, and SaaSiCat keeps a reference
     test('a payment method in use at an account the file no longer names stops the start, and is named', async () => {
         const methods = new MemoryPaymentMethods();
         const subscribers = new FakeSubscriberRepository();

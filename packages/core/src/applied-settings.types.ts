@@ -5,10 +5,12 @@
 // first half: the settings the installation applied at boot, a fingerprint over
 // them, when they took effect and where they came from.
 //
-// The record is a mirror, never a source. Nothing reads it to decide
-// behaviour — the file is the one place a setting lives — and the port that
-// stores it is reached from the recorder and the read-only endpoint, and from
-// nowhere else. A test in `@saasicat/nest` holds that.
+// The record is a mirror, never a source of settings. No setting is ever read
+// out of it — the file is the one place a setting lives — and the port that
+// stores it is reached from the recorder, the read-only endpoint and the one
+// check that reads it for something that is not a setting: which legal entity
+// this installation last ran as, where it decides only whether the start
+// continues at all. A test in `@saasicat/nest` holds the list.
 
 /**
  * The settings subtree of a plan catalogue: every top-level block that is

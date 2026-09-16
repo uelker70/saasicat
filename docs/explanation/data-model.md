@@ -127,12 +127,14 @@ has always required anyway.
 | `AppliedSettings` (`applied_settings`) | one row, `id = 'installation'` (CHECK) | The settings subtree of `config/saas.yaml` as it was resolved at the last start, a `sha256-…` fingerprint over it, `appliedAt`, and `source` — the file's absolute path or a phrase saying the values came in as code.           |
 | `SettingsChange` (`settings_changes`)  | `seq`, numbered by the database        | One row per start that found the fingerprint moved: `previous`, `current`, `noticedAt`, and `acknowledgedAt`/`acknowledgedBy` once an operator has seen it. `seq` is assigned at the write and is the order the list is read in. |
 
-**A mirror, never a source.** The platform writes both tables at boot and reads
-them for the read-only settings screen — and for nothing else. No setting is
-ever read out of them: the file is the one place a setting lives, and a record
-that disagrees with it is what the next start records as a change. The
-`CHECK` on `applied_settings.id` is what holds the table to one row; the column
-default only lands a caller that omits the id on the right one.
+**A mirror, never a source of settings.** No setting is ever read out of these
+tables: the file is the one place a setting lives, and a record that disagrees
+with it is what the next start records as a change. The platform writes them at
+boot, reads them for the read-only settings screen, and reads one thing out of
+them that is not a setting — which legal entity this installation last ran as,
+where it decides only whether the start continues at all. The `CHECK` on
+`applied_settings.id` is what holds the table to one row; the column default only
+lands a caller that omits the id on the right one.
 
 ## Transactional invariants (what adapters must guarantee)
 
@@ -157,8 +159,11 @@ maxRedemptions)` — as a single guarded UPDATE, exactly-once under
 5. **Publish-and-supersede is atomic** per version lineage (invariant "at
    most one live").
 6. **Tenant scoping**: repository reads scoped by `tenantId` never return
-   another tenant's rows; platform-wide counts (`countActiveByPlanKey`) are
-   the documented exceptions and must run RLS-exempt.
+   another tenant's rows. The platform-wide reads are the documented exceptions
+   and must run RLS-exempt: `countActiveByPlanKey`, and the two the boot checks
+   make before anything is served — `listRunningIssuers` and `accountsInUse`.
+   Both of those go through `RlsBypassPort` outside any request, so an
+   implementation of it that needs a request context fails at start.
 7. **Plan changes keep the concrete contract binding consistent.** Adapters
    that declare atomic plan-binding support update the semantic `plan`, its
    active `planVersionId` and stale pending-version state in one transaction.

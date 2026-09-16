@@ -743,8 +743,10 @@ async loadBookedBundles(…): Promise<ContractFreezeBundleSnapshot> {
 Two tables arrive, both additive: `applied_settings` holds the one row that says which settings the
 installation applied at its last start — the resolved values, a fingerprint over them, when they
 took effect and from which file — and `settings_changes` holds one row per start that found the
-fingerprint moved. `GET /admin/settings` shows both. Neither is ever read to decide behaviour: the
-record is a mirror of `config/saas.yaml`, never a source.
+fingerprint moved. `GET /admin/settings` shows both. No setting is ever read out of them: the
+record is a mirror of `config/saas.yaml`, never a source of settings. From 1.0 it is read for
+one thing that is not a setting — which legal entity the installation last ran as — and there it
+decides only whether the start continues (see the issuer section below).
 
 ```prisma
 model AppliedSettings {

@@ -42,6 +42,7 @@ import {
     type LegalIdentity,
     type LegalIdentityField,
     type PlanCatalog,
+    type PlanCatalogIssuer,
     type RlsBypassPort,
     type RunningContractIssuer,
     type RunningContractIssuers,
@@ -76,7 +77,7 @@ const NOT_RECORDED = 'this installation records no applied settings';
  * a way out that does not start, which is the defect this block was rewritten to
  * remove, in its other direction.
  */
-const ISSUER_BLOCK_KEYS: readonly string[] = [
+const ISSUER_BLOCK_KEYS: readonly (keyof PlanCatalogIssuer)[] = [
     'legalName',
     'addressLine1',
     'addressLine2',
