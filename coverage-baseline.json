@@ -1,23 +1,23 @@
 {
     "spec": {
-        "line": 94.9,
-        "branch": 87.5,
+        "line": 96.06,
+        "branch": 88.89,
         "funcs": 100
     },
     "core": {
-        "line": 81.79,
-        "branch": 90.37,
-        "funcs": 60
+        "line": 83.67,
+        "branch": 92.42,
+        "funcs": 70.19
     },
     "nest": {
-        "line": 87.72,
-        "branch": 71.81,
-        "funcs": 81.54
+        "line": 92.31,
+        "branch": 77.7,
+        "funcs": 87.84
     },
     "adapter-prisma": {
-        "line": 65.23,
-        "branch": 67.23,
-        "funcs": 75.32,
+        "line": 65.8,
+        "branch": 68.61,
+        "funcs": 76.11,
         "withDatabase": {
             "line": 67.41,
             "branch": 69.01,
@@ -25,9 +25,9 @@
         }
     },
     "adapter-drizzle": {
-        "line": 52.31,
-        "branch": 61.36,
-        "funcs": 55.19,
+        "line": 53.12,
+        "branch": 62.94,
+        "funcs": 56.62,
         "withDatabase": {
             "line": 86.66,
             "branch": 70.64,
@@ -35,23 +35,28 @@
         }
     },
     "persistence-testing": {
-        "line": 76.53,
-        "branch": 53.45,
-        "funcs": 90.91
+        "line": 85.18,
+        "branch": 67.91,
+        "funcs": 91.53
     },
     "cli": {
-        "line": 83.76,
-        "branch": 76.76,
-        "funcs": 77.01
+        "line": 86.19,
+        "branch": 81.17,
+        "funcs": 80.48
     },
     "ui-vue": {
-        "line": 94.23,
-        "branch": 90.99,
+        "line": 94.28,
+        "branch": 91.91,
         "funcs": 91.72
     },
     "create-saasicat-admin": {
         "line": 84.1,
         "branch": 75,
         "funcs": 81.82
+    },
+    "payment-stripe": {
+        "line": 95.33,
+        "branch": 81.25,
+        "funcs": 100
     }
 }
