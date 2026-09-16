@@ -405,7 +405,17 @@ function subjectIdOf(subject: PaymentMethodSetupSubject): string {
     return subject.kind === 'registration' ? subject.pendingRegistrationId : subject.subscriberId;
 }
 
-/** The subject a session was opened for, or `null` where this installation did not open it. */
+/**
+ * The subject a session was opened for, or `null` where no SaaSiCat installation
+ * opened it.
+ *
+ * Not "where THIS installation did not": every installation writes the same two
+ * metadata keys, so a session opened by one sharing this Stripe account parses
+ * here as an ordinary subject. What keeps its confirmation from changing
+ * anything is the open setup it is matched against further in, not this
+ * function — and an account is meant to belong to one installation for that
+ * reason among others (see the README).
+ */
 function subjectOf(session: Stripe.Checkout.Session): PaymentMethodSetupSubject | null {
     const kind = session.metadata?.[SUBJECT_KIND];
     const id = session.metadata?.[SUBJECT_ID];

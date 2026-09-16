@@ -78,12 +78,17 @@ type, and there is no way to send it to one application's endpoint only:
 > endpoints on the account that listen for that event type. The recommended
 > approach is to use separate Stripe accounts for each application or website.
 
-Nothing goes wrong if you share one — a confirmation carries its account, its
-session and its subject, and a sibling's callback matches no open setup here.
-What suffers is the log: SaaSiCat writes that mismatch at error level, because
-for one installation per account it can only mean a callback naming a subscriber
-it should not know. Share an account between four and three of every four
-confirmations are an error line in each of them.
+— Stripe support, retrieved 2026-09-17.
+
+No sibling's callback changes your data: a confirmation carries its account, its
+session and its subject, and one from the installation next door matches no open
+setup here. What it does instead is fill your log with error lines about other
+people's customers, claim rows in your `payment_event_log` and write audit
+entries belonging to no sign-up of yours — and, where a neighbour's event is
+about something this installation does not handle at all, answer it with `500`.
+Stripe retries that for days and then disables the endpoint, which is the one
+carrying your own confirmations. [The guide](../../docs/guides/wire-the-backend.md)
+has the long form.
 
 ### Every method the file names has to be live at the account
 

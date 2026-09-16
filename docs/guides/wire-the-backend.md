@@ -533,16 +533,32 @@ page shows the one in use and opens the form for a new one.
 **One gateway account belongs to one installation.** Two installations sharing an account is the
 arrangement to avoid, and it is not a matter of taste: a gateway delivers an event to every endpoint
 registered on the account that subscribes to that type, with no way to route by application. Stripe
-says so itself and recommends an account per application. So each of your installations gets its own
-account at the provider, and the accounts in `config/saas.yaml` are that installation's.
+says so itself and recommends an account per application (see
+[the adapter's README](../../packages/payment-stripe/README.md)). So each of your installations gets
+its own account at the provider, and the accounts in `config/saas.yaml` are that installation's.
 
-Share one and nothing breaks — a confirmation names its account, its session and its subscriber
-together, so a sibling's callback matches no open setup here and changes nobody's payment method.
-What breaks is the log: that mismatch is written at error level, because with one installation per
-account it can only mean a callback naming a subscriber it has no business naming. With four
-installations on one account, three of every four confirmations are an error line reading "nothing
-recorded" — the same sentence a real defect produces, three times as often as the defect. A log
-nobody can read is the cost, and it falls due at the first real payment method.
+Nothing a sibling sends can change your data: a confirmation names its account, its session and its
+subject together, so a callback from the installation next door matches no open setup here and
+records nothing. Three other things happen, and the last one is why this is a rule rather than a
+preference.
+
+Your log fills with other people's work. That mismatch is written at error level — with one
+installation per account it can only mean a callback naming a subscriber it has no business naming —
+so four installations on one account turn three of every four confirmations into an error line
+reading "nothing recorded", in each of them, in the same words a real defect produces. On the
+sign-up path the same mismatch is a warning.
+
+Your database fills too. Every event is claimed in `payment_event_log` before anything asks whose it
+was, so a sibling's confirmations become rows of yours; and a sibling's abandoned checkout writes a
+`PAYMENT_FAILED` entry to your audit trail, belonging to no sign-up of yours.
+
+And an installation can be taken down by a neighbour's event. A callback is answered with an error
+when nothing here handles what it is about, deliberately, so that a confirmation is retried rather
+than lost while a module is still being wired. Under a shared account that fires for an event that
+was never yours: an installation without self-registration, beside one that has it, answers every
+sibling sign-up confirmation with `500` and the advice to wire `RegistrationModule` — which is not
+its problem and not its fix. Gateways retry such an event for days and then disable an endpoint that
+keeps failing, and the endpoint they disable is the one carrying your own confirmations.
 
 Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
 webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,
