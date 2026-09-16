@@ -256,11 +256,38 @@ at `1.0.0-rc.0`.
 
 So adding a package to the fixed group has a step outside the repository, done
 once by a maintainer with an npm login before the first release that contains it:
-`npm publish --access public` from the package directory at the version the
-release will carry, then on npmjs.com → the package → Settings → Trusted Publisher:
-this repository, workflow `release.yml`. From then on the workflow publishes it
-like the others. Changesets treats the already-published version as done, so a
-failed run is repaired by re-running the workflow after the manual publish.
+
+```bash
+cd packages/<package>
+pnpm publish --access public --tag rc   # --tag only while the group is in pre mode
+```
+
+Then on npmjs.com → the package → Settings → Trusted Publisher: this repository,
+workflow `release.yml`. From then on the workflow publishes it like the others.
+Changesets treats the already-published version as done, so a failed run is
+repaired by re-running the workflow after the manual publish.
+
+**`pnpm publish`, never `npm publish`.** Every package here depends on its
+siblings through `workspace:^`, which is a protocol only the workspace
+understands: pnpm replaces it with the concrete version while it packs, npm
+ships it verbatim. A tarball carrying `"@saasicat/core": "workspace:^"` installs
+nowhere — `pnpm install` answers `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` in any
+repository that is not this one. `@saasicat/payment-stripe@1.0.0-rc.18` went out
+that way, published by hand from the line this paragraph replaces, and it could
+not be taken back: it was the package's only version, so npm refuses the delete
+("It will block from republishing a new version for 24 hours"). It was superseded
+by `1.0.0-rc.19` and deprecated.
+
+Two things worth reading off that, because both cost time. The version comes from
+the release the workflow is about to carry, not from your working tree — check
+the version PR, not `packages/<package>/package.json` on your branch. And
+`npm view <package>@<version>` can answer `404` for a quarter of an hour after a
+successful publish: verify against the registry before saying it is there, and
+verify `dependencies` while you are at it.
+
+`tests/a-first-publish-resolves-its-workspace-deps.test.js` holds the instruction
+above to what the packages actually depend on, so the day one of them stops using
+`workspace:` the advice is not left standing for a reason that has gone.
 
 One consequence lasts until the package's first stable release: while the group
 is in pre mode, Changesets publishes a package that has never had a regular

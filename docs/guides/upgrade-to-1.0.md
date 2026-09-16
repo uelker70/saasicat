@@ -1341,6 +1341,20 @@ billing details, `checkoutGatewayAccount` and `gatewayCustomerRef` to `"PendingR
 part is skipped where its table is missing, and a second run does nothing. A sign-up whose checkout
 started before the migration has no account beside its session and repeats step 4.
 
+Two things that catch people here. The backfill writes `gatewayAccount = provider`, which is right
+for the first run — every row came from the one account — and wrong for any down-migration you write
+afterwards, where it turns an account name back into a provider name. And **`constraints.postgres.sql`
+grows between releases**: it gained
+`subscriber_payment_methods_active_per_subscriber` and `payment_event_log_confirmation_per_session`
+here. The migration above creates the first itself and the second only where `"PaymentEventLog"`
+already exists, so an installation without self-registration never gets it. Run
+`constraints.postgres.sql` after every jump, not once at set-up; it is written to be re-run.
+
+**`persistenceAdapterContract` gains two gaps**, `subscriberPaymentMethods` and `paymentEventLog`. An
+adapter that provides neither declares both and skips their scenarios; one that provides them
+declares nothing and runs all of them. The harness names the gap in its failure message, so the
+eighteen red scenarios tell you which line to add.
+
 **Take the new fragment, and drop the old model once nothing writes to it.**
 `SubscriptionPaymentMethod` and the enum `SubscriptionPaymentType` are gone from
 `01-subscription.prisma`, with `Subscription.paymentMethod`; `SubscriberPaymentMethod` and
@@ -1514,3 +1528,9 @@ Run the codemod from the repository root once; it walks every package. Bump ever
 dependency to the same version — the packages are released in lockstep, and a mixed set will
 fail at the registry keys. Then boot the app and read the log: a `SaaSiCatConfigurationError`
 lists every configuration problem at once.
+
+**Write the version, not `@rc`.** A dist-tag moves when the next candidate is published, so a
+manifest that names one stops saying which version this commit was built against — the lock file
+records what was installed, the manifest records what was meant, and only the second survives being
+read a year later. Pinning every package exactly also means a jump touches every one of them, which
+is the point: a mixed set is the failure this paragraph opens with.

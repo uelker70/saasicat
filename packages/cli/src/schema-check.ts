@@ -13,6 +13,14 @@
 //   - A field/enum value missing from a model the consumer DOES have — the
 //     consumer adopted the fragment and fell behind. That breaks platform code
 //     at runtime, so it fails the check.
+//
+// The two meet at a relation field: `Subscriber.paymentMethods` points at
+// `SubscriberPaymentMethod`, and Prisma cannot express a relation to a model
+// that is not there. Reporting such a field as missing would make the fragment
+// it points at compulsory, in the same run that calls that fragment "not
+// adopted — not an error", and the only way to satisfy both statements is to
+// adopt the optional fragment. So a spec field whose type is a block the
+// consumer did not adopt belongs to that decision and is not drift.
 
 import { findFkPointers } from './fk-pointers.js';
 import {
@@ -218,12 +226,18 @@ function compareFields(
     specFields: Map<string, FieldSignature>,
     appFields: Map<string, FieldSignature>,
     appEnums: Map<string, string[]>,
+    notAdopted: ReadonlySet<string>,
     missingFields: MissingField[],
     fieldMismatches: FieldMismatch[],
 ): void {
     for (const [name, spec] of specFields) {
         const app = appFields.get(name);
         if (!app) {
+            // Absent because the block it names is absent: adopting the
+            // fragment brings both, and demanding the field alone is a schema
+            // Prisma refuses to load. Reported through the "not adopted" line
+            // that already names the block.
+            if (notAdopted.has(spec.type)) continue;
             missingFields.push({ model, field: name, type: renderType(spec) });
             continue;
         }
@@ -328,18 +342,31 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
     const spec = parseSchema(specSchema);
     const app = parseSchema(appSchema);
 
-    const absentModels: string[] = [];
     const missingFields: MissingField[] = [];
     const fieldMismatches: FieldMismatch[] = [];
     const missingBlockAttributes: MissingBlockAttribute[] = [];
 
+    // Which blocks the consumer did not adopt, before any field is compared:
+    // a field of the first model can name the last one, so the answer cannot be
+    // built up as the comparison walks.
+    const absentModels = [...spec.models.keys()].filter((name) => !app.models.has(name));
+    const absentEnums = [...spec.enums.keys()].filter((name) => !app.enums.has(name));
+    // Only blocks the SPEC declares. A type neither schema has is a reference
+    // to something the consumer owns and has not written, which is still drift.
+    const notAdopted = new Set([...absentModels, ...absentEnums]);
+
     for (const [model, specFields] of spec.models) {
         const appFields = app.models.get(model);
-        if (!appFields) {
-            absentModels.push(model);
-            continue;
-        }
-        compareFields(model, specFields, appFields, app.enums, missingFields, fieldMismatches);
+        if (!appFields) continue;
+        compareFields(
+            model,
+            specFields,
+            appFields,
+            app.enums,
+            notAdopted,
+            missingFields,
+            fieldMismatches,
+        );
         const specAttrs = spec.modelAttributes.get(model);
         const appAttrs = app.modelAttributes.get(model);
         if (specAttrs && appAttrs) {
@@ -353,15 +380,11 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
         return block ? cascadesFromTenant(model, block) : [];
     });
 
-    const absentEnums: string[] = [];
     const missingEnumValues: MissingEnumValue[] = [];
 
     for (const [name, specValues] of spec.enums) {
         const appValues = app.enums.get(name);
-        if (!appValues) {
-            absentEnums.push(name);
-            continue;
-        }
+        if (!appValues) continue;
         for (const value of specValues) {
             if (!appValues.includes(value)) {
                 missingEnumValues.push({ enum: name, value });
