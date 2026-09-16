@@ -52,6 +52,20 @@ marketing:
 # copies it on the day it is concluded, so it keeps naming its counterparty after
 # this block changes. Only the legal name is required until invoicing requires
 # the rest. The company here is an example, not a real one.
+#
+# The address moves freely. The legal name and the tax identifiers are the party
+# a contract names, so changing one of them refuses the next start unless the
+# file declares the change a correction of the same legal entity, naming the
+# value it replaces — `null` where none was recorded — and why:
+#
+#   issuer:
+#       legalName: NotesApp Example AG
+#       correctionOf:
+#           legalName: NotesApp Example GmbH
+#           reason: Change of legal form, registered 2026-07-01
+#
+# It is needed only for the start that carries the change. Another legal entity
+# taking over is a transfer, not an edit of this file.
 issuer:
     legalName: NotesApp Example GmbH
     addressLine1: Beispielstraße 1

@@ -143,6 +143,24 @@ export interface PlanCatalogIssuer {
     country?: string;
     vatId?: string;
     taxNumber?: string;
+    /** Declares a changed identity as a correction of the same legal entity. */
+    correctionOf?: PlanCatalogIssuerCorrection;
+}
+
+/**
+ * What a changed issuer identity replaces, and why.
+ *
+ * The identity is the counterparty a contract names, so it moves under a
+ * running contract only as a correction of that same entity. Each field names
+ * the value the installation recorded before the change, `null` where it
+ * recorded none; a field the change leaves alone need not be named.
+ */
+export interface PlanCatalogIssuerCorrection {
+    legalName?: string | null;
+    vatId?: string | null;
+    taxNumber?: string | null;
+    /** Why the same entity now reads differently. Kept in the settings record. */
+    reason: string;
 }
 
 /** How the parties contracts are concluded with are numbered. */

@@ -27,6 +27,7 @@ import type {
     CreateSubscriberData,
     CreateSubscriptionBundleData,
     NewSubscriptionContractData,
+    RunningContractIssuers,
     SubscriberContactChange,
     SubscriberCorrectionData,
     SubscriberCorrectionRecord,
@@ -347,6 +348,27 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         };
         this.byId.set(contractId, updated);
         return this.cloneRecord(updated);
+    }
+
+    async listRunningIssuers(limit: number): Promise<RunningContractIssuers> {
+        // Status alone, as the port says: a window that has passed does not end
+        // a contract nobody terminated.
+        const running = [...this.byId.values()]
+            .filter((row) => row.status === 'active' || row.status === 'scheduled')
+            .sort(
+                (a, b) =>
+                    a.effectiveFrom.getTime() - b.effectiveFrom.getTime() ||
+                    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+            );
+        return {
+            total: running.length,
+            contracts: running.slice(0, limit).map((row) => ({
+                id: row.id,
+                tenantId: row.tenantId,
+                issuerLegalName: row.issuer?.legalName ?? null,
+                effectiveFrom: new Date(row.effectiveFrom),
+            })),
+        };
     }
 
     private isActiveAt(row: SubscriptionContractRecord, asOf: Date): boolean {

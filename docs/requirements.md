@@ -122,7 +122,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 24      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 24      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 35      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 13      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 484 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
-🔵 2 superseded, 🔴 1 withdrawn.
+Of 485 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -205,11 +205,12 @@ Of 484 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
-[SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
+[SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
+[SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 484 requirements. Do not edit by hand:
+Generated from `requirements/` — 485 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5427,6 +5428,69 @@ corrected identity.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/prisma-adapters.test.js`
+    - PrismaSubscriptionContractRepository.listRunningIssuers
+        - asks for the running ones, oldest first, four columns, capped
+        - a contract with no issuer copy says so rather than inventing one
+- `packages/cli/tests/default-doctor-checks.test.js`
+    - IssuerIdentityDoctorCheck
+        - a refusal is reported as the error it would be at the next start
+        - an installation that records nothing is warned that nothing is compared
+        - an unchanged identity says what changing it would cost
+        - a declared correction is reported before the start applies it
+        - the first naming, and an installation that names none
+- `packages/core/tests/an-issuer-is-the-same-entity-or-another-one.test.js`
+    - the identity of an issuer
+        - is the three fields a contract names it by, and nothing about how it is reached
+        - reads an absent tax identifier as unknown rather than as absent
+        - is nothing where the file names no issuer
+        - is the same as another when every field matches, and not otherwise
+        - is exactly what `issuer.correctionOf` can name in the file
+    - the identity a record holds
+        - is read back out of the settings tree the last start wrote
+        - is nothing where the tree names no issuer, or names one without a name
+    - what a start finds when it compares the two
+        - nothing named on either side is nothing to compare
+        - a first issuer where none was recorded is the first naming, declared for nothing
+        - a moved address is not a moved identity
+        - a changed legal name with nothing declared is refused
+        - a changed legal name declared against the recorded one is a correction
+        - a tax number that was missing is declared as the nothing it replaces
+        - a declaration naming a value the record does not hold covers nothing
+        - a declaration covering half a change covers nothing
+        - a declaration fuller than it had to be is still a declaration
+        - dropping the issuer block while one is recorded is refused, declaration and all
+        - a declaration left in the file after its correction landed changes nothing
+        - and it does not license the next change
+- `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
+    - a start that finds the issuer where it left it
+        - names one for the first time, and says so
+        - lets the address move without a word from the operator
+        - carries a declared correction through, and keeps the declaration
+        - lets the same declaration stay in the file afterwards
+    - a start that finds another legal entity
+        - does not start, and names the contracts still running under the previous one
+        - leaves the record exactly as the previous start left it
+        - says so even where no contract is running yet
+        - names a declaration that covers another change than this one
+        - names a field the declaration says nothing about
+        - refuses the issuer block being dropped while one is recorded
+        - names the contracts up to a limit, and how many more there are
+        - says which contracts carry no issuer copy rather than pretending they do
+    - what the comparison needs, and what it does without
+        - an installation that records nothing compares the issuer with nothing, and says so
+        - a record that cannot be read stops a start that names an issuer
+        - and only warns where the file names no issuer at all
+        - an installation that writes no contracts at all still refuses another entity
+    - the comparison happens before the record is replaced
+        - the check is a module hook and the recorder a bootstrap hook
+
+<!-- END proof -->
+
 ### SC-PRIC-027 — An invoice carries what the tax law of its issuer requires of it
 
 🟡 _(Decided, not yet delivered.)_ 💰 The installation's tax adapter (`SC-PRIC-037`) names that
@@ -10555,8 +10619,14 @@ _Tested by:_
     - AdminManifestDoctorCheck
         - ok with standardPages count
         - error when getManifest throws
+    - IssuerIdentityDoctorCheck
+        - a refusal is reported as the error it would be at the next start
+        - an installation that records nothing is warned that nothing is compared
+        - an unchanged identity says what changing it would cost
+        - a declared correction is reported before the start applies it
+        - the first naming, and an installation that names none
     - PLATFORM_DOCTOR_CHECK_PROVIDERS
-        - contains exactly 4 provider classes
+        - holds every platform check, and nothing else
 - `packages/cli/tests/doctor-flow.test.js`
     - DoctorFlow.run
         - all checks ok → overall=ok, exitCode=0
@@ -10782,6 +10852,9 @@ _Tested by:_
     - an installation whose adapter keeps no record
         - boots, says so once, and answers the endpoint without a record
         - a failing port does not take the boot down, and the log names the file
+- `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
+    - a start that finds the issuer where it left it
+        - carries a declared correction through, and keeps the declaration
 - `packages/nest/tests/the-settings-subtree-reaches-both-catalogue-paths.test.js`
     - the database path carries every setting the schema declares
         - the scan sees the settings, so an empty list is not a broken scan
@@ -10791,12 +10864,26 @@ _Tested by:_
 
 ### SC-CFG-026 — The record of the applied configuration is a mirror, never a source
 
-🟢 💰 Nothing reads it to decide behaviour. A record that disagrees with the file changes nothing about
-what runs — the file is the one place a setting lives — and the disagreement is what the next start
-records as a change. Held two ways: a start against a record that says otherwise runs on the file's
-values, and no code outside the record's own module and its wiring reaches for the port.
+🔵 _(Superseded on 2026-09-16 by `SC-CFG-036`.)_ 💰 Nothing reads it to decide behaviour. A record
+that disagrees with the file changes nothing about what runs — the file is the one place a setting
+lives — and the disagreement is what the next start records as a change. Held two ways: a start
+against a record that says otherwise runs on the file's values, and no code outside the record's own
+module and its wiring reaches for the port.
 
 _Source:_ #260 · #217
+
+### SC-CFG-036 — The record of the applied configuration is a mirror, never a source of settings
+
+🟢 💰 No setting is ever read out of it: a record that disagrees with the file leaves every value the
+file names in force — the file is the one place a setting lives — and the disagreement is what the
+next start records as a change. It is read for one thing that is not a setting, the legal entity this
+installation last ran as, and there it decides only whether the start continues at all
+(`SC-PRIC-026`); no value from it reaches anything that runs. Held three ways: a start against a
+record that says otherwise runs on the file's values, no code outside the record's own module, its
+wiring and that one check reaches for the port, and a record disagreeing about every other value
+still starts.
+
+_Source:_ #260 · #217 · #293
 
 <!-- BEGIN proof -->
 
@@ -10805,6 +10892,9 @@ _Tested by:_
 - `packages/nest/tests/a-boot-records-what-it-applied.test.js`
     - the record is a mirror, never a source
         - a record that disagrees with the file changes nothing about what runs
+- `packages/nest/tests/an-operator-corrects-its-own-details.test.js`
+    - the record is still a mirror
+        - a record disagreeing about every other value changes nothing about what runs
 - `packages/nest/tests/the-record-is-a-mirror.test.js`
     - the applied-settings port
         - the scan sees the wiring, so an empty result is not a broken scan
@@ -14205,6 +14295,9 @@ _Tested by:_
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
         - token client + hasher token → provisioning factory injecting both
+    - PrismaSubscriptionContractRepository.listRunningIssuers
+        - asks for the running ones, oldest first, four columns, capped
+        - a contract with no issuer copy says so rather than inventing one
 - `packages/adapter-prisma/tests/prisma-applied-settings.repository.test.js`
     - the one row
         - the first record is an insert keyed on the installation id that skips a duplicate
@@ -14340,6 +14433,9 @@ _Tested by:_
         - token client → factory specs injecting the token
         - instance client → ready instances; hasher instance enables provisioning
         - token client + hasher token → provisioning factory injecting both
+    - PrismaSubscriptionContractRepository.listRunningIssuers
+        - asks for the running ones, oldest first, four columns, capped
+        - a contract with no issuer copy says so rather than inventing one
 - `packages/cli/tests/migration-constraints.test.js`
     - which migration the constraints belong to
         - the one that appeared between the two listings

@@ -2583,6 +2583,81 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
         });
 
+        test('the contracts still running say which issuer each names', async (t) => {
+            // What a start reads before it lets the operator's own legal identity
+            // move: an undeclared change of it is refused, and the refusal names
+            // these. Status alone decides what is running — a window that has
+            // passed does not end a contract nobody terminated — and a contract
+            // whose party copy the migration made names no issuer at all.
+            const { adapter } = harness;
+            const contracts = adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Meier GmbH' });
+            const parties = partiesWith(subscriberId, 'Meier GmbH');
+            const written = async (
+                offerId: string,
+                overrides: Partial<NewSubscriptionContractData>,
+            ) => contracts.create({ ...contractFromOffer(offerId, parties), ...overrides });
+
+            const oldest = await written('running-oldest', {
+                effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            });
+            const scheduled = await written('running-scheduled', {
+                effectiveFrom: new Date('2026-02-01T00:00:00.000Z'),
+                status: 'scheduled',
+            });
+            // Active, and its window closed a year ago: nobody terminated it, so
+            // as far as this record goes it is still open.
+            const lapsed = await written('running-lapsed', {
+                effectiveFrom: new Date('2026-03-01T00:00:00.000Z'),
+                effectiveUntil: new Date('2026-04-01T00:00:00.000Z'),
+            });
+            // What the migration that attached older contracts leaves: a party
+            // copy with no issuer in it.
+            const noIssuer = await written('running-no-issuer', {
+                effectiveFrom: new Date('2026-05-01T00:00:00.000Z'),
+                parties: { ...parties, issuer: null },
+            });
+            await written('running-terminated', {
+                effectiveFrom: new Date('2025-01-01T00:00:00.000Z'),
+                status: 'terminated',
+            });
+            await written('running-superseded', {
+                effectiveFrom: new Date('2025-02-01T00:00:00.000Z'),
+                status: 'superseded',
+            });
+
+            const listed = await contracts.listRunningIssuers(10);
+            assert.equal(listed.total, 4, 'a contract that ended is not running');
+            assert.deepEqual(
+                listed.contracts.map((row) => row.id),
+                [oldest.id, scheduled.id, lapsed.id, noIssuer.id],
+                'oldest first',
+            );
+            assert.equal(listed.contracts[0].tenantId, oldest.tenantId);
+            assert.equal(
+                listed.contracts[0].effectiveFrom.getTime(),
+                new Date('2026-01-01T00:00:00.000Z').getTime(),
+            );
+            assert.equal(listed.contracts[0].issuerLegalName, 'Example Software GmbH');
+            assert.equal(
+                listed.contracts[3].issuerLegalName,
+                null,
+                'a contract with no issuer copy says so rather than inventing one',
+            );
+
+            const capped = await contracts.listRunningIssuers(2);
+            assert.equal(capped.total, 4, 'the limit caps the list, not the count');
+            assert.deepEqual(
+                capped.contracts.map((row) => row.id),
+                [oldest.id, scheduled.id],
+            );
+        });
+
         // -------------------------------------------------------------
         // Payments — gateway events claimed once, and payment methods
         // -------------------------------------------------------------

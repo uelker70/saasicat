@@ -57,6 +57,8 @@ export * from './payment-gateway.types.js';
 export * from './registration.types.js';
 export * from './setup.types.js';
 export * from './plan-mapping.js';
+export * from './issuer-identity.js';
+export * from './legal-identity.js';
 export * from './subscriber-mapping.js';
 export * from './subscriber-payment-method-mapping.js';
 export * from './subscriber-payment-method.types.js';

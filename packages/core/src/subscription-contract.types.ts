@@ -1,5 +1,5 @@
 import type { EffectiveLimitsSnapshot } from './entitlement-snapshot.types.js';
-import type { LegalIdentity, PartyAddress } from './subscriber.types.js';
+import type { LegalIdentity, PartyAddress } from './legal-identity.js';
 
 export type ContractLineItemKind = 'plan' | 'bundle' | 'discount';
 export type SubscriptionContractStatus = 'active' | 'scheduled' | 'terminated' | 'superseded';
@@ -188,6 +188,29 @@ export interface SubscriptionContractFilter {
     tenantId?: string;
     status?: SubscriptionContractStatus;
     asOf?: Date;
+}
+
+/** One contract still running, and the issuer it was concluded under. */
+export interface RunningContractIssuer {
+    id: string;
+    /** The tenant it was concluded for, kept as a trace. */
+    tenantId: string;
+    /**
+     * The legal name on the issuer copy, or `null` where the contract names no
+     * issuer — it was concluded while `config/saas.yaml` named none, or its
+     * party copy was made by the migration that attached contracts concluded
+     * before subscribers existed.
+     */
+    issuerLegalName: string | null;
+    effectiveFrom: Date;
+}
+
+/** How many contracts are still running, and the first few of them. */
+export interface RunningContractIssuers {
+    /** All of them, whether or not the list below holds them all. */
+    total: number;
+    /** At most the limit the caller asked for, oldest first. */
+    contracts: RunningContractIssuer[];
 }
 
 export interface InvoiceLineItemSnapshot {

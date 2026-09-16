@@ -90,7 +90,7 @@ properties it has while doing it.
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 24      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 24      |
-| 16  | Configuring and running an installation      | `SC-CFG-…`   | 35      |
+| 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 13      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 484 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
-🔵 2 superseded, 🔴 1 withdrawn.
+Of 485 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -173,7 +173,8 @@ Of 484 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
 🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
-[SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one)
+[SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
+[SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 

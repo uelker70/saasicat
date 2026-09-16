@@ -420,6 +420,27 @@ export function createMemoryHarness() {
                 .sort(byNewestFirst)
                 .map(withLines);
         },
+        async listRunningIssuers(limit) {
+            // Status alone, as the port says: a window that has passed does not
+            // end a contract nobody terminated.
+            const running = state.contracts
+                .filter((row) => ACTIVE_CONTRACT_STATUSES.includes(row.status))
+                .sort(
+                    (a, b) =>
+                        a.effectiveFrom - b.effectiveFrom ||
+                        a.createdAt - b.createdAt ||
+                        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+                );
+            return {
+                total: running.length,
+                contracts: running.slice(0, limit).map((row) => ({
+                    id: row.id,
+                    tenantId: row.tenantId,
+                    issuerLegalName: row.issuer?.legalName ?? null,
+                    effectiveFrom: row.effectiveFrom,
+                })),
+            };
+        },
         async terminate(contractId, data) {
             const row = state.contracts.find((candidate) => candidate.id === contractId);
             if (!row) throw new Error(`SubscriptionContract '${contractId}' not found.`);

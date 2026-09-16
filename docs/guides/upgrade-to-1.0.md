@@ -1404,6 +1404,47 @@ reference a gateway can charge, so each subscriber gives its payment method agai
   permission, and `GET`/`POST /billing/payment-method` require it: the tenant's administrator,
   unless `payments.billingPermissionGuards` names others.
 
+### The operator's own legal identity changes only as a declared correction
+
+`config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract
+copies it the day it is concluded. Its address and contact details still move freely and take effect
+at the next start. Its `legalName`, `vatId` and `taxNumber` are the party a contract names, so a
+start that finds one of them different from the one the installation recorded refuses, unless the
+file declares the change a correction of that same entity:
+
+```yaml
+issuer:
+    legalName: Example Software AG
+    correctionOf:
+        legalName: Example Software GmbH
+        reason: Change of legal form, registered 2026-07-01
+```
+
+`correctionOf` names, for each identity field that moves, the value the record holds — `null` where
+it holds none, which is how a tax number assigned later is declared. It is needed only for the start
+that carries the change. The refusal names the contracts still running and what each was concluded
+under; `<app> doctor` asks the same question before a deploy, as the new
+`platform.issuer-identity` check.
+
+Nothing is required of you unless you change that identity — but three things moved with it:
+
+- **`SubscriptionContractRepository` gains `listRunningIssuers(limit)`**: how many contracts are
+  running (`active` or `scheduled`, whatever their window says) and the first `limit` of them,
+  oldest first, each with the legal name on its issuer copy or `null` where it names none. Both
+  shipped adapters implement it; an implementation of your own adds it. The persistence contract
+  covers it.
+- **`SUBSCRIBER_IDENTITY_FIELDS` is `LEGAL_IDENTITY_FIELDS`, and `SubscriberIdentityField` is
+  `LegalIdentityField`** — the same three fields, now named for what they are: both parties to a
+  contract have a legal identity, and the issuer is not a subscriber.
+- **`IssuerIdentityCheck`** is exported from `@saasicat/nest` and `@saasicat/nest/platform`, and is
+  registered for every configuration. `inspect()` answers the same question without acting on it.
+
+One limit worth stating: the comparison needs the `core.appliedSettings` port, which both shipped
+persistence bundles provide. Without it the boot log says once that the issuer is compared with
+nothing, and the identity is not guarded. A contract whose party copy the subscriber migration made
+names no issuer at all; those neither block a change nor are blocked by one, and are confirmed
+against the contract before they are invoiced.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

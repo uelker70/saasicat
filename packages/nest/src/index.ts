@@ -42,6 +42,8 @@ export * from './settings/index.js';
 // without crossing CJS bundle identities. New applications may use the
 // narrower `@saasicat/nest/platform` entry instead.
 export {
+    IssuerIdentityCheck,
+    type IssuerIdentityVerdict,
     SaaSiCatModule,
     defineSaaSiCat,
     type SaaSiCatAdapters,

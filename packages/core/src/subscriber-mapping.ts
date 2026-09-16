@@ -5,13 +5,18 @@
 // field" is one decision, for the reason `subscription-contract-mapping.ts`
 // gives: two copies of it drift without anybody comparing them.
 
+import { issuerIdentityOf } from './issuer-identity.js';
+import {
+    LEGAL_IDENTITY_FIELDS,
+    type LegalIdentity,
+    type LegalIdentityField,
+} from './legal-identity.js';
 import type { PlanCatalog } from './plan-catalog.types.js';
 import type { PendingRegistration } from './registration.types.js';
 import type {
     NewSubscriberDetails,
     SubscriberCorrectionRecord,
     SubscriberIdentityDelta,
-    SubscriberIdentityField,
     SubscriberIdentityValues,
     SubscriberRecord,
 } from './subscriber.types.js';
@@ -20,13 +25,6 @@ import type {
     ContractSubscriberParty,
     SubscriptionContractParties,
 } from './subscription-contract.types.js';
-
-/** The fields a correction of the legal identity may change, in the order they are shown. */
-export const SUBSCRIBER_IDENTITY_FIELDS: readonly SubscriberIdentityField[] = [
-    'legalName',
-    'vatId',
-    'taxNumber',
-];
 
 /** A `subscribers` row as either adapter reads it back. */
 export interface CanonicalSubscriberRow {
@@ -111,12 +109,12 @@ export function toSubscriberCorrectionRecord(
  * the same way, under the lock they read `current` with.
  */
 export function identityCorrectionDelta(
-    current: Pick<SubscriberRecord, SubscriberIdentityField>,
+    current: Pick<SubscriberRecord, LegalIdentityField>,
     corrected: SubscriberIdentityValues,
 ): SubscriberIdentityDelta {
     const previous: Record<string, string | null> = {};
     const next: Record<string, string | null> = {};
-    for (const field of SUBSCRIBER_IDENTITY_FIELDS) {
+    for (const field of LEGAL_IDENTITY_FIELDS) {
         const value = corrected[field];
         if (value === undefined || value === current[field]) continue;
         previous[field] = current[field];
@@ -156,9 +154,11 @@ export function contractPartiesOf(
 
 function issuerPartyOf(issuer: NonNullable<PlanCatalog['issuer']>): ContractIssuerParty {
     return {
-        legalName: issuer.legalName,
-        vatId: issuer.vatId ?? null,
-        taxNumber: issuer.taxNumber ?? null,
+        // The three identity fields come from the one function that reads them,
+        // so a contract copies exactly what the start compares against the
+        // record. `correctionOf` is a declaration about the change, not part of
+        // the party, and is not copied onto anything.
+        ...(issuerIdentityOf(issuer) as LegalIdentity),
         addressLine1: issuer.addressLine1 ?? null,
         addressLine2: issuer.addressLine2 ?? null,
         postalCode: issuer.postalCode ?? null,
@@ -204,7 +204,7 @@ function toIdentityValues(value: unknown): SubscriberIdentityValues {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
     const source = value as Record<string, unknown>;
     const values: Record<string, string | null> = {};
-    for (const field of SUBSCRIBER_IDENTITY_FIELDS) {
+    for (const field of LEGAL_IDENTITY_FIELDS) {
         if (!Object.prototype.hasOwnProperty.call(source, field)) continue;
         const entry = source[field];
         values[field] = typeof entry === 'string' ? entry : null;

@@ -18,6 +18,7 @@ import type {
     ContractLineItemKind,
     ContractLineItemRecord,
     ContractSubscriberParty,
+    RunningContractIssuer,
     SubscriptionContractPriceSnapshot,
     SubscriptionContractRecord,
     SubscriptionContractStatus,
@@ -139,6 +140,32 @@ function toSubscriberParty(value: unknown): ContractSubscriberParty {
     return {
         customerNumber: stringOr(source.customerNumber, ''),
         ...toIssuerParty(source),
+    };
+}
+
+/**
+ * The columns the issuer check reads off a running contract. A narrow row of
+ * its own, because that query selects four columns rather than the whole
+ * contract with its lines: it runs at every start, and an installation with
+ * thousands of running contracts should not load them to count them.
+ */
+export interface CanonicalRunningContractRow {
+    id: string;
+    tenantId: string;
+    issuerSnapshot: unknown;
+    effectiveFrom: Date;
+}
+
+/** One running contract, and the legal name on its issuer copy where it has one. */
+export function toRunningContractIssuer(row: CanonicalRunningContractRow): RunningContractIssuer {
+    const issuer = isPlainObject(row.issuerSnapshot)
+        ? (row.issuerSnapshot as Record<string, unknown>)
+        : null;
+    return {
+        id: row.id,
+        tenantId: row.tenantId,
+        issuerLegalName: issuer ? stringOrNull(issuer.legalName) : null,
+        effectiveFrom: row.effectiveFrom,
     };
 }
 

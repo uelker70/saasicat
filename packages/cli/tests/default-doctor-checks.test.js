@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
     AdminManifestDoctorCheck,
     DiscoverySnapshotDoctorCheck,
+    IssuerIdentityDoctorCheck,
     PlanCatalogDoctorCheck,
     PLATFORM_DOCTOR_CHECK_PROVIDERS,
     UserPortDoctorCheck,
@@ -98,12 +99,85 @@ describe('AdminManifestDoctorCheck', () => {
     });
 });
 
+// @requirement SC-PRIC-026 — An invoice carries the issuer and the subscriber as they were on the day it was issued
+describe('IssuerIdentityDoctorCheck', () => {
+    /** The verdict the platform's own check would hand back, without booting one. */
+    const checkWith = (verdict) => new IssuerIdentityDoctorCheck({ inspect: async () => verdict });
+
+    test('a refusal is reported as the error it would be at the next start', async () => {
+        const r = await checkWith({
+            kind: 'refused',
+            change: { kind: 'undeclared' },
+            running: { total: 2, contracts: [] },
+            refusal: 'The issuer in config/saas.yaml is not the legal entity …',
+        }).run();
+        assert.equal(r.severity, 'error');
+        assert.match(r.message, /is not the legal entity/);
+        assert.deepEqual(r.details.running, { total: 2, contracts: [] });
+    });
+
+    test('an installation that records nothing is warned that nothing is compared', async () => {
+        const r = await checkWith({
+            kind: 'not-compared',
+            why: 'this installation records no applied settings',
+        }).run();
+        assert.equal(r.severity, 'warning');
+        assert.match(r.message, /records no applied settings/);
+    });
+
+    test('an unchanged identity says what changing it would cost', async () => {
+        const r = await checkWith({
+            kind: 'settled',
+            change: {
+                kind: 'unchanged',
+                identity: { legalName: 'Example Software GmbH', vatId: null, taxNumber: null },
+            },
+        }).run();
+        assert.equal(r.severity, 'ok');
+        assert.match(r.message, /Example Software GmbH/);
+        assert.match(r.message, /issuer\.correctionOf/);
+    });
+
+    test('a declared correction is reported before the start applies it', async () => {
+        const r = await checkWith({
+            kind: 'settled',
+            change: {
+                kind: 'corrected',
+                recorded: { legalName: 'Example Software GmbH', vatId: null, taxNumber: null },
+                current: { legalName: 'Example Software AG', vatId: null, taxNumber: null },
+                moved: ['legalName'],
+                reason: 'Change of legal form',
+            },
+        }).run();
+        assert.equal(r.severity, 'ok');
+        assert.match(r.message, /Change of legal form/);
+    });
+
+    test('the first naming, and an installation that names none', async () => {
+        const first = await checkWith({
+            kind: 'settled',
+            change: {
+                kind: 'first-naming',
+                identity: { legalName: 'Example Software GmbH', vatId: null, taxNumber: null },
+            },
+        }).run();
+        assert.equal(first.severity, 'ok');
+        assert.match(first.message, /for the first time/);
+
+        const none = await checkWith({ kind: 'settled', change: { kind: 'none-named' } }).run();
+        assert.equal(none.severity, 'ok');
+        assert.match(none.message, /No issuer is named/);
+    });
+});
+
 describe('PLATFORM_DOCTOR_CHECK_PROVIDERS', () => {
-    test('contains exactly 4 provider classes', () => {
-        assert.equal(PLATFORM_DOCTOR_CHECK_PROVIDERS.length, 4);
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(PlanCatalogDoctorCheck));
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(DiscoverySnapshotDoctorCheck));
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(UserPortDoctorCheck));
-        assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(AdminManifestDoctorCheck));
+    test('holds every platform check, and nothing else', () => {
+        assert.deepEqual(PLATFORM_DOCTOR_CHECK_PROVIDERS, [
+            PlanCatalogDoctorCheck,
+            DiscoverySnapshotDoctorCheck,
+            UserPortDoctorCheck,
+            AdminManifestDoctorCheck,
+            IssuerIdentityDoctorCheck,
+        ]);
     });
 });

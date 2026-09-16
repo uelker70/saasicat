@@ -1,0 +1,303 @@
+// Refuses a start whose `config/saas.yaml` names a legal entity other than the
+// one this installation recorded.
+//
+// The issuer is the operator's side of every contract, and a contract copies it
+// on the day it is concluded. Change the legal name or a tax identifier and the
+// running contracts keep naming the entity they were concluded with, while
+// everything issued from now on names another one — which is how an invoice
+// ends up asking for payment on behalf of somebody the contract was never
+// concluded with.
+//
+// Nothing here can tell a correction of the same entity from another one taking
+// over: a renamed GmbH and its successor read identically in a file. So the
+// operator declares which it is, under `issuer.correctionOf`, and an undeclared
+// change is refused rather than guessed at. Moving a contract to another legal
+// entity is a transfer, not an edit of a setting.
+//
+// The comparison is against the settings record and not against the contracts,
+// and that is what makes a declared correction hold: the record moves with the
+// correction, so the next start finds the file and the record agreeing, while
+// the contracts keep the copy they were concluded with for ever. The contracts
+// are read only to say which ones a refusal is about.
+//
+// Asked in `onModuleInit`, which Nest runs for every module before it runs a
+// single `onApplicationBootstrap` — and `AppliedSettingsRecorder`, which
+// replaces the record, is a bootstrap hook. That ordering is what lets this
+// compare against the record of the *previous* start rather than against the
+// one this start just wrote; `tests/an-operator-corrects-its-own-details.test.js`
+// holds it by asserting that a refused start left the record alone.
+
+import { Inject, Injectable, Logger, type OnModuleInit, Optional } from '@nestjs/common';
+import {
+    classifyIssuerChange,
+    recordedIssuerIdentity,
+    type AppliedSettingsPort,
+    type AppliedSettingsValues,
+    type IssuerCorrectionFault,
+    type IssuerIdentityChange,
+    type LegalIdentity,
+    type LegalIdentityField,
+    type PlanCatalog,
+    type RunningContractIssuer,
+    type RunningContractIssuers,
+    type SubscriptionContractRepository,
+} from '@saasicat/core';
+
+import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from '../settings/settings.tokens.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
+
+/**
+ * How many contracts a refusal names before it stops naming them.
+ *
+ * The count is always exact; this caps the list. An operator needs enough rows
+ * to recognise what the change would touch, not a page of identifiers nobody
+ * reads — and a refusal that scrolls is one whose last line, the way out, is
+ * the part that scrolls off.
+ */
+const CONTRACTS_NAMED = 5;
+
+/** Why nothing was compared, where the installation keeps no record at all. */
+const NOT_RECORDED = 'this installation records no applied settings';
+
+/** An undeclared change is the only one that refuses a start. */
+type UndeclaredChange = Extract<IssuerIdentityChange, { kind: 'undeclared' }>;
+
+/** What a start, or `<app> doctor`, finds when it compares the two. */
+export type IssuerIdentityVerdict =
+    /**
+     * There was no previous identity to compare the file with — nothing records
+     * the applied settings, or the record could not be read while the file
+     * names no issuer at all. `why` says which.
+     */
+    | { kind: 'not-compared'; why: string }
+    /** The file and the record agree, or the difference is declared. */
+    | { kind: 'settled'; change: Exclude<IssuerIdentityChange, UndeclaredChange> }
+    /** Another legal entity, undeclared. The start does not continue. */
+    | {
+          kind: 'refused';
+          change: UndeclaredChange;
+          /** The contracts still running, or `null` where they could not be read. */
+          running: RunningContractIssuers | null;
+          /** What the start dies with, and what `<app> doctor` prints. */
+          refusal: string;
+      };
+
+@Injectable()
+export class IssuerIdentityCheck implements OnModuleInit {
+    private readonly logger = new Logger(IssuerIdentityCheck.name);
+
+    constructor(
+        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
+        @Optional()
+        @Inject(APPLIED_SETTINGS_PORT_TOKEN)
+        private readonly settings: AppliedSettingsPort | null = null,
+        @Optional()
+        @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
+        private readonly contracts: SubscriptionContractRepository | null = null,
+    ) {}
+
+    async onModuleInit(): Promise<void> {
+        const verdict = await this.inspect();
+        if (verdict.kind === 'refused') throw new Error(verdict.refusal);
+        this.report(verdict);
+    }
+
+    /**
+     * The comparison, without acting on it, so that `saasicat doctor` can ask
+     * the same question before a deploy and report the answer instead of dying
+     * of it.
+     */
+    async inspect(): Promise<IssuerIdentityVerdict> {
+        if (!this.settings) return { kind: 'not-compared', why: NOT_RECORDED };
+        const recorded = await this.readRecorded();
+        if (!recorded.read) return { kind: 'not-compared', why: recorded.why };
+        const change = classifyIssuerChange(
+            recordedIssuerIdentity(recorded.settings),
+            this.catalog.issuer,
+        );
+        if (change.kind !== 'undeclared') return { kind: 'settled', change };
+        const running = await this.readRunning();
+        return {
+            kind: 'refused',
+            change,
+            running: running.known ? running.contracts : null,
+            refusal: refusalFor(change, running, this.source),
+        };
+    }
+
+    /**
+     * The settings of the last start, or what stopped this from reading them.
+     *
+     * A read that fails while the file names an issuer takes the boot down: a
+     * guard that cannot see is not a guard that saw nothing, and an installation
+     * that puts a legal entity on every contract it concludes should not conclude
+     * one while nothing can tell whether that entity is still the recorded one.
+     *
+     * Where the file names no issuer, the same failure is only a warning. There
+     * is then no entity to conclude a contract on behalf of, and the promise the
+     * record makes — an installation whose record cannot be kept still runs the
+     * right configuration — is worth more than a boot refused over a comparison
+     * with nothing on one side. What that leaves uncaught is narrow and worth
+     * naming: an operator who removes the issuer block while contracts run, in
+     * the same start where the record cannot be read.
+     */
+    private async readRecorded(): Promise<
+        { read: true; settings: AppliedSettingsValues | null } | { read: false; why: string }
+    > {
+        try {
+            const record = await this.settings!.readApplied();
+            return { read: true, settings: record?.settings ?? null };
+        } catch (error) {
+            const why = `the applied settings could not be read: ${messageOf(error)}`;
+            if (this.catalog.issuer) {
+                throw new Error(
+                    `The issuer named in ${this.source} could not be compared with the one this ` +
+                        `installation recorded, because ${why}`,
+                    { cause: error },
+                );
+            }
+            return { read: false, why };
+        }
+    }
+
+    /**
+     * The contracts a refusal is about. Best effort on purpose: the refusal is
+     * already decided, and losing it because the list behind it could not be
+     * read would replace a message an operator can act on with one they cannot.
+     * Where they are not known, the message says which of the two it is —
+     * "nothing here writes contracts" and "the query failed" send an operator
+     * looking in different places.
+     */
+    private async readRunning(): Promise<KnownContracts> {
+        if (!this.contracts) {
+            return { known: false, why: 'This installation writes no contracts.' };
+        }
+        try {
+            return {
+                known: true,
+                contracts: await this.contracts.listRunningIssuers(CONTRACTS_NAMED),
+            };
+        } catch (error) {
+            const why = `The contracts still running could not be read: ${messageOf(error)}`;
+            this.logger.warn(why);
+            return { known: false, why };
+        }
+    }
+
+    private report(verdict: Exclude<IssuerIdentityVerdict, { kind: 'refused' }>): void {
+        if (verdict.kind === 'not-compared') {
+            // The recorder says the same thing about the record as a whole, and
+            // says it once. This adds the consequence that is specific to the
+            // issuer: without a previous identity, an entity swapped in the file
+            // is not noticed by anything.
+            this.logger.warn(
+                `The issuer in the configuration is compared with nothing — ${verdict.why} — so a ` +
+                    'start that names another legal entity than the last one is not refused.',
+            );
+            return;
+        }
+        const change = verdict.change;
+        if (change.kind === 'first-naming') {
+            this.logger.log(
+                `The issuer of every contract concluded from now on is '${change.identity.legalName}'.`,
+            );
+            return;
+        }
+        if (change.kind === 'corrected') {
+            this.logger.log(
+                `The issuer's ${listFields(change.moved)} changed as a declared correction of the ` +
+                    `same legal entity: ${change.reason}. Contracts already concluded keep the copy ` +
+                    'they name; what is issued from now on carries the corrected identity.',
+            );
+        }
+    }
+}
+
+/** The contracts still running, or why this start does not know them. */
+type KnownContracts =
+    { known: true; contracts: RunningContractIssuers } | { known: false; why: string };
+
+/** The sentences a refused start dies with, and `<app> doctor` prints. */
+function refusalFor(change: UndeclaredChange, running: KnownContracts, source: string): string {
+    return [
+        `The issuer in ${source} is not the legal entity this installation recorded.`,
+        `  recorded: ${describe(change.recorded)}`,
+        `  in the file: ${change.current ? describe(change.current) : 'no issuer is named at all'}`,
+        faultSentence(change.fault),
+        contractsSentence(running),
+        'Moving a contract to another legal entity is a transfer, not an edit of a setting. Where ' +
+            'this is the same entity under a new name, or with a tax identifier that was wrong or ' +
+            'missing, declare it beside the values it replaces and start again:',
+        declarationFor(change.recorded, change.moved),
+    ].join('\n');
+}
+
+function faultSentence(fault: IssuerCorrectionFault): string {
+    switch (fault.kind) {
+        case 'absent':
+            return '`issuer.correctionOf` declares nothing, so nothing says this is the same entity.';
+        case 'names-another-value':
+            return (
+                `\`issuer.correctionOf.${fault.field}\` names ${quote(fault.declared)}, which is not ` +
+                `what the record holds (${quote(fault.recorded)}). A declaration names the values it ` +
+                'replaces, so one left over from a correction already applied does not cover this one.'
+            );
+        case 'leaves-a-field-out':
+            return (
+                `\`issuer.correctionOf\` says nothing about \`${fault.field}\`, which moves from ` +
+                `${quote(fault.recorded)} to ${quote(fault.current)}. Every identity field that moves ` +
+                'is named, or the declaration covers only half the change.'
+            );
+    }
+}
+
+function contractsSentence(running: KnownContracts): string {
+    if (!running.known) return running.why;
+    const { total, contracts } = running.contracts;
+    if (total === 0) return 'No contract is running under the recorded identity.';
+    const rest = total - contracts.length;
+    return [
+        `${total} contract(s) are still running:`,
+        ...contracts.map(describeContract),
+        ...(rest > 0 ? [`  … and ${rest} more.`] : []),
+    ].join('\n');
+}
+
+function describeContract(contract: RunningContractIssuer): string {
+    const under = contract.issuerLegalName
+        ? `concluded under ${quote(contract.issuerLegalName)}`
+        : 'names no issuer';
+    return `  ${contract.id} (tenant ${contract.tenantId}, from ${contract.effectiveFrom.toISOString().slice(0, 10)}, ${under})`;
+}
+
+/** The block to paste, carrying the values the record holds for what moved. */
+function declarationFor(recorded: LegalIdentity, moved: readonly LegalIdentityField[]): string {
+    const lines = moved.map((field) => `        ${field}: ${recorded[field] ?? 'null'}`);
+    return [
+        'issuer:',
+        '    correctionOf:',
+        ...lines,
+        '        reason: <why the same entity now reads differently>',
+    ].join('\n');
+}
+
+function describe(identity: LegalIdentity): string {
+    return (
+        `${quote(identity.legalName)} (VAT id ${quote(identity.vatId)}, ` +
+        `tax number ${quote(identity.taxNumber)})`
+    );
+}
+
+function listFields(fields: readonly LegalIdentityField[]): string {
+    return fields.map((field) => `\`${field}\``).join(', ');
+}
+
+function quote(value: string | null): string {
+    return value === null ? 'none' : `'${value}'`;
+}
+
+function messageOf(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}

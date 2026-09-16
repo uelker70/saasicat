@@ -7,6 +7,7 @@ import type {
 } from '../subscription.types.js';
 import type {
     NewSubscriptionContractData,
+    RunningContractIssuers,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     TerminateSubscriptionContractData,
@@ -227,6 +228,19 @@ export interface SubscriptionContractRepository {
         contractId: string,
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord>;
+    /**
+     * The contracts still running — `active` and `scheduled` — with the issuer
+     * each was concluded under: how many there are, and the first `limit` of
+     * them, oldest first. `limit` caps the list and not the count, so a start
+     * refused over a changed issuer identity says how many contracts it means
+     * before it names any of them.
+     *
+     * Status alone decides what is running here, deliberately without a window:
+     * a contract whose `effectiveUntil` has passed while its status was never
+     * moved is still open as far as this record goes, and counting it errs
+     * toward refusing a change of legal entity rather than waving it through.
+     */
+    listRunningIssuers(limit: number): Promise<RunningContractIssuers>;
 }
 
 /**

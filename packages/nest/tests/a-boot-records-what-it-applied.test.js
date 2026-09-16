@@ -384,7 +384,7 @@ describe('where the record says the values came from', () => {
     });
 });
 
-// @requirement SC-CFG-026 — The record of the applied configuration is a mirror, never a source
+// @requirement SC-CFG-036 — The record of the applied configuration is a mirror, never a source of settings
 describe('the record is a mirror, never a source', () => {
     test('a record that disagrees with the file changes nothing about what runs', async () => {
         const port = new FakeAppliedSettingsPort();
