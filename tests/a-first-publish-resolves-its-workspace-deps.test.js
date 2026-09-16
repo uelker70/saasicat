@@ -35,9 +35,11 @@ function firstPublishCommands() {
     const text = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
     const start = text.indexOf('### A new package needs one manual first publish');
     assert.notEqual(start, -1, 'the first-publish section was renamed; this guard points at it');
-    // To the next heading of any level, not the next chapter: a `###` added
-    // under this chapter later would otherwise be read as part of this section,
-    // and its commands judged by a rule written for another one.
+    // To the next `##` or `###`, not to the next chapter: a `###` added under
+    // this chapter later would otherwise be read as part of this section, and
+    // its commands judged by a rule written for another one. Deeper headings
+    // are not boundaries — nothing in this file uses them, and a `####` under
+    // this very section would still be part of it.
     const body = text.slice(start + 1);
     const next = body.search(/\n#{2,3} /);
     const section = next === -1 ? body : body.slice(0, next);
@@ -85,11 +87,14 @@ describe('the manual first publish', () => {
         );
         const commands = firstPublishCommands();
         assert.ok(
-            commands.some((line) => line.startsWith('pnpm publish')),
+            commands.some((line) => /(^|\s)pnpm publish\b/.test(line)),
             `${affected.length} published packages depend on a sibling through \`workspace:\`, and ` +
                 `the first-publish section shows no \`pnpm publish\`: ${commands.join(' / ')}`,
         );
-        const npmPublish = commands.filter((line) => line.startsWith('npm publish'));
+        // Anywhere on the line, not only at its start — `cd packages/x && npm
+        // publish` is the same instruction. The boundary keeps `pnpm publish`
+        // from matching, which sharing a suffix would otherwise do.
+        const npmPublish = commands.filter((line) => /(^|\s)npm publish\b/.test(line));
         assert.deepEqual(
             npmPublish,
             [],

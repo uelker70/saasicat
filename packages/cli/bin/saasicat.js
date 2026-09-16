@@ -350,11 +350,15 @@ async function cmdSchemaCheck(args) {
     // Every model the shipped fragments declare, not only the selected ones: a
     // relation from a selected fragment can point at a model in one that was
     // left out, and without this the narrowed run would report that field as
-    // missing — the very contradiction the full run stopped producing.
-    const allFiles = await selectFragmentFiles(fragmentsDir, null);
-    const allFragments = await Promise.all(
-        allFiles.map((file) => readFile(join(fragmentsDir, file), 'utf8')),
-    );
+    // missing — the very contradiction the full run stopped producing. Without
+    // a filter the files in hand are already all of them.
+    const allFragments = filter
+        ? await Promise.all(
+              (await selectFragmentFiles(fragmentsDir, null)).map((file) =>
+                  readFile(join(fragmentsDir, file), 'utf8'),
+              ),
+          )
+        : fragments;
     const knownModels = new Set(extractModelNames(allFragments.join('\n')));
 
     const report = checkSchema(fragments.join('\n'), schema, knownModels);

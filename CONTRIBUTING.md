@@ -258,14 +258,28 @@ So adding a package to the fixed group has a step outside the repository, done
 once by a maintainer with an npm login before the first release that contains it:
 
 ```bash
-pnpm -r build                           # no package builds itself on publish
+pnpm -r build                    # no package builds itself on publish
 cd packages/<package>
 # The version the RELEASE will carry, read off the open version PR — not
 # whatever this branch happens to say. `pnpm publish` ships the manifest as it
-# finds it.
+# finds it, and this edit is for the tarball only: it is put back below, and
+# never committed, where it would fight the bump Changesets makes.
 npm pkg set version=1.0.0-rc.<N>
-pnpm publish --access public --tag rc   # --tag only while the group is in pre mode
+pnpm publish --access public --tag rc --no-git-checks
+git checkout -- package.json
 ```
+
+`--tag rc` while the group is in pre mode, and nothing otherwise. `--no-git-checks`
+because the line above it leaves the tree dirty on purpose, and pnpm's default
+refusal — `ERR_PNPM_GIT_UNCLEAN` — would land on the one command this section
+exists to get right.
+
+One consequence of `--tag rc`: the package then has no `latest` at all until a
+later release gives it one, so `npm install @saasicat/<package>` answers
+`ETARGET No matching version found`. That is the safe direction — the alternative
+is a release candidate sitting on `latest` — and it is the opposite of the case
+the paragraph further down describes, where Changesets puts a never-regularly-
+released package on `latest` and leaves `@rc` behind.
 
 The build line is not decoration: no package here has `prepublishOnly`, `prepack`
 or `prepare`, so publishing from a fresh clone packs whatever `dist/` holds —

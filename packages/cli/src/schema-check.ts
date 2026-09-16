@@ -349,8 +349,7 @@ function cascadesFromTenant(model: string, block: string): TenantCascade[] {
 /**
  * Compares a consumer schema against the canonical fragments. `specSchema` is
  * the concatenation of the fragments the check should cover.
- */
-/**
+ *
  * @param knownModels Every model the shipped fragments declare, where the spec
  * passed in is a narrowed selection of them (`schema check --fragments=…`).
  * Omitted, the spec is taken to be the whole of it.
