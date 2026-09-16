@@ -531,16 +531,17 @@ card number or an IBAN. Self-registration takes its payment method this way, and
 page shows the one in use and opens the form for a new one.
 
 **One gateway account belongs to one installation.** Two installations sharing an account is the
-arrangement to avoid, and it is not a matter of taste: a gateway delivers an event to every endpoint
-registered on the account that subscribes to that type, with no way to route by application. Stripe
-says so itself and recommends an account per application (see
-[the adapter's README](../../packages/payment-stripe/README.md)). So each of your installations gets
-its own account at the provider, and the accounts in `config/saas.yaml` are that installation's.
+arrangement to avoid. Stripe delivers an event to every endpoint registered on the account that
+subscribes to that type, with no way to route by application, and recommends an account per
+application for exactly that reason (quoted in
+[the adapter's README](../../packages/payment-stripe/README.md)); assume the next provider behaves
+the same way until its own documentation says otherwise. So each of your installations gets its own
+account at the provider, and the accounts in `config/saas.yaml` are that installation's.
 
-Nothing a sibling sends can change your data: a confirmation names its account, its session and its
-subject together, so a callback from the installation next door matches no open setup here and
-records nothing. Three other things happen, and the last one is why this is a rule rather than a
-preference.
+A sibling's callback cannot move what matters: a confirmation names its account, its session and its
+subject together, so one from the installation next door matches no open setup here — no payment
+method changes hands, and no sign-up is activated. Three other things do happen, and the last of
+them is why this is a rule rather than a preference.
 
 Your log fills with other people's work. That mismatch is written at error level — with one
 installation per account it can only mean a callback naming a subscriber it has no business naming —
@@ -556,9 +557,11 @@ And an installation can be taken down by a neighbour's event. A callback is answ
 when nothing here handles what it is about, deliberately, so that a confirmation is retried rather
 than lost while a module is still being wired. Under a shared account that fires for an event that
 was never yours: an installation without self-registration, beside one that has it, answers every
-sibling sign-up confirmation with `500` and the advice to wire `RegistrationModule` — which is not
-its problem and not its fix. Gateways retry such an event for days and then disable an endpoint that
-keeps failing, and the endpoint they disable is the one carrying your own confirmations.
+sibling sign-up event with `500` — a confirmation and an abandoned checkout alike, since what is
+missing is decided before the two are told apart — and the message advises wiring
+`RegistrationModule`, which is neither its problem nor its fix. A gateway retries such an event for
+a long time and then disables an endpoint that keeps failing; the endpoint it disables is the one
+carrying your own confirmations.
 
 Name the gateway accounts in `config/saas.yaml`. An account's name is the last segment of its
 webhook route, and the account `newPaymentMethods` names is where new payment methods are taken,

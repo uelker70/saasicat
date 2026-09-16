@@ -80,15 +80,15 @@ type, and there is no way to send it to one application's endpoint only:
 
 — Stripe support, retrieved 2026-09-17.
 
-No sibling's callback changes your data: a confirmation carries its account, its
-session and its subject, and one from the installation next door matches no open
-setup here. What it does instead is fill your log with error lines about other
-people's customers, claim rows in your `payment_event_log` and write audit
-entries belonging to no sign-up of yours — and, where a neighbour's event is
-about something this installation does not handle at all, answer it with `500`.
-Stripe retries that for days and then disables the endpoint, which is the one
-carrying your own confirmations. [The guide](../../docs/guides/wire-the-backend.md)
-has the long form.
+A sibling's callback cannot move what matters: a confirmation carries its
+account, its session and its subject, and one from the installation next door
+matches no open setup here, so no payment method changes hands and no sign-up is
+activated. What it does instead depends on what each installation runs, and the
+worst of it is not a log line: an installation that does not handle what a
+neighbour's event is about answers it with `500`, Stripe retries that and then
+disables the endpoint — the one carrying your own confirmations.
+[The guide](../../docs/guides/wire-the-backend.md) has the whole account, path by
+path.
 
 ### Every method the file names has to be live at the account
 
