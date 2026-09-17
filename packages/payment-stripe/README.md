@@ -143,8 +143,10 @@ deriving permissions from the calls does not see them. A key that may not follow
 the `payment_method` expansion throws where a confirmation is read — so **every
 completed setup that produced a payment method** fails, which is every payment
 method anybody sets up. A key that may not follow `mandate` fails nothing where
-Stripe answers with a bare id, and everything where it refuses the read instead;
-that difference is what the bullets below are about.
+Stripe answers with a bare id, and everything that reaches that read where it
+refuses it instead — which is more, not less: the read runs before the branches
+for a setup that failed and one still settling, so those go down with it. That
+difference is what the bullets below are about.
 
 What keeps answering `200` beside that failure: an expired checkout, and any
 completed session that is not a setup or carries no subject of ours, none of
@@ -152,9 +154,9 @@ which reaches the read at all; and, where the expansion comes back as a bare id
 rather than the read being refused outright, a setup that failed, and one still
 on its way once its event is past the twelve hours. Inside those twelve hours a
 setup still on its way is a red delivery by design — the deliberate raise the
-bullet below names. So a declined card gets a working "try again" from an endpoint on which
-no successful setup gets through: it looks partly healthy, and Stripe eventually
-disables it — taking the deliveries that did work with it.
+bullet below names. So a declined card gets a working "try again" from an
+endpoint on which no successful setup gets through: it looks partly healthy, and
+Stripe eventually disables it — taking the deliveries that did work with it.
 
 **A grant is only proved by using it.**
 Nothing at start-up can check a key — it is a string until Stripe answers — and
@@ -162,18 +164,18 @@ the call that needs the expansions runs when somebody finishes a form. Two thing
 make a wrong grant hard to see afterwards, so they are worth knowing before you
 write one:
 
-- **The two expansions fail differently.** `payment_method` throws when it does
-  not resolve, so a missing permission shows up as a failed delivery.
-  `mandate` appears not to: a mandate that arrives as a bare id leaves the payment
-  method recorded and the delivery at `200`, with only the mandate reference
-  missing from the record. A card never reads it at all — it records no mandate
-  reference by design — so a card run that answers `200` says nothing about that
-  permission beyond ruling out a Stripe that refuses the read: both expansions
-  ride on one call, so a refusal fails a card run too. An account cleared for
-  cards alone can get no further than that: check the grant again the day
-  `sepa_debit` goes live, because the first direct debits after that are where a
-  missing `mandate` shows up — and where the expansion comes back as a bare id,
-  they show up green.
+- **The two expansions fail differently where a withheld one comes back as a bare
+  id.** `payment_method` throws when it does not resolve, so a missing permission
+  shows up as a failed delivery. `mandate` appears not to: a mandate that arrives
+  as a bare id leaves the payment method recorded and the delivery at `200`, with
+  only the mandate reference missing from the record. A card never reads it at
+  all — it records no mandate reference by design — so a card run that answers
+  `200` says nothing about that permission beyond ruling out a Stripe that refuses
+  the read: both expansions ride on one call, so a refusal fails a card run too.
+  An account cleared for cards alone can get no further than that: check the
+  grant again the day `sepa_debit` goes live, because the first direct debits
+  after that are where a missing `mandate` shows up — and where the expansion
+  comes back as a bare id, they show up green.
 - **A status code is not the message, and the message can point the wrong way.**
   An answer that carries a code places itself: `404` where nothing is registered
   under the account, and `400` where a callback does not verify — or arrives with
@@ -193,14 +195,15 @@ write one:
 
     A withheld permission hides among those, which is the trap. If an expansion
     the key may not follow comes back as a bare id — the reading the bullet above
-    rests on — a withheld `payment_method` reaches the log as **this adapter's** own
-    sentence — `Stripe reported setup intent … as succeeded without a payment method.`
-    — which the top of this page lists as a defect of the gateway; if Stripe refuses
-    the read instead, either expansion arrives as an error of Stripe's — both ride on
-    one call — which that same list files next to it. That list is where a reader
-    holding one of those sentences lands, and it names this cause beside both: so
-    when either appears on a key that has just been changed, suspect the grant
-    before Stripe.
+    rests on — a withheld `payment_method` reaches the log as **this adapter's**
+    own sentence:
+    `Stripe reported setup intent … as succeeded without a payment method.`
+    The top of this page lists that as a defect of the gateway. If Stripe refuses
+    the read instead, either expansion arrives as an error of Stripe's — both ride
+    on one call — which that same list files next to it. That list is where a
+    reader holding one of those sentences lands, and it names this cause beside
+    both: so when either appears on a key that has just been changed, suspect the
+    grant before Stripe.
 
 So exercise it against the test account once for each method the account offers,
 starting with a **new sign-up** — an existing subscriber already has a customer,
