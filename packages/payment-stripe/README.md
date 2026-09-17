@@ -30,12 +30,12 @@ the masked details.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
-  put, and a delivery older than twelve hours about a setup that has settled on
+  put, and an event older than twelve hours about a setup that has settled on
   none of the states above. Asking again would read the same answer, and Stripe
   turns off an endpoint that keeps failing, which would take every other
   sign-up at the account with it; what is dropped that way says in its own name
-  which setup it was. Raised, so that Stripe asks again: a delivery inside
-  those twelve hours about a setup still on its way — `processing` while a
+  which setup it was. Raised, so that Stripe asks again: an event less than
+  twelve hours old about a setup still on its way — `processing` while a
   mandate is registered, an action outstanding — because the state is read
   after the delivery and failing it is what brings the next read. Raised as
   well, as the defects they are: a completed setup session without a setup
@@ -140,7 +140,7 @@ completed session that is not a setup or carries no subject of ours. So the
 endpoint looks partly healthy while no payment method gets through, and Stripe
 eventually disables it — taking the deliveries that did work with it.
 
-**A grant is only proved by using it, and only the first real setup does that.**
+**A grant is only proved by using it.**
 Nothing at start-up can check a key — it is a string until Stripe answers — and
 the call that needs the expansions runs when somebody finishes a form. Two things
 make a wrong grant hard to see afterwards, so they are worth knowing before you
@@ -156,13 +156,21 @@ write one:
   it at all: check the grant again the day `sepa_debit` goes live, because the
   first direct debits after that are where a missing `mandate` shows up, and they
   show up green.
-- **A status code is not the message.** Both a withheld permission and the
-  deliberate raise for a setup intent still settling — the ordinary course for a
-  direct debit whose mandate takes hours to register — surface as `500`, and a
-  subject nothing here handles is a third. The response carries a code alone; the
-  sentence that tells them apart is in the application's log. The deliberate one
-  names the session and the intent's status, a permission failure carries Stripe's
-  own words, and the third names the missing handler.
+- **A status code is not the message, and the message can point the wrong way.**
+  Three things surface as `500`: a withheld permission, the deliberate raise for a
+  setup intent still settling — the ordinary course for a direct debit whose
+  mandate takes hours to register — and a subject nothing here handles. None is
+  told apart by the response, which carries a code for a rejected callback and a
+  bare internal error otherwise; the sentence is in the application's log. The
+  settling one names the session and the intent's status, and the third names the
+  missing handler.
+
+    The withheld one is the trap. If an expansion the key may not follow comes back
+    as a bare id — the reading the bullet above rests on — then a withheld
+    `payment_method` reaches the log as **this adapter's** "succeeded intent without
+    a payment method", which the top of this page lists among the defects of a
+    gateway that sent something wrong. The same sentence either way. So when it
+    appears on a key that has just been changed, suspect the grant before Stripe.
 
 So exercise it against the test account, through a **new sign-up** — an existing
 subscriber already has a customer, and customers-write would go unexercised — for
@@ -186,8 +194,8 @@ to one mode, so the live key is a different object granted the same way. It is t
 grant that is easy to get wrong.
 
 `STRIPE_WEBHOOK_SECRET` does not: `POST /v1/webhook_endpoints` creates the
-endpoint and returns its signing secret, so the part described just above — point
-it at the route, subscribe it to the two events — is scriptable end to end.
+endpoint and returns its signing secret, so registering it — the route, and the
+two event types this adapter reads — is scriptable end to end.
 
 ## What this is not
 
