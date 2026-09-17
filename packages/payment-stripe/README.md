@@ -226,25 +226,33 @@ proved. Without one, look further before concluding: the reference is also
 absent for a mandate Stripe has not attached or one carrying no direct-debit
 reference, and a grant corrected after a green delivery is proved by another
 setup rather than by re-sending the same event, which is recorded already and
-answers `200` unchanged.
+answers `200` unchanged. Put a different bank account through for that one: the
+same payment method coming back is recorded once, so its confirmation answers
+green while the row in use stays the one with no reference.
 
-Nothing moved at all is a third answer — no method from the sign-up, or the old
-one still in use after a change. The platform's payment event log is what says
-why, and it says so for every subject: every event that is not `unhandled`, and
-has a handler, is claimed there before that handler runs. A row whose status
-reads `payment-method-setup-failed` is a setup Stripe gave up on — a cancelled
-intent, a decline, an expired session — and one reading
-`payment-method-confirmed` with nothing moved is a confirmation this
-installation had no setup open for. The row survives only where its transaction
-commits, so read its absence against the delivery. Green: an event nobody acts
-on, which on this run is a setup that never settled inside the twelve hours —
-where a direct-debit run whose mandate takes its time ends up — or a payment
-method whose shape has nowhere to go, each naming itself in the application's
-log at `debug`, which an installation started above that level does not print.
-Red: one of the failures the bullet above places, and the log line places it.
-That same settling setup is red for every delivery inside the twelve hours,
-whatever the grant, and says so by naming the session and the intent's status;
-the grant is what to suspect once it is ruled out.
+Nothing moved at all is a third answer — on a sign-up run there is no tenant
+either, only the registration still sitting at `CHECKOUT_STARTED`; on a change,
+the old method still in use. The platform's `PaymentEventLog` table, read from
+the database, is what says why, and it says so for every subject: every event
+that is not `unhandled`, and has a handler, is claimed there before that handler
+runs. A row whose status reads `payment-method-setup-failed` is a setup Stripe
+gave up on — a cancelled intent, a decline, an expired session. One reading
+`payment-method-confirmed` while nothing moved is a confirmation this
+installation had no setup open for, which gives its session back and leaves that
+row's `sessionId` null — or, with its session kept, a payment method this
+account had recorded before: a reference is stored once, and confirming it again
+changes nothing. A confirmation that arrives after a newer one is recorded as
+replaced already, since forms are not always filled in the order they are
+answered. The row survives only where its transaction commits, so read its
+absence against the delivery. Green: an event nobody acts on, which on this run
+is a setup that never settled inside the twelve hours — where a direct-debit run
+whose mandate takes its time ends up — or a payment method whose shape has
+nowhere to go, each naming itself in the application's log at `debug`, which an
+installation started above that level does not print. Red: one of the failures
+the bullet above places, and the log line places it. That same settling setup is
+red for every delivery inside the twelve hours, whatever the grant, and says so
+by naming the session and the intent's status; the grant is what to suspect once
+it is ruled out.
 
 The rest of the choreography — forwarding with `stripe listen`, which secret it
 signs with, re-sending an event at all — is Stripe's tooling rather than this
