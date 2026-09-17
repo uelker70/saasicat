@@ -156,7 +156,9 @@ against the configured secret, and the CLI signs with its own, so without this t
 first delivery is a `400` and proves nothing — and bind the restricted key of that
 mode as `STRIPE_SECRET_KEY`. Then take a payment method through a **new sign-up**,
 so the run creates a customer too: an existing subscriber already has one, and
-customers-write goes unexercised.
+customers-write goes unexercised. The deliveries to read are the CLI's own output
+lines — the endpoint listed in the dashboard is a different object, and nothing of
+this run reaches it.
 
 **Do it for every method the account offers, and read the recorded payment method
 rather than the delivery.** The two expansions fail differently, which is what
@@ -164,15 +166,18 @@ makes the delivery line the wrong evidence:
 
 - `payment_method` is fatal — an expansion that does not resolve throws, so a
   missing permission shows up as a failed delivery.
-- `mandate` is not. It is read on the direct-debit branch only, and when it does
-  not resolve the payment method is still recorded, the delivery is still `200`,
-  and what is missing is the mandate reference on the record. A card never reads
-  it at all.
+- `mandate` appears not to be, and this is the part to confirm at your account
+  rather than take from here: a mandate that arrives as a bare id instead of an
+  object leaves the payment method recorded, the delivery at `200`, and only the
+  mandate reference missing from the record. A card never reads it at all.
 
 So a card run says nothing about `mandate`, and a direct-debit run says nothing
 about it either if all you read is the delivery. Look at the payment method the
-tenant now has: a direct debit with a mandate reference is the grant proved, and
-one without it is the permission missing.
+tenant now has: a direct debit **with** a mandate reference is the grant proved.
+Without one, look further before concluding — the reference is also absent for a
+mandate Stripe has not attached, or one carrying no direct-debit reference — but
+an otherwise complete direct debit missing only that is the shape a withheld
+permission makes.
 
 **A `500` in that output has two causes, and they read alike.** A grant that
 cannot follow the `payment_method` expansion throws where the confirmation is read
@@ -184,6 +189,18 @@ carries Stripe's own words. Not by watching for the next delivery to succeed —
 a setup still settling is expected to fail several in a row, which is what the
 twelve-hour window is sized for, and `stripe listen` does not forward an event
 again after a non-2xx anyway.
+
+That last point is what makes the direct-debit run need one more step. A setup
+still settling raises before anything is recorded, so the run ends on a red line
+with no payment method to read and no second delivery coming — which leaves
+`mandate` exactly as unproven as the card run did. Give the mandate time to
+register, then send the event again by hand with the id from that line:
+
+```bash
+stripe events resend evt_…
+```
+
+and read the record after that one.
 
 What all of this proves is the permission set, not the key: a restricted key
 belongs to one mode, so the live key is a different object granted the same way.
