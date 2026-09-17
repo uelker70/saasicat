@@ -23,25 +23,31 @@ the masked details.
   debit's last four digits, bank code and mandate reference.
   **`checkout.session.expired`**, and a setup that produced no payment method
   — an intent back at `requires_payment_method` with the decline recorded
-  against it, or `canceled` — become a setup that failed, so the sign-up can
-  try again. An intent asking for a payment method with nothing recorded
-  against it is one nobody has confirmed yet, and is asked about again rather
-  than reported.
+  against it, or `canceled` — become a setup that failed, so the sign-up can try
+  again. An intent asking for a payment method with nothing recorded against it
+  is one nobody has confirmed yet, and is asked about again rather than reported.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
-  put, and a delivery older than twelve hours about a setup that has settled on
+  put, and an event older than twelve hours about a setup that has settled on
   none of the states above. Asking again would read the same answer, and Stripe
   turns off an endpoint that keeps failing, which would take every other
   sign-up at the account with it; what is dropped that way says in its own name
-  which setup it was. Raised, so that Stripe asks again: a delivery inside
-  those twelve hours about a setup still on its way — `processing` while a
+  which setup it was. Raised, so that Stripe asks again: an event less than
+  twelve hours old about a setup still on its way — `processing` while a
   mandate is registered, an action outstanding — because the state is read
   after the delivery and failing it is what brings the next read. Raised as
   well, as the defects they are: a completed setup session without a setup
   intent, a succeeded intent without a payment method, and a completed setup
   neither the session nor the intent names a customer on. An error from Stripe
-  itself travels the same way, and the delivery is asked again.
+  itself travels the same way, and the delivery is asked again. Two of those are
+  also what a key missing one of the expansions produces: the succeeded intent
+  without a payment method, where `payment_method` comes back as a bare id, and
+  the error from Stripe, where it refuses the read rather than answering with
+  one — which either expansion can cause, since both ride on the same call. A
+  withheld permission does not come good on a later delivery. Read both beside
+  [what a restricted key can fail](#where-the-two-secrets-come-from) before
+  concluding the gateway sent something wrong.
 
 `stripe` is a peer dependency: the consumer installs it, so there is one copy
 and the optional `client` option types against theirs.
@@ -63,7 +69,8 @@ SaaSiCatModule.forRoot({
 });
 ```
 
-Point the account's webhook endpoint at `POST /webhooks/payment/stripe-main`,
+Point the account's webhook endpoint at `POST /webhooks/payment/stripe-main` —
+behind the application's `globalPrefix` where it sets one, as the notes app does —
 subscribe it to `checkout.session.completed` and `checkout.session.expired`,
 and create the application with `rawBody: true` — a signature is checked
 against the bytes that arrived, not against a re-serialised object.
@@ -125,14 +132,142 @@ Stripe's dashboard. Stripe recommends a **restricted key** (`rk_…`) over a sec
 one. What this adapter touches, so you can grant that and no more: customers
 (write), checkout sessions (write), setup intents (read) — and the setup intent is
 read with `payment_method` and `mandate` expanded, which Stripe lists as their own
-permissions. Grant from Stripe's own list rather than from this sentence: a
-`checkout.session.completed` whose expansion the key may not follow throws where
-the confirmation is read, every delivery then fails, and Stripe disables an
-endpoint that keeps failing.
+permissions.
+
+Creating the webhook endpoint through the API, as the end of this section
+describes, needs its own write permission beside those.
+
+Grant from Stripe's own list, since the expansions are the two that go missing
+when the grant is derived from the calls: they are never fetched on their own, so
+reading the code for permissions does not show them. A key that may not follow
+the `payment_method` expansion throws where a confirmation is read — so **every
+completed setup that produced a payment method** fails, which is every payment
+method anybody sets up. A key that may not follow `mandate` fails nothing where
+Stripe answers with a bare id, and everything that reaches that read where it
+refuses it instead — a wider set than the one above, since the read runs before
+the branch for a setup that failed, and before the one that answers a setup still
+on its way once its event is past the twelve hours. That difference is what the
+bullets below are about.
+
+What keeps answering `200` beside that failure: an expired checkout, and any
+completed session that is not a setup or carries no subject of ours, none of
+which reaches the read at all; and, where the expansion comes back as a bare id
+rather than the read being refused outright, a setup that failed, and one still
+on its way once its event is past the twelve hours. Inside those twelve hours a
+setup still on its way is a red delivery by design — the deliberate raise the
+bullet below names. So a declined card gets a working "try again" from an
+endpoint on which no successful setup gets through: it looks partly healthy, and
+Stripe eventually disables it — taking the deliveries that did work with it.
+
+**A grant is only proved by using it.**
+Nothing at start-up can check a key — it is a string until Stripe answers — and
+the call that needs the expansions runs when somebody finishes a form. Two things
+make a wrong grant hard to see afterwards, so they are worth knowing before you
+write one:
+
+- **The two expansions fail differently where a withheld one comes back as a bare
+  id.** `payment_method` throws when it does not resolve, so a missing permission
+  shows up as a failed delivery. `mandate` appears not to: a mandate that arrives
+  as a bare id leaves the payment method recorded and the delivery at `200`, with
+  only the mandate reference missing from the record. A card never reads it at
+  all — it records no mandate reference by design — so a card run that answers
+  `200` says nothing about that permission beyond ruling out a Stripe that refuses
+  the read: both expansions ride on one call, so a refusal fails a card run too.
+  An account cleared for cards alone can get no further than that: check the
+  grant again the day `sepa_debit` goes live, because the first direct debits
+  after that are where a missing `mandate` shows up — and where the expansion
+  comes back as a bare id, they show up green.
+- **A status code is not the message, and the message can point the wrong way.**
+  An answer that carries a code places the answer, not the fault: `404` where
+  nothing is registered under the account, and `400` where a callback does not
+  verify — or arrives with no raw body and a content type nothing would have
+  parsed, which is not a gateway's request at all and answers with that same `400`
+  and that same code. A `404` carrying no code at all is the other one: the
+  endpoint is pointed at a path nothing serves, which is what a `globalPrefix`
+  left out of the URL does to every delivery. The failures this section is about
+  answer `500` with a bare internal error instead, and the sentence that tells
+  them apart is in the application's log. A callback whose raw body the
+  application did not keep, with a content type a framework parses — which
+  `application/json` is — says so and asks for `rawBody: true`; it is the first
+  `500` a freshly wired installation meets.
+  The deliberate raise for a setup intent still settling — the ordinary course for
+  a direct debit whose mandate takes hours to register — names the session and the
+  intent's status, and a subject nothing here handles names the missing handler.
+  The other `500`s on this path come from the defects at the top of this page,
+  from Stripe itself, and from the platform's own store, which every handled event
+  is written to inside one transaction. A failure inside the handler that takes
+  the confirmation answers on the same delivery, as whatever that application
+  answers with, while a step it defers to after the commit is logged and leaves
+  the delivery green.
+
+    A withheld permission hides among the defects and Stripe's errors, which is
+    the trap. If an expansion the key may not follow comes back as a bare id — the
+    reading the bullet above rests on — a withheld `payment_method` reaches the
+    log as **this adapter's** own sentence:
+    `Stripe reported setup intent … as succeeded without a payment method.`
+    The top of this page lists that as a defect of the gateway. If Stripe refuses
+    the read instead, either expansion arrives as an error of Stripe's — both ride
+    on one call — which that same list files next to it. That list is where a
+    reader holding one of those sentences lands, and it names this cause beside
+    both: so when either appears on a key that has just been changed, suspect the
+    grant before Stripe.
+
+So exercise it against the test account once for each method the account offers,
+starting with a **new sign-up** — an existing subscriber already has a customer,
+and customers-write would go unexercised — and starting it with a method that
+settles on the spot, a card where the account offers one. The later methods are
+payment-method changes on the subscriber that sign-up creates, which is what
+reuses the customer, and a direct debit whose mandate is still registering
+leaves no subscriber to change. Read the answer off the payment method the
+tenant is left with rather than off the delivery that produced it — the method
+the sign-up recorded on the first run, and on a change, whether the method in
+use was replaced. A direct debit **with** a mandate reference is the grant
+proved. Without one, look further before concluding: the reference is also
+absent for a mandate Stripe has not attached or one carrying no direct-debit
+reference, and a grant corrected after a green delivery is proved by another
+setup rather than by re-sending the same event, which is recorded already and
+answers `200` unchanged. Put a different bank account through for that one: the
+same payment method coming back is recorded once, so its confirmation answers
+green while the row in use stays the one with no reference.
+
+Nothing moved at all is a third answer — on a sign-up run there is no tenant
+either, only the registration still sitting at `CHECKOUT_STARTED`; on a change,
+the old method still in use. The platform's `PaymentEventLog` table, read from
+the database, is what says why, and it says so for every subject: every event
+that is not `unhandled`, and has a handler, is claimed there before that handler
+runs. A row whose status reads `payment-method-setup-failed` is a setup Stripe
+gave up on — a cancelled intent, a decline, an expired session. One reading
+`payment-method-confirmed` while nothing moved is a confirmation this
+installation had no setup open for, which gives its session back and leaves that
+row's `sessionId` null — or, with its session kept, a payment method this
+account had recorded before: a reference is stored once, and confirming it again
+changes nothing. A confirmation that arrives after a newer one is recorded as
+replaced already, since forms are not always filled in the order they are
+answered. The row survives only where its transaction commits, so read its
+absence against the delivery. Green: an event nobody acts on, which on this run
+is a setup that never settled inside the twelve hours — where a direct-debit run
+whose mandate takes its time ends up — or a payment method whose shape has
+nowhere to go, each naming itself in the application's log at `debug`, which an
+installation started above that level does not print. Red: one of the failures
+the bullet above places, and the log line places it. That same settling setup is
+red for every delivery inside the twelve hours, whatever the grant, and says so
+by naming the session and the intent's status; the grant is what to suspect once
+it is ruled out.
+
+The rest of the choreography — forwarding with `stripe listen`, which secret it
+signs with, re-sending an event at all — is Stripe's tooling rather than this
+adapter's behaviour, and it is not written down here because it is not verified
+here. How long an unsettled setup is worth asking about again is not in that
+list: it is twelve hours from the moment Stripe created the event, it belongs to
+this adapter, and it is at the top of this page.
+
+What the run proves is the permission set, not the key: a restricted key belongs
+to one mode, so the live key is a different object granted the same way. It is the
+grant that is easy to get wrong.
 
 `STRIPE_WEBHOOK_SECRET` does not: `POST /v1/webhook_endpoints` creates the
-endpoint and returns its signing secret, so the part described just above — point
-it at the route, subscribe it to the two events — is scriptable end to end.
+endpoint and returns its signing secret, so registering it — the route, and the
+two event types this adapter reads — is scriptable end to end.
 
 ## What this is not
 
