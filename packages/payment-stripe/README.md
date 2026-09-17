@@ -41,7 +41,11 @@ the masked details.
   well, as the defects they are: a completed setup session without a setup
   intent, a succeeded intent without a payment method, and a completed setup
   neither the session nor the intent names a customer on. An error from Stripe
-  itself travels the same way, and the delivery is asked again.
+  itself travels the same way, and the delivery is asked again. A succeeded
+  intent without a payment method is also what a key that may not follow the
+  `payment_method` expansion produces, so read that one beside
+  [what a restricted key can fail](#where-the-two-secrets-come-from) before
+  concluding the gateway sent something wrong.
 
 `stripe` is a peer dependency: the consumer installs it, so there is one copy
 and the optional `client` option types against theirs.
@@ -157,20 +161,22 @@ write one:
   first direct debits after that are where a missing `mandate` shows up, and they
   show up green.
 - **A status code is not the message, and the message can point the wrong way.**
-  Three things surface as `500`: a withheld permission, the deliberate raise for a
-  setup intent still settling — the ordinary course for a direct debit whose
-  mandate takes hours to register — and a subject nothing here handles. None is
-  told apart by the response, which carries a code for a rejected callback and a
-  bare internal error otherwise; the sentence is in the application's log. The
-  settling one names the session and the intent's status, and the third names the
-  missing handler.
+  Everything raised on this path answers `500` with a bare internal error, so
+  nothing in the response tells them apart; the sentence is in the application's
+  log. Two of them say what they are: the deliberate raise for a setup intent
+  still settling — the ordinary course for a direct debit whose mandate takes
+  hours to register — names the session and the intent's status, and a subject
+  nothing here handles names the missing handler. The rest are the defects listed
+  at the top of this page, and Stripe's own errors.
 
-    The withheld one is the trap. If an expansion the key may not follow comes back
-    as a bare id — the reading the bullet above rests on — then a withheld
-    `payment_method` reaches the log as **this adapter's** "succeeded intent without
-    a payment method", which the top of this page lists among the defects of a
-    gateway that sent something wrong. The same sentence either way. So when it
-    appears on a key that has just been changed, suspect the grant before Stripe.
+    A withheld permission hides among that rest, which is the trap. If an expansion
+    the key may not follow comes back as a bare id — the reading the bullet above
+    rests on — a withheld `payment_method` reaches the log as **this adapter's**
+    "succeeded intent without a payment method", one of those defects; if Stripe
+    refuses the read instead, it arrives as an error of Stripe's, which is the other
+    thing on that list. Either way it is a sentence this page files under a gateway
+    that sent something wrong, so when one of them appears on a key that has just
+    been changed, suspect the grant before Stripe.
 
 So exercise it against the test account, through a **new sign-up** — an existing
 subscriber already has a customer, and customers-write would go unexercised — for

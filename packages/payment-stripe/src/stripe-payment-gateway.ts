@@ -39,8 +39,9 @@ const SETUP_GAVE_UP: ReadonlySet<Stripe.SetupIntent.Status> = new Set([
 ]);
 
 /**
- * How long a delivery about a setup that has settled on none of those is asked
- * about again.
+ * How long an event about a setup that has settled on none of those is asked
+ * about again. Measured from the moment Stripe created it, so its retries are
+ * deliveries of one event and share the one window.
  *
  * The state is read after the delivery, so a setup still on its way is a race
  * the next attempt wins. The bound is what keeps a state that never settles
