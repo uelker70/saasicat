@@ -140,82 +140,45 @@ completed session that is not a setup or carries no subject of ours. So the
 endpoint looks partly healthy while no payment method gets through, and Stripe
 eventually disables it — taking the deliveries that did work with it.
 
-**Prove the permissions before they go to production.** Nothing at start-up can:
-a key is a string until Stripe answers, and the first call that needs the
-expansions runs when a customer finishes a form. So put payment methods through
-against the test account, and read what they recorded:
+**A grant is only proved by using it, and only the first real setup does that.**
+Nothing at start-up can check a key — it is a string until Stripe answers — and
+the call that needs the expansions runs when somebody finishes a form. Two things
+make a wrong grant hard to see afterwards, so they are worth knowing before you
+write one:
 
-```bash
-# …/webhooks/payment/<account>, behind your globalPrefix if you set one
-stripe listen --forward-to localhost:3000/webhooks/payment/stripe-main
-# then take one payment method through per method the account offers
-```
+- **The two expansions fail differently.** `payment_method` throws when it does
+  not resolve, so a missing permission shows up as a failed delivery.
+  `mandate` appears not to: a mandate that arrives as a bare id leaves the payment
+  method recorded and the delivery at `200`, with only the mandate reference
+  missing from the record. A card never reads it at all — it records no mandate
+  reference by design — so any run with a card says nothing about that permission
+  whatever it answers.
+- **A status code is not the message.** Both a withheld permission and the
+  deliberate raise for a setup intent still settling — the ordinary course for a
+  direct debit whose mandate takes hours to register — surface as `500`, and a
+  subject nothing here handles is a third. The response carries a code alone; the
+  sentence that tells them apart is in the application's log. The deliberate one
+  names the session and the intent's status, a permission failure carries Stripe's
+  own words, and the third names the missing handler.
 
-Bind the `whsec_…` it prints as `STRIPE_WEBHOOK_SECRET` — signatures are checked
-against the configured secret, and the CLI signs with its own, so without this the
-first delivery is a `400` and proves nothing — and bind the restricted key of that
-mode as `STRIPE_SECRET_KEY`. Then take a payment method through a **new sign-up**,
-so the run creates a customer too: an existing subscriber already has one, and
-customers-write goes unexercised. The deliveries to read are the CLI's own output
-lines — the endpoint listed in the dashboard is a different object, and nothing of
-this run reaches it.
+So exercise it against the test account, through a **new sign-up** — an existing
+subscriber already has a customer, and customers-write would go unexercised — for
+each method the account offers, and check the payment method that ends up on the
+tenant rather than the delivery that produced it. A direct debit **with** a
+mandate reference is the grant proved. Without one, look further before
+concluding: the reference is also absent for a mandate Stripe has not attached or
+one carrying no direct-debit reference, and a grant corrected after a green
+delivery is proved by another sign-up rather than by re-sending the same event,
+which is recorded already and answers `200` unchanged.
 
-**Do it for every method the account offers, and read the recorded payment method
-rather than the delivery.** The two expansions fail differently, which is what
-makes the delivery line the wrong evidence:
+The rest of the choreography — forwarding with `stripe listen`, which secret it
+signs with, re-sending an event and how long it stays worth re-sending — is
+Stripe's tooling rather than this adapter's behaviour, and it is not written down
+here because it is not verified here.
 
-- `payment_method` is fatal — an expansion that does not resolve throws, so a
-  missing permission shows up as a failed delivery.
-- `mandate` appears not to be, and this is the part to confirm at your account
-  rather than take from here: a mandate that arrives as a bare id instead of an
-  object leaves the payment method recorded, the delivery at `200`, and only the
-  mandate reference missing from the record. A card never reads it at all.
-
-So a card run says nothing about `mandate`, and a direct-debit run says nothing
-about it either if all you read is the delivery. Look at the payment method the
-tenant now has: a direct debit **with** a mandate reference is the grant proved.
-Without one, look further before concluding — the reference is also absent for a
-mandate Stripe has not attached, or one carrying no direct-debit reference — but
-an otherwise complete direct debit missing only that is the shape a withheld
-permission makes.
-
-**A `500` in that output has two causes, and they read alike.** A grant that
-cannot follow the `payment_method` expansion throws where the confirmation is read
-— and so does a deliberate raise, when Stripe reports the session complete while
-the setup intent is still settling, which is the ordinary course for a direct
-debit whose mandate takes hours to register.
-
-Tell them apart by the message — **in your application's log, not in the
-delivery**. The response carries a status and nothing else: the reason a callback
-was rejected is logged at `warn` and answered with a code, and an error thrown
-while the confirmation is read is logged by Nest and answered as a bare internal
-error. In that log, the deliberate raise names the session and the intent's
-status, while a permission failure carries Stripe's own words. Not by watching for
-the next delivery to succeed — a setup still settling is expected to fail several
-in a row, which is what the twelve-hour window is sized for, and `stripe listen`
-does not forward an event again after a non-2xx anyway.
-
-That last point is what makes the direct-debit run need one more step. A setup
-still settling raises before anything is recorded, so the run ends on a red line
-with no payment method to read and no second delivery coming — which leaves
-`mandate` exactly as unproven as the card run did. Once the mandate has
-registered, send the event again by hand with the id from that line:
-
-```bash
-stripe events resend evt_…
-```
-
-and read the record after that one. **Resend within twelve hours of the original
-event**, not of the resend: the window is measured from when Stripe created it,
-and sending it again does not restart it. Past that, an intent that has still not
-settled is answered `200` with nothing recorded and a `debug` line — a green
-delivery that proves nothing, which is the one outcome this whole section is
-written to keep you from reading as success.
-
-What all of this proves is the permission set, not the key: a restricted key
-belongs to one mode, so the live key is a different object granted the same way.
-It is the grant that is easy to get wrong, and this is the same code path a
-customer takes.
+What any of it proves is the permission set, not the key: a restricted key belongs
+to one mode, so the live key is a different object granted the same way. It is the
+grant that is easy to get wrong.
 
 `STRIPE_WEBHOOK_SECRET` does not: `POST /v1/webhook_endpoints` creates the
 endpoint and returns its signing secret, so the part described just above — point
