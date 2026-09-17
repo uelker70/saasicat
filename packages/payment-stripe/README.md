@@ -41,10 +41,11 @@ the masked details.
   well, as the defects they are: a completed setup session without a setup
   intent, a succeeded intent without a payment method, and a completed setup
   neither the session nor the intent names a customer on. An error from Stripe
-  itself travels the same way, and the delivery is asked again. Two of those
-  are also what a key that may not follow the `payment_method` expansion
-  produces — the succeeded intent without a payment method, and the error from
-  Stripe where it refuses the read rather than answering with a bare id — and a
+  itself travels the same way, and the delivery is asked again. Two of those are
+  also what a key missing one of the expansions produces: the succeeded intent
+  without a payment method, where `payment_method` comes back as a bare id, and
+  the error from Stripe, where it refuses the read rather than answering with
+  one — which either expansion can cause, since both ride on the same call. A
   withheld permission does not come good on a later delivery. Read both beside
   [what a restricted key can fail](#where-the-two-secrets-come-from) before
   concluding the gateway sent something wrong.
@@ -166,11 +167,13 @@ write one:
   `mandate` appears not to: a mandate that arrives as a bare id leaves the payment
   method recorded and the delivery at `200`, with only the mandate reference
   missing from the record. A card never reads it at all — it records no mandate
-  reference by design — so any run with a card says nothing about that permission
-  whatever it answers. An account cleared for cards alone therefore cannot prove
-  it at all: check the grant again the day `sepa_debit` goes live, because the
-  first direct debits after that are where a missing `mandate` shows up, and they
-  show up green.
+  reference by design — so a card run that answers `200` says nothing about that
+  permission beyond ruling out a Stripe that refuses the read: both expansions
+  ride on one call, so a refusal fails a card run too. An account cleared for
+  cards alone can get no further than that: check the grant again the day
+  `sepa_debit` goes live, because the first direct debits after that are where a
+  missing `mandate` shows up — and where the expansion comes back as a bare id,
+  they show up green.
 - **A status code is not the message, and the message can point the wrong way.**
   An answer that carries a code places itself: `404` where nothing is registered
   under the account, and `400` where a callback does not verify — or arrives with
@@ -193,10 +196,11 @@ write one:
     rests on — a withheld `payment_method` reaches the log as **this adapter's** own
     sentence — `Stripe reported setup intent … as succeeded without a payment method.`
     — which the top of this page lists as a defect of the gateway; if Stripe refuses
-    the read instead, it arrives as an error of Stripe's, which that same list files
-    next to it. That list is where a reader holding one of those sentences lands, and
-    it names this cause beside both: so when either appears on a key that has just
-    been changed, suspect the grant before Stripe.
+    the read instead, either expansion arrives as an error of Stripe's — both ride on
+    one call — which that same list files next to it. That list is where a reader
+    holding one of those sentences lands, and it names this cause beside both: so
+    when either appears on a key that has just been changed, suspect the grant
+    before Stripe.
 
 So exercise it against the test account once for each method the account offers,
 starting with a **new sign-up** — an existing subscriber already has a customer,
