@@ -141,11 +141,13 @@ are the two that go missing: they are never fetched on their own, so a reader
 deriving permissions from the calls does not see them. A key that may not follow
 them throws where a confirmation is read — so **every completed setup that
 produced a payment method** fails, which is every payment method anybody sets up.
-What keeps answering `200` beside it is everything that never reaches that read:
-an expired checkout, any completed session that is not a setup or carries no
-subject of ours, and — where the expansion comes back as a bare id rather than the
-read being refused outright — a setup that failed or is still on its way, both of
-which are decided before the payment method is looked at. So a declined card gets
+What keeps answering `200` beside it is everything decided before the payment
+method is looked at: an expired checkout, and any completed session that is not a
+setup or carries no subject of ours, none of which reaches the read at all; and,
+where the expansion comes back as a bare id rather than the read being refused
+outright, a setup that failed, and one still on its way once its event is past the
+twelve hours. Inside those twelve hours a setup still on its way is a red delivery
+by design — the deliberate raise the bullet below names. So a declined card gets
 a working "try again" from an endpoint on which no successful setup gets through:
 it looks partly healthy, and Stripe eventually disables it — taking the deliveries
 that did work with it.
@@ -167,18 +169,22 @@ write one:
   first direct debits after that are where a missing `mandate` shows up, and they
   show up green.
 - **A status code is not the message, and the message can point the wrong way.**
-  Two answers name themselves: a callback for an account nothing is registered
-  under is `404` with its code, and one that does not verify is `400` with its
-  code. What is raised while the confirmation is read says nothing in the
-  response — a bare internal error at `500` — so nothing there tells those apart;
-  the sentence is in the application's log. Two of those failures say what they
-  are: the deliberate raise for a setup intent still settling — the ordinary
-  course for a direct debit whose mandate takes hours to register — names the
-  session and the intent's status, and a subject nothing here handles names the
-  missing handler. The rest are the defects listed at the top of this page, and
-  Stripe's own errors.
+  Two answers carry a code: `404` where nothing is registered under the account,
+  and `400` where a callback does not verify — or arrives with no raw body and a
+  content type nothing would have parsed, which is not a gateway's request at all.
+  The failures this section is about answer `500` with a bare internal error
+  instead, and the sentence that tells them apart is in the application's log. A
+  callback that arrived already parsed — which `application/json` is — says to
+  create the application with `rawBody: true`, and is the first `500` a freshly
+  wired installation meets. The deliberate raise for a setup intent still settling
+  — the ordinary course for a direct debit whose mandate takes hours to register —
+  names the session and the intent's status, and a subject nothing here handles
+  names the missing handler. What is left is the defects listed at the top of this
+  page and Stripe's own errors; a failure inside the handler that takes the
+  confirmation answers on the same delivery, as whatever that application answers
+  with.
 
-    A withheld permission hides among that rest, which is the trap. If an expansion
+    A withheld permission hides among those, which is the trap. If an expansion
     the key may not follow comes back as a bare id — the reading the bullet above
     rests on — a withheld `payment_method` reaches the log as **this adapter's** own
     sentence — `Stripe reported setup intent … as succeeded without a payment method.`
