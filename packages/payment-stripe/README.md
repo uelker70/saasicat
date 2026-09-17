@@ -23,10 +23,9 @@ the masked details.
   debit's last four digits, bank code and mandate reference.
   **`checkout.session.expired`**, and a setup that produced no payment method
   — an intent back at `requires_payment_method` with the decline recorded
-  against it, or `canceled` — become a setup that failed, so whoever was setting
-  one up can try again. An intent asking for a payment method with nothing
-  recorded against it is one nobody has confirmed yet, and is asked about again
-  rather than reported.
+  against it, or `canceled` — become a setup that failed, so the sign-up can try
+  again. An intent asking for a payment method with nothing recorded against it
+  is one nobody has confirmed yet, and is asked about again rather than reported.
 - **What is answered, and what is raised.** Answered as needing nothing: a
   session the application opened for its own business at the same account, an
   event of another type, a payment method whose shape SaaSiCat has nowhere to
@@ -218,23 +217,26 @@ starting with a **new sign-up** — an existing subscriber already has a custome
 and customers-write would go unexercised. The later methods are payment-method
 changes on the subscriber that sign-up created, which is what reuses the
 customer. Check the payment method that ends up on the tenant rather than the
-delivery that produced it. A direct debit **with** a
-mandate reference is the grant proved. Without one, look further before
-concluding: the reference is also absent for a mandate Stripe has not attached or
-one carrying no direct-debit reference, and a grant corrected after a green
-delivery is proved by another setup rather than by re-sending the same event,
-which is recorded already and answers `200` unchanged.
+delivery that produced it. A direct debit **with** a mandate reference is the
+grant proved. Without one, look further before concluding: the reference is also
+absent for a mandate Stripe has not attached or one carrying no direct-debit
+reference, and a grant corrected after a green delivery is proved by another
+setup rather than by re-sending the same event, which is recorded already and
+answers `200` unchanged.
 
 No payment method on the tenant at all is a third answer, and it is not the
 grant. The platform's payment event log is what says which it is, and it says so
 for every subject: a row whose status reads `payment-method-setup-failed` is a
 setup Stripe gave up on — a cancelled intent, a decline, an expired session — and
 one reading `payment-method-confirmed` while the tenant has nothing is a
-confirmation this installation had no setup open for. No row at all is an event
-nobody acts on: a setup that never settled inside the twelve hours, the likely
-end of a direct-debit run whose mandate takes its time, or a payment method whose
-shape has nowhere to go. Those two are in the application's log at `debug`, so an
-installation started above that level sees nothing for either.
+confirmation this installation had no setup open for. A row is written only
+where the event is acted on and its transaction commits, so no row is read
+against the delivery: green, it is an event nobody acts on — a setup that never
+settled inside the twelve hours, the likely end of a direct-debit run whose
+mandate takes its time, or a payment method whose shape has nowhere to go, each
+naming itself in the application's log at `debug`, which an installation started
+above that level does not print. Red, it is one of the failures the bullet above
+places, and a grant that has just been changed is the first thing to suspect.
 
 The rest of the choreography — forwarding with `stripe listen`, which secret it
 signs with, re-sending an event at all — is Stripe's tooling rather than this
