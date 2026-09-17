@@ -216,27 +216,32 @@ So exercise it against the test account once for each method the account offers,
 starting with a **new sign-up** — an existing subscriber already has a customer,
 and customers-write would go unexercised. The later methods are payment-method
 changes on the subscriber that sign-up created, which is what reuses the
-customer. Check the payment method that ends up on the tenant rather than the
-delivery that produced it. A direct debit **with** a mandate reference is the
-grant proved. Without one, look further before concluding: the reference is also
-absent for a mandate Stripe has not attached or one carrying no direct-debit
-reference, and a grant corrected after a green delivery is proved by another
-setup rather than by re-sending the same event, which is recorded already and
-answers `200` unchanged.
+customer. Read the answer off the payment method the tenant is left with rather
+than off the delivery that produced it — the method the sign-up recorded on the
+first run, and on a change, whether the method in use was replaced. A direct
+debit **with** a mandate reference is the grant proved. Without one, look further
+before concluding: the reference is also absent for a mandate Stripe has not
+attached or one carrying no direct-debit reference, and a grant corrected after a
+green delivery is proved by another setup rather than by re-sending the same
+event, which is recorded already and answers `200` unchanged.
 
-No payment method on the tenant at all is a third answer, and it is not the
-grant. The platform's payment event log is what says which it is, and it says so
-for every subject: a row whose status reads `payment-method-setup-failed` is a
-setup Stripe gave up on — a cancelled intent, a decline, an expired session — and
-one reading `payment-method-confirmed` while the tenant has nothing is a
-confirmation this installation had no setup open for. A row is written only
-where the event is acted on and its transaction commits, so no row is read
-against the delivery: green, it is an event nobody acts on — a setup that never
-settled inside the twelve hours, the likely end of a direct-debit run whose
-mandate takes its time, or a payment method whose shape has nowhere to go, each
-naming itself in the application's log at `debug`, which an installation started
-above that level does not print. Red, it is one of the failures the bullet above
-places, and a grant that has just been changed is the first thing to suspect.
+Nothing moved at all is a third answer — no method from the sign-up, or the old
+one still in use after a change — and it is not the grant either. The platform's
+payment event log is what says which it is, and it says so for every subject:
+every event that is not `unhandled` is claimed there before a handler runs, so a
+row whose status reads `payment-method-setup-failed` is a setup Stripe gave up
+on — a cancelled intent, a decline, an expired session — and one reading
+`payment-method-confirmed` with nothing moved is a confirmation this installation
+had no setup open for. The row survives only where its transaction commits, so
+read its absence against the delivery. Green: an event nobody acts on — a setup
+that never settled inside the twelve hours, which is where a direct-debit run
+whose mandate takes its time ends up, or a payment method whose shape has nowhere
+to go — each naming itself in the application's log at `debug`, which an
+installation started above that level does not print. Red: one of the failures
+the bullet above places, and the log line places it. That same settling setup is
+red for every delivery inside the twelve hours, whatever the grant, and says so
+by naming the session and the intent's status; the grant is what to suspect once
+it is ruled out.
 
 The rest of the choreography — forwarding with `stripe listen`, which secret it
 signs with, re-sending an event at all — is Stripe's tooling rather than this
