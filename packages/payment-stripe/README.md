@@ -182,8 +182,8 @@ write one:
   An answer that carries a code places the answer, not the fault: `404` where
   nothing is registered under the account, and `400` where a callback does not
   verify — or arrives with no raw body and a content type nothing would have
-  parsed, which is not a gateway's request at all, and carries the same code as
-  the first. A `404` carrying no code at all is the other one: the
+  parsed, which is not a gateway's request at all and answers with that same `400`
+  and that same code. A `404` carrying no code at all is the other one: the
   endpoint is pointed at a path nothing serves, which is what a `globalPrefix`
   left out of the URL does to every delivery. The failures this section is about
   answer `500` with a bare internal error instead, and the sentence that tells
@@ -194,17 +194,17 @@ write one:
   The deliberate raise for a setup intent still settling — the ordinary course for
   a direct debit whose mandate takes hours to register — names the session and the
   intent's status, and a subject nothing here handles names the missing handler.
-  On that list are the defects at the top of this page, Stripe's own errors, and
-  the platform's own store, which is written to on this path and says so plainly
-  when it cannot be reached. A failure inside the handler that takes the
-  confirmation answers on the same delivery, as whatever that application answers
-  with, while a step it defers to after the commit is logged and leaves the
-  delivery green.
+  The other `500`s on this path come from the defects at the top of this page,
+  from Stripe itself, and from the platform's own store, which every handled event
+  is written to inside one transaction. A failure inside the handler that takes
+  the confirmation answers on the same delivery, as whatever that application
+  answers with, while a step it defers to after the commit is logged and leaves
+  the delivery green.
 
-    A withheld permission hides among those, which is the trap. If an expansion
-    the key may not follow comes back as a bare id — the reading the bullet above
-    rests on — a withheld `payment_method` reaches the log as **this adapter's**
-    own sentence:
+    A withheld permission hides among the defects and Stripe's errors, which is the
+    trap. If an expansion the key may not follow comes back as a bare id — the
+    reading the bullet above rests on — a withheld `payment_method` reaches the
+    log as **this adapter's** own sentence:
     `Stripe reported setup intent … as succeeded without a payment method.`
     The top of this page lists that as a defect of the gateway. If Stripe refuses
     the read instead, either expansion arrives as an error of Stripe's — both ride
@@ -228,7 +228,10 @@ No payment method on the tenant at all is a third answer, and it is not the
 grant. A setup that never settled inside the twelve hours is answered green with
 nothing recorded, which is the likely end of a direct-debit run whose mandate
 takes its time; so is a payment method whose shape has nowhere to go, and a
-confirmation nothing here had open. The log line names which.
+confirmation nothing here had open. Each of those leaves a line in the log
+naming which. A setup that failed leaves none — a cancelled intent, a decline, a
+session that expired — and is marked at the other end instead: the sign-up is
+told to try again, and its failure is kept as a `PAYMENT_FAILED` record.
 
 The rest of the choreography — forwarding with `stripe listen`, which secret it
 signs with, re-sending an event at all — is Stripe's tooling rather than this
