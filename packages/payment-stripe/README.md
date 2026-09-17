@@ -138,9 +138,9 @@ permissions.
 Creating the webhook endpoint through the API, as the end of this section
 describes, needs its own write permission beside those.
 
-Grant from Stripe's own list rather than from the list above, and the expansions
-are the two that go missing: they are never fetched on their own, so a reader
-deriving permissions from the calls does not see them. A key that may not follow
+Grant from Stripe's own list, since the expansions are the two that go missing
+when the grant is derived from the calls: they are never fetched on their own, so
+reading the code for permissions does not show them. A key that may not follow
 the `payment_method` expansion throws where a confirmation is read — so **every
 completed setup that produced a payment method** fails, which is every payment
 method anybody sets up. A key that may not follow `mandate` fails nothing where
@@ -179,10 +179,11 @@ write one:
   after that are where a missing `mandate` shows up — and where the expansion
   comes back as a bare id, they show up green.
 - **A status code is not the message, and the message can point the wrong way.**
-  An answer that carries a code places itself: `404` where nothing is registered
-  under the account, and `400` where a callback does not verify — or arrives with
-  no raw body and a content type nothing would have parsed, which is not a
-  gateway's request at all. A `404` carrying no code at all is the other one: the
+  An answer that carries a code places the answer, not the fault: `404` where
+  nothing is registered under the account, and `400` where a callback does not
+  verify — or arrives with no raw body and a content type nothing would have
+  parsed, which is not a gateway's request at all, and carries the same code as
+  the first. A `404` carrying no code at all is the other one: the
   endpoint is pointed at a path nothing serves, which is what a `globalPrefix`
   left out of the URL does to every delivery. The failures this section is about
   answer `500` with a bare internal error instead, and the sentence that tells
@@ -193,10 +194,12 @@ write one:
   The deliberate raise for a setup intent still settling — the ordinary course for
   a direct debit whose mandate takes hours to register — names the session and the
   intent's status, and a subject nothing here handles names the missing handler.
-  What is left is the defects listed at the top of this page and Stripe's own
-  errors; a failure inside the handler that takes the confirmation answers on the
-  same delivery, as whatever that application answers with, while a step it defers
-  to after the commit is logged and leaves the delivery green.
+  On that list are the defects at the top of this page, Stripe's own errors, and
+  the platform's own store, which is written to on this path and says so plainly
+  when it cannot be reached. A failure inside the handler that takes the
+  confirmation answers on the same delivery, as whatever that application answers
+  with, while a step it defers to after the commit is logged and leaves the
+  delivery green.
 
     A withheld permission hides among those, which is the trap. If an expansion
     the key may not follow comes back as a bare id — the reading the bullet above
@@ -221,6 +224,12 @@ one carrying no direct-debit reference, and a grant corrected after a green
 delivery is proved by another sign-up rather than by re-sending the same event,
 which is recorded already and answers `200` unchanged.
 
+No payment method on the tenant at all is a third answer, and it is not the
+grant. A setup that never settled inside the twelve hours is answered green with
+nothing recorded, which is the likely end of a direct-debit run whose mandate
+takes its time; so is a payment method whose shape has nowhere to go, and a
+confirmation nothing here had open. The log line names which.
+
 The rest of the choreography — forwarding with `stripe listen`, which secret it
 signs with, re-sending an event at all — is Stripe's tooling rather than this
 adapter's behaviour, and it is not written down here because it is not verified
@@ -228,7 +237,7 @@ here. How long an unsettled setup is worth asking about again is not in that
 list: it is twelve hours from the moment Stripe created the event, it belongs to
 this adapter, and it is at the top of this page.
 
-What any of it proves is the permission set, not the key: a restricted key belongs
+What the run proves is the permission set, not the key: a restricted key belongs
 to one mode, so the live key is a different object granted the same way. It is the
 grant that is easy to get wrong.
 
