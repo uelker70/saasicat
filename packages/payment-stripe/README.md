@@ -127,21 +127,38 @@ one. What this adapter touches, so you can grant that and no more: customers
 read with `payment_method` and `mandate` expanded, which Stripe lists as their own
 permissions.
 
+Creating the webhook endpoint through the API, described just below, needs its
+own write permission on top of those three.
+
 Grant from Stripe's own list rather than from that sentence, and the expansions
 are the two that go missing: they are never fetched on their own, so a reader
 deriving permissions from the calls does not see them. A key that may not follow
-them throws where a confirmation is read — so **every**
-`checkout.session.completed` fails, which is every payment method anybody sets up,
-while `checkout.session.expired` keeps working and makes the endpoint look half
-alive. Stripe disables an endpoint that keeps failing, and that endpoint is also
-the one carrying the deliveries that would have worked.
+them throws where a confirmation is read — so **every completed setup session**
+fails, which is every payment method anybody sets up. What keeps answering `200`
+beside it is everything that never reaches that read: an expired checkout, and any
+completed session that is not a setup or carries no subject of ours. So the
+endpoint looks partly healthy while no payment method gets through, and Stripe
+eventually disables it — taking the deliveries that did work with it.
 
-**Prove the key before it goes to production.** Nothing at start-up can: the key
-is a string until Stripe answers, and the first call that needs the expansions
-happens when a real customer finishes a real form. Point `stripe listen` at the
-route with the new key bound, put one payment method through on the test account,
-and read the delivery list — a `200` there is worth more than a permission
-checklist, because it is the same code path a customer will take.
+**Prove the permissions before they go to production.** Nothing at start-up can:
+a key is a string until Stripe answers, and the first call that needs the
+expansions runs when a customer finishes a form. So put one payment method through
+against the test account:
+
+```bash
+stripe listen --forward-to localhost:3000/webhooks/payment/stripe-main
+```
+
+Bind the `whsec_…` it prints as `STRIPE_WEBHOOK_SECRET` — signatures are checked
+against the configured secret, and the CLI signs with its own, so without this the
+first delivery is a `400` and proves nothing — and bind the restricted key of that
+mode as `STRIPE_SECRET_KEY`. Then set up a payment method and read the CLI's own
+delivery lines rather than the dashboard's: the endpoint the dashboard lists is a
+different one.
+
+What that proves is the permission set, not the key: a restricted key belongs to
+one mode, so the live key is a different object granted the same way. It is the
+grant that is easy to get wrong, and this is the same code path a customer takes.
 
 `STRIPE_WEBHOOK_SECRET` does not: `POST /v1/webhook_endpoints` creates the
 endpoint and returns its signing secret, so the part described just above — point
