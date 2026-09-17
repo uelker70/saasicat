@@ -136,7 +136,7 @@ permissions.
 Creating the webhook endpoint through the API, as the end of this section
 describes, needs its own write permission beside those.
 
-Grant from Stripe's own list rather than from that sentence, and the expansions
+Grant from Stripe's own list rather than from the list above, and the expansions
 are the two that go missing: they are never fetched on their own, so a reader
 deriving permissions from the calls does not see them. A key that may not follow
 the `payment_method` expansion throws where a confirmation is read — so **every
@@ -145,13 +145,13 @@ method anybody sets up. A key that may not follow `mandate` fails nothing where
 Stripe answers with a bare id, and everything where it refuses the read instead;
 that difference is what the bullets below are about.
 
-What keeps answering `200` beside it: an expired checkout, and any completed
-session that is not a setup or carries no subject of ours, none of which reaches
-the read at all; and, where the expansion comes back as a bare id rather than the
-read being refused outright, a setup that failed, and one still on its way once
-its event is past the twelve hours. Inside those twelve hours a setup still on
-its way is a red delivery by design — the deliberate raise the bullet below
-names. So a declined card gets a working "try again" from an endpoint on which
+What keeps answering `200` beside that failure: an expired checkout, and any
+completed session that is not a setup or carries no subject of ours, none of
+which reaches the read at all; and, where the expansion comes back as a bare id
+rather than the read being refused outright, a setup that failed, and one still
+on its way once its event is past the twelve hours. Inside those twelve hours a
+setup still on its way is a red delivery by design — the deliberate raise the
+bullet below names. So a declined card gets a working "try again" from an endpoint on which
 no successful setup gets through: it looks partly healthy, and Stripe eventually
 disables it — taking the deliveries that did work with it.
 
@@ -198,9 +198,10 @@ write one:
     it names this cause beside both: so when either appears on a key that has just
     been changed, suspect the grant before Stripe.
 
-So exercise it against the test account, through a **new sign-up** — an existing
-subscriber already has a customer, and customers-write would go unexercised — for
-each method the account offers, and check the payment method that ends up on the
+So exercise it against the test account once for each method the account offers,
+starting with a **new sign-up** — an existing subscriber already has a customer,
+and customers-write would go unexercised. The later methods need no new sign-up,
+since the customer exists by then. Check the payment method that ends up on the
 tenant rather than the delivery that produced it. A direct debit **with** a
 mandate reference is the grant proved. Without one, look further before
 concluding: the reference is also absent for a mandate Stripe has not attached or
