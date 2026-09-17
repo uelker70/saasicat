@@ -128,7 +128,7 @@ read with `payment_method` and `mandate` expanded, which Stripe lists as their o
 permissions.
 
 Creating the webhook endpoint through the API, as the end of this section
-describes, needs its own write permission on top of those three.
+describes, needs its own write permission beside those.
 
 Grant from Stripe's own list rather than from that sentence, and the expansions
 are the two that go missing: they are never fetched on their own, so a reader
@@ -142,36 +142,48 @@ eventually disables it — taking the deliveries that did work with it.
 
 **Prove the permissions before they go to production.** Nothing at start-up can:
 a key is a string until Stripe answers, and the first call that needs the
-expansions runs when a customer finishes a form. So put one payment method through
-against the test account:
+expansions runs when a customer finishes a form. So put payment methods through
+against the test account, and read what they recorded:
 
 ```bash
 # …/webhooks/payment/<account>, behind your globalPrefix if you set one
 stripe listen --forward-to localhost:3000/webhooks/payment/stripe-main
+# then take one payment method through per method the account offers
 ```
 
 Bind the `whsec_…` it prints as `STRIPE_WEBHOOK_SECRET` — signatures are checked
 against the configured secret, and the CLI signs with its own, so without this the
 first delivery is a `400` and proves nothing — and bind the restricted key of that
-mode as `STRIPE_SECRET_KEY`. Then set up a payment method and read the CLI's own
-delivery lines rather than the dashboard's: the endpoint the dashboard lists is a
-different one.
+mode as `STRIPE_SECRET_KEY`. Then take a payment method through a **new sign-up**,
+so the run creates a customer too: an existing subscriber already has one, and
+customers-write goes unexercised.
 
-**Put through the methods the account offers, not one of them.** The `mandate`
-expansion is read on the direct-debit branch only — a card records no mandate
-reference — so a card run covers customers, checkout sessions, setup intents and
-`payment_method`, and says nothing about the one remaining permission. It is also
-the run a reader reaches for, because a card is what an account that is not yet
-cleared for `sepa_debit` can offer. Come back to this when it is.
+**Do it for every method the account offers, and read the recorded payment method
+rather than the delivery.** The two expansions fail differently, which is what
+makes the delivery line the wrong evidence:
+
+- `payment_method` is fatal — an expansion that does not resolve throws, so a
+  missing permission shows up as a failed delivery.
+- `mandate` is not. It is read on the direct-debit branch only, and when it does
+  not resolve the payment method is still recorded, the delivery is still `200`,
+  and what is missing is the mandate reference on the record. A card never reads
+  it at all.
+
+So a card run says nothing about `mandate`, and a direct-debit run says nothing
+about it either if all you read is the delivery. Look at the payment method the
+tenant now has: a direct debit with a mandate reference is the grant proved, and
+one without it is the permission missing.
 
 **A `500` in that output has two causes, and they read alike.** A grant that
-cannot follow an expansion throws where the confirmation is read — and so does a
-deliberate raise, when Stripe reports the session complete while the setup intent
-is still settling, which is the ordinary course for a direct debit whose mandate
-takes hours to register. The deliberate one names the session and the intent's
-status, and the next delivery of the same event succeeds; a permission failure
-carries Stripe's own message and repeats unchanged. Read the message, not the
-status code.
+cannot follow the `payment_method` expansion throws where the confirmation is read
+— and so does a deliberate raise, when Stripe reports the session complete while
+the setup intent is still settling, which is the ordinary course for a direct
+debit whose mandate takes hours to register. Tell them apart by the message: the
+deliberate one names the session and the intent's status, a permission failure
+carries Stripe's own words. Not by watching for the next delivery to succeed —
+a setup still settling is expected to fail several in a row, which is what the
+twelve-hour window is sized for, and `stripe listen` does not forward an event
+again after a non-2xx anyway.
 
 What all of this proves is the permission set, not the key: a restricted key
 belongs to one mode, so the live key is a different object granted the same way.
