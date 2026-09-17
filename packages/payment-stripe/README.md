@@ -139,12 +139,16 @@ describes, needs its own write permission beside those.
 Grant from Stripe's own list rather than from that sentence, and the expansions
 are the two that go missing: they are never fetched on their own, so a reader
 deriving permissions from the calls does not see them. A key that may not follow
-them throws where a confirmation is read — so **every completed setup session**
-fails, which is every payment method anybody sets up. What keeps answering `200`
-beside it is everything that never reaches that read: an expired checkout, and any
-completed session that is not a setup or carries no subject of ours. So the
-endpoint looks partly healthy while no payment method gets through, and Stripe
-eventually disables it — taking the deliveries that did work with it.
+them throws where a confirmation is read — so **every completed setup that
+produced a payment method** fails, which is every payment method anybody sets up.
+What keeps answering `200` beside it is everything that never reaches that read:
+an expired checkout, any completed session that is not a setup or carries no
+subject of ours, and — where the expansion comes back as a bare id rather than the
+read being refused outright — a setup that failed or is still on its way, both of
+which are decided before the payment method is looked at. So a declined card gets
+a working "try again" from an endpoint on which no successful setup gets through:
+it looks partly healthy, and Stripe eventually disables it — taking the deliveries
+that did work with it.
 
 **A grant is only proved by using it.**
 Nothing at start-up can check a key — it is a string until Stripe answers — and
@@ -163,14 +167,16 @@ write one:
   first direct debits after that are where a missing `mandate` shows up, and they
   show up green.
 - **A status code is not the message, and the message can point the wrong way.**
-  A callback that does not verify is answered `400` with its code, as above.
-  Everything that fails after that answers `500` with a bare internal error, so
-  nothing in the response tells those apart; the sentence is in the application's
-  log. Two of those failures say what they are: the deliberate raise for a setup
-  intent still settling — the ordinary course for a direct debit whose mandate
-  takes hours to register — names the session and the intent's status, and a
-  subject nothing here handles names the missing handler. The rest are the
-  defects listed at the top of this page, and Stripe's own errors.
+  Two answers name themselves: a callback for an account nothing is registered
+  under is `404` with its code, and one that does not verify is `400` with its
+  code. What is raised while the confirmation is read says nothing in the
+  response — a bare internal error at `500` — so nothing there tells those apart;
+  the sentence is in the application's log. Two of those failures say what they
+  are: the deliberate raise for a setup intent still settling — the ordinary
+  course for a direct debit whose mandate takes hours to register — names the
+  session and the intent's status, and a subject nothing here handles names the
+  missing handler. The rest are the defects listed at the top of this page, and
+  Stripe's own errors.
 
     A withheld permission hides among that rest, which is the trap. If an expansion
     the key may not follow comes back as a bare id — the reading the bullet above
@@ -178,9 +184,9 @@ write one:
     sentence — `Stripe reported setup intent … as succeeded without a payment method.`
     — which the top of this page lists as a defect of the gateway; if Stripe refuses
     the read instead, it arrives as an error of Stripe's, which that same list files
-    next to it. Either way it is a sentence this page files under a gateway that sent
-    something wrong, so when one of them appears on a key that has just been changed,
-    suspect the grant before Stripe.
+    next to it. That list is where a reader holding one of those sentences lands, and
+    it names this cause beside both: so when either appears on a key that has just
+    been changed, suspect the grant before Stripe.
 
 So exercise it against the test account, through a **new sign-up** — an existing
 subscriber already has a customer, and customers-write would go unexercised — for
