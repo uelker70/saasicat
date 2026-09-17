@@ -152,7 +152,10 @@ write one:
   method recorded and the delivery at `200`, with only the mandate reference
   missing from the record. A card never reads it at all — it records no mandate
   reference by design — so any run with a card says nothing about that permission
-  whatever it answers.
+  whatever it answers. An account cleared for cards alone therefore cannot prove
+  it at all: check the grant again the day `sepa_debit` goes live, because the
+  first direct debits after that are where a missing `mandate` shows up, and they
+  show up green.
 - **A status code is not the message.** Both a withheld permission and the
   deliberate raise for a setup intent still settling — the ordinary course for a
   direct debit whose mandate takes hours to register — surface as `500`, and a
@@ -172,9 +175,11 @@ delivery is proved by another sign-up rather than by re-sending the same event,
 which is recorded already and answers `200` unchanged.
 
 The rest of the choreography — forwarding with `stripe listen`, which secret it
-signs with, re-sending an event and how long it stays worth re-sending — is
-Stripe's tooling rather than this adapter's behaviour, and it is not written down
-here because it is not verified here.
+signs with, re-sending an event at all — is Stripe's tooling rather than this
+adapter's behaviour, and it is not written down here because it is not verified
+here. How long an unsettled setup is worth asking about again is not in that
+list: it is twelve hours from the moment Stripe created the event, it belongs to
+this adapter, and it is at the top of this page.
 
 What any of it proves is the permission set, not the key: a restricted key belongs
 to one mode, so the live key is a different object granted the same way. It is the
