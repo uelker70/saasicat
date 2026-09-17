@@ -125,10 +125,23 @@ Stripe's dashboard. Stripe recommends a **restricted key** (`rk_…`) over a sec
 one. What this adapter touches, so you can grant that and no more: customers
 (write), checkout sessions (write), setup intents (read) — and the setup intent is
 read with `payment_method` and `mandate` expanded, which Stripe lists as their own
-permissions. Grant from Stripe's own list rather than from this sentence: a
-`checkout.session.completed` whose expansion the key may not follow throws where
-the confirmation is read, every delivery then fails, and Stripe disables an
-endpoint that keeps failing.
+permissions.
+
+Grant from Stripe's own list rather than from that sentence, and the expansions
+are the two that go missing: they are never fetched on their own, so a reader
+deriving permissions from the calls does not see them. A key that may not follow
+them throws where a confirmation is read — so **every**
+`checkout.session.completed` fails, which is every payment method anybody sets up,
+while `checkout.session.expired` keeps working and makes the endpoint look half
+alive. Stripe disables an endpoint that keeps failing, and that endpoint is also
+the one carrying the deliveries that would have worked.
+
+**Prove the key before it goes to production.** Nothing at start-up can: the key
+is a string until Stripe answers, and the first call that needs the expansions
+happens when a real customer finishes a real form. Point `stripe listen` at the
+route with the new key bound, put one payment method through on the test account,
+and read the delivery list — a `200` there is worth more than a permission
+checklist, because it is the same code path a customer will take.
 
 `STRIPE_WEBHOOK_SECRET` does not: `POST /v1/webhook_endpoints` creates the
 endpoint and returns its signing secret, so the part described just above — point
