@@ -70,7 +70,8 @@ SaaSiCatModule.forRoot({
 });
 ```
 
-Point the account's webhook endpoint at `POST /webhooks/payment/stripe-main`,
+Point the account's webhook endpoint at `POST /webhooks/payment/stripe-main` —
+behind the application's `globalPrefix` where it sets one, as the notes app does —
 subscribe it to `checkout.session.completed` and `checkout.session.expired`,
 and create the application with `rawBody: true` — a signature is checked
 against the bytes that arrived, not against a re-serialised object.
@@ -144,9 +145,10 @@ the `payment_method` expansion throws where a confirmation is read — so **ever
 completed setup that produced a payment method** fails, which is every payment
 method anybody sets up. A key that may not follow `mandate` fails nothing where
 Stripe answers with a bare id, and everything that reaches that read where it
-refuses it instead — which is more, not less: the read runs before the branches
-for a setup that failed and one still settling, so those go down with it. That
-difference is what the bullets below are about.
+refuses it instead — a wider set than the one above, since the read runs before
+the branch for a setup that failed, and before the one that answers a setup still
+on its way once its event is past the twelve hours. That difference is what the
+bullets below are about.
 
 What keeps answering `200` beside that failure: an expired checkout, and any
 completed session that is not a setup or carries no subject of ours, none of
@@ -180,11 +182,14 @@ write one:
   An answer that carries a code places itself: `404` where nothing is registered
   under the account, and `400` where a callback does not verify — or arrives with
   no raw body and a content type nothing would have parsed, which is not a
-  gateway's request at all. The failures this section is about answer `500` with a
-  bare internal error instead, and the sentence that tells them apart is in the
-  application's log. A callback whose raw body the application did not keep, with a
-  content type a framework parses — which `application/json` is — says so and asks
-  for `rawBody: true`; it is the first `500` a freshly wired installation meets.
+  gateway's request at all. A `404` carrying no code at all is the other one: the
+  endpoint is pointed at a path nothing serves, which is what a `globalPrefix`
+  left out of the URL does to every delivery. The failures this section is about
+  answer `500` with a bare internal error instead, and the sentence that tells
+  them apart is in the application's log. A callback whose raw body the
+  application did not keep, with a content type a framework parses — which
+  `application/json` is — says so and asks for `rawBody: true`; it is the first
+  `500` a freshly wired installation meets.
   The deliberate raise for a setup intent still settling — the ordinary course for
   a direct debit whose mandate takes hours to register — names the session and the
   intent's status, and a subject nothing here handles names the missing handler.
