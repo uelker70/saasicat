@@ -183,24 +183,34 @@ permission makes.
 cannot follow the `payment_method` expansion throws where the confirmation is read
 — and so does a deliberate raise, when Stripe reports the session complete while
 the setup intent is still settling, which is the ordinary course for a direct
-debit whose mandate takes hours to register. Tell them apart by the message: the
-deliberate one names the session and the intent's status, a permission failure
-carries Stripe's own words. Not by watching for the next delivery to succeed —
-a setup still settling is expected to fail several in a row, which is what the
-twelve-hour window is sized for, and `stripe listen` does not forward an event
-again after a non-2xx anyway.
+debit whose mandate takes hours to register.
+
+Tell them apart by the message — **in your application's log, not in the
+delivery**. The response carries a status and nothing else: the reason a callback
+was rejected is logged at `warn` and answered with a code, and an error thrown
+while the confirmation is read is logged by Nest and answered as a bare internal
+error. In that log, the deliberate raise names the session and the intent's
+status, while a permission failure carries Stripe's own words. Not by watching for
+the next delivery to succeed — a setup still settling is expected to fail several
+in a row, which is what the twelve-hour window is sized for, and `stripe listen`
+does not forward an event again after a non-2xx anyway.
 
 That last point is what makes the direct-debit run need one more step. A setup
 still settling raises before anything is recorded, so the run ends on a red line
 with no payment method to read and no second delivery coming — which leaves
-`mandate` exactly as unproven as the card run did. Give the mandate time to
-register, then send the event again by hand with the id from that line:
+`mandate` exactly as unproven as the card run did. Once the mandate has
+registered, send the event again by hand with the id from that line:
 
 ```bash
 stripe events resend evt_…
 ```
 
-and read the record after that one.
+and read the record after that one. **Resend within twelve hours of the original
+event**, not of the resend: the window is measured from when Stripe created it,
+and sending it again does not restart it. Past that, an intent that has still not
+settled is answered `200` with nothing recorded and a `debug` line — a green
+delivery that proves nothing, which is the one outcome this whole section is
+written to keep you from reading as success.
 
 What all of this proves is the permission set, not the key: a restricted key
 belongs to one mode, so the live key is a different object granted the same way.
