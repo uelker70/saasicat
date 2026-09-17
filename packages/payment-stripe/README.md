@@ -127,8 +127,8 @@ one. What this adapter touches, so you can grant that and no more: customers
 read with `payment_method` and `mandate` expanded, which Stripe lists as their own
 permissions.
 
-Creating the webhook endpoint through the API, described just below, needs its
-own write permission on top of those three.
+Creating the webhook endpoint through the API, as the end of this section
+describes, needs its own write permission on top of those three.
 
 Grant from Stripe's own list rather than from that sentence, and the expansions
 are the two that go missing: they are never fetched on their own, so a reader
@@ -146,6 +146,7 @@ expansions runs when a customer finishes a form. So put one payment method throu
 against the test account:
 
 ```bash
+# …/webhooks/payment/<account>, behind your globalPrefix if you set one
 stripe listen --forward-to localhost:3000/webhooks/payment/stripe-main
 ```
 
@@ -156,9 +157,26 @@ mode as `STRIPE_SECRET_KEY`. Then set up a payment method and read the CLI's own
 delivery lines rather than the dashboard's: the endpoint the dashboard lists is a
 different one.
 
-What that proves is the permission set, not the key: a restricted key belongs to
-one mode, so the live key is a different object granted the same way. It is the
-grant that is easy to get wrong, and this is the same code path a customer takes.
+**Put through the methods the account offers, not one of them.** The `mandate`
+expansion is read on the direct-debit branch only — a card records no mandate
+reference — so a card run covers customers, checkout sessions, setup intents and
+`payment_method`, and says nothing about the one remaining permission. It is also
+the run a reader reaches for, because a card is what an account that is not yet
+cleared for `sepa_debit` can offer. Come back to this when it is.
+
+**A `500` in that output has two causes, and they read alike.** A grant that
+cannot follow an expansion throws where the confirmation is read — and so does a
+deliberate raise, when Stripe reports the session complete while the setup intent
+is still settling, which is the ordinary course for a direct debit whose mandate
+takes hours to register. The deliberate one names the session and the intent's
+status, and the next delivery of the same event succeeds; a permission failure
+carries Stripe's own message and repeats unchanged. Read the message, not the
+status code.
+
+What all of this proves is the permission set, not the key: a restricted key
+belongs to one mode, so the live key is a different object granted the same way.
+It is the grant that is easy to get wrong, and this is the same code path a
+customer takes.
 
 `STRIPE_WEBHOOK_SECRET` does not: `POST /v1/webhook_endpoints` creates the
 endpoint and returns its signing secret, so the part described just above — point
