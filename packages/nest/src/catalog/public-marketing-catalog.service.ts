@@ -25,19 +25,32 @@ import {
     type PublicMarketingBundle,
     type PublicMarketingCatalogResponse,
     keepOneRecommended,
+    type PaymentMethodType,
     type PublicMarketingPlan,
     type PublicMarketingPromo,
+    type PublicNewPaymentMethods,
 } from '@saasicat/core';
 
 import {
     BUNDLE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     MARKETING_PROJECTION_REPOSITORY_TOKEN,
+    NEW_PAYMENT_METHODS_SOURCE_TOKEN,
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
 
 const DEFAULT_LOCALE = 'de';
+
+/**
+ * What the catalogue needs of whatever knows the payment accounts: the account
+ * new payment methods are taken at, or `null` where none takes them.
+ * `PaymentGatewayRegistry` satisfies it; the shape keeps this module free of a
+ * dependency on the payments module.
+ */
+export interface NewPaymentMethodsSource {
+    forNewPaymentMethods(): { methods: readonly PaymentMethodType[] } | null;
+}
 
 function toNumber(decimal: string | null): number | null {
     if (decimal === null) return null;
@@ -80,7 +93,21 @@ export class PublicMarketingCatalogService {
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundleRepo: BundleRepository | null = null,
+        // Not optional: the module always provides it, `null` included, so a
+        // catalogue that publishes the answer cannot be wired without one. An
+        // `@Optional()` here would make "payments are not wired" and "the
+        // registry is out of this module's scope" the same answer, and the
+        // second one publishes "no payment method" while a form asks for one.
+        @Inject(NEW_PAYMENT_METHODS_SOURCE_TOKEN)
+        private readonly newPaymentMethodsSource: NewPaymentMethodsSource | null,
     ) {}
+
+    /** What a new payment method is taken with here, for the page that offers the plans. */
+    private newPaymentMethods(): PublicNewPaymentMethods {
+        const account = this.newPaymentMethodsSource?.forNewPaymentMethods() ?? null;
+        if (!account) return { taken: false, methods: [] };
+        return { taken: true, methods: [...account.methods] };
+    }
 
     async getCatalog(
         locale: string,
@@ -99,6 +126,7 @@ export class PublicMarketingCatalogService {
                 locale,
                 currency,
                 vatRate,
+                newPaymentMethods: this.newPaymentMethods(),
                 plans: [],
                 bundles: [],
                 comparison: empty,
@@ -192,6 +220,7 @@ export class PublicMarketingCatalogService {
             locale,
             currency,
             vatRate,
+            newPaymentMethods: this.newPaymentMethods(),
             plans: out,
             bundles: publicBundles,
             comparison: this.buildComparison(out, labelMeta),

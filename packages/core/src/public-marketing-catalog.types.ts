@@ -8,6 +8,7 @@
 // already-computed discount price.
 
 import type { MarketingTopFeature } from './catalog-entry.types.js';
+import type { PaymentMethodType } from './payment-gateway.types.js';
 import type { PromotionType } from './promotion.types.js';
 
 /** Active promotion of a plan card — discount already computed. */
@@ -124,12 +125,33 @@ export interface PublicComparisonRow {
     unit?: string;
 }
 
+/**
+ * What this installation takes a new payment method with, so a page offering the
+ * plans can say it before anybody reaches the form.
+ *
+ * It is the account `config/saas.yaml#payments.newPaymentMethods` names, with the
+ * gateway bound for it — the same account a sign-up's payment step and a tenant's
+ * own change both go to. Whether an installation runs sign-ups at all is not part
+ * of it: that is the application's own wiring, and the application knows it.
+ *
+ * Which account it is and who keeps the payment method stay inside: a prospect is
+ * told that a card or a direct debit will be asked for, not where it is kept.
+ */
+export interface PublicNewPaymentMethods {
+    /** Whether a new payment method is taken here at all. */
+    taken: boolean;
+    /** The methods the form offers, in the order the installation names them; empty where none is taken. */
+    methods: PaymentMethodType[];
+}
+
 /** Response of `GET /public/marketing-catalog`. */
 export interface PublicMarketingCatalogResponse {
     locale: string;
     currency: string;
     /** VAT rate in percent — for the CheckoutOffer price breakdown. */
     vatRate: number;
+    /** What a new payment method is taken with here, if one is taken. */
+    newPaymentMethods: PublicNewPaymentMethods;
     /** Visible, marketed plans — sorted by `priority` DESC. */
     plans: PublicMarketingPlan[];
     /**

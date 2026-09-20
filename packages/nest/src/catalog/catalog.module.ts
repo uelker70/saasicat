@@ -41,7 +41,10 @@ import { PromotionsService } from './promotions.service.js';
 import { buildPromotionsController } from './promotions.controller.js';
 import { MarketingSettingsService } from './marketing-settings.service.js';
 import { buildMarketingSettingsController } from './marketing-settings.controller.js';
-import { PublicMarketingCatalogService } from './public-marketing-catalog.service.js';
+import {
+    PublicMarketingCatalogService,
+    type NewPaymentMethodsSource,
+} from './public-marketing-catalog.service.js';
 import { buildPublicMarketingCatalogController } from './public-marketing-catalog.controller.js';
 import { MarketingProjectionsService } from './marketing-projections.service.js';
 import { buildMarketingProjectionsController } from './marketing-projections.controller.js';
@@ -55,6 +58,7 @@ import {
     CATALOG_FEATURE_UI_REGISTRY_TOKEN,
     MARKETING_PROJECTION_REPOSITORY_TOKEN,
     MARKETING_SETTINGS_REPOSITORY_TOKEN,
+    NEW_PAYMENT_METHODS_SOURCE_TOKEN,
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
@@ -107,6 +111,17 @@ export interface CatalogModuleOptions {
         guards: Array<Type<CanActivate>>;
         currency: string;
         vatRate: number;
+        /**
+         * Where the catalogue reads what a new payment method is taken with —
+         * `PaymentGatewayRegistry` from `@saasicat/nest/payments`, where the
+         * application wired payments. `SaaSiCatModule` passes it for you.
+         *
+         * Left out, the catalogue publishes that no payment method is taken, so
+         * leave it out only where that is true: an application that takes
+         * payment methods and omits this tells every prospect the opposite of
+         * what its form does.
+         */
+        newPaymentMethodsFrom?: Type<NewPaymentMethodsSource>;
     };
     /**
      * — adapter for `plans` master-record persistence.
@@ -203,6 +218,18 @@ export class CatalogModule {
         }
 
         const providers: Provider[] = [
+            // Always provided, `null` included: the service asks for it without
+            // `@Optional()`, so a catalogue that publishes the answer cannot be
+            // wired without one. `useExisting` rather than an instance, because
+            // the source is a provider of the module the application wired for
+            // payments — and where that module is out of scope, Nest says so at
+            // boot instead of answering "no payment method is taken".
+            options.publicMarketingCatalog?.newPaymentMethodsFrom
+                ? {
+                      provide: NEW_PAYMENT_METHODS_SOURCE_TOKEN,
+                      useExisting: options.publicMarketingCatalog.newPaymentMethodsFrom,
+                  }
+                : { provide: NEW_PAYMENT_METHODS_SOURCE_TOKEN, useValue: null },
             asProvider(BUNDLE_REPOSITORY_TOKEN, options.bundleRepository),
             {
                 provide: CATALOG_SERVICE_CONFIG_TOKEN,

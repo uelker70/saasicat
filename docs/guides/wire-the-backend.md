@@ -582,6 +582,16 @@ payments:
             methods: [card, sepa_debit]
 ```
 
+A website that offers the plans needs this before anybody reaches a form, so the public catalogue
+carries it: `GET /public/marketing-catalog` answers `newPaymentMethods` with whether one is taken
+here at all and the methods that form offers, derived from the block above rather than written a
+second time on the website. The account and its provider stay inside. `SaaSiCatModule` wires the
+catalogue to read it whenever `payments` is configured; a `CatalogModule` you mount yourself is
+given `publicMarketingCatalog.newPaymentMethodsFrom: PaymentGatewayRegistry`, and one that cannot
+reach it refuses to start rather than publishing that no payment method is taken. Where your own
+sign-up route wants the same answer, `PaymentGatewayRegistry.forNewPaymentMethods()` from
+`@saasicat/nest/payments` is where the catalogue reads it.
+
 **An account's name and its provider are two different things**, and both have to line up with
 something. The name — `main` above — is yours to choose, and it is the last segment of that
 account's webhook route, so it is what you register at the gateway. The `provider` is the adapter's

@@ -15,7 +15,10 @@ export { PromotionsService } from './promotions.service.js';
 export { buildPromotionsController } from './promotions.controller.js';
 export { MarketingSettingsService } from './marketing-settings.service.js';
 export { buildMarketingSettingsController } from './marketing-settings.controller.js';
-export { PublicMarketingCatalogService } from './public-marketing-catalog.service.js';
+export {
+    PublicMarketingCatalogService,
+    type NewPaymentMethodsSource,
+} from './public-marketing-catalog.service.js';
 export { buildPublicMarketingCatalogController } from './public-marketing-catalog.controller.js';
 export { PlansService } from './plans.service.js';
 export { PlanVersionsService } from './plan-versions.service.js';
@@ -34,6 +37,7 @@ export {
     CATALOG_SERVICE_CONFIG_TOKEN,
     MARKETING_PROJECTION_REPOSITORY_TOKEN,
     MARKETING_SETTINGS_REPOSITORY_TOKEN,
+    NEW_PAYMENT_METHODS_SOURCE_TOKEN,
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
