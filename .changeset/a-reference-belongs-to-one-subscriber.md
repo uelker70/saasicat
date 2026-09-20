@@ -40,11 +40,15 @@ today is a property of the provider, not a promise of this platform's;
   refuses when the claim takes no row. That is now part of the port's contract:
   because the claim comes first, a refusal leaves the caller's transaction as it
   found it.
-- Where the store cannot say which key refused the claim — Prisma's
-  `skipDuplicates` names no conflict target — the adapter reads the reference
-  back before it attributes the refusal to a subscriber, and says plainly that
-  some other unique key refused the row when none holds it. The canonical
-  schema has no such key; a consumer's copy of the fragment may.
+- The two adapters differ in one stated way. `@saasicat/adapter-drizzle` names
+  the reference's key as the conflict target, so a claim it skips is certainly
+  that key. Prisma's `skipDuplicates` names no target, so a skipped claim is
+  attributed to the reference: sound in the canonical schema, where no other
+  unique key can contain the claimed row, and wrong only for a consumer that
+  adds one to that table. It is not read back to confirm, because a read is
+  bound by a policy on the table while the unique index is not — an
+  installation that does not lift its policy for the callback would then be
+  told the reference is free.
 - A gateway callback refused that way is logged at error level, naming the
   account, the reference and the subject the event was about. It still rolls the
   transaction back, so nothing durable would otherwise say why: by then the

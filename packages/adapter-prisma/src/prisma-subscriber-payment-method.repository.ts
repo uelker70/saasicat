@@ -134,15 +134,29 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
      * transaction sees the difference.
      *
      * `skipDuplicates` names no conflict target — Prisma has none to give — so
-     * it suppresses **every** unique key on the table, not just the reference's.
-     * In the canonical schema that is the only one this claim can meet: the
-     * primary key is a uuid made here, and the partial index that gives a
-     * subscriber one `ACTIVE` payment method does not contain a `REPLACED` row.
-     * A consumer's schema is a copy of the fragment that it may add to, and
-     * `saasicat schema check` reports what is missing rather than forbidding
-     * what was added — so the cause is read back rather than assumed, and a
-     * claim refused by some other key says that instead of naming a subscriber
-     * it never looked for.
+     * it suppresses **every** unique key on the table, not just the reference's,
+     * and a claim that takes no row is attributed to the reference without
+     * having been told so. In the canonical schema that attribution is sound:
+     * the primary key is a uuid made here, and the partial index that gives a
+     * subscriber one `ACTIVE` payment method does not contain a `REPLACED` row,
+     * so the reference's key is the only one this claim can meet.
+     *
+     * It is not read back to confirm it, and that is the decision rather than
+     * an omission. A read is bound by a policy on the table; the unique index
+     * is not. So in an installation that keeps its tenants apart with a policy
+     * and does not lift it for the callback, the claim meets the holder's row
+     * while a read for it returns nothing — and a refusal that believed the
+     * read would say the reference is free, in the one configuration where the
+     * boundary is doing the most work. Attributing the claim to the reference
+     * is right there, and the account and the reference are all the refusal
+     * ever names, so nothing of the holder's crosses either way.
+     *
+     * What it costs: a consumer's schema is a copy of the fragment that it may
+     * add to, and `saasicat schema check` reports what is missing rather than
+     * forbidding what was added. A unique key added to this table would have its
+     * conflict reported as a foreign reference.
+     * `DrizzleSubscriberPaymentMethodRepository` names its arbiter and does not
+     * share that limit; the two are recorded as differing rather than levelled.
      */
     private async claimReference(
         db: PaymentMethodPrisma,
@@ -152,26 +166,10 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
             data: [row],
             skipDuplicates: true,
         });
-        if (claimed) return claimed;
-        // The claim skips only against a row that committed, so the holder is
-        // there to be found — unless something other than the reference's key
-        // refused it.
-        const holder = await db.subscriberPaymentMethod.findUnique({
-            where: {
-                gatewayAccount_paymentMethodRef: {
-                    gatewayAccount: row.gatewayAccount,
-                    paymentMethodRef: row.paymentMethodRef,
-                },
-            },
-        });
-        if (!holder) {
-            throw new Error(
-                `Payment method '${row.paymentMethodRef}' of account '${row.gatewayAccount}' was not ` +
-                    'written, and no payment method holds that reference. Some other unique key on ' +
-                    'subscriber_payment_methods refused the row; the canonical schema has none that could.',
-            );
+        if (!claimed) {
+            throw new ForeignPaymentMethodReferenceError(row.gatewayAccount, row.paymentMethodRef);
         }
-        throw new ForeignPaymentMethodReferenceError(row.gatewayAccount, row.paymentMethodRef);
+        return claimed;
     }
 
     async findActive(

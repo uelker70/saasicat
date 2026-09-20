@@ -1,13 +1,17 @@
-// What the Prisma claim concludes when it writes nothing.
+// What the Prisma claim concludes when it writes nothing, and which way it errs.
 //
 // `skipDuplicates` is `ON CONFLICT DO NOTHING` with no conflict target — Prisma
-// has none to give — so it suppresses every unique key on the table rather than
-// the reference's alone. The canonical schema has no other key this claim could
-// meet, which is why a real database cannot produce the second case here: the
-// primary key is a uuid made in the adapter, and the partial index for a
-// subscriber's one ACTIVE payment method does not contain a REPLACED row. A
-// consumer's schema is a copy of the fragment that it may add to, so the case is
-// reachable there — and a fake client is the only way to stand in it.
+// has none to give — so the claim is attributed to the reference's key without
+// having been told that is the one it met. In the canonical schema that is
+// sound: the primary key is a uuid made in the adapter, and the partial index
+// for a subscriber's one ACTIVE payment method does not contain a REPLACED row.
+//
+// The case worth pinning is the one a real database cannot be made to show here:
+// a policy on the table hides the holder, so nothing the adapter can read says
+// the reference is taken, while the unique index — which no policy partitions —
+// refuses the row anyway. The claim must still be refused as foreign there,
+// because that is the configuration where the boundary is doing the most work.
+// A fake client is the only way to stand in a blinded read.
 
 // @requirement SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
 
@@ -34,63 +38,57 @@ const CONFIRMATION = {
 };
 
 /**
- * A client whose claim writes nothing, and which holds `heldBy` under the
- * reference — `null` for a table where something else refused the row.
+ * A client whose reads see nothing and whose claim writes nothing: a payment
+ * method holds the reference, and a policy keeps every read of this adapter's
+ * from it.
  */
-function clientThatClaimsNothing(heldBy) {
+function clientBlindToTheHolder() {
     const delegate = {
-        // The pre-read runs before the claim and finds nothing: a row hidden
-        // from it is exactly the case the claim exists to catch.
-        findUnique: async () => (delegate.reads++ === 0 ? null : heldBy),
+        findUnique: async () => null,
         findFirst: async () => null,
         findMany: async () => [],
         create: async () => assert.fail('the claim must not be a plain create'),
         createManyAndReturn: async () => [],
         update: async () => assert.fail('nothing is updated once the claim took no row'),
         updateMany: async () => ({ count: 0 }),
-        reads: 0,
     };
-    return {
+    const client = {
         subscriberPaymentMethod: delegate,
         subscriberPaymentMethodSetup: delegate,
         $queryRaw: async () => [{ id: CONFIRMATION.subscriberId }],
-        $transaction: (fn) =>
-            fn({
-                subscriberPaymentMethod: delegate,
-                $queryRaw: async () => [{ id: CONFIRMATION.subscriberId }],
-            }),
     };
+    return { ...client, $transaction: (work) => work(client) };
 }
 
 describe('a claim that takes no row', () => {
-    test('is refused as a foreign reference where another subscriber holds it', async () => {
-        const repository = new PrismaSubscriberPaymentMethodRepository(
-            clientThatClaimsNothing({
-                ...CONFIRMATION,
-                id: 'pm-1',
-                subscriberId: 'subscriber-holding',
-            }),
-        );
+    test('is refused as a foreign reference, and says nothing of the holder', async () => {
+        const repository = new PrismaSubscriberPaymentMethodRepository(clientBlindToTheHolder());
 
         await assert.rejects(repository.recordConfirmed(CONFIRMATION), (error) => {
             assert.ok(isForeignPaymentMethodReferenceError(error));
+            assert.equal(error.gatewayAccount, 'stripe-main');
             assert.equal(error.paymentMethodRef, 'pm_contested');
             return true;
         });
     });
 
-    test('says so plainly where nothing holds the reference, rather than naming a subscriber', async () => {
-        // Another unique key refused the row. Attributing that to a subscriber
-        // would be a sentence the adapter never checked.
-        const repository = new PrismaSubscriberPaymentMethodRepository(
-            clientThatClaimsNothing(null),
-        );
+    test('is refused without reading the holder back, because a policy can hide it', async () => {
+        // A read here would answer `null` in exactly this installation, and a
+        // refusal that believed it would report the reference as free.
+        const client = clientBlindToTheHolder();
+        let reads = 0;
+        client.subscriberPaymentMethod.findUnique = async () => {
+            reads += 1;
+            return null;
+        };
 
-        await assert.rejects(repository.recordConfirmed(CONFIRMATION), (error) => {
-            assert.ok(!isForeignPaymentMethodReferenceError(error));
-            assert.match(error.message, /no payment method holds that reference/);
-            assert.match(error.message, /some other unique key/i);
-            return true;
-        });
+        await assert.rejects(repository(client).recordConfirmed(CONFIRMATION), (error) =>
+            isForeignPaymentMethodReferenceError(error),
+        );
+        assert.equal(reads, 1, 'one read before the claim, and none after it');
     });
 });
+
+function repository(client) {
+    return new PrismaSubscriberPaymentMethodRepository(client);
+}

@@ -69,8 +69,8 @@ _Tested by:_
 
 - `packages/adapter-prisma/tests/a-claim-that-takes-no-row.test.js`
     - a claim that takes no row
-        - is refused as a foreign reference where another subscriber holds it
-        - says so plainly where nothing holds the reference, rather than naming a subscriber
+        - is refused as a foreign reference, and says nothing of the holder
+        - is refused without reading the holder back, because a policy can hide it
 - `packages/core/tests/a-reference-belongs-to-one-subscriber.test.js`
     - a reference the account already holds
         - is the subscriber that holds it reading its own back
