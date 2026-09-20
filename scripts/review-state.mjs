@@ -71,7 +71,7 @@ export function levelOf(body) {
  * moment of its head commit. Pure, so the decision can be broken on purpose and
  * seen to fail — a guard whose own failure nobody has watched is a guess.
  */
-export function assess({ reviews, comments, headAt }) {
+export function assess({ reviews, comments, headAt, author }) {
     const findings = comments.filter((c) => c.in_reply_to_id == null);
     const answers = new Map();
     for (const c of comments) {
@@ -93,11 +93,21 @@ export function assess({ reviews, comments, headAt }) {
     // The newest review by the moment it was submitted, not by the order the
     // API happened to return: a round that lands while another is being written
     // would otherwise decide the question by position.
+    // And not the author's own. Replying to a finding creates a review record
+    // with an empty body, so answering the last round would otherwise count as
+    // having been reviewed — the guard would go green on the one move that
+    // changes nothing about who has looked.
+    //
+    // Compared as moments, never as text: `git` writes the committer's offset
+    // and GitHub writes `Z`, so `11:04:10Z` sorts before `12:50:52+02:00` while
+    // being the later of the two. A round that had seen the head would then
+    // read as one that had not.
+    const at = (moment) => Date.parse(moment);
     const newest = reviews
-        .filter((review) => review.submitted_at)
+        .filter((review) => review.submitted_at && review.user?.login !== author)
         .reduce(
             (latest, review) =>
-                !latest || review.submitted_at > latest.submitted_at ? review : latest,
+                !latest || at(review.submitted_at) > at(latest.submitted_at) ? review : latest,
             null,
         );
 
@@ -109,7 +119,7 @@ export function assess({ reviews, comments, headAt }) {
         const levels = [...new Set(keptOpen.map((row) => row.level))].sort().join(', ');
         blockers.push(`${keptOpen.length} finding(s) at ${levels}`);
     }
-    if (!newest || newest.submitted_at <= headAt)
+    if (!newest || at(newest.submitted_at) <= at(headAt))
         blockers.push('no review newer than the head commit');
     return { rows, blockers };
 }
@@ -143,7 +153,15 @@ function main() {
         encoding: 'utf8',
     }).trim();
 
-    const { rows, blockers } = assess({ reviews, comments, headAt });
+    const author = execFileSync(
+        'gh',
+        ['pr', 'view', pr, '--json', 'author', '--jq', '.author.login'],
+        {
+            encoding: 'utf8',
+        },
+    ).trim();
+
+    const { rows, blockers } = assess({ reviews, comments, headAt, author });
 
     console.log(`${repo}#${pr} — head ${head.slice(0, 8)} of ${headAt}`);
     console.log(

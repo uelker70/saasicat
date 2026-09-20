@@ -27,7 +27,8 @@ const finding = (id, extra = {}) => ({
     ...extra,
 });
 const answer = (to, body) => ({ id: to * 10, in_reply_to_id: to, body, user: { login: 'me' } });
-const round = (at) => ({ submitted_at: at });
+const round = (at, login = 'reviewer') => ({ submitted_at: at, user: { login } });
+const AUTHOR = 'me';
 
 /** A pull request whose only variable is what the answers say. */
 const withAnswers = (...bodies) =>
@@ -35,6 +36,7 @@ const withAnswers = (...bodies) =>
         reviews: [round('2026-09-20T11:00:00Z')],
         comments: [finding(1), ...bodies.map((body) => answer(1, body))],
         headAt: HEAD_AT,
+        author: AUTHOR,
     });
 
 describe('what an answer declares', () => {
@@ -113,6 +115,31 @@ describe('what lets it close', () => {
             headAt: HEAD_AT,
         });
         assert.deepEqual(blockers, []);
+    });
+
+    test('a round is later or earlier by the moment, not by how the string reads', () => {
+        // `git` writes the committer's offset and GitHub writes `Z`. As text,
+        // `11:04:10Z` sorts before `12:50:52+02:00`; as moments it is fourteen
+        // minutes later, and it is the round that has seen the head.
+        const { blockers } = assess({
+            reviews: [round('2026-09-20T11:04:10Z')],
+            comments: [],
+            headAt: '2026-09-20T12:50:52+02:00',
+            author: AUTHOR,
+        });
+        assert.deepEqual(blockers, []);
+    });
+
+    test('the author answering the last round is not a round', () => {
+        // Replying to a finding creates a review record with an empty body. If
+        // that counted, every answer would close the loop it is answering.
+        const { blockers } = assess({
+            reviews: [round('2026-09-20T09:00:00Z'), round('2026-09-20T11:00:00Z', AUTHOR)],
+            comments: [finding(1), answer(1, 'P3: noted.')],
+            headAt: HEAD_AT,
+            author: AUTHOR,
+        });
+        assert.deepEqual(blockers, ['no review newer than the head commit']);
     });
 
     test('a review still being written decides nothing — it has no moment yet', () => {
