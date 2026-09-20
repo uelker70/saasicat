@@ -357,6 +357,14 @@ It reads the four places a round can speak from — reviews, inline review
 comments, issue comments and reactions — paginated, from the pull request's
 opening rather than from whenever the last round was requested.
 
+**Only the newest round decides whether another is owed.** The level of a finding
+does not change when it is fixed, so a `P2` answered three rounds ago still reads
+`P2`; what changed is that a later round looked and found nothing above `P3`.
+Counting every finding ever raised would hold the loop open for good, which is
+the unbounded loop the limit exists to prevent. Whether that newest round has
+seen the current head is reported and is deliberately not a blocker — a `P3` from
+the last round is fixed and merged without asking for another look.
+
 The part that costs something: **the answer to a finding names its level.** Codex
 prints a `P2` badge, a Claude review prints no level at all, and a level nobody
 wrote down is one somebody will recall differently later. So a reply under the

@@ -87,29 +87,34 @@ export function assess({ reviews, comments, headAt, author }) {
         };
     });
 
+    // The newest round by the moment it was submitted, not by the order the API
+    // returned it, and never the author's own: replying to a finding creates a
+    // review record with an empty body, so answering the last round would
+    // otherwise count as having been reviewed.
+    //
+    // Compared as moments, never as text. `git` writes the committer's offset
+    // and GitHub writes `Z`, so `11:04:10Z` sorts before `12:50:52+02:00` while
+    // being the later of the two.
+    const at = (moment) => Date.parse(moment);
+    const rounds = reviews.filter((r) => r.submitted_at && r.user?.login !== author);
+    const newest = rounds.reduce(
+        (latest, review) =>
+            !latest || at(review.submitted_at) > at(latest.submitted_at) ? review : latest,
+        null,
+    );
+
     const unanswered = rows.filter((row) => row.replies.length === 0);
     const unclassified = rows.filter((row) => row.replies.length > 0 && !row.level);
-    const keptOpen = rows.filter((row) => row.level && KEEPS_OPEN.has(row.level));
-    // The newest review by the moment it was submitted, not by the order the
-    // API happened to return: a round that lands while another is being written
-    // would otherwise decide the question by position.
-    // And not the author's own. Replying to a finding creates a review record
-    // with an empty body, so answering the last round would otherwise count as
-    // having been reviewed — the guard would go green on the one move that
-    // changes nothing about who has looked.
-    //
-    // Compared as moments, never as text: `git` writes the committer's offset
-    // and GitHub writes `Z`, so `11:04:10Z` sorts before `12:50:52+02:00` while
-    // being the later of the two. A round that had seen the head would then
-    // read as one that had not.
-    const at = (moment) => Date.parse(moment);
-    const newest = reviews
-        .filter((review) => review.submitted_at && review.user?.login !== author)
-        .reduce(
-            (latest, review) =>
-                !latest || at(review.submitted_at) > at(latest.submitted_at) ? review : latest,
-            null,
-        );
+    // Only the newest round decides whether another is owed. A P2 from three
+    // rounds ago was fixed, and its answer still says P2 — the level of a
+    // finding does not change when it is dealt with. What changes is that a
+    // later round looked and found nothing above P3. Counting the whole history
+    // would leave the loop open for good, which is the unbounded loop the round
+    // limit exists to prevent.
+    const latestFindings = newest
+        ? rows.filter((row) => row.finding.pull_request_review_id === newest.id)
+        : [];
+    const keptOpen = latestFindings.filter((row) => row.level && KEEPS_OPEN.has(row.level));
 
     const blockers = [];
     if (unanswered.length) blockers.push(`${unanswered.length} finding(s) with no answer`);
@@ -117,11 +122,16 @@ export function assess({ reviews, comments, headAt, author }) {
         blockers.push(`${unclassified.length} answer(s) naming no single level`);
     if (keptOpen.length) {
         const levels = [...new Set(keptOpen.map((row) => row.level))].sort().join(', ');
-        blockers.push(`${keptOpen.length} finding(s) at ${levels}`);
+        blockers.push(`the newest round raised ${keptOpen.length} finding(s) at ${levels}`);
     }
-    if (!newest || at(newest.submitted_at) <= at(headAt))
-        blockers.push('no review newer than the head commit');
-    return { rows, blockers };
+    if (!newest) blockers.push('nobody but the author has reviewed it');
+
+    // Not a blocker, and deliberately: a P3 from the last round is fixed and
+    // merged without asking for another look (CONTRIBUTING, "A review round is
+    // counted, not remembered"). Saying it is still worth something — it is the
+    // difference between "reviewed" and "reviewed at this commit".
+    const seenHead = Boolean(newest && at(newest.submitted_at) > at(headAt));
+    return { rows, blockers, newest, seenHead };
 }
 
 function main() {
@@ -161,7 +171,7 @@ function main() {
         },
     ).trim();
 
-    const { rows, blockers } = assess({ reviews, comments, headAt, author });
+    const { rows, blockers, seenHead } = assess({ reviews, comments, headAt, author });
 
     console.log(`${repo}#${pr} — head ${head.slice(0, 8)} of ${headAt}`);
     console.log(
@@ -173,6 +183,12 @@ function main() {
         const state = replies.length === 0 ? 'UNANSWERED' : (level ?? 'UNCLASSIFIED');
         console.log(`  ${state.padEnd(12)} ${where}  (${finding.user.login})`);
     }
+
+    console.log(
+        seenHead
+            ? '  the newest round has seen this head'
+            : '  the newest round is older than this head',
+    );
 
     const gate = flags.includes('--gate');
     if (blockers.length === 0) {
