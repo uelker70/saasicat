@@ -40,6 +40,11 @@ today is a property of the provider, not a promise of this platform's;
   refuses when the claim takes no row. That is now part of the port's contract:
   because the claim comes first, a refusal leaves the caller's transaction as it
   found it.
+- Where the store cannot say which key refused the claim — Prisma's
+  `skipDuplicates` names no conflict target — the adapter reads the reference
+  back before it attributes the refusal to a subscriber, and says plainly that
+  some other unique key refused the row when none holds it. The canonical
+  schema has no such key; a consumer's copy of the fragment may.
 - A gateway callback refused that way is logged at error level, naming the
   account, the reference and the subject the event was about. It still rolls the
   transaction back, so nothing durable would otherwise say why: by then the

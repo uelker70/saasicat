@@ -132,6 +132,17 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
      * payment method occupies may still be taken; `recordConfirmed` gives it
      * the status it keeps once the seat is free. Nothing outside the
      * transaction sees the difference.
+     *
+     * `skipDuplicates` names no conflict target — Prisma has none to give — so
+     * it suppresses **every** unique key on the table, not just the reference's.
+     * In the canonical schema that is the only one this claim can meet: the
+     * primary key is a uuid made here, and the partial index that gives a
+     * subscriber one `ACTIVE` payment method does not contain a `REPLACED` row.
+     * A consumer's schema is a copy of the fragment that it may add to, and
+     * `saasicat schema check` reports what is missing rather than forbidding
+     * what was added — so the cause is read back rather than assumed, and a
+     * claim refused by some other key says that instead of naming a subscriber
+     * it never looked for.
      */
     private async claimReference(
         db: PaymentMethodPrisma,
@@ -141,10 +152,26 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
             data: [row],
             skipDuplicates: true,
         });
-        if (!claimed) {
-            throw new ForeignPaymentMethodReferenceError(row.gatewayAccount, row.paymentMethodRef);
+        if (claimed) return claimed;
+        // The claim skips only against a row that committed, so the holder is
+        // there to be found — unless something other than the reference's key
+        // refused it.
+        const holder = await db.subscriberPaymentMethod.findUnique({
+            where: {
+                gatewayAccount_paymentMethodRef: {
+                    gatewayAccount: row.gatewayAccount,
+                    paymentMethodRef: row.paymentMethodRef,
+                },
+            },
+        });
+        if (!holder) {
+            throw new Error(
+                `Payment method '${row.paymentMethodRef}' of account '${row.gatewayAccount}' was not ` +
+                    'written, and no payment method holds that reference. Some other unique key on ' +
+                    'subscriber_payment_methods refused the row; the canonical schema has none that could.',
+            );
         }
-        return claimed;
+        throw new ForeignPaymentMethodReferenceError(row.gatewayAccount, row.paymentMethodRef);
     }
 
     async findActive(
