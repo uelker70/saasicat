@@ -49,6 +49,11 @@ today is a property of the provider, not a promise of this platform's;
   bound by a policy on the table while the unique index is not — an
   installation that does not lift its policy for the callback would then be
   told the reference is free.
+- `@saasicat/adapter-prisma` now needs **Prisma ORM 5.14 or newer**, and says so
+  as an optional `@prisma/client` peer range. The claim uses
+  `createManyAndReturn`, which arrived in 5.14; the client reaches the adapter
+  through a token and is typed structurally, so without the range an older one
+  would typecheck, boot, and fail on the first confirmed payment method.
 - A gateway callback refused that way is logged at error level, naming the
   account, the reference and the subject the event was about. It still rolls the
   transaction back, so nothing durable would otherwise say why: by then the

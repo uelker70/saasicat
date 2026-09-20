@@ -157,6 +157,13 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
      * conflict reported as a foreign reference.
      * `DrizzleSubscriberPaymentMethodRepository` names its arbiter and does not
      * share that limit; the two are recorded as differing rather than levelled.
+     *
+     * `createManyAndReturn` needs Prisma ORM 5.14 or newer, which is why the
+     * package declares `@prisma/client` as an optional peer with that floor:
+     * the client arrives through `PRISMA_CLIENT_TOKEN` and is typed
+     * structurally, so nothing else here would say so — an older client
+     * typechecks, boots, and raises `is not a function` on the first confirmed
+     * payment method, inside a gateway callback.
      */
     private async claimReference(
         db: PaymentMethodPrisma,

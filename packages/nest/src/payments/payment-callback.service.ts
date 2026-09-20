@@ -190,7 +190,16 @@ export class PaymentCallbackService {
      *
      * The gateway therefore retries until it gives up, and the claim rolls back
      * with everything else, so nothing durable is left to say why. This line is
-     * what says it. It names the account, the reference and the subject the
+     * what says it.
+     *
+     * There is no terminal state for it, and that is worth knowing before an
+     * operator waits for one: the webhook route has no filter for this, so every
+     * redelivery is answered `500`, for as long as the provider keeps trying. A
+     * provider that disables an endpoint after sustained failures would take the
+     * account's other callbacks with it. Giving the event an end would mean
+     * keeping the claim while undoing what the handler wrote, which needs a
+     * savepoint the port does not have — so it is named here rather than
+     * implied. It names the account, the reference and the subject the
      * event was about — never the subscriber the reference belongs to, which is
      * on the other side of the boundary being refused.
      */
