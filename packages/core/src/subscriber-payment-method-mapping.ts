@@ -134,8 +134,27 @@ export function refuseForeignPaymentMethodReference(
     subscriberId: string,
 ): void {
     if (recorded.subscriberId === subscriberId) return;
-    throw new Error(
-        `Payment method '${recorded.paymentMethodRef}' of account '${recorded.gatewayAccount}' ` +
+    throw foreignPaymentMethodReference(recorded.gatewayAccount, recorded.paymentMethodRef);
+}
+
+/**
+ * The same refusal where the row cannot be read.
+ *
+ * Two confirmations for one subscriber take turns on the lock that
+ * `recordConfirmed` holds, so the two that can reach the reference's unique key
+ * at the same time belong to two subscribers — and the one that loses learns of
+ * the other through the database rather than through a read. On PostgreSQL that
+ * error has already aborted its transaction, so there is nothing left to read
+ * with; an adapter turns what it caught into this.
+ *
+ * It costs nothing, because the sentence names no subscriber either way.
+ */
+export function foreignPaymentMethodReference(
+    gatewayAccount: string,
+    paymentMethodRef: string,
+): Error {
+    return new Error(
+        `Payment method '${paymentMethodRef}' of account '${gatewayAccount}' ` +
             'belongs to another subscriber. A reference belongs to exactly one, so it is not handed out.',
     );
 }

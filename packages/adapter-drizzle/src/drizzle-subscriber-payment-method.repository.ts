@@ -12,6 +12,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    foreignPaymentMethodReference,
     refuseForeignPaymentMethodReference,
     subscriberPaymentMethodColumns,
     toSubscriberPaymentMethodRecord,
@@ -62,10 +63,11 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                 .limit(1);
             const columns = { ...subscriberPaymentMethodColumns(data), id: randomUUID() };
             if (active && active.confirmedAt.getTime() > data.confirmedAt.getTime()) {
-                const [created] = await db
-                    .insert(subscriberPaymentMethods)
-                    .values({ ...columns, status: 'REPLACED', replacedAt: active.confirmedAt })
-                    .returning();
+                const created = await this.insert(db, {
+                    ...columns,
+                    status: 'REPLACED',
+                    replacedAt: active.confirmedAt,
+                });
                 return { method: toSubscriberPaymentMethodRecord(created), outcome: 'superseded' };
             }
             if (active) {
@@ -74,10 +76,11 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                     .set({ status: 'REPLACED', replacedAt: data.confirmedAt })
                     .where(eq(subscriberPaymentMethods.id, active.id));
             }
-            const [created] = await db
-                .insert(subscriberPaymentMethods)
-                .values({ ...columns, status: 'ACTIVE', replacedAt: null })
-                .returning();
+            const created = await this.insert(db, {
+                ...columns,
+                status: 'ACTIVE',
+                replacedAt: null,
+            });
             return { method: toSubscriberPaymentMethodRecord(created), outcome: 'activated' };
         });
     }
@@ -159,6 +162,21 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
         return completed.length === 1;
     }
 
+    /**
+     * Writes the row, or gives the reference's owner the refusal the read above
+     * gives — the read cannot see a row a concurrent transaction has not
+     * committed, and the unique key is what catches those.
+     */
+    private async insert(db: DrizzleClient, values: typeof subscriberPaymentMethods.$inferInsert) {
+        try {
+            const [created] = await db.insert(subscriberPaymentMethods).values(values).returning();
+            return created;
+        } catch (error) {
+            if (!violatesReferenceKey(error)) throw error;
+            throw foreignPaymentMethodReference(values.gatewayAccount, values.paymentMethodRef);
+        }
+    }
+
     private activeOf(subscriberId: string) {
         return and(
             eq(subscriberPaymentMethods.subscriberId, subscriberId),
@@ -172,4 +190,28 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
             eq(subscriberPaymentMethods.paymentMethodRef, paymentMethodRef),
         );
     }
+}
+
+/** The two columns the reference's unique key is on, read off the table rather than spelled again. */
+const REFERENCE_KEY_COLUMNS = [
+    subscriberPaymentMethods.gatewayAccount.name,
+    subscriberPaymentMethods.paymentMethodRef.name,
+];
+
+/**
+ * Whether PostgreSQL refused a write because the reference's unique key already
+ * holds the pair.
+ *
+ * Narrow on purpose: the table carries two other unique keys — its primary key,
+ * and the partial index that gives a subscriber one `ACTIVE` payment method —
+ * and neither means what this one means. Drizzle wraps the driver's error, so
+ * the code and the constraint are read off `cause`; the constraint is matched by
+ * the columns it is on rather than by its name, which a consumer's schema may
+ * spell differently. A violation this does not recognise is rethrown as it came.
+ */
+function violatesReferenceKey(error: unknown): boolean {
+    const driver = (error as { cause?: { code?: unknown; constraint?: unknown } } | null)?.cause;
+    if (driver?.code !== '23505') return false;
+    const constraint = String(driver.constraint ?? '');
+    return REFERENCE_KEY_COLUMNS.every((column) => constraint.includes(column));
 }

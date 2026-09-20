@@ -11,6 +11,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
+    foreignPaymentMethodReference,
     refuseForeignPaymentMethodReference,
     subscriberPaymentMethodColumns,
     toSubscriberPaymentMethodRecord,
@@ -84,12 +85,10 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
                 where: { subscriberId: data.subscriberId, status: 'ACTIVE' },
             });
             if (active && active.confirmedAt.getTime() > data.confirmedAt.getTime()) {
-                const created = await db.subscriberPaymentMethod.create({
-                    data: {
-                        ...subscriberPaymentMethodColumns(data),
-                        status: 'REPLACED',
-                        replacedAt: active.confirmedAt,
-                    },
+                const created = await this.insert(db, {
+                    ...subscriberPaymentMethodColumns(data),
+                    status: 'REPLACED',
+                    replacedAt: active.confirmedAt,
                 });
                 return { method: toSubscriberPaymentMethodRecord(created), outcome: 'superseded' };
             }
@@ -99,15 +98,30 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
                     data: { status: 'REPLACED', replacedAt: data.confirmedAt },
                 });
             }
-            const created = await db.subscriberPaymentMethod.create({
-                data: {
-                    ...subscriberPaymentMethodColumns(data),
-                    status: 'ACTIVE',
-                    replacedAt: null,
-                },
+            const created = await this.insert(db, {
+                ...subscriberPaymentMethodColumns(data),
+                status: 'ACTIVE',
+                replacedAt: null,
             });
             return { method: toSubscriberPaymentMethodRecord(created), outcome: 'activated' };
         });
+    }
+
+    /**
+     * Writes the row, or gives the reference's owner the refusal the read above
+     * gives — the read cannot see a row a concurrent transaction has not
+     * committed, and the unique key is what catches those.
+     */
+    private async insert(
+        db: PaymentMethodPrisma,
+        data: Omit<CanonicalSubscriberPaymentMethodRow, 'id' | 'createdAt'>,
+    ): Promise<CanonicalSubscriberPaymentMethodRow> {
+        try {
+            return await db.subscriberPaymentMethod.create({ data });
+        } catch (error) {
+            if (!violatesReferenceKey(error)) throw error;
+            throw foreignPaymentMethodReference(data.gatewayAccount, data.paymentMethodRef);
+        }
     }
 
     async findActive(
@@ -181,4 +195,24 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
         });
         return count === 1;
     }
+}
+
+/** The two columns the reference's unique key is on, as the canonical schema names them. */
+const REFERENCE_KEY_COLUMNS = ['gatewayAccount', 'paymentMethodRef'] as const;
+
+/**
+ * Whether Prisma refused a write because the reference's unique key already
+ * holds the pair.
+ *
+ * Narrow on purpose: the table carries two other unique keys — its primary key,
+ * and the partial index that gives a subscriber one `ACTIVE` payment method —
+ * and neither means what this one means. A violation this does not recognise is
+ * rethrown as it came, so a schema whose key is named otherwise keeps the
+ * database's own error rather than gaining a sentence that may be wrong.
+ */
+function violatesReferenceKey(error: unknown): boolean {
+    const known = error as { code?: unknown; meta?: { target?: unknown } } | null;
+    if (known?.code !== 'P2002') return false;
+    const target = String(known.meta?.target ?? '');
+    return REFERENCE_KEY_COLUMNS.every((column) => target.includes(column));
 }

@@ -186,7 +186,11 @@ maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    subscriber holds rather than answering `already-recorded` with that
    subscriber's row. Both are reached on the gateway's callback, which carries
    no tenant — an installation with a policy on the table lifts it there, and
-   what the question names is then all that bounds it.
+   what the question names is then all that bounds it. The lock `recordConfirmed`
+   holds is on the subscriber, so two subscribers confirming one reference at
+   once do not take turns and neither read sees the other; the reference's unique
+   key separates them, and the violation it raises is answered with that same
+   refusal rather than with the database's own error.
 
 ## Capability requirements
 

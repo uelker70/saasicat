@@ -95,6 +95,13 @@ export interface SubscriberPaymentMethodRepository {
      * hand its payment method to a caller acting for somebody else.
      * `refuseForeignPaymentMethodReference` is the refusal, so every
      * implementation gives it in the same words.
+     *
+     * Two subscribers can reach that reference at the same time: the lock is on
+     * the subscriber, so confirmations for two of them do not take turns, and a
+     * read sees nothing of a row the other has not committed. What separates
+     * them is the reference's unique key, and an implementation turns the
+     * violation it raises into the same refusal —
+     * `foreignPaymentMethodReference` builds it where there is no row to read.
      */
     recordConfirmed(
         data: RecordSubscriberPaymentMethodData,

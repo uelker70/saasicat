@@ -31,7 +31,10 @@ today is a property of the provider, not a promise of this platform's;
   answering `already-recorded` with that subscriber's payment method. The
   refusal is `refuseForeignPaymentMethodReference`, new in `@saasicat/core`, so
   every implementation gives it in the same words and names no subscriber the
-  caller is not acting for.
+  caller is not acting for. Two subscribers reaching one reference at the same
+  time are separated by its unique key rather than by the lock, which is on the
+  subscriber; both adapters answer that violation with the same refusal, which
+  `foreignPaymentMethodReference` builds where the row cannot be read.
 - Both shipped adapters put the subscriber into the statement rather than
   checking what came back, so a policy on the table and the query bound the
   read the same way. The persistence contract comes at the boundary from the
