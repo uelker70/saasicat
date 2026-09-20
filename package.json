@@ -21,6 +21,7 @@
         "release:version": "changeset version && node scripts/stamp-spec-version.mjs",
         "coverage": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs",
         "coverage:update": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs --update",
+        "review:state": "node scripts/review-state.mjs",
         "requirements": "node scripts/requirements/index.mjs",
         "requirements:update": "node scripts/requirements/index.mjs --write",
         "requirements:guard": "node scripts/requirements/guard.mjs",

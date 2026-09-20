@@ -336,12 +336,47 @@ OIDC token can publish but not tag, which is why this is not automated.
 The consumer-facing account of the break is [`docs/guides/upgrade-to-1.0.md`](docs/guides/upgrade-to-1.0.md);
 the codemod it names is `saasicat codemod v1`.
 
+## A review round is counted, not remembered
+
+Two rules govern a pull request's review rounds, and both were prose until they
+were broken in both directions on one afternoon — a round requested after a clean
+one, then three announcements that the loop was over after a round that had
+raised a P2.
+
+- **A round must come back with no P0, P1 or P2** before the loop ends. There is
+  no allowance: one is enough to keep it open.
+- **Nothing is merged while a finding is unanswered.** CI being green says
+  nothing about a comment that arrived after the last push.
+
+```bash
+pnpm run review:state 308           # what the pull request says about itself
+pnpm run review:state 308 --gate    # exits 1 unless it may be merged
+```
+
+It reads the four places a round can speak from — reviews, inline review
+comments, issue comments and reactions — paginated, from the pull request's
+opening rather than from whenever the last round was requested.
+
+The part that costs something: **the answer to a finding names its level.** Codex
+prints a `P2` badge, a Claude review prints no level at all, and a level nobody
+wrote down is one somebody will recall differently later. So a reply under the
+finding carries exactly one of `P0`–`P3`; two, or none, counts as a judgement
+that was not made and keeps the loop open. That is the same discipline a review
+table asks for, one level down, and it is what turns "the last round was fine"
+from a memory into a count.
+
+What it will not do is read a level out of a review body. A body is prose; an
+unclassified finding blocks instead, which asks for the judgement rather than
+inventing it.
+
 ## Commits and pull requests
 
 - Short, imperative subject line ("Add OTP lockout to registration"), body only
   when the _why_ isn't obvious.
 - One logical change per PR. Include the changeset when applicable.
-- A PR is mergeable when `build`, `test`, `lint`, and `typecheck` are green.
+- A PR is mergeable when `build`, `test`, `lint` and `typecheck` are green **and**
+  `pnpm run review:state <pr> --gate` passes — the checks and the findings are
+  different signals, and only one of them turns red by itself.
 - Reference related issues in the PR description.
 
 **Do not stack pull requests.** A stack is a branch cut from another branch that
