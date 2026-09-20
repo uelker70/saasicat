@@ -55,7 +55,7 @@ function catalogueWith(payments, planRepo = new FakePlanRepository()) {
 }
 
 /** The catalogue as an application wires it: the real modules, over in-memory stores. */
-async function bootedCatalogue({ payments = CARD_ONLY, withPayments = true, source } = {}) {
+async function bootedCatalogue({ payments = CARD_ONLY, withPayments = true, source = null } = {}) {
     const catalog = paymentsCatalog(payments);
     const imports = [PlanCatalogModule.forRootWithCatalog(catalog)];
     if (withPayments) {
@@ -85,7 +85,7 @@ async function bootedCatalogue({ payments = CARD_ONLY, withPayments = true, sour
                 guards: [],
                 currency: 'EUR',
                 vatRate: 19,
-                ...(source === undefined ? {} : { newPaymentMethodsFrom: source }),
+                newPaymentMethodsFrom: source,
             },
         }),
     );
@@ -153,8 +153,8 @@ describe('what the public catalogue says a payment method is taken with', () => 
         assert.deepEqual(catalogue.newPaymentMethods, { taken: true, methods: ['card'] });
     });
 
-    test('a catalogue wired without a source takes none, rather than guessing', async () => {
-        const service = await bootedCatalogue({ withPayments: false });
+    test('a catalogue told there is no source takes none', async () => {
+        const service = await bootedCatalogue({ withPayments: false, source: null });
 
         const catalogue = await service.getCatalog('de', 'EUR', 19);
 

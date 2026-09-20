@@ -7913,7 +7913,7 @@ _Tested by:_
         - a catalogue with no plan versions to show still answers it
         - neither the account nor its provider is in the answer
         - the registry reaches the catalogue in a wired application
-        - a catalogue wired without a source takes none, rather than guessing
+        - a catalogue told there is no source takes none
         - a source out of the catalogue’s scope refuses the boot instead of answering
 
 <!-- END proof -->

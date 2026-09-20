@@ -42,7 +42,7 @@ export function composeCatalog({ options, persistence }: CompositionContext): Dy
                 ...config.publicMarketingCatalog,
                 newPaymentMethodsFrom:
                     config.publicMarketingCatalog.newPaymentMethodsFrom ??
-                    (options.payments ? PaymentGatewayRegistry : undefined),
+                    (options.payments ? PaymentGatewayRegistry : null),
             },
         }),
     ];

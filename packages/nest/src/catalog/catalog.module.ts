@@ -63,6 +63,24 @@ import {
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
 
+/** What the auth-free pricing-page endpoint is mounted with. */
+export interface PublicMarketingCatalogOptions {
+    guards: Array<Type<CanActivate>>;
+    currency: string;
+    vatRate: number;
+    /**
+     * Where the catalogue reads what a new payment method is taken with —
+     * `PaymentGatewayRegistry` from `@saasicat/nest/payments` where the
+     * application wired payments, and `null` where nothing takes them.
+     *
+     * Required and nullable rather than optional, because leaving it out is not
+     * silence: the endpoint would publish that no payment method is taken,
+     * which is a claim, and an application whose form takes one would publish
+     * the opposite of what it does. `SaaSiCatModule` fills it from `payments`.
+     */
+    newPaymentMethodsFrom: Type<NewPaymentMethodsSource> | null;
+}
+
 export interface CatalogControllerConfig {
     /**
      * Class-level guards for `BundlesController` and `BundleVersionsController`.
@@ -107,22 +125,7 @@ export interface CatalogModuleOptions {
      *. Registered only when plan-, marketingProjection-
      * and promotionRepository are set. `guards` is usually `[]`.
      */
-    publicMarketingCatalog?: {
-        guards: Array<Type<CanActivate>>;
-        currency: string;
-        vatRate: number;
-        /**
-         * Where the catalogue reads what a new payment method is taken with —
-         * `PaymentGatewayRegistry` from `@saasicat/nest/payments`, where the
-         * application wired payments. `SaaSiCatModule` passes it for you.
-         *
-         * Left out, the catalogue publishes that no payment method is taken, so
-         * leave it out only where that is true: an application that takes
-         * payment methods and omits this tells every prospect the opposite of
-         * what its form does.
-         */
-        newPaymentMethodsFrom?: Type<NewPaymentMethodsSource>;
-    };
+    publicMarketingCatalog?: PublicMarketingCatalogOptions;
     /**
      * — adapter for `plans` master-record persistence.
      * Optional; if omitted, PlansService + controller are not

@@ -586,11 +586,13 @@ A website that offers the plans needs this before anybody reaches a form, so the
 carries it: `GET /public/marketing-catalog` answers `newPaymentMethods` with whether one is taken
 here at all and the methods that form offers, derived from the block above rather than written a
 second time on the website. The account and its provider stay inside. `SaaSiCatModule` wires the
-catalogue to read it whenever `payments` is configured; a `CatalogModule` you mount yourself is
-given `publicMarketingCatalog.newPaymentMethodsFrom: PaymentGatewayRegistry`, and one that cannot
-reach it refuses to start rather than publishing that no payment method is taken. Where your own
-sign-up route wants the same answer, `PaymentGatewayRegistry.forNewPaymentMethods()` from
-`@saasicat/nest/payments` is where the catalogue reads it.
+catalogue to read it whenever `payments` is configured. A `CatalogModule` you mount yourself is
+asked: `publicMarketingCatalog.newPaymentMethodsFrom` takes `PaymentGatewayRegistry`, or `null`
+where nothing takes payment methods — required rather than optional, because leaving it out would
+publish "none is taken", which is a claim and not silence. Pointed at a registry it cannot reach, it
+refuses to start rather than publishing that claim. Where your own sign-up route wants the same
+answer, `PaymentGatewayRegistry.forNewPaymentMethods()` from `@saasicat/nest/payments` is where the
+catalogue reads it.
 
 **An account's name and its provider are two different things**, and both have to line up with
 something. The name — `main` above — is yours to choose, and it is the last segment of that

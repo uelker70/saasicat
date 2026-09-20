@@ -25,12 +25,16 @@ not part of the answer. Which account it is and who keeps the payment method
 stay inside: a prospect is told that a card or a direct debit will be asked for,
 not where it is kept.
 
-`SaaSiCatModule` wires it wherever `payments` is configured. A `CatalogModule`
-mounted by hand takes it as
-`publicMarketingCatalog.newPaymentMethodsFrom: PaymentGatewayRegistry`; left
-out, the catalogue publishes that none is taken, and pointed at a registry it
-cannot reach, it refuses to start rather than publishing the same thing. Where
-your own sign-up route wants the answer in process,
+`SaaSiCatModule` wires it wherever `payments` is configured, so an application
+on the platform module has nothing to do. A `CatalogModule` mounted by hand is
+asked: `publicMarketingCatalog.newPaymentMethodsFrom` is **required** and takes
+`PaymentGatewayRegistry` or `null`. That is a compile error where the option was
+already passed, and it is deliberate — leaving it out is not silence, it
+publishes "no payment method is taken", and an application whose form takes one
+would publish the opposite of what it does. Pointed at a registry outside its
+scope, the catalogue refuses to start rather than publishing that claim.
+
+Where your own sign-up route wants the answer in process,
 `PaymentGatewayRegistry.forNewPaymentMethods()` from `@saasicat/nest/payments`
 is where the catalogue reads it.
 
