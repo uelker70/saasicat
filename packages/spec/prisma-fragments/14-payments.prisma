@@ -15,6 +15,14 @@
 // payment method, a partial unique index in sql/constraints.postgres.sql;
 // the one a newer payment method replaced stays as `REPLACED`.
 //
+// Within an account a reference belongs to exactly one subscriber, which is
+// what `@@unique([gatewayAccount, paymentMethodRef])` below holds. The port
+// draws the same boundary for reading: a confirmation carrying a reference
+// another subscriber holds is refused rather than recorded, and a read by
+// reference names the subscriber it asks about. Both are reached on the
+// gateway's callback, which arrives without a session — an installation that
+// keeps its tenants apart with a policy on this table lifts it there.
+//
 // Contract: @saasicat/core (SubscriberPaymentMethodRepository, PaymentEventLog).
 // Both are needed wherever payment methods are taken — self-registration or
 // not — because every gateway callback is claimed in `PaymentEventLog`.

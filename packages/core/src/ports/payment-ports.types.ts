@@ -4,6 +4,7 @@ import type {
     RecordSubscriberPaymentMethodData,
     RecordSubscriberPaymentMethodResult,
     SubscriberPaymentMethodRecord,
+    SubscriberPaymentMethodReference,
     SubscriberPaymentMethodSetupData,
     SubscriberPaymentMethodSetupMatch,
 } from '../subscriber-payment-method.types.js';
@@ -69,12 +70,31 @@ export interface PaymentEventLog {
  *
  * A subscriber has at most one `ACTIVE` payment method; the database holds
  * that, so two confirmations recorded at once for one subscriber end with one.
+ *
+ * **Within an account, a reference belongs to exactly one subscriber**, and
+ * keeps belonging to it once a newer payment method has replaced it. Every
+ * method that reaches a payment method therefore names the subscriber it is
+ * about, and an implementation answers about that one only. `accountsInUse` is
+ * the exception and says so at itself: it counts accounts rather than handing
+ * out a row.
+ *
+ * That matters on a gateway callback, which is where these are reached: it
+ * arrives without a session, so an installation that keeps its tenants apart
+ * with a policy lifts that policy for it, and what the question names is then
+ * all that bounds it.
  */
 export interface SubscriberPaymentMethodRepository {
     /**
      * Records a confirmed payment method for its subscriber, under a lock on the
      * subscriber so two confirmations take turns. See
      * `RecordSubscriberPaymentMethodOutcome` for the three outcomes.
+     *
+     * A confirmation carrying a reference **another** subscriber holds is a
+     * fourth case and has no outcome: it is refused, because the account's
+     * reference is that subscriber's and answering `already-recorded` would
+     * hand its payment method to a caller acting for somebody else.
+     * `refuseForeignPaymentMethodReference` is the refusal, so every
+     * implementation gives it in the same words.
      */
     recordConfirmed(
         data: RecordSubscriberPaymentMethodData,
@@ -86,15 +106,23 @@ export interface SubscriberPaymentMethodRepository {
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null>;
     /**
-     * The payment method an account's reference names, whatever its status.
+     * The payment method the reference names, whatever its status — and `null`
+     * when that subscriber holds none under it, which includes the case of
+     * another subscriber holding the reference.
      *
      * The one read that reaches a payment method a newer one replaced, which is
      * how `@saasicat/persistence-testing` verifies that an implementation keeps
      * the history rather than overwriting the row (`SC-PRIC-030`).
+     *
+     * The subscriber is what bounds the read. Without it an implementation
+     * would have only the account's reference to go on, which is unique
+     * account-wide: inside a tenant's context a policy would answer `null` and
+     * on a gateway callback, where that policy is lifted, the same call would
+     * answer with somebody else's row. One question, two answers by where it
+     * was asked, is what naming the subscriber removes.
      */
     findByReference(
-        gatewayAccount: string,
-        paymentMethodRef: string,
+        reference: SubscriberPaymentMethodReference,
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null>;
     /**

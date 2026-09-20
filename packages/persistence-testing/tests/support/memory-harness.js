@@ -9,6 +9,7 @@ import {
     ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
     formatCustomerNumber,
     identityCorrectionDelta,
+    refuseForeignPaymentMethodReference,
     subscriberPaymentMethodColumns,
 } from '@saasicat/core';
 
@@ -711,6 +712,7 @@ export function createMemoryHarness() {
                     row.paymentMethodRef === data.paymentMethodRef,
             );
             if (recorded) {
+                refuseForeignPaymentMethodReference(recorded, data.subscriberId);
                 return { method: structuredClone(recorded), outcome: 'already-recorded' };
             }
             const active = state.paymentMethods.find(
@@ -746,11 +748,12 @@ export function createMemoryHarness() {
             );
             return row ? structuredClone(row) : null;
         },
-        async findByReference(gatewayAccount, paymentMethodRef) {
+        async findByReference(reference) {
             const row = state.paymentMethods.find(
                 (candidate) =>
-                    candidate.gatewayAccount === gatewayAccount &&
-                    candidate.paymentMethodRef === paymentMethodRef,
+                    candidate.subscriberId === reference.subscriberId &&
+                    candidate.gatewayAccount === reference.gatewayAccount &&
+                    candidate.paymentMethodRef === reference.paymentMethodRef,
             );
             return row ? structuredClone(row) : null;
         },

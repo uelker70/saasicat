@@ -48,6 +48,33 @@ only reads that step outside a tenant's boundary.
 
 _Source:_ `docs/explanation/data-model.md`
 
+### SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
+
+🟢 🔒 Within a gateway account, the reference a payment method is kept under names one subscriber,
+and it keeps naming it after a newer payment method has replaced it. So asking for a payment method
+by its reference is asking whether a named subscriber holds it, and another subscriber is answered
+that it holds none rather than with the row; a confirmation carrying a reference another subscriber
+holds is refused, rather than recorded or answered as a repeat of a payment method that is not this
+subscriber's. Both are reached on the gateway's callback, which arrives without a session, so an
+installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-003`) and
+what the question names is all that is left to bound it. Where a provider issues one reference for
+two payers, the second subscriber's confirmation is refused rather than mixed into the first's
+(`SC-PRIC-030`): taking it needs an account of its own.
+
+_Source:_ #305
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-reference-belongs-to-one-subscriber.test.js`
+    - a reference the account already holds
+        - is the subscriber that holds it reading its own back
+        - is refused for any other subscriber, naming the reference and its account
+        - is refused in a message that does not name the subscriber holding it
+
+<!-- END proof -->
+
 ### SC-SEC-004 — Every decision that matters is made where the request is served
 
 🟢 🔒 The interface hides what would be refused. It is not what does the refusing.

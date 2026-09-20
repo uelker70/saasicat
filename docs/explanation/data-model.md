@@ -62,7 +62,7 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 | `CheckoutOffer` (`checkout_offers`)                                 | global, no RLS                                                  | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`.                                                                                                                                                                                                       |
 | `SubscriptionContract` + `ContractLineItem`                         | append-only                                                     | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten. Each line records its own `currency`, `taxRate` and `taxAmount`. A contract names its subscriber and copies both parties when it is concluded; `tenantId` is a trace, with no relation to the tenant. |
 | `Subscriber` (`subscribers`)                                        | customer number unique                                          | The party a contract is concluded with. One live tenant at most through `subscriber_tenants`, which keeps the tenants it had before; corrections of its legal identity in `subscriber_corrections`.                                                                                                                        |
-| `SubscriberPaymentMethod` (`subscriber_payment_methods`)            | gateway account + reference unique; one `ACTIVE` per subscriber | The gateway's reference to how a subscriber pays, with masked details only. The account that issued it is recorded beside it; the one a newer payment method replaced stays as `REPLACED`.                                                                                                                                 |
+| `SubscriberPaymentMethod` (`subscriber_payment_methods`)            | gateway account + reference unique; one `ACTIVE` per subscriber | The gateway's reference to how a subscriber pays, with masked details only. The account that issued it is recorded beside it; the one a newer payment method replaced stays as `REPLACED`. A reference belongs to one subscriber, and a read by it names whose (invariant 9).                                              |
 | `SubscriberPaymentMethodSetup` (`subscriber_payment_method_setups`) | gateway account + session unique                                | A change of payment method a tenant started. A confirmation is recorded only against the open setup whose account, session and subscriber it names, and completes it.                                                                                                                                                      |
 | `PaymentEventLog`                                                   | gateway account + `eventId` unique                              | Every gateway callback, claimed on the transaction that writes its effect (`claim`), so a rollback leaves it free for the gateway's retry.                                                                                                                                                                                 |
 | `SubscriptionBundle` (`subscription_bundles`)                       | booking identity                                                | Pins a standalone add-on booking to one concrete `BundleVersion`; runs its own billing window, aligned so its periods end on the day the plan's do; cancellation becomes effective at its stored cutoff.                                                                                                                   |
@@ -178,6 +178,15 @@ maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    each change at that write, not by the moment the row carries: the list is
    the order the record moved in, even where a delayed start's clock says
    otherwise.
+9. **A payment method's reference belongs to one subscriber.**
+   `(gatewayAccount, paymentMethodRef)` is unique account-wide, not per
+   subscriber, so `SubscriberPaymentMethodRepository` names the subscriber
+   wherever that key is used: `findByReference` answers only about the
+   subscriber it is given, and `recordConfirmed` refuses a reference another
+   subscriber holds rather than answering `already-recorded` with that
+   subscriber's row. Both are reached on the gateway's callback, which carries
+   no tenant — an installation with a policy on the table lifts it there, and
+   what the question names is then all that bounds it.
 
 ## Capability requirements
 

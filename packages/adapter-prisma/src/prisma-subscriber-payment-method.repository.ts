@@ -4,12 +4,17 @@ import type {
     RecordSubscriberPaymentMethodData,
     RecordSubscriberPaymentMethodResult,
     SubscriberPaymentMethodRecord,
+    SubscriberPaymentMethodReference,
     SubscriberPaymentMethodRepository,
     SubscriberPaymentMethodSetupData,
     SubscriberPaymentMethodSetupMatch,
     TransactionContext,
 } from '@saasicat/core';
-import { subscriberPaymentMethodColumns, toSubscriberPaymentMethodRecord } from '@saasicat/core';
+import {
+    refuseForeignPaymentMethodReference,
+    subscriberPaymentMethodColumns,
+    toSubscriberPaymentMethodRecord,
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
@@ -69,6 +74,7 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
                 },
             });
             if (recorded) {
+                refuseForeignPaymentMethodReference(recorded, data.subscriberId);
                 return {
                     method: toSubscriberPaymentMethodRecord(recorded),
                     outcome: 'already-recorded',
@@ -115,12 +121,19 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
     }
 
     async findByReference(
-        gatewayAccount: string,
-        paymentMethodRef: string,
+        reference: SubscriberPaymentMethodReference,
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null> {
-        const row = await this.db(tx).subscriberPaymentMethod.findUnique({
-            where: { gatewayAccount_paymentMethodRef: { gatewayAccount, paymentMethodRef } },
+        // `findFirst` over the unique key plus the subscriber, rather than
+        // `findUnique` and a check on what came back: the subscriber belongs in
+        // the statement, so a policy on the table and this predicate bound the
+        // same read the same way.
+        const row = await this.db(tx).subscriberPaymentMethod.findFirst({
+            where: {
+                subscriberId: reference.subscriberId,
+                gatewayAccount: reference.gatewayAccount,
+                paymentMethodRef: reference.paymentMethodRef,
+            },
         });
         return row ? toSubscriberPaymentMethodRecord(row) : null;
     }

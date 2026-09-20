@@ -477,7 +477,11 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
             'pm_of_the_other_tenant',
         );
         assert.equal(
-            await ctx.methods.findByReference(MAIN_ACCOUNT, 'pm_wrongly_attributed'),
+            await ctx.methods.findByReference({
+                subscriberId: other.id,
+                gatewayAccount: MAIN_ACCOUNT,
+                paymentMethodRef: 'pm_wrongly_attributed',
+            }),
             null,
         );
         assert.equal(ctx.methods.setups[0].completedAt, null, "tenant-1's setup was used up");

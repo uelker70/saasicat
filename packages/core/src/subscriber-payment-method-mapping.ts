@@ -104,3 +104,38 @@ function oneOf<T extends string>(
     }
     return match;
 }
+
+/**
+ * Refuses a reference of `gatewayAccount` that another subscriber holds.
+ *
+ * `(gatewayAccount, paymentMethodRef)` is unique account-wide rather than per
+ * subscriber, so a read by reference reaches whichever subscriber holds it.
+ * That key is also what makes the reference one subscriber's for good — the
+ * second row cannot be written — and this is where the same boundary is drawn
+ * for the read: a confirmation carrying a reference somebody else holds is
+ * refused, rather than answered as the duplicate of a payment method that is
+ * not this subscriber's. It is refused on a gateway callback, which arrives
+ * without a session and with the tenant policy lifted, so nothing else there
+ * bounds the question.
+ *
+ * That a provider issues a reference once per payer is a property of that
+ * provider and no promise of this platform's, which is why the condition is
+ * checked rather than assumed.
+ *
+ * The message names neither the subscriber that holds the reference nor the
+ * tenant behind it: whoever reads the log of the refused confirmation is on
+ * the other side of the boundary this refusal draws.
+ */
+export function refuseForeignPaymentMethodReference(
+    recorded: Pick<
+        CanonicalSubscriberPaymentMethodRow,
+        'subscriberId' | 'gatewayAccount' | 'paymentMethodRef'
+    >,
+    subscriberId: string,
+): void {
+    if (recorded.subscriberId === subscriberId) return;
+    throw new Error(
+        `Payment method '${recorded.paymentMethodRef}' of account '${recorded.gatewayAccount}' ` +
+            'belongs to another subscriber. A reference belongs to exactly one, so it is not handed out.',
+    );
+}

@@ -5,12 +5,17 @@ import type {
     RecordSubscriberPaymentMethodData,
     RecordSubscriberPaymentMethodResult,
     SubscriberPaymentMethodRecord,
+    SubscriberPaymentMethodReference,
     SubscriberPaymentMethodRepository,
     SubscriberPaymentMethodSetupData,
     SubscriberPaymentMethodSetupMatch,
     TransactionContext,
 } from '@saasicat/core';
-import { subscriberPaymentMethodColumns, toSubscriberPaymentMethodRecord } from '@saasicat/core';
+import {
+    refuseForeignPaymentMethodReference,
+    subscriberPaymentMethodColumns,
+    toSubscriberPaymentMethodRecord,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { subscriberPaymentMethodSetups, subscriberPaymentMethods, subscribers } from './schema.js';
 
@@ -44,6 +49,7 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                 .where(this.byReference(data.gatewayAccount, data.paymentMethodRef))
                 .limit(1);
             if (recorded) {
+                refuseForeignPaymentMethodReference(recorded, data.subscriberId);
                 return {
                     method: toSubscriberPaymentMethodRecord(recorded),
                     outcome: 'already-recorded',
@@ -89,14 +95,21 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
     }
 
     async findByReference(
-        gatewayAccount: string,
-        paymentMethodRef: string,
+        reference: SubscriberPaymentMethodReference,
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null> {
+        // The subscriber is part of the predicate rather than a check on what
+        // came back, so a policy on the table and this statement bound the same
+        // read the same way.
         const [row] = await resolveDb(this.db, tx)
             .select()
             .from(subscriberPaymentMethods)
-            .where(this.byReference(gatewayAccount, paymentMethodRef))
+            .where(
+                and(
+                    eq(subscriberPaymentMethods.subscriberId, reference.subscriberId),
+                    this.byReference(reference.gatewayAccount, reference.paymentMethodRef),
+                ),
+            )
             .limit(1);
         return row ? toSubscriberPaymentMethodRecord(row) : null;
     }
