@@ -49,3 +49,11 @@ export const CATALOG_SERVICE_CONFIG_TOKEN = Symbol.for('saasicat/nest/CatalogSer
 export const CATALOG_FEATURE_UI_REGISTRY_TOKEN = Symbol.for(
     'saasicat/nest/CatalogFeatureUiRegistry',
 );
+
+/**
+ * Where the public catalogue reads what a new payment method is taken with —
+ * `PaymentGatewayRegistry` where the application wired payments, and `null`
+ * where it did not. Always provided, so a catalogue that answers the question
+ * cannot be wired without an answer to it.
+ */
+export const NEW_PAYMENT_METHODS_SOURCE_TOKEN = Symbol.for('saasicat/nest/NewPaymentMethodsSource');

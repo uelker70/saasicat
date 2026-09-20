@@ -119,7 +119,7 @@ properties it has while doing it.
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 24      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 25      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 24      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 485 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 486 entries: 🟢 414 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -210,7 +210,7 @@ Of 485 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 485 requirements. Do not edit by hand:
+Generated from `requirements/` — 486 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -7881,6 +7881,42 @@ _Tested by:_
 🟢 The frozen selection is visible to them, unchanged, in their own self-service.
 
 _Source:_ release 1.0.0-rc.6
+
+### SC-MKT-025 — The public catalogue says what a new payment method is taken with
+
+🟢 A page that offers the plans can say what will be asked for before anybody reaches a form: the
+public catalogue answers whether this installation takes a new payment method at all, and the
+methods that form offers, in the order the installation names them. It is derived from the account
+`config/saas.yaml#payments.newPaymentMethods` names and the gateway bound for it, rather than kept a
+second time on the website — so a page that says "no payment method is taken" keeps saying it only
+while it is true. The catalogue is told where to read that answer when it is wired, and a wiring
+that cannot reach it refuses to start rather than publishing that none is taken. Which account it is
+and who keeps the payment method stay inside: a prospect is told that a card or a direct debit will
+be asked for, not where it is kept.
+
+_Source:_ #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/platform-composition.test.js`
+    - the catalogue composer
+        - a catalogue beside payments reads them from the gateway registry
+        - a catalogue without payments is told that none are taken, not left to guess
+- `packages/nest/tests/the-public-catalogue-says-what-a-payment-method-is-taken-with.test.js`
+    - what the public catalogue says a payment method is taken with
+        - an installation that takes none says so
+        - an account that takes new payment methods answers with the methods it offers
+        - the methods keep the order the installation names them in
+        - a gateway bound for an account that takes no new ones takes none
+        - a catalogue with no plan versions to show still answers it
+        - neither the account nor its provider is in the answer
+        - the registry reaches the catalogue in a wired application
+        - a catalogue told there is no source takes none
+        - a source out of the catalogue’s scope refuses the boot instead of answering
+
+<!-- END proof -->
 
 ## 14. Administration and access to it
 

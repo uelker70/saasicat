@@ -41,7 +41,10 @@ import { PromotionsService } from './promotions.service.js';
 import { buildPromotionsController } from './promotions.controller.js';
 import { MarketingSettingsService } from './marketing-settings.service.js';
 import { buildMarketingSettingsController } from './marketing-settings.controller.js';
-import { PublicMarketingCatalogService } from './public-marketing-catalog.service.js';
+import {
+    PublicMarketingCatalogService,
+    type NewPaymentMethodsSource,
+} from './public-marketing-catalog.service.js';
 import { buildPublicMarketingCatalogController } from './public-marketing-catalog.controller.js';
 import { MarketingProjectionsService } from './marketing-projections.service.js';
 import { buildMarketingProjectionsController } from './marketing-projections.controller.js';
@@ -55,9 +58,28 @@ import {
     CATALOG_FEATURE_UI_REGISTRY_TOKEN,
     MARKETING_PROJECTION_REPOSITORY_TOKEN,
     MARKETING_SETTINGS_REPOSITORY_TOKEN,
+    NEW_PAYMENT_METHODS_SOURCE_TOKEN,
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from './catalog.tokens.js';
+
+/** What the auth-free pricing-page endpoint is mounted with. */
+export interface PublicMarketingCatalogOptions {
+    guards: Array<Type<CanActivate>>;
+    currency: string;
+    vatRate: number;
+    /**
+     * Where the catalogue reads what a new payment method is taken with —
+     * `PaymentGatewayRegistry` from `@saasicat/nest/payments` where the
+     * application wired payments, and `null` where nothing takes them.
+     *
+     * Required and nullable rather than optional, because leaving it out is not
+     * silence: the endpoint would publish that no payment method is taken,
+     * which is a claim, and an application whose form takes one would publish
+     * the opposite of what it does. `SaaSiCatModule` fills it from `payments`.
+     */
+    newPaymentMethodsFrom: Type<NewPaymentMethodsSource> | null;
+}
 
 export interface CatalogControllerConfig {
     /**
@@ -103,11 +125,7 @@ export interface CatalogModuleOptions {
      *. Registered only when plan-, marketingProjection-
      * and promotionRepository are set. `guards` is usually `[]`.
      */
-    publicMarketingCatalog?: {
-        guards: Array<Type<CanActivate>>;
-        currency: string;
-        vatRate: number;
-    };
+    publicMarketingCatalog?: PublicMarketingCatalogOptions;
     /**
      * — adapter for `plans` master-record persistence.
      * Optional; if omitted, PlansService + controller are not
@@ -203,6 +221,18 @@ export class CatalogModule {
         }
 
         const providers: Provider[] = [
+            // Always provided, `null` included: the service asks for it without
+            // `@Optional()`, so a catalogue that publishes the answer cannot be
+            // wired without one. `useExisting` rather than an instance, because
+            // the source is a provider of the module the application wired for
+            // payments — and where that module is out of scope, Nest says so at
+            // boot instead of answering "no payment method is taken".
+            options.publicMarketingCatalog?.newPaymentMethodsFrom
+                ? {
+                      provide: NEW_PAYMENT_METHODS_SOURCE_TOKEN,
+                      useExisting: options.publicMarketingCatalog.newPaymentMethodsFrom,
+                  }
+                : { provide: NEW_PAYMENT_METHODS_SOURCE_TOKEN, useValue: null },
             asProvider(BUNDLE_REPOSITORY_TOKEN, options.bundleRepository),
             {
                 provide: CATALOG_SERVICE_CONFIG_TOKEN,

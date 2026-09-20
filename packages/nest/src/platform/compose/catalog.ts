@@ -3,6 +3,7 @@ import type { SaaSiCatPersistenceAdapter } from '@saasicat/core';
 
 import { PublicCatalogModule } from '../../billing/public-catalog.module.js';
 import { CatalogModule } from '../../catalog/catalog.module.js';
+import { PaymentGatewayRegistry } from '../../payments/payment-gateway-registry.js';
 
 import { operatorGuards, type CompositionContext } from './context.js';
 
@@ -34,7 +35,15 @@ export function composeCatalog({ options, persistence }: CompositionContext): Dy
             autoSyncDiscoveryAtBoot: config.autoSyncDiscoveryAtBoot,
             marketedOnlyFeatures: config.marketedOnlyFeatures,
             featureUiRegistry: config.featureUiRegistry,
-            publicMarketingCatalog: config.publicMarketingCatalog,
+            // What the public catalogue says about payment methods comes from
+            // the same option that wires the gateways, so the two cannot
+            // disagree: no `payments`, nothing takes new payment methods.
+            publicMarketingCatalog: config.publicMarketingCatalog && {
+                ...config.publicMarketingCatalog,
+                newPaymentMethodsFrom:
+                    config.publicMarketingCatalog.newPaymentMethodsFrom ??
+                    (options.payments ? PaymentGatewayRegistry : null),
+            },
         }),
     ];
 

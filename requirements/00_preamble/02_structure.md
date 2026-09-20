@@ -87,7 +87,7 @@ properties it has while doing it.
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 24      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 25      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 24      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 485 entries: 🟢 413 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 486 entries: 🟢 414 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

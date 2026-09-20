@@ -49,6 +49,14 @@ with `checkoutUrl`, where you send the person; a missing or malformed detail is 
 gateway
 is asked. Nothing is activated when the form opens.
 
+What this step will ask for is what a page offering the plans has to know before it promises
+anything: `GET /public/marketing-catalog` answers `newPaymentMethods` with `taken` and the `methods`
+the form offers — the account this step goes to, read from the installation. One that names no
+account for new payment methods, or runs without payments, answers `taken: false`, so a sign-up
+screen saying "no payment method is taken" stops saying it the day a gateway is bound rather than
+the day somebody notices. It says what the installation takes, not whether you run a sign-up at
+all: that is your own wiring, and this guide is where you decided it.
+
 The gateway confirms the payment method through its callback to
 `POST /webhooks/payment/<account>`. The platform verifies it, claims it and activates the sign-up on
 **one transaction**: it opens it, claims the confirmation on it, and hands it to your orchestrator

@@ -13,7 +13,9 @@ import {
     composeFeatures,
     composeModuleExports,
 } from '../dist/platform/index.js';
+import { NEW_PAYMENT_METHODS_SOURCE_TOKEN } from '../dist/catalog/index.js';
 import { DISCOVERY_APP_INFO_TOKEN } from '../dist/discovery/index.js';
+import { PaymentGatewayRegistry } from '../dist/payments/index.js';
 import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/index.js';
 
 // Two properties the decomposition exists to keep, asked as behaviour.
@@ -277,6 +279,38 @@ describe('the catalogue composer', () => {
     test('and by default mounts both', () => {
         const names = composeFeatures(everythingOn()).map((m) => m.module.name);
         assert.ok(names.includes('PublicCatalogModule'));
+    });
+
+    /** Where the mounted catalogue reads what a new payment method is taken with. */
+    function newPaymentMethodsSource(ctx) {
+        const catalog = composeFeatures(ctx).find((m) => m.module.name === 'CatalogModule');
+        const provider = catalog.providers.find(
+            (p) => p.provide === NEW_PAYMENT_METHODS_SOURCE_TOKEN,
+        );
+        return provider.useExisting ?? provider.useValue;
+    }
+
+    /** A catalogue that publishes the public projection, with payments on or off. */
+    function withPublicMarketing({ payments }) {
+        const ctx = everythingOn();
+        ctx.options.catalog = {
+            publicMarketingCatalog: { guards: [], currency: 'EUR', vatRate: 19 },
+        };
+        if (payments) ctx.options.payments = { gateways: {} };
+        return ctx;
+    }
+
+    // @requirement SC-MKT-025 — The public catalogue says what a new payment method is taken with
+    test('a catalogue beside payments reads them from the gateway registry', () => {
+        assert.equal(
+            newPaymentMethodsSource(withPublicMarketing({ payments: true })),
+            PaymentGatewayRegistry,
+        );
+    });
+
+    // @requirement SC-MKT-025 — The public catalogue says what a new payment method is taken with
+    test('a catalogue without payments is told that none are taken, not left to guess', () => {
+        assert.equal(newPaymentMethodsSource(withPublicMarketing({ payments: false })), null);
     });
 });
 

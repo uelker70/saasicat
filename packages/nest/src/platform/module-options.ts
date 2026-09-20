@@ -53,7 +53,11 @@ import {
     type SubscriptionBundleModuleOptions,
 } from '../billing/subscription-bundles.module.js';
 import { type TenantBillingModuleOptions } from '../billing/tenant-billing.module.js';
-import { type CatalogModuleOptions } from '../catalog/catalog.module.js';
+import {
+    type CatalogModuleOptions,
+    type PublicMarketingCatalogOptions,
+} from '../catalog/catalog.module.js';
+import { type NewPaymentMethodsSource } from '../catalog/public-marketing-catalog.service.js';
 import type { DiscoveryAppInfo } from '../discovery/discovery.scanner.js';
 import type { LoadPlanCatalogOptions } from '../billing/plan-catalog-loader.js';
 import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution.js';
@@ -126,12 +130,18 @@ type PlatformImports = Array<
 
 export interface SaaSiCatCatalogOptions extends Pick<
     CatalogModuleOptions,
-    | 'strictModeCheckMode'
-    | 'autoSyncDiscoveryAtBoot'
-    | 'marketedOnlyFeatures'
-    | 'publicMarketingCatalog'
-    | 'extraProviders'
+    'strictModeCheckMode' | 'autoSyncDiscoveryAtBoot' | 'marketedOnlyFeatures' | 'extraProviders'
 > {
+    /**
+     * The auth-free pricing-page endpoint. Unlike `CatalogModule`'s own option,
+     * `newPaymentMethodsFrom` is left out here: it is filled from `payments`,
+     * so the endpoint and the gateways cannot disagree. Naming a source
+     * overrides that; there is no way to say "none" here, because `payments`
+     * says it already.
+     */
+    publicMarketingCatalog?: Omit<PublicMarketingCatalogOptions, 'newPaymentMethodsFrom'> & {
+        newPaymentMethodsFrom?: Type<NewPaymentMethodsSource>;
+    };
     /** Labels/icons used by discovery review and the public catalog. */
     featureUiRegistry: FeatureUiRegistry;
     /** Mount the SuperAdmin catalog controllers. Default `true`. */
