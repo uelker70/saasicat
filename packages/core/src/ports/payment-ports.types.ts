@@ -90,18 +90,25 @@ export interface SubscriberPaymentMethodRepository {
      * `RecordSubscriberPaymentMethodOutcome` for the three outcomes.
      *
      * A confirmation carrying a reference **another** subscriber holds is a
-     * fourth case and has no outcome: it is refused, because the account's
-     * reference is that subscriber's and answering `already-recorded` would
-     * hand its payment method to a caller acting for somebody else.
-     * `refuseForeignPaymentMethodReference` is the refusal, so every
-     * implementation gives it in the same words.
+     * fourth case and has no outcome: it is refused with
+     * `ForeignPaymentMethodReferenceError`, because the account's reference is
+     * that subscriber's and answering `already-recorded` would hand its payment
+     * method to a caller acting for somebody else.
      *
      * Two subscribers can reach that reference at the same time: the lock is on
      * the subscriber, so confirmations for two of them do not take turns, and a
-     * read sees nothing of a row the other has not committed. What separates
-     * them is the reference's unique key, and an implementation turns the
-     * violation it raises into the same refusal —
-     * `foreignPaymentMethodReference` builds it where there is no row to read.
+     * read sees nothing of a row the other has not committed. Reading is
+     * therefore not enough to decide it. **Claim the reference with the first
+     * write, conflict-free** — `ON CONFLICT DO NOTHING` on its unique key, or
+     * whatever the store spells that as — and refuse when the claim takes no
+     * row. Both shipped adapters do exactly that, and it is what lets the
+     * refusal say the same thing everywhere: the key decides, not an error
+     * whose shape belongs to one driver.
+     *
+     * The order is part of the contract, not an implementation detail. Because
+     * the claim is the first write, a refusal leaves the caller's transaction
+     * as it found it — nothing to undo, and nothing that makes it unusable.
+     * An implementation that writes before it claims cannot promise that.
      */
     recordConfirmed(
         data: RecordSubscriberPaymentMethodData,

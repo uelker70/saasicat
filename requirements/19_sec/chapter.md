@@ -72,6 +72,15 @@ _Tested by:_
         - is the subscriber that holds it reading its own back
         - is refused for any other subscriber, naming the reference and its account
         - is refused in a message that does not name the subscriber holding it
+        - is refused with the account and the reference beside the sentence
+    - the refusal as a caller recognises it
+        - is recognised, also from another copy of the class
+        - is told apart from every other failure of a write
+        - is what an implementation raises where the key refuses the row
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - a confirmation naming a reference another subscriber holds records nothing, and says so
+          once
 
 <!-- END proof -->
 

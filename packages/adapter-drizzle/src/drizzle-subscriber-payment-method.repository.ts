@@ -12,7 +12,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
-    foreignPaymentMethodReference,
+    ForeignPaymentMethodReferenceError,
     refuseForeignPaymentMethodReference,
     subscriberPaymentMethodColumns,
     toSubscriberPaymentMethodRecord,
@@ -53,7 +53,7 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                 refuseForeignPaymentMethodReference(recorded, data.subscriberId);
                 return {
                     method: toSubscriberPaymentMethodRecord(recorded),
-                    outcome: 'already-recorded',
+                    outcome: 'already-recorded' as const,
                 };
             }
             const [active] = await db
@@ -61,14 +61,23 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                 .from(subscriberPaymentMethods)
                 .where(this.activeOf(data.subscriberId))
                 .limit(1);
-            const columns = { ...subscriberPaymentMethodColumns(data), id: randomUUID() };
-            if (active && active.confirmedAt.getTime() > data.confirmedAt.getTime()) {
-                const created = await this.insert(db, {
-                    ...columns,
-                    status: 'REPLACED',
-                    replacedAt: active.confirmedAt,
-                });
-                return { method: toSubscriberPaymentMethodRecord(created), outcome: 'superseded' };
+            // A confirmation that arrived late: the payment method in use was
+            // confirmed after this one, so this one is filed as already replaced.
+            const replacedOnArrival =
+                active && active.confirmedAt.getTime() > data.confirmedAt.getTime()
+                    ? active.confirmedAt
+                    : null;
+            const claimed = await this.claimReference(db, {
+                ...subscriberPaymentMethodColumns(data),
+                id: randomUUID(),
+                status: 'REPLACED',
+                replacedAt: replacedOnArrival ?? data.confirmedAt,
+            });
+            if (replacedOnArrival) {
+                return {
+                    method: toSubscriberPaymentMethodRecord(claimed),
+                    outcome: 'superseded' as const,
+                };
             }
             if (active) {
                 await db
@@ -76,13 +85,54 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                     .set({ status: 'REPLACED', replacedAt: data.confirmedAt })
                     .where(eq(subscriberPaymentMethods.id, active.id));
             }
-            const created = await this.insert(db, {
-                ...columns,
-                status: 'ACTIVE',
-                replacedAt: null,
-            });
-            return { method: toSubscriberPaymentMethodRecord(created), outcome: 'activated' };
+            const [inUse] = await db
+                .update(subscriberPaymentMethods)
+                .set({ status: 'ACTIVE', replacedAt: null })
+                .where(eq(subscriberPaymentMethods.id, claimed.id))
+                .returning();
+            return {
+                method: toSubscriberPaymentMethodRecord(inUse),
+                outcome: 'activated' as const,
+            };
         });
+    }
+
+    /**
+     * Takes the reference for this subscriber, or refuses it to them.
+     *
+     * The first write of the three, and the only one that can be refused — so a
+     * refusal leaves the caller's transaction as it found it, whichever way the
+     * caller opened it. `onConflictDoNothing` on the reference's own columns is
+     * what answers: the row the read above could not see, because the
+     * transaction holding it had not committed, is waited for here rather than
+     * raised as a driver error, which every driver spells differently.
+     *
+     * It is written `REPLACED` because the seat a subscriber's one `ACTIVE`
+     * payment method occupies may still be taken; `recordConfirmed` gives it
+     * the status it keeps once the seat is free. Nothing outside the
+     * transaction sees the difference.
+     */
+    private async claimReference(
+        db: DrizzleClient,
+        values: typeof subscriberPaymentMethods.$inferInsert,
+    ) {
+        const [claimed] = await db
+            .insert(subscriberPaymentMethods)
+            .values(values)
+            .onConflictDoNothing({
+                target: [
+                    subscriberPaymentMethods.gatewayAccount,
+                    subscriberPaymentMethods.paymentMethodRef,
+                ],
+            })
+            .returning();
+        if (!claimed) {
+            throw new ForeignPaymentMethodReferenceError(
+                values.gatewayAccount,
+                values.paymentMethodRef,
+            );
+        }
+        return claimed;
     }
 
     async findActive(
@@ -162,21 +212,6 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
         return completed.length === 1;
     }
 
-    /**
-     * Writes the row, or gives the reference's owner the refusal the read above
-     * gives — the read cannot see a row a concurrent transaction has not
-     * committed, and the unique key is what catches those.
-     */
-    private async insert(db: DrizzleClient, values: typeof subscriberPaymentMethods.$inferInsert) {
-        try {
-            const [created] = await db.insert(subscriberPaymentMethods).values(values).returning();
-            return created;
-        } catch (error) {
-            if (!violatesReferenceKey(error)) throw error;
-            throw foreignPaymentMethodReference(values.gatewayAccount, values.paymentMethodRef);
-        }
-    }
-
     private activeOf(subscriberId: string) {
         return and(
             eq(subscriberPaymentMethods.subscriberId, subscriberId),
@@ -190,28 +225,4 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
             eq(subscriberPaymentMethods.paymentMethodRef, paymentMethodRef),
         );
     }
-}
-
-/** The two columns the reference's unique key is on, read off the table rather than spelled again. */
-const REFERENCE_KEY_COLUMNS = [
-    subscriberPaymentMethods.gatewayAccount.name,
-    subscriberPaymentMethods.paymentMethodRef.name,
-];
-
-/**
- * Whether PostgreSQL refused a write because the reference's unique key already
- * holds the pair.
- *
- * Narrow on purpose: the table carries two other unique keys — its primary key,
- * and the partial index that gives a subscriber one `ACTIVE` payment method —
- * and neither means what this one means. Drizzle wraps the driver's error, so
- * the code and the constraint are read off `cause`; the constraint is matched by
- * the columns it is on rather than by its name, which a consumer's schema may
- * spell differently. A violation this does not recognise is rethrown as it came.
- */
-function violatesReferenceKey(error: unknown): boolean {
-    const driver = (error as { cause?: { code?: unknown; constraint?: unknown } } | null)?.cause;
-    if (driver?.code !== '23505') return false;
-    const constraint = String(driver.constraint ?? '');
-    return REFERENCE_KEY_COLUMNS.every((column) => constraint.includes(column));
 }

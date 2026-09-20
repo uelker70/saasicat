@@ -19,6 +19,7 @@ import type {
     NewSubscriptionContractData,
     PaymentEventClaim,
     RecordSubscriberPaymentMethodData,
+    SubscriberPaymentMethodRecord,
     SubscriberPaymentMethodReference,
     SubscriptionContractParties,
     TransactionContext,
@@ -3045,6 +3046,15 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             }
             const holder = await createSubscriber({ legalName: 'Zugleich Inhaberin GmbH' });
             const stranger = await createSubscriber({ legalName: 'Zugleich Fremde GmbH' });
+            // The stranger has one of its own, so the refusal has something to
+            // leave alone — and so the read below says more than `null`.
+            await methods.recordConfirmed(
+                paymentMethodFor(
+                    stranger.subscriberId,
+                    'pm_of_the_stranger',
+                    '2026-08-01T10:00:00.000Z',
+                ),
+            );
 
             const [held, refused] = await Promise.allSettled([
                 adapter.transactionRunner.run(async (tx) => {
@@ -3060,29 +3070,45 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     return result;
                 }),
                 sleep(LOCK_HOLD_MS / 3).then(() =>
-                    methods.recordConfirmed(
-                        paymentMethodFor(
-                            stranger.subscriberId,
-                            'pm_at_once_shared',
-                            '2026-09-01T10:00:01.000Z',
-                        ),
-                    ),
+                    adapter.transactionRunner.run(async (tx) => {
+                        // The read cannot see the other transaction's row, so
+                        // this refusal is the reference's own key answering.
+                        await assert.rejects(
+                            methods.recordConfirmed(
+                                paymentMethodFor(
+                                    stranger.subscriberId,
+                                    'pm_at_once_shared',
+                                    '2026-09-01T10:00:01.000Z',
+                                ),
+                                tx,
+                            ),
+                            /belongs to another subscriber/,
+                        );
+                        // And the caller still has its transaction: the refusal
+                        // came before the first write of its own, so there is
+                        // nothing to undo and nothing that stops it being used.
+                        return methods.findActive(stranger.subscriberId, tx);
+                    }),
                 ),
             ]);
 
-            // The holder keeps it, and the other one is told the same thing it
-            // would be told had the row been readable: the reference is taken.
             assert.equal(held.status, 'fulfilled');
-            assert.equal(refused.status, 'rejected');
-            assert.match(
-                refused.status === 'rejected' ? String(refused.reason?.message) : '',
-                /belongs to another subscriber/,
+            assert.equal(
+                refused.status,
+                'fulfilled',
+                String((refused as { reason?: unknown }).reason),
+            );
+            assert.equal(
+                refused.status === 'fulfilled'
+                    ? (refused.value as SubscriberPaymentMethodRecord | null)?.paymentMethodRef
+                    : null,
+                'pm_of_the_stranger',
+                'the refused confirmation left the stranger the payment method it had',
             );
             assert.equal(
                 (await methods.findActive(holder.subscriberId))?.paymentMethodRef,
                 'pm_at_once_shared',
             );
-            assert.equal(await methods.findActive(stranger.subscriberId), null);
         });
 
         test('a confirmation older than the payment method in use is recorded as already replaced', async (t) => {

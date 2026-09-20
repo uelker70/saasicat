@@ -188,9 +188,10 @@ maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    no tenant — an installation with a policy on the table lifts it there, and
    what the question names is then all that bounds it. The lock `recordConfirmed`
    holds is on the subscriber, so two subscribers confirming one reference at
-   once do not take turns and neither read sees the other; the reference's unique
-   key separates them, and the violation it raises is answered with that same
-   refusal rather than with the database's own error.
+   once do not take turns and neither read sees the other: reading is not enough
+   to decide it. The reference is therefore **claimed by the first write**,
+   conflict-free on its own key, and refused when the claim takes no row — which
+   is also why a refusal leaves the caller's transaction as it found it.
 
 ## Capability requirements
 

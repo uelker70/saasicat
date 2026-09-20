@@ -11,7 +11,7 @@ import type {
     TransactionContext,
 } from '@saasicat/core';
 import {
-    foreignPaymentMethodReference,
+    ForeignPaymentMethodReferenceError,
     refuseForeignPaymentMethodReference,
     subscriberPaymentMethodColumns,
     toSubscriberPaymentMethodRecord,
@@ -20,7 +20,13 @@ import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-clie
 
 /** Narrow view of the client and of a transaction client, which carry the same delegates. */
 interface PaymentMethodPrisma {
-    subscriberPaymentMethod: PrismaModelDelegateLike<CanonicalSubscriberPaymentMethodRow>;
+    subscriberPaymentMethod: PrismaModelDelegateLike<CanonicalSubscriberPaymentMethodRow> & {
+        /** `INSERT … ON CONFLICT DO NOTHING RETURNING *`, which PostgreSQL supports. */
+        createManyAndReturn(args: {
+            data: Omit<CanonicalSubscriberPaymentMethodRow, 'id' | 'createdAt'>[];
+            skipDuplicates: boolean;
+        }): Promise<CanonicalSubscriberPaymentMethodRow[]>;
+    };
     subscriberPaymentMethodSetup: PrismaModelDelegateLike<unknown>;
     $queryRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<unknown>;
 }
@@ -84,13 +90,19 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
             const active = await db.subscriberPaymentMethod.findFirst({
                 where: { subscriberId: data.subscriberId, status: 'ACTIVE' },
             });
-            if (active && active.confirmedAt.getTime() > data.confirmedAt.getTime()) {
-                const created = await this.insert(db, {
-                    ...subscriberPaymentMethodColumns(data),
-                    status: 'REPLACED',
-                    replacedAt: active.confirmedAt,
-                });
-                return { method: toSubscriberPaymentMethodRecord(created), outcome: 'superseded' };
+            // A confirmation that arrived late: the payment method in use was
+            // confirmed after this one, so this one is filed as already replaced.
+            const replacedOnArrival =
+                active && active.confirmedAt.getTime() > data.confirmedAt.getTime()
+                    ? active.confirmedAt
+                    : null;
+            const claimed = await this.claimReference(db, {
+                ...subscriberPaymentMethodColumns(data),
+                status: 'REPLACED',
+                replacedAt: replacedOnArrival ?? data.confirmedAt,
+            });
+            if (replacedOnArrival) {
+                return { method: toSubscriberPaymentMethodRecord(claimed), outcome: 'superseded' };
             }
             if (active) {
                 await db.subscriberPaymentMethod.update({
@@ -98,30 +110,41 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
                     data: { status: 'REPLACED', replacedAt: data.confirmedAt },
                 });
             }
-            const created = await this.insert(db, {
-                ...subscriberPaymentMethodColumns(data),
-                status: 'ACTIVE',
-                replacedAt: null,
+            const inUse = await db.subscriberPaymentMethod.update({
+                where: { id: claimed.id },
+                data: { status: 'ACTIVE', replacedAt: null },
             });
-            return { method: toSubscriberPaymentMethodRecord(created), outcome: 'activated' };
+            return { method: toSubscriberPaymentMethodRecord(inUse), outcome: 'activated' };
         });
     }
 
     /**
-     * Writes the row, or gives the reference's owner the refusal the read above
-     * gives — the read cannot see a row a concurrent transaction has not
-     * committed, and the unique key is what catches those.
+     * Takes the reference for this subscriber, or refuses it to them.
+     *
+     * The first write of the three, and the only one that can be refused — so a
+     * refusal leaves the caller's transaction as it found it, whichever way the
+     * caller opened it. `skipDuplicates` is `ON CONFLICT DO NOTHING`: the row
+     * the read above could not see, because the transaction holding it had not
+     * committed, answers here instead, and answers by waiting for that
+     * transaction rather than by raising.
+     *
+     * It is written `REPLACED` because the seat a subscriber's one `ACTIVE`
+     * payment method occupies may still be taken; `recordConfirmed` gives it
+     * the status it keeps once the seat is free. Nothing outside the
+     * transaction sees the difference.
      */
-    private async insert(
+    private async claimReference(
         db: PaymentMethodPrisma,
-        data: Omit<CanonicalSubscriberPaymentMethodRow, 'id' | 'createdAt'>,
+        row: Omit<CanonicalSubscriberPaymentMethodRow, 'id' | 'createdAt'>,
     ): Promise<CanonicalSubscriberPaymentMethodRow> {
-        try {
-            return await db.subscriberPaymentMethod.create({ data });
-        } catch (error) {
-            if (!violatesReferenceKey(error)) throw error;
-            throw foreignPaymentMethodReference(data.gatewayAccount, data.paymentMethodRef);
+        const [claimed] = await db.subscriberPaymentMethod.createManyAndReturn({
+            data: [row],
+            skipDuplicates: true,
+        });
+        if (!claimed) {
+            throw new ForeignPaymentMethodReferenceError(row.gatewayAccount, row.paymentMethodRef);
         }
+        return claimed;
     }
 
     async findActive(
@@ -195,24 +218,4 @@ export class PrismaSubscriberPaymentMethodRepository implements SubscriberPaymen
         });
         return count === 1;
     }
-}
-
-/** The two columns the reference's unique key is on, as the canonical schema names them. */
-const REFERENCE_KEY_COLUMNS = ['gatewayAccount', 'paymentMethodRef'] as const;
-
-/**
- * Whether Prisma refused a write because the reference's unique key already
- * holds the pair.
- *
- * Narrow on purpose: the table carries two other unique keys — its primary key,
- * and the partial index that gives a subscriber one `ACTIVE` payment method —
- * and neither means what this one means. A violation this does not recognise is
- * rethrown as it came, so a schema whose key is named otherwise keeps the
- * database's own error rather than gaining a sentence that may be wrong.
- */
-function violatesReferenceKey(error: unknown): boolean {
-    const known = error as { code?: unknown; meta?: { target?: unknown } } | null;
-    if (known?.code !== 'P2002') return false;
-    const target = String(known.meta?.target ?? '');
-    return REFERENCE_KEY_COLUMNS.every((column) => target.includes(column));
 }
