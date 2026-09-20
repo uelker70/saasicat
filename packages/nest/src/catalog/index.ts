@@ -29,6 +29,7 @@ export {
     CatalogModule,
     type CatalogControllerConfig,
     type CatalogModuleOptions,
+    type PublicMarketingCatalogOptions,
 } from './catalog.module.js';
 export {
     BUNDLE_REPOSITORY_TOKEN,
