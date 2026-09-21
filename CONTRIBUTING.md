@@ -348,6 +348,10 @@ no answer at all, which is how #187 went in with three unread P2.
   nothing about a comment that arrived after the last push.
 - **A round must come back with no P0, P1 or P2** before the loop ends. There is
   no allowance: one is enough to keep it open.
+- **A round whose findings are all P3 ends it.** Fix them, push, merge — no
+  further round is requested. The commits after the last round are then read by
+  nobody but whoever merges, and that is the price of a loop that ends; it is
+  stated here rather than discovered.
 
 ```bash
 pnpm run review:state 308           # what the pull request says about itself
