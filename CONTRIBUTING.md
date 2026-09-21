@@ -358,10 +358,11 @@ pnpm run review:state 308           # what the pull request says about itself
 pnpm run review:state 308 --gate    # exits 1 unless it may be merged
 ```
 
-It reads reviews, inline review comments, issue comments and reactions,
-paginated, from the pull request's opening rather than from whenever the last
-round was requested — an unpaginated fetch once hid three P1 behind the first
-page, and a hand-picked cut-off missed a finding by fourteen seconds.
+It reads reviews, inline review comments and issue comments, paginated, from the
+pull request's opening rather than from whenever the last round was requested;
+reactions are counted and not decided on. An unpaginated fetch once hid three P1
+behind the first page, and a hand-picked cut-off missed a finding by fourteen
+seconds.
 
 **The answer to a finding opens with its level.** Codex prints a `P2` badge, a
 Claude review prints no level at all, and a level nobody wrote down is one

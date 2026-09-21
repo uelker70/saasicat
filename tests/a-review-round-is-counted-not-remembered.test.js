@@ -43,6 +43,8 @@ const also = (to, body) => ({ id: to * 10 + 2, in_reply_to_id: to, body, user: {
 const said = (at, body, login = AUTHOR) => ({ created_at: at, body, user: { login } });
 
 const LAST = review(7, '2026-09-20T11:00:00Z');
+/** A round that raised something at the old head; the fix was pushed since. */
+const BEFORE_FIX = review(8, '2026-09-20T11:00:00Z', OLD);
 const state = (over) =>
     assess({
         reviews: [],
@@ -123,8 +125,8 @@ describe('the loop, which ends when a round comes back with nothing', () => {
         // The one judgement this does not make. Nobody can read it off the API:
         // a clean round writes no review record at all.
         const { blockers, clean } = state({
-            reviews: [LAST],
-            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
+            reviews: [BEFORE_FIX],
+            comments: [finding(1, BEFORE_FIX.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
         });
         assert.deepEqual(blockers, []);
@@ -137,8 +139,8 @@ describe('the loop, which ends when a round comes back with nothing', () => {
         // about which head. A false one is attributable; a forgotten one is
         // impossible, because nothing else closes the loop.
         const { clean } = state({
-            reviews: [LAST],
-            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
+            reviews: [BEFORE_FIX],
+            comments: [finding(1, BEFORE_FIX.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
         });
         assert.equal(clean.login, AUTHOR);
@@ -157,8 +159,8 @@ describe('the loop, which ends when a round comes back with nothing', () => {
 
     test('names the head whatever the case of the sha', () => {
         const { clean } = state({
-            reviews: [LAST],
-            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
+            reviews: [BEFORE_FIX],
+            comments: [finding(1, BEFORE_FIX.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [
                 said('2026-09-20T12:00:00Z', `Round clean at ${HEAD.slice(0, 8).toUpperCase()}`),
             ],
@@ -168,11 +170,24 @@ describe('the loop, which ends when a round comes back with nothing', () => {
 
     test('a short sha names the head as well as a long one', () => {
         const { clean } = state({
-            reviews: [LAST],
-            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
+            reviews: [BEFORE_FIX],
+            comments: [finding(1, BEFORE_FIX.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD.slice(0, 8)}`)],
         });
         assert.ok(clean);
+    });
+
+    test('but not by one naming the very commit the finding was raised at', () => {
+        // Two truthful participants: a P1 raised at X and deferred, a second
+        // round at the same X that found nothing, and "Round clean at X". The
+        // round that saw the finding cannot also have cleared it — that takes a
+        // push.
+        const { blockers } = state({
+            reviews: [LAST],
+            comments: [finding(1, LAST.id), answer(1, 'P1: deferred.')],
+            issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
+        });
+        assert.match(blockers[0], /raised at the commit the clean round names/);
     });
 
     test('but not by a declaration made before the findings it would absolve', () => {
@@ -212,9 +227,23 @@ describe('a pull request nobody has looked at', () => {
         assert.deepEqual(blockers, ['nothing has been reviewed, and no clean round is declared']);
     });
 
-    test('and passes once a round is declared clean and corroborated', () => {
+    test('and passes once a round is declared clean', () => {
         const { blockers } = state({
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
+        });
+        assert.deepEqual(blockers, []);
+    });
+});
+
+describe('a declaration lying around', () => {
+    test('does not block where none was needed', () => {
+        // After a round of only P3 the loop is closed without a declaration. An
+        // older one naming a previous head must not make the better-recorded
+        // pull request the stricter gate.
+        const { blockers } = state({
+            reviews: [LAST],
+            comments: [finding(1, LAST.id), answer(1, 'P3: a nit.')],
+            issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${OLD}`)],
         });
         assert.deepEqual(blockers, []);
     });

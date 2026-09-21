@@ -146,7 +146,13 @@ export function assess({ reviews, issueComments, comments, headOid, author }) {
         .filter((one) => at(one.at) > since)
         .sort((a, b) => at(a.at) - at(b.at));
     const declared = declarations.at(-1) ?? null;
-    const clean = declared?.namesHead ? declared : null;
+    // A round that saw the findings cannot also have cleared them: a declaration
+    // naming the very commit a P0–P2 was raised at says two reviewers read the
+    // same code and one of them found a problem nobody fixed.
+    const atFindings = Boolean(
+        declared && newest?.commit_id?.toLowerCase().startsWith(declared.sha),
+    );
+    const clean = declared?.namesHead && !(atFindings && keptOpen.length > 0) ? declared : null;
 
     const unanswered = rows.filter((row) => row.replies.length === 0);
     const unclassified = rows.filter((row) => row.replies.length > 0 && !row.level);
@@ -157,7 +163,9 @@ export function assess({ reviews, issueComments, comments, headOid, author }) {
     if (keptOpen.length && !clean) {
         const levels = [...new Set(keptOpen.map((row) => row.level))].sort().join(', ');
         blockers.push(
-            `${keptOpen.length} finding(s) at ${levels} were the last raised, and no clean round is declared since`,
+            atFindings && declared?.namesHead
+                ? `${keptOpen.length} finding(s) at ${levels} were raised at the commit the clean round names — push the fix first`
+                : `${keptOpen.length} finding(s) at ${levels} were the last raised, and no clean round is declared since`,
         );
     }
     // Zero rounds is not "a round came back with nothing". Without this, a pull
@@ -171,7 +179,11 @@ export function assess({ reviews, issueComments, comments, headOid, author }) {
     if (!looked && !clean) {
         blockers.push('nothing has been reviewed, and no clean round is declared');
     }
-    if (declared && !clean) {
+    // Only where a declaration was needed at all. After a round of only P3 the
+    // loop is closed without one, and an older declaration lying around must not
+    // make the better-recorded pull request the stricter one.
+    const needed = keptOpen.length > 0 || !looked;
+    if (needed && declared && !declared.namesHead) {
         blockers.push(`the clean round names ${declared.sha.slice(0, 8)}, which is not this head`);
     }
     return { rows, blockers, newest, lastRaised, declared, clean };
@@ -237,13 +249,15 @@ function main() {
     // Said in one line rather than printed as two hex strings for a reader to
     // compare by eye: a declaration that names another commit is the ordinary
     // mistake, and it should read as one.
-    console.log(
-        clean
-            ? `  clean round declared by ${clean.login}, naming this head`
-            : declared
-              ? `  clean round declared by ${declared.login} for ${declared.sha.slice(0, 8)}, which is not this head`
-              : '  no clean round declared since',
-    );
+    // Only said when it matters: after a round of only P3 no declaration is
+    // needed, and "none declared" directly above "it may be merged" reads as a
+    // contradiction.
+    if (clean) console.log(`  clean round declared by ${clean.login}, naming this head`);
+    else if (declared) {
+        console.log(
+            `  clean round declared by ${declared.login} for ${declared.sha.slice(0, 8)}, which is not this head`,
+        );
+    } else if (blockers.length) console.log('  no clean round declared since');
 
     const gate = flags.includes('--gate');
     if (blockers.length === 0) {
