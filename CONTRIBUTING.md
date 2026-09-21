@@ -396,15 +396,18 @@ Round clean at <the head it reviewed>
 ```
 
 That is this repository's answer for an undecidable case — a declaration rather
-than a better guess. The judgement stays with the person; the two things about it
-that _are_ checkable are checked:
+than a better guess. It has to name the **current head**, so the push that follows
+it does not inherit the verdict, and it counts only if it comes after the findings
+it would close.
 
-- **It names the current head.** A declaration is about what a round saw, so the
-  push that follows it does not inherit the verdict.
-- **Somebody other than the author has been here since the findings** — a verdict
-  comment, a 👍, a remark. What that trace means is exactly what the script
-  refuses to decide; that it exists is enough to keep the person who wrote the
-  code from being the only evidence that anyone looked at it.
+**What it does not do is verify the round.** Three attempts to check it from what a
+round leaves behind — who had reviewed here before, whether a comment had been
+edited, whether anybody other than the author had been here since — each had a
+hole, the last because the review workflow's own progress note arrives seconds
+after the request and before the round has said anything. So this is honest about
+its reach: it stops the rule being **forgotten**, because nothing else closes the
+loop and the declaration is an explicit act on the record under a login. It
+cannot stop the rule being **misstated**, and it does not pretend to.
 
 And a pull request nobody has reviewed does not pass by having nothing to count:
 emptiness is the one state where every count proves the opposite of what it looks

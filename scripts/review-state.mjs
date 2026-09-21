@@ -23,8 +23,10 @@
 //   Round clean at <sha>
 //
 // That is the repository's own rule for an undecidable case — answered by
-// declaration, not by a better guess — and it is the only judgement this script
-// asks for. Everything else it counts.
+// declaration, not by a better guess. The line has to name the current head and
+// come after the findings it closes; whether the round behind it was really
+// clean is not checked, because it is not in the data. So this stops the rule
+// being forgotten. It cannot stop it being misstated, and does not pretend to.
 //
 //   node scripts/review-state.mjs <pr>            what the pull request says
 //   node scripts/review-state.mjs <pr> --gate     exit 1 unless it may be merged
@@ -79,7 +81,7 @@ export function levelOf(body) {
  * record or the reviewer: one round leaves several records, and two reviewers at
  * one head must not absolve each other.
  */
-export function assess({ reviews, issueComments, reactions, comments, headOid, author }) {
+export function assess({ reviews, issueComments, comments, headOid, author }) {
     // A root comment of the author's own is a note to a reviewer, not a finding
     // against them.
     const findings = comments.filter((c) => c.in_reply_to_id == null && c.user?.login !== author);
@@ -118,30 +120,33 @@ export function assess({ reviews, issueComments, reactions, comments, headOid, a
     const lastRaised = newest ? rows.filter(sameRound) : [];
     const keptOpen = lastRaised.filter((row) => row.level && KEEPS_OPEN.has(row.level));
 
-    // The one judgement this script does not make — but it does check the two
-    // things about it that are checkable. The line has to name **this** head, so
-    // it does not survive the push that follows it; and somebody other than the
-    // author has to have been here since the findings, so the person who wrote
-    // the code cannot also be the only evidence that anybody looked at it. Which
-    // trace that is — a verdict comment, a 👍, a person's remark — is exactly
-    // what the script refuses to decide, and does not need to.
+    // The one judgement this script does not make, and does not try to verify.
+    // Whether a round really came back clean is not in the data: three attempts
+    // to check it from side-effects — who had reviewed before, whether a comment
+    // was edited, whether anybody else had been here since — each had a hole,
+    // the last one because the review workflow's own progress note arrives
+    // seconds after the request and before the round has said anything. So the
+    // declaration is what it is: an explicit act, on the record under a login,
+    // that has to name the head it is about. It stops the rule being forgotten.
+    // It cannot stop it being misstated, and nothing here pretends otherwise.
     const since = newest ? at(newest.submitted_at) : -Infinity;
-    const corroborated = [...issueComments, ...reactions].some(
-        (event) => event.user?.login !== author && at(event.created_at) > since,
-    );
     const declarations = issueComments
         .map((comment) => ({ comment, match: CLEAN.exec(comment.body?.trim() ?? '') }))
         .filter(({ match }) => match)
-        .map(({ comment, match }) => ({
-            at: comment.created_at,
-            sha: match[1],
-            login: comment.user?.login ?? '?',
-            namesHead: Boolean(headOid && headOid.startsWith(match[1])),
-        }))
+        .map(({ comment, match }) => {
+            // A sha is hexadecimal and says nothing through its case.
+            const sha = match[1].toLowerCase();
+            return {
+                at: comment.created_at,
+                sha,
+                login: comment.user?.login ?? '?',
+                namesHead: Boolean(headOid && headOid.toLowerCase().startsWith(sha)),
+            };
+        })
         .filter((one) => at(one.at) > since)
         .sort((a, b) => at(a.at) - at(b.at));
     const declared = declarations.at(-1) ?? null;
-    const clean = declared?.namesHead && corroborated ? declared : null;
+    const clean = declared?.namesHead ? declared : null;
 
     const unanswered = rows.filter((row) => row.replies.length === 0);
     const unclassified = rows.filter((row) => row.replies.length > 0 && !row.level);
@@ -167,11 +172,7 @@ export function assess({ reviews, issueComments, reactions, comments, headOid, a
         blockers.push('nothing has been reviewed, and no clean round is declared');
     }
     if (declared && !clean) {
-        blockers.push(
-            declared.namesHead
-                ? 'the clean round is declared, and nobody but the author has been here since the findings'
-                : `the clean round names ${declared.sha.slice(0, 8)}, which is not this head`,
-        );
+        blockers.push(`the clean round names ${declared.sha.slice(0, 8)}, which is not this head`);
     }
     return { rows, blockers, newest, lastRaised, declared, clean };
 }
@@ -191,10 +192,9 @@ function main() {
     const reviews = api(`repos/${repo}/pulls/${pr}/reviews`);
     const comments = api(`repos/${repo}/pulls/${pr}/comments`);
     const issueComments = api(`repos/${repo}/issues/${pr}/comments`);
-    // Codex answers "nothing to report" with a 👍 and no comment at all. What
-    // that mark means is not decided here — only that somebody other than the
-    // author was here after the findings, which is what a declaration has to be
-    // corroborated by.
+    // Read and printed, never decided on: Codex answers "nothing to report" with
+    // a 👍 and no comment at all, and whoever writes the declaration should see
+    // it before they do.
     const reactions = api(`repos/${repo}/issues/${pr}/reactions`);
     // From GitHub, not from the checkout: the command takes any pull request
     // number, and a plain checkout of `main` has no local object for that head.
@@ -209,7 +209,6 @@ function main() {
     const { rows, blockers, newest, lastRaised, declared, clean } = assess({
         reviews,
         issueComments,
-        reactions,
         comments,
         headOid,
         author,
@@ -242,7 +241,7 @@ function main() {
         clean
             ? `  clean round declared by ${clean.login}, naming this head`
             : declared
-              ? `  clean round declared by ${declared.login} naming ${declared.sha.slice(0, 8)} — not accepted`
+              ? `  clean round declared by ${declared.login} for ${declared.sha.slice(0, 8)}, which is not this head`
               : '  no clean round declared since',
     );
 

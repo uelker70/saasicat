@@ -41,15 +41,12 @@ const answer = (to, body) => ({
 });
 const also = (to, body) => ({ id: to * 10 + 2, in_reply_to_id: to, body, user: { login: AUTHOR } });
 const said = (at, body, login = AUTHOR) => ({ created_at: at, body, user: { login } });
-/** Any trace of somebody other than the author having been here since. */
-const trace = (at, login = 'reviewer') => ({ created_at: at, content: '+1', user: { login } });
 
 const LAST = review(7, '2026-09-20T11:00:00Z');
 const state = (over) =>
     assess({
         reviews: [],
         issueComments: [],
-        reactions: [],
         comments: [],
         headOid: HEAD,
         author: AUTHOR,
@@ -129,22 +126,22 @@ describe('the loop, which ends when a round comes back with nothing', () => {
             reviews: [LAST],
             comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
-            reactions: [trace('2026-09-20T11:55:00Z')],
         });
         assert.deepEqual(blockers, []);
         assert.equal(clean.sha, HEAD);
     });
 
-    test('but not when the author is the only one who has been here since', () => {
-        // The premise of this whole pull request, made machine-readable: the
-        // person who wrote the code cannot also be the only evidence that
-        // somebody looked at it.
-        const { blockers } = state({
+    test('is recorded under the login that made it, which is all it can be', () => {
+        // The declaration is not verified, and cannot be: whether a round was
+        // clean is not in the data. What is on the record is who said so, and
+        // about which head. A false one is attributable; a forgotten one is
+        // impossible, because nothing else closes the loop.
+        const { clean } = state({
             reviews: [LAST],
-            comments: [finding(1, LAST.id), answer(1, 'P1: deferred.')],
+            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
         });
-        assert.match(blockers.at(-1), /nobody but the author has been here since/);
+        assert.equal(clean.login, AUTHOR);
     });
 
     test('and not when it names a commit that is no longer the head', () => {
@@ -154,9 +151,19 @@ describe('the loop, which ends when a round comes back with nothing', () => {
             reviews: [LAST],
             comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${OLD}`)],
-            reactions: [trace('2026-09-20T11:55:00Z')],
         });
         assert.match(blockers.at(-1), /not this head/);
+    });
+
+    test('names the head whatever the case of the sha', () => {
+        const { clean } = state({
+            reviews: [LAST],
+            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
+            issueComments: [
+                said('2026-09-20T12:00:00Z', `Round clean at ${HEAD.slice(0, 8).toUpperCase()}`),
+            ],
+        });
+        assert.ok(clean);
     });
 
     test('a short sha names the head as well as a long one', () => {
@@ -164,16 +171,17 @@ describe('the loop, which ends when a round comes back with nothing', () => {
             reviews: [LAST],
             comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD.slice(0, 8)}`)],
-            reactions: [trace('2026-09-20T11:55:00Z')],
         });
         assert.ok(clean);
     });
 
     test('but not by a declaration made before the findings it would absolve', () => {
+        // Naming the right head, and still too early: a round that came back
+        // clean before these findings were raised says nothing about them.
         const { blockers } = state({
             reviews: [LAST],
             comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
-            issueComments: [said('2026-09-20T09:00:00Z', `Round clean at ${OLD}`)],
+            issueComments: [said('2026-09-20T09:00:00Z', `Round clean at ${HEAD}`)],
         });
         assert.match(blockers[0], /no clean round is declared since/);
     });
@@ -207,7 +215,6 @@ describe('a pull request nobody has looked at', () => {
     test('and passes once a round is declared clean and corroborated', () => {
         const { blockers } = state({
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
-            reactions: [trace('2026-09-20T11:55:00Z')],
         });
         assert.deepEqual(blockers, []);
     });
