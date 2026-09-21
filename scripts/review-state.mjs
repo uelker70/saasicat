@@ -76,11 +76,20 @@ export function levelOf(body) {
 }
 
 function roundsIn({ reviews, issueComments, reactions, author }) {
-    const byReviewerAndCommit = new Map();
+    // Who has reviewed this pull request at all. A round that found nothing
+    // leaves only a mark, and a mark says nothing about who made it beyond the
+    // login — so the login has to have reviewed here before. Without that, a
+    // passer-by's 👍 or an unrelated bot's comment clears the severity scope,
+    // which is the one thing a clean round is allowed to do.
+    const reviewers = new Set(
+        reviews.filter((r) => r.submitted_at && r.user?.login).map((r) => r.user.login),
+    );
+
+    const byCommit = new Map();
     for (const review of reviews) {
-        if (!review.submitted_at || review.user?.login === author) continue;
+        if (!review.submitted_at || !review.user?.login || review.user.login === author) continue;
         const key = `${review.user.login}@${review.commit_id ?? ''}`;
-        const round = byReviewerAndCommit.get(key) ?? {
+        const round = byCommit.get(key) ?? {
             kind: 'review',
             login: review.user.login,
             commit: review.commit_id ?? null,
@@ -89,26 +98,40 @@ function roundsIn({ reviews, issueComments, reactions, author }) {
         };
         round.ids.push(review.id);
         if (Date.parse(review.submitted_at) > Date.parse(round.at)) round.at = review.submitted_at;
-        byReviewerAndCommit.set(key, round);
+        byCommit.set(key, round);
     }
 
+    // The workflow writes a progress note when it picks the request up and
+    // edits it into the verdict when it is done — measured on #310, where the
+    // note landed 14 seconds after the request and the verdict four minutes
+    // later. So an unedited comment is a round that has not spoken, and the
+    // moment of one that has is when it was edited, not when it appeared.
     const verdicts = issueComments
         .filter(
             (comment) =>
                 comment.user?.login !== author &&
-                comment.user?.login?.endsWith('[bot]') &&
+                reviewers.has(comment.user?.login) &&
+                comment.updated_at > comment.created_at &&
                 !comment.body?.includes('@claude'),
         )
         .map((comment) => ({
             kind: 'verdict',
             login: comment.user.login,
             commit: null,
-            at: comment.created_at,
+            at: comment.updated_at,
             ids: [],
         }));
 
+    // 👍 is how Codex says it found nothing. 👀 is the acknowledgement that the
+    // request was picked up, seconds after it — taking that for a verdict would
+    // close the loop on the act of opening it.
     const nods = reactions
-        .filter((reaction) => reaction.user?.login !== author && reaction.content === '+1')
+        .filter(
+            (reaction) =>
+                reaction.user?.login !== author &&
+                reviewers.has(reaction.user?.login) &&
+                reaction.content === '+1',
+        )
         .map((reaction) => ({
             kind: 'nod',
             login: reaction.user.login,
@@ -118,9 +141,12 @@ function roundsIn({ reviews, issueComments, reactions, author }) {
         }));
 
     // Compared as moments, never as text: `11:04:10Z` sorts before
-    // `12:50:52+02:00` while being the later of the two.
-    return [...byReviewerAndCommit.values(), ...verdicts, ...nods].sort(
-        (a, b) => Date.parse(a.at) - Date.parse(b.at),
+    // `12:50:52+02:00` while being the later of the two. A tie goes to the round
+    // that named a commit, so a mark landing in the same second as a review
+    // cannot absolve what the review raised.
+    const rank = { review: 1, verdict: 0, nod: 0 };
+    return [...byCommit.values(), ...verdicts, ...nods].sort(
+        (a, b) => Date.parse(a.at) - Date.parse(b.at) || rank[a.kind] - rank[b.kind],
     );
 }
 
@@ -159,9 +185,17 @@ export function assess({ reviews, issueComments, reactions, comments, headOid, a
     // would leave the loop open for good, which is the unbounded loop the round
     // limit exists to prevent. A round that left a verdict or a nod raised
     // nothing, so nothing is scoped to it.
-    const latest = newest
-        ? rows.filter((row) => newest.ids.includes(row.finding.pull_request_review_id))
-        : [];
+    // Scoped by the commit, not by the round that happens to be newest: two
+    // reviewers at one head are two rounds, and taking only the later one lets
+    // a P3 from one absolve a P1 from the other without a line of code changing.
+    // Both reviewers are configured here, so that is the ordinary path.
+    const commitOf = new Map(reviews.map((review) => [review.id, review.commit_id ?? null]));
+    const latest =
+        newest?.kind === 'review'
+            ? rows.filter(
+                  (row) => commitOf.get(row.finding.pull_request_review_id) === newest.commit,
+              )
+            : [];
     const keptOpen = latest.filter((row) => row.level && KEEPS_OPEN.has(row.level));
 
     const blockers = [];
@@ -255,7 +289,15 @@ function main() {
         // Never "reviewed at this head" unless it was: the line seven above may
         // have just said the opposite, and two sentences that disagree teach a
         // reader to believe neither.
-        const reviewed = seenHead ? 'at this head' : 'though not at this head';
+        // Three states, three sentences: `null` is "it names no commit", which
+        // is the ordinary shape of a clean round and must not read as "not at
+        // this head" while the line above says otherwise.
+        const reviewed =
+            seenHead === null
+                ? 'though against a commit it does not name'
+                : seenHead
+                  ? 'at this head'
+                  : 'though not at this head';
         console.log(
             gate
                 ? `\n✓ answered, classified, and reviewed ${reviewed} — it may be merged.`

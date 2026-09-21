@@ -378,6 +378,29 @@ because a commit written locally before a review and pushed after it carries the
 earlier timestamp — and is reported rather than enforced: a `P3` from the last
 round is fixed and merged without asking for another look.
 
+The part that costs something: **the answer to a finding opens with its level.**
+Codex prints a `P2` badge, a Claude review prints no level at all, and a level
+nobody wrote down is one somebody recalls differently later. So a reply under the
+finding begins with one of `P0`–`P3` — bold or plain, followed by anything:
+
+```text
+**P2** — it reaches a tenant boundary. Fixed in abc1234, with a counter-check.
+P3: a wording nit, fixed.
+```
+
+From the opening, and not from anywhere in the body, because the first shape of
+this asked for exactly one level in the text and every answer that explained
+itself broke it: an answer saying why something is a `P1` names what an earlier
+`P2` cost. Four of the nine answers on the pull request that added this named a
+second level in passing, and all four read as unclassified. A marker at the front
+is a place a judgement is put; a word further down is a word. `Fixed in abc1234 —
+P2.` is therefore not classified, and neither is a heading or a list item that
+opens with something else.
+
+Two levels in a thread are read at its end rather than at its opening — the only
+place this resolves ambiguity by recency, and deliberately: a level is a
+judgement, and a judgement can be revised.
+
 **It is not in CI, and that is a gap rather than an oversight.** Running it there
 needs a token, and a fresh pull request would be red until somebody reviewed it,
 which is a different signal from a failing check. So the person merging runs it.

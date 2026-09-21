@@ -22,6 +22,8 @@ const HEAD_OID = 'ab9f47c8ab9f47c8ab9f47c8ab9f47c8ab9f47c8';
 /** What the head was before the push that answered an earlier round. */
 const OLD_OID = '1111111111111111111111111111111111111111';
 const AUTHOR = 'me';
+/** The login the review workflow runs as — it leaves reviews here, so its marks count. */
+const BOT = 'github-actions[bot]';
 
 const review = (id, at, { login = 'reviewer', commit = HEAD_OID } = {}) => ({
     id,
@@ -30,15 +32,17 @@ const review = (id, at, { login = 'reviewer', commit = HEAD_OID } = {}) => ({
     user: { login },
 });
 /** What a round that found nothing leaves: a comment, or a reaction, and no record. */
-const verdict = (
-    at,
-    { login = 'github-actions[bot]', body = 'Claude finished. No findings.' } = {},
-) => ({
-    created_at: at,
+/**
+ * The workflow writes a progress note when it picks the request up and edits it
+ * into the verdict; `at` is when it spoke, `noted` when it first appeared.
+ */
+const verdict = (at, { login = BOT, body = 'Claude finished. No findings.', noted } = {}) => ({
+    created_at: noted ?? '2026-09-20T10:30:00Z',
+    updated_at: at,
     user: { login },
     body,
 });
-const reaction = (at, { login = 'chatgpt-codex-connector[bot]', content = '+1' } = {}) => ({
+const reaction = (at, { login = BOT, content = '+1' } = {}) => ({
     created_at: at,
     user: { login },
     content,
@@ -209,8 +213,8 @@ describe('a round that found nothing leaves no review', () => {
     // because inline comments attach to one; the verdict is an issue comment.
     // Codex says the same thing with a 👍 and nothing else. So the one event the
     // loop rule turns on is the single event a reviews-only reading cannot see.
-    const earlier = review(3, '2026-09-20T08:00:00Z', { commit: OLD_OID });
-    const raised = [finding(1, earlier.id), answer(1, 'P2: fixed in abc1234.')];
+    const earlier = review(3, '2026-09-20T08:00:00Z', { login: BOT, commit: OLD_OID });
+    const raised = [finding(1, earlier.id, BOT), answer(1, 'P2: fixed in abc1234.')];
 
     test('so a verdict comment is a round, and closes what an earlier review opened', () => {
         const { blockers } = state({
@@ -257,6 +261,28 @@ describe('a round that found nothing leaves no review', () => {
         assert.deepEqual(blockers, ['the newest round raised 1 finding(s) at P2']);
     });
 
+    test('nor an unedited note, which is the workflow saying it has started', () => {
+        // Measured on #310: the note lands seconds after the request and is
+        // edited into the verdict minutes later. Counting it where it appeared
+        // would close the loop while the round is still reading.
+        const note = verdict('2026-09-20T11:00:00Z', { noted: '2026-09-20T11:00:00Z' });
+        const { blockers } = state({ reviews: [earlier], issueComments: [note], comments: raised });
+        assert.deepEqual(blockers, ['the newest round raised 1 finding(s) at P2']);
+    });
+
+    test('nor a mark from a login that has never reviewed here', () => {
+        // A mark says nothing about who made it beyond the login, so the login
+        // has to have reviewed here before — otherwise a passer-by's 👍 clears
+        // the one thing a clean round is allowed to clear.
+        const { blockers } = state({
+            reviews: [earlier],
+            reactions: [reaction('2026-09-20T11:00:00Z', { login: 'a-passer-by' })],
+            issueComments: [verdict('2026-09-20T11:00:00Z', { login: 'another-bot[bot]' })],
+            comments: raised,
+        });
+        assert.deepEqual(blockers, ['the newest round raised 1 finding(s) at P2']);
+    });
+
     test("nor a person's aside — somebody reviewing leaves a review", () => {
         const { blockers } = state({
             reviews: [earlier],
@@ -266,6 +292,37 @@ describe('a round that found nothing leaves no review', () => {
             comments: raised,
         });
         assert.deepEqual(blockers, ['the newest round raised 1 finding(s) at P2']);
+    });
+});
+
+describe('two reviewers at one commit', () => {
+    // Both are configured here, so this is the ordinary path. Keyed by reviewer,
+    // the later round would hold only its own P3, and the other's P1 would be
+    // absolved without a line of code changing.
+    const codex = review(21, '2026-09-20T11:00:00Z', { login: 'codex[bot]' });
+    const claude = review(22, '2026-09-20T11:05:00Z', { login: BOT });
+
+    test('do not absolve each other: the scope is the commit', () => {
+        const { blockers } = state({
+            reviews: [codex, claude],
+            comments: [
+                finding(1, codex.id, 'codex[bot]'),
+                answer(1, 'P1: deferred.'),
+                finding(2, claude.id, BOT),
+                answer(2, 'P3: a nit.'),
+            ],
+        });
+        assert.deepEqual(blockers, ['the newest round raised 1 finding(s) at P1']);
+    });
+
+    test('and a mark landing in the same second does not either', () => {
+        // A tie goes to the round that named a commit.
+        const { blockers } = state({
+            reviews: [codex],
+            reactions: [reaction('2026-09-20T11:00:00Z', { login: 'codex[bot]' })],
+            comments: [finding(1, codex.id, 'codex[bot]'), answer(1, 'P1: deferred.')],
+        });
+        assert.deepEqual(blockers, ['the newest round raised 1 finding(s) at P1']);
     });
 });
 
