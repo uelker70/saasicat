@@ -368,6 +368,14 @@ one reviewer at one commit, plus those two ways of saying nothing. 👀 is the
 acknowledgement that the request was picked up, never the answer, and a comment
 that asks for a review is not one.
 
+**Naming the trigger starts a round.** `claude-review.yml` fires on the word
+appearing in a comment, not on the intent behind it, so a sentence that merely
+mentions it costs a run — four replies explaining this section fired eight, seven
+cancelled or skipped and one a full agent that had nothing to do. Write _the
+review workflow_ when you mean it in prose. An answer in an inline thread is also
+the cheaper place to ask a question, because that answer is an inline comment and
+never reads as a round.
+
 **Only the newest round decides whether another is owed.** The level of a finding
 does not change when it is fixed, so a `P2` answered three rounds ago still reads
 `P2`; what changed is that a later round looked and found nothing above `P3`.
