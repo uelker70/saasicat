@@ -357,21 +357,31 @@ It reads the four places a round can speak from — reviews, inline review
 comments, issue comments and reactions — paginated, from the pull request's
 opening rather than from whenever the last round was requested.
 
+**All four are needed, because a round's trace depends on what it found.** When
+it found something, its findings hang from review records, and one round leaves
+several — the round on #308 at `6cffd079` left two, one per comment, each with an
+empty body. When it found nothing there is no review record at all: the Claude
+workflow posts its verdict as an issue comment, and Codex answers with a 👍 and
+nothing else. So the one event the loop rule turns on — a round coming back clean
+— is precisely the one a reviews-only reading cannot see. A round is therefore
+one reviewer at one commit, plus those two ways of saying nothing. 👀 is the
+acknowledgement that the request was picked up, never the answer, and a comment
+that asks for a review is not one.
+
 **Only the newest round decides whether another is owed.** The level of a finding
 does not change when it is fixed, so a `P2` answered three rounds ago still reads
 `P2`; what changed is that a later round looked and found nothing above `P3`.
 Counting every finding ever raised would hold the loop open for good, which is
 the unbounded loop the limit exists to prevent. Whether that newest round has
-seen the current head is reported and is deliberately not a blocker — a `P3` from
-the last round is fixed and merged without asking for another look.
+seen the current head is read from the review's own commit — not from a moment,
+because a commit written locally before a review and pushed after it carries the
+earlier timestamp — and is reported rather than enforced: a `P3` from the last
+round is fixed and merged without asking for another look.
 
-The part that costs something: **the answer to a finding names its level.** Codex
-prints a `P2` badge, a Claude review prints no level at all, and a level nobody
-wrote down is one somebody will recall differently later. So a reply under the
-finding carries exactly one of `P0`–`P3`; two, or none, counts as a judgement
-that was not made and keeps the loop open. That is the same discipline a review
-table asks for, one level down, and it is what turns "the last round was fine"
-from a memory into a count.
+**It is not in CI, and that is a gap rather than an oversight.** Running it there
+needs a token, and a fresh pull request would be red until somebody reviewed it,
+which is a different signal from a failing check. So the person merging runs it.
+Naming that beats pretending prose is enforcement.
 
 What it will not do is read a level out of a review body. A body is prose; an
 unclassified finding blocks instead, which asks for the judgement rather than
