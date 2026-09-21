@@ -52,51 +52,29 @@ function api(path) {
 }
 
 /**
- * The level an answer declares, or `null`.
+ * The level an answer opens with, or `null`.
  *
  * Read from the answer rather than from the finding, because only one reviewer
- * prints a level and the rule needs one for every finding. A reply that names
- * several is ambiguous and counts as none: an ambiguous classification is a
- * judgement that was not made.
+ * prints a level and the rule needs one for every finding.
+ *
+ * From the **opening**, and not from anywhere in the body, which is the lesson
+ * of the first shape: "exactly one level mentioned" was defeated by every answer
+ * that did its job. An answer explaining why a P1 is a P1 says what an earlier
+ * P2 cost, or which P3 it is not — four of the nine answers on this pull request
+ * named a second level in passing, and all four read as unclassified. A marker
+ * at the front is a place a judgement is put, not a word that happens to appear.
+ *
+ * Split into words and compared as data: a pattern built from the level is what
+ * the repository's own ESLint rule refuses, and this reads `P2000` correctly
+ * without anyone having to reason about a word boundary.
  */
 export function levelOf(body) {
-    // Split into words and compare as data. A pattern built from the level
-    // would be the thing the repository's own ESLint rule refuses, and this
-    // reads `P2000` correctly without anyone having to think about a boundary.
-    const words = new Set(body.split(/[^A-Za-z0-9]+/));
-    const found = LEVELS.filter((level) => words.has(level));
-    return found.length === 1 ? found[0] : null;
+    // Leading emphasis and whitespace only; anything else and the line is prose
+    // that begins with something, not a classification.
+    const [first] = (body ?? '').replace(/^[\s*_]+/, '').split(/[^A-Za-z0-9]+/);
+    return LEVELS.includes(first) ? first : null;
 }
 
-/**
- * What the pull request says about its own loop, from the four sources and the
- * moment of its head commit. Pure, so the decision can be broken on purpose and
- * seen to fail — a guard whose own failure nobody has watched is a guess.
- */
-/**
- * The rounds a pull request has had, newest last.
- *
- * A round is one reviewer looking once, and it leaves different traces
- * depending on what it found — which is the whole difficulty.
- *
- * - **It found something.** Its findings hang from review records, and those
- *   records carry no body of their own; measured on #308, all five are empty.
- *   One round can leave several: the round at `6cffd079` left two, one per
- *   inline comment. So the records are grouped by reviewer and commit, or the
- *   severity check would look at whichever record happened to be last and let a
- *   P1 through beside it.
- * - **It found nothing.** Then there is no review record at all. The Claude
- *   workflow posts its verdict as an issue comment; Codex answers with a 👍
- *   reaction and nothing else. Those are the one event the loop rule turns on —
- *   a round came back clean — so a guard that reads only reviews cannot see the
- *   thing it exists to wait for.
- *
- * Never the author's own: replying to a finding creates a review record too.
- * Never the request, wherever it arrives — the trigger and the verdict land in
- * the same place, and counting the trigger would close the loop on the act of
- * opening it. Never 👀 either: that is the acknowledgement that the request was
- * picked up, seconds after it, never the answer.
- */
 function roundsIn({ reviews, issueComments, reactions, author }) {
     const byReviewerAndCommit = new Map();
     for (const review of reviews) {

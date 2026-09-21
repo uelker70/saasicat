@@ -80,7 +80,7 @@ const withAnswers = (...bodies) =>
 
 describe('what an answer declares', () => {
     test('one level is the classification', () => {
-        assert.equal(levelOf('Fixed in abc1234. P2, it reached a tenant boundary.'), 'P2');
+        assert.equal(levelOf('**P2** — it reached a tenant boundary. Fixed in abc1234.'), 'P2');
     });
 
     test('none is not a classification, and does not become one', () => {
@@ -90,8 +90,20 @@ describe('what an answer declares', () => {
         ]);
     });
 
-    test('two is a judgement that was not made', () => {
-        assert.equal(levelOf('Somewhere between P1 and P2; fixed anyway.'), null);
+    test('is read from the opening, so an answer may discuss other levels', () => {
+        // The lesson of the first shape, which asked for exactly one level in
+        // the body: every answer that explained itself named a second one, and
+        // four of the nine on this pull request read as unclassified.
+        assert.equal(levelOf('**P1** — the earlier P2 was fixed, and this is not a P3.'), 'P1');
+        assert.deepEqual(
+            withAnswers('**P3** — a nit, unlike the P1 above it. Fixed in abc1234.').blockers,
+            [],
+        );
+    });
+
+    test('but not from prose that merely begins with something', () => {
+        assert.equal(levelOf('Between P1 and P2, and fixed anyway.'), null);
+        assert.equal(levelOf('Fixed in abc1234 — P2.'), null);
         assert.deepEqual(withAnswers('Between P1 and P2.').blockers, [
             '1 answer(s) naming no single level',
         ]);
@@ -110,7 +122,7 @@ describe('what an answer declares', () => {
             comments: [
                 finding(1, LAST.id),
                 answer(1, 'P3 at first sight.'),
-                also(1, 'On measuring it: P1.'),
+                also(1, 'P1 on measuring it — it reaches a boundary after all.'),
             ],
         });
         assert.deepEqual(blockers, ['the newest round raised 1 finding(s) at P1']);
