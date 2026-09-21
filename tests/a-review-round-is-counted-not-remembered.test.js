@@ -41,10 +41,20 @@ const answer = (to, body) => ({
 });
 const also = (to, body) => ({ id: to * 10 + 2, in_reply_to_id: to, body, user: { login: AUTHOR } });
 const said = (at, body, login = AUTHOR) => ({ created_at: at, body, user: { login } });
+/** Any trace of somebody other than the author having been here since. */
+const trace = (at, login = 'reviewer') => ({ created_at: at, content: '+1', user: { login } });
 
 const LAST = review(7, '2026-09-20T11:00:00Z');
 const state = (over) =>
-    assess({ reviews: [], issueComments: [], comments: [], author: AUTHOR, ...over });
+    assess({
+        reviews: [],
+        issueComments: [],
+        reactions: [],
+        comments: [],
+        headOid: HEAD,
+        author: AUTHOR,
+        ...over,
+    });
 const withAnswers = (...bodies) =>
     state({ reviews: [LAST], comments: [finding(1, LAST.id), ...bodies.map((b) => answer(1, b))] });
 
@@ -119,9 +129,44 @@ describe('the loop, which ends when a round comes back with nothing', () => {
             reviews: [LAST],
             comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
             issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
+            reactions: [trace('2026-09-20T11:55:00Z')],
         });
         assert.deepEqual(blockers, []);
         assert.equal(clean.sha, HEAD);
+    });
+
+    test('but not when the author is the only one who has been here since', () => {
+        // The premise of this whole pull request, made machine-readable: the
+        // person who wrote the code cannot also be the only evidence that
+        // somebody looked at it.
+        const { blockers } = state({
+            reviews: [LAST],
+            comments: [finding(1, LAST.id), answer(1, 'P1: deferred.')],
+            issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
+        });
+        assert.match(blockers.at(-1), /nobody but the author has been here since/);
+    });
+
+    test('and not when it names a commit that is no longer the head', () => {
+        // A declaration is about what a round saw. A push after it does not
+        // inherit the verdict.
+        const { blockers } = state({
+            reviews: [LAST],
+            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
+            issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${OLD}`)],
+            reactions: [trace('2026-09-20T11:55:00Z')],
+        });
+        assert.match(blockers.at(-1), /not this head/);
+    });
+
+    test('a short sha names the head as well as a long one', () => {
+        const { clean } = state({
+            reviews: [LAST],
+            comments: [finding(1, LAST.id), answer(1, 'P1: fixed in abc1234.')],
+            issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD.slice(0, 8)}`)],
+            reactions: [trace('2026-09-20T11:55:00Z')],
+        });
+        assert.ok(clean);
     });
 
     test('but not by a declaration made before the findings it would absolve', () => {
@@ -140,6 +185,31 @@ describe('the loop, which ends when a round comes back with nothing', () => {
             issueComments: [said('2026-09-20T12:00:00Z', 'I think the round clean at last, no?')],
         });
         assert.match(blockers[0], /no clean round is declared since/);
+    });
+});
+
+describe('a pull request nobody has looked at', () => {
+    test('does not pass by having nothing to count', () => {
+        // Zero rounds is not "a round came back with nothing". Every count here
+        // is empty, and that is the one state where emptiness proves the
+        // opposite of what it looks like.
+        const { blockers } = state({});
+        assert.deepEqual(blockers, ['nothing has been reviewed, and no clean round is declared']);
+    });
+
+    test("and the author's own review records are not somebody having looked", () => {
+        // Replying to a finding creates a review record. Without this, answering
+        // your own pull request would count as having reviewed it.
+        const { blockers } = state({ reviews: [review(9, '2026-09-20T11:00:00Z', HEAD, AUTHOR)] });
+        assert.deepEqual(blockers, ['nothing has been reviewed, and no clean round is declared']);
+    });
+
+    test('and passes once a round is declared clean and corroborated', () => {
+        const { blockers } = state({
+            issueComments: [said('2026-09-20T12:00:00Z', `Round clean at ${HEAD}`)],
+            reactions: [trace('2026-09-20T11:55:00Z')],
+        });
+        assert.deepEqual(blockers, []);
     });
 });
 
@@ -175,6 +245,23 @@ describe('what the findings are scoped to', () => {
             ],
         });
         assert.match(blockers[0], /1 finding\(s\) at P1/);
+    });
+
+    test('a review naming no commit is scoped to itself, not to every other one', () => {
+        // `undefined === undefined` would put every commit-less review in one
+        // round, so an old P1 would ride along with a new P3 for good.
+        const older = { ...review(31, '2026-09-20T08:00:00Z'), commit_id: undefined };
+        const newer = { ...review(32, '2026-09-20T11:00:00Z'), commit_id: undefined };
+        const { blockers } = state({
+            reviews: [older, newer],
+            comments: [
+                finding(1, older.id),
+                answer(1, 'P1: fixed in abc1234.'),
+                finding(2, newer.id),
+                answer(2, 'P3: a nit.'),
+            ],
+        });
+        assert.deepEqual(blockers, []);
     });
 
     test('and a later round at a later commit replaces them', () => {

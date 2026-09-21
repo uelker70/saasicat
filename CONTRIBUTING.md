@@ -392,14 +392,25 @@ reconstruction had a hole, because the thing being reconstructed is not there.
 So whoever read the round writes one line, as an ordinary comment:
 
 ```text
-Round clean at 8da3eb42
+Round clean at <the head it reviewed>
 ```
 
-That is this repository's own answer for an undecidable case — a declaration
-rather than a better guess — and it is the only judgement the script asks for.
-Everything else it counts.
+That is this repository's answer for an undecidable case — a declaration rather
+than a better guess. The judgement stays with the person; the two things about it
+that _are_ checkable are checked:
 
-**Naming the trigger starts a round.** `claude-review.yml` fires on the word
+- **It names the current head.** A declaration is about what a round saw, so the
+  push that follows it does not inherit the verdict.
+- **Somebody other than the author has been here since the findings** — a verdict
+  comment, a 👍, a remark. What that trace means is exactly what the script
+  refuses to decide; that it exists is enough to keep the person who wrote the
+  code from being the only evidence that anyone looked at it.
+
+And a pull request nobody has reviewed does not pass by having nothing to count:
+emptiness is the one state where every count proves the opposite of what it looks
+like.
+
+**Naming the trigger starts a run.** `claude-review.yml` fires on the word
 appearing in a comment, not on the intent behind it, so a sentence that merely
 mentions it costs a run — four replies explaining this section fired eight, seven
 cancelled or skipped and one a full agent that had nothing to do. Write _the
