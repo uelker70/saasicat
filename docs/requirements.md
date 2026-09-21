@@ -125,14 +125,14 @@ properties it has while doing it.
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
-| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 13      |
+| 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 14      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 16      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 486 entries: 🟢 414 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 487 entries: 🟢 415 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -210,7 +210,7 @@ Of 486 entries: 🟢 414 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 486 requirements. Do not edit by hand:
+Generated from `requirements/` — 487 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5594,6 +5594,8 @@ _Tested by:_
         - opening the form records the setup for this subscriber and this session
         - a confirmation naming another subscriber than the session was opened for changes nobody's
           payment method
+        - a confirmation naming a reference another subscriber holds records nothing, and says so
+          once
         - a confirmation for a session nobody opened, or for a setup already completed, records
           nothing
         - without an account for new payment methods the change is refused, and the gateway is not
@@ -12558,6 +12560,46 @@ Administration acts on behalf of the platform rather than of a tenant, which is 
 only reads that step outside a tenant's boundary.
 
 _Source:_ `docs/explanation/data-model.md`
+
+### SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
+
+🟢 🔒 Within a gateway account, the reference a payment method is kept under names one subscriber,
+and it keeps naming it after a newer payment method has replaced it. So asking for a payment method
+by its reference is asking whether a named subscriber holds it, and another subscriber is answered
+that it holds none rather than with the row; a confirmation carrying a reference another subscriber
+holds is refused, rather than recorded or answered as a repeat of a payment method that is not this
+subscriber's. Both are reached on the gateway's callback, which arrives without a session, so an
+installation that keeps its tenants apart with a policy lifts that policy there (`SC-SEC-003`) and
+what the question names is all that is left to bound it. Where a provider issues one reference for
+two payers, the second subscriber's confirmation is refused rather than mixed into the first's
+(`SC-PRIC-030`): taking it needs an account of its own.
+
+_Source:_ #305
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-prisma/tests/a-claim-that-takes-no-row.test.js`
+    - a claim that takes no row
+        - is refused as a foreign reference, and says nothing of the holder
+        - is refused without reading the holder back, because a policy can hide it
+- `packages/core/tests/a-reference-belongs-to-one-subscriber.test.js`
+    - a reference the account already holds
+        - is the subscriber that holds it reading its own back
+        - is refused for any other subscriber, naming the reference and its account
+        - is refused in a message that does not name the subscriber holding it
+        - is refused with the account and the reference beside the sentence
+    - the refusal as a caller recognises it
+        - is recognised, also from another copy of the class
+        - is told apart from every other failure of a write
+        - is what an implementation raises where the key refuses the row
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - a confirmation naming a reference another subscriber holds records nothing, and says so
+          once
+
+<!-- END proof -->
 
 ### SC-SEC-004 — Every decision that matters is made where the request is served
 

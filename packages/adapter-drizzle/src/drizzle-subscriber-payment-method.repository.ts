@@ -5,12 +5,18 @@ import type {
     RecordSubscriberPaymentMethodData,
     RecordSubscriberPaymentMethodResult,
     SubscriberPaymentMethodRecord,
+    SubscriberPaymentMethodReference,
     SubscriberPaymentMethodRepository,
     SubscriberPaymentMethodSetupData,
     SubscriberPaymentMethodSetupMatch,
     TransactionContext,
 } from '@saasicat/core';
-import { subscriberPaymentMethodColumns, toSubscriberPaymentMethodRecord } from '@saasicat/core';
+import {
+    ForeignPaymentMethodReferenceError,
+    refuseForeignPaymentMethodReference,
+    subscriberPaymentMethodColumns,
+    toSubscriberPaymentMethodRecord,
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { subscriberPaymentMethodSetups, subscriberPaymentMethods, subscribers } from './schema.js';
 
@@ -44,9 +50,10 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                 .where(this.byReference(data.gatewayAccount, data.paymentMethodRef))
                 .limit(1);
             if (recorded) {
+                refuseForeignPaymentMethodReference(recorded, data.subscriberId);
                 return {
                     method: toSubscriberPaymentMethodRecord(recorded),
-                    outcome: 'already-recorded',
+                    outcome: 'already-recorded' as const,
                 };
             }
             const [active] = await db
@@ -54,13 +61,23 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                 .from(subscriberPaymentMethods)
                 .where(this.activeOf(data.subscriberId))
                 .limit(1);
-            const columns = { ...subscriberPaymentMethodColumns(data), id: randomUUID() };
-            if (active && active.confirmedAt.getTime() > data.confirmedAt.getTime()) {
-                const [created] = await db
-                    .insert(subscriberPaymentMethods)
-                    .values({ ...columns, status: 'REPLACED', replacedAt: active.confirmedAt })
-                    .returning();
-                return { method: toSubscriberPaymentMethodRecord(created), outcome: 'superseded' };
+            // A confirmation that arrived late: the payment method in use was
+            // confirmed after this one, so this one is filed as already replaced.
+            const replacedOnArrival =
+                active && active.confirmedAt.getTime() > data.confirmedAt.getTime()
+                    ? active.confirmedAt
+                    : null;
+            const claimed = await this.claimReference(db, {
+                ...subscriberPaymentMethodColumns(data),
+                id: randomUUID(),
+                status: 'REPLACED',
+                replacedAt: replacedOnArrival ?? data.confirmedAt,
+            });
+            if (replacedOnArrival) {
+                return {
+                    method: toSubscriberPaymentMethodRecord(claimed),
+                    outcome: 'superseded' as const,
+                };
             }
             if (active) {
                 await db
@@ -68,12 +85,54 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
                     .set({ status: 'REPLACED', replacedAt: data.confirmedAt })
                     .where(eq(subscriberPaymentMethods.id, active.id));
             }
-            const [created] = await db
-                .insert(subscriberPaymentMethods)
-                .values({ ...columns, status: 'ACTIVE', replacedAt: null })
+            const [inUse] = await db
+                .update(subscriberPaymentMethods)
+                .set({ status: 'ACTIVE', replacedAt: null })
+                .where(eq(subscriberPaymentMethods.id, claimed.id))
                 .returning();
-            return { method: toSubscriberPaymentMethodRecord(created), outcome: 'activated' };
+            return {
+                method: toSubscriberPaymentMethodRecord(inUse),
+                outcome: 'activated' as const,
+            };
         });
+    }
+
+    /**
+     * Takes the reference for this subscriber, or refuses it to them.
+     *
+     * The first write of the three, and the only one that can be refused — so a
+     * refusal leaves the caller's transaction as it found it, whichever way the
+     * caller opened it. `onConflictDoNothing` on the reference's own columns is
+     * what answers: the row the read above could not see, because the
+     * transaction holding it had not committed, is waited for here rather than
+     * raised as a driver error, which every driver spells differently.
+     *
+     * It is written `REPLACED` because the seat a subscriber's one `ACTIVE`
+     * payment method occupies may still be taken; `recordConfirmed` gives it
+     * the status it keeps once the seat is free. Nothing outside the
+     * transaction sees the difference.
+     */
+    private async claimReference(
+        db: DrizzleClient,
+        values: typeof subscriberPaymentMethods.$inferInsert,
+    ) {
+        const [claimed] = await db
+            .insert(subscriberPaymentMethods)
+            .values(values)
+            .onConflictDoNothing({
+                target: [
+                    subscriberPaymentMethods.gatewayAccount,
+                    subscriberPaymentMethods.paymentMethodRef,
+                ],
+            })
+            .returning();
+        if (!claimed) {
+            throw new ForeignPaymentMethodReferenceError(
+                values.gatewayAccount,
+                values.paymentMethodRef,
+            );
+        }
+        return claimed;
     }
 
     async findActive(
@@ -89,14 +148,21 @@ export class DrizzleSubscriberPaymentMethodRepository implements SubscriberPayme
     }
 
     async findByReference(
-        gatewayAccount: string,
-        paymentMethodRef: string,
+        reference: SubscriberPaymentMethodReference,
         tx?: TransactionContext,
     ): Promise<SubscriberPaymentMethodRecord | null> {
+        // The subscriber is part of the predicate rather than a check on what
+        // came back, so a policy on the table and this statement bound the same
+        // read the same way.
         const [row] = await resolveDb(this.db, tx)
             .select()
             .from(subscriberPaymentMethods)
-            .where(this.byReference(gatewayAccount, paymentMethodRef))
+            .where(
+                and(
+                    eq(subscriberPaymentMethods.subscriberId, reference.subscriberId),
+                    this.byReference(reference.gatewayAccount, reference.paymentMethodRef),
+                ),
+            )
             .limit(1);
         return row ? toSubscriberPaymentMethodRecord(row) : null;
     }

@@ -7,7 +7,11 @@ import type {
     TransactionContext,
     TransactionRunner,
 } from '@saasicat/core';
-import { PAYMENT_ERROR_CODES, isPaymentCallbackRejectedError } from '@saasicat/core';
+import {
+    PAYMENT_ERROR_CODES,
+    isForeignPaymentMethodReferenceError,
+    isPaymentCallbackRejectedError,
+} from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
@@ -144,7 +148,7 @@ export class PaymentCallbackService {
                 afterCommit: (step) => afterCommit.push(step),
             };
             if (event.kind === 'payment-method-confirmed') {
-                const effect = await handler.confirmed(event, context);
+                const effect = await this.confirm(handler, event, context);
                 if (effect === 'nothing-to-do') {
                     await this.log.releaseSession(account, event.eventId, tx);
                 }
@@ -170,6 +174,52 @@ export class PaymentCallbackService {
             }
         }
         return 'handled';
+    }
+
+    /**
+     * Hands the confirmation to its handler, and names the one refusal that
+     * will never come out differently.
+     *
+     * A reference belongs to one subscriber for good (`SC-SEC-014`), so a
+     * confirmation refused for that reason is refused on every delivery. It
+     * still leaves by throwing, which rolls this transaction back: by the time
+     * it is raised a handler has written something that must not stand on its
+     * own — the setup marked complete on the tenant's path, the whole
+     * activation on the sign-up's. Answering the gateway anything else would
+     * commit one of those without the payment method that justifies it.
+     *
+     * The gateway therefore retries until it gives up, and the claim rolls back
+     * with everything else, so nothing durable is left to say why. This line is
+     * what says it.
+     *
+     * There is no terminal state for it, and that is worth knowing before an
+     * operator waits for one: the webhook route has no filter for this, so every
+     * redelivery is answered `500`, for as long as the provider keeps trying. A
+     * provider that disables an endpoint after sustained failures would take the
+     * account's other callbacks with it. Giving the event an end would mean
+     * keeping the claim while undoing what the handler wrote, which needs a
+     * savepoint the port does not have — so it is named here rather than
+     * implied. It names the account, the reference and the subject the
+     * event was about — never the subscriber the reference belongs to, which is
+     * on the other side of the boundary being refused.
+     */
+    private async confirm(
+        handler: PaymentSetupEventHandler,
+        event: PaymentMethodConfirmedEvent,
+        context: PaymentEventContext,
+    ): Promise<PaymentEventEffect> {
+        try {
+            return await handler.confirmed(event, context);
+        } catch (error) {
+            if (!isForeignPaymentMethodReferenceError(error)) throw error;
+            this.logger.error(
+                `Payment event ${event.eventId} at '${context.gatewayAccount}' confirms payment method ` +
+                    `'${error.paymentMethodRef}' for ${subjectOf(event)}, and that reference belongs to ` +
+                    'another subscriber; nothing was recorded, and every delivery of this event is refused ' +
+                    'the same way.',
+            );
+            throw error;
+        }
     }
 
     private async read(
@@ -201,6 +251,13 @@ export class PaymentCallbackService {
                     : 'subscriber payment methods.'),
         );
     }
+}
+
+/** Whom an event is about, for a log line: an identifier of this installation's, never a person. */
+function subjectOf(event: SetupEvent): string {
+    return event.subject.kind === 'registration'
+        ? `sign-up ${event.subject.pendingRegistrationId}`
+        : `subscriber ${event.subject.subscriberId}`;
 }
 
 /** What an event said, for the log: its kind, whom it is about, which payment method — never a person. */

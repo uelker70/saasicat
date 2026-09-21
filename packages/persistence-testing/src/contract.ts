@@ -19,6 +19,8 @@ import type {
     NewSubscriptionContractData,
     PaymentEventClaim,
     RecordSubscriberPaymentMethodData,
+    SubscriberPaymentMethodRecord,
+    SubscriberPaymentMethodReference,
     SubscriptionContractParties,
     TransactionContext,
 } from '@saasicat/core';
@@ -120,6 +122,15 @@ function paymentMethodFor(
         provider: 'stripe',
         confirmedAt: new Date(confirmedAt),
     };
+}
+
+/** Which payment method to ask about: a subscriber, an account, a reference. */
+function reference(
+    subscriberId: string,
+    paymentMethodRef: string,
+    gatewayAccount = 'stripe-main',
+): SubscriberPaymentMethodReference {
+    return { subscriberId, gatewayAccount, paymentMethodRef };
 }
 
 /** A new subscriber for the tenant `tenantId`, every detail but the legal name unknown. */
@@ -2923,11 +2934,14 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(stored, { ...debit, status: 'ACTIVE', replacedAt: null });
             assert.deepEqual(await methods.findActive(subscriberId), result.method);
             assert.deepEqual(
-                await methods.findByReference('stripe-main', 'pm_sepa'),
+                await methods.findByReference(reference(subscriberId, 'pm_sepa')),
                 result.method,
             );
             // A reference is meaningful only to its own account.
-            assert.equal(await methods.findByReference('stripe-old', 'pm_sepa'), null);
+            assert.equal(
+                await methods.findByReference(reference(subscriberId, 'pm_sepa', 'stripe-old')),
+                null,
+            );
             const other = await createSubscriber({ legalName: 'Second Customer GmbH' });
             assert.equal(await methods.findActive(other.subscriberId), null);
         });
@@ -2950,7 +2964,7 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             assert.equal(second.outcome, 'activated');
             assert.equal((await methods.findActive(subscriberId))?.paymentMethodRef, 'pm_second');
-            const first = await methods.findByReference('stripe-main', 'pm_first');
+            const first = await methods.findByReference(reference(subscriberId, 'pm_first'));
             assert.equal(first?.status, 'REPLACED');
             assert.equal(first?.replacedAt?.toISOString(), '2026-09-02T10:00:00.000Z');
         });
@@ -2978,6 +2992,123 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(again.outcome, 'already-recorded');
             assert.deepEqual(again.method, first.method);
             assert.deepEqual(await methods.findActive(subscriberId), first.method);
+        });
+
+        test('a reference belongs to one subscriber, and another one neither reads nor records it', async (t) => {
+            const methods = harness.adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const holder = await createSubscriber({ legalName: 'Inhaberin GmbH' });
+            const stranger = await createSubscriber({ legalName: 'Fremde GmbH' });
+            const confirmation = paymentMethodFor(
+                holder.subscriberId,
+                'pm_of_the_holder',
+                '2026-09-01T10:00:00.000Z',
+            );
+            await methods.recordConfirmed(confirmation);
+
+            // Read and write are asked the same question from the wrong side.
+            // The account's reference is unique account-wide, so neither has
+            // anything but the subscriber to bound it with — and a gateway
+            // callback, where this is reached, carries no tenant whose policy
+            // would bound it instead.
+            assert.equal(
+                await methods.findByReference(reference(stranger.subscriberId, 'pm_of_the_holder')),
+                null,
+            );
+            await assert.rejects(
+                methods.recordConfirmed({
+                    ...confirmation,
+                    subscriberId: stranger.subscriberId,
+                    confirmedAt: new Date('2026-09-02T10:00:00.000Z'),
+                }),
+                /belongs to another subscriber/,
+                "answering `already-recorded` would hand out the holder's payment method",
+            );
+            assert.equal(await methods.findActive(stranger.subscriberId), null);
+            assert.deepEqual(
+                await methods.findByReference(reference(holder.subscriberId, 'pm_of_the_holder')),
+                await methods.findActive(holder.subscriberId),
+                'the refusal left the holder with the payment method it had',
+            );
+        });
+
+        test('two subscribers confirming one reference at once: the second is refused in the same words', async (t) => {
+            const { adapter } = harness;
+            const methods = adapter.subscriberPaymentMethodRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!methods || !createSubscriber) {
+                missing(t, 'subscriberPaymentMethods');
+                return;
+            }
+            const holder = await createSubscriber({ legalName: 'Zugleich Inhaberin GmbH' });
+            const stranger = await createSubscriber({ legalName: 'Zugleich Fremde GmbH' });
+            // The stranger has one of its own, so the refusal has something to
+            // leave alone — and so the read below says more than `null`.
+            await methods.recordConfirmed(
+                paymentMethodFor(
+                    stranger.subscriberId,
+                    'pm_of_the_stranger',
+                    '2026-08-01T10:00:00.000Z',
+                ),
+            );
+
+            const [held, refused] = await Promise.allSettled([
+                adapter.transactionRunner.run(async (tx) => {
+                    const result = await methods.recordConfirmed(
+                        paymentMethodFor(
+                            holder.subscriberId,
+                            'pm_at_once_shared',
+                            '2026-09-01T10:00:00.000Z',
+                        ),
+                        tx,
+                    );
+                    await sleep(LOCK_HOLD_MS);
+                    return result;
+                }),
+                sleep(LOCK_HOLD_MS / 3).then(() =>
+                    adapter.transactionRunner.run(async (tx) => {
+                        // The read cannot see the other transaction's row, so
+                        // this refusal is the reference's own key answering.
+                        await assert.rejects(
+                            methods.recordConfirmed(
+                                paymentMethodFor(
+                                    stranger.subscriberId,
+                                    'pm_at_once_shared',
+                                    '2026-09-01T10:00:01.000Z',
+                                ),
+                                tx,
+                            ),
+                            /belongs to another subscriber/,
+                        );
+                        // And the caller still has its transaction: the refusal
+                        // came before the first write of its own, so there is
+                        // nothing to undo and nothing that stops it being used.
+                        return methods.findActive(stranger.subscriberId, tx);
+                    }),
+                ),
+            ]);
+
+            assert.equal(held.status, 'fulfilled');
+            assert.equal(
+                refused.status,
+                'fulfilled',
+                String((refused as { reason?: unknown }).reason),
+            );
+            assert.equal(
+                refused.status === 'fulfilled'
+                    ? (refused.value as SubscriberPaymentMethodRecord | null)?.paymentMethodRef
+                    : null,
+                'pm_of_the_stranger',
+                'the refused confirmation left the stranger the payment method it had',
+            );
+            assert.equal(
+                (await methods.findActive(holder.subscriberId))?.paymentMethodRef,
+                'pm_at_once_shared',
+            );
         });
 
         test('a confirmation older than the payment method in use is recorded as already replaced', async (t) => {
@@ -3031,7 +3162,8 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             }
             const statuses = await Promise.all(
                 ['pm_at_once_a', 'pm_at_once_b'].map(
-                    async (ref) => (await methods.findByReference('stripe-main', ref))?.status,
+                    async (ref) =>
+                        (await methods.findByReference(reference(subscriberId, ref)))?.status,
                 ),
             );
             assert.deepEqual(statuses, ['REPLACED', 'ACTIVE']);
@@ -3065,7 +3197,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 /the activation failed after all/,
             );
             assert.equal(await methods.findActive(subscriberId), null);
-            assert.equal(await methods.findByReference('stripe-main', 'pm_rolled_back'), null);
+            assert.equal(
+                await methods.findByReference(reference(subscriberId, 'pm_rolled_back')),
+                null,
+            );
         });
 
         test('a payment method for a subscriber that does not exist is refused', async (t) => {
@@ -3083,7 +3218,10 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                     ),
                 ),
             );
-            assert.equal(await methods.findByReference('stripe-main', 'pm_nobody'), null);
+            assert.equal(
+                await methods.findByReference(reference('subscriber-nobody-created', 'pm_nobody')),
+                null,
+            );
         });
 
         test('the accounts in use are those holding a payment method in use, each once', async (t) => {

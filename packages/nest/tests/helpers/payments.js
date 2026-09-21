@@ -6,7 +6,11 @@
 // handler that throws takes its claim and its writes with it — the property
 // the persistence contract checks against PostgreSQL.
 
-import { PaymentCallbackRejectedError, subscriberPaymentMethodColumns } from '@saasicat/core';
+import {
+    PaymentCallbackRejectedError,
+    refuseForeignPaymentMethodReference,
+    subscriberPaymentMethodColumns,
+} from '@saasicat/core';
 
 /** The account every test takes payment methods at, unless it names another. */
 export const MAIN_ACCOUNT = 'stripe-main';
@@ -189,7 +193,10 @@ export class MemoryPaymentMethods {
                 row.gatewayAccount === data.gatewayAccount &&
                 row.paymentMethodRef === data.paymentMethodRef,
         );
-        if (recorded) return { method: structuredClone(recorded), outcome: 'already-recorded' };
+        if (recorded) {
+            refuseForeignPaymentMethodReference(recorded, data.subscriberId);
+            return { method: structuredClone(recorded), outcome: 'already-recorded' };
+        }
         const active = this.rows.find(
             (row) => row.subscriberId === data.subscriberId && row.status === 'ACTIVE',
         );
@@ -212,9 +219,12 @@ export class MemoryPaymentMethods {
         return row ? structuredClone(row) : null;
     }
 
-    async findByReference(gatewayAccount, paymentMethodRef) {
+    async findByReference(reference) {
         const row = this.rows.find(
-            (r) => r.gatewayAccount === gatewayAccount && r.paymentMethodRef === paymentMethodRef,
+            (r) =>
+                r.subscriberId === reference.subscriberId &&
+                r.gatewayAccount === reference.gatewayAccount &&
+                r.paymentMethodRef === reference.paymentMethodRef,
         );
         return row ? structuredClone(row) : null;
     }

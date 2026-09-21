@@ -697,6 +697,8 @@ _Tested by:_
         - opening the form records the setup for this subscriber and this session
         - a confirmation naming another subscriber than the session was opened for changes nobody's
           payment method
+        - a confirmation naming a reference another subscriber holds records nothing, and says so
+          once
         - a confirmation for a session nobody opened, or for a setup already completed, records
           nothing
         - without an account for new payment methods the change is refused, and the gateway is not

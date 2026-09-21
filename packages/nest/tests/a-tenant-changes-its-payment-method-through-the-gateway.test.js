@@ -7,6 +7,7 @@
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import {
@@ -477,7 +478,11 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
             'pm_of_the_other_tenant',
         );
         assert.equal(
-            await ctx.methods.findByReference(MAIN_ACCOUNT, 'pm_wrongly_attributed'),
+            await ctx.methods.findByReference({
+                subscriberId: other.id,
+                gatewayAccount: MAIN_ACCOUNT,
+                paymentMethodRef: 'pm_wrongly_attributed',
+            }),
             null,
         );
         assert.equal(ctx.methods.setups[0].completedAt, null, "tenant-1's setup was used up");
@@ -503,6 +508,57 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
             (await ctx.methods.findActive(ctx.subscriber.id))?.paymentMethodRef,
             'pm_for_tenant_1',
         );
+    });
+
+    // @requirement SC-SEC-014 — A payment method's reference belongs to exactly one subscriber
+    test('a confirmation naming a reference another subscriber holds records nothing, and says so once', async (t) => {
+        const ctx = await withSubscriber();
+        const other = await ctx.subscribers.createForTenant('tenant-2', {
+            legalName: 'Other Tenant GmbH',
+        });
+        await ctx.methods.recordConfirmed({
+            ...confirmation({ eventId: 'e', sessionRef: 's', subject: {} }).paymentMethod,
+            paymentMethodRef: 'pm_shared_by_the_provider',
+            subscriberId: other.id,
+            gatewayAccount: MAIN_ACCOUNT,
+            provider: 'stripe',
+            confirmedAt: new Date('2026-09-01T08:00:00.000Z'),
+        });
+        await ctx.routes.startSetup(adminOf('tenant-1'), URLS);
+        const errors = t.mock.method(Logger.prototype, 'error', () => {});
+
+        // It leaves by throwing, so the setup this marked complete and every
+        // other write of this delivery roll back with it.
+        await assert.rejects(
+            ctx.callbacks.handle(
+                MAIN_ACCOUNT,
+                signedCallback(
+                    confirmation({
+                        eventId: 'evt_shared_reference',
+                        sessionRef: 'cs_1',
+                        subject: { kind: 'subscriber', subscriberId: ctx.subscriber.id },
+                        paymentMethodRef: 'pm_shared_by_the_provider',
+                    }),
+                ),
+            ),
+            /belongs to another subscriber/,
+        );
+
+        assert.equal(await ctx.methods.findActive(ctx.subscriber.id), null);
+        assert.equal(ctx.methods.setups[0].completedAt, null, "tenant-1's setup was used up");
+        assert.equal(
+            (await ctx.methods.findActive(other.id))?.paymentMethodRef,
+            'pm_shared_by_the_provider',
+        );
+
+        // The one durable trace: the claim rolled back with everything else, so
+        // without this line an operator has only a stack.
+        const said = errors.mock.calls.map((call) => String(call.arguments[0]));
+        const line = said.find((message) => message.includes('pm_shared_by_the_provider'));
+        assert.ok(line, said.join('\n'));
+        assert.match(line, /evt_shared_reference/);
+        assert.ok(line.includes(`subscriber ${ctx.subscriber.id}`), line);
+        assert.ok(!line.includes(other.id), 'the holder is on the other side of this boundary');
     });
 
     test('a confirmation for a session nobody opened, or for a setup already completed, records nothing', async () => {

@@ -66,6 +66,27 @@ export interface SubscriberPaymentMethodSetupMatch {
     subscriberId: string;
 }
 
+/**
+ * Which payment method a read by reference asks about.
+ *
+ * All three together, because `(gatewayAccount, paymentMethodRef)` is unique
+ * account-wide rather than per subscriber: without the subscriber the question
+ * has no answer that is this caller's.
+ *
+ * One argument rather than three strings in a row, for the reason
+ * `SubscriberPaymentMethodSetupMatch` is one — at a call site three strings of
+ * the same type can be swapped with nothing saying so — and for a second that
+ * is specific to a port. `TransactionContext` is `unknown`, so it accepts a
+ * string: against a positional signature, an implementation whose parameters
+ * are offset by one typechecks and then reads the account out of the
+ * subscriber's place. Against an object it does not.
+ */
+export interface SubscriberPaymentMethodReference {
+    subscriberId: string;
+    gatewayAccount: string;
+    paymentMethodRef: string;
+}
+
 export interface RecordSubscriberPaymentMethodResult {
     method: SubscriberPaymentMethodRecord;
     outcome: RecordSubscriberPaymentMethodOutcome;

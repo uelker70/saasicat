@@ -104,3 +104,73 @@ function oneOf<T extends string>(
     }
     return match;
 }
+
+/** Marks the refusal across module copies, the way `PaymentCallbackRejectedError` does. */
+const FOREIGN_PAYMENT_METHOD_REFERENCE = 'FOREIGN_PAYMENT_METHOD_REFERENCE';
+
+/**
+ * A confirmation naming a reference that belongs to another subscriber.
+ *
+ * `(gatewayAccount, paymentMethodRef)` is unique account-wide rather than per
+ * subscriber, and that is what makes the reference one subscriber's for good:
+ * the second row cannot be written. This is the same boundary drawn for the
+ * caller, so that a confirmation is refused rather than answered as the
+ * duplicate of a payment method that is not this subscriber's — on a gateway
+ * callback, which arrives without a session and with the tenant policy lifted,
+ * so nothing else there bounds the question.
+ *
+ * That a provider issues a reference once per payer is a property of that
+ * provider and no promise of this platform's, which is why the condition is
+ * checked rather than assumed.
+ *
+ * It names neither the subscriber that holds the reference nor the tenant
+ * behind it: whoever reads the log of the refused confirmation is on the other
+ * side of the boundary this refusal draws. The account and the reference are
+ * carried as fields so that a caller can say which confirmation was refused
+ * without taking the sentence apart.
+ */
+export class ForeignPaymentMethodReferenceError extends Error {
+    readonly code = FOREIGN_PAYMENT_METHOD_REFERENCE;
+    constructor(
+        readonly gatewayAccount: string,
+        readonly paymentMethodRef: string,
+    ) {
+        super(
+            `Payment method '${paymentMethodRef}' of account '${gatewayAccount}' ` +
+                'belongs to another subscriber. A reference belongs to exactly one, so it is not handed out.',
+        );
+        this.name = 'ForeignPaymentMethodReferenceError';
+    }
+}
+
+/** Realm-safe type guard, like `isPaymentCallbackRejectedError`. */
+export function isForeignPaymentMethodReferenceError(
+    error: unknown,
+): error is ForeignPaymentMethodReferenceError {
+    return (
+        error instanceof Error &&
+        (error as { code?: string }).code === FOREIGN_PAYMENT_METHOD_REFERENCE
+    );
+}
+
+/**
+ * Refuses a reference of `gatewayAccount` that another subscriber already
+ * holds, where the row could be read.
+ *
+ * A write cannot rely on this alone: a read does not see a row a concurrent
+ * transaction has not committed. What the reference's unique key refuses is
+ * refused with the same error — see `SubscriberPaymentMethodRepository`.
+ */
+export function refuseForeignPaymentMethodReference(
+    recorded: Pick<
+        CanonicalSubscriberPaymentMethodRow,
+        'subscriberId' | 'gatewayAccount' | 'paymentMethodRef'
+    >,
+    subscriberId: string,
+): void {
+    if (recorded.subscriberId === subscriberId) return;
+    throw new ForeignPaymentMethodReferenceError(
+        recorded.gatewayAccount,
+        recorded.paymentMethodRef,
+    );
+}
