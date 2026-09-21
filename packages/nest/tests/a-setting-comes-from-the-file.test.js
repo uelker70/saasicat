@@ -20,7 +20,7 @@ import { SaaSiCatModule } from '../dist/platform/index.js';
 import {
     CANCELLATION_NOTICE_DAYS_TOKEN,
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
-    PLAN_CATALOG_TOKEN,
+    PLAN_CATALOG_SETTINGS_TOKEN,
     noticeDaysFor,
 } from '../dist/billing/index.js';
 
@@ -109,10 +109,13 @@ describe('the value the code runs on is the value in the file', () => {
             }),
         );
         assert.deepEqual(app.get(CANCELLATION_NOTICE_DAYS_TOKEN), { monthly: 0, yearly: 0 });
-        assert.deepEqual(app.get(PLAN_CATALOG_TOKEN).tenantBilling.selfServiceBlockedPlans, {
-            asTarget: [],
-            asSource: [],
-        });
+        assert.deepEqual(
+            app.get(PLAN_CATALOG_SETTINGS_TOKEN).tenantBilling.selfServiceBlockedPlans,
+            {
+                asTarget: [],
+                asSource: [],
+            },
+        );
     });
 });
 

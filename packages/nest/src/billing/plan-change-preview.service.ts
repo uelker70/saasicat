@@ -9,7 +9,8 @@ import type {
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
-import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
+import type { PlanCatalogSource } from './plan-catalog-source.js';
 import {
     findPlan,
     getPlanPriceNet,
@@ -168,7 +169,7 @@ export interface PlanChangeContext {
 @Injectable()
 export class PlanChangePreviewService {
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource,
         // Explicit @Inject — the tsup build has no emitDecoratorMetadata,
         // so class-type reflection doesn't work; NestJS would otherwise throw
         // an UndefinedDependencyException on this parameter.
@@ -205,7 +206,11 @@ export class PlanChangePreviewService {
             });
         }
 
-        const targetPlanDef = findPlan(this.catalog, targetPlan);
+        // One read for the whole preview: the target's existence, both prices
+        // and the ranking that decides between upgrade and downgrade all come
+        // from the same plans.
+        const catalog = await this.catalogs.current();
+        const targetPlanDef = findPlan(catalog, targetPlan);
         if (!targetPlanDef) {
             throw new NotFoundException({
                 code: BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG,
@@ -227,21 +232,23 @@ export class PlanChangePreviewService {
             startedAt: sub.startedAt,
         };
 
+        // The tenant's current entitlements come from the entitlement cache, up
+        // to a minute old (`SC-PLAN-026`), rather than from the reading above.
+        // Handing that reading on would bypass the cache and cost the
+        // subscription, contract and bundle reads on every preview; what the
+        // preview charges is priced from the reading, and the contract a change
+        // freezes computes its own entitlements fresh.
         const [currentLimits, usage] = await Promise.all([
             this.entitlements.computeLimits(tenantId, now),
             this.usageSnapshot.snapshot(tenantId),
         ]);
 
-        const currentPlanDef = findPlan(this.catalog, currentLimits.plan);
+        const currentPlanDef = findPlan(catalog, currentLimits.plan);
         const currentSnap: PlanSnapshotDto = {
             id: currentLimits.plan,
             name: currentPlanDef?.name ?? currentLimits.plan,
-            monthlyNet: getPlanPriceNet(
-                this.catalog,
-                currentLimits.plan,
-                'MONTHLY' as BillingCycle,
-            ),
-            yearlyNet: getPlanPriceNet(this.catalog, currentLimits.plan, 'YEARLY' as BillingCycle),
+            monthlyNet: getPlanPriceNet(catalog, currentLimits.plan, 'MONTHLY' as BillingCycle),
+            yearlyNet: getPlanPriceNet(catalog, currentLimits.plan, 'YEARLY' as BillingCycle),
             quotas: currentLimits.quotas,
             features: Array.from(currentLimits.features).sort(),
         };
@@ -249,13 +256,19 @@ export class PlanChangePreviewService {
         const targetSnap: PlanSnapshotDto = {
             id: targetPlanDef.id,
             name: targetPlanDef.name ?? targetPlanDef.id,
-            monthlyNet: getPlanPriceNet(this.catalog, targetPlan, 'MONTHLY' as BillingCycle),
-            yearlyNet: getPlanPriceNet(this.catalog, targetPlan, 'YEARLY' as BillingCycle),
+            monthlyNet: getPlanPriceNet(catalog, targetPlan, 'MONTHLY' as BillingCycle),
+            yearlyNet: getPlanPriceNet(catalog, targetPlan, 'YEARLY' as BillingCycle),
             quotas: targetPlanDef.quotas,
             features: targetPlanDef.features.slice().sort(),
         };
 
-        const changeType = this.classify(sub.plan, sub.billingCycle, targetPlan, targetCycle);
+        const changeType = this.classify(
+            catalog,
+            sub.plan,
+            sub.billingCycle,
+            targetPlan,
+            targetCycle,
+        );
 
         const limitsCheck: Record<string, LimitsCheckRow> = {};
         const quotaKeys = new Set([
@@ -290,7 +303,7 @@ export class PlanChangePreviewService {
         // asked to try. `status` is what separates the two cases — no
         // arrangement of the dates does, because a trial has a period end like
         // any other subscription.
-        const planDirection = this.planDirection(sub.plan, targetPlan);
+        const planDirection = this.planDirection(catalog, sub.plan, targetPlan);
         const cycleDirection = this.cycleDirection(sub.billingCycle, targetCycle);
         const commits = ctx.status !== 'TRIAL';
         const isImmediate = planDirection === 'UP' && (!commits || cycleDirection !== 'SHORTER');
@@ -497,9 +510,15 @@ export class PlanChangePreviewService {
     }
 
     /** Catalog order decides which plan is higher; equal keys are `SAME`. */
-    private planDirection(currentPlan: string, targetPlan: string): PlanDirection {
+    private planDirection(
+        catalog: PlanCatalog,
+        currentPlan: string,
+        targetPlan: string,
+    ): PlanDirection {
         if (currentPlan === targetPlan) return 'SAME';
-        return this.planRank(targetPlan) > this.planRank(currentPlan) ? 'UP' : 'DOWN';
+        return this.planRank(catalog, targetPlan) > this.planRank(catalog, currentPlan)
+            ? 'UP'
+            : 'DOWN';
     }
 
     /**
@@ -549,6 +568,7 @@ export class PlanChangePreviewService {
     }
 
     private classify(
+        catalog: PlanCatalog,
         currentPlan: string,
         currentCycle: string,
         targetPlan: string,
@@ -556,14 +576,14 @@ export class PlanChangePreviewService {
     ): PlanChangeType {
         if (currentPlan === targetPlan && currentCycle === targetCycle) return 'NOOP';
         if (currentPlan === targetPlan) return 'CYCLE_CHANGE';
-        const currentRank = this.planRank(currentPlan);
-        const targetRank = this.planRank(targetPlan);
+        const currentRank = this.planRank(catalog, currentPlan);
+        const targetRank = this.planRank(catalog, targetPlan);
         return targetRank > currentRank ? 'UPGRADE' : 'DOWNGRADE';
     }
 
     /** Catalog order = rank. Non-marketed plans go to the end. */
-    private planRank(planId: string): number {
-        const plans = this.catalog.plans ?? [];
+    private planRank(catalog: PlanCatalog, planId: string): number {
+        const plans = catalog.plans ?? [];
         const idx = plans.findIndex((p) => p.id === planId);
         if (idx === -1) return Number.POSITIVE_INFINITY;
         const plan = plans[idx]!;

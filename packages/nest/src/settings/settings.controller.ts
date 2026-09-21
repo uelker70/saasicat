@@ -22,13 +22,13 @@ import {
     type AppliedSettingsPort,
     type AppliedSettingsValues,
     diffSettings,
-    type PlanCatalog,
+    type PlanCatalogSettings,
     type SettingsChangeRecord,
     type SettingsDifference,
     settingsSubtreeOf,
 } from '@saasicat/core';
 
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { actorTagOf, defaultActorFromRequest, WebAuditLogger } from '../core/web-audit.js';
 import { codedError } from '../errors/coded-error.js';
 import { fingerprintOf } from './settings-fingerprint.js';
@@ -72,7 +72,7 @@ export function buildSettingsController(guards: Array<Type<CanActivate>>): Type 
     class GeneratedSettingsController {
         // Explicit @Inject: tsup/esbuild emit no `design:paramtypes`.
         constructor(
-            @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+            @Inject(PLAN_CATALOG_SETTINGS_TOKEN) private readonly settings: PlanCatalogSettings,
             @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
             @Inject(APPLIED_SETTINGS_PORT_TOKEN)
             private readonly port: AppliedSettingsPort | null,
@@ -88,7 +88,7 @@ export function buildSettingsController(guards: Array<Type<CanActivate>>): Type 
 
         @Get('settings')
         async getSettings(): Promise<AppliedSettingsView> {
-            const settings = settingsSubtreeOf(this.catalog);
+            const settings = settingsSubtreeOf(this.settings);
             const fingerprint = fingerprintOf(settings);
             const base = { source: this.source, fingerprint, settings };
             if (!this.port) return { ...base, recorded: false, appliedAt: null, changes: [] };

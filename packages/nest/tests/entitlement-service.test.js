@@ -1,6 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EntitlementService, LimitExceededError } from '../dist/entitlement/index.js';
+import { givenPlanCatalogSource } from '../dist/billing/index.js';
+import { publishingCatalogue } from './helpers/publishing-catalogue.js';
 import {
     FakePlanVersionRepository,
     FakeSubscriptionContractRepository,
@@ -61,13 +63,13 @@ function buildSub(overrides = {}) {
     };
 }
 
-function buildHarness(resolutionConfig = null) {
+function buildHarness(resolutionConfig = null, catalogs = givenPlanCatalogSource(CATALOG)) {
     const subRepo = new FakeSubscriptionRepository();
     const pvRepo = new FakePlanVersionRepository();
     const txRunner = new FakeTransactionRunner();
     pvRepo.set(STANDARD_PV);
     pvRepo.set(PROFESSIONAL_PV);
-    const svc = new EntitlementService(CATALOG, subRepo, pvRepo, txRunner, resolutionConfig);
+    const svc = new EntitlementService(catalogs, subRepo, pvRepo, txRunner, resolutionConfig);
     return { svc, subRepo, pvRepo, txRunner };
 }
 
@@ -78,7 +80,7 @@ function buildContractHarness() {
     const contractRepo = new FakeSubscriptionContractRepository();
     pvRepo.set(STANDARD_PV);
     const svc = new EntitlementService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         subRepo,
         pvRepo,
         txRunner,
@@ -553,7 +555,12 @@ describe('EntitlementService.enforceLimit — transactional', () => {
             features: ['CASHBOOK'],
         });
         const txRunner = new FakeTransactionRunner();
-        const svc = new EntitlementService(customCatalog, subRepo, pvRepo, txRunner);
+        const svc = new EntitlementService(
+            givenPlanCatalogSource(customCatalog),
+            subRepo,
+            pvRepo,
+            txRunner,
+        );
         subRepo.set(
             buildSub({
                 planVersion: {
@@ -673,7 +680,7 @@ describe('EntitlementService — a feature the catalog says is not built yet', (
         const pvRepo = new FakePlanVersionRepository();
         pvRepo.set(STANDARD_PV);
         const svc = new EntitlementService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             subRepo,
             pvRepo,
             new FakeTransactionRunner(),
@@ -693,7 +700,7 @@ describe('EntitlementService — a feature the catalog says is not built yet', (
         const pvRepo = new FakePlanVersionRepository();
         pvRepo.set(STANDARD_PV);
         const svc = new EntitlementService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             subRepo,
             pvRepo,
             new FakeTransactionRunner(),
@@ -745,6 +752,77 @@ describe('EntitlementService — a feature the catalog says is not built yet', (
     });
 });
 
+// @requirement SC-ENTL-003 — A feature declared as not yet rolled out is never granted
+// @requirement SC-PLAN-026 — A version is sold from the moment it is published, not from the next start
+describe('EntitlementService — a feature marked planned only after the service was built', () => {
+    const later = (ms) => new Date(NOW.getTime() + ms);
+
+    test('is granted at most a minute longer, the time a cached answer may be old', async () => {
+        const operator = publishingCatalogue(CATALOG);
+        const { svc, subRepo } = buildHarness(null, operator.source);
+        subRepo.set(buildSub({ plan: 'PROFESSIONAL', planVersion: PROFESSIONAL_PV }));
+        assert.equal((await svc.computeLimits('t1', NOW)).features.has('DMS'), true);
+
+        operator.markPlannedOnly('DMS');
+        assert.equal((await svc.computeLimits('t1', later(59_000))).features.has('DMS'), true);
+        assert.equal((await svc.computeLimits('t1', later(60_001))).features.has('DMS'), false);
+    });
+
+    test('a caller that read the catalogue gets the answer computed from that reading', async () => {
+        const operator = publishingCatalogue(CATALOG);
+        const { svc, subRepo } = buildHarness(null, operator.source);
+        subRepo.set(buildSub({ plan: 'PROFESSIONAL', planVersion: PROFESSIONAL_PV }));
+        assert.equal((await svc.computeLimits('t1', NOW)).features.has('DMS'), true);
+
+        operator.markPlannedOnly('DMS');
+        const reading = await operator.source.current();
+        const reads = operator.source.reads;
+        const limits = await svc.computeLimits('t1', NOW, reading);
+        assert.equal(limits.features.has('DMS'), false, 'the cached answer was served instead');
+        assert.equal(operator.source.reads, reads, 'the reading handed in was not the one used');
+    });
+
+    test('a reading handed in does not become the answer for everybody else', async () => {
+        const operator = publishingCatalogue(CATALOG);
+        const { svc, subRepo } = buildHarness(null, operator.source);
+        subRepo.set(buildSub({ plan: 'PROFESSIONAL', planVersion: PROFESSIONAL_PV }));
+        const older = await operator.source.current();
+        operator.markPlannedOnly('DMS');
+
+        assert.equal((await svc.computeLimits('t1', NOW, older)).features.has('DMS'), true);
+        assert.equal((await svc.computeLimits('t1', NOW)).features.has('DMS'), false);
+    });
+});
+
+describe('EntitlementService.enforceLimit — the catalogue is read before the transaction', () => {
+    test('so a limit check holding the row lock does not wait for a second connection', async () => {
+        const events = [];
+        const catalogs = {
+            origin: 'database',
+            async current() {
+                events.push('catalogue');
+                return CATALOG;
+            },
+        };
+        const { svc, subRepo, txRunner } = buildHarness(null, catalogs);
+        const run = txRunner.run.bind(txRunner);
+        txRunner.run = (fn) => {
+            events.push('transaction');
+            return run(fn);
+        };
+        subRepo.set(buildSub());
+
+        await svc.enforceLimit({
+            tenantId: 't1',
+            dimension: 'vehicles',
+            currentUsage: async () => 0,
+            insert: async () => 'created-id',
+            now: NOW,
+        });
+        assert.deepEqual(events, ['catalogue', 'transaction']);
+    });
+});
+
 // @requirement SC-BUN-033 — An add-on bought after a contract was agreed takes effect immediately
 describe('EntitlementService — bundles booked after the contract was signed', () => {
     // A contract freezes what was agreed at signing time. A bundle bought
@@ -775,7 +853,7 @@ describe('EntitlementService — bundles booked after the contract was signed', 
             findVersionById: async (versionId) => versionsByid[versionId] ?? null,
         };
         const svc = new EntitlementService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             subRepo,
             pvRepo,
             txRunner,
@@ -999,7 +1077,7 @@ describe('EntitlementService.enforceLimit — forwards tx to lookup ports (#70)'
         };
 
         const svc = new EntitlementService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             subRepo,
             pvRepo,
             txRunner,

@@ -27,7 +27,8 @@ import type {
 } from '@saasicat/core';
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
+import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
@@ -103,7 +104,7 @@ export class EntitlementService {
     private replacedByIndex: ReplacedByIndex | null = null;
 
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource,
         @Inject(SUBSCRIPTION_REPOSITORY_TOKEN)
         private readonly subscriptions: SubscriptionRepository,
         @Inject(PLAN_VERSION_REPOSITORY_TOKEN)
@@ -137,9 +138,23 @@ export class EntitlementService {
     // Read path — for FeatureGuard, sidebar hooks, GET /billing/entitlement
     // ---------------------------------------------------------------------
 
-    async computeLimits(tenantId: string, now = new Date()): Promise<EffectiveLimits> {
-        const cached = this.readCache(tenantId, now.getTime());
-        if (cached) return cached;
+    /**
+     * The tenant's effective limits, answered from the cache for up to
+     * `CACHE_TTL_MS`. A caller that has already read the catalogue for its own
+     * operation passes it as `catalog`: the answer is then computed against
+     * that reading and kept out of the cache in both directions — not taken
+     * from it, and not written to it, since a reading the caller holds may be
+     * older than the one everybody else should be answered from.
+     */
+    async computeLimits(
+        tenantId: string,
+        now = new Date(),
+        catalog?: PlanCatalog,
+    ): Promise<EffectiveLimits> {
+        if (!catalog) {
+            const cached = this.readCache(tenantId, now.getTime());
+            if (cached) return cached;
+        }
 
         const sub = await this.subscriptions.findByTenantId(tenantId);
         if (!sub) {
@@ -149,7 +164,8 @@ export class EntitlementService {
                 params: { tenantId },
             });
         }
-        const limits = await this.deriveLimits(sub, now);
+        if (catalog) return this.limitsFor(sub, now, catalog);
+        const limits = await this.limitsFor(sub, now, await this.catalogs.current());
         // A cached answer may not outlive the cancellation it was computed
         // before. Every other thing that changes these limits is a mutation,
         // and every mutation invalidates the entry; a date arriving is not a
@@ -183,6 +199,21 @@ export class EntitlementService {
         now: Date,
         tx?: TransactionContext,
     ): Promise<EffectiveLimits> {
+        return this.limitsFor(sub, now, await this.catalogs.current(), tx);
+    }
+
+    /**
+     * `deriveLimits` against a catalogue already read. The catalogue decides
+     * which features are `plannedOnly`, and it is read outside any transaction
+     * a caller holds, so that checking a limit does not wait for a second
+     * connection while the subscription row is locked.
+     */
+    private async limitsFor(
+        sub: SubscriptionRecord,
+        now: Date,
+        catalog: PlanCatalog,
+        tx?: TransactionContext,
+    ): Promise<EffectiveLimits> {
         // A cancellation that has taken effect ends everything below it, and
         // this is the only place that can say so: no repository filters a
         // cancelled subscription out, and the renewal decision stops the
@@ -205,6 +236,7 @@ export class EntitlementService {
             }
             const floorVersion = await this.findActivePlanVersionOrFallback(floor, now, tx);
             return this.asGrantable(
+                catalog,
                 aggregateLimits(
                     {
                         plan: floor,
@@ -212,7 +244,7 @@ export class EntitlementService {
                         subscriptionBundles: [],
                         customLimits: null,
                     },
-                    this.catalog,
+                    catalog,
                     now,
                 ),
             );
@@ -225,11 +257,12 @@ export class EntitlementService {
             // until something re-freezes the contract.
             const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
             return this.asGrantable(
+                catalog,
                 mergeSubscriptionBundlesIntoLimits(
                     contractLimits(contract),
                     bundles,
                     contractBundleVersionIds(contract),
-                    this.catalog,
+                    catalog,
                     now,
                 ),
             );
@@ -244,6 +277,7 @@ export class EntitlementService {
         const subscriptionBundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
 
         return this.asGrantable(
+            catalog,
             aggregateLimits(
                 {
                     plan: effectivePlan,
@@ -251,7 +285,7 @@ export class EntitlementService {
                     subscriptionBundles,
                     customLimits: sub.customLimits ?? null,
                 },
-                this.catalog,
+                catalog,
                 now,
             ),
         );
@@ -273,12 +307,12 @@ export class EntitlementService {
      * same way. `SC-ENTL-003` says "never … wherever it comes from", and one
      * place is what makes that answerable.
      */
-    private asGrantable(limits: EffectiveLimits): EffectiveLimits {
+    private asGrantable(catalog: PlanCatalog, limits: EffectiveLimits): EffectiveLimits {
         return {
             ...limits,
             features: filterPlannedOnlyFeatures(
                 this.replaceFeatureAliases(limits).features,
-                this.catalog,
+                catalog,
             ),
         };
     }
@@ -360,6 +394,7 @@ export class EntitlementService {
         const now = input.now ?? new Date();
         const delta = input.delta ?? 1;
 
+        const catalog = await this.catalogs.current();
         return this.tx.run(async (tx) => {
             const sub = await this.subscriptions.findByTenantIdLocked(input.tenantId, tx);
             if (!sub) {
@@ -370,7 +405,7 @@ export class EntitlementService {
                 });
             }
 
-            const limits = await this.deriveLimits(sub, now, tx);
+            const limits = await this.limitsFor(sub, now, catalog, tx);
             const max = limits.quotas[input.dimension];
             if (max === undefined) {
                 // Misconfiguration, not user input: the call site names a

@@ -1,6 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PromoCodesService } from '../dist/promo/index.js';
+import { givenPlanCatalogSource } from '../dist/billing/index.js';
+import { publishingCatalogue } from './helpers/publishing-catalogue.js';
 
 const TEST_CATALOG = {
     schemaVersion: 1,
@@ -196,7 +198,7 @@ function buildSvc(overrides = {}) {
         overrides.subscriptionLookup ?? NOOP_SUBSCRIPTION_LOOKUP,
         overrides.revenueAggregator ?? NOOP_REVENUE_AGGREGATOR,
         overrides.transactionRunner ?? PASSTHROUGH_TX_RUNNER,
-        overrides.catalog ?? TEST_CATALOG,
+        overrides.source ?? givenPlanCatalogSource(overrides.catalog ?? TEST_CATALOG),
         overrides.config ?? { nonRedeemablePlans: ['ENTERPRISE'] },
     );
 }
@@ -383,6 +385,121 @@ describe('PromoCodesService.preview — eligibility', () => {
         // 148.45 × 100 / 119 — the amount an offer takes off the plan's net price
         assert.equal(r.price.discountNet, '124.75');
         assert.equal(r.price.discountedGross, '445.36');
+    });
+});
+
+// @requirement SC-PLAN-026 — A version is sold from the moment it is published, not from the next start
+describe('a plan the operator publishes after the service was built', () => {
+    const PREMIUM = {
+        id: 'PREMIUM',
+        name: 'Premium',
+        marketed: true,
+        monthlyNet: 99,
+        yearlyNet: 990,
+        quotas: { users: 5 },
+        features: [],
+    };
+    const STANDARD = TEST_CATALOG.plans.find((plan) => plan.id === 'STANDARD');
+    const onStandard = { code: 'BLACKFRIDAY25', planId: 'STANDARD', billingCycle: 'MONTHLY' };
+    const onPremium = { ...onStandard, planId: 'PREMIUM' };
+
+    function running() {
+        const operator = publishingCatalogue(TEST_CATALOG);
+        return { operator, svc: buildSvc({ source: operator.source }) };
+    }
+
+    test('takes a code at once, priced at what was published', async () => {
+        const { operator, svc } = running();
+        await svc.create(BASE_INPUT);
+        assert.equal((await svc.preview(onPremium)).reason, 'PLAN_MISMATCH');
+        operator.publish(PREMIUM);
+
+        const r = await svc.preview(onPremium);
+        assert.equal(r.valid, true, r.reason);
+        // 99 net + 19 % VAT
+        assert.equal(r.price.originalGross, '117.81');
+    });
+
+    test('a changed price decides the minimum amount, not the price the service started with', async () => {
+        const { operator, svc } = running();
+        await svc.create({ ...BASE_INPUT, minimumPlanAmountGross: 40 });
+        // 24.90 net is 29.63 gross, under the minimum.
+        assert.equal((await svc.preview(onStandard)).reason, 'BELOW_MINIMUM_AMOUNT');
+
+        operator.publish({ ...STANDARD, monthlyNet: 49.9 });
+        const r = await svc.preview(onStandard);
+        assert.equal(r.valid, true, r.reason);
+        assert.equal(r.price.originalGross, '59.38');
+    });
+
+    test('an absolute code is held against the lowest price as it stands', async () => {
+        const { operator, svc } = running();
+        const absolute = { ...BASE_INPUT, code: 'MINUS12', valueType: 'ABSOLUTE', value: 12 };
+        // BASIC at 9.90 net is 11.78 gross, so 12 off would make it free.
+        await assert.rejects(
+            () => svc.create(absolute),
+            (error) => error.response?.code === 'PROMO_WOULD_PRODUCE_ZERO_INVOICE',
+        );
+
+        operator.publish({ ...TEST_CATALOG.plans[0], monthlyNet: 19.9 });
+        const created = await svc.create(absolute);
+        assert.equal(created.code, 'MINUS12');
+    });
+
+    test('a retired plan takes no code any more', async () => {
+        const { operator, svc } = running();
+        await svc.create(BASE_INPUT);
+        assert.equal((await svc.preview(onStandard)).valid, true);
+        operator.retire('STANDARD');
+
+        assert.equal((await svc.preview(onStandard)).reason, 'PLAN_MISMATCH');
+    });
+
+    test('redeeming checks against the published plans too', async () => {
+        const operator = publishingCatalogue(TEST_CATALOG);
+        const svc = buildSvc({
+            source: operator.source,
+            subscriptionLookup: {
+                async findById() {
+                    return {
+                        id: 'sub-1',
+                        tenantId: 'tenant-1',
+                        plan: 'PREMIUM',
+                        billingCycle: 'MONTHLY',
+                    };
+                },
+            },
+        });
+        await svc.create(BASE_INPUT);
+        assert.equal((await svc.preview(onPremium)).reason, 'PLAN_MISMATCH');
+        operator.publish(PREMIUM);
+
+        const redemption = await svc.redeem({
+            code: 'BLACKFRIDAY25',
+            subscriptionId: 'sub-1',
+            tenantId: 'tenant-1',
+            email: 'neu@example.com',
+        });
+        assert.equal(redemption.subscriptionId, 'sub-1');
+    });
+
+    test('a code refused before any price matters costs no read of the plans', async () => {
+        const { operator, svc } = running();
+        await svc.create({ ...BASE_INPUT, appliesToPlans: ['PROFESSIONAL'] });
+        const before = operator.source.reads;
+
+        assert.equal((await svc.preview({ ...onStandard, code: 'GUESSED' })).reason, 'NOT_FOUND');
+        assert.equal((await svc.preview(onStandard)).reason, 'PLAN_MISMATCH');
+        assert.equal(operator.source.reads, before);
+    });
+
+    test('one preview reads the plans once, so its checks and its price see the same ones', async () => {
+        const { operator, svc } = running();
+        await svc.create(BASE_INPUT);
+        const before = operator.source.reads;
+
+        assert.equal((await svc.preview(onStandard)).valid, true);
+        assert.equal(operator.source.reads - before, 1);
     });
 });
 

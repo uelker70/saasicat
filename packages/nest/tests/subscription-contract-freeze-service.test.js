@@ -1,10 +1,16 @@
 // Tests for SubscriptionContractFreezeService (#18) — generic freeze:
-// plan line item from the catalog, bundle line items from the source port,
-// entitlementSnapshot from computeLimits, previous contract is superseded.
+// plan line item from the version the subscription is bound to, bundle line
+// items from the source port, entitlementSnapshot from computeLimits, previous
+// contract is superseded.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SubscriptionContractFreezeService } from '../dist/billing/index.js';
+import {
+    SubscriptionContractFreezeService,
+    givenPlanCatalogSource,
+} from '../dist/billing/index.js';
+import { publishingCatalogue } from './helpers/publishing-catalogue.js';
+import { boundPlanVersion } from './helpers/subscription-fixtures.js';
 
 const CATALOG = {
     schemaVersion: 1,
@@ -29,14 +35,17 @@ function makeService({
     previousContract = null,
     bundles = { lineItems: [], bundleVersionIds: [] },
     catalog = CATALOG,
+    catalogs = givenPlanCatalogSource(catalog),
+    boundFor = () => boundPlanVersion(catalog.plans[0], 'pv-standard-3'),
     tenantHasSubscriber = true,
 } = {}) {
-    const calls = { terminated: [], created: [], invalidated: 0 };
+    const calls = { terminated: [], created: [], invalidated: 0, limitsFrom: [] };
     const entitlements = {
         invalidateTenant() {
             calls.invalidated += 1;
         },
-        async computeLimits() {
+        async computeLimits(_tenantId, _now, catalog) {
+            calls.limitsFrom.push(catalog);
             return {
                 plan: 'STANDARD',
                 quotas: { users: 8, members: 1000 },
@@ -64,14 +73,19 @@ function makeService({
         },
     };
     const source = {
-        async findLivePlanVersionId() {
-            return 'pv-standard-3';
+        async findBoundPlanVersion() {
+            return boundFor();
         },
         async loadBookedBundles() {
             return bundles;
         },
     };
-    const service = new SubscriptionContractFreezeService(catalog, entitlements, contracts, source);
+    const service = new SubscriptionContractFreezeService(
+        catalogs,
+        entitlements,
+        contracts,
+        source,
+    );
     return { calls, service };
 }
 
@@ -98,6 +112,105 @@ test('freezes plan as active contract with snapshot + plan line item', async () 
     assert.equal(planLine.priceNet, 49);
     assert.equal(planLine.priceGross, 58.31); // 49 * 1.19
     assert.equal(planLine.billingCycle, 'monthly');
+});
+
+describe('the plan line records the version the subscription is bound to', () => {
+    const effectiveFrom = new Date('2026-06-09T00:00:00.000Z');
+    const V1 = CATALOG.plans[0];
+    const V2 = {
+        ...V1,
+        monthlyNet: 59,
+        quotas: { users: 12, members: 2000 },
+        features: ['CORE', 'WHATSAPP', 'EXPORT'],
+    };
+
+    // @requirement SC-SUB-012 — A new version of a plan does not move a customer who already bought one
+    test('a tenant on v1 who books an add-on after v2 is published keeps v1', async () => {
+        const operator = publishingCatalogue(CATALOG);
+        const { calls, service } = makeService({
+            catalogs: operator.source,
+            boundFor: () => boundPlanVersion(V1, 'pv-standard-1'),
+        });
+        operator.publish(V2);
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', effectiveFrom);
+
+        const planLine = calls.created[0].lineItems[0];
+        assert.equal(calls.created[0].originalPlanVersionId, 'pv-standard-1');
+        assert.equal(planLine.sourceVersionId, 'pv-standard-1');
+        assert.equal(planLine.priceNet, 49, 'charged the price of the successor');
+        assert.deepEqual(planLine.featuresSnapshot, V1.features);
+        assert.deepEqual(planLine.quotaEffectsSnapshot, V1.quotas);
+    });
+
+    test('after a plan change, the version the write bound: its id, price, features and quotas', async () => {
+        let bound = boundPlanVersion(V1, 'pv-standard-1');
+        const { calls, service } = makeService({ boundFor: () => bound });
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', effectiveFrom);
+        bound = boundPlanVersion(V2, 'pv-standard-2');
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', effectiveFrom);
+
+        const planLine = calls.created[1].lineItems[0];
+        assert.equal(planLine.sourceVersionId, 'pv-standard-2');
+        assert.equal(planLine.priceNet, 59);
+        assert.equal(planLine.priceGross, 70.21); // 59 * 1.19
+        assert.deepEqual(planLine.featuresSnapshot, V2.features);
+        assert.deepEqual(planLine.quotaEffectsSnapshot, V2.quotas);
+    });
+
+    test('a plan the subscription is not bound to is refused before the contract in force is closed', async () => {
+        const { calls, service } = makeService({ previousContract: { id: 'old-1' } });
+
+        await assert.rejects(
+            () => service.freezeOnPlanChange('t1', 'PREMIUM', 'MONTHLY', effectiveFrom),
+            /bound to 'STANDARD'/,
+        );
+        assert.deepEqual(calls.terminated, [], 'the contract in force was closed');
+        assert.deepEqual(calls.created, []);
+    });
+});
+
+// @requirement SC-PLAN-026 — A version is sold from the moment it is published, not from the next start
+describe('a plan the operator publishes after the service was built', () => {
+    const effectiveFrom = new Date('2026-06-09T00:00:00.000Z');
+
+    test('is recorded under the name it is sold under, at the price it was bound at', async () => {
+        const operator = publishingCatalogue(CATALOG);
+        const PREMIUM = {
+            id: 'PREMIUM',
+            name: 'Premium',
+            marketed: true,
+            monthlyNet: 99,
+            yearlyNet: 990,
+            quotas: { users: 50 },
+            features: ['CORE'],
+        };
+        let bound = boundPlanVersion(CATALOG.plans[0], 'pv-standard-3');
+        const { calls, service } = makeService({
+            catalogs: operator.source,
+            boundFor: () => bound,
+        });
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', effectiveFrom);
+        operator.publish(PREMIUM);
+        bound = boundPlanVersion(PREMIUM);
+
+        await service.freezeOnPlanChange('t1', 'PREMIUM', 'MONTHLY', effectiveFrom);
+
+        const planLine = calls.created[1].lineItems[0];
+        assert.equal(planLine.titleSnapshot, 'Premium');
+        assert.equal(planLine.priceNet, 99);
+    });
+
+    test('its entitlement snapshot is filtered against the same reading', async () => {
+        const operator = publishingCatalogue(CATALOG);
+        const { calls, service } = makeService({ catalogs: operator.source });
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', effectiveFrom);
+
+        assert.equal(operator.source.reads, 1, 'one contract, one reading');
+        assert.ok(calls.limitsFrom[0]?.plans, 'the entitlements read a catalogue of their own');
+    });
 });
 
 test('supersedes the previous active contract before creating the new one', async () => {

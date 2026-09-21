@@ -32,7 +32,7 @@ export class ManifestDumpCommand extends CommandRunner {
     async run(_args: string[], flags: AsFlag): Promise<void> {
         const identity = this.ctx.resolveIdentity(flags.as);
         await this.ctx.ensureSuperAdmin(identity);
-        process.stdout.write(JSON.stringify(this.flow.dump(), null, 2) + '\n');
+        process.stdout.write(JSON.stringify(await this.flow.dump(), null, 2) + '\n');
     }
     @Option({ flags: '--as <email>' })
     parseAs(v: string): string {
@@ -52,7 +52,7 @@ export class ManifestHashCommand extends CommandRunner {
     async run(_args: string[], flags: AsFlag): Promise<void> {
         const identity = this.ctx.resolveIdentity(flags.as);
         await this.ctx.ensureSuperAdmin(identity);
-        process.stdout.write(this.flow.hash() + '\n');
+        process.stdout.write((await this.flow.hash()) + '\n');
     }
     @Option({ flags: '--as <email>' })
     parseAs(v: string): string {
@@ -75,7 +75,7 @@ export class ManifestValidateCommand extends CommandRunner {
     async run(_args: string[], flags: AsFlag): Promise<void> {
         const identity = this.ctx.resolveIdentity(flags.as);
         await this.ctx.ensureSuperAdmin(identity);
-        const result = this.flow.validate();
+        const result = await this.flow.validate();
         if (result.ok) {
             process.stdout.write('Manifest is valid ✓\n');
             return;

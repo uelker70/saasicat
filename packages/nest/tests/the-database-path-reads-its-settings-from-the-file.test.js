@@ -22,7 +22,11 @@ import { CATALOGUE_KEYS, settingsSubtreeOf } from '@saasicat/core';
 import { planCatalogSchema } from '@saasicat/spec';
 
 import { SaaSiCatModule } from '../dist/platform/index.js';
-import { PLAN_CATALOG_TOKEN, loadPlanCatalogFromFile } from '../dist/billing/index.js';
+import {
+    PLAN_CATALOG_SETTINGS_TOKEN,
+    PLAN_CATALOG_SOURCE_TOKEN,
+    loadPlanCatalogFromFile,
+} from '../dist/billing/index.js';
 import { SETTINGS_SOURCE_TOKEN } from '../dist/index.js';
 import { FakeAppliedSettingsPort } from './helpers/applied-settings-port.js';
 
@@ -130,7 +134,7 @@ describe('the settings an installation with a database catalogue runs on', () =>
     test('are the ones in the file dbCatalog names, every block the schema declares', async () => {
         const path = fileWith();
         const app = await boot({ path, env: ENV });
-        const running = settingsSubtreeOf(app.get(PLAN_CATALOG_TOKEN));
+        const running = settingsSubtreeOf(app.get(PLAN_CATALOG_SETTINGS_TOKEN));
 
         assert.deepEqual(running, settingsSubtreeOf(loadPlanCatalogFromFile({ path, env: ENV })));
 
@@ -147,13 +151,14 @@ describe('the settings an installation with a database catalogue runs on', () =>
 
     test('a variable the file names resolves through the environment dbCatalog is given', async () => {
         const app = await boot({ path: fileWith(), env: { VAT: '7' } });
-        assert.equal(app.get(PLAN_CATALOG_TOKEN).vatRate, 7);
+        assert.equal(app.get(PLAN_CATALOG_SETTINGS_TOKEN).vatRate, 7);
     });
 
     test('the plans come from the database; a plans block in the file is the seed, not the catalogue', async () => {
         const app = await boot({ path: fileWith(), env: ENV });
+        const catalog = await app.get(PLAN_CATALOG_SOURCE_TOKEN).current();
         assert.deepEqual(
-            app.get(PLAN_CATALOG_TOKEN).plans.map((plan) => plan.id),
+            catalog.plans.map((plan) => plan.id),
             ['PRO'],
         );
     });
@@ -220,7 +225,7 @@ describe('a dbCatalog that still carries the values', () => {
 
     test('a key left beside the path with nothing in it has passed nothing', async () => {
         const app = await boot({ path: fileWith(), env: ENV, vatRate: undefined });
-        assert.equal(app.get(PLAN_CATALOG_TOKEN).vatRate, 19);
+        assert.equal(app.get(PLAN_CATALOG_SETTINGS_TOKEN).vatRate, 19);
     });
 });
 

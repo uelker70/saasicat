@@ -14,11 +14,11 @@ import {
     type AppliedSettingsValues,
     diffSettings,
     type EmailPort,
-    type PlanCatalog,
+    type PlanCatalogSettings,
     type SettingsChangeRecord,
 } from '@saasicat/core';
 
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { EMAIL_PORT_TOKEN } from '../core/email.tokens.js';
 
 /**
@@ -61,13 +61,13 @@ export class SettingsChangeNotifier {
     private readonly logger = new Logger(SettingsChangeNotifier.name);
 
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN) private readonly settings: PlanCatalogSettings,
         @Optional() @Inject(EMAIL_PORT_TOKEN) private readonly email: EmailPort | null = null,
     ) {}
 
     /** The addresses `config/saas.yaml` names under `notifications.settingsChanged`. */
     get addresses(): readonly string[] {
-        return this.catalog.notifications?.settingsChanged ?? [];
+        return this.settings.notifications?.settingsChanged ?? [];
     }
 
     /**
@@ -104,7 +104,7 @@ export class SettingsChangeNotifier {
         if (addresses.length === 0) return { kind: 'nobody-to-tell' };
         if (!this.email) return { kind: 'no-email-port', addresses };
 
-        const message = describeChange(this.catalog.app.name, change);
+        const message = describeChange(this.settings.app.name, change);
         const failed: string[] = [];
         for (const to of addresses) {
             try {

@@ -43,7 +43,7 @@ export interface AdminManifest {
     };
     planCatalogSnapshot: {
         /**
-         * Path to the source, e.g. 'config/saas.yaml'
+         * Where the plans and features were read from: 'database' for the ones an operator publishes, 'given' for a catalogue passed in at start
          */
         source: string;
         hash: string;

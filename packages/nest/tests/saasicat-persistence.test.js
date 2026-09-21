@@ -15,6 +15,7 @@ import {
     SubscriptionPlanResolver,
     defineSaaSiCat,
 } from '../dist/platform/index.js';
+import { PLAN_CATALOG_SOURCE_TOKEN } from '../dist/billing/index.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -144,12 +145,14 @@ describe('SaaSiCatModule persistence bundle', () => {
             });
 
             const planCatalogModule = mod.imports[0];
-            const catalogFactory = planCatalogModule.providers.find(
-                (provider) => typeof provider.useFactory === 'function',
+            const sourceFactory = planCatalogModule.providers.find(
+                (provider) => provider.provide === PLAN_CATALOG_SOURCE_TOKEN,
             );
-            const catalog = await catalogFactory.useFactory(sink);
+            const source = await sourceFactory.useFactory(sink);
+            assert.equal(loads, 1, 'the boot reads once, so a sink that cannot read stops it');
 
-            assert.equal(loads, 1);
+            const catalog = await source.current();
+            assert.equal(loads, 2, 'and every operation reads again');
             assert.equal(catalog.app.name, 'NotesApp');
             assert.equal(catalog.currency, 'EUR');
             assert.equal(catalog.vatRate, 19);
@@ -403,7 +406,7 @@ describe('SaaSiCatModule persistence bundle', () => {
 
         assert.ok(moduleRef.get(StaticEntitlementService));
         assert.equal(moduleRef.get(QUOTA_PROVIDERS_TOKEN)[0].key, 'notesMax');
-        const manifest = moduleRef.get(AdminManifestService).getManifest();
+        const manifest = await moduleRef.get(AdminManifestService).getManifest();
         assert.equal(manifest.capabilities['tenants.read'], true);
         assert.equal(manifest.capabilities['promoCodes.read'], true);
         assert.equal(manifest.navigation.standardPages?.subscriptions?.enabled, true);

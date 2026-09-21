@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { PaymentGateway, PaymentMethodType, PlanCatalog } from '@saasicat/core';
+import type { PaymentGateway, PaymentMethodType, PlanCatalogSettings } from '@saasicat/core';
 
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { paymentAccountProblems } from './payment-accounts.js';
 import { PAYMENT_GATEWAYS_TOKEN } from './payments.tokens.js';
 
@@ -31,17 +31,17 @@ export class PaymentGatewayRegistry {
     private readonly takesNew: string | undefined;
 
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN) private readonly settings: PlanCatalogSettings,
         @Inject(PAYMENT_GATEWAYS_TOKEN) gateways: Readonly<Record<string, PaymentGateway>>,
     ) {
-        const problems = paymentAccountProblems(catalog.payments, gateways);
+        const problems = paymentAccountProblems(settings.payments, gateways);
         if (problems.length > 0) {
             throw new Error(`Payments cannot start:\n- ${problems.join('\n- ')}`);
         }
-        for (const [name, account] of Object.entries(catalog.payments!.accounts)) {
+        for (const [name, account] of Object.entries(settings.payments!.accounts)) {
             this.accounts.set(name, { name, provider: account.provider, gateway: gateways[name]! });
         }
-        this.takesNew = catalog.payments!.newPaymentMethods;
+        this.takesNew = settings.payments!.newPaymentMethods;
     }
 
     /** The account a callback names, or `null` when none is configured under it. */
@@ -56,13 +56,13 @@ export class PaymentGatewayRegistry {
 
     /** The origins a gateway's form may send a person back to. */
     returnUrlOrigins(): readonly string[] {
-        return this.catalog.payments!.returnUrlOrigins;
+        return this.settings.payments!.returnUrlOrigins;
     }
 
     /** The account a new payment method is taken at, or `null` when none takes new ones. */
     forNewPaymentMethods(): NewPaymentMethodAccount | null {
         if (this.takesNew === undefined) return null;
         const account = this.accounts.get(this.takesNew)!;
-        return { ...account, methods: this.catalog.payments!.accounts[this.takesNew]!.methods! };
+        return { ...account, methods: this.settings.payments!.accounts[this.takesNew]!.methods! };
     }
 }

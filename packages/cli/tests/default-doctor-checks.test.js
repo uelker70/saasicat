@@ -10,21 +10,38 @@ import {
     PLATFORM_DOCTOR_CHECK_PROVIDERS,
     UserPortDoctorCheck,
 } from '../dist/index.js';
+import { givenPlanCatalogSource } from '@saasicat/nest';
 
 describe('PlanCatalogDoctorCheck', () => {
     test('error when no plans', async () => {
-        const check = new PlanCatalogDoctorCheck({ app: { name: 'App' }, plans: [] });
+        const check = new PlanCatalogDoctorCheck(
+            givenPlanCatalogSource({ app: { name: 'App' }, plans: [] }),
+        );
         const r = await check.run();
         assert.equal(r.severity, 'error');
         assert.match(r.message, /no plans/);
     });
 
-    test('ok with plans + details contain planIds', async () => {
+    test('error when the catalogue cannot be read', async () => {
         const check = new PlanCatalogDoctorCheck({
-            app: { name: 'App' },
-            plans: [{ id: 'starter' }, { id: 'pro' }],
-            features: [{ key: 'NOTES' }],
+            origin: 'database',
+            current: async () => {
+                throw new Error('connection refused');
+            },
         });
+        const r = await check.run();
+        assert.equal(r.severity, 'error');
+        assert.match(r.message, /cannot be read: connection refused/);
+    });
+
+    test('ok with plans + details contain planIds', async () => {
+        const check = new PlanCatalogDoctorCheck(
+            givenPlanCatalogSource({
+                app: { name: 'App' },
+                plans: [{ id: 'starter' }, { id: 'pro' }],
+                features: [{ key: 'NOTES' }],
+            }),
+        );
         const r = await check.run();
         assert.equal(r.severity, 'ok');
         assert.match(r.message, /2 plan\(s\), 1 feature/);
@@ -77,7 +94,7 @@ describe('UserPortDoctorCheck', () => {
 describe('AdminManifestDoctorCheck', () => {
     test('ok with standardPages count', async () => {
         const svc = {
-            getManifest: () => ({
+            getManifest: async () => ({
                 navigation: { standardPages: { dashboard: {}, tenants: {}, plans: {} } },
                 build: { manifestHash: 'sha256-abcdef1234567890' },
             }),
@@ -90,7 +107,7 @@ describe('AdminManifestDoctorCheck', () => {
 
     test('error when getManifest throws', async () => {
         const svc = {
-            getManifest: () => {
+            getManifest: async () => {
                 throw new Error('Manifest broken');
             },
         };

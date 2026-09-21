@@ -218,13 +218,14 @@ export interface AdminResourcesPort {
 
 /**
  * Read adapter for the current AdminManifest. The consumer implementation
- * delegates to its `AdminManifestService.getManifest()`. The platform CLI
- * uses this for `<app> manifest dump|hash|check` etc.
+ * delegates to its `AdminManifestService.getManifest()`, which reads the plan
+ * catalogue on every call and therefore answers asynchronously. The platform
+ * CLI uses this for `<app> manifest dump|hash|check` etc.
  */
 export interface ManifestAccessPort {
-    getManifest(): AdminManifest;
+    getManifest(): Promise<AdminManifest>;
     /** Optional: forces a rebuild from the contributions (e.g. after code reload). */
-    rebuild?(): AdminManifest;
+    rebuild?(): Promise<AdminManifest>;
 }
 
 /**

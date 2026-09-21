@@ -1,6 +1,13 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { AdminManifest, ManifestContribution } from '@saasicat/core';
+import {
+    canonicalJson,
+    type AdminManifest,
+    type ManifestContribution,
+    type PlanCatalog,
+} from '@saasicat/core';
+import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
+import type { PlanCatalogOrigin, PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifest.config.js';
 
 /**
@@ -17,15 +24,23 @@ export const PLATFORM_CORE_CONTRIBUTION_TOKEN = Symbol.for(
 // AdminManifestService — collects ManifestContribution entries from the app
 // modules (via explicit register() calls in their onModuleInit) and serves the
 // finished, deterministically hashed full manifest.
+//
+// The contributions are merged once and kept until the next `register()`. The
+// plan catalogue is read on every request: an operator publishes plans and
+// approves features while the application runs, and the plan editor offers
+// what the manifest lists. The manifest hash covers the catalogue, so the ETag
+// moves when it does and the browser reloads rather than keeping the old list.
 
 @Injectable()
 export class AdminManifestService {
     private readonly logger = new Logger(AdminManifestService.name);
     private readonly contributions: ManifestContribution[] = [];
-    private cached: AdminManifest | null = null;
+    private merged: MergedContributions | null = null;
+    private lastHash: string | null = null;
 
     constructor(
         @Inject(ADMIN_MANIFEST_CONFIG) private readonly config: AdminManifestConfig,
+        @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly planCatalogs: PlanCatalogSource,
         @Optional()
         @Inject(PLATFORM_CORE_CONTRIBUTION_TOKEN)
         platformCore: ManifestContribution | null = null,
@@ -37,30 +52,35 @@ export class AdminManifestService {
 
     register(contribution: ManifestContribution): void {
         this.contributions.push(contribution);
-        this.cached = null;
+        this.merged = null;
     }
 
-    getManifest(): AdminManifest {
-        if (this.cached) return this.cached;
-        this.cached = this.build();
-        this.logger.log(
-            `Manifest built: ${this.contributions.length} contribution(s), hash=${this.cached.build.manifestHash.slice(0, 24)}…`,
-        );
-        return this.cached;
+    async getManifest(): Promise<AdminManifest> {
+        const manifest = this.build(await this.planCatalogs.current());
+        const hash = manifest.build.manifestHash;
+        if (hash !== this.lastHash) {
+            this.lastHash = hash;
+            this.logger.log(
+                `Manifest built: ${this.contributions.length} contribution(s), hash=${hash.slice(0, 24)}…`,
+            );
+        }
+        return manifest;
     }
 
-    rebuild(): AdminManifest {
-        this.cached = null;
+    /** Merges the contributions again, then serves the manifest as `getManifest` does. */
+    async rebuild(): Promise<AdminManifest> {
+        this.merged = null;
         return this.getManifest();
     }
 
-    private build(): AdminManifest {
-        const merged = this.mergeContributions(this.contributions);
+    private build(catalog: PlanCatalog): AdminManifest {
+        this.merged ??= this.mergeContributions(this.contributions);
+        const merged = this.merged;
         const draft: AdminManifest = {
             schemaVersion: 1,
             project: this.config.project,
             build: { ...this.config.build, manifestHash: 'sha256-pending' },
-            planCatalogSnapshot: this.config.planCatalogSnapshot,
+            planCatalogSnapshot: planCatalogSnapshotOf(catalog, this.planCatalogs.origin),
             capabilities: merged.capabilities,
             navigation: merged.navigation,
             dashboard: merged.dashboard,
@@ -70,13 +90,7 @@ export class AdminManifestService {
         return { ...draft, build: { ...draft.build, manifestHash: this.computeHash(draft) } };
     }
 
-    private mergeContributions(contributions: ManifestContribution[]): {
-        capabilities: AdminManifest['capabilities'];
-        navigation: AdminManifest['navigation'];
-        dashboard?: AdminManifest['dashboard'];
-        tenants?: AdminManifest['tenants'];
-        audit?: AdminManifest['audit'];
-    } {
+    private mergeContributions(contributions: ManifestContribution[]): MergedContributions {
         const capabilities: AdminManifest['capabilities'] = {};
         const standardPages: NonNullable<AdminManifest['navigation']['standardPages']> = {};
         const projectPages: NonNullable<AdminManifest['navigation']['projectPages']> = [];
@@ -125,6 +139,29 @@ export class AdminManifestService {
         const digest = createHash('sha256').update(canonical).digest('base64url');
         return `sha256-${digest}`;
     }
+}
+
+interface MergedContributions {
+    capabilities: AdminManifest['capabilities'];
+    navigation: AdminManifest['navigation'];
+    dashboard?: AdminManifest['dashboard'];
+    tenants?: AdminManifest['tenants'];
+    audit?: AdminManifest['audit'];
+}
+
+/** The catalogue as the manifest carries it, with a hash over what it carries. */
+function planCatalogSnapshotOf(
+    catalog: PlanCatalog,
+    origin: PlanCatalogOrigin,
+): AdminManifest['planCatalogSnapshot'] {
+    const carried = {
+        currency: catalog.currency,
+        vatRate: catalog.vatRate,
+        plans: catalog.plans ?? [],
+        features: catalog.features ?? [],
+    };
+    const digest = createHash('sha256').update(canonicalJson(carried)).digest('base64url');
+    return { source: origin, hash: `sha256-${digest}`, ...carried };
 }
 
 function stableStringify(value: unknown): string {

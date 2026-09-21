@@ -868,8 +868,8 @@ export class AdminManifestController {
 
     @Get('manifest')
     @Header('Cache-Control', 'private, max-age=60, must-revalidate')
-    getManifest(@Headers('if-none-match') ifNoneMatch?: string) {
-        const m = this.manifest.getManifest();
+    async getManifest(@Headers('if-none-match') ifNoneMatch?: string) {
+        const m = await this.manifest.getManifest();
         const etag = `"${m.build.manifestHash}"`;
         if (ifNoneMatch === etag) throw new HttpException('', HttpStatus.NOT_MODIFIED);
         return m;
@@ -940,25 +940,29 @@ export class StorageGbQuotaProvider implements QuotaProvider {
 
 ## `AdminManifestConfigFactory`
 
-Builds the static configuration for the manifest from the plan catalog, the environment
-and `package.json`:
+Builds the static configuration for the manifest from the settings in `config/saas.yaml`, the
+environment and `package.json`. The plans and features are not part of it: `AdminManifestService`
+reads them from `PLAN_CATALOG_SOURCE_TOKEN` on every request, so a plan the operator publishes
+reaches the plan editor without a restart.
 
 ```ts
 @Injectable()
 export class AdminManifestConfigFactory {
-    constructor(@Inject(PLAN_CATALOG_TOKEN) private readonly planCatalog: PlanCatalog) {}
+    constructor(
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN) private readonly settings: PlanCatalogSettings,
+    ) {}
 
     build(): AdminManifestConfig {
         return {
             project: {
-                key: this.planCatalog.app.name,
-                displayName: this.planCatalog.app.name,
-                label: this.planCatalog.app.label,
-                icon: this.planCatalog.app.icon,
-                logoUrl: this.planCatalog.app.logoUrl,
+                key: this.settings.app.name,
+                displayName: this.settings.app.name,
+                label: this.settings.app.label,
+                icon: this.settings.app.icon,
+                logoUrl: this.settings.app.logoUrl,
                 environment: this.resolveEnvironment(),
-                availableLocales: this.planCatalog.marketing?.availableLocales,
-                defaultLocale: this.planCatalog.marketing?.availableLocales?.[0],
+                availableLocales: this.settings.marketing?.availableLocales,
+                defaultLocale: this.settings.marketing?.availableLocales?.[0],
             },
             build: {
                 platformPackageVersion: readPackageVersion(
@@ -966,7 +970,6 @@ export class AdminManifestConfigFactory {
                 ),
                 appVersion: process.env.MYAPP_VERSION ?? '0.0.0',
             },
-            planCatalogSnapshot: this.buildPlanCatalogSnapshot(),
         };
     }
     // …

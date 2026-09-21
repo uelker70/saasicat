@@ -71,10 +71,10 @@ One narrow backend boundary for the generic Tenant/User/Audit/Subscription Super
 
 Read adapter for the current AdminManifest.
 
-| Member                         | What it does                                            |
-| ------------------------------ | ------------------------------------------------------- |
-| `getManifest(): AdminManifest` | —                                                       |
-| `rebuild?(): AdminManifest`    | Optional: forces a rebuild from the contributions (e.g. |
+| Member                                  | What it does                                            |
+| --------------------------------------- | ------------------------------------------------------- |
+| `getManifest(): Promise<AdminManifest>` | —                                                       |
+| `rebuild?(): Promise<AdminManifest>`    | Optional: forces a rebuild from the contributions (e.g. |
 
 ### `RlsBypassPort`
 

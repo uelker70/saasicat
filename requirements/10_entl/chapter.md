@@ -97,6 +97,10 @@ _Tested by:_
         - a successor that is built is still granted through the same chain
         - a contract keeps everything the catalog does say is built
         - a feature the catalog has never heard of is left alone
+    - EntitlementService — a feature marked planned only after the service was built
+        - is granted at most a minute longer, the time a cached answer may be old
+        - a caller that read the catalogue gets the answer computed from that reading
+        - a reading handed in does not become the answer for everybody else
 
 <!-- END proof -->
 

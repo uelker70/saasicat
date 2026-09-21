@@ -8,8 +8,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PublicCatalogController } from '../dist/billing/index.js';
+import { PublicCatalogController, givenPlanCatalogSource } from '../dist/billing/index.js';
 import { FakeBundleRepository } from '../dist/testing/index.js';
+import { publishingCatalogue } from './helpers/publishing-catalogue.js';
 
 const CATALOG = {
     schemaVersion: 1,
@@ -68,7 +69,7 @@ const REGISTRY = {
 
 // @requirement SC-PRIC-011 — A plan that is not marketed has no list price
 test('listPlans returns only marketed plans in the generic format', async () => {
-    const ctrl = new PublicCatalogController(CATALOG, REGISTRY);
+    const ctrl = new PublicCatalogController(givenPlanCatalogSource(CATALOG), REGISTRY);
     const plans = await ctrl.listPlans();
 
     assert.equal(plans.length, 2, 'ENTERPRISE must not be in the self-service list');
@@ -86,6 +87,33 @@ test('listPlans returns only marketed plans in the generic format', async () => 
     );
 });
 
+// @requirement SC-PLAN-026 — A version is sold from the moment it is published, not from the next start
+test('a plan published after the controller was built is listed at once, and a retired one is gone', async () => {
+    const operator = publishingCatalogue(CATALOG);
+    const ctrl = new PublicCatalogController(operator.source, REGISTRY);
+    assert.deepEqual(
+        (await ctrl.listPlans()).map((plan) => plan.id),
+        ['STARTER', 'STANDARD'],
+    );
+    operator.publish({
+        id: 'PREMIUM',
+        name: 'Premium',
+        tagline: '',
+        marketed: true,
+        monthlyNet: 99,
+        yearlyNet: 990,
+        quotas: {},
+        features: [],
+    });
+    operator.retire('STARTER');
+
+    const plans = await ctrl.listPlans();
+    assert.deepEqual(
+        plans.map((plan) => plan.id),
+        ['STANDARD', 'PREMIUM'],
+    );
+});
+
 // @requirement SC-PRIC-011 — A plan that is not marketed has no list price
 test('a plan sold by negotiation is left out even when a figure is on file', async () => {
     // The fixture above prices ENTERPRISE at null, so its omission could be
@@ -98,7 +126,10 @@ test('a plan sold by negotiation is left out even when a figure is on file', asy
             plan.id === 'ENTERPRISE' ? { ...plan, monthlyNet: 999, yearlyNet: 9990 } : plan,
         ),
     };
-    const plans = await new PublicCatalogController(priced, REGISTRY).listPlans();
+    const plans = await new PublicCatalogController(
+        givenPlanCatalogSource(priced),
+        REGISTRY,
+    ).listPlans();
 
     assert.equal(
         plans.some((plan) => plan.id === 'ENTERPRISE'),
@@ -113,7 +144,7 @@ test('a plan sold by negotiation is left out even when a figure is on file', asy
 });
 
 test('listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo', async () => {
-    const ctrl = new PublicCatalogController(CATALOG, REGISTRY);
+    const ctrl = new PublicCatalogController(givenPlanCatalogSource(CATALOG), REGISTRY);
     const reg = await ctrl.listFeatureRegistry();
     assert.equal(reg, REGISTRY);
 });
@@ -154,7 +185,13 @@ test('listFeatureRegistry overlays the DB icon over the static registry icon (#1
         SEPA: { label: 'SEPA', description: 'd', icon: 'account_balance' },
     };
     // Constructor args: catalog, registry, marketingRepo, bundleRepo, catalogEntryRepo
-    const ctrl = new PublicCatalogController(CATALOG, baseReg, null, null, fakeRepo);
+    const ctrl = new PublicCatalogController(
+        givenPlanCatalogSource(CATALOG),
+        baseReg,
+        null,
+        null,
+        fakeRepo,
+    );
     const reg = await ctrl.listFeatureRegistry();
     assert.equal(reg.MEMBERS.icon, 'mdi-account-group'); // DB icon wins
     assert.equal(reg.MEMBERS.label, 'Mitglieder'); // label stays from registry
@@ -206,7 +243,13 @@ test('listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)'
             ];
         },
     };
-    const ctrl = new PublicCatalogController(CATALOG, REGISTRY, null, bundleRepo, catalogEntryRepo);
+    const ctrl = new PublicCatalogController(
+        givenPlanCatalogSource(CATALOG),
+        REGISTRY,
+        null,
+        bundleRepo,
+        catalogEntryRepo,
+    );
 
     const bundles = await ctrl.listBundles();
     const turniere = bundles.find((b) => b.bundleKey === 'TURNIERE');
@@ -221,7 +264,12 @@ test('listBundles without a CatalogEntry repo: requiresFeatures stays empty (gra
         bundleKey: 'TURNIERE',
         features: ['TOURNAMENT_MANAGEMENT'],
     });
-    const ctrl = new PublicCatalogController(CATALOG, REGISTRY, null, bundleRepo);
+    const ctrl = new PublicCatalogController(
+        givenPlanCatalogSource(CATALOG),
+        REGISTRY,
+        null,
+        bundleRepo,
+    );
 
     const bundles = await ctrl.listBundles();
     assert.deepEqual(bundles[0].requiresFeatures, []);

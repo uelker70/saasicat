@@ -1,7 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SubscriptionContractFreezeService } from '../dist/billing/index.js';
+import {
+    SubscriptionContractFreezeService,
+    givenPlanCatalogSource,
+} from '../dist/billing/index.js';
+import { boundPlanVersion } from './helpers/subscription-fixtures.js';
 
 // A frozen contract is the agreed service, and it ends when the subscription
 // does — not when the customer says so.
@@ -60,13 +64,13 @@ function contractStore() {
 
 function service(contracts) {
     return new SubscriptionContractFreezeService(
-        {
+        givenPlanCatalogSource({
             schemaVersion: 1,
             app: { name: 'Demo App' },
             currency: 'EUR',
             vatRate: 19,
             plans: [],
-        },
+        }),
         {
             computeLimits: async () => ({ plan: 'PRO', quotas: {}, features: new Set() }),
             invalidateTenant() {},
@@ -74,7 +78,14 @@ function service(contracts) {
         contracts,
         {
             loadBookedBundles: async () => ({ lineItems: [], bundleVersionIds: [] }),
-            findLivePlanVersionId: async () => null,
+            findBoundPlanVersion: async () =>
+                boundPlanVersion({
+                    id: 'PRO',
+                    monthlyNet: 49,
+                    yearlyNet: 490,
+                    features: [],
+                    quotas: {},
+                }),
         },
     );
 }

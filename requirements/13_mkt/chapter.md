@@ -18,6 +18,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan published after the controller was built is listed at once, and a retired one is gone
     - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
@@ -293,6 +294,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan published after the controller was built is listed at once, and a retired one is gone
     - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)

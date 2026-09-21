@@ -7,8 +7,9 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PlanChangePreviewService } from '../dist/billing/index.js';
+import { PlanChangePreviewService, givenPlanCatalogSource } from '../dist/billing/index.js';
 import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
+import { publishingCatalogue } from './helpers/publishing-catalogue.js';
 
 const CATALOG = {
     schemaVersion: 1,
@@ -94,7 +95,7 @@ function buildSubPort(overrides = {}) {
 
 test('preview returns UPGRADE STARTER→STANDARD with proration and feature diff', async () => {
     const svc = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
         buildSubPort(),
         { snapshot: async () => ({ users: 2, members: 100, storageGb: 0.5 }) },
@@ -112,9 +113,66 @@ test('preview returns UPGRADE STARTER→STANDARD with proration and feature diff
     assert.equal(dto.blockers.length, 0);
 });
 
+// @requirement SC-PLAN-026 — A version is sold from the moment it is published, not from the next start
+describe('a plan the operator publishes after the service was built', () => {
+    const now = new Date('2026-05-15');
+
+    /** The service, after one preview has read the plans as they stood. */
+    async function running() {
+        const operator = publishingCatalogue(CATALOG);
+        const svc = new PlanChangePreviewService(
+            operator.source,
+            buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
+            buildSubPort(),
+            { snapshot: async () => ({ users: 2, members: 100, storageGb: 0.5 }) },
+            null,
+        );
+        const first = await svc.preview('t1', 'STANDARD', 'MONTHLY', now);
+        return { operator, svc, first };
+    }
+
+    test('is found, ranked and priced by the plans as they stand now', async () => {
+        const { operator, svc } = await running();
+        operator.publish({
+            id: 'PREMIUM',
+            name: 'Premium',
+            tagline: '',
+            marketed: true,
+            monthlyNet: 99,
+            yearlyNet: 990,
+            quotas: { users: 20, members: 5000, storageGb: 50 },
+            features: ['CORE_IDENTITY', 'WHATSAPP'],
+        });
+
+        const dto = await svc.preview('t1', 'PREMIUM', 'MONTHLY', now);
+        assert.equal(dto.changeType, 'UPGRADE');
+        assert.equal(dto.target.plan.monthlyNet, 99);
+        assert.equal(dto.proration?.targetPriceNet, 99);
+    });
+
+    test('a changed price is the one the proration charges', async () => {
+        const { operator, svc, first } = await running();
+        assert.equal(first.proration?.targetPriceNet, 49);
+        operator.publish({ ...CATALOG.plans[1], monthlyNet: 59 });
+
+        const dto = await svc.preview('t1', 'STANDARD', 'MONTHLY', now);
+        assert.equal(dto.proration?.targetPriceNet, 59);
+    });
+
+    test('a retired plan is refused as not in the catalogue', async () => {
+        const { operator, svc } = await running();
+        operator.retire('STANDARD');
+
+        await assert.rejects(
+            () => svc.preview('t1', 'STANDARD', 'MONTHLY', now),
+            (error) => error.response?.code === 'PLAN_NOT_IN_CATALOG',
+        );
+    });
+});
+
 test('preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage too high', async () => {
     const svc = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         buildEntitlement({ users: 8, members: 1000, storageGb: 10 }, ['CORE_IDENTITY', 'WHATSAPP']),
         buildSubPort({ plan: 'STANDARD' }),
         { snapshot: async () => ({ users: 5, members: 100, storageGb: 1 }) },
@@ -150,7 +208,7 @@ test('preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage
 
 test('preview blocks ENTERPRISE as a self-service target', async () => {
     const svc = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
         buildSubPort(),
         { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.1 }) },
@@ -174,7 +232,7 @@ test('preview blocks ENTERPRISE as a self-service target', async () => {
 // shares with the booking route began to displace its `message`.
 test('the self-service refusal names the plan and says what to do about it', async () => {
     const svc = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
         buildSubPort(),
         { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.1 }) },
@@ -197,7 +255,7 @@ test('the self-service refusal names the plan and says what to do about it', asy
 
 test('preview NOOP when plan and cycle are identical', async () => {
     const svc = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
         buildSubPort(),
         { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.1 }) },
@@ -210,7 +268,7 @@ test('preview NOOP when plan and cycle are identical', async () => {
 
 test('preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan', async () => {
     const svc = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
         buildSubPort(),
         { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.1 }) },
@@ -223,7 +281,7 @@ test('preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan', async 
 
 test('limitsCheck renders the union of quota keys from limits, target plan and usage', async () => {
     const svc = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
         buildSubPort(),
         { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.5 }) },
@@ -252,7 +310,7 @@ describe('a plan without a price for the rhythm asked for', () => {
 
     function previewService() {
         return new PlanChangePreviewService(
-            PRICED_ELSEWHERE,
+            givenPlanCatalogSource(PRICED_ELSEWHERE),
             buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
             buildSubPort(),
             { snapshot: async () => ({ users: 1, members: 50, storageGb: 0.1 }) },

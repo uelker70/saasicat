@@ -4,7 +4,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PlanChangePreviewService } from '../dist/billing/index.js';
+import { PlanChangePreviewService, givenPlanCatalogSource } from '../dist/billing/index.js';
 import { ERROR_MESSAGES_DE, ERROR_MESSAGES_EN, resolveErrorMessage } from '@saasicat/core';
 
 // A rule enforced only where a thing is created is a rule with a back door.
@@ -88,7 +88,7 @@ function bookingsRepo(bookings) {
 
 function preview(targetCycle, bookings) {
     const service = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         entitlement,
         subscriptions,
         { snapshot: async () => ({ users: 1 }) },
@@ -201,7 +201,7 @@ describe('moving to a shorter cycle with a longer add-on booked', () => {
         // is not. A monthly add-on beside a yearly plan simply lands on the
         // plan's day every month — the interesting case, and a permitted one.
         const monthlyOnYearly = new PlanChangePreviewService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             entitlement,
             {
                 findForTenant: async () => ({

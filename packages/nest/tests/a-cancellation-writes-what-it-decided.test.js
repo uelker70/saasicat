@@ -1,7 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PlanChangePreviewService, TenantBillingController } from '../dist/billing/index.js';
+import {
+    PlanChangePreviewService,
+    TenantBillingController,
+    givenPlanCatalogSource,
+} from '../dist/billing/index.js';
 
 // A cancellation decides two things beyond its own date, and both have to reach
 // the store, because nothing downstream can work them out again.
@@ -242,7 +246,7 @@ describe('a declaration made after the notice window closed', () => {
         const committedUntil = port.calls[0].minimumTermUntil;
 
         const preview = new PlanChangePreviewService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             {
                 computeLimits: async () => ({
                     plan: 'STANDARD',

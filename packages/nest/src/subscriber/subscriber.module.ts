@@ -24,7 +24,7 @@ export interface SubscriberModuleOptions {
  * well, because a contract cannot be written without it; this module is for an
  * application that creates tenants in a module of its own.
  *
- * Reads the customer number prefix from `PLAN_CATALOG_TOKEN`, which
+ * Reads the customer number prefix from `PLAN_CATALOG_SETTINGS_TOKEN`, which
  * `SaaSiCatModule.forRoot` provides globally.
  */
 @Module({})

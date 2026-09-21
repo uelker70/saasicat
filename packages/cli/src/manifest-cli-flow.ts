@@ -29,7 +29,7 @@ export class ManifestCliFlow {
     ) {}
 
     /** `<app> manifest dump` — JSON output of the current manifest. */
-    dump(): AdminManifest {
+    dump(): Promise<AdminManifest> {
         return this.access.getManifest();
     }
 
@@ -38,8 +38,8 @@ export class ManifestCliFlow {
      * the value from `build.manifestHash`. Consumers can pin this in CI
      * (`expected-hash.txt`) and check for drift.
      */
-    hash(): string {
-        const m = this.access.getManifest();
+    async hash(): Promise<string> {
+        const m = await this.access.getManifest();
         const h = m.build?.manifestHash;
         if (!h) throw new Error('manifestHash is missing from the manifest — a boot-time bug?');
         return h;
@@ -51,8 +51,8 @@ export class ManifestCliFlow {
      * `@saasicat/spec/schemas/admin-manifest.schema.json`;
      * this helper provides the quick diagnostic without the Ajv cost.
      */
-    validate(): { ok: boolean; reason?: string } {
-        const m = this.access.getManifest();
+    async validate(): Promise<{ ok: boolean; reason?: string }> {
+        const m = await this.access.getManifest();
         if (m.schemaVersion !== 1) {
             return { ok: false, reason: `Unexpected schemaVersion ${m.schemaVersion}` };
         }
@@ -70,8 +70,8 @@ export class ManifestCliFlow {
      * manifest hashes plus list differences for top-level fields. Returns
      * `null` when the manifests are identical.
      */
-    diff(expected: AdminManifest): ManifestDiff | null {
-        const current = this.access.getManifest();
+    async diff(expected: AdminManifest): Promise<ManifestDiff | null> {
+        const current = await this.access.getManifest();
         if (current.build?.manifestHash === expected.build?.manifestHash) return null;
         const currentKeys = collectComponentKeys(current);
         const expectedKeys = collectComponentKeys(expected);
@@ -89,7 +89,7 @@ export class ManifestCliFlow {
      * maps `error` to exit code 7 (drift) per `cli-conventions.md` §6.
      */
     async runChecks(): Promise<ManifestCheckReport> {
-        const manifest = this.access.getManifest();
+        const manifest = await this.access.getManifest();
         const checks: ManifestCheckReport['checks'] = [];
         let overall: ManifestCheckResult['severity'] = 'ok';
         for (const check of this.checks) {

@@ -10,9 +10,9 @@ import {
     type MarketingProjectionRepository,
     type MarketingProjectionRow,
     type MarketingTopFeature,
-    type PlanCatalog,
 } from '@saasicat/core';
-import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
+import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { BILLING_FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
@@ -80,7 +80,7 @@ interface PublicBundleEntry {
 @SaaSiCatPublicRoute()
 export class PublicCatalogController {
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly planCatalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly planCatalogs: PlanCatalogSource,
         @Inject(BILLING_FEATURE_UI_REGISTRY_TOKEN)
         private readonly featureRegistry: FeatureUiRegistry,
         @Optional()
@@ -102,7 +102,7 @@ export class PublicCatalogController {
         // — `?lang=XX` is the documented query param,
         // `?locale=XX` remains accepted as an alias.
         const locale = lang || localeParam;
-        const plans = getMarketedPlans(this.planCatalog).map((plan) => ({
+        const plans = getMarketedPlans(await this.planCatalogs.current()).map((plan) => ({
             id: plan.id,
             name: plan.name ?? plan.id,
             tagline: plan.tagline ?? '',

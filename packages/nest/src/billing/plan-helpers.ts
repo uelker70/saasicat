@@ -1,9 +1,8 @@
 // Plan helpers — pure functions over a loaded PlanCatalog.
 //
-// Consumers inject the catalog via PLAN_CATALOG_TOKEN and delegate to these
-// functions. This replaces the static top-level functions
-// (`getPlan`, `getPlanPriceNet`, `getPlanPriceGross`, `getMarketedPlans`),
-// which still operate over a static TS const.
+// Consumers read the catalogue from `PLAN_CATALOG_SOURCE_TOKEN` —
+// `await source.current()`, once per operation — and hand it to these
+// functions.
 
 import {
     BILLING_ERROR_CODES,
@@ -60,7 +59,11 @@ export function getPlanPriceNet(
     cycle: BillingCycle,
 ): number | null {
     const plan = findPlan(catalog, planId);
-    if (!plan) return null;
+    return plan ? listPriceNet(plan, cycle) : null;
+}
+
+/** The same rule for a plan already in hand, whichever version it describes. */
+export function listPriceNet(plan: PlanDef, cycle: BillingCycle): number | null {
     if (plan.marketed === false) return null;
     const net = cycle === 'YEARLY' ? plan.yearlyNet : plan.monthlyNet;
     return net ?? null;

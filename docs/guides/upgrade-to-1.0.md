@@ -1299,9 +1299,9 @@ the prefix `config/saas.yaml` names, and never changes. `SubscriptionContractMod
   written. By hand, `SubscriptionContractModule.forRoot`, the `conclusion` of
   `CheckoutOfferModule.forRoot` and `tenantBilling.contractFreeze` each take `subscriberRepository`
   beside `subscriptionContractRepository`, and refuse to start without it. `SubscriberService` reads
-  the prefix and the issuer from `PLAN_CATALOG_TOKEN`, so a `SubscriptionContractModule` wired by
-  hand
-  needs a `PlanCatalogModule` in scope, which `SaaSiCatModule.forRoot` provides globally.
+  the prefix and the issuer from `PLAN_CATALOG_SETTINGS_TOKEN`, so a `SubscriptionContractModule`
+  wired by hand needs a `PlanCatalogModule` in scope, which `SaaSiCatModule.forRoot` provides
+  globally.
 - **`ContractFreezePort`** gains `assertPartyFor(tenantId)`, which the plan-change and add-on routes
   call before they write. An implementation of your own bound to `CONTRACT_FREEZE_PORT_TOKEN` adds
   it: refuse a tenant without a subscriber, as `SubscriptionContractService.assertPartyFor` does.
@@ -1481,6 +1481,96 @@ nothing, and the identity is not guarded. A contract whose party copy the subscr
 names no issuer at all; those neither block a change nor are blocked by one, and are confirmed
 against the contract before they are invoiced.
 
+### The plan catalogue is read when it is asked for
+
+`PLAN_CATALOG_TOKEN` is gone. It carried the whole catalogue, read once when the application
+started, so a plan the operator published afterwards was unknown to everything that read it until
+the next restart: a promo code for it was refused with `PLAN_MISMATCH`, a plan change to it with
+`PLAN_NOT_IN_CATALOG`, and a contract frozen after a price change named the new version with the old
+one's price. The catalogue is two tokens now, because its two halves move differently:
+
+- **`PLAN_CATALOG_SETTINGS_TOKEN`** is a `PlanCatalogSettings`: the blocks of `config/saas.yaml` —
+  app, currency, VAT rate, tenant billing, issuer, payments and the rest. They are fixed while the
+  process runs. A class that reads only settings injects this one, and nothing else changes for it.
+- **`PLAN_CATALOG_SOURCE_TOKEN`** is a `PlanCatalogSource`. `await source.current()` answers the
+  settings with the plans and features as the database holds them at that moment. Read it once per
+  operation and hand the value on, so every check of that operation sees the same plans. `findPlan`,
+  `getPlanPriceNet`, `getPlanPriceGross` and `getMarketedPlans` take the value as before.
+
+```ts
+// before
+constructor(@Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog) {}
+priceOf(planId: string) {
+    return getPlanPriceGross(this.catalog, planId, 'MONTHLY');
+}
+
+// after
+constructor(@Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource) {}
+async priceOf(planId: string) {
+    return getPlanPriceGross(await this.catalogs.current(), planId, 'MONTHLY');
+}
+```
+
+The old import fails to compile rather than carrying on with the plans from the start, and that is
+the point: a token that kept its name and lost its plans would compile, and hand every
+`catalog.plans ?? []` an empty list. An application that resolves the old registry key by hand fails
+at start.
+
+Four more things moved with it:
+
+- **`AdminManifestConfig` has no `planCatalogSnapshot` any more.** `AdminManifestService` fills it
+  on every request from the source — plans, features, currency, VAT rate and a hash over them, with
+  `source` saying `database` or `given`. A config factory of your own drops the block, and whatever
+  it computed the hash with.
+- **`AdminManifestService.getManifest()` and `rebuild()` return a `Promise`**, and so does
+  `ManifestAccessPort.getManifest()`. A manifest controller of your own awaits it before it reads
+  `build.manifestHash` for the ETag. `ManifestCliFlow` awaits the port, so a `manifestAccessPort`
+  that delegates to the service needs no change. The service reads `PLAN_CATALOG_SOURCE_TOKEN`, so
+  an `AdminManifestModule` wired by hand needs a `PlanCatalogModule` in scope, which
+  `SaaSiCatModule.forRoot` provides globally.
+- **`PlanCatalogModule.forRootWithCatalog(catalog)`** provides both tokens from the catalogue it is
+  given. A test that builds a service by hand passes `givenPlanCatalogSource(catalog)` where it
+  passed the catalogue.
+- **A contract records the plan version its subscription is bound to.** It priced the plan line from
+  the version on sale, so a tenant on v1 who booked an add-on after v2 was published got a contract
+  at v2's price with v1's entitlements. `ContractFreezeSourcePort.findLivePlanVersionId(planId)` is
+  replaced by `findBoundPlanVersion(tenantId)`, which returns the row the subscription's
+  `planVersionId` points at — price, features and quotas from one row:
+
+    ```ts
+    // before
+    findLivePlanVersionId(planId: string) {
+        return this.prisma.planVersion
+            .findFirst({ where: { planId, publishedAt: { not: null }, supersededAt: null } })
+            .then((row) => row?.id ?? null);
+    }
+
+    // after
+    async findBoundPlanVersion(tenantId: string) {
+        const sub = await this.prisma.subscription.findUnique({
+            where: { tenantId },
+            include: { planVersion: true },
+        });
+        // The fields your schema carries for the version's validity, as in your read sink.
+        const fields = { validityWindows: false, endsAt: false };
+        return sub ? toPlanVersionRow(sub.planVersion, sub.plan, fields) : null;
+    }
+    ```
+
+    The freeze refuses a plan the subscription is not bound to, so a write port of your own has to
+    bind `planVersionId` on a plan change before the contract is frozen — the shipped ones do.
+
+What it costs: a read of the three catalogue tables for each operation that needs plans — a price, a
+promo code, a plan change, a contract, the public plan list, an entitlement the cache does not
+answer, the manifest. `enforceLimit` reads before it opens its transaction, so the lock it takes on
+the subscription row does not wait for a second connection.
+
+**Check your row-level security before you upgrade.** The catalogue used to be read once, before any
+request; now it is read inside tenant requests, through whatever client your read sink resolves
+there. The shipped schema has no policy on `plans`, `plan_versions` or `feature_catalog_entries`. If
+you added one, a tenant request sees a smaller catalogue, and that shows up as
+`PLAN_NOT_IN_CATALOG`, `PLAN_MISMATCH` or a plan priced at `0.00` — never as a policy.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.
@@ -1521,6 +1611,11 @@ against the contract before they are invoiced.
    concluded and not yet over, oldest first, with the legal name on each one's issuer copy. Both
    shipped adapters have it; the persistence contract fails an implementation without it. See the
    section above for what "not yet over" means, and why status alone is not it.
+
+9. **`PLAN_CATALOG_TOKEN`** — two tokens now, and which one a class needs depends on whether it reads
+   plans: a class that reads only settings takes `PLAN_CATALOG_SETTINGS_TOKEN`, one that reads plans
+   or features takes `PLAN_CATALOG_SOURCE_TOKEN` and awaits `current()`. That is a decision about
+   each class, not a rename, so the compiler lists the places and the section above says how.
 
 ## Order for a workspace with several apps
 

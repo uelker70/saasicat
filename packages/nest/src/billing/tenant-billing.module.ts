@@ -10,7 +10,7 @@ import { planCatalogSchema } from '@saasicat/spec';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
-    PlanCatalog,
+    PlanCatalogSettings,
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
@@ -25,7 +25,7 @@ import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
 import { PlanChangePreviewService } from './plan-change-preview.service.js';
-import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
@@ -79,11 +79,11 @@ import {
  * `Cannot read properties of undefined`, thrown from a Nest factory, which
  * names neither the file nor the field.
  */
-function settingFromCatalog<K extends keyof PlanCatalog['tenantBilling']>(
-    catalog: PlanCatalog,
+function settingFromCatalog<K extends keyof PlanCatalogSettings['tenantBilling']>(
+    catalog: PlanCatalogSettings,
     key: K,
-): PlanCatalog['tenantBilling'][K] {
-    const settings = catalog.tenantBilling as PlanCatalog['tenantBilling'] | undefined;
+): PlanCatalogSettings['tenantBilling'][K] {
+    const settings = catalog.tenantBilling as PlanCatalogSettings['tenantBilling'] | undefined;
     const value = settings?.[key];
     if (value === undefined) {
         throw new Error(
@@ -275,15 +275,15 @@ export class TenantBillingModule {
         providers.push(
             {
                 provide: CANCELLATION_NOTICE_DAYS_TOKEN,
-                useFactory: (catalog: PlanCatalog) =>
+                useFactory: (catalog: PlanCatalogSettings) =>
                     settingFromCatalog(catalog, 'cancellationNoticeDays'),
-                inject: [PLAN_CATALOG_TOKEN],
+                inject: [PLAN_CATALOG_SETTINGS_TOKEN],
             },
             {
                 provide: SELF_SERVICE_BLOCKED_PLANS_TOKEN,
-                useFactory: (catalog: PlanCatalog) =>
+                useFactory: (catalog: PlanCatalogSettings) =>
                     settingFromCatalog(catalog, 'selfServiceBlockedPlans'),
-                inject: [PLAN_CATALOG_TOKEN],
+                inject: [PLAN_CATALOG_SETTINGS_TOKEN],
             },
         );
         if (options.subscriptionBundleRepository) {

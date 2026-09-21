@@ -8,6 +8,8 @@
 // three drifted — and a fixture that is subtly wrong is worse than a missing
 // one, because the test still passes.
 
+import { givenPlanCatalogSource } from '../../dist/billing/index.js';
+
 export const PRO = {
     id: 'PRO',
     name: 'Pro',
@@ -89,7 +91,7 @@ export function usageRecord(overrides = {}) {
 export function entitlementServiceFor(EntitlementService, subscription, options = {}) {
     const { config = null, contract = null, bundles = null } = options;
     return new EntitlementService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         { findByTenantId: async () => subscription },
         {
             findActive: async (planId) => {
@@ -160,3 +162,21 @@ export const FLAT_ENTITLEMENTS = {
     computeLimits: async () => ({ plan: 'STARTER', quotas: {}, features: new Set() }),
     invalidateTenant() {},
 };
+
+/**
+ * The plan version row a subscription on `plan` is bound to, as a contract
+ * freeze source hands it over. Prices travel as the decimal strings a row
+ * carries; a `null` price stands for a column an installation left nullable.
+ */
+export function boundPlanVersion(plan, id = `pv-${plan.id.toLowerCase()}`) {
+    const price = (net) => (net == null ? null : net.toFixed(2));
+    return {
+        id,
+        planId: plan.id,
+        marketed: plan.marketed ?? true,
+        monthlyNet: price(plan.monthlyNet),
+        yearlyNet: price(plan.yearlyNet),
+        features: [...plan.features],
+        quotas: { ...plan.quotas },
+    };
+}

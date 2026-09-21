@@ -383,6 +383,10 @@ _Tested by:_
         - wrong Capability pattern → error
         - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
         - formatReport shows severity icons + paths
+    - the manifest commands print what the port answers
+        - dump prints the manifest itself
+        - hash prints the hash
+        - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
 - `packages/nest/tests/tenant-manifest.test.js`

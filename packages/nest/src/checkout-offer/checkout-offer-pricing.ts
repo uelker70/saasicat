@@ -22,7 +22,7 @@ import type {
     CheckoutOfferPromoCodeSnapshot,
     CheckoutOfferPromotionSnapshot,
     CheckoutOfferRow,
-    PlanCatalog,
+    PlanCatalogSettings,
     PlanRepository,
     PlanVersionRow,
     PromotionRepository,
@@ -31,7 +31,7 @@ import type {
 import { CONTRACT_ERROR_CODES, applyPromo, pickActivePromo } from '@saasicat/core';
 
 import { resolveBundlePriceNet } from '../billing/bundle-price.js';
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import {
     BUNDLE_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
@@ -79,7 +79,7 @@ interface PricedLine {
 @Injectable()
 export class CheckoutOfferPricing {
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN) private readonly settings: PlanCatalogSettings,
         @Inject(PLAN_REPOSITORY_TOKEN) private readonly plans: PlanRepository,
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
@@ -148,7 +148,7 @@ export class CheckoutOfferPricing {
         bundleVersions: BundleVersionRow[],
         asOf: Date,
     ): Promise<PricedCheckoutOffer> {
-        const vatRate = this.catalog.vatRate;
+        const vatRate = this.settings.vatRate;
         const promotions = this.promotions ? await this.promotions.list() : [];
         const plan = await this.plans.findByKey(input.planKey);
 
@@ -178,7 +178,7 @@ export class CheckoutOfferPricing {
         );
 
         const priceBreakdown: CheckoutOfferPriceBreakdown = {
-            currency: this.catalog.currency,
+            currency: this.settings.currency,
             billingCycle: input.billingCycle,
             planNet,
             bundlesNet,
@@ -335,7 +335,7 @@ export class CheckoutOfferPricing {
             quantity: 1,
             unit: null,
             priceNet: fields.priceNet,
-            priceGross: grossFromNet(fields.priceNet, this.catalog.vatRate),
+            priceGross: grossFromNet(fields.priceNet, this.settings.vatRate),
             billingCycle: fields.billingCycle,
             featuresSnapshot: [...fields.features],
             quotaEffectsSnapshot: { ...fields.quotas },

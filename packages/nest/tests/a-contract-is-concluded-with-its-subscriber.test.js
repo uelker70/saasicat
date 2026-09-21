@@ -16,6 +16,7 @@ import {
     TenantBillingController,
     TenantBillingModule,
     buildTenantSubscriptionBundlesController,
+    givenPlanCatalogSource,
 } from '../dist/billing/index.js';
 import { SubscriberService } from '../dist/subscriber/index.js';
 import {
@@ -24,6 +25,7 @@ import {
 } from '../dist/subscription-contract/index.js';
 import { FakeSubscriptionContractRepository } from '../dist/testing/index.js';
 import { SUBSCRIBER_CATALOG, subscribersFor } from './helpers/subscribers.js';
+import { boundPlanVersion } from './helpers/subscription-fixtures.js';
 
 const EFFECTIVE_FROM = new Date('2026-06-01T00:00:00.000Z');
 
@@ -250,28 +252,25 @@ describe('no contract arises without its subscriber', () => {
     });
 });
 
+const STANDARD = {
+    id: 'STANDARD',
+    name: 'Standard',
+    monthlyNet: 49,
+    yearlyNet: 490,
+    quotas: {},
+    features: [],
+};
+
 function freezeService(contracts) {
     return new SubscriptionContractFreezeService(
-        {
-            ...SUBSCRIBER_CATALOG,
-            plans: [
-                {
-                    id: 'STANDARD',
-                    name: 'Standard',
-                    monthlyNet: 49,
-                    yearlyNet: 490,
-                    quotas: {},
-                    features: [],
-                },
-            ],
-        },
+        givenPlanCatalogSource({ ...SUBSCRIBER_CATALOG, plans: [STANDARD] }),
         {
             invalidateTenant() {},
             computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),
         },
         contracts,
         {
-            findLivePlanVersionId: async () => null,
+            findBoundPlanVersion: async () => boundPlanVersion(STANDARD),
             loadBookedBundles: async () => ({ lineItems: [], bundleVersionIds: [] }),
         },
     );

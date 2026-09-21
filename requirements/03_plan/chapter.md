@@ -1118,3 +1118,67 @@ _Tested by:_
         - its errors carry the API name they came from
 
 <!-- END proof -->
+
+### SC-PLAN-026 — A version is sold from the moment it is published, not from the next start
+
+🟢 💰 A plan the operator publishes while the application runs is priced, checked and recorded at
+once: a promo code for it, a plan change and the contract it freezes, the public catalogue and the
+plan editor read the plans as they stand when they are asked, not as they stood when the process
+started. The same holds for a changed price and a retired plan. Otherwise a new plan cannot be sold
+with a code until the next deploy, and a contract names the new version while recording the old
+one's price.
+
+The one answer allowed to lag is a tenant's entitlements, which are cached for at most a minute: a
+feature marked as planned only stops being granted within that minute rather than at once. Nothing
+that is priced or recorded is taken from that cache: a contract records the version its subscription
+is bound to — the one a plan change bound, or the one a tenant has kept while a successor went on
+sale (`SC-SUB-012`) — and computes its entitlements fresh.
+
+_Source:_ #289
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-published-after-boot-is-read-at-once.test.js`
+    - the plans a running application reads
+        - a plan published after the start is there on the next read
+        - a price changed after the start is the price read
+        - a plan retired after the start is gone from the next read
+        - a sink that cannot read stops the start, rather than the first customer
+    - the two halves of the catalogue
+        - the settings carry no plans and no features, so nobody reads the start-time ones
+        - a catalogue given at start answers both, with the settings split off
+        - the key that used to carry both is not provided, so a consumer on it fails at start
+    - what reads the plans on behalf of somebody
+        - the manifest the plan editor reads lists a plan published after the start
+        - a tenant on a plan published after the start gets its features
+    - the order the plans are read in
+        - is the same on every read, whatever order the database returns a tie in
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — a feature marked planned only after the service was built
+        - is granted at most a minute longer, the time a cached answer may be old
+        - a caller that read the catalogue gets the answer computed from that reading
+        - a reading handed in does not become the answer for everybody else
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a plan the operator publishes after the service was built
+        - is found, ranked and priced by the plans as they stand now
+        - a changed price is the one the proration charges
+        - a retired plan is refused as not in the catalogue
+- `packages/nest/tests/promo-service.test.js`
+    - a plan the operator publishes after the service was built
+        - takes a code at once, priced at what was published
+        - a changed price decides the minimum amount, not the price the service started with
+        - an absolute code is held against the lowest price as it stands
+        - a retired plan takes no code any more
+        - redeeming checks against the published plans too
+        - a code refused before any price matters costs no read of the plans
+        - one preview reads the plans once, so its checks and its price see the same ones
+- `packages/nest/tests/public-catalog-controller.test.js`
+    - a plan published after the controller was built is listed at once, and a retired one is gone
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a plan the operator publishes after the service was built
+        - is recorded under the name it is sold under, at the price it was bound at
+        - its entitlement snapshot is filtered against the same reading
+
+<!-- END proof -->

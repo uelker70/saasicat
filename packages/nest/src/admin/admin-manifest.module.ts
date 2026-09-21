@@ -1,7 +1,8 @@
 // AdminManifestModule — DI wrapper around AdminManifestService + public boot controller.
 //
-// Consumers pass their app-specific `AdminManifestConfig` (project, build,
-// planCatalogSnapshot) through as a value or a factory.
+// Consumers pass their app-specific `AdminManifestConfig` (project, build)
+// through as a value or a factory. The plan catalogue in the manifest comes from
+// `PLAN_CATALOG_SOURCE_TOKEN`, which `PlanCatalogModule` provides globally.
 //
 // Auth pattern: when `includeManifestController: true` (default), the consumer
 // MUST set `guards` — either a concrete guard list (e.g.
@@ -47,7 +48,7 @@ interface HttpResponseLike {
 }
 
 export interface AdminManifestModuleOptions {
-    /** AdminManifestConfig as a value or via a factory (e.g. with a PLAN_CATALOG_TOKEN inject). */
+    /** AdminManifestConfig as a value or via a factory (e.g. with a PLAN_CATALOG_SETTINGS_TOKEN inject). */
     config: ConfigSpec;
     /**
      * Default `true`. Set to `false` when the consumer registers its own
@@ -132,11 +133,11 @@ function buildManifestController(
 
         @Get('manifest')
         @Header('Cache-Control', 'private, max-age=60, must-revalidate')
-        getManifest(
+        async getManifest(
             @Headers('if-none-match') ifNoneMatch: string | undefined,
             @Res({ passthrough: true }) res: HttpResponseLike,
         ) {
-            const m = this.manifest.getManifest();
+            const m = await this.manifest.getManifest();
             const etag = `"${m.build.manifestHash}"`;
             res.header('ETag', etag);
 
@@ -151,8 +152,8 @@ function buildManifestController(
         @Post('manifest/reload')
         @UseGuards(...reloadChain)
         @HttpCode(HttpStatus.OK)
-        reload() {
-            const m = this.manifest.rebuild();
+        async reload() {
+            const m = await this.manifest.rebuild();
             return {
                 manifestHash: m.build.manifestHash,
                 reloadedAt: new Date().toISOString(),

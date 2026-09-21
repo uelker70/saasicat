@@ -5,7 +5,8 @@
 //   - version-diff:      classifyPlanDiff, classifyBundleVersionDiff
 //   - require-feature:   @RequireFeature(...keys) decorator + REQUIRE_FEATURE_KEY
 //   - plan-catalog-loader: loadPlanCatalogFromFile() / loadPlanCatalogFromString()
-//   - PlanCatalogModule: NestJS module with forRoot({ path }) + PLAN_CATALOG_TOKEN
+//   - PlanCatalogModule: NestJS module with forRoot({ sink }) + PLAN_CATALOG_SETTINGS_TOKEN
+//                        and PLAN_CATALOG_SOURCE_TOKEN (plan-catalog-source)
 //   - plan-helpers:      findPlan, getPlanOrThrow, getMarketedPlans,
 //                        getPlanPriceNet/Gross, getPlanQuota,
 //                        isFeatureInPlan, isFeaturePlannedOnly
@@ -30,6 +31,11 @@ export * from './limit-exceeded.filter.js';
 export * from './plan-catalog-loader.js';
 export type { EnvironmentVariables } from './plan-catalog-environment.js';
 export * from './plan-catalog.module.js';
+export {
+    givenPlanCatalogSource,
+    type PlanCatalogOrigin,
+    type PlanCatalogSource,
+} from './plan-catalog-source.js';
 export {
     buildPlanCatalogFromSnapshot,
     type PlanCatalogBuildSettings,

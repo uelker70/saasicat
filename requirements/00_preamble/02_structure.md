@@ -77,7 +77,7 @@ properties it has while doing it.
 | --- | -------------------------------------------- | ------------ | ------- |
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
-| 3   | Plans and their versions                     | `SC-PLAN-…`  | 25      |
+| 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 17      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 487 entries: 🟢 415 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 488 entries: 🟢 416 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

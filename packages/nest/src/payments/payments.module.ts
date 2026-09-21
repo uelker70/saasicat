@@ -82,7 +82,7 @@ export interface PaymentsModuleOptions {
  * callbacks arrive at, the registry of configured accounts, and — with
  * `tenantRoutes` — the tenant's view of its payment method.
  *
- * Reads `config/saas.yaml#payments` from `PLAN_CATALOG_TOKEN`, which
+ * Reads `config/saas.yaml#payments` from `PLAN_CATALOG_SETTINGS_TOKEN`, which
  * `SaaSiCatModule.forRoot` provides globally.
  */
 @Module({})
