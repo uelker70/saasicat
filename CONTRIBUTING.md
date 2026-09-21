@@ -339,84 +339,78 @@ the codemod it names is `saasicat codemod v1`.
 ## A review round is counted, not remembered
 
 Two rules govern a pull request's review rounds, and both were prose until they
-were broken in both directions on one afternoon — a round requested after a clean
+broke in opposite directions on one afternoon — a round requested after a clean
 one, then three announcements that the loop was over after a round that had
-raised a P2.
+raised a P2. On another, a pull request was called ready while five findings had
+no answer at all, which is how #187 went in with three unread P2.
 
-- **A round must come back with no P0, P1 or P2** before the loop ends. There is
-  no allowance: one is enough to keep it open.
 - **Nothing is merged while a finding is unanswered.** CI being green says
   nothing about a comment that arrived after the last push.
+- **A round must come back with no P0, P1 or P2** before the loop ends. There is
+  no allowance: one is enough to keep it open.
 
 ```bash
 pnpm run review:state 308           # what the pull request says about itself
 pnpm run review:state 308 --gate    # exits 1 unless it may be merged
 ```
 
-It reads the four places a round can speak from — reviews, inline review
-comments, issue comments and reactions — paginated, from the pull request's
-opening rather than from whenever the last round was requested.
+It reads reviews, inline review comments, issue comments and reactions,
+paginated, from the pull request's opening rather than from whenever the last
+round was requested — an unpaginated fetch once hid three P1 behind the first
+page, and a hand-picked cut-off missed a finding by fourteen seconds.
 
-**All four are needed, because a round's trace depends on what it found.** When
-it found something, its findings hang from review records, and one round leaves
-several — the round on #308 at `6cffd079` left two, one per comment, each with an
-empty body. When it found nothing there is no review record at all: the Claude
-workflow posts its verdict as an issue comment, and Codex answers with a 👍 and
-nothing else. So the one event the loop rule turns on — a round coming back clean
-— is precisely the one a reviews-only reading cannot see. A round is therefore
-one reviewer at one commit, plus those two ways of saying nothing. 👀 is the
-acknowledgement that the request was picked up, never the answer, and a comment
-that asks for a review is not one.
-
-**Naming the trigger starts a round.** `claude-review.yml` fires on the word
-appearing in a comment, not on the intent behind it, so a sentence that merely
-mentions it costs a run — four replies explaining this section fired eight, seven
-cancelled or skipped and one a full agent that had nothing to do. Write _the
-review workflow_ when you mean it in prose. An answer in an inline thread is also
-the cheaper place to ask a question, because that answer is an inline comment and
-never reads as a round.
-
-**Only the newest round decides whether another is owed.** The level of a finding
-does not change when it is fixed, so a `P2` answered three rounds ago still reads
-`P2`; what changed is that a later round looked and found nothing above `P3`.
-Counting every finding ever raised would hold the loop open for good, which is
-the unbounded loop the limit exists to prevent. Whether that newest round has
-seen the current head is read from the review's own commit — not from a moment,
-because a commit written locally before a review and pushed after it carries the
-earlier timestamp — and is reported rather than enforced: a `P3` from the last
-round is fixed and merged without asking for another look.
-
-The part that costs something: **the answer to a finding opens with its level.**
-Codex prints a `P2` badge, a Claude review prints no level at all, and a level
-nobody wrote down is one somebody recalls differently later. So a reply under the
-finding begins with one of `P0`–`P3` — bold or plain, followed by anything:
+**The answer to a finding opens with its level.** Codex prints a `P2` badge, a
+Claude review prints no level at all, and a level nobody wrote down is one
+somebody recalls differently later. So a reply begins with one of `P0`–`P3`,
+bold or plain, and then says whatever it needs to:
 
 ```text
 **P2** — it reaches a tenant boundary. Fixed in abc1234, with a counter-check.
 P3: a wording nit, fixed.
 ```
 
-From the opening, and not from anywhere in the body, because the first shape of
-this asked for exactly one level in the text and every answer that explained
-itself broke it: an answer saying why something is a `P1` names what an earlier
-`P2` cost. Four of the nine answers on the pull request that added this named a
-second level in passing, and all four read as unclassified. A marker at the front
-is a place a judgement is put; a word further down is a word. `Fixed in abc1234 —
-P2.` is therefore not classified, and neither is a heading or a list item that
-opens with something else.
+From the opening, because asking for one level _anywhere_ in the text was
+defeated by every answer that explained itself — an answer saying why something
+is a `P1` names what an earlier `P2` cost. `Fixed in abc1234 — P2.` is therefore
+not classified. A thread that escalates is read at its end, which is the one
+place this resolves ambiguity by recency: a level is a judgement, and a judgement
+can be revised.
 
-Two levels in a thread are read at its end rather than at its opening — the only
-place this resolves ambiguity by recency, and deliberately: a level is a
-judgement, and a judgement can be revised.
+**Findings belong to the commit they were raised against**, not to the review
+record and not to the reviewer. One round leaves several records — the round at
+`6cffd079` on #308 left two — and two reviewers at one head must not absolve
+each other.
+
+### The one thing it does not work out
+
+Whether a round came back **clean**. That is not in the data: a round that finds
+something leaves review records, and a round that finds nothing leaves no record
+at all — only an edited comment, or a reaction. Four rounds of review on this
+script went into reconstructing it from those side-effects, and each
+reconstruction had a hole, because the thing being reconstructed is not there.
+
+So whoever read the round writes one line, as an ordinary comment:
+
+```text
+Round clean at 8da3eb42
+```
+
+That is this repository's own answer for an undecidable case — a declaration
+rather than a better guess — and it is the only judgement the script asks for.
+Everything else it counts.
+
+**Naming the trigger starts a round.** `claude-review.yml` fires on the word
+appearing in a comment, not on the intent behind it, so a sentence that merely
+mentions it costs a run — four replies explaining this section fired eight, seven
+cancelled or skipped and one a full agent that had nothing to do. Write _the
+review workflow_ when you mean it in prose, and ask questions in an inline thread
+rather than in a new comment.
 
 **It is not in CI, and that is a gap rather than an oversight.** Running it there
-needs a token, and a fresh pull request would be red until somebody reviewed it,
-which is a different signal from a failing check. So the person merging runs it.
-Naming that beats pretending prose is enforcement.
-
-What it will not do is read a level out of a review body. A body is prose; an
-unclassified finding blocks instead, which asks for the judgement rather than
-inventing it.
+needs a token, and a fresh pull request would be red until somebody reviewed it —
+a different signal from a failing check, and one that teaches people to skip the
+red. So the person merging runs it. Naming that beats pretending prose is
+enforcement.
 
 ## Commits and pull requests
 
