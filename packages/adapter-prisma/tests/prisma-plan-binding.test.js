@@ -26,7 +26,7 @@ const APP_SCHEMA = {
 };
 
 describe('Prisma plan binding options', () => {
-    test('the omitted schema preserves every 0.6 plan default', async () => {
+    test('the omitted schema resolves to the defaults, binding the plan version on a change', async () => {
         const schema = resolvePrismaSchemaOptions();
         assert.deepEqual(schema.planBinding, { mode: 'legacy-plan-key' });
         assert.deepEqual(schema.delegates, {
@@ -40,7 +40,7 @@ describe('Prisma plan binding options', () => {
         assert.deepEqual(schema.tenantSubscription, {
             delegate: 'subscription',
             subscriptionBundleDelegate: false,
-            synchronizePlanVersion: false,
+            synchronizePlanVersion: true,
             atomicOnboardingSelection: false,
             activeVersionSelection: 'latest-live',
             withEndsAt: false,

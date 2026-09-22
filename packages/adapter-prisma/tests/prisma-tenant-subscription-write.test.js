@@ -48,9 +48,13 @@ function fakePrisma({
         { id: 'plan-starter', planKey: 'STARTER' },
         { id: 'plan-pro', planKey: 'PRO' },
     ],
+    // Keyed by stored plan id in normalized mode, by plan key in the default
+    // mode — a plan change binds a version in either.
     planVersions = [
         { id: 'version-starter', planId: 'plan-starter' },
         { id: 'version-pro', planId: 'plan-pro' },
+        { id: 'version-starter-by-key', planId: 'STARTER' },
+        { id: 'version-pro-by-key', planId: 'PRO' },
     ],
     subscriptionDelegate = 'subscription',
     planVersionDelegate = 'planVersion',
@@ -137,11 +141,31 @@ function fakePrisma({
 }
 
 describe('PrismaTenantSubscriptionWriteAdapter', () => {
-    test('the no-options default preserves the 0.6 plan-only write', async () => {
+    test('by default a plan change binds the version it sells, and says so', async () => {
         const prisma = fakePrisma();
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
 
+        assert.equal(adapter.bindsPlanVersion, true);
         assert.equal(adapter.applyOnboardingSelection, undefined);
+        await adapter.changePlanImmediate('tenant-1', {
+            planId: 'PRO',
+            cycle: 'MONTHLY',
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+        });
+
+        assert.equal(planWrite(prisma).plan, 'PRO');
+        assert.equal(planWrite(prisma).planVersionId, 'version-pro-by-key');
+    });
+
+    test('opting out writes the plan alone, and says it does not bind', async () => {
+        const prisma = fakePrisma();
+        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
+            tenantSubscription: { synchronizePlanVersion: false },
+        });
+
+        assert.equal(adapter.bindsPlanVersion, false);
         await adapter.changePlanImmediate('tenant-1', {
             planId: 'PRO',
             cycle: 'MONTHLY',

@@ -126,7 +126,7 @@ const DEFAULT_SCHEMA_OPTIONS: ResolvedPrismaSchemaOptions = {
     tenantSubscription: {
         delegate: 'subscription',
         subscriptionBundleDelegate: false,
-        synchronizePlanVersion: false,
+        synchronizePlanVersion: true,
         atomicOnboardingSelection: false,
         activeVersionSelection: 'latest-live',
         withEndsAt: false,

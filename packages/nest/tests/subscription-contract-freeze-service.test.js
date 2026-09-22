@@ -5,10 +5,17 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import 'reflect-metadata';
+import { Test } from '@nestjs/testing';
 import {
+    CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
+    PlanCatalogModule,
+    SUBSCRIPTION_WRITE_PORT_TOKEN,
     SubscriptionContractFreezeService,
     givenPlanCatalogSource,
 } from '../dist/billing/index.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../dist/entitlement/index.js';
+import { SubscriptionContractService } from '../dist/subscription-contract/index.js';
 import { publishingCatalogue } from './helpers/publishing-catalogue.js';
 import { boundPlanVersion } from './helpers/subscription-fixtures.js';
 
@@ -168,6 +175,34 @@ describe('the plan line records the version the subscription is bound to', () =>
         );
         assert.deepEqual(calls.terminated, [], 'the contract in force was closed');
         assert.deepEqual(calls.created, []);
+    });
+});
+
+describe('a freeze beside a write that does not bind the plan version', () => {
+    // Booted through Nest rather than constructed: the write reaches the
+    // freeze by its token, and a freeze that never received it would start
+    // beside any write at all.
+    async function boot(writes) {
+        const app = await Test.createTestingModule({
+            imports: [PlanCatalogModule.forRootWithCatalog(CATALOG)],
+            providers: [
+                { provide: ENTITLEMENT_SERVICE_TOKEN, useValue: {} },
+                { provide: SubscriptionContractService, useValue: {} },
+                { provide: CONTRACT_FREEZE_SOURCE_PORT_TOKEN, useValue: {} },
+                { provide: SUBSCRIPTION_WRITE_PORT_TOKEN, useValue: writes },
+                SubscriptionContractFreezeService,
+            ],
+        }).compile();
+        await app.close();
+    }
+
+    test('stops the start, naming the option that binds it', async () => {
+        await assert.rejects(() => boot({ bindsPlanVersion: false }), /synchronizePlanVersion/);
+    });
+
+    test('starts beside a write that binds, or that does not say', async () => {
+        await boot({ bindsPlanVersion: true });
+        await boot({});
     });
 });
 

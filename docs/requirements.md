@@ -1790,7 +1790,7 @@ _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-plan-binding.test.js`
     - Prisma plan binding options
-        - the omitted schema preserves every 0.6 plan default
+        - the omitted schema resolves to the defaults, binding the plan version on a change
         - normalized mode resolves both directions
         - a read finds a retired plan and finds nothing for a key no plan has
         - reading the versions of a plan no row has answers empty, in both repositories

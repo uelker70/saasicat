@@ -156,11 +156,10 @@ function createHarness() {
             mfa: new PrismaMfaAdapter(prisma),
             audit: new PrismaAuditAdapter(prisma),
             auditQuery: new PrismaAuditQueryAdapter(prisma),
+            // Binding the plan version is the default, so the contract proves the
+            // default rather than an option set for it.
             tenantSubscriptionWrite: new PrismaTenantSubscriptionWriteAdapter(prisma, {
-                tenantSubscription: {
-                    synchronizePlanVersion: true,
-                    atomicOnboardingSelection: true,
-                },
+                tenantSubscription: { atomicOnboardingSelection: true },
             }),
             bundleRepository: new PrismaBundleRepository(prisma, {
                 validityWindows: true,

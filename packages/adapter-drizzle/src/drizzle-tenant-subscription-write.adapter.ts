@@ -35,6 +35,8 @@ import { subscriptions } from './schema.js';
  */
 @Injectable()
 export class DrizzleTenantSubscriptionWrite implements TenantSubscriptionWritePort {
+    /** Both plan-changing writes bind the version they sell; there is no opt-out here. */
+    readonly bindsPlanVersion = true;
     private readonly plans: DrizzlePlanRepository;
 
     constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleClient) {

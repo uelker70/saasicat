@@ -1557,8 +1557,14 @@ Four more things moved with it:
     }
     ```
 
-    The freeze refuses a plan the subscription is not bound to, so a write port of your own has to
-    bind `planVersionId` on a plan change before the contract is frozen — the shipped ones do.
+    The freeze therefore relies on the write binding `planVersionId` on a plan change, and refuses a
+    plan the subscription is not bound to. Both shipped adapters bind by default, and each says so
+    on `TenantSubscriptionWritePort.bindsPlanVersion`; a contract freeze beside a write that says
+    `false` stops the start and names the option. `@saasicat/adapter-prisma` used to bind only with
+    `tenantSubscription.synchronizePlanVersion: true` — it is the default now, and `false` opts out.
+    A write port of your own either sets `bindsPlanVersion` or is taken on trust: if it does not
+    bind, every plan change's freeze is refused and logged, and the tenant stays under the contract
+    they had.
 
 What it costs: a read of the three catalogue tables for each operation that needs plans — a price, a
 promo code, a plan change, a contract, the public plan list, an entitlement the cache does not

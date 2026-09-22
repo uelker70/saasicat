@@ -1,5 +1,9 @@
-import { Inject, Injectable, UnprocessableEntityException } from '@nestjs/common';
-import type { BillingCycle, CreateSubscriptionContractData } from '@saasicat/core';
+import { Inject, Injectable, Optional, UnprocessableEntityException } from '@nestjs/common';
+import type {
+    BillingCycle,
+    CreateSubscriptionContractData,
+    TenantSubscriptionWritePort,
+} from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -7,6 +11,7 @@ import { SubscriptionContractService } from '../subscription-contract/subscripti
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
+import { SUBSCRIPTION_WRITE_PORT_TOKEN } from './tenant-billing.tokens.js';
 import {
     findPlan,
     isPlanNotSoldInCycle,
@@ -50,7 +55,23 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         private readonly contracts: SubscriptionContractService,
         @Inject(CONTRACT_FREEZE_SOURCE_PORT_TOKEN)
         private readonly source: ContractFreezeSourcePort,
-    ) {}
+        @Optional()
+        @Inject(SUBSCRIPTION_WRITE_PORT_TOKEN)
+        writes: TenantSubscriptionWritePort | null = null,
+    ) {
+        // Said once, at start. A write that does not bind is wrong for every
+        // tenant at once, and each freeze would refuse on its own — caught and
+        // logged by its caller, while the tenant who paid for an upgrade stays
+        // under the contract they left.
+        if (writes?.bindsPlanVersion === false) {
+            throw new Error(
+                'The contract freeze records the plan version a subscription is bound to, and ' +
+                    "this installation's subscription write does not bind it on a plan change. " +
+                    'With @saasicat/adapter-prisma, leave `tenantSubscription.synchronizePlanVersion` ' +
+                    'at its default of true — or do not configure `contractFreeze`.',
+            );
+        }
+    }
 
     assertPartyFor(tenantId: string): Promise<void> {
         return this.contracts.assertPartyFor(tenantId);

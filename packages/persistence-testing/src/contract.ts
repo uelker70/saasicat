@@ -547,6 +547,13 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(changed.plan, 'PRO');
             assert.equal(changed.planVersionId, targetVersion.planVersionId);
             assert.equal(changed.planVersion.planId, 'PRO');
+            // A contract freeze trusts this declaration at start, so it has to
+            // say what the write just did.
+            assert.notEqual(
+                adapter.tenantSubscriptionWrite.bindsPlanVersion,
+                false,
+                'the write binds the version it sells but declares that it does not',
+            );
         });
 
         test('onboarding selection rolls plan binding and promo write back together', async (t) => {

@@ -2,6 +2,9 @@
 '@saasicat/nest': major
 '@saasicat/core': major
 '@saasicat/cli': major
+'@saasicat/adapter-prisma': major
+'@saasicat/adapter-drizzle': minor
+'@saasicat/persistence-testing': minor
 '@saasicat/spec': patch
 ---
 
@@ -51,7 +54,16 @@ features and quotas. `SC-PLAN-026` is the promise that replaces it.
   with v1's entitlements (`SC-SUB-012`). `ContractFreezeSourcePort` replaces
   `findLivePlanVersionId(planId)` with `findBoundPlanVersion(tenantId)`, and
   the freeze refuses a plan the subscription is not bound to before it closes
-  the contract in force.
+  the contract in force. That relies on the write binding `planVersionId` on a
+  plan change: `TenantSubscriptionWritePort.bindsPlanVersion` says whether it
+  does, and a freeze beside a write that says `false` stops the start.
+- Breaking: `@saasicat/adapter-prisma` binds the plan version on a plan change
+  by default — `tenantSubscription.synchronizePlanVersion` defaults to `true`,
+  as the Drizzle adapter has always behaved, and `false` opts out. A
+  subscription's `planVersionId` then follows the plan it was changed to, so
+  an upgraded tenant's entitlements come from the version they bought rather
+  than the one they left. The persistence contract holds each adapter's
+  `bindsPlanVersion` to what its write does.
 - `EntitlementService.computeLimits` takes an optional catalogue. With it, the
   answer is computed from that reading and kept out of the cache both ways;
   the freeze passes its reading. A tenant's cached entitlements may otherwise

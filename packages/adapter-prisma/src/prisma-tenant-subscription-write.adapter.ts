@@ -52,12 +52,14 @@ interface TransactionalPrismaClient {
  * `TenantSubscriptionWritePort` against a configurable Prisma subscription
  * delegate.
  *
- * The 0.6 default remains deliberately conservative:
- * `tenantSubscription.synchronizePlanVersion` is false, so
- * `changePlanImmediate` writes the semantic `plan` and cycle exactly as
- * before. Opting into synchronization resolves the target plan through the
- * configured plan binding, selects its live/active PlanVersion, and writes
- * `plan` + `planVersionId` in one transaction.
+ * `changePlanImmediate` resolves the target plan through the configured plan
+ * binding, selects its live/active PlanVersion, and writes `plan` +
+ * `planVersionId` in one transaction: the subscription is bound to the version
+ * it was sold, which is what the entitlements and a frozen contract read.
+ * `tenantSubscription.synchronizePlanVersion: false` opts out and writes the
+ * semantic `plan` and cycle alone — for a schema whose `planVersionId` is kept
+ * some other way. `bindsPlanVersion` says which, so a contract freeze can
+ * refuse to start beside a write that does not bind.
  *
  * Pure persistence: trial carry-over (#17) and contract freeze (#18) are
  * resolved in the platform `changePlan` path and handed down as plain values —
@@ -71,6 +73,7 @@ interface TransactionalPrismaClient {
  */
 @Injectable()
 export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionWritePort {
+    readonly bindsPlanVersion: boolean;
     readonly applyOnboardingSelection?: (
         tenantId: string,
         input: ApplyOnboardingSelectionInput,
@@ -87,6 +90,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         options?: PrismaSchemaOptions,
     ) {
         this.schema = resolvePrismaSchemaOptions(options);
+        this.bindsPlanVersion = this.schema.tenantSubscription.synchronizePlanVersion;
         this.planBinding = createPrismaPlanBindingResolver(options?.planBinding);
         this.assertConfiguration();
         if (this.schema.tenantSubscription.atomicOnboardingSelection) {

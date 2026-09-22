@@ -577,6 +577,15 @@ export interface CancelSubscriptionResult {
 }
 
 export interface TenantSubscriptionWritePort {
+    /**
+     * Whether the writes that change a plan — the immediate change and the
+     * onboarding selection — bind the subscription's `planVersionId` to the
+     * version they sell. A contract freeze records the bound version, so it
+     * refuses to start beside a write that says `false`. Left out, it is taken
+     * on trust: the platform cannot see into a write it did not ship.
+     */
+    readonly bindsPlanVersion?: boolean;
+
     /** Immediate change: set plan + cycle, clear pending fields, optionally reset the period. */
     changePlanImmediate(
         tenantId: string,
