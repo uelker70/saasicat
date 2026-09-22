@@ -437,6 +437,19 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
 
     private assertConfiguration(): void {
         if (!this.schema.tenantSubscription.synchronizePlanVersion) return;
+        // Binding reads the plan-version model on every plan change. Resolved
+        // here, a schema without one stops the start and names it, rather than
+        // failing the first upgrade with an error thrown from inside the write.
+        try {
+            this.planVersions(this.prisma);
+        } catch (error) {
+            throw new Error(
+                `${error instanceof Error ? error.message : String(error)} A plan change binds ` +
+                    'the plan version by default; a schema without a plan-version model sets ' +
+                    '`tenantSubscription.synchronizePlanVersion: false`.',
+                { cause: error },
+            );
+        }
         const entitlementFields = this.schema.planVersionFields.entitlement;
         if (
             this.schema.tenantSubscription.activeVersionSelection === 'validity-window' &&

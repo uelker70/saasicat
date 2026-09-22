@@ -159,6 +159,20 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         assert.equal(planWrite(prisma).planVersionId, 'version-pro-by-key');
     });
 
+    test('a schema without the plan-version model stops at construction, not at the first change', () => {
+        const prisma = fakePrisma();
+        delete prisma.planVersion;
+
+        assert.throws(
+            () => new PrismaTenantSubscriptionWriteAdapter(prisma),
+            /no 'planVersion' delegate.*synchronizePlanVersion: false/s,
+        );
+        const optedOut = new PrismaTenantSubscriptionWriteAdapter(prisma, {
+            tenantSubscription: { synchronizePlanVersion: false },
+        });
+        assert.equal(optedOut.bindsPlanVersion, false);
+    });
+
     test('opting out writes the plan alone, and says it does not bind', async () => {
         const prisma = fakePrisma();
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {

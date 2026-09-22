@@ -62,8 +62,14 @@ features and quotas. `SC-PLAN-026` is the promise that replaces it.
   as the Drizzle adapter has always behaved, and `false` opts out. A
   subscription's `planVersionId` then follows the plan it was changed to, so
   an upgraded tenant's entitlements come from the version they bought rather
-  than the one they left. The persistence contract holds each adapter's
-  `bindsPlanVersion` to what its write does.
+  than the one they left. The default needs a schema that carries it: a
+  `planVersionId` column on the subscription model, the plan-version model,
+  and a live version for every plan a tenant can change to. The adapter checks
+  the model when it is constructed, so a schema without one stops the start.
+  `false` opts out, but then a contract freeze refuses to start beside it — an
+  installation whose schema cannot bind the version cannot freeze contracts.
+  The persistence contract holds each adapter's `bindsPlanVersion` to what
+  both of its plan-changing writes do.
 - `EntitlementService.computeLimits` takes an optional catalogue. With it, the
   answer is computed from that reading and kept out of the cache both ways;
   the freeze passes its reading. A tenant's cached entitlements may otherwise
