@@ -65,7 +65,8 @@ features and quotas. `SC-PLAN-026` is the promise that replaces it.
   than the one they left. The default needs a schema that carries it: a
   `planVersionId` column on the subscription model, the plan-version model,
   and a live version for every plan a tenant can change to. The adapter checks
-  the model when it is constructed, so a schema without one stops the start.
+  the model when it is constructed, so a schema without one stops the start,
+  and a plan change that cannot write the column says which option to set.
   `false` opts out, but then a contract freeze refuses to start beside it — an
   installation whose schema cannot bind the version cannot freeze contracts.
   The persistence contract holds each adapter's `bindsPlanVersion` to what

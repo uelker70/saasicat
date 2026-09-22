@@ -213,7 +213,9 @@ subscription model, the plan-version model (`schema.delegates.entitlementPlanVer
 `planVersion` unless mapped) and a published, live version for every plan a
 tenant can change to. The adapter resolves the plan-version model when it is
 constructed, so a schema without one stops the start rather than the first
-plan change.
+plan change; a subscription model without the column cannot be seen from the
+client, and the first plan change that tries to write it says which option to
+set.
 
 `tenantSubscription.synchronizePlanVersion: false` opts out and writes `plan`
 and cycle alone, for a schema whose `planVersionId` is kept some other way. The

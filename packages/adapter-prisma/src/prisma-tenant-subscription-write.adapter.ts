@@ -171,10 +171,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         // and this takes the row only while that state still holds. One
         // statement, so a cancellation arriving in between loses the race
         // instead of being written over.
-        const claim = await subscription.updateMany({
-            where: { tenantId, canceledAt: input.expectedCanceledAt },
-            data,
-        });
+        const claim = await this.claimRow(client, tenantId, input.expectedCanceledAt, data);
         const current = await subscription.findUnique({ where: { tenantId } });
         if (!current) {
             throw new Error(`No subscription for tenant ${tenantId}.`);
@@ -293,10 +290,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             // transaction, so a cancellation arriving mid-onboarding either
             // loses to it or takes the row before it and turns this into a
             // no-op the caller is told about.
-            const claim = await this.subscription(tx).updateMany({
-                where: { tenantId, canceledAt: input.expectedCanceledAt },
-                data,
-            });
+            const claim = await this.claimRow(tx, tenantId, input.expectedCanceledAt, data);
             const updated = await this.subscription(tx).findUnique({ where: { tenantId } });
             if (!updated) {
                 throw new Error(`No subscription for tenant ${tenantId}.`);
@@ -384,6 +378,36 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             client,
             this.schema.delegates.entitlementPlanVersion,
         );
+    }
+
+    /**
+     * The conditional claim on the tenant's row, shared by both plan-changing
+     * writes. Where it carries a plan version, a failure says so: a
+     * subscription model without a `planVersionId` column makes Prisma answer
+     * with an unknown argument that names neither the binding nor the way out.
+     * The original error stays the cause, and a claim without a version fails
+     * as it always did.
+     */
+    private async claimRow(
+        client: unknown,
+        tenantId: string,
+        expectedCanceledAt: Date | null | undefined,
+        data: Record<string, unknown>,
+    ): Promise<{ count: number }> {
+        try {
+            return await this.subscription(client).updateMany({
+                where: { tenantId, canceledAt: expectedCanceledAt },
+                data,
+            });
+        } catch (error) {
+            if (!('planVersionId' in data)) throw error;
+            throw new Error(
+                `The plan change for tenant ${tenantId} could not be written with its plan version ` +
+                    'bound. A plan change binds the version by default; if the subscription model ' +
+                    'has no `planVersionId` column, set `tenantSubscription.synchronizePlanVersion: false`.',
+                { cause: error },
+            );
+        }
     }
 
     private async findTargetPlanVersionId(

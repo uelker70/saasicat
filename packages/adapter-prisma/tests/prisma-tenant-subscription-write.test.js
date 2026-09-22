@@ -173,6 +173,52 @@ describe('PrismaTenantSubscriptionWriteAdapter', () => {
         assert.equal(optedOut.bindsPlanVersion, false);
     });
 
+    test('a schema without the planVersionId column is told which option, not only what Prisma said', async () => {
+        // What Prisma answers for a column the model does not have.
+        const withoutColumn = () => {
+            const prisma = fakePrisma();
+            const updateMany = prisma.subscription.updateMany;
+            prisma.subscription.updateMany = async (args) => {
+                if ('planVersionId' in args.data) {
+                    throw new Error(
+                        'Unknown argument `planVersionId`. Available options are marked with ?.',
+                    );
+                }
+                return updateMany(args);
+            };
+            return prisma;
+        };
+        const input = {
+            planId: 'PRO',
+            cycle: 'MONTHLY',
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+            expectedCanceledAt: null,
+        };
+        const namesTheOption = (error) => {
+            assert.match(error.message, /synchronizePlanVersion: false/);
+            assert.match(error.cause?.message ?? '', /Unknown argument `planVersionId`/);
+            return true;
+        };
+
+        await assert.rejects(
+            () =>
+                new PrismaTenantSubscriptionWriteAdapter(withoutColumn()).changePlanImmediate(
+                    'tenant-1',
+                    input,
+                ),
+            namesTheOption,
+        );
+        const atomic = new PrismaTenantSubscriptionWriteAdapter(withoutColumn(), {
+            tenantSubscription: { atomicOnboardingSelection: true },
+        });
+        await assert.rejects(
+            () => atomic.applyOnboardingSelection('tenant-1', input, null),
+            namesTheOption,
+        );
+    });
+
     test('opting out writes the plan alone, and says it does not bind', async () => {
         const prisma = fakePrisma();
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {

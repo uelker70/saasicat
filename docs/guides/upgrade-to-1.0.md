@@ -1562,6 +1562,10 @@ Four more things moved with it:
     on `TenantSubscriptionWritePort.bindsPlanVersion`; a contract freeze beside a write that says
     `false` stops the start and names the option. `@saasicat/adapter-prisma` used to bind only with
     `tenantSubscription.synchronizePlanVersion: true` — it is the default now, and `false` opts out.
+    The default needs a schema that carries it: a `planVersionId` column on the subscription model,
+    the plan-version model, and a published, live version for every plan a tenant can change to.
+    The adapter resolves the plan-version model when it is constructed, so a schema without one
+    stops the start; a missing column is named by the first plan change that tries to write it.
     A write port of your own either sets `bindsPlanVersion` or is taken on trust: if it does not
     bind, every plan change's freeze is refused and logged, and the tenant stays under the contract
     they had.
