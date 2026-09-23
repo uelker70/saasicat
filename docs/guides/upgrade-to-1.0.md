@@ -1652,6 +1652,22 @@ the price it meets, but it cannot be saved again until its value is corrected. `
 price above it, a percentage of 0 — and the public catalogue shows no badge for a promotion that
 lowers neither rhythm's price.
 
+**A plan's own price for a bundle version is held to two fraction digits**, like the version's own
+prices: `pricingOverrides` refuses `"9.995"` with `pricingOverrides.monthlyNet must be a decimal with
+at most 2 fraction digits`. Such a price could not be concluded anyway — its contract's lines would
+never add up to its total. One stored before the upgrade stays in the row, keeps every offer on that
+plan and add-on from being concluded, and is refused when the admin copies it forward into a new
+draft. Find and correct them before you upgrade:
+
+```sql
+SELECT id, "bundleId", version, "pricingOverrides"
+FROM bundle_versions
+WHERE EXISTS (
+    SELECT 1 FROM jsonb_array_elements("pricingOverrides") AS o
+    WHERE o->>'monthlyNet' LIKE '%.___%' OR o->>'yearlyNet' LIKE '%.___%'
+);
+```
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

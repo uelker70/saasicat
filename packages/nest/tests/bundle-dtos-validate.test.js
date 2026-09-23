@@ -139,7 +139,6 @@ describe('CreateBundleVersionDraftDto', () => {
         );
     });
 
-    // @requirement SC-PRIC-050 — A contract's lines add up to its totals in net, gross and tax
     test("holds a plan's own price in pricingOverrides to the same two fraction digits", () => {
         // A contract states its lines in cents: two add-ons at 9.995 each come
         // to 19.99 as a sum and 19.98 as lines, and the contract could never be

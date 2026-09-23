@@ -653,7 +653,7 @@ function formatEuro(value: number): string {
 
 // ─── Promo application in the preview ───
 const promoToday = new Date();
-// The public catalogue's own question, so the preview badges what a visitor sees.
+// The public catalogue's question, for the monthly price the preview shows.
 function promotionShownOn(row: MarketingRow) {
     return promotionOnPrice(
         promotions.value,

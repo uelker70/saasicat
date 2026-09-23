@@ -44,6 +44,10 @@ pays does not change for a contract of one rhythm.
   and the base price and answers `null` where nothing is taken off. A
   promotion of 150 % on a plan at 30 beside an add-on at 20 took 45, fifteen of
   them off the add-on, and the public catalogue showed a negative price.
+- Breaking: a plan's own price in a bundle version's `pricingOverrides` is held
+  to two fraction digits like the version's own. An override stored with more
+  keeps its offers from being concluded and is refused when a new draft copies
+  it forward; the upgrade guide has the query that finds one.
 - Breaking: creating or changing a promotion refuses a value its type cannot
   take with `PROMOTION_VALUE_INVALID`: a percentage above 0 and at most 100, an
   amount above 0, an intro price of at least 0 for a whole number of months, a

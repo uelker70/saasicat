@@ -133,19 +133,6 @@ export class UpdateBundleDto {
     i18n?: Record<string, { label?: string; description?: string }>;
 }
 
-/**
- * Everything a version draft may carry apart from its feature list.
- *
- * A base class rather than two copies, and the split is where the pair actually
- * differs: a create needs features, an update may leave them alone. Everything
- * else — quotas, compatibility, prices, the window — is optional on both, and
- * was written out twice.
- *
- * `features` is deliberately NOT here. Declared in the base as optional, the
- * inherited `@IsOptional()` would follow into the create DTO and make the one
- * required field of that request optional again; class-validator reads the
- * whole prototype chain.
- */
 /** One plan's own price for a bundle version, in `pricingOverrides`. */
 export class BundlePricingOverrideDto {
     @IsOptional()
@@ -161,6 +148,19 @@ export class BundlePricingOverrideDto {
     yearlyNet?: string | null;
 }
 
+/**
+ * Everything a version draft may carry apart from its feature list.
+ *
+ * A base class rather than two copies, and the split is where the pair actually
+ * differs: a create needs features, an update may leave them alone. Everything
+ * else — quotas, compatibility, prices, the window — is optional on both, and
+ * was written out twice.
+ *
+ * `features` is deliberately NOT here. Declared in the base as optional, the
+ * inherited `@IsOptional()` would follow into the create DTO and make the one
+ * required field of that request optional again; class-validator reads the
+ * whole prototype chain.
+ */
 export class BundleVersionDraftFieldsDto {
     @IsOptional()
     @IsObject()
