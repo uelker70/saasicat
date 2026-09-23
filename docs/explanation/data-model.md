@@ -108,8 +108,9 @@ has always required anyway.
 
 | Entity                      | Identity / uniqueness        | Notes                                                                                                                    |
 | --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `PromoCode` (`promo_codes`) | `code` unique (stored UPPER) | `redemptionsCount`/`maxRedemptions` guard availability.                                                                  |
+| `PromoCode` (`promo_codes`) | `code` unique (stored UPPER) | `redemptionsCount` + `heldCount` against `maxRedemptions` guard availability.                                            |
 | `PromoCodeRedemption`       | **`subscriptionId` unique**  | One redemption per subscription — double redemption fails at the database. Snapshot of the code rule at redemption time. |
+| `PromoCodeHold`             | **`checkoutOfferId` unique** | A slot kept for a checkout from its start to its conclusion or `expiresAt`; the row goes when the hold ends.             |
 | `PromoCodeValidationLog`    | —                            | Anti-abuse trail incl. failed attempts.                                                                                  |
 
 ### Registration & admin
@@ -149,9 +150,12 @@ suite is binding.**
    other. No lock → no transactional quota guarantee.
 2. **Promo slot reservation is atomic.** `PromoCodeRepository.claimSlot`
    increments `redemptionsCount` only while
-   `status = 'ACTIVE' AND (maxRedemptions IS NULL OR redemptionsCount <
-maxRedemptions)` — as a single guarded UPDATE, exactly-once under
-   concurrency.
+   `status = 'ACTIVE' AND (maxRedemptions IS NULL OR redemptionsCount +
+heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
+   concurrency. `PromoCodeHoldRepository.take` holds a slot for a checkout
+   under the same rule, and every way a hold ends — released, expired, or
+   turned into the redemption on the transaction it was handed over on —
+   deletes its row and moves its count once.
 3. **One redemption per subscription** is enforced by the unique constraint,
    not by application checks.
 4. **`TransactionRunner.run` is ACID**: a throw inside the callback rolls

@@ -44,6 +44,7 @@ export function createMemoryHarness() {
         bundleVersions: [],
         subscriptionBundles: [],
         promoCodes: [],
+        promoCodeHolds: [],
         redemptions: [],
         audits: [],
         mfa: new Map(),
@@ -60,11 +61,12 @@ export function createMemoryHarness() {
         settingsChanges: [],
     });
 
+    let transactionCounter = 0;
     const transactionRunner = {
         async run(fn) {
             const snapshot = structuredClone(state);
             try {
-                return await fn({ memoryTx: true });
+                return await fn({ memoryTx: ++transactionCounter });
             } catch (err) {
                 state = snapshot;
                 throw err;
@@ -167,15 +169,26 @@ export function createMemoryHarness() {
         },
     };
 
+    const promoCode = (id) => state.promoCodes.find((c) => c.id === id);
+    /** A slot is free while redemptions and holds together stay below the limit. */
+    const hasFreeSlot = (row) =>
+        row.maxRedemptions === null || row.redemptionsCount + row.heldCount < row.maxRedemptions;
+
     const promoCodeRepository = {
         async findById(id) {
-            const row = state.promoCodes.find((c) => c.id === id);
+            const row = promoCode(id);
             return row ? { ...row } : null;
         },
+        async update(id, data) {
+            Object.assign(promoCode(id), data);
+            return { ...promoCode(id) };
+        },
+        async softDelete(id) {
+            promoCode(id).deletedAt = FIXED_NOW;
+        },
         async claimSlot(id) {
-            const row = state.promoCodes.find((c) => c.id === id);
-            if (!row || row.status !== 'ACTIVE') return false;
-            if (row.maxRedemptions !== null && row.redemptionsCount >= row.maxRedemptions) {
+            const row = promoCode(id);
+            if (!row || row.status !== 'ACTIVE' || row.deletedAt || !hasFreeSlot(row)) {
                 return false;
             }
             row.redemptionsCount += 1;
@@ -197,6 +210,88 @@ export function createMemoryHarness() {
             if (!row) return;
             row.redemptionsCount = Math.max(row.redemptionsCount - 1, 0);
             if (row.status === 'EXHAUSTED') row.status = 'ACTIVE';
+        },
+    };
+
+    /**
+     * The reference implementation of the slots a code keeps for checkouts.
+     * A hold ends by leaving the list, and its slot moves with it — back to
+     * the code, or to its redemptions — so it is counted exactly while listed.
+     */
+    const endHold = (hold, { redeemed }) => {
+        state.promoCodeHolds = state.promoCodeHolds.filter((h) => h !== hold);
+        const row = promoCode(hold.promoCodeId);
+        row.heldCount = Math.max(row.heldCount - 1, 0);
+        if (redeemed) row.redemptionsCount += 1;
+    };
+    const holdView = ({ id, promoCodeId, checkoutOfferId, expiresAt, createdAt }) => ({
+        id,
+        promoCodeId,
+        checkoutOfferId,
+        expiresAt,
+        createdAt,
+    });
+    const heldBy = (checkoutOfferId) =>
+        state.promoCodeHolds.find((h) => h.checkoutOfferId === checkoutOfferId);
+    const promoCodeHoldRepository = {
+        async findByCheckoutOffer(checkoutOfferId) {
+            const hold = heldBy(checkoutOfferId);
+            return hold ? holdView(hold) : null;
+        },
+        async take({ promoCodeId, checkoutOfferId, expiresAt }) {
+            const row = promoCode(promoCodeId);
+            if (!row) return { outcome: 'no-slot' };
+            if (heldBy(checkoutOfferId)) return { outcome: 'offer-holds-one' };
+            if (row.status !== 'ACTIVE' || row.deletedAt || !hasFreeSlot(row)) {
+                return { outcome: 'no-slot' };
+            }
+            row.heldCount += 1;
+            const hold = {
+                id: nextId('hold'),
+                promoCodeId,
+                checkoutOfferId,
+                expiresAt,
+                createdAt: FIXED_NOW,
+                handedOverTx: null,
+            };
+            state.promoCodeHolds.push(hold);
+            return { outcome: 'taken', hold: holdView(hold) };
+        },
+        async extend(checkoutOfferId, promoCodeId, expiresAt) {
+            const hold = heldBy(checkoutOfferId);
+            if (!hold || hold.promoCodeId !== promoCodeId) return false;
+            hold.expiresAt = expiresAt;
+            return true;
+        },
+        async release(checkoutOfferId) {
+            const hold = heldBy(checkoutOfferId);
+            if (!hold) return false;
+            endHold(hold, { redeemed: false });
+            return true;
+        },
+        async handOver(checkoutOfferId, now, tx) {
+            const hold = heldBy(checkoutOfferId);
+            if (!hold || hold.expiresAt <= now) return false;
+            hold.handedOverTx = tx.memoryTx;
+            return true;
+        },
+        async convertHandedOver(promoCodeId, tx) {
+            const hold = state.promoCodeHolds.find(
+                (h) => h.promoCodeId === promoCodeId && h.handedOverTx === tx.memoryTx,
+            );
+            if (!hold) return false;
+            endHold(hold, { redeemed: true });
+            return true;
+        },
+        async expireDue(now, promoCodeId, tx) {
+            const due = state.promoCodeHolds.filter(
+                (h) =>
+                    h.expiresAt <= now &&
+                    (tx === undefined || h.handedOverTx !== tx.memoryTx) &&
+                    (promoCodeId === undefined || h.promoCodeId === promoCodeId),
+            );
+            for (const hold of due) endHold(hold, { redeemed: false });
+            return due.length;
         },
     };
 
@@ -849,6 +944,8 @@ export function createMemoryHarness() {
                 status: input.status ?? 'ACTIVE',
                 maxRedemptions: input.maxRedemptions,
                 redemptionsCount: 0,
+                heldCount: 0,
+                deletedAt: null,
             };
             state.promoCodes.push(row);
             return { promoCodeId: row.id };
@@ -991,6 +1088,7 @@ export function createMemoryHarness() {
             subscriberPaymentMethodRepository,
             promoCodeRepository,
             promoCodeRedemptionRepository,
+            promoCodeHoldRepository,
             audit,
             auditQuery,
             mfa,

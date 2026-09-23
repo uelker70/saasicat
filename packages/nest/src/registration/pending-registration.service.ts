@@ -47,10 +47,16 @@ import {
     PENDING_ONBOARDING_TTL_DAYS,
     REGISTRATION_STEP_BY_STATUS,
 } from '@saasicat/core';
+import { CheckoutOfferService } from '../checkout-offer/checkout-offer.service.js';
 import { codedError } from '../errors/coded-error.js';
 import { generateOtpCode, hashOtpCode, slugify, verifyOtpCode } from './helpers.js';
 import { computeBreakdown } from './pricing.js';
-import { RegistrationPaymentService } from './registration-payment.service.js';
+import {
+    checkoutExpiresAt,
+    RegistrationPaymentService,
+    type RegistrationSetupStarted,
+    whileTheFormOpens,
+} from './registration-payment.service.js';
 import {
     PASSWORD_HASHER_TOKEN,
     PENDING_REGISTRATION_REPOSITORY_TOKEN,
@@ -117,6 +123,11 @@ export class PendingRegistrationService {
         @Optional()
         @Inject(REGISTRATION_PROMO_PREVIEW_TOKEN)
         private readonly promoPreview?: RegistrationPromoPreview,
+        // Where checkout offers are registered: a sign-up that names the offer
+        // it concludes has that offer's promo code held for its checkout.
+        @Optional()
+        @Inject(CheckoutOfferService)
+        private readonly checkoutOffers?: CheckoutOfferService,
     ) {}
 
     private async record(
@@ -227,10 +238,41 @@ export class PendingRegistrationService {
             throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.PLAN_NOT_AVAILABLE));
         }
 
-        const started = await this.payments.startSetup(pending, input.billingDetails, {
-            successUrl: input.successUrl,
-            cancelUrl: input.cancelUrl,
-        });
+        // Held before the gateway's form opens, so that a code that cannot be
+        // held refuses this step rather than the payment the person is about to
+        // make — for as long as opening the form takes, and then for as long as
+        // a confirmation of that form can still arrive. A form abandoned at the
+        // gateway gives its slot back once nobody can pay on it any more.
+        //
+        // A slot a form this sign-up opened earlier holds stays with it whatever
+        // becomes of this start: that form can still be paid on. The hold is
+        // never shortened, and only a slot this start took is given back when
+        // it fails.
+        const startedAt = new Date();
+        const offerId = input.checkoutOfferId;
+        const heldBefore = offerId ? await this.holdsPromoCodeOf(offerId) : false;
+        if (offerId) {
+            await this.holdPromoCodeOf(offerId, pending, whileTheFormOpens(startedAt));
+        }
+        let started: RegistrationSetupStarted;
+        try {
+            started = await this.payments.startSetup(
+                pending,
+                input.billingDetails,
+                { successUrl: input.successUrl, cancelUrl: input.cancelUrl },
+                startedAt,
+            );
+            if (offerId) {
+                await this.holdPromoCodeOf(
+                    offerId,
+                    pending,
+                    started.confirmableUntil ?? checkoutExpiresAt(startedAt),
+                );
+            }
+        } catch (error) {
+            if (offerId && !heldBefore) await this.giveBackHoldOf(offerId);
+            throw error;
+        }
         await this.record('CHECKOUT_STARTED', pending.id, context, {
             sessionId: started.sessionRef,
             gatewayAccount: started.updated.checkoutGatewayAccount,
@@ -243,6 +285,48 @@ export class PendingRegistrationService {
             checkoutSessionId: started.sessionRef,
             checkoutUrl: started.redirectUrl,
         };
+    }
+
+    /** Whether a form this sign-up opened before holds a live slot of the offer's code. */
+    private async holdsPromoCodeOf(checkoutOfferId: string): Promise<boolean> {
+        return (await this.checkoutOffers?.holdsPromoCode(checkoutOfferId)) ?? false;
+    }
+
+    /**
+     * Gives back the slot a failed start took: its form did not open, or its
+     * slot could not be moved to the form's end. The failure is the answer the
+     * caller gets; a slot that cannot be given back here lapses with its short
+     * hold, so this failure is logged rather than put in the way of that answer.
+     */
+    private async giveBackHoldOf(checkoutOfferId: string): Promise<void> {
+        try {
+            await this.checkoutOffers?.releasePromoCodeHold(checkoutOfferId);
+        } catch (error) {
+            this.logger.error(
+                `The promo code slot of checkout offer '${checkoutOfferId}' was not given back ` +
+                    'after its start failed; it lapses with its short hold.',
+                error instanceof Error ? error.stack : String(error),
+            );
+        }
+    }
+
+    /**
+     * Holds the promo code of the offer the sign-up concludes until `until`.
+     */
+    private async holdPromoCodeOf(
+        checkoutOfferId: string,
+        pending: PendingRegistration,
+        until: Date,
+    ): Promise<void> {
+        if (!this.checkoutOffers) {
+            throw new Error(
+                'startCheckout was given a checkoutOfferId, and no CheckoutOfferService is ' +
+                    'registered to hold its promo code: enable `checkoutOffer` in ' +
+                    'SaaSiCatModule.forRoot, or register CheckoutOfferModule globally beside ' +
+                    'RegistrationModule.',
+            );
+        }
+        await this.checkoutOffers.holdPromoCode(checkoutOfferId, { email: pending.email, until });
     }
 
     /**

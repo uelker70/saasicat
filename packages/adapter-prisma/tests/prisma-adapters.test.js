@@ -542,7 +542,8 @@ describe('PrismaPromoCodeRepository', () => {
         assert.equal(await repo.claimSlot('promo-1'), true);
         const call = p.calls.executeRaw[0];
         assert.match(call.sql, /"redemptionsCount" \+ 1/);
-        assert.match(call.sql, /"redemptionsCount" < "maxRedemptions"/);
+        // A slot held for a checkout is taken as much as a redeemed one.
+        assert.match(call.sql, /"redemptionsCount" \+ "heldCount" < "maxRedemptions"/);
         assert.match(call.sql, /status = 'ACTIVE'/);
         p.state.executeRawResult = 0;
         assert.equal(await repo.claimSlot('promo-1'), false);

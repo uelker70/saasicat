@@ -56,15 +56,25 @@ export class ScriptedGateway {
     constructor(provider = 'stripe') {
         this.provider = provider;
         this.setups = [];
+        /** What a session reports as the last moment it can be confirmed; set it where a test reads it. */
+        this.confirmableUntil = null;
+        /** Set to an error to make the next start fail, as a gateway that is down does. */
+        this.failNextStart = null;
     }
 
     async startPaymentMethodSetup(input) {
+        if (this.failNextStart) {
+            const failure = this.failNextStart;
+            this.failNextStart = null;
+            throw failure;
+        }
         this.setups.push(structuredClone(input));
         const n = this.setups.length;
         return {
             sessionRef: `cs_${n}`,
             redirectUrl: `https://gateway.example/form/cs_${n}`,
             customerRef: input.holder.customerRef ?? `cus_${n}`,
+            confirmableUntil: this.confirmableUntil,
         };
     }
 

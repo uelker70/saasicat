@@ -43,6 +43,7 @@ const PROMO = {
     status: 'ACTIVE',
     maxRedemptions: 100,
     redemptionsCount: 12,
+    heldCount: 0,
     validFrom: '2026-01-01',
     validUntil: '2026-12-31',
 };

@@ -70,4 +70,14 @@ export class StartRegistrationCheckoutDto {
     @IsUrl({ require_tld: false, require_protocol: true, protocols: ['https', 'http'] })
     @MaxLength(500)
     cancelUrl!: string;
+
+    /**
+     * The checkout offer the sign-up concludes; its promo code is held until a
+     * confirmation of the payment form can no longer arrive.
+     */
+    @IsOptional()
+    @IsString()
+    @MinLength(1)
+    @MaxLength(80)
+    checkoutOfferId?: string | null;
 }

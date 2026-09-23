@@ -85,7 +85,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 51      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 24      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 493 entries: 🟢 421 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 495 entries: 🟢 423 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

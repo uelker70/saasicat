@@ -12,6 +12,7 @@
 //     come back as strings — exactly what the platform records expect.
 
 import {
+    bigint,
     boolean,
     integer,
     jsonb,
@@ -206,6 +207,7 @@ export const promoCodes = pgTable('promo_codes', {
     validUntil: ts('validUntil'),
     maxRedemptions: integer('maxRedemptions'),
     redemptionsCount: integer('redemptionsCount').notNull().default(0),
+    heldCount: integer('heldCount').notNull().default(0),
     appliesToPlans: text('appliesToPlans').array(),
     appliesToBilling: text('appliesToBilling'),
     firstTimeCustomersOnly: boolean('firstTimeCustomersOnly').notNull().default(true),
@@ -235,6 +237,15 @@ export const promoCodeRedemptions = pgTable('promo_code_redemptions', {
     status: text('status').notNull().default('ACTIVE'),
     redeemedAt: ts('redeemedAt').notNull().defaultNow(),
     reversedAt: ts('reversedAt'),
+});
+
+export const promoCodeHolds = pgTable('promo_code_holds', {
+    id: text('id').primaryKey(),
+    promoCodeId: text('promoCodeId').notNull(),
+    checkoutOfferId: text('checkoutOfferId').notNull(),
+    expiresAt: ts('expiresAt').notNull(),
+    handedOverTx: bigint('handedOverTx', { mode: 'bigint' }),
+    createdAt: ts('createdAt').notNull().defaultNow(),
 });
 
 export const promoCodeValidationLogs = pgTable('promo_code_validation_logs', {

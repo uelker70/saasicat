@@ -32,6 +32,7 @@ export { DrizzleSubscriberRepository } from './drizzle-subscriber.repository.js'
 export { DrizzleSubscriptionUsageAdapter } from './drizzle-subscription-usage.adapter.js';
 export { DrizzleTenantSubscriptionWrite } from './drizzle-tenant-subscription-write.adapter.js';
 export { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
+export { DrizzlePromoCodeHoldRepository } from './drizzle-promo-code-hold.repository.js';
 export { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
 export { DrizzleSubscriptionBundleRepository } from './drizzle-subscription-bundle.repository.js';
 export { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';

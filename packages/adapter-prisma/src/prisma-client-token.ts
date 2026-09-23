@@ -129,6 +129,7 @@ export interface PromoCodeRowLike {
     validUntil: Date | null;
     maxRedemptions: number | null;
     redemptionsCount: number;
+    heldCount: number;
     appliesToPlans: string[];
     appliesToBilling: string | null;
     firstTimeCustomersOnly: boolean;

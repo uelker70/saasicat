@@ -201,7 +201,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PROMO_CODE_NOT_FOUND: 'Code nicht gefunden',
     PROMO_CODE_ALREADY_EXISTS: 'Diesen Code gibt es bereits.',
     PROMO_CODE_HAS_REDEMPTIONS:
-        'Der Code wurde bereits eingelöst — er lässt sich nicht per Soft-Delete entfernen. Pausiere ihn stattdessen.',
+        'Der Code wurde bereits eingelöst oder ist für einen laufenden Checkout reserviert — er lässt sich nicht per Soft-Delete entfernen. Pausiere ihn stattdessen.',
     PROMO_CODE_NOT_REDEEMABLE: 'Der Code lässt sich nicht einlösen: {reason}',
     PROMO_CODE_FORMAT_INVALID:
         'Der Code darf nur Großbuchstaben, Ziffern, "-" und "_" enthalten (4–32 Zeichen).',

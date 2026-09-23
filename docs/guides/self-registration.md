@@ -49,6 +49,16 @@ with `checkoutUrl`, where you send the person; a missing or malformed detail is 
 gateway
 is asked. Nothing is activated when the form opens.
 
+Pass `checkoutOfferId` when the sign-up concludes a checkout offer on activation. A promo code on
+that offer is then held from this step until a confirmation of the gateway's form can no longer
+arrive — at Stripe the form's 24 hours plus the three days Stripe goes on retrying a webhook — so
+the code cannot run out between the form and the payment confirmation; a code that cannot be held
+refuses the step before the form opens, with `PROMO_CODE_NOT_REDEEMABLE` and its `reason`. The
+conclusion redeems the code on the held slot — see the activation below. The hold needs the checkout
+offer and promo modules, which `SaaSiCatModule.forRoot` registers globally with `checkoutOffer` and
+`promoCodes` enabled; a sign-up that names an offer without them is refused with an error saying
+what to wire.
+
 What this step will ask for is what a page offering the plans has to know before it promises
 anything: `GET /public/marketing-catalog` answers `newPaymentMethods` with `taken` and the `methods`
 the form offers — the account this step goes to, read from the installation. One that names no

@@ -228,6 +228,7 @@ export interface SaaSiCatPromoCodesOptions extends Omit<
     | 'validationLogRepository'
     | 'subscriptionLookup'
     | 'revenueAggregator'
+    | 'holdRepository'
     | 'transactionRunner'
     | 'firstTimeCustomerCheck'
     | 'adminController'

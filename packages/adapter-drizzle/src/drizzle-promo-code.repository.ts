@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, like, lt, or, sql, type SQL } from 'drizzle-orm';
 import type {
     BillingCycle,
     CreatePromoCodeData,
@@ -129,17 +129,7 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
                 redemptionsCount: sql`${promoCodes.redemptionsCount} + 1`,
                 updatedAt: new Date(),
             })
-            .where(
-                and(
-                    eq(promoCodes.id, id),
-                    eq(promoCodes.status, 'ACTIVE'),
-                    isNull(promoCodes.deletedAt),
-                    or(
-                        isNull(promoCodes.maxRedemptions),
-                        lt(promoCodes.redemptionsCount, promoCodes.maxRedemptions),
-                    ),
-                ),
-            )
+            .where(hasFreeSlot(id))
             .returning({ id: promoCodes.id });
         return claimed.length === 1;
     }
@@ -186,6 +176,23 @@ export class DrizzlePromoCodeRepository implements PromoCodeRepository {
     }
 }
 
+/**
+ * The rule a slot of the code is taken under, by a redemption and by a hold
+ * alike: an ACTIVE, undeleted code whose redemptions and held slots together
+ * stay below its limit.
+ */
+export function hasFreeSlot(id: string): SQL | undefined {
+    return and(
+        eq(promoCodes.id, id),
+        eq(promoCodes.status, 'ACTIVE'),
+        isNull(promoCodes.deletedAt),
+        or(
+            isNull(promoCodes.maxRedemptions),
+            sql`${promoCodes.redemptionsCount} + ${promoCodes.heldCount} < ${promoCodes.maxRedemptions}`,
+        ),
+    );
+}
+
 function normalizeCode(code: string): string {
     return code.trim().toUpperCase();
 }
@@ -202,6 +209,7 @@ function toRecord(row: PromoCodeRow): PromoCodeRecord {
         validUntil: row.validUntil,
         maxRedemptions: row.maxRedemptions,
         redemptionsCount: row.redemptionsCount,
+        heldCount: row.heldCount,
         appliesToPlans: row.appliesToPlans ?? [],
         appliesToBilling: (row.appliesToBilling as BillingCycle | null) ?? null,
         firstTimeCustomersOnly: row.firstTimeCustomersOnly,

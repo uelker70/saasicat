@@ -3,52 +3,7 @@ import assert from 'node:assert/strict';
 import { PromoCodesService } from '../dist/promo/index.js';
 import { givenPlanCatalogSource } from '../dist/billing/index.js';
 import { publishingCatalogue } from './helpers/publishing-catalogue.js';
-
-const TEST_CATALOG = {
-    schemaVersion: 1,
-    app: { name: 'Test App' },
-    currency: 'EUR',
-    vatRate: 19,
-    features: [],
-    plans: [
-        {
-            id: 'BASIC',
-            name: 'Basic',
-            marketed: true,
-            monthlyNet: 9.9,
-            yearlyNet: 99,
-            quotas: { users: 1 },
-            features: [],
-        },
-        {
-            id: 'STANDARD',
-            name: 'Standard',
-            marketed: true,
-            monthlyNet: 24.9,
-            yearlyNet: 249,
-            quotas: { users: 1 },
-            features: [],
-        },
-        {
-            id: 'PROFESSIONAL',
-            name: 'Professional',
-            marketed: true,
-            monthlyNet: 49.9,
-            yearlyNet: 499,
-            quotas: { users: 3 },
-            features: [],
-        },
-        {
-            id: 'ENTERPRISE',
-            name: 'Enterprise',
-            marketed: false,
-            monthlyNet: 0,
-            yearlyNet: 0,
-            quotas: { users: -1 },
-            features: [],
-        },
-    ],
-};
+import { PROMO_CATALOG as TEST_CATALOG } from './helpers/promo-slots.js';
 
 const BASE_INPUT = {
     code: 'BLACKFRIDAY25',

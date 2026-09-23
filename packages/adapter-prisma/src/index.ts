@@ -51,6 +51,7 @@ export { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle
 export { PrismaTenantSubscriptionWriteAdapter } from './prisma-tenant-subscription-write.adapter.js';
 export { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';
 export { PrismaPromoCodeRepository } from './prisma-promo-code.repository.js';
+export { PrismaPromoCodeHoldRepository } from './prisma-promo-code-hold.repository.js';
 export { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';
 export { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-validation-log.repository.js';
 export { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.adapter.js';

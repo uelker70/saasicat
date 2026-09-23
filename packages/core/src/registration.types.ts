@@ -643,6 +643,16 @@ export interface StartCheckoutInput {
     successUrl: string;
     /** Where the gateway's form sends the person who leaves it. */
     cancelUrl: string;
+    /**
+     * The checkout offer the sign-up concludes on activation. When it carries a
+     * promo code, a slot of that code is held for it from this step until a
+     * confirmation of the gateway's form can no longer arrive
+     * (`PaymentMethodSetupSession.confirmableUntil`), so the code cannot run
+     * out between this step and the payment confirmation; a code that cannot
+     * be held refuses the step before the gateway's form opens. Left out,
+     * nothing is held.
+     */
+    checkoutOfferId?: string | null;
 }
 
 export interface StartCheckoutResult {

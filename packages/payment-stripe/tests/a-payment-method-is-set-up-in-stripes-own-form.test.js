@@ -42,6 +42,7 @@ const SESSION = {
     customer: 'cus_1',
     mode: 'setup',
     setup_intent: 'seti_1',
+    expires_at: 1790000000,
     metadata: { saasicat_subject_kind: 'registration', saasicat_subject_id: 'pending-1' },
 };
 
@@ -118,6 +119,9 @@ describe('the form is opened at Stripe', () => {
             sessionRef: 'cs_test_1',
             redirectUrl: 'https://checkout.stripe.com/c/pay/cs_test_1',
             customerRef: 'cus_new',
+            // The form's end, in Stripe's seconds, plus the three days Stripe goes
+            // on retrying a confirmation it could not deliver.
+            confirmableUntil: new Date((SESSION.expires_at + 3 * 24 * 60 * 60) * 1000),
         });
         const [customer, checkout] = ctx.requests;
         assert.deepEqual(customer.body, {

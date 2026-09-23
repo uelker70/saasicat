@@ -31,6 +31,7 @@ import {
     PrismaMfaAdapter,
     PrismaPlanRepository,
     PrismaPlanVersionRepository,
+    PrismaPromoCodeHoldRepository,
     PrismaPromoCodeRedemptionRepository,
     PrismaPromoCodeRepository,
     PrismaPromoSubscriptionLookup,
@@ -118,6 +119,7 @@ for (const statement of sqlStatements(join(specRoot, 'sql', 'reference-schema.po
 
 const PLATFORM_TABLES = [
     'promo_code_redemptions',
+    'promo_code_holds',
     'promo_code_validation_logs',
     'promo_codes',
     'subscriptions',
@@ -153,6 +155,7 @@ function createHarness() {
             promoCodeRepository: new PrismaPromoCodeRepository(prisma),
             promoSubscriptionLookup: new PrismaPromoSubscriptionLookup(prisma),
             promoCodeRedemptionRepository: new PrismaPromoCodeRedemptionRepository(prisma),
+            promoCodeHoldRepository: new PrismaPromoCodeHoldRepository(prisma),
             mfa: new PrismaMfaAdapter(prisma),
             audit: new PrismaAuditAdapter(prisma),
             auditQuery: new PrismaAuditQueryAdapter(prisma),

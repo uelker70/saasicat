@@ -25,6 +25,7 @@ import {
     DrizzleAuditQueryAdapter,
     DrizzleMfaAdapter,
     DrizzlePlanVersionRepository,
+    DrizzlePromoCodeHoldRepository,
     DrizzlePromoCodeRedemptionRepository,
     DrizzlePromoCodeRepository,
     DrizzlePromoSubscriptionLookup,
@@ -48,6 +49,7 @@ const { pool, db } = await openDisposableDatabase();
 
 const PLATFORM_TABLES = [
     'promo_code_redemptions',
+    'promo_code_holds',
     'promo_code_validation_logs',
     'promo_codes',
     'subscription_bundles',
@@ -84,6 +86,7 @@ function createHarness() {
             promoCodeRepository: new DrizzlePromoCodeRepository(db),
             promoSubscriptionLookup: new DrizzlePromoSubscriptionLookup(db),
             promoCodeRedemptionRepository: new DrizzlePromoCodeRedemptionRepository(db),
+            promoCodeHoldRepository: new DrizzlePromoCodeHoldRepository(db),
             mfa: new DrizzleMfaAdapter(db),
             audit: new DrizzleAuditAdapter(db),
             auditQuery: new DrizzleAuditQueryAdapter(db),

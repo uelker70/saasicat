@@ -23,6 +23,7 @@ const ROWS = [
     valueType: 'PERCENT',
     value: 10,
     redemptionsCount: 0,
+    heldCount: 0,
     maxRedemptions: null,
     validUntil: null,
     campaignTag: null,

@@ -28,6 +28,15 @@ const SUBJECT_ID = 'saasicat_subject_id';
 const SIGNATURE_HEADER = 'stripe-signature';
 
 /**
+ * How long Stripe goes on delivering an event it could not deliver: up to three
+ * days in live mode, with an exponential back-off (sandboxes retry three times
+ * within a few hours). A session completed just before its `expires_at` can
+ * therefore be confirmed that much later. A delivery resent by hand from the
+ * dashboard, possible for fifteen days, is not covered.
+ */
+const WEBHOOK_RETRY_SECONDS = 3 * 24 * 60 * 60;
+
+/**
  * The states a setup ends in: `succeeded` is the payment method, and the other
  * two are the attempt that did not produce one. A failed attempt does not stay
  * failed in Stripe's vocabulary — the intent goes back to asking for a payment
@@ -141,7 +150,12 @@ export class StripePaymentGateway implements PaymentGateway {
                     'checkout configuration.',
             );
         }
-        return { sessionRef: session.id, redirectUrl: session.url, customerRef };
+        return {
+            sessionRef: session.id,
+            redirectUrl: session.url,
+            customerRef,
+            confirmableUntil: new Date((session.expires_at + WEBHOOK_RETRY_SECONDS) * 1000),
+        };
     }
 
     async readCallback(callback: PaymentGatewayCallback): Promise<PaymentGatewayEvent> {

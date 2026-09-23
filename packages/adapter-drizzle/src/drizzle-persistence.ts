@@ -15,6 +15,7 @@ import { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink
 import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
 import { DrizzlePaymentEventLog } from './drizzle-payment-event-log.adapter.js';
 import { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.js';
+import { DrizzlePromoCodeHoldRepository } from './drizzle-promo-code-hold.repository.js';
 import { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';
 import { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 import { DrizzleBundleRepository } from './drizzle-bundle.repository.js';
@@ -168,6 +169,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             ),
             subscriptionLookup: provide((client) => new DrizzlePromoSubscriptionLookup(client)),
             revenueAggregator: new ZeroPromoRevenueDeductionAggregator(),
+            holdRepository: provide((client) => new DrizzlePromoCodeHoldRepository(client)),
         },
         payments: {
             paymentEventLog: provide((client) => new DrizzlePaymentEventLog(client)),

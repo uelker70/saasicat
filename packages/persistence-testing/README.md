@@ -22,6 +22,9 @@ Verified scenarios:
 - `findByTenantIdLocked` serializes concurrent transactions (row lock)
 - concurrent `claimSlot` grants exactly `maxRedemptions` slots
 - claim / exhaust / release lifecycle
+- a slot held for a checkout counts against the limit beside the redemptions, however many
+  checkouts race for it, and ends exactly once — released, expired, or turned into the
+  redemption on the transaction it was handed over on and no other
 - one promo redemption per subscription (unique guard)
 - audit write → query roundtrip incl. `actorTag` wildcard filters
 - MFA secret roundtrip
@@ -81,6 +84,7 @@ persistenceAdapterContract({
             tenantSubscriptionWrite,
             promoCodeRepository,
             promoCodeRedemptionRepository,
+            promoCodeHoldRepository,
             promoSubscriptionLookup,
             mfa,
             audit,

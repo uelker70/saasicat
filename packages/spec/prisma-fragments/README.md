@@ -28,22 +28,22 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 
 ## Files
 
-| File                                                                 | Models                                                                       |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [`01-subscription.prisma`](01-subscription.prisma)                   | `Subscription`, `CheckoutOffer` + Enums                                      |
-| [`02-promo-code.prisma`](02-promo-code.prisma)                       | `PromoCode`, `PromoCodeRedemption`, `PromoCodeValidationLog` + Enums         |
-| [`03-plan-versions.prisma`](03-plan-versions.prisma)                 | `Plan`, `PlanVersion`                                                        |
-| [`04-audit-log.prisma`](04-audit-log.prisma)                         | `AuditLog`                                                                   |
-| [`05-bundle.prisma`](05-bundle.prisma)                               | `Bundle`, `BundleVersion`                                                    |
-| [`06-catalog-entries.prisma`](06-catalog-entries.prisma)             | Capability, feature, quota and marketing catalog models                      |
-| [`07-promotion.prisma`](07-promotion.prisma)                         | `Promotion`                                                                  |
-| [`08-subscription-contract.prisma`](08-subscription-contract.prisma) | `SubscriptionContract`, `ContractLineItem`                                   |
-| [`09-pending-registration.prisma`](09-pending-registration.prisma)   | `PendingRegistration` + `RegistrationStatus`                                 |
-| [`10-super-admin.prisma`](10-super-admin.prisma)                     | `SuperAdminUser`, `SuperAdminMfa`                                            |
-| [`11-subscription-bundle.prisma`](11-subscription-bundle.prisma)     | `SubscriptionBundle`                                                         |
-| [`12-applied-settings.prisma`](12-applied-settings.prisma)           | `AppliedSettings`, `SettingsChange`                                          |
-| [`13-subscriber.prisma`](13-subscriber.prisma)                       | `Subscriber`, `SubscriberTenant`, `SubscriberCorrection`                     |
-| [`14-payments.prisma`](14-payments.prisma)                           | `SubscriberPaymentMethod`, `SubscriberPaymentMethodSetup`, `PaymentEventLog` |
+| File                                                                 | Models                                                                                |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`01-subscription.prisma`](01-subscription.prisma)                   | `Subscription`, `CheckoutOffer` + Enums                                               |
+| [`02-promo-code.prisma`](02-promo-code.prisma)                       | `PromoCode`, `PromoCodeRedemption`, `PromoCodeHold`, `PromoCodeValidationLog` + Enums |
+| [`03-plan-versions.prisma`](03-plan-versions.prisma)                 | `Plan`, `PlanVersion`                                                                 |
+| [`04-audit-log.prisma`](04-audit-log.prisma)                         | `AuditLog`                                                                            |
+| [`05-bundle.prisma`](05-bundle.prisma)                               | `Bundle`, `BundleVersion`                                                             |
+| [`06-catalog-entries.prisma`](06-catalog-entries.prisma)             | Capability, feature, quota and marketing catalog models                               |
+| [`07-promotion.prisma`](07-promotion.prisma)                         | `Promotion`                                                                           |
+| [`08-subscription-contract.prisma`](08-subscription-contract.prisma) | `SubscriptionContract`, `ContractLineItem`                                            |
+| [`09-pending-registration.prisma`](09-pending-registration.prisma)   | `PendingRegistration` + `RegistrationStatus`                                          |
+| [`10-super-admin.prisma`](10-super-admin.prisma)                     | `SuperAdminUser`, `SuperAdminMfa`                                                     |
+| [`11-subscription-bundle.prisma`](11-subscription-bundle.prisma)     | `SubscriptionBundle`                                                                  |
+| [`12-applied-settings.prisma`](12-applied-settings.prisma)           | `AppliedSettings`, `SettingsChange`                                                   |
+| [`13-subscriber.prisma`](13-subscriber.prisma)                       | `Subscriber`, `SubscriberTenant`, `SubscriberCorrection`                              |
+| [`14-payments.prisma`](14-payments.prisma)                           | `SubscriberPaymentMethod`, `SubscriberPaymentMethodSetup`, `PaymentEventLog`          |
 
 ## How the consumer uses the fragments
 
@@ -94,7 +94,7 @@ from ever being deleted.
 ### 3. Table names (`@@map`) are canonical
 
 `subscriptions`, `checkout_offers`, `plans`, `plan_versions`, `promo_codes`,
-`promo_code_redemptions`, `promo_code_validation_logs`, `audit_logs`, `bundles`,
+`promo_code_redemptions`, `promo_code_holds`, `promo_code_validation_logs`, `audit_logs`, `bundles`,
 `bundle_versions`, `capability_catalog_entries`, `feature_catalog_entries`,
 `quota_catalog_entries`, `marketing_projections`, `marketing_settings`,
 `promotions`, `subscription_contracts`, `contract_line_items`,

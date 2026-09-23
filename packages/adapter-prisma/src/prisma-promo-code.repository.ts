@@ -23,7 +23,7 @@ import { resolveClient } from './tx.js';
  *
  * The availability-critical mutations (`claimSlot`, `releaseSlot`,
  * `markExhaustedIfFull`) run as single atomic UPDATE statements — the
- * column-to-column guard (`redemptionsCount < maxRedemptions`) is not
+ * column-to-column guard (`redemptionsCount + heldCount < maxRedemptions`) is not
  * expressible in the Prisma query API, so they use `$executeRaw`. The raw
  * statements maintain `updatedAt` manually because they bypass Prisma's
  * `@updatedAt`.
@@ -125,7 +125,8 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
             WHERE id = ${id}
               AND status = 'ACTIVE'
               AND "deletedAt" IS NULL
-              AND ("maxRedemptions" IS NULL OR "redemptionsCount" < "maxRedemptions")`;
+              AND ("maxRedemptions" IS NULL
+                   OR "redemptionsCount" + "heldCount" < "maxRedemptions")`;
         return updated === 1;
     }
 
@@ -175,6 +176,7 @@ function toRecord(row: PromoCodeRowLike): PromoCodeRecord {
         validUntil: row.validUntil,
         maxRedemptions: row.maxRedemptions,
         redemptionsCount: row.redemptionsCount,
+        heldCount: row.heldCount,
         appliesToPlans: row.appliesToPlans,
         appliesToBilling: (row.appliesToBilling as BillingCycle | null) ?? null,
         firstTimeCustomersOnly: row.firstTimeCustomersOnly,

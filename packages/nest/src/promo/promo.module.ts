@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common';
 import type {
     FirstTimeCustomerCheck,
+    PromoCodeHoldRepository,
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
     PromoCodeValidationLogRepository,
@@ -32,6 +33,7 @@ import { PromoCodesService, type PromoServiceConfig } from './promo.service.js';
 import { PromoCodeRateLimitGuard } from './rate-limit.guard.js';
 import { buildPromoCodeAdminController } from './promo-admin.controller.js';
 import {
+    PROMO_CODE_HOLD_REPOSITORY_TOKEN,
     PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN,
     PROMO_CODE_REPOSITORY_TOKEN,
     PROMO_CODE_VALIDATION_LOG_REPOSITORY_TOKEN,
@@ -50,6 +52,12 @@ export interface PromoCodesModuleOptions {
     subscriptionLookup: ProviderSpec<PromoSubscriptionLookup>;
     revenueAggregator: ProviderSpec<PromoRevenueDeductionAggregator>;
     transactionRunner: ProviderSpec<TransactionRunner>;
+    /**
+     * The slots a code keeps for checkouts that have started. Left out, no
+     * checkout holds a slot, and a sign-up that asks for one is refused at
+     * start-up of the hold rather than holding nothing.
+     */
+    holdRepository?: ProviderSpec<PromoCodeHoldRepository>;
     config?: PromoServiceConfig;
     /**
      * Default `true`. Set to `false` if the consumer wants to disable the cron
@@ -88,6 +96,9 @@ export class PromoCodesModule {
             asProvider(PROMO_REVENUE_DEDUCTION_AGGREGATOR_TOKEN, options.revenueAggregator),
             asProvider(PROMO_TRANSACTION_RUNNER_TOKEN, options.transactionRunner),
             { provide: PROMO_SERVICE_CONFIG_TOKEN, useValue: options.config ?? {} },
+            ...(options.holdRepository
+                ? [asProvider(PROMO_CODE_HOLD_REPOSITORY_TOKEN, options.holdRepository)]
+                : []),
             PromoCodesService,
             PromoCodeRateLimitGuard,
         ];

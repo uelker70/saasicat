@@ -65,6 +65,11 @@ export interface PromoCode {
     validUntil: string | null;
     maxRedemptions: number | null;
     redemptionsCount: number;
+    /**
+     * Slots held for checkouts that started and have not concluded. A code has
+     * a free slot while `redemptionsCount + heldCount` is below `maxRedemptions`.
+     */
+    heldCount: number;
     appliesToPlans: PlanId[];
     appliesToBilling: BillingCycle | null;
     firstTimeCustomersOnly: boolean;

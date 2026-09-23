@@ -29,6 +29,7 @@ import { PrismaPlanRepository } from './prisma-plan.repository.js';
 import { PrismaPaymentEventLog } from './prisma-payment-event-log.adapter.js';
 import { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';
 import { PrismaPromotionRepository } from './prisma-promotion.repository.js';
+import { PrismaPromoCodeHoldRepository } from './prisma-promo-code-hold.repository.js';
 import { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';
 import { PrismaPromoCodeRepository } from './prisma-promo-code.repository.js';
 import { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-validation-log.repository.js';
@@ -218,6 +219,7 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             ),
             subscriptionLookup: provide((prisma) => new PrismaPromoSubscriptionLookup(prisma)),
             revenueAggregator: new ZeroPromoRevenueDeductionAggregator(),
+            holdRepository: provide((prisma) => new PrismaPromoCodeHoldRepository(prisma)),
         },
         payments: {
             paymentEventLog: provide((prisma) => new PrismaPaymentEventLog(prisma)),

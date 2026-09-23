@@ -128,6 +128,7 @@ CREATE TABLE "promo_codes" (
     "validUntil" TIMESTAMP(3),
     "maxRedemptions" INTEGER,
     "redemptionsCount" INTEGER NOT NULL DEFAULT 0,
+    "heldCount" INTEGER NOT NULL DEFAULT 0,
     "appliesToPlans" TEXT[],
     "appliesToBilling" "BillingCycle",
     "firstTimeCustomersOnly" BOOLEAN NOT NULL DEFAULT true,
@@ -162,6 +163,18 @@ CREATE TABLE "promo_code_redemptions" (
     "reversedAt" TIMESTAMP(3),
 
     CONSTRAINT "promo_code_redemptions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "promo_code_holds" (
+    "id" TEXT NOT NULL,
+    "promoCodeId" TEXT NOT NULL,
+    "checkoutOfferId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "handedOverTx" BIGINT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "promo_code_holds_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -711,6 +724,15 @@ CREATE INDEX "promo_code_redemptions_promoCodeId_status_idx" ON "promo_code_rede
 CREATE INDEX "promo_code_redemptions_startsAt_endsAt_idx" ON "promo_code_redemptions"("startsAt", "endsAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "promo_code_holds_checkoutOfferId_key" ON "promo_code_holds"("checkoutOfferId");
+
+-- CreateIndex
+CREATE INDEX "promo_code_holds_promoCodeId_expiresAt_idx" ON "promo_code_holds"("promoCodeId", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "promo_code_holds_expiresAt_idx" ON "promo_code_holds"("expiresAt");
+
+-- CreateIndex
 CREATE INDEX "promo_code_validation_logs_codeAttempt_createdAt_idx" ON "promo_code_validation_logs"("codeAttempt", "createdAt");
 
 -- CreateIndex
@@ -898,6 +920,9 @@ ALTER TABLE "promo_code_redemptions" ADD CONSTRAINT "promo_code_redemptions_prom
 
 -- AddForeignKey
 ALTER TABLE "promo_code_redemptions" ADD CONSTRAINT "promo_code_redemptions_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "promo_code_holds" ADD CONSTRAINT "promo_code_holds_promoCodeId_fkey" FOREIGN KEY ("promoCodeId") REFERENCES "promo_codes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "promo_code_validation_logs" ADD CONSTRAINT "promo_code_validation_logs_promoCodeId_fkey" FOREIGN KEY ("promoCodeId") REFERENCES "promo_codes"("id") ON DELETE SET NULL ON UPDATE CASCADE;

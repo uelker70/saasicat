@@ -6,6 +6,7 @@
 // it is about and inherits the rest.
 
 import { CheckoutOfferPricing, CheckoutOfferService } from '../../dist/checkout-offer/index.js';
+import { PromoCodesService } from '../../dist/promo/index.js';
 
 export const CATALOG = { vatRate: 19, currency: 'EUR' };
 
@@ -101,6 +102,11 @@ export function fakeOfferRepo() {
             row.consumedAt = stamp();
             return structuredClone(row);
         },
+        snapshot: () => new Map([...rows].map(([id, row]) => [id, structuredClone(row)])),
+        restore(saved) {
+            rows.clear();
+            for (const [id, row] of saved) rows.set(id, row);
+        },
     };
 }
 
@@ -171,6 +177,8 @@ export function buildOfferService(overrides = {}) {
         deps.contracts,
         deps.transactions,
         deps.subscribers,
+        // A fake above prices a code and holds none; the promo service does both.
+        deps.promoCodes instanceof PromoCodesService ? deps.promoCodes : null,
     );
     return { service, ...deps };
 }

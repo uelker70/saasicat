@@ -880,6 +880,7 @@ const PROMO_ROWS = [
         // `redemptionsCount` — the table formats this field directly, so
         // the singular spelling renders "undefined / 100".
         redemptionsCount: 12,
+        heldCount: 0,
         campaignTag: 'launch-2026',
         validFrom: '2026-01-01',
         validUntil: '2026-12-31',

@@ -1979,6 +1979,9 @@ components:
                 validUntil: { type: string, format: date-time, nullable: true }
                 maxRedemptions: { type: integer, nullable: true }
                 redemptionsCount: { type: integer }
+                heldCount:
+                    type: integer
+                    description: Slots held for checkouts that started and have not concluded.
                 appliesToPlans:
                     type: array
                     items: { type: string }
