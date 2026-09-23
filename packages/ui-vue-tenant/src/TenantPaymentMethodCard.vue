@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { useTenantPaymentMethod, type HttpClient } from '@saasicat/ui-vue';
-import { computed, ref, useId } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 
 import { useTenantI18n } from './tenant-i18n.js';
 import TenantButton from './ui/TenantButton.vue';
@@ -71,8 +71,14 @@ const props = withDefaults(
     { separated: true },
 );
 
+const emit = defineEmits<{
+    /** Whether the card shows anything, so a surrounding card can hide with it. */
+    availability: [shown: boolean];
+}>();
+
 const i18n = useTenantI18n();
 const method = useTenantPaymentMethod({ http: props.http, apiPrefix: props.apiPrefix });
+watch(method.available, (shown) => emit('availability', shown), { immediate: true });
 const headingId = `sp-payment-method-${useId()}`;
 
 const current = computed(() => method.paymentMethod.value);

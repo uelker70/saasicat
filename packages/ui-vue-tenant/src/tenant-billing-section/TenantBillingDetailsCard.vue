@@ -37,6 +37,7 @@
                             :maxlength="field === 'country' ? 2 : undefined"
                             :aria-describedby="field === 'country' ? countryHintId : undefined"
                             :aria-invalid="refusedField === field ? 'true' : undefined"
+                            :disabled="saving"
                         />
                         <span
                             v-if="field === 'country'"
@@ -111,8 +112,14 @@ const AUTOCOMPLETE: Record<TenantBillingContactField, string> = {
     invoiceEmail: 'email',
 };
 
+const emit = defineEmits<{
+    /** Whether the card shows anything, so a surrounding card can hide with it. */
+    availability: [shown: boolean];
+}>();
+
 const i18n = useTenantI18n();
 const billing = useTenantBillingDetails({ http: props.http, apiPrefix: props.apiPrefix });
+watch(billing.available, (shown) => emit('availability', shown), { immediate: true });
 const headingId = `sp-billing-details-${useId()}`;
 const countryHintId = `sp-billing-details-country-${useId()}`;
 

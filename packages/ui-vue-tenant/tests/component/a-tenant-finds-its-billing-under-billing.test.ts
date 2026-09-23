@@ -68,7 +68,10 @@ afterEach(() => {
 });
 
 async function mountSection(http: HttpClient, props: Record<string, unknown> = {}) {
-    const wrapper = mount(TenantBillingSection, { props: { http, ...props } });
+    const wrapper = mount(TenantBillingSection, {
+        props: { http, ...props },
+        attachTo: document.body,
+    });
     mounted.push(wrapper as VueWrapper);
     await flushPromises();
     return wrapper;
@@ -89,6 +92,7 @@ describe('the billing section', () => {
         expect(headings).toEqual([i18n.paymentMethodTitle, i18n.billingDetailsTitle]);
         expect(wrapper.text()).toContain('Visa ending in 4242');
         expect(wrapper.findAll('.sp-card')).toHaveLength(1);
+        expect(wrapper.find('.sp-card').isVisible()).toBe(true);
         expect(wrapper.find('hr').exists(), 'a divider above the first part').toBe(false);
     });
 
@@ -105,6 +109,7 @@ describe('the billing section', () => {
 
             expect(wrapper.text()).toBe('');
             expect(wrapper.find('h3').exists()).toBe(false);
+            expect(wrapper.find('.sp-card').isVisible(), 'an empty bordered card').toBe(false);
         });
     }
 
@@ -202,6 +207,31 @@ describe('the billing details', () => {
             wrapper.find('[role="status"]').exists(),
             'saved, said of an edit made after it',
         ).toBe(false);
+    });
+
+    test('the fields cannot be changed while a save is on its way, so no edit is lost to its answer', async () => {
+        let release: () => void = () => undefined;
+        const answered = new Promise<void>((resolve) => (release = resolve));
+        const { http: routed } = httpRouting({
+            'GET /billing/payment-method': [404, {}],
+            'GET /billing/details': [200, { details: DETAILS }],
+            'PATCH /billing/details': [200, { details: { ...DETAILS, city: 'Potsdam' } }],
+        });
+        const http: HttpClient = async (url, init) => {
+            if (init?.method === 'PATCH') await answered;
+            return routed(url, init);
+        };
+        const wrapper = await mountSection(http);
+
+        await input(wrapper, 'city').setValue('Potsdam');
+        await wrapper.find('.sp-billing-details__actions button').trigger('click');
+        await flushPromises();
+        expect(input(wrapper, 'postalCode').attributes('disabled')).toBeDefined();
+
+        release();
+        await flushPromises();
+        expect(input(wrapper, 'postalCode').attributes('disabled')).toBeUndefined();
+        expect(wrapper.find('[role="status"]').text()).toBe(i18n.billingDetailsSaved);
     });
 
     test('a field the server refuses is named by its label and marked, and nothing claims it was saved', async () => {

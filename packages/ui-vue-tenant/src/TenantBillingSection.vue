@@ -1,19 +1,26 @@
 <template>
-    <TenantCard class="sp-billing-section">
+    <!-- Hidden rather than removed: the parts have to be mounted to ask the
+         server whether they are for this user at all. -->
+    <TenantCard v-show="shown.paymentMethod || shown.details" class="sp-billing-section">
         <TenantPaymentMethodCard
             :http="http"
             :api-prefix="apiPrefix"
             :return-url="returnUrl"
             :navigate="navigate"
             :separated="false"
+            @availability="shown.paymentMethod = $event"
         />
-        <TenantBillingDetailsCard :http="http" :api-prefix="apiPrefix" />
+        <TenantBillingDetailsCard
+            :http="http"
+            :api-prefix="apiPrefix"
+            @availability="shown.details = $event"
+        />
     </TenantCard>
 </template>
 
 <script setup lang="ts">
 import { useSuperAdminI18n, type HttpClient } from '@saasicat/ui-vue';
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 
 import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
 import { provideTenantI18n } from './tenant-i18n.js';
@@ -48,6 +55,9 @@ const props = defineProps<{
 }>();
 
 const { locale } = useSuperAdminI18n();
+
+/** Which parts show anything; an empty card would be a bordered strip saying nothing. */
+const shown = reactive({ paymentMethod: false, details: false });
 
 provideTenantI18n(
     computed<TenantPlanSectionI18n>(() => ({
