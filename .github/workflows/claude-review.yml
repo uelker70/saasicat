@@ -73,17 +73,26 @@ jobs:
             # out, and the file only exists there once it is merged — the review
             # otherwise ran without its own standard. And a PR should not be
             # able to rewrite the criteria it is measured against.
+            #
+            # It lands outside the workspace, for two reasons. First, the
+            # paragraph above was otherwise without effect: when the request
+            # comes from an issue comment, the action checks out the pull
+            # request after this step and puts its version back — the review
+            # measured the pull request against its own brief. Second, when the
+            # request comes from a review comment, the state of the pull request
+            # is already checked out here; `.github/claude-review-context.md`
+            # could be a symlink, and the write would follow it into any file
+            # the runner account can reach.
             - name: Take the brief from the default branch
               env:
                   GH_TOKEN: ${{ github.token }}
                   DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
               run: |
                   set -euo pipefail
-                  mkdir -p .github
                   gh api "repos/${{ github.repository }}/contents/.github/claude-review-context.md?ref=$DEFAULT_BRANCH" \
                       --header "Accept: application/vnd.github.raw" \
-                      > .github/claude-review-context.md
-                  wc -l .github/claude-review-context.md
+                      > "$RUNNER_TEMP/claude-review-context.md"
+                  wc -l "$RUNNER_TEMP/claude-review-context.md"
 
             # The issue script comes from the default branch like the brief and
             # lives outside the working tree: on a pull-request event the PR
@@ -130,4 +139,4 @@ jobs:
                   claude_args: |
                       --model claude-opus-5
                       --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(${{ runner.temp }}/edit-issue.sh:*),Bash(gh run view:*)"
-                      --append-system-prompt "Binding for this run: write everything you post — findings, summary, inline comments, questions — in English, whatever language the pull request or the comment you are answering is in. Then read .github/claude-review-context.md first and follow it before doing anything else. If the request is to change the issue itself, the only way is ${{ runner.temp }}/edit-issue.sh (--title, --body-file with a file inside the workspace); the rules for it are in the brief."
+                      --append-system-prompt "Binding for this run: write everything you post — findings, summary, inline comments, questions — in English, whatever language the pull request or the comment you are answering is in. Then read ${{ runner.temp }}/claude-review-context.md first and follow it before doing anything else. If the request is to change the issue itself, the only way is ${{ runner.temp }}/edit-issue.sh (--title, --body-file with a file inside the workspace); the rules for it are in the brief."

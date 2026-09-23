@@ -113,3 +113,28 @@ brief. Four rules apply:
 
 Inline comments for concrete places, one summary comment for the verdict —
 in English, every time.
+
+## Level and form of every finding
+
+Every finding carries a level you assign yourself — by its effect, not by the
+effort of the fix:
+
+- **P0** — Severe or irreversible damage: one tenant's data visible to another,
+  lost or corrupted data, a wrong document or tax amount, a secret in plain
+  text.
+- **P1** — A promised behaviour is broken, or a security or tenant boundary has
+  a gap, even before any damage.
+- **P2** — A real defect with limited effect, or a guard that stays green where
+  it should report.
+- **P3** — A minor point: wording, docs, style, a precaution without damage
+  today.
+
+The level always comes first, so it can be counted:
+
+- An inline comment starts with `**P2 · Short title**`.
+- In the summary comment every finding gets its own heading
+  `#### 1 — P2 · Short title`, numbered in sequence, even if it is already
+  inline.
+- A guess and a pre-existing defect are marked in the first sentence of the
+  finding text, not in the heading.
+- Without a finding there is no finding heading.
