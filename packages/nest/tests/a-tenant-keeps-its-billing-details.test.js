@@ -104,7 +104,6 @@ describe('the tenant reads whom it is billed to', () => {
     });
 });
 
-// @requirement SC-SUB-017 — A subscriber's legal identity can be corrected, not replaced, under a running contract
 describe('the tenant changes how it is reached', () => {
     test('what it names is written, settled as every detail is, and the rest is kept', async () => {
         const { details, meier } = await billingArea();
@@ -187,6 +186,7 @@ describe('the tenant changes how it is reached', () => {
         ['vatId', 'DE999999999'],
         ['taxNumber', '12/345/67890'],
     ]) {
+        // @requirement SC-SUB-017 — A subscriber's legal identity can be corrected, not replaced, under a running contract
         // @requirement SC-SUB-018 — A tenant can change the address and email it is billed at, but not clear them
         test(`the ${field} reaches the service through the pipe and is refused there, not dropped`, async () => {
             // Stripped by `whitelist`, it would have come back as a success

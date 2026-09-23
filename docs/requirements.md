@@ -3825,12 +3825,6 @@ _Tested by:_
         - of a subscriber that does not exist is refused as not found
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - the tenant changes how it is reached
-        - what it names is written, settled as every detail is, and the rest is kept
-        - only the session's tenant is changed
-        - the ${field} can be changed but not cleared, and a refused change writes nothing
-        - the second address line can be cleared: an invoice does not need it
-        - a ${field} not in its form is refused by name
-        - a value that is not text never reaches the service
         - the ${field} reaches the service through the pipe and is refused there, not dropped
 
 <!-- END proof -->
@@ -10494,6 +10488,7 @@ _Tested by:_
     - the billing details
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
+        - the country is named by its label alone, and described by its hint
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was
@@ -10533,6 +10528,7 @@ _Tested by:_
     - the billing details
         - show the legal identity as it stands, with no field to change it, and say who changes it
         - offer the contact details as fields, each named by its label
+        - the country is named by its label alone, and described by its hint
         - save only once something changed, send only what changed, and say it was saved
         - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
         - a field the server refuses is named by its label and marked, and nothing claims it was

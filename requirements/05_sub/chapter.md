@@ -416,12 +416,6 @@ _Tested by:_
         - of a subscriber that does not exist is refused as not found
 - `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
     - the tenant changes how it is reached
-        - what it names is written, settled as every detail is, and the rest is kept
-        - only the session's tenant is changed
-        - the ${field} can be changed but not cleared, and a refused change writes nothing
-        - the second address line can be cleared: an invoice does not need it
-        - a ${field} not in its form is refused by name
-        - a value that is not text never reaches the service
         - the ${field} reaches the service through the pipe and is refused there, not dropped
 
 <!-- END proof -->

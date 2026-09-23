@@ -27,12 +27,13 @@ import {
     settleNewSubscriberDetails,
 } from './subscriber-details.js';
 
+import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
+
 /**
  * What a tenant may change but not clear: the address an invoice names, and
  * the email it is sent to.
  */
 const KEPT_BY_A_TENANT = [...INVOICE_ADDRESS_FIELDS, 'invoiceEmail'] as const;
-import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
 
 /**
  * The parties contracts are concluded with.
@@ -122,9 +123,7 @@ export class SubscriberService {
         subscriberId: string,
         change: SubscriberContactChange,
     ): Promise<SubscriberRecord> {
-        const updated = await this.repo.updateContact(subscriberId, settleContactChange(change));
-        if (!updated) throw subscriberNotFound(subscriberId);
-        return updated;
+        return this.writeContact(subscriberId, settleContactChange(change));
     }
 
     /**
@@ -147,7 +146,17 @@ export class SubscriberService {
                 codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field: cleared }),
             );
         }
-        return this.changeContact(subscriber.id, settled);
+        return this.writeContact(subscriber.id, settled);
+    }
+
+    /** Writes contact details already settled; settling twice would check one copy and write another. */
+    private async writeContact(
+        subscriberId: string,
+        settled: SubscriberContactChange,
+    ): Promise<SubscriberRecord> {
+        const updated = await this.repo.updateContact(subscriberId, settled);
+        if (!updated) throw subscriberNotFound(subscriberId);
+        return updated;
     }
 
     /**

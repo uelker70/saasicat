@@ -21,24 +21,29 @@
                 <p class="sp-billing-details__sub">{{ i18n.billingDetailsIdentityNote }}</p>
 
                 <div class="sp-billing-details__fields">
-                    <label
+                    <div
                         v-for="field in CONTACT_FIELDS"
                         :key="field"
                         class="sp-billing-details__field"
                         :class="`sp-billing-details__field--${field}`"
                     >
-                        <span class="sp-billing-details__label">{{ labelOf(field) }}</span>
-                        <input
-                            v-model="draft[field]"
-                            class="sp-billing-details__input"
-                            :type="field === 'invoiceEmail' ? 'email' : 'text'"
-                            :autocomplete="AUTOCOMPLETE[field]"
-                            :required="field !== 'addressLine2'"
-                            :maxlength="field === 'country' ? 2 : undefined"
-                            :aria-describedby="field === 'country' ? countryHintId : undefined"
-                            :aria-invalid="refusedField === field ? 'true' : undefined"
-                            :disabled="saving"
-                        />
+                        <label class="sp-billing-details__labelled">
+                            <span class="sp-billing-details__label">{{ labelOf(field) }}</span>
+                            <input
+                                v-model="draft[field]"
+                                class="sp-billing-details__input"
+                                :type="field === 'invoiceEmail' ? 'email' : 'text'"
+                                :autocomplete="AUTOCOMPLETE[field]"
+                                :required="field !== 'addressLine2'"
+                                :maxlength="field === 'country' ? 2 : undefined"
+                                :aria-describedby="field === 'country' ? countryHintId : undefined"
+                                :aria-invalid="refusedField === field ? 'true' : undefined"
+                                :disabled="saving"
+                                @input="onEdit"
+                            />
+                        </label>
+                        <!-- Beside the label, not in it: inside, it would be read as part of
+                             the field's name as well as its description. -->
                         <span
                             v-if="field === 'country'"
                             :id="countryHintId"
@@ -46,7 +51,7 @@
                         >
                             {{ i18n.billingDetailsCountryHint }}
                         </span>
-                    </label>
+                    </div>
                 </div>
 
                 <p v-if="saveFailure" class="sp-billing-details__error" role="alert">
@@ -148,11 +153,6 @@ const change = computed<TenantBillingContactChange>(() => {
     return named;
 });
 const changed = computed(() => Object.keys(change.value).length > 0);
-// "Saved" describes the details as they were saved, not an edit made after it.
-watch(changed, (edited) => {
-    if (edited) saved.value = false;
-});
-
 const LABEL_KEYS = {
     addressLine1: 'billingDetailsAddressLine1',
     addressLine2: 'billingDetailsAddressLine2',
@@ -161,6 +161,14 @@ const LABEL_KEYS = {
     country: 'billingDetailsCountry',
     invoiceEmail: 'billingDetailsInvoiceEmail',
 } as const;
+
+// "Saved" and a refusal both describe the details as they were sent, not an
+// edit made after it: a field the person corrects is no longer marked invalid.
+function onEdit(): void {
+    saved.value = false;
+    saveFailure.value = null;
+    refusedField.value = null;
+}
 
 function labelOf(field: TenantBillingContactField): string {
     return i18n.value[LABEL_KEYS[field]];
@@ -248,7 +256,8 @@ function draftOf(
     gap: var(--sa-space-4);
     margin-top: var(--sa-space-5);
 }
-.sp-billing-details__field {
+.sp-billing-details__field,
+.sp-billing-details__labelled {
     display: flex;
     flex-direction: column;
     gap: var(--sa-space-2);

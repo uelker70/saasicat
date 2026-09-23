@@ -181,6 +181,17 @@ describe('the billing details', () => {
         expect(input(wrapper, 'addressLine1').attributes('required')).toBeDefined();
     });
 
+    test('the country is named by its label alone, and described by its hint', async () => {
+        const { wrapper } = await detailsOf();
+        const country = input(wrapper, 'country');
+
+        expect(country.element.closest('label')?.textContent?.trim()).toBe(
+            i18n.billingDetailsCountry,
+        );
+        const hintId = country.attributes('aria-describedby');
+        expect(wrapper.find(`#${hintId}`).text()).toBe(i18n.billingDetailsCountryHint);
+    });
+
     test('save only once something changed, send only what changed, and say it was saved', async () => {
         const saved = { ...DETAILS, city: 'Potsdam', postalCode: '14467', addressLine2: null };
         const { wrapper, calls } = await detailsOf([200, { details: saved }]);
@@ -251,6 +262,14 @@ describe('the billing details', () => {
         expect(wrapper.find('[role="status"]').exists()).toBe(false);
         expect((input(wrapper, 'invoiceEmail').element as HTMLInputElement).value).toBe(
             'no address',
+        );
+
+        await input(wrapper, 'invoiceEmail').setValue('rechnung@meier.example');
+        expect(input(wrapper, 'invoiceEmail').attributes('aria-invalid'), 'a corrected field').toBe(
+            undefined,
+        );
+        expect(wrapper.find('[role="alert"]').exists(), 'a refusal of what was corrected').toBe(
+            false,
         );
     });
 
