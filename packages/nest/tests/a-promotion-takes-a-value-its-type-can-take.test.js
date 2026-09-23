@@ -123,6 +123,21 @@ describe('changing a promotion', () => {
         assert.equal(repo.byId.get('spring').type, 'amount');
     });
 
+    for (const [field, change] of [
+        ['value', { value: null }],
+        ['type', { type: null }],
+    ]) {
+        test(`a ${field} sent as null is judged as null, not as the one stored, and nothing is written`, async () => {
+            const repo = fakePromotionRepo([TWENTY_PER_CENT]);
+            const service = new PromotionsService(repo);
+            await assert.rejects(
+                () => service.update('spring', change),
+                (error) => error.getResponse().code === CATALOG_ERROR_CODES.PROMOTION_VALUE_INVALID,
+            );
+            assert.deepEqual(repo.byId.get('spring'), { ...TWENTY_PER_CENT });
+        });
+    }
+
     test('a change of both to a pair that fits is saved', async () => {
         const service = new PromotionsService(fakePromotionRepo([TWENTY_PER_CENT]));
         const saved = await service.update('spring', {

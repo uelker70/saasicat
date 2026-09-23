@@ -271,6 +271,7 @@ _Tested by:_
     - changing a promotion
         - a value its type does not take is refused, and the stored one stays
         - a change of type alone meets the value already stored
+        - a ${field} sent as null is judged as null, not as the one stored, and nothing is written
         - a change of both to a pair that fits is saved
         - a change of another field leaves a valid value alone
 
