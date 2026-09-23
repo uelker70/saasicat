@@ -11,6 +11,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { useTenantPaymentMethod } from '../dist/index.js';
+import { scriptedHttp } from './helpers/scripted-http.js';
 
 const CARD = {
     type: 'card',
@@ -22,28 +23,6 @@ const CARD = {
     mandateReference: null,
     confirmedAt: '2026-09-15T10:00:00.000Z',
 };
-
-/** An HTTP client answering each request with the next scripted status and body. */
-function scriptedHttp(...answers) {
-    const calls = [];
-    return {
-        calls,
-        client: async (url, init) => {
-            calls.push({
-                url,
-                method: init?.method ?? 'GET',
-                body: init?.body ? JSON.parse(init.body) : undefined,
-            });
-            const [status, body] = answers.shift();
-            return {
-                status,
-                headers: { get: () => null },
-                json: async () => body,
-                text: async () => JSON.stringify(body),
-            };
-        },
-    };
-}
 
 describe('loading the payment method', () => {
     test('a user holding the permission sees the one in use', async () => {

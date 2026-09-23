@@ -37,6 +37,7 @@ import {
 } from './payments.tokens.js';
 import { StoredPaymentReferencesCheck } from './stored-references.check.js';
 import { SubscriberPaymentMethodService } from './subscriber-payment-method.service.js';
+import { TenantBillingDetailsController } from './tenant-billing-details.controller.js';
 import { TenantPaymentMethodController } from './tenant-payment-method.controller.js';
 
 /** The tenant's routes for its payment method. */
@@ -65,7 +66,10 @@ export interface PaymentsModuleOptions {
     subscriberRepository: ProviderSpec<SubscriberRepository>;
     /** The runner of the same persistence adapter the two stores above come from. */
     transactionRunner: ProviderSpec<TransactionRunner>;
-    /** Mounts `GET /billing/payment-method` and `POST /billing/payment-method/setup`. */
+    /**
+     * Mounts the tenant's billing area: `GET /billing/payment-method`,
+     * `POST /billing/payment-method/setup`, and `GET` and `PATCH /billing/details`.
+     */
     tenantRoutes?: PaymentsTenantRoutesOptions;
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     extraProviders?: Provider[];
@@ -130,7 +134,7 @@ export class PaymentsModule {
                     useValue: tenant.userEmailResolver,
                 });
             }
-            controllers.push(TenantPaymentMethodController);
+            controllers.push(TenantPaymentMethodController, TenantBillingDetailsController);
         }
         return {
             module: PaymentsModule,

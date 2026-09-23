@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import type { HttpClient } from '@saasicat/ui-vue';
 
-import TenantPaymentMethodCard from '../../src/tenant-plan-section/TenantPaymentMethodCard.vue';
+import TenantPaymentMethodCard from '../../src/TenantPaymentMethodCard.vue';
 import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 import { paymentMethodSummary } from '../../src/tenant-plan-section/payment-method-summary';
 

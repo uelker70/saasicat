@@ -8,6 +8,7 @@
                 <q-tabs shrink stretch active-color="white" indicator-color="white">
                     <q-route-tab to="/notes" icon="notes" label="Notes" />
                     <q-route-tab to="/plan" icon="workspace_premium" label="Plan" />
+                    <q-route-tab to="/billing" icon="receipt_long" label="Billing" />
                 </q-tabs>
 
                 <q-chip

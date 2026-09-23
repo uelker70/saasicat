@@ -729,6 +729,14 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   at error level and leaves its setup open, which is where it is found afterwards: the tenant keeps
   the payment method it had, so a gateway adapter that reports a session under a name of its own
   shows up as changes that never arrive.
+- **`GET /billing/details`** and **`PATCH /billing/details`** — whom the tenant's subscription is
+  billed to, behind the same guards and permission. The tenant changes the address and the invoice
+  email; the street, postal code, city, country and invoice email can be replaced but not cleared
+  (`SUBSCRIBER_DETAIL_INVALID` names the field), and a legal name or tax identifier in the body is
+  refused with `SUBSCRIBER_IDENTITY_NOT_A_CONTACT` — the operator corrects those. The request DTO
+  declares those three fields so that a `ValidationPipe` with `whitelist` passes them through to the
+  refusal instead of stripping them into a silent success. `TenantBillingSection` in
+  `@saasicat/ui-vue-tenant` is the page for both routes and the payment method.
 - **Row-level security and the callback.** A callback arrives with no session and no tenant. If your
   `subscriber_payment_methods` and `subscriber_payment_method_setups` carry a policy, the callback
   sees no row, `completeSetup` matches nothing, and the gateway is answered with an error for a

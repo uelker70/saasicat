@@ -199,7 +199,7 @@ export interface TenantPlanSectionI18n {
     myBundlesBundleVersionIdPlaceholder: string;
     myBundlesMinimumTermLabel: string;
     myBundlesMinimumTermPlaceholder: string;
-    /** The payment method on the plan page, shown to whoever holds the billing permission. */
+    /** The payment method, shown to whoever holds the billing permission. */
     paymentMethodTitle: string;
     paymentMethodNone: string;
     /** `{brand}`, `{last4}` and `{expiry}` (MM/YYYY). */
@@ -215,6 +215,30 @@ export interface TenantPlanSectionI18n {
     paymentMethodGatewayNote: string;
     paymentMethodLoadFailed: string;
     paymentMethodChangeFailed: string;
+    /** Whom the subscription is billed to, in the billing section, to whoever holds the billing permission. */
+    billingDetailsTitle: string;
+    billingDetailsCustomerNumber: string;
+    /** The registered name, legal form included. */
+    billingDetailsLegalName: string;
+    billingDetailsVatId: string;
+    billingDetailsTaxNumber: string;
+    /** In place of a tax identifier the subscriber has none of. */
+    billingDetailsNotStated: string;
+    /** Why the name and the tax identifiers are not a form: the operator corrects them. */
+    billingDetailsIdentityNote: string;
+    billingDetailsAddressLine1: string;
+    billingDetailsAddressLine2: string;
+    billingDetailsPostalCode: string;
+    billingDetailsCity: string;
+    billingDetailsCountry: string;
+    billingDetailsCountryHint: string;
+    billingDetailsInvoiceEmail: string;
+    billingDetailsSave: string;
+    billingDetailsSaved: string;
+    billingDetailsLoadFailed: string;
+    billingDetailsSaveFailed: string;
+    /** `{field}` is the label of the field the server refused. */
+    billingDetailsFieldInvalid: string;
     /**
      * Texts for the coded blockers and warnings a plan-change preview returns,
      * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
@@ -436,6 +460,26 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
         'Karte oder IBAN gibst du im Formular des Zahlungsanbieters ein. Hier wird nur ein Verweis darauf gespeichert.',
     paymentMethodLoadFailed: 'Die Zahlungsmethode konnte nicht geladen werden.',
     paymentMethodChangeFailed: 'Das Formular des Zahlungsanbieters konnte nicht geöffnet werden.',
+    billingDetailsTitle: 'Rechnungsdaten',
+    billingDetailsCustomerNumber: 'Kundennummer',
+    billingDetailsLegalName: 'Firmenname',
+    billingDetailsVatId: 'USt-IdNr.',
+    billingDetailsTaxNumber: 'Steuernummer',
+    billingDetailsNotStated: 'nicht angegeben',
+    billingDetailsIdentityNote:
+        'Firmenname und Steuernummern ändern wir auf Anfrage, denn auf sie lauten deine Verträge und Rechnungen.',
+    billingDetailsAddressLine1: 'Straße und Hausnummer',
+    billingDetailsAddressLine2: 'Adresszusatz (optional)',
+    billingDetailsPostalCode: 'PLZ',
+    billingDetailsCity: 'Ort',
+    billingDetailsCountry: 'Land',
+    billingDetailsCountryHint: 'Zwei Buchstaben, z. B. DE',
+    billingDetailsInvoiceEmail: 'E-Mail für Rechnungen',
+    billingDetailsSave: 'Rechnungsdaten speichern',
+    billingDetailsSaved: 'Rechnungsdaten gespeichert.',
+    billingDetailsLoadFailed: 'Die Rechnungsdaten konnten nicht geladen werden.',
+    billingDetailsSaveFailed: 'Die Rechnungsdaten konnten nicht gespeichert werden.',
+    billingDetailsFieldInvalid: '{field} ist nicht gültig.',
     issueMessages: ERROR_MESSAGES_DE,
 };
 
@@ -645,6 +689,26 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
         "You enter the card or IBAN in the payment provider's form. Only a reference to it is kept here.",
     paymentMethodLoadFailed: 'The payment method could not be loaded.',
     paymentMethodChangeFailed: "The payment provider's form could not be opened.",
+    billingDetailsTitle: 'Billing details',
+    billingDetailsCustomerNumber: 'Customer number',
+    billingDetailsLegalName: 'Company name',
+    billingDetailsVatId: 'VAT ID',
+    billingDetailsTaxNumber: 'Tax number',
+    billingDetailsNotStated: 'not stated',
+    billingDetailsIdentityNote:
+        'We change the company name and tax identifiers on request, because your contracts and invoices are made out to them.',
+    billingDetailsAddressLine1: 'Street and number',
+    billingDetailsAddressLine2: 'Address line 2 (optional)',
+    billingDetailsPostalCode: 'Postal code',
+    billingDetailsCity: 'City',
+    billingDetailsCountry: 'Country',
+    billingDetailsCountryHint: 'Two letters, such as DE',
+    billingDetailsInvoiceEmail: 'Email for invoices',
+    billingDetailsSave: 'Save billing details',
+    billingDetailsSaved: 'Billing details saved.',
+    billingDetailsLoadFailed: 'The billing details could not be loaded.',
+    billingDetailsSaveFailed: 'The billing details could not be saved.',
+    billingDetailsFieldInvalid: '{field} is not valid.',
     issueMessages: ERROR_MESSAGES_EN,
 };
 
