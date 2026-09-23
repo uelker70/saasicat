@@ -146,9 +146,8 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import {
-    applyPromo,
-    pickActivePromo,
     promoStatus,
+    promotionOnPrice,
     type MarketingProjectionRow,
     type MarketingTopFeature,
     type PlanRow,
@@ -654,19 +653,22 @@ function formatEuro(value: number): string {
 
 // ─── Promo application in the preview ───
 const promoToday = new Date();
-function promoOf(row: MarketingRow): PromotionRow | null {
-    return pickActivePromo(
+// The public catalogue's question, for the monthly price the preview shows.
+function promotionShownOn(row: MarketingRow) {
+    return promotionOnPrice(
         promotions.value,
         row.plan.planKey,
         activeLocale.value,
         'monthly',
+        row.liveVersion ? monthlyOf(row) : null,
         promoToday,
     );
 }
+function promoOf(row: MarketingRow): PromotionRow | null {
+    return promotionShownOn(row)?.promotion ?? null;
+}
 function promoResultOf(row: MarketingRow): PromotionResult | null {
-    const promo = promoOf(row);
-    if (!promo || !row.liveVersion) return null;
-    return applyPromo(promo, monthlyOf(row));
+    return promotionShownOn(row)?.result ?? null;
 }
 function promoBadgeOf(row: MarketingRow): string {
     const promo = promoOf(row);

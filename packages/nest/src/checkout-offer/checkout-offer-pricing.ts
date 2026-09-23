@@ -28,7 +28,7 @@ import type {
     PromotionRepository,
     PromotionRow,
 } from '@saasicat/core';
-import { CONTRACT_ERROR_CODES, applyPromo, pickActivePromo } from '@saasicat/core';
+import { CONTRACT_ERROR_CODES, promotionOnPrice } from '@saasicat/core';
 
 import { resolveBundlePriceNet } from '../billing/bundle-price.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
@@ -391,17 +391,18 @@ function promotionFor(
     priceNet: number,
     asOf: Date,
 ): CheckoutOfferPromotionSnapshot | null {
-    const promotion = pickActivePromo(
+    const shown = promotionOnPrice(
         promotions,
         targetKey,
         input.locale,
         input.billingCycle,
+        priceNet,
         asOf,
         targetType,
     );
-    const applied = applyPromo(promotion, priceNet);
-    if (!promotion || !applied) return null;
-    const resolvedAmountNet = round2(Math.max(0, priceNet - applied.discounted));
+    if (!shown) return null;
+    const { promotion } = shown;
+    const resolvedAmountNet = round2(Math.max(0, priceNet - shown.result.discounted));
     if (resolvedAmountNet <= 0) return null;
     const texts = promotion.i18n?.[input.locale] ?? promotion.i18n?.[DEFAULT_LOCALE] ?? {};
     return {
@@ -460,13 +461,17 @@ function moneyOf(offer: {
             b.vatRate,
             b.effectiveGross,
         ],
+        // A line's gross is not compared: it is its share of the tax on the
+        // total, derived from the nets and the breakdown compared here, and the
+        // contract derives it again when it is written. So an offer whose stored
+        // lines carry a gross rounded another way still concludes, rather than
+        // being refused over a cent that moved between two of its lines.
         lines: (offer.lineItems ?? []).map((item) => [
             item.kind,
             item.sourceKey,
             item.sourceVersionId ?? null,
             item.quantity,
             item.priceNet,
-            item.priceGross,
             item.billingCycle,
         ]),
         promotions: (offer.promotionSnapshots ?? []).map((p) => [p.id, p.resolvedAmountNet]),

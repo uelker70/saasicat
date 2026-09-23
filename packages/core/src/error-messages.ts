@@ -111,6 +111,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     FEATURE_NOT_FOUND: "Feature '{featureKey}' not found",
     QUOTA_NOT_FOUND: "Quota '{quotaKey}' not found",
     PROMOTION_NOT_FOUND: "Promotion '{promotionId}' not found",
+    PROMOTION_VALUE_INVALID:
+        "The value of a '{type}' promotion is not one its type takes: a percentage above 0 and at most 100, an amount above 0, an intro price of at least 0 for a whole number of months, or a whole number of free months.",
     MARKETING_PROJECTION_NOT_FOUND: "MarketingProjection '{projectionId}' not found",
     PLAN_ALREADY_EXISTS: "Plan '{planKey}' already exists",
     BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' already exists",
@@ -243,6 +245,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
         'effectiveUntil must be after the effectiveFrom of the contract.',
     SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH:
         'A line item must be booked in the currency its contract was priced in.',
+    SUBSCRIPTION_CONTRACT_LINES_DO_NOT_ADD_UP:
+        'The line items of a subscription contract add up to {lines} for {field}, but the contract states {stated}.',
+    SUBSCRIPTION_CONTRACT_DISCOUNT_NEGATIVE:
+        'A subscription contract states a discount of {amount} at {field}; a discount takes money off and is never negative.',
     CHECKOUT_OFFER_NOT_FOUND: "CheckoutOffer '{offerId}' not found",
     CHECKOUT_OFFER_EXPIRED: "Checkout offer '{offerId}' has expired and cannot be {action}",
     CHECKOUT_OFFER_ALREADY_CONSUMED:

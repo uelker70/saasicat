@@ -39,7 +39,14 @@ export interface ContractLineItemRecord {
     descriptionSnapshot: string | null;
     quantity: number;
     unit: string | null;
+    /**
+     * What the line costs over one of its billing periods, `quantity` already
+     * in it — not a unit price. A contract's totals take its lines as they
+     * stand, each counted as often as it falls due in one period of the
+     * contract, and are refused where they do not add up.
+     */
     priceNet: number;
+    /** `priceNet` with the line's share of the tax its rhythm owes. */
     priceGross: number;
     billingCycle: 'monthly' | 'yearly';
     /**

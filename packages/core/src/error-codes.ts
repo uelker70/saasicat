@@ -85,6 +85,12 @@ export const CATALOG_ERROR_CODES = {
     FEATURE_NOT_FOUND: 'FEATURE_NOT_FOUND',
     QUOTA_NOT_FOUND: 'QUOTA_NOT_FOUND',
     PROMOTION_NOT_FOUND: 'PROMOTION_NOT_FOUND',
+    /**
+     * A promotion's value is not one its type takes: a percentage above 0 and
+     * at most 100, an amount above 0, an intro price of at least 0 for a whole
+     * number of months, or a whole number of free months.
+     */
+    PROMOTION_VALUE_INVALID: 'PROMOTION_VALUE_INVALID',
     MARKETING_PROJECTION_NOT_FOUND: 'MARKETING_PROJECTION_NOT_FOUND',
 
     // ── already exists ──
@@ -261,6 +267,13 @@ export const CONTRACT_ERROR_CODES = {
     SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT: 'SUBSCRIPTION_CONTRACT_TAX_RATE_NOT_PERCENT',
     SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH:
         'SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH',
+    /**
+     * The lines do not add up to a total the contract states, counted as often
+     * as each falls due in one period. `field` names the total.
+     */
+    SUBSCRIPTION_CONTRACT_LINES_DO_NOT_ADD_UP: 'SUBSCRIPTION_CONTRACT_LINES_DO_NOT_ADD_UP',
+    /** Something that takes money off states a negative amount. */
+    SUBSCRIPTION_CONTRACT_DISCOUNT_NEGATIVE: 'SUBSCRIPTION_CONTRACT_DISCOUNT_NEGATIVE',
     SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START:
         'SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START',
 

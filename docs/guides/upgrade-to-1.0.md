@@ -1581,6 +1581,93 @@ there. The shipped schema has no policy on `plans`, `plan_versions` or `feature_
 you added one, a tenant request sees a smaller catalogue, and that shows up as
 `PLAN_NOT_IN_CATALOG`, `PLAN_MISMATCH` or a plan priced at `0.00` — never as a policy.
 
+### A contract's lines add up to its totals
+
+A contract's total was converted to gross once, from its net total, and each line on its own, so the
+lines could miss the total by a cent — 10.02 + 10.02 net at 19 % came to 11.92 + 11.92 = 23.84 under
+a total of 23.85. The tax is now computed once on the net of the charges billed together, every line
+of one rhythm, and each line carries its share of it. What a customer pays does not change for a
+contract of one rhythm; a yearly plan with monthly add-ons now states what one yearly charge and
+twelve monthly ones come to.
+
+**`SubscriptionContractService.create` refuses a contract whose lines do not add up** to
+`subtotalNet`, `discountNet`, `totalNet` and `totalGross`, each line counted as often as it falls due
+in one period, with `SUBSCRIPTION_CONTRACT_LINES_DO_NOT_ADD_UP` and the total it names in
+`params.field`. A negative discount, or a promotion or promo code snapshot resolved below zero, is
+refused with `SUBSCRIPTION_CONTRACT_DISCOUNT_NEGATIVE`. Both platform paths always pass. If you build
+contract lines yourself, record them all at once and take the totals from them:
+
+```ts
+import { contractTotalsOf, recordContractLinesMoney } from '@saasicat/nest/subscription-contract';
+
+// before: each line converted on its own, the total once
+const lineItems = [plan, ...bundles, discount].map((line) =>
+    recordLineItemMoney(line, currency, vatRate),
+);
+const totalGross = round(totalNet * (1 + vatRate / 100));
+
+// after: lines priced in net, the gross shared out, the totals read off the lines
+const lineItems = recordContractLinesMoney([plan, ...bundles, discount], {
+    currency,
+    taxRate: vatRate,
+});
+const priceSnapshot = {
+    currency,
+    billingCycle,
+    vatRate,
+    ...contractTotalsOf(lineItems, billingCycle),
+};
+```
+
+`recordLineItemMoney` is gone, and `PricedContractLineItem` carries no `priceGross`: a line is priced
+in net and the platform records the rest. The order you pass the lines in is the order the shares
+are taken in, so put the discount last, as the platform does. A line's `priceNet` is what the line
+costs over its billing period with its `quantity` already in it, not a unit price: the totals take
+the lines as they stand, so three seats at 10.00 are one line of 30.00 with `quantity: 3`.
+
+**`loadBookedBundles(tenantId, cycle)` on `ContractFreezeSourcePort` takes no `vatRate`**, and the
+lines it returns carry no `priceGross`. An adapter that still declares the third parameter stops compiling;
+remove it, and the gross the adapter computed with it:
+
+```ts
+// before
+async loadBookedBundles(tenantId: string, cycle: 'monthly' | 'yearly', vatRate: number) {
+    …
+    return { …, priceNet, priceGross: round2(priceNet * (1 + vatRate / 100)) };
+}
+
+// after
+async loadBookedBundles(tenantId: string, cycle: 'monthly' | 'yearly') {
+    …
+    return { …, priceNet };
+}
+```
+
+**A catalogue promotion is saved only with a value its type can take**, on creation and on change:
+a percentage above 0 and at most 100, an amount above 0, an intro price of at least 0 for a whole
+number of months, a whole number of free months. Anything else is refused with
+`PROMOTION_VALUE_INVALID`. A stored promotion outside those bounds keeps working, held between 0 and
+the price it meets, but it cannot be saved again until its value is corrected. `applyPromo` from
+`@saasicat/core` answers `null` where a promotion takes nothing off the price it is given — an intro
+price above it, a percentage of 0 — and the public catalogue shows no badge for a promotion that
+lowers neither rhythm's price.
+
+**A plan's own price for a bundle version is held to two fraction digits**, like the version's own
+prices: `pricingOverrides` refuses `"9.995"` with `pricingOverrides.monthlyNet must be a decimal with
+at most 2 fraction digits`. Such a price could not be concluded anyway — its contract's lines would
+never add up to its total. One stored before the upgrade stays in the row, keeps every offer on that
+plan and add-on from being concluded, and is refused when the admin copies it forward into a new
+draft. Find and correct them before you upgrade:
+
+```sql
+SELECT id, "bundleId", version, "pricingOverrides"
+FROM bundle_versions
+WHERE EXISTS (
+    SELECT 1 FROM jsonb_array_elements("pricingOverrides") AS o
+    WHERE o->>'monthlyNet' LIKE '%.___%' OR o->>'yearlyNet' LIKE '%.___%'
+);
+```
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.
