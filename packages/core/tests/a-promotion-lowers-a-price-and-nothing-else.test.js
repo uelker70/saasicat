@@ -4,7 +4,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyPromo } from '../dist/index.js';
+import { applyPromo, promotionOnPrice } from '../dist/index.js';
 
 function promo(over = {}) {
     return {
@@ -54,7 +54,7 @@ describe('applyPromo keeps a price between 0 and the price it is applied to', ()
             29.99,
         ],
     ]) {
-        test(what, () => {
+        test(`bounded: ${what}`, () => {
             const result = applyPromo(promo({ type: 'percent', ...fields }), basePrice);
             assert.equal(result.discounted, discounted);
             assert.equal(result.original, basePrice);
@@ -81,6 +81,41 @@ describe('applyPromo keeps a price between 0 and the price it is applied to', ()
     ]) {
         test(`${what} takes nothing off, so it is no promotion there`, () => {
             assert.equal(applyPromo(promo({ type: 'percent', ...fields }), basePrice), null);
+        });
+    }
+});
+
+// @requirement SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
+describe('the promotion a price carries', () => {
+    const TODAY = new Date('2026-05-17T12:00:00Z');
+
+    test('is the active one for the key, with what it makes of the price', () => {
+        const shown = promotionOnPrice(
+            [promo({ value: 20 })],
+            'STANDARD',
+            'de',
+            'monthly',
+            30,
+            TODAY,
+        );
+        assert.equal(shown.promotion.id, 'p1');
+        assert.equal(shown.result.discounted, 24);
+    });
+
+    for (const [what, promotions, basePrice] of [
+        [
+            'a promotion that lowers nothing there',
+            [promo({ type: 'intro', value: { price: 35, months: 1 } })],
+            30,
+        ],
+        ['a price that is not stated', [promo()], null],
+        ['no active promotion for the key', [promo({ appliesTo: ['PRO'] })], 30],
+    ]) {
+        test(`is none for ${what}`, () => {
+            assert.equal(
+                promotionOnPrice(promotions, 'STANDARD', 'de', 'monthly', basePrice, TODAY),
+                null,
+            );
         });
     }
 });

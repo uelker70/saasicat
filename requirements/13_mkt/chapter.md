@@ -230,9 +230,12 @@ _Tested by:_
 
 - `packages/core/tests/a-promotion-lowers-a-price-and-nothing-else.test.js`
     - applyPromo keeps a price between 0 and the price it is applied to
-        - what
+        - bounded: ${what}
         - what the result says it takes off is what it takes off
         - ${what} takes nothing off, so it is no promotion there
+    - the promotion a price carries
+        - is the active one for the key, with what it makes of the price
+        - is none for ${what}
 - `packages/core/tests/promotion-helpers.test.js`
     - pickActivePromo
         - highest priority wins on overlap

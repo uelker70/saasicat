@@ -206,3 +206,33 @@ function boundedPromo(
 function withinBounds(value: number, upper: number): number {
     return Math.min(Math.max(value, 0), Math.max(upper, 0));
 }
+
+/** A promotion on a price, and what it makes of that price. */
+export interface PromotionOnPrice {
+    promotion: PromotionRow;
+    result: PromotionResult;
+}
+
+/**
+ * The promotion a price carries: the one `pickActivePromo` selects for the key,
+ * language and rhythm, where `applyPromo` finds that it lowers the price at
+ * all — or `null`.
+ *
+ * One question, asked the same way by every place that shows or charges a
+ * promotion: the public catalogue, a checkout offer, and the operator's
+ * preview. A promotion that lowers nothing is no promotion there, so it carries
+ * no badge and takes nothing off.
+ */
+export function promotionOnPrice(
+    promotions: PromotionRow[],
+    targetKey: string,
+    locale: string,
+    cycle: 'monthly' | 'yearly',
+    basePrice: number | null,
+    today: Date = new Date(),
+    targetType: PromotionTargetType = 'PLAN',
+): PromotionOnPrice | null {
+    const promotion = pickActivePromo(promotions, targetKey, locale, cycle, today, targetType);
+    const result = applyPromo(promotion, basePrice);
+    return promotion && result ? { promotion, result } : null;
+}

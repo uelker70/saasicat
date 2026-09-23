@@ -28,7 +28,7 @@ import type {
     PromotionRepository,
     PromotionRow,
 } from '@saasicat/core';
-import { CONTRACT_ERROR_CODES, applyPromo, pickActivePromo } from '@saasicat/core';
+import { CONTRACT_ERROR_CODES, promotionOnPrice } from '@saasicat/core';
 
 import { resolveBundlePriceNet } from '../billing/bundle-price.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
@@ -391,17 +391,18 @@ function promotionFor(
     priceNet: number,
     asOf: Date,
 ): CheckoutOfferPromotionSnapshot | null {
-    const promotion = pickActivePromo(
+    const shown = promotionOnPrice(
         promotions,
         targetKey,
         input.locale,
         input.billingCycle,
+        priceNet,
         asOf,
         targetType,
     );
-    const applied = applyPromo(promotion, priceNet);
-    if (!promotion || !applied) return null;
-    const resolvedAmountNet = round2(Math.max(0, priceNet - applied.discounted));
+    if (!shown) return null;
+    const { promotion } = shown;
+    const resolvedAmountNet = round2(Math.max(0, priceNet - shown.result.discounted));
     if (resolvedAmountNet <= 0) return null;
     const texts = promotion.i18n?.[input.locale] ?? promotion.i18n?.[DEFAULT_LOCALE] ?? {};
     return {

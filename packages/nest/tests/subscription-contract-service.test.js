@@ -468,7 +468,7 @@ describe('SubscriptionContractService', () => {
 // as `net * (1 + vatRate)` and so states a fraction, while the catalogue states
 // per cent, and `taxRate` is one column. The assertion that catches a unit
 // error is the one that ties the rate to the tax — `priceNet + taxAmount ===
-// priceGross` cannot, because `recordLineItemMoney` makes it true whatever the
+// priceGross` cannot, because `recordContractLinesMoney` makes it true whatever the
 // rate says.
 
 // @requirement SC-PRIC-015 — An amount records the currency it was booked in
@@ -502,7 +502,7 @@ describe('the money facts a contract inherits from its offer', () => {
 
     test('and the rate it records explains the tax it records', async () => {
         // The check a unit error cannot pass. `priceNet + taxAmount ===
-        // priceGross` cannot: `recordLineItemMoney` makes that true whatever
+        // priceGross` cannot: `recordContractLinesMoney` makes that true whatever
         // the rate says, which is why the first version of this missed it.
         const contract = await conclude(consumedOffer());
         for (const line of contract.lineItems) {

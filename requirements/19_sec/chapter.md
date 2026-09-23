@@ -139,6 +139,7 @@ _Tested by:_
         - requires the feature list
         - holds the feature-key shape
         - holds the decimal shape, and lets null through
+        - holds a plan's own price in pricingOverrides to the same two fraction digits
         - holds the date shape, and lets null through
     - UpdateBundleVersionDraftDto
         - accepts an empty patch and the same shapes as create

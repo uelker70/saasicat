@@ -1621,7 +1621,9 @@ const priceSnapshot = {
 
 `recordLineItemMoney` is gone, and `PricedContractLineItem` carries no `priceGross`: a line is priced
 in net and the platform records the rest. The order you pass the lines in is the order the shares
-are taken in, so put the discount last, as the platform does.
+are taken in, so put the discount last, as the platform does. A line's `priceNet` is what the line
+costs over its billing period with its `quantity` already in it, not a unit price: the totals take
+the lines as they stand, so three seats at 10.00 are one line of 30.00 with `quantity: 3`.
 
 **`loadBookedBundles(tenantId, cycle)` on `ContractFreezeSourcePort` takes no `vatRate`**, and the
 lines it returns carry no `priceGross`. An adapter that still declares the third parameter stops compiling;

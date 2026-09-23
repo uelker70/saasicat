@@ -139,6 +139,40 @@ describe('CreateBundleVersionDraftDto', () => {
         );
     });
 
+    // @requirement SC-PRIC-050 — A contract's lines add up to its totals in net, gross and tax
+    test("holds a plan's own price in pricingOverrides to the same two fraction digits", () => {
+        // A contract states its lines in cents: two add-ons at 9.995 each come
+        // to 19.99 as a sum and 19.98 as lines, and the contract could never be
+        // concluded. Refused here, where the price is typed, rather than at a
+        // customer's checkout.
+        for (const [Dto, payload] of [
+            [CreateBundleVersionDraftDto, VALID_DRAFT],
+            [UpdateBundleVersionDraftDto, {}],
+        ]) {
+            assert.deepEqual(
+                refusedProperties(Dto, {
+                    ...payload,
+                    pricingOverrides: [{ planId: 'PRO', monthlyNet: '9.995' }],
+                }),
+                ['pricingOverrides'],
+            );
+            assert.deepEqual(
+                refusedProperties(Dto, {
+                    ...payload,
+                    pricingOverrides: [{ planId: 'PRO', yearlyNet: '99.999' }],
+                }),
+                ['pricingOverrides'],
+            );
+            assert.deepEqual(
+                refusedProperties(Dto, {
+                    ...payload,
+                    pricingOverrides: [{ planId: 'PRO', monthlyNet: '9.99', yearlyNet: null }],
+                }),
+                [],
+            );
+        }
+    });
+
     test('holds the date shape, and lets null through', () => {
         assert.deepEqual(
             refusedProperties(CreateBundleVersionDraftDto, {

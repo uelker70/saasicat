@@ -5416,6 +5416,9 @@ _Tested by:_
         - a ${field} a cent off its lines, either way, is refused, and nothing is stored
         - lines each converted on their own, under a total converted once, are refused
         - a replacement whose lines do not add up leaves the contract in force
+- `packages/nest/tests/bundle-dtos-validate.test.js`
+    - CreateBundleVersionDraftDto
+        - holds a plan's own price in pricingOverrides to the same two fraction digits
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - a yearly contract holding a monthly add-on
         - each rhythm pays its tax on its own net, so the gross is what the charges come to
@@ -7632,9 +7635,12 @@ _Tested by:_
 
 - `packages/core/tests/a-promotion-lowers-a-price-and-nothing-else.test.js`
     - applyPromo keeps a price between 0 and the price it is applied to
-        - what
+        - bounded: ${what}
         - what the result says it takes off is what it takes off
         - ${what} takes nothing off, so it is no promotion there
+    - the promotion a price carries
+        - is the active one for the key, with what it makes of the price
+        - is none for ${what}
 - `packages/core/tests/promotion-helpers.test.js`
     - pickActivePromo
         - highest priority wins on overlap
@@ -12870,6 +12876,7 @@ _Tested by:_
         - requires the feature list
         - holds the feature-key shape
         - holds the decimal shape, and lets null through
+        - holds a plan's own price in pricingOverrides to the same two fraction digits
         - holds the date shape, and lets null through
     - UpdateBundleVersionDraftDto
         - accepts an empty patch and the same shapes as create

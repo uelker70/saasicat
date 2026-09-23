@@ -444,6 +444,9 @@ _Tested by:_
         - a ${field} a cent off its lines, either way, is refused, and nothing is stored
         - lines each converted on their own, under a total converted once, are refused
         - a replacement whose lines do not add up leaves the contract in force
+- `packages/nest/tests/bundle-dtos-validate.test.js`
+    - CreateBundleVersionDraftDto
+        - holds a plan's own price in pricingOverrides to the same two fraction digits
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - a yearly contract holding a monthly add-on
         - each rhythm pays its tax on its own net, so the gross is what the charges come to
