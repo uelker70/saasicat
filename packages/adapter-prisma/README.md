@@ -202,11 +202,26 @@ override only the entitlement repository.
 `applyOnboardingSelection` capability only when
 `tenantSubscription.atomicOnboardingSelection: true`. The default is `false`,
 preserving the 0.6 sequential fallback. When enabled, the subscription update
-and optional promo callback share one Prisma transaction. With
-`tenantSubscription.synchronizePlanVersion: true`, immediate changes and
-onboarding also resolve the target PlanVersion and update `plan`,
-`planVersionId`, cycle and stale pending-version fields atomically. The default
-is `false`, preserving the 0.6 plan-only write until an app opts in.
+and optional promo callback share one Prisma transaction.
+
+Immediate changes and onboarding bind the subscription to the version they
+sell: they resolve the target plan's live PlanVersion and update `plan`,
+`planVersionId`, cycle and stale pending-version fields together. That is what
+the entitlements read and what a contract freeze records, and it is the
+default. It needs a schema that carries it — a `planVersionId` column on the
+subscription model, the plan-version model (`schema.delegates.entitlementPlanVersion`,
+`planVersion` unless mapped) and a published, live version for every plan a
+tenant can change to. The adapter resolves the plan-version model when it is
+constructed, so a schema without one stops the start rather than the first
+plan change; a subscription model without the column cannot be seen from the
+client, and the first plan change that tries to write it says which option to
+set.
+
+`tenantSubscription.synchronizePlanVersion: false` opts out and writes `plan`
+and cycle alone, for a schema whose `planVersionId` is kept some other way. The
+adapter then declares `bindsPlanVersion: false`, and a contract freeze refuses
+to start beside it — a contract records the version a subscription is bound
+to, and nothing would bind it.
 
 `tenantSubscription.delegate` selects the Prisma model delegate used for all
 subscription ORM operations, including the read that follows a row lock.

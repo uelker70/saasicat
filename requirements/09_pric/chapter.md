@@ -114,6 +114,10 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan the operator publishes after the service was built
+        - is found, ranked and priced by the plans as they stand now
+        - a changed price is the one the proration charges
+        - a retired plan is refused as not in the catalogue
     - a plan without a price for the rhythm asked for
         - is blocked, naming the plan and the rhythm, in words both languages can build
         - is the refusal the change routes enforce

@@ -265,6 +265,9 @@ _Tested by:_
         - does not roll onto a subscription whose term is over
         - while a cancellation still to come stops nothing
         - and an uncancelled subscription rolls as before
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - the plan line records the version the subscription is bound to
+        - a tenant on v1 who books an add-on after v2 is published keeps v1
 
 <!-- END proof -->
 

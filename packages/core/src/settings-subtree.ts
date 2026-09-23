@@ -39,7 +39,9 @@ export function planCatalogSettingsOf(catalog: PlanCatalog): PlanCatalogSettings
 }
 
 /** Everything in the catalogue that is configuration, as it was resolved. */
-export function settingsSubtreeOf(catalog: PlanCatalog): AppliedSettingsValues {
+export function settingsSubtreeOf(
+    catalog: PlanCatalog | PlanCatalogSettings,
+): AppliedSettingsValues {
     const settings: AppliedSettingsValues = {};
     for (const [key, value] of Object.entries(catalog)) {
         if (CATALOGUE_KEYS.has(key as keyof PlanCatalog)) continue;

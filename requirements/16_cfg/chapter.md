@@ -307,6 +307,7 @@ _Tested by:_
 - `packages/cli/tests/default-doctor-checks.test.js`
     - PlanCatalogDoctorCheck
         - error when no plans
+        - error when the catalogue cannot be read
         - ok with plans + details contain planIds
     - DiscoverySnapshotDoctorCheck
         - warning when snapshot empty

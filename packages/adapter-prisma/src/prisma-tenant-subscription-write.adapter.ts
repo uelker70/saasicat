@@ -52,12 +52,14 @@ interface TransactionalPrismaClient {
  * `TenantSubscriptionWritePort` against a configurable Prisma subscription
  * delegate.
  *
- * The 0.6 default remains deliberately conservative:
- * `tenantSubscription.synchronizePlanVersion` is false, so
- * `changePlanImmediate` writes the semantic `plan` and cycle exactly as
- * before. Opting into synchronization resolves the target plan through the
- * configured plan binding, selects its live/active PlanVersion, and writes
- * `plan` + `planVersionId` in one transaction.
+ * `changePlanImmediate` resolves the target plan through the configured plan
+ * binding, selects its live/active PlanVersion, and writes `plan` +
+ * `planVersionId` in one transaction: the subscription is bound to the version
+ * it was sold, which is what the entitlements and a frozen contract read.
+ * `tenantSubscription.synchronizePlanVersion: false` opts out and writes the
+ * semantic `plan` and cycle alone — for a schema whose `planVersionId` is kept
+ * some other way. `bindsPlanVersion` says which, so a contract freeze can
+ * refuse to start beside a write that does not bind.
  *
  * Pure persistence: trial carry-over (#17) and contract freeze (#18) are
  * resolved in the platform `changePlan` path and handed down as plain values —
@@ -71,6 +73,7 @@ interface TransactionalPrismaClient {
  */
 @Injectable()
 export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionWritePort {
+    readonly bindsPlanVersion: boolean;
     readonly applyOnboardingSelection?: (
         tenantId: string,
         input: ApplyOnboardingSelectionInput,
@@ -87,6 +90,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         options?: PrismaSchemaOptions,
     ) {
         this.schema = resolvePrismaSchemaOptions(options);
+        this.bindsPlanVersion = this.schema.tenantSubscription.synchronizePlanVersion;
         this.planBinding = createPrismaPlanBindingResolver(options?.planBinding);
         this.assertConfiguration();
         if (this.schema.tenantSubscription.atomicOnboardingSelection) {
@@ -167,10 +171,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         // and this takes the row only while that state still holds. One
         // statement, so a cancellation arriving in between loses the race
         // instead of being written over.
-        const claim = await subscription.updateMany({
-            where: { tenantId, canceledAt: input.expectedCanceledAt },
-            data,
-        });
+        const claim = await this.claimRow(client, tenantId, input.expectedCanceledAt, data);
         const current = await subscription.findUnique({ where: { tenantId } });
         if (!current) {
             throw new Error(`No subscription for tenant ${tenantId}.`);
@@ -289,10 +290,7 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
             // transaction, so a cancellation arriving mid-onboarding either
             // loses to it or takes the row before it and turns this into a
             // no-op the caller is told about.
-            const claim = await this.subscription(tx).updateMany({
-                where: { tenantId, canceledAt: input.expectedCanceledAt },
-                data,
-            });
+            const claim = await this.claimRow(tx, tenantId, input.expectedCanceledAt, data);
             const updated = await this.subscription(tx).findUnique({ where: { tenantId } });
             if (!updated) {
                 throw new Error(`No subscription for tenant ${tenantId}.`);
@@ -382,6 +380,36 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
         );
     }
 
+    /**
+     * The conditional claim on the tenant's row, shared by both plan-changing
+     * writes. Where it carries a plan version, a failure says so: a
+     * subscription model without a `planVersionId` column makes Prisma answer
+     * with an unknown argument that names neither the binding nor the way out.
+     * The original error stays the cause, and a claim without a version fails
+     * as it always did.
+     */
+    private async claimRow(
+        client: unknown,
+        tenantId: string,
+        expectedCanceledAt: Date | null | undefined,
+        data: Record<string, unknown>,
+    ): Promise<{ count: number }> {
+        try {
+            return await this.subscription(client).updateMany({
+                where: { tenantId, canceledAt: expectedCanceledAt },
+                data,
+            });
+        } catch (error) {
+            if (!('planVersionId' in data)) throw error;
+            throw new Error(
+                `The plan change for tenant ${tenantId} could not be written with its plan version ` +
+                    'bound. A plan change binds the version by default; if the subscription model ' +
+                    'has no `planVersionId` column, set `tenantSubscription.synchronizePlanVersion: false`.',
+                { cause: error },
+            );
+        }
+    }
+
     private async findTargetPlanVersionId(
         client: unknown,
         storagePlanId: string,
@@ -433,6 +461,19 @@ export class PrismaTenantSubscriptionWriteAdapter implements TenantSubscriptionW
 
     private assertConfiguration(): void {
         if (!this.schema.tenantSubscription.synchronizePlanVersion) return;
+        // Binding reads the plan-version model on every plan change. Resolved
+        // here, a schema without one stops the start and names it, rather than
+        // failing the first upgrade with an error thrown from inside the write.
+        try {
+            this.planVersions(this.prisma);
+        } catch (error) {
+            throw new Error(
+                `${error instanceof Error ? error.message : String(error)} A plan change binds ` +
+                    'the plan version by default; a schema without a plan-version model sets ' +
+                    '`tenantSubscription.synchronizePlanVersion: false`.',
+                { cause: error },
+            );
+        }
         const entitlementFields = this.schema.planVersionFields.entitlement;
         if (
             this.schema.tenantSubscription.activeVersionSelection === 'validity-window' &&

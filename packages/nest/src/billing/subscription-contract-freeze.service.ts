@@ -1,17 +1,23 @@
-import { Inject, Injectable, UnprocessableEntityException } from '@nestjs/common';
-import type { BillingCycle, CreateSubscriptionContractData } from '@saasicat/core';
+import { Inject, Injectable, Optional, UnprocessableEntityException } from '@nestjs/common';
+import type {
+    BillingCycle,
+    CreateSubscriptionContractData,
+    TenantSubscriptionWritePort,
+} from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
-import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
+import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
+import type { PlanCatalogSource } from './plan-catalog-source.js';
+import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
+import { SUBSCRIPTION_WRITE_PORT_TOKEN } from './tenant-billing.tokens.js';
 import {
     findPlan,
-    getPlanPriceNet,
     isPlanNotSoldInCycle,
+    listPriceNet,
     planNotSoldInCycle,
 } from './plan-helpers.js';
-import type { PlanCatalog } from '@saasicat/core';
 import {
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
     type ContractFreezePort,
@@ -35,21 +41,37 @@ import {
 // no longer touch the running plan), and the change is documented audit-safely
 // via the frozen line items + prices.
 //
-// Generic: uses EntitlementService + SubscriptionContractService + PlanCatalog.
+// Generic: uses EntitlementService + SubscriptionContractService + PlanCatalogSource.
 // Consumer-specific is only the bundle/version data access
 // (`ContractFreezeSourcePort`).
 
 @Injectable()
 export class SubscriptionContractFreezeService implements ContractFreezePort {
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource,
         // tsup build has no emitDecoratorMetadata — class type args explicitly @Inject.
         @Inject(ENTITLEMENT_SERVICE_TOKEN) private readonly entitlements: EntitlementService,
         @Inject(SubscriptionContractService)
         private readonly contracts: SubscriptionContractService,
         @Inject(CONTRACT_FREEZE_SOURCE_PORT_TOKEN)
         private readonly source: ContractFreezeSourcePort,
-    ) {}
+        @Optional()
+        @Inject(SUBSCRIPTION_WRITE_PORT_TOKEN)
+        writes: TenantSubscriptionWritePort | null = null,
+    ) {
+        // Said once, at start. A write that does not bind is wrong for every
+        // tenant at once, and each freeze would refuse on its own — caught and
+        // logged by its caller, while the tenant who paid for an upgrade stays
+        // under the contract they left.
+        if (writes?.bindsPlanVersion === false) {
+            throw new Error(
+                'The contract freeze records the plan version a subscription is bound to, and ' +
+                    "this installation's subscription write does not bind it on a plan change. " +
+                    'With @saasicat/adapter-prisma, leave `tenantSubscription.synchronizePlanVersion` ' +
+                    'at its default of true — or do not configure `contractFreeze`.',
+            );
+        }
+    }
 
     assertPartyFor(tenantId: string): Promise<void> {
         return this.contracts.assertPartyFor(tenantId);
@@ -82,37 +104,58 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         endsAt: Date | null = null,
     ): Promise<void> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
-        const vatRate = this.catalog.vatRate;
+        // The catalogue gives the rate, the currency and the name the plan is
+        // sold under, and it is the reading the entitlement snapshot below is
+        // filtered against.
+        const catalog = await this.catalogs.current();
+        const vatRate = catalog.vatRate;
         // Before the previous contract is closed below: the new one records this
         // rate, this window and a plan sold in this cycle, and a refusal after
         // the termination would leave no contract.
         assertTaxRatePercent('catalog.vatRate', vatRate);
         assertContractWindow(effectiveFrom, endsAt);
-        const planDef = findPlan(this.catalog, newPlan);
-        if (planDef && isPlanNotSoldInCycle(planDef, billingCycle)) {
+        // What the plan line records — id, price, features, quotas — is the
+        // version the subscription is bound to, from one row. After a plan
+        // change the write has bound the version it sold; on a re-freeze after
+        // an add-on changed it is the version the tenant has had all along,
+        // even with a successor on sale (`SC-SUB-012`). The version on sale now
+        // would charge a customer who bought v1 the price of v2.
+        const bound = await this.source.findBoundPlanVersion(tenantId);
+        if (!bound || bound.planId !== newPlan) {
+            throw new Error(
+                `The contract for tenant ${tenantId} was asked to record plan '${newPlan}', but ` +
+                    `the subscription is bound to ${bound ? `'${bound.planId}' (version ${bound.id})` : 'no plan version'}. ` +
+                    'Bind the plan version on the subscription before the contract is frozen.',
+            );
+        }
+        const stem = findPlan(catalog, newPlan);
+        const planDef = planDefFromVersion(
+            { id: newPlan, name: stem?.name ?? newPlan, tagline: stem?.tagline },
+            bound,
+        );
+        if (isPlanNotSoldInCycle(planDef, billingCycle)) {
             throw new UnprocessableEntityException(planNotSoldInCycle(planDef, billingCycle));
         }
         await this.contracts.assertPartyFor(tenantId);
 
         const bundles = await this.source.loadBookedBundles(tenantId, cycle, vatRate);
-        const livePlanVersionId = await this.source.findLivePlanVersionId(newPlan);
 
-        const planPriceNet = getPlanPriceNet(this.catalog, newPlan, billingCycle) ?? 0;
+        const planPriceNet = listPriceNet(planDef, billingCycle) ?? 0;
 
         const planLineItem: PricedContractLineItem = {
             kind: 'plan',
             sourceKey: newPlan,
-            sourceVersionId: livePlanVersionId,
-            titleSnapshot: planDef?.name ?? newPlan,
-            descriptionSnapshot: planDef?.tagline ?? null,
+            sourceVersionId: bound.id,
+            titleSnapshot: planDef.name ?? newPlan,
+            descriptionSnapshot: planDef.tagline ?? null,
             quantity: 1,
             unit: null,
             priceNet: planPriceNet,
             priceGross: grossFromNet(planPriceNet, vatRate),
             billingCycle: cycle,
             minimumTermUntil: null,
-            featuresSnapshot: planDef?.features ?? [],
-            quotaEffectsSnapshot: planDef?.quotas ?? {},
+            featuresSnapshot: planDef.features,
+            quotaEffectsSnapshot: planDef.quotas,
             metadata: null,
         };
 
@@ -120,7 +163,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // the rate are the installation's, so the place that knows them writes
         // them once rather than each source carrying its own copy.
         const lineItems = [planLineItem, ...bundles.lineItems].map((line) =>
-            recordLineItemMoney(line, this.catalog.currency, vatRate),
+            recordLineItemMoney(line, catalog.currency, vatRate),
         );
         // Each line keeps the rhythm it is billed in; the total states one
         // period of the contract's own rhythm, so a line billed more often than
@@ -151,7 +194,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
 
         // Effective entitlements (plan + bundles + add-ons) as a snapshot — exactly
         // what the tenant would get without the freeze. That makes the snapshot correct.
-        const limits = await this.entitlements.computeLimits(tenantId, effectiveFrom);
+        const limits = await this.entitlements.computeLimits(tenantId, effectiveFrom, catalog);
 
         const data: CreateSubscriptionContractData = {
             tenantId,
@@ -162,7 +205,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             // after it ends on the same date, or the repair lasts exactly until
             // the next plan change.
             effectiveUntil: endsAt,
-            originalPlanVersionId: livePlanVersionId,
+            originalPlanVersionId: bound.id,
             originalBundleVersionIds: bundles.bundleVersionIds,
             entitlementSnapshot: {
                 plan: limits.plan,
@@ -170,7 +213,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 features: [...limits.features],
             },
             priceSnapshot: {
-                currency: this.catalog.currency,
+                currency: catalog.currency,
                 billingCycle: cycle,
                 subtotalNet,
                 discountNet: 0,

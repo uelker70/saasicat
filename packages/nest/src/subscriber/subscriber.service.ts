@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import type {
     NewSubscriberDetails,
-    PlanCatalog,
+    PlanCatalogSettings,
     SubscriberContactChange,
     SubscriberCorrectionRecord,
     SubscriberIdentityCorrection,
@@ -18,7 +18,7 @@ import type {
 } from '@saasicat/core';
 import { SUBSCRIBER_ERROR_CODES, contractPartiesOf } from '@saasicat/core';
 
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
 import {
     settleContactChange,
@@ -40,8 +40,8 @@ export class SubscriberService {
     constructor(
         @Inject(SUBSCRIBER_REPOSITORY_TOKEN)
         private readonly repo: SubscriberRepository,
-        @Inject(PLAN_CATALOG_TOKEN)
-        private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN)
+        private readonly settings: PlanCatalogSettings,
     ) {}
 
     /**
@@ -62,7 +62,7 @@ export class SubscriberService {
             {
                 ...settled,
                 tenantId,
-                customerNumberPrefix: this.catalog.subscribers?.customerNumberPrefix ?? '',
+                customerNumberPrefix: this.settings.subscribers?.customerNumberPrefix ?? '',
             },
             tx,
         );
@@ -96,7 +96,7 @@ export class SubscriberService {
         tx?: TransactionContext,
     ): Promise<SubscriptionContractParties> {
         const subscriber = await this.requireForTenant(tenantId, tx);
-        return contractPartiesOf(subscriber, this.catalog.issuer);
+        return contractPartiesOf(subscriber, this.settings.issuer);
     }
 
     async getById(subscriberId: string): Promise<SubscriberRecord> {

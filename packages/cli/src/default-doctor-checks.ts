@@ -6,8 +6,8 @@
 //
 // Five platform checks:
 //
-//   1. **`platform.plan-catalog`** — `PLAN_CATALOG_TOKEN` is available in DI
-//      and contains at least one plan.
+//   1. **`platform.plan-catalog`** — `PLAN_CATALOG_SOURCE_TOKEN` is available in
+//      DI, reads, and the catalogue it reads contains at least one plan.
 //   2. **`platform.discovery-snapshot`** — `DISCOVERY_SNAPSHOT_TOKEN` is deliverable
 //      and contains at least one capability.
 //   3. **`platform.user-port`** — `UserPort.findByEmail` responds for a
@@ -24,8 +24,9 @@ import {
     AdminManifestService,
     DISCOVERY_SNAPSHOT_TOKEN,
     IssuerIdentityInspector,
-    PLAN_CATALOG_TOKEN,
+    PLAN_CATALOG_SOURCE_TOKEN,
     type DiscoverySnapshot,
+    type PlanCatalogSource,
 } from '@saasicat/nest';
 import type { PlanCatalog, UserPort } from '@saasicat/core';
 import type { DoctorCheck, DoctorCheckResult } from './doctor-flow.js';
@@ -35,10 +36,19 @@ import { USER_PORT_TOKEN } from './cli.tokens.js';
 export class PlanCatalogDoctorCheck implements DoctorCheck {
     readonly id = 'platform.plan-catalog';
     readonly label = 'Plan catalog in DI';
-    constructor(@Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog) {}
+    constructor(@Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource) {}
 
     async run(): Promise<DoctorCheckResult> {
-        const plans = this.catalog?.plans ?? [];
+        let catalog: PlanCatalog;
+        try {
+            catalog = await this.catalogs.current();
+        } catch (err) {
+            return {
+                severity: 'error',
+                message: `The plan catalog cannot be read: ${err instanceof Error ? err.message : String(err)}`,
+            };
+        }
+        const plans = catalog.plans ?? [];
         if (plans.length === 0) {
             return {
                 severity: 'error',
@@ -48,9 +58,9 @@ export class PlanCatalogDoctorCheck implements DoctorCheck {
         }
         return {
             severity: 'ok',
-            message: `${plans.length} plan(s), ${this.catalog.features?.length ?? 0} feature(s) loaded.`,
+            message: `${plans.length} plan(s), ${catalog.features?.length ?? 0} feature(s) loaded.`,
             details: {
-                app: this.catalog.app.name,
+                app: catalog.app.name,
                 planIds: plans.map((p) => p.id),
             },
         };
@@ -106,7 +116,7 @@ export class AdminManifestDoctorCheck implements DoctorCheck {
 
     async run(): Promise<DoctorCheckResult> {
         try {
-            const m = this.manifest.getManifest();
+            const m = await this.manifest.getManifest();
             const pageCount = Object.keys(m.navigation?.standardPages ?? {}).length;
             return {
                 severity: 'ok',

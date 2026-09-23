@@ -547,6 +547,67 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(changed.plan, 'PRO');
             assert.equal(changed.planVersionId, targetVersion.planVersionId);
             assert.equal(changed.planVersion.planId, 'PRO');
+            // A contract freeze trusts this declaration at start, so it has to
+            // say what the write just did.
+            assert.notEqual(
+                adapter.tenantSubscriptionWrite.bindsPlanVersion,
+                false,
+                'the write binds the version it sells but declares that it does not',
+            );
+        });
+
+        test('onboarding selection binds the version it sells, as the write declares', async (t) => {
+            const { seed, adapter } = harness;
+            const writer = adapter.tenantSubscriptionWrite;
+            if (!writer?.applyOnboardingSelection) {
+                missing(t, 'atomicOnboarding');
+                return;
+            }
+            const oldVersion = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            const targetVersion = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['PRO'],
+                published: true,
+            });
+            await seed.createSubscription({
+                tenantId: 'tenant-onboarding-binds',
+                plan: 'STARTER',
+                planVersionId: oldVersion.planVersionId,
+            });
+
+            await writer.applyOnboardingSelection(
+                'tenant-onboarding-binds',
+                {
+                    planId: 'PRO',
+                    cycle: 'MONTHLY',
+                    periodStart: null,
+                    periodEnd: null,
+                    nextStatus: null,
+                    expectedCanceledAt: null,
+                },
+                null,
+            );
+
+            const changed =
+                await adapter.subscriptionRepository.findByTenantId('tenant-onboarding-binds');
+            assert.ok(changed, 'changed subscription expected');
+            assert.equal(changed.plan, 'PRO');
+            assert.equal(changed.planVersionId, targetVersion.planVersionId);
+            // The contract freeze runs after onboarding as it does after an
+            // immediate change, and trusts the same declaration for both.
+            assert.notEqual(
+                writer.bindsPlanVersion,
+                false,
+                'the onboarding write binds the version it sells but declares that it does not',
+            );
         });
 
         test('onboarding selection rolls plan binding and promo write back together', async (t) => {

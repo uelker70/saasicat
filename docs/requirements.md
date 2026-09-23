@@ -109,7 +109,7 @@ properties it has while doing it.
 | --- | -------------------------------------------- | ------------ | ------- |
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
-| 3   | Plans and their versions                     | `SC-PLAN-…`  | 25      |
+| 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 17      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 487 entries: 🟢 415 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 488 entries: 🟢 416 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -210,7 +210,7 @@ Of 487 entries: 🟢 415 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 487 requirements. Do not edit by hand:
+Generated from `requirements/` — 488 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -1790,7 +1790,7 @@ _Tested by:_
 
 - `packages/adapter-prisma/tests/prisma-plan-binding.test.js`
     - Prisma plan binding options
-        - the omitted schema preserves every 0.6 plan default
+        - the omitted schema resolves to the defaults, binding the plan version on a change
         - normalized mode resolves both directions
         - a read finds a retired plan and finds nothing for a key no plan has
         - reading the versions of a plan no row has answers empty, in both repositories
@@ -2117,6 +2117,70 @@ _Tested by:_
         - discardDraft removes it
         - terminateVersion replaces the version with what came back
         - its errors carry the API name they came from
+
+<!-- END proof -->
+
+### SC-PLAN-026 — A version is sold from the moment it is published, not from the next start
+
+🟢 💰 A plan the operator publishes while the application runs is priced, checked and recorded at
+once: a promo code for it, a plan change and the contract it freezes, the public catalogue and the
+plan editor read the plans as they stand when they are asked, not as they stood when the process
+started. The same holds for a changed price and a retired plan. Otherwise a new plan cannot be sold
+with a code until the next deploy, and a contract names the new version while recording the old
+one's price.
+
+The one answer allowed to lag is a tenant's entitlements, which are cached for at most a minute: a
+feature marked as planned only stops being granted within that minute rather than at once. Nothing
+that is priced or recorded is taken from that cache: a contract records the version its subscription
+is bound to — the one a plan change bound, or the one a tenant has kept while a successor went on
+sale (`SC-SUB-012`) — and computes its entitlements fresh.
+
+_Source:_ #289
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-published-after-boot-is-read-at-once.test.js`
+    - the plans a running application reads
+        - a plan published after the start is there on the next read
+        - a price changed after the start is the price read
+        - a plan retired after the start is gone from the next read
+        - a sink that cannot read stops the start, rather than the first customer
+    - the two halves of the catalogue
+        - the settings carry no plans and no features, so nobody reads the start-time ones
+        - a catalogue given at start answers both, with the settings split off
+        - the key that used to carry both is not provided, so a consumer on it fails at start
+    - what reads the plans on behalf of somebody
+        - the manifest the plan editor reads lists a plan published after the start
+        - a tenant on a plan published after the start gets its features
+    - the order the plans are read in
+        - is the same on every read, whatever order the database returns a tie in
+- `packages/nest/tests/entitlement-service.test.js`
+    - EntitlementService — a feature marked planned only after the service was built
+        - is granted at most a minute longer, the time a cached answer may be old
+        - a caller that read the catalogue gets the answer computed from that reading
+        - a reading handed in does not become the answer for everybody else
+- `packages/nest/tests/plan-change-preview.test.js`
+    - a plan the operator publishes after the service was built
+        - is found, ranked and priced by the plans as they stand now
+        - a changed price is the one the proration charges
+        - a retired plan is refused as not in the catalogue
+- `packages/nest/tests/promo-service.test.js`
+    - a plan the operator publishes after the service was built
+        - takes a code at once, priced at what was published
+        - a changed price decides the minimum amount, not the price the service started with
+        - an absolute code is held against the lowest price as it stands
+        - a retired plan takes no code any more
+        - redeeming checks against the published plans too
+        - a code refused before any price matters costs no read of the plans
+        - one preview reads the plans once, so its checks and its price see the same ones
+- `packages/nest/tests/public-catalog-controller.test.js`
+    - a plan published after the controller was built is listed at once, and a retired one is gone
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a plan the operator publishes after the service was built
+        - is recorded under the name it is sold under, at the price it was bound at
+        - its entitlement snapshot is filtered against the same reading
 
 <!-- END proof -->
 
@@ -3610,6 +3674,9 @@ _Tested by:_
         - does not roll onto a subscription whose term is over
         - while a cancellation still to come stops nothing
         - and an uncancelled subscription rolls as before
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - the plan line records the version the subscription is bound to
+        - a tenant on v1 who books an add-on after v2 is published keeps v1
 
 <!-- END proof -->
 
@@ -3995,6 +4062,10 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan the operator publishes after the service was built
+        - is found, ranked and priced by the plans as they stand now
+        - a changed price is the one the proration charges
+        - a retired plan is refused as not in the catalogue
     - a plan without a price for the rhythm asked for
         - is blocked, naming the plan and the rhythm, in words both languages can build
         - is the refusal the change routes enforce
@@ -4053,6 +4124,10 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan the operator publishes after the service was built
+        - is found, ranked and priced by the plans as they stand now
+        - a changed price is the one the proration charges
+        - a retired plan is refused as not in the catalogue
     - a plan without a price for the rhythm asked for
         - is blocked, naming the plan and the rhythm, in words both languages can build
         - is the refusal the change routes enforce
@@ -5011,6 +5086,10 @@ _Tested by:_
     - preview NOOP when plan and cycle are identical
     - preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan
     - limitsCheck renders the union of quota keys from limits, target plan and usage
+    - a plan the operator publishes after the service was built
+        - is found, ranked and priced by the plans as they stand now
+        - a changed price is the one the proration charges
+        - a retired plan is refused as not in the catalogue
     - a plan without a price for the rhythm asked for
         - is blocked, naming the plan and the rhythm, in words both languages can build
         - is the refusal the change routes enforce
@@ -5930,7 +6009,9 @@ _Tested by:_
 ### SC-ENTL-003 — A feature declared as not yet rolled out is never granted
 
 🟢 Wherever it comes from — a plan, an add-on, or a negotiated arrangement. It can be advertised in
-the catalogue and still not be handed over.
+the catalogue and still not be handed over. A tenant's entitlements are answered from a cache up to
+a minute old (`SC-PLAN-026`), so a feature marked as planned only stops being granted within that
+minute.
 
 _Source:_ release 1.0.0-rc.6
 
@@ -5950,6 +6031,10 @@ _Tested by:_
         - a successor that is built is still granted through the same chain
         - a contract keeps everything the catalog does say is built
         - a feature the catalog has never heard of is left alone
+    - EntitlementService — a feature marked planned only after the service was built
+        - is granted at most a minute longer, the time a cached answer may be old
+        - a caller that read the catalogue gets the answer computed from that reading
+        - a reading handed in does not become the answer for everybody else
 
 <!-- END proof -->
 
@@ -7256,6 +7341,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan published after the controller was built is listed at once, and a retired one is gone
     - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
@@ -7531,6 +7617,7 @@ _Tested by:_
 
 - `packages/nest/tests/public-catalog-controller.test.js`
     - listPlans returns only marketed plans in the generic format
+    - a plan published after the controller was built is listed at once, and a retired one is gone
     - a plan sold by negotiation is left out even when a figure is on file
     - listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo
     - listFeatureRegistry overlays the DB icon over the static registry icon (#13)
@@ -8303,6 +8390,10 @@ _Tested by:_
         - wrong Capability pattern → error
         - SCREAMING_SNAKE_CASE actionKey now violates domain.action → error
         - formatReport shows severity icons + paths
+    - the manifest commands print what the port answers
+        - dump prints the manifest itself
+        - hash prints the hash
+        - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
 - `packages/nest/tests/tenant-manifest.test.js`
@@ -10666,6 +10757,7 @@ _Tested by:_
 - `packages/cli/tests/default-doctor-checks.test.js`
     - PlanCatalogDoctorCheck
         - error when no plans
+        - error when the catalogue cannot be read
         - ok with plans + details contain planIds
     - DiscoverySnapshotDoctorCheck
         - warning when snapshot empty

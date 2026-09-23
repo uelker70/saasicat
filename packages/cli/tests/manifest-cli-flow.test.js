@@ -2,7 +2,13 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_MANIFEST_CHECKS, ManifestCliFlow } from '../dist/index.js';
+import {
+    DEFAULT_MANIFEST_CHECKS,
+    ManifestCliFlow,
+    ManifestDumpCommand,
+    ManifestHashCommand,
+    ManifestValidateCommand,
+} from '../dist/index.js';
 
 function buildManifest(overrides = {}) {
     return {
@@ -80,52 +86,52 @@ function buildManifest(overrides = {}) {
 }
 
 function buildFlow(manifest) {
-    const port = { getManifest: () => manifest };
+    const port = { getManifest: async () => manifest };
     return new ManifestCliFlow(port, DEFAULT_MANIFEST_CHECKS);
 }
 
 describe('ManifestCliFlow.dump / hash / validate', () => {
-    test('dump returns the manifest 1:1', () => {
+    test('dump returns the manifest 1:1', async () => {
         const m = buildManifest();
         const flow = buildFlow(m);
-        assert.equal(flow.dump(), m);
+        assert.equal(await flow.dump(), m);
     });
 
-    test('hash returns manifestHash', () => {
+    test('hash returns manifestHash', async () => {
         const flow = buildFlow(buildManifest());
-        assert.equal(flow.hash(), 'sha256-abc123_def-ghi');
+        assert.equal(await flow.hash(), 'sha256-abc123_def-ghi');
     });
 
-    test('hash throws when hash is missing', () => {
+    test('hash throws when hash is missing', async () => {
         const m = buildManifest({
             build: { platformPackageVersion: '0.1.0', appVersion: '1.0.0', manifestHash: '' },
         });
         const flow = buildFlow(m);
-        assert.throws(() => flow.hash(), /manifestHash is missing/);
+        await assert.rejects(() => flow.hash(), /manifestHash is missing/);
     });
 
-    test('validate ok for a clean manifest', () => {
+    test('validate ok for a clean manifest', async () => {
         const flow = buildFlow(buildManifest());
-        assert.deepEqual(flow.validate(), { ok: true });
+        assert.deepEqual(await flow.validate(), { ok: true });
     });
 
-    test('validate rejects wrong schemaVersion', () => {
+    test('validate rejects wrong schemaVersion', async () => {
         const flow = buildFlow(buildManifest({ schemaVersion: 2 }));
-        const r = flow.validate();
+        const r = await flow.validate();
         assert.equal(r.ok, false);
         assert.match(r.reason, /schemaVersion/);
     });
 });
 
 describe('ManifestCliFlow.diff', () => {
-    test('null for identical hash', () => {
+    test('null for identical hash', async () => {
         const m = buildManifest();
         const flow = buildFlow(m);
         const expected = buildManifest();
-        assert.equal(flow.diff(expected), null);
+        assert.equal(await flow.diff(expected), null);
     });
 
-    test('returns added/removed componentKeys', () => {
+    test('returns added/removed componentKeys', async () => {
         const m = buildManifest();
         const flow = buildFlow(m);
         const expected = buildManifest({
@@ -142,7 +148,7 @@ describe('ManifestCliFlow.diff', () => {
                 ],
             },
         });
-        const d = flow.diff(expected);
+        const d = await flow.diff(expected);
         assert.notEqual(d, null);
         assert.deepEqual(d.componentKeysAdded, ['demoapp-datev']);
         assert.deepEqual(d.componentKeysRemoved, ['demoapp-legacy']);
@@ -238,5 +244,43 @@ describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
         assert.match(out, /✗ {2}B/);
         assert.match(out, /· x/);
         assert.match(out, /· y/);
+    });
+});
+
+// The port answers asynchronously, because the manifest reads the plan
+// catalogue on every call. A command that printed without waiting would write
+// `{}` for the manifest and exit 0 — nothing else would say so.
+describe('the manifest commands print what the port answers', () => {
+    const ctx = { resolveIdentity: () => 'root@example.com', ensureSuperAdmin: async () => {} };
+
+    async function printed(command) {
+        const chunks = [];
+        const write = process.stdout.write;
+        process.stdout.write = (chunk) => {
+            chunks.push(String(chunk));
+            return true;
+        };
+        try {
+            await command.run([], {});
+        } finally {
+            process.stdout.write = write;
+        }
+        return chunks.join('');
+    }
+
+    test('dump prints the manifest itself', async () => {
+        const manifest = buildManifest();
+        const out = await printed(new ManifestDumpCommand(ctx, buildFlow(manifest)));
+        assert.deepEqual(JSON.parse(out), manifest);
+    });
+
+    test('hash prints the hash', async () => {
+        const out = await printed(new ManifestHashCommand(ctx, buildFlow(buildManifest())));
+        assert.equal(out, 'sha256-abc123_def-ghi\n');
+    });
+
+    test('validate reads the manifest before it judges it', async () => {
+        const out = await printed(new ManifestValidateCommand(ctx, buildFlow(buildManifest())));
+        assert.match(out, /Manifest is valid/);
     });
 });

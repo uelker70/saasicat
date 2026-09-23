@@ -41,7 +41,7 @@ import {
     type IssuerIdentityChange,
     type LegalIdentity,
     type LegalIdentityField,
-    type PlanCatalog,
+    type PlanCatalogSettings,
     type PlanCatalogIssuer,
     type RlsBypassPort,
     type RunningContractIssuer,
@@ -50,7 +50,7 @@ import {
 } from '@saasicat/core';
 
 import { RLS_BYPASS_PORT_TOKEN } from '../admin/admin.tokens.js';
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from '../settings/settings.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 
@@ -126,7 +126,7 @@ export class IssuerIdentityInspector {
     private verdict: Promise<IssuerIdentityVerdict> | null = null;
 
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN) private readonly fileSettings: PlanCatalogSettings,
         @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
         @Optional()
         @Inject(APPLIED_SETTINGS_PORT_TOKEN)
@@ -175,7 +175,7 @@ export class IssuerIdentityInspector {
         if (!recorded.read) return { kind: 'not-compared', why: recorded.why };
         const change = classifyIssuerChange(
             recordedIssuerIdentity(recorded.settings),
-            this.catalog.issuer,
+            this.fileSettings.issuer,
         );
         if (change.kind !== 'undeclared') return { kind: 'settled', change };
         const running = await this.readRunning();
@@ -211,7 +211,7 @@ export class IssuerIdentityInspector {
             return { read: true, settings: record?.settings ?? null };
         } catch (error) {
             const why = `the applied settings could not be read: ${messageOf(error)}`;
-            if (this.catalog.issuer) {
+            if (this.fileSettings.issuer) {
                 throw new Error(
                     `The issuer named in ${this.source} could not be compared with the one this ` +
                         `installation recorded, because ${why}`,

@@ -48,9 +48,13 @@ function fakePrisma({
         { id: 'plan-starter', planKey: 'STARTER' },
         { id: 'plan-pro', planKey: 'PRO' },
     ],
+    // Keyed by stored plan id in normalized mode, by plan key in the default
+    // mode — a plan change binds a version in either.
     planVersions = [
         { id: 'version-starter', planId: 'plan-starter' },
         { id: 'version-pro', planId: 'plan-pro' },
+        { id: 'version-starter-by-key', planId: 'STARTER' },
+        { id: 'version-pro-by-key', planId: 'PRO' },
     ],
     subscriptionDelegate = 'subscription',
     planVersionDelegate = 'planVersion',
@@ -137,11 +141,91 @@ function fakePrisma({
 }
 
 describe('PrismaTenantSubscriptionWriteAdapter', () => {
-    test('the no-options default preserves the 0.6 plan-only write', async () => {
+    test('by default a plan change binds the version it sells, and says so', async () => {
         const prisma = fakePrisma();
         const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma);
 
+        assert.equal(adapter.bindsPlanVersion, true);
         assert.equal(adapter.applyOnboardingSelection, undefined);
+        await adapter.changePlanImmediate('tenant-1', {
+            planId: 'PRO',
+            cycle: 'MONTHLY',
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+        });
+
+        assert.equal(planWrite(prisma).plan, 'PRO');
+        assert.equal(planWrite(prisma).planVersionId, 'version-pro-by-key');
+    });
+
+    test('a schema without the plan-version model stops at construction, not at the first change', () => {
+        const prisma = fakePrisma();
+        delete prisma.planVersion;
+
+        assert.throws(
+            () => new PrismaTenantSubscriptionWriteAdapter(prisma),
+            /no 'planVersion' delegate.*synchronizePlanVersion: false/s,
+        );
+        const optedOut = new PrismaTenantSubscriptionWriteAdapter(prisma, {
+            tenantSubscription: { synchronizePlanVersion: false },
+        });
+        assert.equal(optedOut.bindsPlanVersion, false);
+    });
+
+    test('a schema without the planVersionId column is told which option, not only what Prisma said', async () => {
+        // What Prisma answers for a column the model does not have.
+        const withoutColumn = () => {
+            const prisma = fakePrisma();
+            const updateMany = prisma.subscription.updateMany;
+            prisma.subscription.updateMany = async (args) => {
+                if ('planVersionId' in args.data) {
+                    throw new Error(
+                        'Unknown argument `planVersionId`. Available options are marked with ?.',
+                    );
+                }
+                return updateMany(args);
+            };
+            return prisma;
+        };
+        const input = {
+            planId: 'PRO',
+            cycle: 'MONTHLY',
+            periodStart: null,
+            periodEnd: null,
+            nextStatus: null,
+            expectedCanceledAt: null,
+        };
+        const namesTheOption = (error) => {
+            assert.match(error.message, /synchronizePlanVersion: false/);
+            assert.match(error.cause?.message ?? '', /Unknown argument `planVersionId`/);
+            return true;
+        };
+
+        await assert.rejects(
+            () =>
+                new PrismaTenantSubscriptionWriteAdapter(withoutColumn()).changePlanImmediate(
+                    'tenant-1',
+                    input,
+                ),
+            namesTheOption,
+        );
+        const atomic = new PrismaTenantSubscriptionWriteAdapter(withoutColumn(), {
+            tenantSubscription: { atomicOnboardingSelection: true },
+        });
+        await assert.rejects(
+            () => atomic.applyOnboardingSelection('tenant-1', input, null),
+            namesTheOption,
+        );
+    });
+
+    test('opting out writes the plan alone, and says it does not bind', async () => {
+        const prisma = fakePrisma();
+        const adapter = new PrismaTenantSubscriptionWriteAdapter(prisma, {
+            tenantSubscription: { synchronizePlanVersion: false },
+        });
+
+        assert.equal(adapter.bindsPlanVersion, false);
         await adapter.changePlanImmediate('tenant-1', {
             planId: 'PRO',
             cycle: 'MONTHLY',

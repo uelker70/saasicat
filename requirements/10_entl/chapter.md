@@ -77,7 +77,9 @@ _Tested by:_
 ### SC-ENTL-003 — A feature declared as not yet rolled out is never granted
 
 🟢 Wherever it comes from — a plan, an add-on, or a negotiated arrangement. It can be advertised in
-the catalogue and still not be handed over.
+the catalogue and still not be handed over. A tenant's entitlements are answered from a cache up to
+a minute old (`SC-PLAN-026`), so a feature marked as planned only stops being granted within that
+minute.
 
 _Source:_ release 1.0.0-rc.6
 
@@ -97,6 +99,10 @@ _Tested by:_
         - a successor that is built is still granted through the same chain
         - a contract keeps everything the catalog does say is built
         - a feature the catalog has never heard of is left alone
+    - EntitlementService — a feature marked planned only after the service was built
+        - is granted at most a minute longer, the time a cached answer may be old
+        - a caller that read the catalogue gets the answer computed from that reading
+        - a reading handed in does not become the answer for everybody else
 
 <!-- END proof -->
 

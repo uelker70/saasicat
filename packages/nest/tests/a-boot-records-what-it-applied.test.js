@@ -339,7 +339,7 @@ describe('an app that serves the route itself', () => {
         assert.ok(port.applied, 'the record is kept whether or not the route is mounted');
         // The flag says who answers the route, not whether the page exists:
         // the sidebar entry and its capability stay.
-        const manifest = app.get(AdminManifestService).getManifest();
+        const manifest = await app.get(AdminManifestService).getManifest();
         assert.equal(manifest.capabilities['settings.read'], true);
         assert.equal(manifest.navigation.standardPages?.settings?.enabled, true);
     });

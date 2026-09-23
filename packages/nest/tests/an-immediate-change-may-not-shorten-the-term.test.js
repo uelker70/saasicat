@@ -1,7 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PlanChangePreviewService, computeProration } from '../dist/billing/index.js';
+import {
+    PlanChangePreviewService,
+    computeProration,
+    givenPlanCatalogSource,
+} from '../dist/billing/index.js';
 
 // When a plan change takes effect, and why.
 //
@@ -89,7 +93,7 @@ const NOW = new Date('2026-01-15');
 
 function preview(fromPlan, fromCycle, toPlan, toCycle, status = 'ACTIVE') {
     const service = new PlanChangePreviewService(
-        CATALOG,
+        givenPlanCatalogSource(CATALOG),
         entitlement(fromPlan),
         subscription(fromPlan, fromCycle, null, status),
         { snapshot: async () => ({ users: 1 }) },
@@ -238,7 +242,7 @@ describe('a prorated upgrade never asks for less than nothing', () => {
             plans: [CATALOG.plans[0], { ...CATALOG.plans[1], monthlyNet: 5, yearlyNet: 50 }],
         };
         const service = new PlanChangePreviewService(
-            cheaperHigherPlan,
+            givenPlanCatalogSource(cheaperHigherPlan),
             entitlement('STARTER'),
             subscription('STARTER', 'MONTHLY'),
             { snapshot: async () => ({ users: 1 }) },
@@ -293,7 +297,7 @@ describe('a deferred change waits for the commitment, not just the period', () =
         // `decideCancellation`, which has its own copy of it — so the test
         // passed with the preview's half deleted.
         const service = new PlanChangePreviewService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             entitlement('STANDARD'),
             subscription('STANDARD', 'MONTHLY', new Date('2027-01-01')),
             { snapshot: async () => ({ users: 1 }) },
@@ -309,7 +313,7 @@ describe('a deferred change waits for the commitment, not just the period', () =
         // The counter-half: the new branch must not move a date that had no
         // term to wait for.
         const service = new PlanChangePreviewService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             entitlement('STANDARD'),
             subscription('STANDARD', 'MONTHLY', null),
             { snapshot: async () => ({ users: 1 }) },

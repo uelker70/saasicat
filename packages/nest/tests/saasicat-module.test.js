@@ -17,6 +17,7 @@ import {
     QUOTA_PROVIDERS_TOKEN,
     StaticPlanResolver,
 } from '../dist/platform/index.js';
+import { givenPlanCatalogSource } from '../dist/billing/index.js';
 
 // Platform safety tests for the quickstart mega-module.
 
@@ -401,7 +402,7 @@ describe('StaticEntitlementService (via StaticPlanResolver)', () => {
             ],
         };
         const resolver = new StaticPlanResolver('pro');
-        const svc = new StaticEntitlementService(catalog, resolver);
+        const svc = new StaticEntitlementService(givenPlanCatalogSource(catalog), resolver);
         const snap = await svc.snapshot('any-tenant');
         assert.equal(snap.planId, 'pro');
         assert.deepEqual(snap.features, ['NOTES', 'EXPORT']);
@@ -413,7 +414,10 @@ describe('StaticEntitlementService (via StaticPlanResolver)', () => {
             ...MINIMAL_CATALOG,
             plans: [{ id: 'starter', features: ['NOTES'], quotas: { 'notes.max': 25 } }],
         };
-        const svc = new StaticEntitlementService(catalog, new StaticPlanResolver('starter'));
+        const svc = new StaticEntitlementService(
+            givenPlanCatalogSource(catalog),
+            new StaticPlanResolver('starter'),
+        );
         assert.equal(await svc.hasFeature('t', 'NOTES'), true);
         assert.equal(await svc.hasFeature('t', 'EXPORT'), false);
         assert.equal(await svc.quotaLimit('t', 'notes.max'), 25);
@@ -426,7 +430,7 @@ describe('StaticEntitlementService (via StaticPlanResolver)', () => {
                 return null;
             },
         };
-        const svc = new StaticEntitlementService(MINIMAL_CATALOG, resolver);
+        const svc = new StaticEntitlementService(givenPlanCatalogSource(MINIMAL_CATALOG), resolver);
         const snap = await svc.snapshot('any');
         assert.equal(snap.planId, null);
         assert.deepEqual(snap.features, []);

@@ -7,6 +7,7 @@ import {
     SaaSiCatModule,
     buildTenantManifestController,
 } from '../dist/platform/index.js';
+import { givenPlanCatalogSource } from '../dist/billing/index.js';
 
 const CATALOG = {
     schemaVersion: 1,
@@ -22,7 +23,10 @@ const CATALOG = {
 // @requirement SC-ADM-015 — The administration only offers what the application actually has
 describe('TenantManifestService', () => {
     test('returns a snapshot with filtered NavItems (feature gate)', async () => {
-        const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
+        const ent = new StaticEntitlementService(
+            givenPlanCatalogSource(CATALOG),
+            new StaticPlanResolver('starter'),
+        );
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({
             id: 'notes',
@@ -50,7 +54,10 @@ describe('TenantManifestService', () => {
     });
 
     test('sorts NavItems by order ASC, default 100', async () => {
-        const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('pro'));
+        const ent = new StaticEntitlementService(
+            givenPlanCatalogSource(CATALOG),
+            new StaticPlanResolver('pro'),
+        );
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({ id: 'a', label: 'A', path: '/a', order: 200 });
         svc.registerNavItem({ id: 'b', label: 'B', path: '/b', order: 50 });
@@ -63,7 +70,10 @@ describe('TenantManifestService', () => {
     });
 
     test('requiresFeature as an array = logical OR', async () => {
-        const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
+        const ent = new StaticEntitlementService(
+            givenPlanCatalogSource(CATALOG),
+            new StaticPlanResolver('starter'),
+        );
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({
             id: 'either',
@@ -84,7 +94,10 @@ describe('TenantManifestService', () => {
     });
 
     test('registerNavItem is idempotent (same id overwrites)', async () => {
-        const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
+        const ent = new StaticEntitlementService(
+            givenPlanCatalogSource(CATALOG),
+            new StaticPlanResolver('starter'),
+        );
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({ id: 'home', label: 'Alt', path: '/' });
         svc.registerNavItem({ id: 'home', label: 'Neu', path: '/' });

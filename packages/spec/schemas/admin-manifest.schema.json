@@ -76,7 +76,7 @@
             "properties": {
                 "source": {
                     "type": "string",
-                    "description": "Path to the source, e.g. 'config/saas.yaml'"
+                    "description": "Where the plans and features were read from: 'database' for the ones an operator publishes, 'given' for a catalogue passed in at start"
                 },
                 "hash": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$" },
                 "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },

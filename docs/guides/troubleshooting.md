@@ -46,6 +46,8 @@ dependencies of the X (?, ...)` errors. NestJS 11+ is stricter here than 9/10.
     consumer you have to delete `.vite/deps` and restart the dev server — otherwise
     Vite serves the old version.
 
-12. **`AdminManifestConfig` is a boot snapshot.** Plan changes via the SuperAdmin UI
-    only become visible after a manifest reload (`POST /admin/manifest/reload`, MFA-required)
-    — not automatically.
+12. **The manifest follows the plan catalogue, within a minute.** It reads the plans on every
+    request and its hash covers them, so a plan published in the SuperAdmin UI moves the ETag. A
+    browser that fetched the manifest less than 60 seconds earlier (`Cache-Control: max-age=60`)
+    shows the old list until it asks again. `POST /admin/manifest/reload` merges the contributions
+    registered in code again; plans do not need it.

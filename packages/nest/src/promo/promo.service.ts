@@ -19,7 +19,8 @@ import type {
     UpdatePromoCodeData,
 } from '@saasicat/core';
 import { BILLING_ERROR_CODES, PROMO_ERROR_CODES } from '@saasicat/core';
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
+import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
 import { getPlanPriceGross } from '../billing/plan-helpers.js';
 import {
     PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN,
@@ -138,8 +139,8 @@ export class PromoCodesService {
         private readonly revenueAggregator: PromoRevenueDeductionAggregator,
         @Inject(PROMO_TRANSACTION_RUNNER_TOKEN)
         private readonly transactionRunner: TransactionRunner,
-        @Inject(PLAN_CATALOG_TOKEN)
-        private readonly planCatalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SOURCE_TOKEN)
+        private readonly planCatalogs: PlanCatalogSource,
         @Inject(PROMO_SERVICE_CONFIG_TOKEN)
         private readonly config: PromoServiceConfig,
     ) {}
@@ -227,7 +228,10 @@ export class PromoCodesService {
         }
 
         if (input.valueType === 'ABSOLUTE' && !input.allowZeroInvoice) {
-            const lowestApplicableGross = this.lowestApplicablePlanGross(plans);
+            const lowestApplicableGross = this.lowestApplicablePlanGross(
+                await this.planCatalogs.current(),
+                plans,
+            );
             if (lowestApplicableGross != null && input.value >= lowestApplicableGross) {
                 throw new BadRequestException({
                     code: PROMO_ERROR_CODES.PROMO_WOULD_PRODUCE_ZERO_INVOICE,
@@ -351,27 +355,26 @@ export class PromoCodesService {
         await this.lazyExpire();
 
         const promo = await this.promoRepo.findByCode(code);
-        const reason =
-            this.checkEligibility(promo, input) ??
-            (await this.checkFirstTimeCustomer(promo, input.email));
-        if (reason) {
+        const verdict = await this.judge(promo, input);
+        if (verdict.reason !== null) {
             await this.validationLogRepo.log({
                 promoCodeId: promo?.id ?? null,
                 codeAttempt: code,
-                result: reason,
+                result: verdict.reason,
                 ipHash: input.ipHash,
                 sessionId: input.sessionId,
             });
-            return { valid: false, reason };
+            return { valid: false, reason: verdict.reason };
         }
+        const { catalog } = verdict;
 
-        const planGross = getPlanPriceGross(this.planCatalog, input.planId, input.billingCycle)!;
+        const planGross = getPlanPriceGross(catalog, input.planId, input.billingCycle)!;
         const discountGross = Math.min(
             computeDiscountGross({ gross: planGross }, promo!),
             planGross,
         );
         const discountedGross = computeDiscountedGross(planGross, discountGross);
-        const includedVat = computeIncludedVat(discountedGross, this.planCatalog.vatRate);
+        const includedVat = computeIncludedVat(discountedGross, catalog.vatRate);
 
         if (!promo!.allowZeroInvoice && discountedGross <= 0) {
             await this.validationLogRepo.log({
@@ -413,7 +416,7 @@ export class PromoCodesService {
             price: {
                 originalGross: planGross.toFixed(2),
                 discountGross: discountGross.toFixed(2),
-                discountNet: netFromGross(discountGross, this.planCatalog.vatRate).toFixed(2),
+                discountNet: netFromGross(discountGross, catalog.vatRate).toFixed(2),
                 discountedGross: discountedGross.toFixed(2),
                 includedVat: includedVat.toFixed(2),
                 nextRegularAmountGross: planGross.toFixed(2),
@@ -474,11 +477,10 @@ export class PromoCodesService {
             });
         }
 
-        const reason = this.checkEligibility(promo, {
-            code,
-            planId: sub.plan,
-            billingCycle: sub.billingCycle,
-        });
+        const onPlan = { code, planId: sub.plan, billingCycle: sub.billingCycle };
+        const reason =
+            this.checkCode(promo, onPlan) ??
+            this.checkPlanPrice(promo, onPlan, await this.planCatalogs.current());
         if (reason) throw notRedeemable(reason);
 
         const firstTimeReason = await this.checkFirstTimeCustomer(promo, input.email, {
@@ -535,9 +537,28 @@ export class PromoCodesService {
 
     // ─── Helpers ───────────────────────────────────────────────────────────
 
-    private checkEligibility(
+    /**
+     * Why a code does not apply to a plan, or the catalogue it applies
+     * against. The plans are read only once the code itself has passed, so
+     * somebody trying codes that do not exist costs no read of the plan tables.
+     */
+    private async judge(
         promo: PromoCodeRecord | null,
-        input: { code: string; planId: string; billingCycle: BillingCycle; email?: string },
+        input: PreviewInput,
+    ): Promise<{ reason: PreviewReason } | { reason: null; catalog: PlanCatalog }> {
+        const refused = this.checkCode(promo, input);
+        if (refused) return { reason: refused };
+        const catalog = await this.planCatalogs.current();
+        const reason =
+            this.checkPlanPrice(promo!, input, catalog) ??
+            (await this.checkFirstTimeCustomer(promo, input.email));
+        return reason ? { reason } : { reason: null, catalog };
+    }
+
+    /** Everything about a code that needs no plan price: its state, window and limits. */
+    private checkCode(
+        promo: PromoCodeRecord | null,
+        input: { code: string; planId: string; billingCycle: BillingCycle },
     ): PreviewReason | null {
         if (!promo || promo.deletedAt) return 'NOT_FOUND';
         if (promo.status === 'EXPIRED') return 'EXPIRED';
@@ -558,8 +579,16 @@ export class PromoCodesService {
         if (promo.appliesToBilling && promo.appliesToBilling !== input.billingCycle) {
             return 'BILLING_MISMATCH';
         }
+        return null;
+    }
 
-        const planGross = getPlanPriceGross(this.planCatalog, input.planId, input.billingCycle);
+    /** Whether the plan is sold at a price in this rhythm, and one the code's minimum allows. */
+    private checkPlanPrice(
+        promo: PromoCodeRecord,
+        input: { planId: string; billingCycle: BillingCycle },
+        catalog: PlanCatalog,
+    ): PreviewReason | null {
+        const planGross = getPlanPriceGross(catalog, input.planId, input.billingCycle);
         if (planGross == null) return 'PLAN_MISMATCH';
 
         if (promo.minimumPlanAmountGross && planGross < Number(promo.minimumPlanAmountGross)) {
@@ -595,17 +624,20 @@ export class PromoCodesService {
      * from the whitelist, otherwise across all marketed plans of the catalog
      * (except non-redeemable).
      */
-    private lowestApplicablePlanGross(plans: readonly string[]): number | null {
+    private lowestApplicablePlanGross(
+        catalog: PlanCatalog,
+        plans: readonly string[],
+    ): number | null {
         const blocked = new Set(this.config.nonRedeemablePlans ?? []);
         const candidates: readonly string[] =
             plans.length > 0
                 ? plans
-                : (this.planCatalog.plans ?? [])
+                : (catalog.plans ?? [])
                       .filter((p) => p.marketed !== false && !blocked.has(p.id))
                       .map((p) => p.id);
         let min: number | null = null;
         for (const p of candidates) {
-            const g = getPlanPriceGross(this.planCatalog, p, 'MONTHLY');
+            const g = getPlanPriceGross(catalog, p, 'MONTHLY');
             if (g == null) continue;
             if (min == null || g < min) min = g;
         }

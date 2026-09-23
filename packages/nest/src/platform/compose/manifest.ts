@@ -8,10 +8,10 @@
 // needs to know that there is one.
 
 import type { FactoryProvider } from '@nestjs/common';
-import type { ManifestContribution, PlanCatalog } from '@saasicat/core';
+import type { ManifestContribution, PlanCatalogSettings } from '@saasicat/core';
 
 import type { AdminManifestConfig } from '../../admin/admin-manifest.config.js';
-import { PLAN_CATALOG_TOKEN } from '../../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../../billing/plan-catalog.module.js';
 import type {
     SaaSiCatAdminResourcesOptions,
     SaaSiCatCatalogOptions,
@@ -100,33 +100,25 @@ export function buildStandardManifestContribution(
 
 export function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory' | 'inject'> {
     return {
-        useFactory: (catalog: PlanCatalog): AdminManifestConfig => ({
+        useFactory: (settings: PlanCatalogSettings): AdminManifestConfig => ({
             project: {
                 // One name, from the one place an installation carries it.
-                key: catalog.app.name,
-                displayName: catalog.app.name,
-                label: catalog.app.label,
-                icon: catalog.app.icon,
-                logoUrl: catalog.app.logoUrl,
+                key: settings.app.name,
+                displayName: settings.app.name,
+                label: settings.app.label,
+                icon: settings.app.icon,
+                logoUrl: settings.app.logoUrl,
                 environment: (process.env.NODE_ENV === 'production'
                     ? 'production'
                     : 'development') as 'production' | 'development',
-                availableLocales: catalog.marketing?.availableLocales,
-                defaultLocale: catalog.marketing?.availableLocales?.[0],
+                availableLocales: settings.marketing?.availableLocales,
+                defaultLocale: settings.marketing?.availableLocales?.[0],
             },
             build: {
                 platformPackageVersion: '0.0.0',
                 appVersion: '0.0.0',
             },
-            planCatalogSnapshot: {
-                source: 'saasicat-module',
-                hash: 'sha256-quickstart',
-                currency: catalog.currency,
-                vatRate: catalog.vatRate,
-                plans: catalog.plans ?? [],
-                features: catalog.features ?? [],
-            },
         }),
-        inject: [PLAN_CATALOG_TOKEN],
+        inject: [PLAN_CATALOG_SETTINGS_TOKEN],
     };
 }

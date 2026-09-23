@@ -5,6 +5,7 @@ import {
     PendingPlanMaterializationService,
     PlanChangePreviewService,
     TenantBillingController,
+    givenPlanCatalogSource,
 } from '../dist/billing/index.js';
 
 // A cancellation is a boundary, and two writes used to cross it.
@@ -192,7 +193,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
      */
     function previewFor(targetCycle) {
         const service = new PlanChangePreviewService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             {
                 computeLimits: async () => ({
                     plan: 'STARTER',
@@ -227,7 +228,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
         // cycle lock let a same-cycle upgrade be previewed as an ordinary
         // immediate change and rejected on submit.
         const service = new PlanChangePreviewService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             {
                 computeLimits: async () => ({
                     plan: 'STARTER',

@@ -27,12 +27,12 @@ import {
     type AppliedSettingsPort,
     type AppliedSettingsRecord,
     diffSettings,
-    type PlanCatalog,
+    type PlanCatalogSettings,
     type SettingsChangeRecord,
     settingsSubtreeOf,
 } from '@saasicat/core';
 
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { SettingsChangeNotifier } from './settings-change-notifier.js';
 import { fingerprintOf } from './settings-fingerprint.js';
 import { APPLIED_SETTINGS_PORT_TOKEN, SETTINGS_SOURCE_TOKEN } from './settings.tokens.js';
@@ -66,7 +66,7 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
     private readonly logger = new Logger(AppliedSettingsRecorder.name);
 
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SETTINGS_TOKEN) private readonly settings: PlanCatalogSettings,
         @Inject(SETTINGS_SOURCE_TOKEN) private readonly source: string,
         @Optional()
         @Inject(APPLIED_SETTINGS_PORT_TOKEN)
@@ -139,7 +139,7 @@ export class AppliedSettingsRecorder implements OnApplicationBootstrap {
      * order the record never went through.
      */
     async record(port: AppliedSettingsPort, clock: () => Date): Promise<BootOutcome> {
-        const settings = settingsSubtreeOf(this.catalog);
+        const settings = settingsSubtreeOf(this.settings);
         const fingerprint = fingerprintOf(settings);
         for (let attempt = 1; attempt <= RECORD_ATTEMPTS; attempt++) {
             const previous = await port.readApplied();

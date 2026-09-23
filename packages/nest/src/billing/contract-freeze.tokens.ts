@@ -7,7 +7,7 @@
 // is generic; only the bundle/plan-version data access
 // (`ContractFreezeSourcePort`) is consumer-specific.
 
-import type { BillingCycle } from '@saasicat/core';
+import type { BillingCycle, PlanVersionRow } from '@saasicat/core';
 
 import type { PricedContractLineItem } from '../subscription-contract/contract-line-item-money.js';
 
@@ -87,14 +87,23 @@ export interface ContractFreezeBundleSnapshot {
 }
 
 /**
- * Consumer-specific data access for the freeze: live PlanVersion id
- * (trace) + booked bundles as contract line items. The generic freeze
- * logic (plan line item from the catalog, snapshot, contract assembly) lives in
- * the platform `SubscriptionContractFreezeService`.
+ * Consumer-specific data access for the freeze: the plan version the tenant's
+ * subscription is bound to + booked bundles as contract line items. The generic
+ * freeze logic (plan line item, snapshot, contract assembly) lives in the
+ * platform `SubscriptionContractFreezeService`.
  */
 export interface ContractFreezeSourcePort {
-    /** Live (published, non-superseded) PlanVersion id of the target plan, or null. */
-    findLivePlanVersionId(planId: string): Promise<string | null>;
+    /**
+     * The plan version the tenant's subscription is bound to — the row its
+     * `planVersionId` points at, whether or not a newer one is on sale — or
+     * `null` when the tenant has no subscription.
+     *
+     * The contract records this version's price, features and quotas. Not the
+     * version on sale now: a tenant who books an add-on after the operator
+     * published a successor keeps the version they bought (`SC-SUB-012`), and
+     * after a plan change the write has already bound the version it sold.
+     */
+    findBoundPlanVersion(tenantId: string): Promise<PlanVersionRow | null>;
 
     /**
      * The tenant's active (non-terminated) bundle bookings as line items.

@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { EntitlementService } from '../dist/entitlement/index.js';
+import { givenPlanCatalogSource } from '../dist/billing/index.js';
 import { SubscriptionPlanResolver } from '../dist/platform/index.js';
 import {
     CATALOG,
@@ -99,7 +100,7 @@ describe('a cached answer at the cancellation boundary', () => {
 
         let reads = 0;
         const counting = new EntitlementService(
-            CATALOG,
+            givenPlanCatalogSource(CATALOG),
             {
                 findByTenantId: async () => {
                     reads += 1;

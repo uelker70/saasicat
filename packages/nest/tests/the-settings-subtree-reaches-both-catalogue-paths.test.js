@@ -1,7 +1,7 @@
 // Every setting in the schema reaches the fingerprint on BOTH catalogue paths.
 //
 // `settingsSubtreeOf` excludes rather than includes, so a block the schema gains
-// is fingerprinted by default — for the object bound to `PLAN_CATALOG_TOKEN`. On
+// is fingerprinted by default — for the object bound to `PLAN_CATALOG_SETTINGS_TOKEN`. On
 // the static path that object is the loaded file, and the exclusion earns its
 // keep. On the database path `composePlanCatalog` hands the loaded file's
 // settings to `PlanCatalogModule.forRoot` member by member, and a block the

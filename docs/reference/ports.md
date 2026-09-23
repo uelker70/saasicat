@@ -71,10 +71,10 @@ One narrow backend boundary for the generic Tenant/User/Audit/Subscription Super
 
 Read adapter for the current AdminManifest.
 
-| Member                         | What it does                                            |
-| ------------------------------ | ------------------------------------------------------- |
-| `getManifest(): AdminManifest` | —                                                       |
-| `rebuild?(): AdminManifest`    | Optional: forces a rebuild from the contributions (e.g. |
+| Member                                  | What it does                                            |
+| --------------------------------------- | ------------------------------------------------------- |
+| `getManifest(): Promise<AdminManifest>` | —                                                       |
+| `rebuild?(): Promise<AdminManifest>`    | Optional: forces a rebuild from the contributions (e.g. |
 
 ### `RlsBypassPort`
 
@@ -104,13 +104,14 @@ Returns the current usage for all quotaKeys of a tenant declared via `@DefinesQu
 
 ### `TenantSubscriptionWritePort`
 
-| Member                                                                                                                                                                                                                   | What it does                                                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `changePlanImmediate( tenantId: string, input: ImmediatePlanChangeInput, ): Promise<{ plan: string; billingCycle: string; /** False when the row's cancellation moved since the caller read it. */ claimed: boolean; }>` | Immediate change: set plan + cycle, clear pending fields, optionally reset the period.                                                             |
-| `schedulePlanChange( tenantId: string, input: ScheduledPlanChangeInput, ): Promise<{ claimed: boolean }>`                                                                                                                | Change at period end: set pending fields.                                                                                                          |
-| `acceptPendingPlanVersion( tenantId: string, userId: string, now: Date, ): Promise<{ accepted: boolean; acceptedAt: Date \| null; effectiveAt: Date \| null; alreadyAccepted: boolean; }>`                               | Marks the pending PlanVersion as accepted.                                                                                                         |
-| `cancelSubscription( tenantId: string, input: CancelSubscriptionInput, ): Promise<CancelSubscriptionResult>`                                                                                                             | Record a cancellation.                                                                                                                             |
-| `applyOnboardingSelection?( tenantId: string, input: ApplyOnboardingSelectionInput, redeemPromo: RedeemPromoInTransactionCallback \| null, ): Promise<ApplyOnboardingSelectionResult>`                                   | Atomic onboarding creation: sets plan + cycle + period window AND optionally calls a promo-redeem callback — all in a single consumer transaction. |
+| Member                                                                                                                                                                                                                   | What it does                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `readonly bindsPlanVersion?: boolean`                                                                                                                                                                                    | Whether the writes that change a plan — the immediate change and the onboarding selection — bind the subscription's `planVersionId` to the version they sell. |
+| `changePlanImmediate( tenantId: string, input: ImmediatePlanChangeInput, ): Promise<{ plan: string; billingCycle: string; /** False when the row's cancellation moved since the caller read it. */ claimed: boolean; }>` | Immediate change: set plan + cycle, clear pending fields, optionally reset the period.                                                                        |
+| `schedulePlanChange( tenantId: string, input: ScheduledPlanChangeInput, ): Promise<{ claimed: boolean }>`                                                                                                                | Change at period end: set pending fields.                                                                                                                     |
+| `acceptPendingPlanVersion( tenantId: string, userId: string, now: Date, ): Promise<{ accepted: boolean; acceptedAt: Date \| null; effectiveAt: Date \| null; alreadyAccepted: boolean; }>`                               | Marks the pending PlanVersion as accepted.                                                                                                                    |
+| `cancelSubscription( tenantId: string, input: CancelSubscriptionInput, ): Promise<CancelSubscriptionResult>`                                                                                                             | Record a cancellation.                                                                                                                                        |
+| `applyOnboardingSelection?( tenantId: string, input: ApplyOnboardingSelectionInput, redeemPromo: RedeemPromoInTransactionCallback \| null, ): Promise<ApplyOnboardingSelectionResult>`                                   | Atomic onboarding creation: sets plan + cycle + period window AND optionally calls a promo-redeem callback — all in a single consumer transaction.            |
 
 ## Core
 

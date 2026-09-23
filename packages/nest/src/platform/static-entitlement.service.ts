@@ -10,8 +10,9 @@
 //
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { PlanCatalog, PlanDef } from '@saasicat/core';
-import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
+import { PLAN_CATALOG_SOURCE_TOKEN } from '../billing/plan-catalog.module.js';
+import type { PlanCatalogSource } from '../billing/plan-catalog-source.js';
+import { findPlan } from '../billing/plan-helpers.js';
 import { PLAN_RESOLVER_PORT_TOKEN, type PlanResolverPort } from './plan-resolver.port.js';
 
 export interface StaticEntitlementSnapshot {
@@ -24,7 +25,7 @@ export interface StaticEntitlementSnapshot {
 @Injectable()
 export class StaticEntitlementService {
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
+        @Inject(PLAN_CATALOG_SOURCE_TOKEN) private readonly catalogs: PlanCatalogSource,
         @Inject(PLAN_RESOLVER_PORT_TOKEN) private readonly resolver: PlanResolverPort,
     ) {}
 
@@ -38,7 +39,7 @@ export class StaticEntitlementService {
         if (!planId) {
             return { planId: null, features: [], quotas: {} };
         }
-        const plan = this.findPlan(planId);
+        const plan = findPlan(await this.catalogs.current(), planId);
         if (!plan) {
             return { planId, features: [], quotas: {} };
         }
@@ -59,9 +60,5 @@ export class StaticEntitlementService {
         const snap = await this.snapshot(tenantId);
         const value = snap.quotas[quotaKey];
         return value === undefined ? null : value;
-    }
-
-    private findPlan(planId: string): PlanDef | undefined {
-        return (this.catalog.plans ?? []).find((p) => p.id === planId);
     }
 }
