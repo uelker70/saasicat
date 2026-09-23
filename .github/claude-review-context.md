@@ -119,9 +119,9 @@ in English, every time.
 Every finding carries a level you assign yourself — by its effect, not by the
 effort of the fix:
 
-- **P0** — The damage happens or cannot be undone: one tenant's data visible to
-  another, lost or corrupted data, a wrong document or tax amount, a secret in
-  plain text.
+- **P0** — Severe or irreversible damage: one tenant's data visible to another,
+  lost or corrupted data, a wrong document or tax amount, a secret in plain
+  text.
 - **P1** — A promised behaviour is broken, or a security or tenant boundary has
   a gap, even before any damage.
 - **P2** — A real defect with limited effect, or a guard that stays green where
@@ -135,5 +135,6 @@ The level always comes first, so it can be counted:
 - In the summary comment every finding gets its own heading
   `#### 1 — P2 · Short title`, numbered in sequence, even if it is already
   inline.
-- If there is nothing to object to, say so in one sentence, without a finding
-  heading.
+- A guess and a pre-existing defect are marked in the first sentence of the
+  finding text, not in the heading.
+- Without a finding there is no finding heading.
