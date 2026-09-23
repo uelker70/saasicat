@@ -460,13 +460,17 @@ function moneyOf(offer: {
             b.vatRate,
             b.effectiveGross,
         ],
+        // A line's gross is not compared: it is its share of the tax on the
+        // total, derived from the nets and the breakdown compared here, and the
+        // contract derives it again when it is written. So an offer whose stored
+        // lines carry a gross rounded another way still concludes, rather than
+        // being refused over a cent that moved between two of its lines.
         lines: (offer.lineItems ?? []).map((item) => [
             item.kind,
             item.sourceKey,
             item.sourceVersionId ?? null,
             item.quantity,
             item.priceNet,
-            item.priceGross,
             item.billingCycle,
         ]),
         promotions: (offer.promotionSnapshots ?? []).map((p) => [p.id, p.resolvedAmountNet]),

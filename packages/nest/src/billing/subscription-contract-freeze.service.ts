@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional, UnprocessableEntityException } from '@nes
 import type {
     BillingCycle,
     CreateSubscriptionContractData,
+    SubscriptionContractPriceSnapshot,
     TenantSubscriptionWritePort,
 } from '@saasicat/core';
 
@@ -24,12 +25,13 @@ import {
     type ContractFreezeSourcePort,
 } from './contract-freeze.tokens.js';
 import {
+    contractTotalsOf,
     type PricedContractLineItem,
-    recordLineItemMoney,
+    recordContractLinesMoney,
 } from '../subscription-contract/contract-line-item-money.js';
-import { grossFromNet, round2 } from '../promo/math.js';
 import {
     assertContractWindow,
+    assertNoNegativeDiscount,
     assertOnePlanLine,
     assertTaxRatePercent,
 } from '../subscription-contract/contract-refusals.js';
@@ -138,7 +140,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         }
         await this.contracts.assertPartyFor(tenantId);
 
-        const bundles = await this.source.loadBookedBundles(tenantId, cycle, vatRate);
+        const bundles = await this.source.loadBookedBundles(tenantId, cycle);
 
         const planPriceNet = listPriceNet(planDef, billingCycle) ?? 0;
 
@@ -151,7 +153,6 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             quantity: 1,
             unit: null,
             priceNet: planPriceNet,
-            priceGross: grossFromNet(planPriceNet, vatRate),
             billingCycle: cycle,
             minimumTermUntil: null,
             featuresSnapshot: planDef.features,
@@ -159,27 +160,32 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             metadata: null,
         };
 
-        // One stamping for every line, plan and add-on alike: the currency and
-        // the rate are the installation's, so the place that knows them writes
-        // them once rather than each source carrying its own copy.
-        const lineItems = [planLineItem, ...bundles.lineItems].map((line) =>
-            recordLineItemMoney(line, catalog.currency, vatRate),
-        );
+        // One recording for every line, plan and add-on alike: the currency,
+        // the rate and each line's share of the tax are the installation's, so
+        // the place that knows them writes them once rather than each source
+        // carrying its own copy.
+        const lineItems = recordContractLinesMoney([planLineItem, ...bundles.lineItems], {
+            currency: catalog.currency,
+            taxRate: vatRate,
+        });
         // Each line keeps the rhythm it is billed in; the total states one
-        // period of the contract's own rhythm, so a line billed more often than
-        // the contract counts as often as it falls due.
-        //
-        // Add-ons may run monthly beside a yearly plan, so the two rhythms sit
-        // in one contract and adding the figures as they stand would put a
-        // single month of an add-on into a year's total. That was the shape
-        // before mixed rhythms could be bought; now they can.
-        const subtotalNet = round2(
-            lineItems.reduce((sum, li) => sum + priceOverOnePeriodOf(cycle, li), 0),
-        );
+        // period of the contract's own rhythm, so a monthly add-on beside a
+        // yearly plan counts twelve times rather than once.
+        const totals = contractTotalsOf(lineItems, cycle);
+        const priceSnapshot: SubscriptionContractPriceSnapshot = {
+            currency: catalog.currency,
+            billingCycle: cycle,
+            subtotalNet: totals.subtotalNet,
+            discountNet: totals.discountNet,
+            totalNet: totals.totalNet,
+            vatRate,
+            totalGross: totals.totalGross,
+        };
 
         // The lines depend on nothing the termination changes, so they are checked
         // before it, for the same reason as the rate and the window above.
         assertOnePlanLine(lineItems);
+        assertNoNegativeDiscount({ priceSnapshot });
 
         // Terminate the old active contract so that `computeLimits` takes the
         // catalog path (otherwise it would read back the OLD frozen snapshot).
@@ -212,15 +218,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 quotas: { ...limits.quotas },
                 features: [...limits.features],
             },
-            priceSnapshot: {
-                currency: catalog.currency,
-                billingCycle: cycle,
-                subtotalNet,
-                discountNet: 0,
-                totalNet: subtotalNet,
-                vatRate,
-                totalGross: grossFromNet(subtotalNet, vatRate),
-            },
+            priceSnapshot,
             lineItems,
         };
 
@@ -229,22 +227,3 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         this.entitlements.invalidateTenant(tenantId);
     }
 }
-
-/**
- * What a line costs over one period of the contract's rhythm.
- *
- * A monthly line in a yearly contract falls due twelve times, so it counts
- * twelve times. The other direction cannot occur — a bundle may not outlast the
- * plan it hangs on, which is what `bundleCycleFitsPlan` refuses — and if it
- * ever did, dividing would invent a price nobody is charged, so it is left as
- * it stands and the line's own `billingCycle` says what it really is.
- */
-function priceOverOnePeriodOf(
-    contractCycle: 'monthly' | 'yearly',
-    line: { priceNet: number; billingCycle: 'monthly' | 'yearly' },
-): number {
-    const monthlyInYearly = contractCycle === 'yearly' && line.billingCycle === 'monthly';
-    return monthlyInYearly ? line.priceNet * MONTHS_PER_YEAR : line.priceNet;
-}
-
-const MONTHS_PER_YEAR = 12;

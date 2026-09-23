@@ -23,6 +23,17 @@ const PRICE = {
     totalGross: 758.27,
 };
 
+/** What a contract of the plan line alone comes to. */
+const PLAN_ONLY_PRICE = {
+    currency: 'EUR',
+    billingCycle: 'yearly',
+    subtotalNet: 588,
+    discountNet: 0,
+    totalNet: 588,
+    vatRate: 19,
+    totalGross: 699.72,
+};
+
 const PLAN_LINE = {
     kind: 'plan',
     sourceKey: 'STANDARD',
@@ -189,13 +200,13 @@ describe('SubscriptionContractService', () => {
         const first = await service.create({
             tenantId: 'tenant-1',
             effectiveFrom: EFFECTIVE_FROM,
-            priceSnapshot: PRICE,
+            priceSnapshot: PLAN_ONLY_PRICE,
             lineItems: [PLAN_LINE],
         });
         const secondData = {
             tenantId: 'tenant-1',
             effectiveFrom: new Date('2026-07-01T00:00:00.000Z'),
-            priceSnapshot: PRICE,
+            priceSnapshot: PLAN_ONLY_PRICE,
             lineItems: [{ ...PLAN_LINE, sourceKey: 'PRO', titleSnapshot: 'Pro' }],
         };
 
@@ -217,7 +228,7 @@ describe('SubscriptionContractService', () => {
         const first = await service.create({
             tenantId: 'tenant-1',
             effectiveFrom: EFFECTIVE_FROM,
-            priceSnapshot: PRICE,
+            priceSnapshot: PLAN_ONLY_PRICE,
             lineItems: [PLAN_LINE],
         });
 
@@ -228,7 +239,7 @@ describe('SubscriptionContractService', () => {
                     {
                         tenantId: 'tenant-1',
                         effectiveFrom: new Date('2026-07-01T00:00:00.000Z'),
-                        priceSnapshot: { ...PRICE, vatRate: 0.19 },
+                        priceSnapshot: { ...PLAN_ONLY_PRICE, vatRate: 0.19 },
                         lineItems: [PLAN_LINE],
                     },
                     new Date('2026-07-01T00:00:00.000Z'),
@@ -264,7 +275,7 @@ describe('SubscriptionContractService', () => {
                 service.create({
                     tenantId: 'tenant-1',
                     effectiveFrom: EFFECTIVE_FROM,
-                    priceSnapshot: PRICE,
+                    priceSnapshot: PLAN_ONLY_PRICE,
                     lineItems: [{ ...PLAN_LINE, taxAmount: 999 }],
                 }),
             (error) => {
@@ -281,17 +292,17 @@ describe('SubscriptionContractService', () => {
     for (const [what, contract, field] of [
         [
             'a contract rate written as a fraction',
-            { priceSnapshot: { ...PRICE, vatRate: 0.19 }, lineItems: [PLAN_LINE] },
+            { priceSnapshot: { ...PLAN_ONLY_PRICE, vatRate: 0.19 }, lineItems: [PLAN_LINE] },
             'priceSnapshot.vatRate',
         ],
         [
             'a line rate written as a fraction',
-            { priceSnapshot: PRICE, lineItems: [{ ...PLAN_LINE, taxRate: 0.19 }] },
+            { priceSnapshot: PLAN_ONLY_PRICE, lineItems: [{ ...PLAN_LINE, taxRate: 0.19 }] },
             'lineItems[0].taxRate',
         ],
         [
             'a line rate above 100',
-            { priceSnapshot: PRICE, lineItems: [{ ...PLAN_LINE, taxRate: 119 }] },
+            { priceSnapshot: PLAN_ONLY_PRICE, lineItems: [{ ...PLAN_LINE, taxRate: 119 }] },
             'lineItems[0].taxRate',
         ],
     ]) {
@@ -327,7 +338,7 @@ describe('SubscriptionContractService', () => {
                 service.create({
                     tenantId: 'tenant-1',
                     effectiveFrom: EFFECTIVE_FROM,
-                    priceSnapshot: PRICE,
+                    priceSnapshot: PLAN_ONLY_PRICE,
                     lineItems: [{ ...PLAN_LINE, currency: 'USD' }],
                 }),
             (error) => {
@@ -348,7 +359,7 @@ describe('SubscriptionContractService', () => {
         const contract = await service.create({
             tenantId: 'tenant-1',
             effectiveFrom: EFFECTIVE_FROM,
-            priceSnapshot: PRICE,
+            priceSnapshot: PLAN_ONLY_PRICE,
             lineItems: [PLAN_LINE],
         });
         assert.equal(contract.lineItems[0].taxAmount, 111.72);
@@ -586,7 +597,7 @@ describe('an offer whose tax rate is not a percentage', () => {
         ['zero', { vatRate: 0, effectiveGross: 637.2 }, 0],
         ['one per cent', { vatRate: 1, effectiveGross: 643.57 }, 1],
         ['one hundred per cent', { vatRate: 100, effectiveGross: 1274.4 }, 100],
-        ['19 beside a gross summed from rounded lines', { effectiveGross: 758.28 }, 19],
+        ['nineteen', {}, 19],
     ]) {
         test(`${what} is a percentage and is recorded as it stands`, async () => {
             const { outcome, stored } = await refusal(priceBreakdown);

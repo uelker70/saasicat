@@ -307,6 +307,51 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         assert.equal(cat.bundles[0].promo.badge, 'Bundle Deal');
         assert.equal(cat.bundles[0].promo.discountedMonthlyNet, 6);
     });
+
+    // @requirement SC-MKT-010 — Exactly one promotion applies to a given plan, language and rhythm
+    describe('a promotion the price it meets cannot bear', () => {
+        async function promoOn(type, value) {
+            await createLiveBundle({ bundleKey: 'FINANCE_PLUS', monthlyNet: '12.00' });
+            const promoRepo = new FakePromotionRepo([
+                {
+                    id: 'promo-bundle',
+                    internalLabel: 'Bundle Promo',
+                    type,
+                    value,
+                    appliesTo: ['FINANCE_PLUS'],
+                    targetType: 'BUNDLE',
+                    billingCycle: 'both',
+                    validFrom: '2026-01-01',
+                    validTo: '2026-12-31',
+                    priority: 10,
+                    onlyLocales: null,
+                    requiresCoupon: false,
+                    codes: [],
+                    color: '#118866',
+                    i18n: { de: { badge: 'Bundle Deal' } },
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ]);
+            const svc = new PublicMarketingCatalogService(
+                planRepo,
+                marketingRepo,
+                promoRepo,
+                null,
+                bundleRepo,
+            );
+            const cat = await svc.getCatalog('de', 'EUR', 19, new Date('2026-06-01'));
+            return cat.bundles[0].promo;
+        }
+
+        test('a percentage above 100 shows the add-on free, never at a negative price', async () => {
+            assert.equal((await promoOn('percent', 150)).discountedMonthlyNet, 0);
+        });
+
+        test('an intro price above the price shows no promotion at all', async () => {
+            assert.equal(await promoOn('intro', { price: 20, months: 1 }), null);
+        });
+    });
 });
 
 // PlanVersion path: validFrom NULL tolerance (legacy data without a start date, published

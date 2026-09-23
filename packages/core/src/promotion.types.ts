@@ -146,32 +146,53 @@ export type PromotionResult =
     | { kind: 'intro'; discounted: number; original: number; months: number }
     | { kind: 'free'; discounted: number; original: number; months: number };
 
-/** Applies the promotion math to a base price. */
+/**
+ * Applies the promotion math to a base price, or `null` where the promotion
+ * takes nothing off it.
+ *
+ * The discounted price stays between 0 and the base price, whatever the
+ * promotion states: a promotion lowers the price of what it is on and nothing
+ * else. Creating one refuses a value no price could make sense of, but whether
+ * an intro price or an amount fits depends on the price it meets — which
+ * differs per plan and rhythm and moves when a new version is published — so
+ * the bound is held here, where every place that resolves a promotion reads it:
+ * the public catalogue, a checkout offer, the operator's preview.
+ */
 export function applyPromo(
+    promo: PromotionRow | null,
+    basePrice: number | null,
+): PromotionResult | null {
+    const result = boundedPromo(promo, basePrice);
+    return result && result.discounted < result.original ? result : null;
+}
+
+function boundedPromo(
     promo: PromotionRow | null,
     basePrice: number | null,
 ): PromotionResult | null {
     if (!promo || basePrice === null || basePrice === undefined) return null;
     if (promo.type === 'percent' && typeof promo.value === 'number') {
+        const pct = withinBounds(promo.value, 100);
         return {
             kind: 'percent',
-            discounted: Math.round(basePrice * (100 - promo.value)) / 100,
+            discounted: Math.round(basePrice * (100 - pct)) / 100,
             original: basePrice,
-            pct: promo.value,
+            pct,
         };
     }
     if (promo.type === 'amount' && typeof promo.value === 'number') {
+        const saved = withinBounds(promo.value, basePrice);
         return {
             kind: 'amount',
-            discounted: Math.max(0, basePrice - promo.value),
+            discounted: Math.round((basePrice - saved) * 100) / 100,
             original: basePrice,
-            saved: promo.value,
+            saved,
         };
     }
-    if (promo.type === 'intro' && typeof promo.value === 'object') {
+    if (promo.type === 'intro' && typeof promo.value === 'object' && promo.value !== null) {
         return {
             kind: 'intro',
-            discounted: promo.value.price,
+            discounted: withinBounds(promo.value.price, basePrice),
             original: basePrice,
             months: promo.value.months,
         };
@@ -180,4 +201,8 @@ export function applyPromo(
         return { kind: 'free', discounted: 0, original: basePrice, months: promo.value };
     }
     return null;
+}
+
+function withinBounds(value: number, upper: number): number {
+    return Math.min(Math.max(value, 0), Math.max(upper, 0));
 }

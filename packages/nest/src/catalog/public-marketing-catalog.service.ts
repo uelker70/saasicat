@@ -448,6 +448,8 @@ export class PublicMarketingCatalogService {
 
         const monthlyResult = applyPromo(monthlyPromo, monthlyNet);
         const yearlyResult = applyPromo(yearlyPromo, yearlyNet);
+        // A badge over a price it does not lower would advertise nothing.
+        if (!monthlyResult && !yearlyResult) return null;
         const i18n = promo.i18n?.[locale] ?? promo.i18n?.[DEFAULT_LOCALE] ?? {};
 
         return {

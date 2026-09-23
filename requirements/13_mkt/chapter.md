@@ -74,6 +74,10 @@ _Tested by:_
         - i18n: falls back to DE projection when locale is missing
         - i18n: without a projection the bundle root label applies (description stays empty)
         - bundle promotions are resolved with targetType=BUNDLE
+        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
+          never at a negative price
+        - a promotion the price it meets cannot bear › an intro price above the price shows no
+          promotion at all
 
 <!-- END proof -->
 
@@ -224,6 +228,11 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/core/tests/a-promotion-lowers-a-price-and-nothing-else.test.js`
+    - applyPromo keeps a price between 0 and the price it is applied to
+        - what
+        - what the result says it takes off is what it takes off
+        - ${what} takes nothing off, so it is no promotion there
 - `packages/core/tests/promotion-helpers.test.js`
     - pickActivePromo
         - highest priority wins on overlap
@@ -232,6 +241,38 @@ _Tested by:_
         - requiresCoupon promotions are not selected automatically
         - non-matching plan → null
         - targetType filters bundle promotions separately from plan promotions
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Bundles
+        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
+          never at a negative price
+        - a promotion the price it meets cannot bear › an intro price above the price shows no
+          promotion at all
+
+<!-- END proof -->
+
+### SC-MKT-026 — A promotion is saved only with a value its type can take
+
+🟢 💰 A percentage above 0 and at most 100, an amount above 0, an intro price of at least 0 for a
+whole number of months, a whole number of free months — on creating a promotion and on changing
+one, where a change of type alone meets the value already stored. Whether an intro price or an
+amount fits a line depends on the price it meets, which differs per plan and rhythm, so that bound
+is held where the promotion is applied (`SC-MKT-010`).
+
+_Source:_ #311
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-promotion-takes-a-value-its-type-can-take.test.js`
+    - creating a promotion
+        - a ${type} of ${JSON.stringify(value)} is refused, and nothing is stored
+        - a ${type} of ${JSON.stringify(value)} is saved
+    - changing a promotion
+        - a value its type does not take is refused, and the stored one stays
+        - a change of type alone meets the value already stored
+        - a change of both to a pair that fits is saved
+        - a change of another field leaves a valid value alone
 
 <!-- END proof -->
 
@@ -267,6 +308,10 @@ _Tested by:_
         - i18n: falls back to DE projection when locale is missing
         - i18n: without a projection the bundle root label applies (description stays empty)
         - bundle promotions are resolved with targetType=BUNDLE
+        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
+          never at a negative price
+        - a promotion the price it meets cannot bear › an intro price above the price shows no
+          promotion at all
 - `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
     - useTenantBillingCatalog
         - load() reads all three endpoints under the default prefix
@@ -424,6 +469,7 @@ _Tested by:_
     - a yearly contract holding a monthly add-on
         - counts the add-on as often as it falls due
         - a yearly add-on beside a yearly plan is counted once
+        - each rhythm pays its tax on its own net, so the gross is what the charges come to
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService

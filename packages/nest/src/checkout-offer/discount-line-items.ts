@@ -5,7 +5,9 @@ import type {
     CheckoutOfferPromotionSnapshot,
 } from '@saasicat/core';
 
-import { grossFromNet } from '../promo/math.js';
+import { grossSharesOf } from '../subscription-contract/contract-line-item-money.js';
+
+type LineWithoutGross = Omit<CheckoutOfferLineItem, 'priceGross'>;
 
 export interface AppendImplicitDiscountLineItemInput {
     billingCycle: 'monthly' | 'yearly';
@@ -15,9 +17,19 @@ export interface AppendImplicitDiscountLineItemInput {
     promoCodeSnapshot?: CheckoutOfferPromoCodeSnapshot | null;
 }
 
+/**
+ * The lines an offer is concluded with: its own lines, the discount its
+ * breakdown implies as a line of its own, and every line's gross as its share of
+ * the tax on the total — so the lines add up to `effectiveNet` and
+ * `effectiveGross` to the cent.
+ */
 export function appendImplicitDiscountLineItem(
     input: AppendImplicitDiscountLineItemInput,
 ): CheckoutOfferLineItem[] {
+    return withGrossShares(linesWithDiscount(input), input.priceBreakdown.vatRate);
+}
+
+function linesWithDiscount(input: AppendImplicitDiscountLineItemInput): LineWithoutGross[] {
     const lineItems = input.lineItems.map((item) => cloneCheckoutOfferLineItem(item));
     const discountNet = roundMoney(
         input.priceBreakdown.regularNet - input.priceBreakdown.effectiveNet,
@@ -45,14 +57,21 @@ export function cloneCheckoutOfferLineItem(item: CheckoutOfferLineItem): Checkou
     };
 }
 
+function withGrossShares(lines: LineWithoutGross[], vatRate: number): CheckoutOfferLineItem[] {
+    const shares = grossSharesOf(lines, vatRate);
+    return lines.map((line, index) => {
+        const priceGross = shares[index] as number;
+        if (!isGeneratedDiscount(line)) return { ...line, priceGross };
+        return { ...line, priceGross, metadata: { ...line.metadata, discountGross: -priceGross } };
+    });
+}
+
 function createDiscountLineItem(
     input: AppendImplicitDiscountLineItemInput,
     discountNet: number,
-): CheckoutOfferLineItem {
+): LineWithoutGross {
     const promoCode = input.promoCodeSnapshot ?? null;
     const firstPromotion = input.promotionSnapshots?.[0] ?? null;
-    const breakdown = input.priceBreakdown;
-    const discountGross = grossFromNet(discountNet, breakdown.vatRate);
 
     return {
         kind: 'discount',
@@ -63,7 +82,6 @@ function createDiscountLineItem(
         quantity: 1,
         unit: null,
         priceNet: -discountNet,
-        priceGross: -discountGross,
         billingCycle: input.billingCycle,
         featuresSnapshot: [],
         quotaEffectsSnapshot: {},
@@ -71,7 +89,6 @@ function createDiscountLineItem(
             generated: true,
             source: promoCode ? 'promo_code' : firstPromotion ? 'promotion' : 'price_breakdown',
             discountNet,
-            discountGross,
             promotionSnapshots: cloneArray(input.promotionSnapshots ?? []),
             promoCodeSnapshot: cloneJsonValue(promoCode),
         },
@@ -82,7 +99,7 @@ function roundMoney(value: number): number {
     return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-function isGeneratedDiscount(item: CheckoutOfferLineItem): boolean {
+function isGeneratedDiscount(item: LineWithoutGross): boolean {
     return item.kind === 'discount' && item.metadata?.generated === true;
 }
 

@@ -10,4 +10,10 @@ export {
     type SubscriptionContractModuleOptions,
 } from './subscription-contract.module.js';
 export { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
-export { recordLineItemMoney, type PricedContractLineItem } from './contract-line-item-money.js';
+export {
+    contractTotalsOf,
+    recordContractLinesMoney,
+    type ContractLineMoney,
+    type ContractLineTotals,
+    type PricedContractLineItem,
+} from './contract-line-item-money.js';
