@@ -111,7 +111,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 17      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 18      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -121,7 +121,7 @@ properties it has while doing it.
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 24      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 25      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 491 entries: 🟢 419 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 493 entries: 🟢 421 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -210,7 +210,7 @@ Of 491 entries: 🟢 419 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 491 requirements. Do not edit by hand:
+Generated from `requirements/` — 493 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3823,6 +3823,31 @@ _Tested by:_
         - declared as another legal entity taking over is refused, and nothing changes
         - ${what} is refused, and nothing is recorded
         - of a subscriber that does not exist is refused as not found
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant changes how it is reached
+        - the ${field} reaches the service through the pipe and is refused there, not dropped
+
+<!-- END proof -->
+
+### SC-SUB-018 — A tenant can change the address and email it is billed at, but not clear them
+
+🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's address and
+invoice email in the tenant's billing area; later invoices carry the new ones (`SC-SUB-017`). The
+street, postal code, city, country and invoice email are what sign-up asked for and what an invoice
+cannot be sent without (`SC-PRIC-032`), so a change can replace them and is refused where it would
+leave one empty. The legal name and the tax identifiers are refused there by name, not dropped: the
+operator corrects them.
+
+_Source:_ #303
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant changes how it is reached
+        - the ${field} can be changed but not cleared, and a refused change writes nothing
+        - the ${field} reaches the service through the pipe and is refused there, not dropped
 
 <!-- END proof -->
 
@@ -10540,6 +10565,13 @@ _Tested by:_
         - the guards passed to the module are the ones the routes ask
         - every route of the payment method is behind authentication and the permission, reading
           included
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - every route of the billing details is behind authentication and the permission, reading
+      included
+    - the tenant reads whom it is billed to
+        - its own subscriber, with the customer number, the legal identity and the contact details
+        - the tenant comes from the session: another tenant's session reads its own subscriber
+        - a tenant without a subscriber, and a request without a tenant, are refused
 - `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
     - loading the payment method
         - a user holding the permission sees the one in use
@@ -10551,6 +10583,16 @@ _Tested by:_
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go
         - a refusal reaches the caller with its code
+- `packages/ui-vue/tests/billing-details-are-shown-to-whoever-may-see-them.test.js`
+    - loading the billing details
+        - a user holding the permission sees them
+        - a ${status} hides them without an error: ${why}
+        - any other failure keeps the part and says it failed
+        - an answer in another shape is an error, not a subscriber nobody told anything
+        - the prefix the billing routes sit under is used as given
+    - changing the contact details
+        - sends the change and shows the details as the server now has them
+        - a refusal reaches the caller with its code and field, and the details shown stay
 - `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
     - who sees the card
         - a user holding the billing permission sees the payment method in use
@@ -10564,6 +10606,67 @@ _Tested by:_
     - changing it
         - opens the provider's form and sends the person there, back to this page
         - a form that could not be opened is said on the card, and nobody is sent anywhere
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the billing section
+        - a user holding the billing permission finds the payment method and the billing details
+          together
+        - ${why} is shown nothing at all
+        - an installation that takes no payment methods still shows the billing details
+        - the routes are read under the prefix the application gives, and the texts it overrides are
+          used
+    - the billing details
+        - show the legal identity as it stands, with no field to change it, and say who changes it
+        - offer the contact details as fields, each named by its label
+        - the country is named by its label alone, and described by its hint
+        - save only once something changed, send only what changed, and say it was saved
+        - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
+        - a field the server refuses is named by its label and marked, and nothing claims it was
+          saved
+        - any other failure says the details were not saved
+        - a failure to load is said, with no form to fill
+    - the plan page
+        - shows the payment method at its foot unless told otherwise
+        - leaves it out, and does not ask for it, where the application keeps billing elsewhere
+
+<!-- END proof -->
+
+### SC-UI-025 — A tenant finds its billing in one section an application mounts where it keeps billing
+
+🟢 A tenant looks for its payment method under billing, not at the foot of its plan page: "what did
+I book" is a decision made rarely, "my card expires next month" is a chore that comes up without
+one. The payment method and the billing details are one section, `TenantBillingSection`, which an
+application mounts under whatever its navigation calls billing, and the plan page leaves the payment
+method out when told to, so it is in one place. The invoices (`SC-UI-022`) and the account
+(`SC-PRIC-049`) arrive in the same section, so an application that mounts it changes nothing when
+they do. Every part is behind the billing permission (`SC-UI-023`).
+
+_Source:_ #303
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the billing section
+        - a user holding the billing permission finds the payment method and the billing details
+          together
+        - ${why} is shown nothing at all
+        - an installation that takes no payment methods still shows the billing details
+        - the routes are read under the prefix the application gives, and the texts it overrides are
+          used
+    - the billing details
+        - show the legal identity as it stands, with no field to change it, and say who changes it
+        - offer the contact details as fields, each named by its label
+        - the country is named by its label alone, and described by its hint
+        - save only once something changed, send only what changed, and say it was saved
+        - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
+        - a field the server refuses is named by its label and marked, and nothing claims it was
+          saved
+        - any other failure says the details were not saved
+        - a failure to load is said, with no form to fill
+    - the plan page
+        - shows the payment method at its foot unless told otherwise
+        - leaves it out, and does not ask for it, where the application keeps billing elsewhere
 
 <!-- END proof -->
 
@@ -12768,6 +12871,9 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant reads whom it is billed to
+        - the tenant comes from the session: another tenant's session reads its own subscriber
 - `packages/nest/tests/tenant-billing-controller.test.js`
     - the tenant is taken from the session, not from what the caller sent
     - and a session that names none is refused rather than falling back
@@ -12836,6 +12942,9 @@ _Tested by:_
     - the billing permission
         - every route of the payment method is behind authentication and the permission, reading
           included
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - every route of the billing details is behind authentication and the permission, reading
+      included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards

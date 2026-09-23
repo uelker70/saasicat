@@ -1695,6 +1695,13 @@ _Tested by:_
         - the guards passed to the module are the ones the routes ask
         - every route of the payment method is behind authentication and the permission, reading
           included
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - every route of the billing details is behind authentication and the permission, reading
+      included
+    - the tenant reads whom it is billed to
+        - its own subscriber, with the customer number, the legal identity and the contact details
+        - the tenant comes from the session: another tenant's session reads its own subscriber
+        - a tenant without a subscriber, and a request without a tenant, are refused
 - `packages/ui-vue/tests/a-payment-method-is-shown-to-whoever-may-see-it.test.js`
     - loading the payment method
         - a user holding the permission sees the one in use
@@ -1706,6 +1713,16 @@ _Tested by:_
     - changing the payment method
         - asks for the gateway form with both URLs, and answers where to go
         - a refusal reaches the caller with its code
+- `packages/ui-vue/tests/billing-details-are-shown-to-whoever-may-see-them.test.js`
+    - loading the billing details
+        - a user holding the permission sees them
+        - a ${status} hides them without an error: ${why}
+        - any other failure keeps the part and says it failed
+        - an answer in another shape is an error, not a subscriber nobody told anything
+        - the prefix the billing routes sit under is used as given
+    - changing the contact details
+        - sends the change and shows the details as the server now has them
+        - a refusal reaches the caller with its code and field, and the details shown stay
 - `packages/ui-vue-tenant/tests/component/a-payment-method-is-changed-in-the-providers-form.test.ts`
     - who sees the card
         - a user holding the billing permission sees the payment method in use
@@ -1719,6 +1736,67 @@ _Tested by:_
     - changing it
         - opens the provider's form and sends the person there, back to this page
         - a form that could not be opened is said on the card, and nobody is sent anywhere
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the billing section
+        - a user holding the billing permission finds the payment method and the billing details
+          together
+        - ${why} is shown nothing at all
+        - an installation that takes no payment methods still shows the billing details
+        - the routes are read under the prefix the application gives, and the texts it overrides are
+          used
+    - the billing details
+        - show the legal identity as it stands, with no field to change it, and say who changes it
+        - offer the contact details as fields, each named by its label
+        - the country is named by its label alone, and described by its hint
+        - save only once something changed, send only what changed, and say it was saved
+        - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
+        - a field the server refuses is named by its label and marked, and nothing claims it was
+          saved
+        - any other failure says the details were not saved
+        - a failure to load is said, with no form to fill
+    - the plan page
+        - shows the payment method at its foot unless told otherwise
+        - leaves it out, and does not ask for it, where the application keeps billing elsewhere
+
+<!-- END proof -->
+
+### SC-UI-025 — A tenant finds its billing in one section an application mounts where it keeps billing
+
+🟢 A tenant looks for its payment method under billing, not at the foot of its plan page: "what did
+I book" is a decision made rarely, "my card expires next month" is a chore that comes up without
+one. The payment method and the billing details are one section, `TenantBillingSection`, which an
+application mounts under whatever its navigation calls billing, and the plan page leaves the payment
+method out when told to, so it is in one place. The invoices (`SC-UI-022`) and the account
+(`SC-PRIC-049`) arrive in the same section, so an application that mounts it changes nothing when
+they do. Every part is behind the billing permission (`SC-UI-023`).
+
+_Source:_ #303
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue-tenant/tests/component/a-tenant-finds-its-billing-under-billing.test.ts`
+    - the billing section
+        - a user holding the billing permission finds the payment method and the billing details
+          together
+        - ${why} is shown nothing at all
+        - an installation that takes no payment methods still shows the billing details
+        - the routes are read under the prefix the application gives, and the texts it overrides are
+          used
+    - the billing details
+        - show the legal identity as it stands, with no field to change it, and say who changes it
+        - offer the contact details as fields, each named by its label
+        - the country is named by its label alone, and described by its hint
+        - save only once something changed, send only what changed, and say it was saved
+        - the fields cannot be changed while a save is on its way, so no edit is lost to its answer
+        - a field the server refuses is named by its label and marked, and nothing claims it was
+          saved
+        - any other failure says the details were not saved
+        - a failure to load is said, with no form to fill
+    - the plan page
+        - shows the payment method at its foot unless told otherwise
+        - leaves it out, and does not ask for it, where the application keeps billing elsewhere
 
 <!-- END proof -->
 

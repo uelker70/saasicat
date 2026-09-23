@@ -8,31 +8,26 @@ import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 
-import {
-    BillingPermissionGuard,
-    ComposedTenantAuthGuard,
-    PlanCatalogModule,
-} from '../dist/billing/index.js';
+import { BillingPermissionGuard, ComposedTenantAuthGuard } from '../dist/billing/index.js';
 import { RLS_BYPASS_PORT_TOKEN, SAASICAT_PUBLIC_ROUTE_KEY } from '../dist/index.js';
 import {
     DevPaymentGateway,
-    PaymentCallbackService,
     PaymentWebhookController,
-    PaymentsModule,
+    TenantBillingDetailsController,
     TenantPaymentMethodController,
 } from '../dist/payments/index.js';
 import { SaaSiCatModule } from '../dist/platform/index.js';
 import { SubscriberService } from '../dist/subscriber/index.js';
 import { FakeSubscriberRepository } from '../dist/testing/index.js';
 import {
+    AllowAll,
     MAIN_ACCOUNT,
-    MemoryPaymentEventLog,
     MemoryPaymentMethods,
-    RollbackRunner,
     ScriptedGateway,
+    closePaymentsApps,
     confirmation,
+    paymentsApp,
     paymentsCatalog,
     signedCallback,
 } from './helpers/payments.js';
@@ -42,20 +37,11 @@ const URLS = {
     cancelUrl: 'https://app.example/plan',
 };
 
+afterEach(closePaymentsApps);
+
 /** Nest's own metadata keys. */
 const GUARDS = '__guards__';
 const ROUTE_METHOD = 'method';
-
-const apps = [];
-afterEach(async () => {
-    for (const app of apps.splice(0)) await app.close();
-});
-
-class AllowAll {
-    canActivate() {
-        return true;
-    }
-}
 
 function contextFor(user) {
     return {
@@ -66,52 +52,6 @@ function contextFor(user) {
 }
 
 const codeOf = (error) => error.getResponse?.().code;
-
-/** The payments module on its own, with tenant routes, over in-memory stores. */
-async function paymentsApp({
-    catalog = paymentsCatalog(),
-    gateways,
-    billingPermissionGuards,
-    methods = new MemoryPaymentMethods(),
-    subscribers = new FakeSubscriberRepository(),
-    extraProviders,
-} = {}) {
-    const gateway = new ScriptedGateway();
-    const log = new MemoryPaymentEventLog();
-    const app = await Test.createTestingModule({
-        imports: [
-            PlanCatalogModule.forRootWithCatalog(catalog),
-            PaymentsModule.forRoot({
-                gateways:
-                    gateways ??
-                    Object.fromEntries(
-                        Object.keys(catalog.payments?.accounts ?? {}).map((name) => [
-                            name,
-                            name === MAIN_ACCOUNT ? gateway : new ScriptedGateway(),
-                        ]),
-                    ),
-                paymentEventLog: log,
-                subscriberPaymentMethodRepository: methods,
-                subscriberRepository: subscribers,
-                transactionRunner: new RollbackRunner([log, methods]),
-                tenantRoutes: { authGuards: [new AllowAll()], billingPermissionGuards },
-                extraProviders,
-            }),
-        ],
-    }).compile();
-    await app.init();
-    apps.push(app);
-    return {
-        app,
-        gateway,
-        log,
-        methods,
-        callbacks: app.get(PaymentCallbackService),
-        routes: app.get(TenantPaymentMethodController),
-        webhook: app.get(PaymentWebhookController),
-        subscribers: new SubscriberService(subscribers, catalog),
-    };
-}
 
 const adminOf = (tenantId, extra = {}) => ({
     user: { tenantId, role: 'TENANT_ADMIN', email: 'admin@meier.example', ...extra },
@@ -916,6 +856,7 @@ describe('SaaSiCatModule composes payments', () => {
         assert.deepEqual(payments.controllers, [
             PaymentWebhookController,
             TenantPaymentMethodController,
+            TenantBillingDetailsController,
         ]);
     });
 

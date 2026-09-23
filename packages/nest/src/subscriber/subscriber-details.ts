@@ -26,6 +26,13 @@ const COUNTRY_CODE = /^[A-Z]{2}$/;
 /** RFC 5321 caps an address at 254 characters. */
 const MAX_EMAIL_LENGTH = 254;
 
+/**
+ * The address an invoice names. Sign-up asks for every one of them, and once
+ * given they can be changed but not cleared: without them nothing can be
+ * invoiced (`SC-PRIC-032`).
+ */
+export const INVOICE_ADDRESS_FIELDS = ['addressLine1', 'postalCode', 'city', 'country'] as const;
+
 const CONTACT_FIELDS: readonly (keyof SubscriberContact)[] = [
     'addressLine1',
     'addressLine2',

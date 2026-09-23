@@ -414,5 +414,30 @@ _Tested by:_
         - declared as another legal entity taking over is refused, and nothing changes
         - ${what} is refused, and nothing is recorded
         - of a subscriber that does not exist is refused as not found
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant changes how it is reached
+        - the ${field} reaches the service through the pipe and is refused there, not dropped
+
+<!-- END proof -->
+
+### SC-SUB-018 — A tenant can change the address and email it is billed at, but not clear them
+
+🟢 💰 A user holding the billing permission (`SC-UI-023`) changes the subscriber's address and
+invoice email in the tenant's billing area; later invoices carry the new ones (`SC-SUB-017`). The
+street, postal code, city, country and invoice email are what sign-up asked for and what an invoice
+cannot be sent without (`SC-PRIC-032`), so a change can replace them and is refused where it would
+leave one empty. The legal name and the tax identifiers are refused there by name, not dropped: the
+operator corrects them.
+
+_Source:_ #303
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant changes how it is reached
+        - the ${field} can be changed but not cleared, and a refused change writes nothing
+        - the ${field} reaches the service through the pipe and is refused there, not dropped
 
 <!-- END proof -->

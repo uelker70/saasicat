@@ -3,7 +3,8 @@
         <div class="plan-container">
             <div class="text-h5 q-mb-xs">Subscription &amp; plan</div>
             <div class="text-body2 text-grey-7 q-mb-md">
-                Review your plan and usage, change plans, and book add-on bundles.
+                Review your plan and usage, change plans, and book add-on bundles. The payment
+                method and the billing details are under Billing.
             </div>
 
             <TenantPlanSection
@@ -16,6 +17,7 @@
                 :is-fractional-quota="isFractionalQuota"
                 show-bundle-store
                 show-feature-matrix
+                :show-payment-method="false"
             />
         </div>
     </q-page>

@@ -79,7 +79,7 @@ properties it has while doing it.
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
-| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 17      |
+| 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 18      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
@@ -89,7 +89,7 @@ properties it has while doing it.
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 24      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 25      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 491 entries: 🟢 419 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 493 entries: 🟢 421 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),

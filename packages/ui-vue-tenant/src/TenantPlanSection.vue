@@ -88,7 +88,11 @@
                 </template>
 
                 <!-- What the subscriber pays with; shows itself only to whoever may see it. -->
-                <TenantPaymentMethodCard :http="http" :api-prefix="apiPrefix" />
+                <TenantPaymentMethodCard
+                    v-if="showPaymentMethod"
+                    :http="http"
+                    :api-prefix="apiPrefix"
+                />
 
                 <hr v-if="showBundleStore && hasBundleStore" class="sp-divider" />
 
@@ -268,7 +272,7 @@ import {
 } from './default-i18n.js';
 import BundlePreviewDialog from './tenant-plan-section/BundlePreviewDialog.vue';
 import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
-import TenantPaymentMethodCard from './tenant-plan-section/TenantPaymentMethodCard.vue';
+import TenantPaymentMethodCard from './TenantPaymentMethodCard.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
 import TenantPlanCardHeader from './tenant-plan-section/TenantPlanCardHeader.vue';
 import TenantUsageGrid from './tenant-plan-section/TenantUsageGrid.vue';
@@ -340,9 +344,15 @@ interface Props {
      * locked). Default `false` (additive, opt-in per consumer).
      */
     showFeatureMatrix?: boolean;
+    /**
+     * Show the payment method at the foot of the plan card. Default `true`.
+     * An application that mounts `TenantBillingSection` where it keeps billing
+     * sets `false`, so the payment method is in one place and not in two.
+     */
+    showPaymentMethod?: boolean;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { showPaymentMethod: true });
 
 const { locale } = useSuperAdminI18n();
 

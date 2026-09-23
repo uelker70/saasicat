@@ -59,6 +59,7 @@ export * from './vue/feature-router-guard.js';
 export * from './vue/use-tenant-billing-catalog.js';
 export * from './vue/use-tenant-billing.js';
 export * from './vue/use-tenant-payment-method.js';
+export * from './vue/use-tenant-billing-details.js';
 export * from './vue/use-subscription-draft.js';
 export * from './vue/use-bulk-publish.js';
 export * from './vue/use-plan-editor.js';

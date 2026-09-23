@@ -1,14 +1,14 @@
 // useTenantPaymentMethod — what the tenant's subscriber pays with, on its plan
 // page: `GET /billing/payment-method` and `POST /billing/payment-method/setup`.
 //
-// Both routes sit behind the billing permission, and an installation that takes
-// no payment methods does not mount them. A 403 and a 404 are therefore answers
-// about what this user may see, not failures, and `available` turns false so
+// Both routes sit behind the billing permission, and a refusal that says the
+// card is not for this user (`isHiddenFromThisUser`) turns `available` false so
 // the page shows no card. Anything else is an error the card reports.
 
 import { ref, type Ref } from 'vue';
 
 import { httpStatusOf } from '../client/admin-error.js';
+import { isHiddenFromThisUser } from '../client/billing-area.js';
 import { getJson, postJson, trimTrailingSlashes } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
@@ -63,9 +63,6 @@ function isPaymentMethodAnswer(
     );
 }
 
-/** The statuses that say the card is not for this user, rather than that loading it failed. */
-const NOT_SHOWN = new Set([403, 404, 501]);
-
 export function useTenantPaymentMethod(
     options: UseTenantPaymentMethodOptions = {},
 ): UseTenantPaymentMethodResult {
@@ -91,8 +88,7 @@ export function useTenantPaymentMethod(
             available.value = true;
         } catch (err) {
             paymentMethod.value = null;
-            const status = httpStatusOf(err);
-            available.value = status === undefined || !NOT_SHOWN.has(status);
+            available.value = !isHiddenFromThisUser(httpStatusOf(err));
             if (available.value) error.value = err instanceof Error ? err : new Error(String(err));
         } finally {
             loading.value = false;

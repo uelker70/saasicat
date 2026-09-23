@@ -34,6 +34,9 @@ _Source:_ `docs/explanation/data-model.md` · internal engineering guidelines
 
 _Tested by:_
 
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - the tenant reads whom it is billed to
+        - the tenant comes from the session: another tenant's session reads its own subscriber
 - `packages/nest/tests/tenant-billing-controller.test.js`
     - the tenant is taken from the session, not from what the caller sent
     - and a session that names none is refused rather than falling back
@@ -102,6 +105,9 @@ _Tested by:_
     - the billing permission
         - every route of the payment method is behind authentication and the permission, reading
           included
+- `packages/nest/tests/a-tenant-keeps-its-billing-details.test.js`
+    - every route of the billing details is behind authentication and the permission, reading
+      included
 - `packages/nest/tests/public-route.test.js`
     - SaaSiCat public route metadata
         - ${controller.name} is recognized by global auth guards

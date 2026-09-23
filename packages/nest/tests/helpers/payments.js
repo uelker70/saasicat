@@ -6,11 +6,24 @@
 // handler that throws takes its claim and its writes with it — the property
 // the persistence contract checks against PostgreSQL.
 
+import 'reflect-metadata';
+import { Test } from '@nestjs/testing';
 import {
     PaymentCallbackRejectedError,
     refuseForeignPaymentMethodReference,
     subscriberPaymentMethodColumns,
 } from '@saasicat/core';
+
+import { PlanCatalogModule } from '../../dist/billing/index.js';
+import {
+    PaymentCallbackService,
+    PaymentWebhookController,
+    PaymentsModule,
+    TenantBillingDetailsController,
+    TenantPaymentMethodController,
+} from '../../dist/payments/index.js';
+import { SubscriberService } from '../../dist/subscriber/index.js';
+import { FakeSubscriberRepository } from '../../dist/testing/index.js';
 
 /** The account every test takes payment methods at, unless it names another. */
 export const MAIN_ACCOUNT = 'stripe-main';
@@ -253,4 +266,65 @@ export class RollbackRunner {
             throw error;
         }
     }
+}
+
+/** Lets every request through: the authentication a test is not about. */
+export class AllowAll {
+    canActivate() {
+        return true;
+    }
+}
+
+const openApps = [];
+
+/** Closes every app `paymentsApp` built; register it with `afterEach`. */
+export async function closePaymentsApps() {
+    for (const app of openApps.splice(0)) await app.close();
+}
+
+/** The payments module on its own, with tenant routes, over in-memory stores. */
+export async function paymentsApp({
+    catalog = paymentsCatalog(),
+    gateways,
+    billingPermissionGuards,
+    methods = new MemoryPaymentMethods(),
+    subscribers = new FakeSubscriberRepository(),
+    extraProviders,
+} = {}) {
+    const gateway = new ScriptedGateway();
+    const log = new MemoryPaymentEventLog();
+    const app = await Test.createTestingModule({
+        imports: [
+            PlanCatalogModule.forRootWithCatalog(catalog),
+            PaymentsModule.forRoot({
+                gateways:
+                    gateways ??
+                    Object.fromEntries(
+                        Object.keys(catalog.payments?.accounts ?? {}).map((name) => [
+                            name,
+                            name === MAIN_ACCOUNT ? gateway : new ScriptedGateway(),
+                        ]),
+                    ),
+                paymentEventLog: log,
+                subscriberPaymentMethodRepository: methods,
+                subscriberRepository: subscribers,
+                transactionRunner: new RollbackRunner([log, methods]),
+                tenantRoutes: { authGuards: [new AllowAll()], billingPermissionGuards },
+                extraProviders,
+            }),
+        ],
+    }).compile();
+    await app.init();
+    openApps.push(app);
+    return {
+        app,
+        gateway,
+        log,
+        methods,
+        callbacks: app.get(PaymentCallbackService),
+        routes: app.get(TenantPaymentMethodController),
+        details: app.get(TenantBillingDetailsController),
+        webhook: app.get(PaymentWebhookController),
+        subscribers: new SubscriberService(subscribers, catalog),
+    };
 }

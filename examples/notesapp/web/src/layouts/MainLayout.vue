@@ -8,6 +8,11 @@
                 <q-tabs shrink stretch active-color="white" indicator-color="white">
                     <q-route-tab to="/notes" icon="notes" label="Notes" />
                     <q-route-tab to="/plan" icon="workspace_premium" label="Plan" />
+                    <!-- Shown to everyone because every NotesApp user acts as the tenant's
+                         administrator (services/http.ts), who holds the billing permission
+                         by default. With other roles, show it only to the users your
+                         `billingPermissionGuards` admit: anyone else gets an empty page. -->
+                    <q-route-tab to="/billing" icon="receipt_long" label="Billing" />
                 </q-tabs>
 
                 <q-chip

@@ -115,14 +115,27 @@ export async function getJson<T>(http: HttpClient, url: string): Promise<T> {
     return (await res.json()) as T;
 }
 
-export async function postJson<T>(http: HttpClient, url: string, body: unknown): Promise<T> {
+export function postJson<T>(http: HttpClient, url: string, body: unknown): Promise<T> {
+    return sendJson<T>(http, 'POST', url, body);
+}
+
+export function patchJson<T>(http: HttpClient, url: string, body: unknown): Promise<T> {
+    return sendJson<T>(http, 'PATCH', url, body);
+}
+
+async function sendJson<T>(
+    http: HttpClient,
+    method: 'POST' | 'PATCH',
+    url: string,
+    body: unknown,
+): Promise<T> {
     const res = await http(url, {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
     if (res.status < 200 || res.status >= 300) {
-        throw await failed(res, 'POST', url);
+        throw await failed(res, method, url);
     }
     return (await res.json()) as T;
 }

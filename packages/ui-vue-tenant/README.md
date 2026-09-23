@@ -3,8 +3,8 @@
 ## What this is
 
 The tenant-facing half of SaaSiCat's Vue UI: the plan section a customer sees in
-their own application, the plan-change wizard, the onboarding configurator and
-the bundle store.
+their own application, the billing section, the plan-change wizard, the
+onboarding configurator and the bundle store.
 
 ## What this is not
 
@@ -62,15 +62,40 @@ utility classes a prefix check would miss.
 
 ## Usage
 
+Two sections, for two questions a tenant asks at different times. The plan
+section answers what it booked and what that costs; mount it on the page where
+the tenant changes its plan. The billing section holds what the subscriber pays
+with and whom it is billed to; mount it under whatever your navigation calls
+billing, and tell the plan section to leave the payment method out, so it is in
+one place:
+
 ```vue
 <script setup lang="ts">
+import TenantBillingSection from '@saasicat/ui-vue-tenant/TenantBillingSection.vue';
 import TenantPlanSection from '@saasicat/ui-vue-tenant/TenantPlanSection.vue';
 </script>
 
 <template>
-    <TenantPlanSection :usage="usage" />
+    <!-- Settings → Plan -->
+    <TenantPlanSection
+        :http="http"
+        :format-currency="formatCurrency"
+        :format-date="formatDate"
+        :show-payment-method="false"
+    />
+
+    <!-- Settings → Billing -->
+    <TenantBillingSection :http="http" />
 </template>
 ```
+
+Both read the billing routes under `apiPrefix` (default `/billing`) through the
+`http` adapter you pass. The billing section shows itself only to a user the
+server lets see it — the billing permission, which your
+`payments.billingPermissionGuards` map to your roles — and renders nothing for
+anyone else, so show its navigation entry to the same users. The invoices and
+the account will arrive inside it, and a page that mounts it now changes nothing
+when they do.
 
 Import the platform theme once in your app so these components pick up the
 design tokens:

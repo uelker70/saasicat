@@ -21,11 +21,19 @@ import { SUBSCRIBER_ERROR_CODES, contractPartiesOf } from '@saasicat/core';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from '../billing/plan-catalog.module.js';
 import { codedError } from '../errors/coded-error.js';
 import {
+    INVOICE_ADDRESS_FIELDS,
     settleContactChange,
     settleIdentityCorrection,
     settleNewSubscriberDetails,
 } from './subscriber-details.js';
+
 import { SUBSCRIBER_REPOSITORY_TOKEN } from './subscriber.tokens.js';
+
+/**
+ * What a tenant may change but not clear: the address an invoice names, and
+ * the email it is sent to.
+ */
+const KEPT_BY_A_TENANT = [...INVOICE_ADDRESS_FIELDS, 'invoiceEmail'] as const;
 
 /**
  * The parties contracts are concluded with.
@@ -115,7 +123,38 @@ export class SubscriberService {
         subscriberId: string,
         change: SubscriberContactChange,
     ): Promise<SubscriberRecord> {
-        const updated = await this.repo.updateContact(subscriberId, settleContactChange(change));
+        return this.writeContact(subscriberId, settleContactChange(change));
+    }
+
+    /**
+     * A tenant's own change of how its subscriber is reached, from its billing
+     * area. The address and the invoice email can be changed but not cleared —
+     * `SUBSCRIBER_DETAIL_INVALID` names the field — since without them nothing
+     * can be invoiced. The legal name and the tax identifiers are refused as
+     * with `changeContact`: they are the party, and only the operator corrects
+     * them.
+     */
+    async changeContactOfTenant(
+        tenantId: string,
+        change: SubscriberContactChange,
+    ): Promise<SubscriberRecord> {
+        const subscriber = await this.requireForTenant(tenantId);
+        const settled = settleContactChange(change);
+        const cleared = KEPT_BY_A_TENANT.find((field) => settled[field] === null);
+        if (cleared) {
+            throw new UnprocessableEntityException(
+                codedError(SUBSCRIBER_ERROR_CODES.SUBSCRIBER_DETAIL_INVALID, { field: cleared }),
+            );
+        }
+        return this.writeContact(subscriber.id, settled);
+    }
+
+    /** Writes contact details already settled; settling twice would check one copy and write another. */
+    private async writeContact(
+        subscriberId: string,
+        settled: SubscriberContactChange,
+    ): Promise<SubscriberRecord> {
+        const updated = await this.repo.updateContact(subscriberId, settled);
         if (!updated) throw subscriberNotFound(subscriberId);
         return updated;
     }
