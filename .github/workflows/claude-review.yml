@@ -74,11 +74,15 @@ jobs:
             # otherwise ran without its own standard. And a PR should not be
             # able to rewrite the criteria it is measured against.
             #
-            # It lands outside the workspace. When the request comes from a
-            # review comment, the state of the pull request is checked out, and
-            # `.github/claude-review-context.md` could be a symlink there; the
-            # write would follow it and overwrite any file the runner account
-            # can reach.
+            # It lands outside the workspace, for two reasons. First, the
+            # paragraph above was otherwise without effect: when the request
+            # comes from an issue comment, the action checks out the pull
+            # request after this step and puts its version back — the review
+            # measured the pull request against its own brief. Second, when the
+            # request comes from a review comment, the state of the pull request
+            # is already checked out here; `.github/claude-review-context.md`
+            # could be a symlink, and the write would follow it into any file
+            # the runner account can reach.
             - name: Take the brief from the default branch
               env:
                   GH_TOKEN: ${{ github.token }}
