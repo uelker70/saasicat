@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
     IsArray,
     IsBoolean,
@@ -13,15 +14,18 @@ import {
     Min,
     MinLength,
     ValidateIf,
+    ValidateNested,
 } from 'class-validator';
 
 import { IsQuotaRecord } from './quota-record.validator.js';
 import { applyDecorators } from '@nestjs/common';
 
 // DTOs for `BundlesController` — class-validator validation at the HTTP
-// boundary. Inherited required fields are validated here; spec-conformant
-// options (compatibility, pricingOverrides) pass through as a generic object/
-// array and are used structurally in the service.
+// boundary. Inherited required fields are validated here; `compatibility`
+// passes through as a generic object and is used structurally in the service.
+// A plan's own price in `pricingOverrides` is held to the same two fraction
+// digits as the version's own: a contract states its lines in cents, and a
+// line priced at a fraction of one cannot add up to the total it belongs to.
 
 // Constraints that repeat, declared once.
 //
@@ -129,6 +133,21 @@ export class UpdateBundleDto {
     i18n?: Record<string, { label?: string; description?: string }>;
 }
 
+/** One plan's own price for a bundle version, in `pricingOverrides`. */
+export class BundlePricingOverrideDto {
+    @IsOptional()
+    @IsString()
+    planId?: string;
+
+    @IsOptional()
+    @IsDecimalAmountOrNull('pricingOverrides.monthlyNet')
+    monthlyNet?: string | null;
+
+    @IsOptional()
+    @IsDecimalAmountOrNull('pricingOverrides.yearlyNet')
+    yearlyNet?: string | null;
+}
+
 /**
  * Everything a version draft may carry apart from its feature list.
  *
@@ -154,11 +173,9 @@ export class BundleVersionDraftFieldsDto {
 
     @IsOptional()
     @IsArray()
-    pricingOverrides?: Array<{
-        planId?: string;
-        monthlyNet?: string | null;
-        yearlyNet?: string | null;
-    }>;
+    @ValidateNested({ each: true })
+    @Type(() => BundlePricingOverrideDto)
+    pricingOverrides?: BundlePricingOverrideDto[];
 
     @IsOptional()
     @IsDecimalAmountOrNull('monthlyNet')

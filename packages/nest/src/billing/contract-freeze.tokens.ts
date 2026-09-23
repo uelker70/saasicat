@@ -77,10 +77,10 @@ export interface ContractFreezePort {
 /** Frozen bundle line items + their version ids (trace). */
 export interface ContractFreezeBundleSnapshot {
     /**
-     * Priced, but without the currency and tax rate — the platform records
-     * those from the catalogue, so a source never restates a setting it does
-     * not own. `vatRate` is still passed in below because the source needs it
-     * to price the gross.
+     * Priced in net, and nothing more — the platform records the gross, the
+     * currency and the tax rate, so a source never restates a setting it does
+     * not own, and every line of the contract carries its share of one tax
+     * computation rather than a rounding of its own.
      */
     lineItems: PricedContractLineItem[];
     bundleVersionIds: string[];
@@ -106,9 +106,8 @@ export interface ContractFreezeSourcePort {
     findBoundPlanVersion(tenantId: string): Promise<PlanVersionRow | null>;
 
     /**
-     * The tenant's active (non-terminated) bundle bookings as line items.
-     * `vatRate` is passed through so the gross price is computed consistently
-     * with the catalog VAT. Apps without a bundle schema return empty lists.
+     * The tenant's active (non-terminated) bundle bookings as line items,
+     * priced in net. Apps without a bundle schema return empty lists.
      *
      * `cycle` is the **plan's** rhythm, not the bookings'. A tenant on a yearly
      * plan may hold monthly add-ons, so a source prices each booking in the
@@ -120,6 +119,5 @@ export interface ContractFreezeSourcePort {
     loadBookedBundles(
         tenantId: string,
         cycle: 'monthly' | 'yearly',
-        vatRate: number,
     ): Promise<ContractFreezeBundleSnapshot>;
 }

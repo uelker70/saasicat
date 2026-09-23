@@ -13,6 +13,7 @@ import type {
 } from '@saasicat/core';
 
 import { PROMOTION_REPOSITORY_TOKEN } from './catalog.tokens.js';
+import { assertPromotionValue } from './promotion-value.js';
 
 @Injectable()
 export class PromotionsService {
@@ -37,7 +38,8 @@ export class PromotionsService {
         return row;
     }
 
-    create(data: CreatePromotionData): Promise<PromotionRow> {
+    async create(data: CreatePromotionData): Promise<PromotionRow> {
+        assertPromotionValue(data.type, data.value);
         return this.repo.create(data);
     }
 
@@ -50,6 +52,14 @@ export class PromotionsService {
                 params: { promotionId: id },
             });
         }
+        // The pair as it will be stored: a change of type alone meets the value
+        // already there, and a percentage of 150 is no more acceptable for having
+        // been an amount a moment ago. Only a field left out keeps the stored one;
+        // a `null` sent for it is what would be stored, so it is what is judged.
+        assertPromotionValue(
+            data.type === undefined ? existing.type : data.type,
+            data.value === undefined ? existing.value : data.value,
+        );
         return this.repo.update(id, data);
     }
 

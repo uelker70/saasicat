@@ -111,6 +111,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     FEATURE_NOT_FOUND: "Feature '{featureKey}' nicht gefunden",
     QUOTA_NOT_FOUND: "Quota '{quotaKey}' nicht gefunden",
     PROMOTION_NOT_FOUND: "Promotion '{promotionId}' nicht gefunden",
+    PROMOTION_VALUE_INVALID:
+        "Der Wert einer Aktion vom Typ '{type}' passt nicht zu ihrem Typ: ein Prozentsatz über 0 und höchstens 100, ein Betrag über 0, ein Einführungspreis ab 0 für eine ganze Zahl von Monaten oder eine ganze Zahl von Gratismonaten.",
     MARKETING_PROJECTION_NOT_FOUND: "MarketingProjection '{projectionId}' nicht gefunden",
     PLAN_ALREADY_EXISTS: "Plan '{planKey}' gibt es bereits",
     BUNDLE_ALREADY_EXISTS: "Bundle '{bundleKey}' gibt es bereits",
@@ -243,6 +245,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
         'Ein Abo-Vertrag nennt bei {field} einen Steuersatz von {taxRate}, der kein Prozentsatz ist: Ein Satz liegt zwischen 0 und 100, und ein Wert zwischen 0 und 1 wird als Bruch abgelehnt.',
     SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH:
         'Eine Position muss in der Währung gebucht sein, in der ihr Vertrag bepreist ist.',
+    SUBSCRIPTION_CONTRACT_LINES_DO_NOT_ADD_UP:
+        'Die Positionen eines Abo-Vertrags ergeben {lines} für {field}, der Vertrag nennt aber {stated}.',
+    SUBSCRIPTION_CONTRACT_DISCOUNT_NEGATIVE:
+        'Ein Abo-Vertrag nennt bei {field} einen Rabatt von {amount}; ein Rabatt zieht Geld ab und ist nie negativ.',
     SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START:
         'effectiveUntil muss nach dem effectiveFrom des Vertrags liegen.',
     CHECKOUT_OFFER_NOT_FOUND: "CheckoutOffer '{offerId}' nicht gefunden",

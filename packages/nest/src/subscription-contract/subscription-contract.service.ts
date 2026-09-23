@@ -23,10 +23,15 @@ import type {
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { round2 } from '../promo/math.js';
-import { type PricedContractLineItem, recordLineItemMoney } from './contract-line-item-money.js';
+import {
+    type PricedContractLineItem,
+    recordContractLinesMoney,
+} from './contract-line-item-money.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
 import {
     assertContractWindow,
+    assertLinesAddUp,
+    assertNoNegativeDiscount,
     assertOnePlanLine,
     assertTaxRatePercent,
 } from './contract-refusals.js';
@@ -223,23 +228,21 @@ export class SubscriptionContractService {
                     'A checkout offer can yield only one contract, and only once its line items are frozen.',
             });
         }
-        return appendImplicitDiscountLineItem({
+        const lines = appendImplicitDiscountLineItem({
             billingCycle: offer.billingCycle,
             priceBreakdown: offer.priceBreakdown,
             lineItems: source,
             promotionSnapshots: offer.promotionSnapshots ?? [],
             promoCodeSnapshot: offer.promoCodeSnapshot ?? null,
-        }).map((item) =>
-            // From the offer's own breakdown rather than today's catalogue: the
-            // offer froze the currency and the rate at the moment it was made,
-            // and a contract concluded at 19 % is charged 19 % for its term
-            // whatever the configured rate becomes afterwards.
-            recordLineItemMoney(
-                this.offerLineItemToContractLineItem(item),
-                offer.priceBreakdown.currency,
-                offer.priceBreakdown.vatRate,
-            ),
-        );
+        }).map((item) => this.offerLineItemToContractLineItem(item));
+        // From the offer's own breakdown rather than today's catalogue: the
+        // offer froze the currency and the rate at the moment it was made, and
+        // a contract concluded at 19 % is charged 19 % for its term whatever
+        // the configured rate becomes afterwards.
+        return recordContractLinesMoney(lines, {
+            currency: offer.priceBreakdown.currency,
+            taxRate: offer.priceBreakdown.vatRate,
+        });
     }
 
     private offerLineItemToContractLineItem(item: CheckoutOfferLineItem): PricedContractLineItem {
@@ -252,7 +255,6 @@ export class SubscriptionContractService {
             quantity: item.quantity,
             unit: item.unit ?? null,
             priceNet: item.priceNet,
-            priceGross: item.priceGross,
             billingCycle: item.billingCycle,
             minimumTermUntil: this.parseOptionalDate(
                 item.minimumTermUntil,
@@ -283,7 +285,7 @@ export class SubscriptionContractService {
             currency: breakdown.currency,
             billingCycle: breakdown.billingCycle,
             subtotalNet: breakdown.regularNet,
-            discountNet: Math.max(0, breakdown.regularNet - breakdown.effectiveNet),
+            discountNet: Math.max(0, round2(breakdown.regularNet - breakdown.effectiveNet)),
             totalNet: breakdown.effectiveNet,
             vatRate: breakdown.vatRate,
             totalGross: breakdown.effectiveGross,
@@ -348,6 +350,14 @@ export class SubscriptionContractService {
                 },
             });
         }
+        // And the lines together have to be the contract: its totals are what
+        // is charged, its lines are what an invoice itemises, and a document
+        // whose lines come to a cent more or less than its total is one an
+        // auditor cannot reconcile. Both platform paths share the tax out so
+        // they always add up; a caller building its own lines does it with
+        // `recordContractLinesMoney` and `contractTotalsOf`.
+        assertLinesAddUp(data.lineItems, data.priceSnapshot);
+        assertNoNegativeDiscount(data);
     }
 
     private assertTerminable(

@@ -284,8 +284,13 @@ export class CheckoutOfferService {
             // The checks read the offer before this transaction, and an open
             // offer can still be changed in between. The contract has to be
             // the one the consumed row describes, so it is built from that row
-            // and must be the contract that was checked.
-            const data = contracts.prepareFromOffer(offer, contractOptions);
+            // and must be the contract that was checked — compared before the
+            // contract's checks run again, so none of them answers for a
+            // changed offer. Building it can still refuse first, since it has
+            // to exist to be compared: lines emptied in the window, or a
+            // minimum term that stopped being a date. Either way nothing is
+            // written.
+            const data = contracts.createDataFromOffer(offer, contractOptions);
             if (!isDeepStrictEqual(data, checked)) throw offerChanged(id);
             if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
             const contract = await contracts.create(data, tx);

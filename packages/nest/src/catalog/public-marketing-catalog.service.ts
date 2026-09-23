@@ -8,10 +8,9 @@
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
-    applyPromo,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
-    pickActivePromo,
+    promotionOnPrice,
     type BundleRepository,
     type BundleVersionRow,
     type CatalogEntryRepository,
@@ -427,27 +426,27 @@ export class PublicMarketingCatalogService {
         yearlyNet: number | null,
         asOf: Date,
     ): PublicMarketingPromo | null {
-        const monthlyPromo = pickActivePromo(
+        const monthly = promotionOnPrice(
             promotions,
             targetKey,
             locale,
             'monthly',
+            monthlyNet,
             asOf,
             targetType,
         );
-        const yearlyPromo = pickActivePromo(
+        const yearly = promotionOnPrice(
             promotions,
             targetKey,
             locale,
             'yearly',
+            yearlyNet,
             asOf,
             targetType,
         );
-        const promo = monthlyPromo ?? yearlyPromo;
+        // A badge over a price it does not lower would advertise nothing.
+        const promo = (monthly ?? yearly)?.promotion;
         if (!promo) return null;
-
-        const monthlyResult = applyPromo(monthlyPromo, monthlyNet);
-        const yearlyResult = applyPromo(yearlyPromo, yearlyNet);
         const i18n = promo.i18n?.[locale] ?? promo.i18n?.[DEFAULT_LOCALE] ?? {};
 
         return {
@@ -455,8 +454,8 @@ export class PublicMarketingCatalogService {
             badge: i18n.badge ?? '',
             fineprint: i18n.fineprint ?? '',
             color: promo.color,
-            discountedMonthlyNet: monthlyResult ? monthlyResult.discounted : null,
-            discountedYearlyNet: yearlyResult ? yearlyResult.discounted : null,
+            discountedMonthlyNet: monthly ? monthly.result.discounted : null,
+            discountedYearlyNet: yearly ? yearly.result.discounted : null,
         };
     }
 }

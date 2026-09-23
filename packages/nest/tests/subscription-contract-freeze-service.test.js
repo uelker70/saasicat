@@ -395,7 +395,6 @@ test('appends consumer bundle line items + version ids', async () => {
         quantity: 1,
         unit: null,
         priceNet: 20,
-        priceGross: 23.8,
         billingCycle: 'monthly',
         minimumTermUntil: null,
         featuresSnapshot: ['RESOURCES'],
@@ -438,7 +437,6 @@ const monthlyAddOn = (priceNet) => ({
     quantity: 1,
     unit: null,
     priceNet,
-    priceGross: priceNet,
     billingCycle: 'monthly',
     minimumTermUntil: null,
     featuresSnapshot: [],
@@ -486,6 +484,31 @@ describe('a yearly contract holding a monthly add-on', () => {
         assert.equal(calls.created[0].priceSnapshot.totalNet, 590);
     });
 
+    // @requirement SC-PRIC-050 — A contract's lines add up to its totals in net, gross and tax
+    test('each rhythm pays its tax on its own net, so the gross is what the charges come to', async () => {
+        // One yearly charge of 583.10 and twelve monthly ones of 11.92 are
+        // 726.14; converting the year's 610.24 once would state 726.19.
+        const { calls, service } = makeService({
+            bundles: { lineItems: [monthlyAddOn(10.02)], bundleVersionIds: ['bv-1'] },
+        });
+        await service.freezeOnPlanChange(
+            't1',
+            'STANDARD',
+            'YEARLY',
+            new Date('2026-06-09T00:00:00.000Z'),
+        );
+        const { priceSnapshot, lineItems } = calls.created[0];
+        assert.deepEqual(
+            lineItems.map((li) => [li.kind, li.priceGross, li.taxAmount]),
+            [
+                ['plan', 583.1, 93.1],
+                ['bundle', 11.92, 1.9],
+            ],
+        );
+        assert.equal(priceSnapshot.totalNet, 610.24);
+        assert.equal(priceSnapshot.totalGross, 726.14);
+    });
+
     test('a monthly contract adds a monthly add-on as it stands', async () => {
         const { calls, service } = makeService({
             bundles: { lineItems: [monthlyAddOn(10)], bundleVersionIds: ['bv-1'] },
@@ -519,7 +542,6 @@ describe('what a frozen line records about its money', () => {
         quantity: 1,
         unit: null,
         priceNet: 20,
-        priceGross: 23.8,
         billingCycle: 'monthly',
         minimumTermUntil: null,
         featuresSnapshot: [],
@@ -571,6 +593,27 @@ describe('what a frozen line records about its money', () => {
         assert.equal(planLine.priceGross, planLine.priceNet);
     });
 
+    // @requirement SC-PRIC-050 — A contract's lines add up to its totals in net, gross and tax
+    test("the gross is the platform's share of the tax, not one a source sends along", async () => {
+        // Ten-oh-two each: converted on their own, 11.92 + 11.92 under a total
+        // of 23.85. The add-on carries the cent, and a gross the source still
+        // puts on its line is not what is recorded.
+        const contract = await freeze({
+            catalog: { ...CATALOG, plans: [{ ...CATALOG.plans[0], monthlyNet: 10.02 }] },
+            boundFor: () =>
+                boundPlanVersion({ ...CATALOG.plans[0], monthlyNet: 10.02 }, 'pv-standard-3'),
+            bundles: {
+                lineItems: [{ ...addOn, priceNet: 10.02, priceGross: 999 }],
+                bundleVersionIds: ['bv-1'],
+            },
+        });
+        assert.deepEqual(
+            contract.lineItems.map((li) => li.priceGross),
+            [11.92, 11.93],
+        );
+        assert.equal(contract.priceSnapshot.totalGross, 23.85);
+    });
+
     test('a currency other than the euro is the one that is recorded', async () => {
         // The value comes from the catalogue rather than a default anywhere in
         // the path — which every case above would pass over, EUR being what
@@ -578,6 +621,29 @@ describe('what a frozen line records about its money', () => {
         const contract = await freeze({ catalog: { ...CATALOG, currency: 'CHF' } });
         assert.equal(contract.lineItems[0].currency, 'CHF');
     });
+});
+
+// @requirement SC-PRIC-051 — Nothing a contract takes off is negative
+test('a discount line from the source that adds money is refused before the contract in force is closed', async () => {
+    const { calls, service } = makeService({
+        previousContract: { id: 'old-contract' },
+        bundles: {
+            lineItems: [{ ...monthlyAddOn(0.01), kind: 'discount', sourceKey: 'SURCHARGE' }],
+            bundleVersionIds: [],
+        },
+    });
+    await assert.rejects(
+        () =>
+            service.freezeOnPlanChange(
+                't1',
+                'STANDARD',
+                'MONTHLY',
+                new Date('2026-06-09T00:00:00.000Z'),
+            ),
+        (error) => error.getResponse().code === 'SUBSCRIPTION_CONTRACT_DISCOUNT_NEGATIVE',
+    );
+    assert.deepEqual(calls.terminated, [], 'the contract in force was closed');
+    assert.deepEqual(calls.created, []);
 });
 
 // @requirement SC-SUB-016 — A subscription always has its subscriber, whichever path created the tenant

@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 176 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 179 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -117,6 +117,7 @@ Plans, versions, bundles, marketing entries.
 | `PLAN_VERSION_VALID_UNTIL_INVALID`             | validUntil '{validUntil}' is not a valid date                                                                                                                                                                                                           |
 | `PLAN_VERSION_ZERO_PRICE`                      | A plan version cannot be published with a price of 0.00 (guard against seed placeholder). For deliberately free special contracts, set allowZeroPrice.                                                                                                  |
 | `PROMOTION_NOT_FOUND`                          | Promotion '{promotionId}' not found                                                                                                                                                                                                                     |
+| `PROMOTION_VALUE_INVALID`                      | The value of a '{type}' promotion is not one its type takes: a percentage above 0 and at most 100, an amount above 0, an intro price of at least 0 for a whole number of months, or a whole number of free months.                                      |
 | `QUOTA_NOT_FOUND`                              | Quota '{quotaKey}' not found                                                                                                                                                                                                                            |
 | `QUOTA_NOT_IN_DISCOVERY_SNAPSHOT`              | Quota '{quotaKey}' is not in the discovery snapshot — a quota that is not declared in code cannot be approved                                                                                                                                           |
 | `STRICT_MODE_VIOLATIONS`                       | The strict-mode check found drift against the discovery snapshot.                                                                                                                                                                                       |
@@ -189,8 +190,10 @@ Checkout offers and subscription contracts.
 | `CHECKOUT_OFFER_PROMO_CODE_NOT_ACCEPTED`            | The promo code cannot be applied to this offer ({reason}).                                                                                                                     |
 | `NO_ACTIVE_SUBSCRIPTION_CONTRACT`                   | No active subscription contract for tenant {tenantId}                                                                                                                          |
 | `SUBSCRIPTION_CONTRACT_ALREADY_CLOSED`              | SubscriptionContract '{contractId}' is already closed                                                                                                                          |
+| `SUBSCRIPTION_CONTRACT_DISCOUNT_NEGATIVE`           | A subscription contract states a discount of {amount} at {field}; a discount takes money off and is never negative.                                                            |
 | `SUBSCRIPTION_CONTRACT_INVALID_DATE`                | {field} must be a valid date.                                                                                                                                                  |
 | `SUBSCRIPTION_CONTRACT_INVALID_WINDOW`              | effectiveUntil must be after effectiveFrom.                                                                                                                                    |
+| `SUBSCRIPTION_CONTRACT_LINES_DO_NOT_ADD_UP`         | The line items of a subscription contract add up to {lines} for {field}, but the contract states {stated}.                                                                     |
 | `SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED`         | A subscription contract requires at least one line item.                                                                                                                       |
 | `SUBSCRIPTION_CONTRACT_LINE_ITEM_CURRENCY_MISMATCH` | A line item must be booked in the currency its contract was priced in.                                                                                                         |
 | `SUBSCRIPTION_CONTRACT_LINE_ITEM_TAX_MISMATCH`      | A line item's taxAmount must be exactly priceGross minus priceNet.                                                                                                             |

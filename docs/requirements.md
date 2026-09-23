@@ -115,11 +115,11 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 49      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 51      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 22      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
-| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 25      |
+| 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 24      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 488 entries: 🟢 416 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 491 entries: 🟢 419 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -210,7 +210,7 @@ Of 488 entries: 🟢 416 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 488 requirements. Do not edit by hand:
+Generated from `requirements/` — 491 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5236,10 +5236,16 @@ _Source:_ release 1.0.0-rc.7
 
 _Tested by:_
 
+- `packages/nest/tests/a-contracts-lines-add-up-to-its-totals.test.js`
+    - a contract mixing rhythms
+        - each rhythm pays its tax on its own net, and the total is what the charges come to
+        - a monthly line does not take a share of the yearly line before it
+        - the door holds such a contract to the weighted total, not to the lines counted once
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - a yearly contract holding a monthly add-on
         - counts the add-on as often as it falls due
         - a yearly add-on beside a yearly plan is counted once
+        - each rhythm pays its tax on its own net, so the gross is what the charges come to
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
@@ -5291,6 +5297,7 @@ _Tested by:_
         - every line names the currency and the rate the installation applies
         - and the tax it names closes the gap between its own net and gross
         - a rate of zero is recorded as zero, not left to be read as absent
+        - the gross is the platform's share of the tax, not one a source sends along
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
@@ -5356,6 +5363,7 @@ _Tested by:_
         - every line names the currency and the rate the installation applies
         - and the tax it names closes the gap between its own net and gross
         - a rate of zero is recorded as zero, not left to be read as absent
+        - the gross is the platform's share of the tax, not one a source sends along
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
@@ -5367,6 +5375,77 @@ _Tested by:_
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
+
+<!-- END proof -->
+
+### SC-PRIC-050 — A contract's lines add up to its totals in net, gross and tax
+
+🟢 💰 The total is what is charged and the lines are what an invoice itemises, so a document whose
+lines come to a cent more or less than its total is one an auditor cannot reconcile. The tax is
+computed once on the net of the charges billed together — every line of one rhythm — and each line
+carries its share of it, at most a cent from its own conversion. A contract mixing rhythms
+(`SC-PRIC-012`) states what its charges come to: one yearly charge and twelve monthly ones, each
+rhythm taxed on its own net. A contract whose lines do not add up is refused, whoever builds it.
+
+_Source:_ #311
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contracts-lines-add-up-to-its-totals.test.js`
+    - each line carries its share of one tax computation
+        - two lines that round the same way: the total is converted once, and the second line
+          carries the cent
+        - over price pairs and triples, with and without a discount, the lines add up and none is
+          more than a cent from its own conversion
+        - a rate of zero carries no tax on any line
+    - a contract mixing rhythms
+        - each rhythm pays its tax on its own net, and the total is what the charges come to
+        - a monthly line does not take a share of the yearly line before it
+        - the door holds such a contract to the weighted total, not to the lines counted once
+    - an offer and the contract concluded from it
+        - the reproduction: lines that came to −0.01 under totals of 0 come to 0
+        - over price pairs, with and without a code, the offer and its contract add up
+        - an offer whose stored lines were each converted on their own still concludes, and its
+          contract adds up
+        - an offer stating a gross its lines do not come to is refused at the door, and nothing is
+          stored
+    - the door, approached with lines that do not add up
+        - the lines a caller builds with the exported functions go through
+        - a ${field} a cent off its lines, either way, is refused, and nothing is stored
+        - lines each converted on their own, under a total converted once, are refused
+        - a replacement whose lines do not add up leaves the contract in force
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a yearly contract holding a monthly add-on
+        - each rhythm pays its tax on its own net, so the gross is what the charges come to
+    - what a frozen line records about its money
+        - the gross is the platform's share of the tax, not one a source sends along
+
+<!-- END proof -->
+
+### SC-PRIC-051 — Nothing a contract takes off is negative
+
+🟢 💰 A discount, a promotion's amount and a promo code's amount are each zero or more. A negative
+discount would be a surcharge nobody agreed to under that name, in a record that is append-only. A
+contract stating one is refused.
+
+_Source:_ #311
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contracts-lines-add-up-to-its-totals.test.js`
+    - nothing a contract takes off is negative
+        - ${what} resolved below zero is refused, and nothing is stored
+        - a discount line that adds money is refused, even where the totals follow it
+        - a discount of exactly zero goes through
+        - a promotion stated above 100 % takes the plan and nothing of the add-on, and a code after
+          it takes nothing
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a discount line from the source that adds money is refused before the contract in force is
+      closed
 
 <!-- END proof -->
 
@@ -7397,6 +7476,10 @@ _Tested by:_
         - i18n: falls back to DE projection when locale is missing
         - i18n: without a projection the bundle root label applies (description stays empty)
         - bundle promotions are resolved with targetType=BUNDLE
+        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
+          never at a negative price
+        - a promotion the price it meets cannot bear › an intro price above the price shows no
+          promotion at all
 
 <!-- END proof -->
 
@@ -7547,6 +7630,14 @@ _Source:_ release 1.0.0-rc.6
 
 _Tested by:_
 
+- `packages/core/tests/a-promotion-lowers-a-price-and-nothing-else.test.js`
+    - applyPromo keeps a price between 0 and the price it is applied to
+        - bounded: ${what}
+        - what the result says it takes off is what it takes off
+        - ${what} takes nothing off, so it is no promotion there
+    - the promotion a price carries
+        - is the active one for the key, with what it makes of the price
+        - is none for ${what}
 - `packages/core/tests/promotion-helpers.test.js`
     - pickActivePromo
         - highest priority wins on overlap
@@ -7555,6 +7646,39 @@ _Tested by:_
         - requiresCoupon promotions are not selected automatically
         - non-matching plan → null
         - targetType filters bundle promotions separately from plan promotions
+- `packages/nest/tests/public-marketing-catalog-bundles.test.js`
+    - PublicMarketingCatalogService — Bundles
+        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
+          never at a negative price
+        - a promotion the price it meets cannot bear › an intro price above the price shows no
+          promotion at all
+
+<!-- END proof -->
+
+### SC-MKT-026 — A promotion is saved only with a value its type can take
+
+🟢 💰 A percentage above 0 and at most 100, an amount above 0, an intro price of at least 0 for a
+whole number of months, a whole number of free months — on creating a promotion and on changing
+one, where a change of type alone meets the value already stored. Whether an intro price or an
+amount fits a line depends on the price it meets, which differs per plan and rhythm, so that bound
+is held where the promotion is applied (`SC-MKT-010`).
+
+_Source:_ #311
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-promotion-takes-a-value-its-type-can-take.test.js`
+    - creating a promotion
+        - a ${type} of ${JSON.stringify(value)} is refused, and nothing is stored
+        - a ${type} of ${JSON.stringify(value)} is saved
+    - changing a promotion
+        - a value its type does not take is refused, and the stored one stays
+        - a change of type alone meets the value already stored
+        - a ${field} sent as null is judged as null, not as the one stored, and nothing is written
+        - a change of both to a pair that fits is saved
+        - a change of another field leaves a valid value alone
 
 <!-- END proof -->
 
@@ -7590,6 +7714,10 @@ _Tested by:_
         - i18n: falls back to DE projection when locale is missing
         - i18n: without a projection the bundle root label applies (description stays empty)
         - bundle promotions are resolved with targetType=BUNDLE
+        - a promotion the price it meets cannot bear › a percentage above 100 shows the add-on free,
+          never at a negative price
+        - a promotion the price it meets cannot bear › an intro price above the price shows no
+          promotion at all
 - `packages/ui-vue/tests/use-tenant-billing-catalog.test.js`
     - useTenantBillingCatalog
         - load() reads all three endpoints under the default prefix
@@ -7747,6 +7875,7 @@ _Tested by:_
     - a yearly contract holding a monthly add-on
         - counts the add-on as often as it falls due
         - a yearly add-on beside a yearly plan is counted once
+        - each rhythm pays its tax on its own net, so the gross is what the charges come to
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/subscription-contract-service.test.js`
     - SubscriptionContractService
@@ -12744,6 +12873,7 @@ _Tested by:_
         - requires the feature list
         - holds the feature-key shape
         - holds the decimal shape, and lets null through
+        - holds a plan's own price in pricingOverrides to the same two fraction digits
         - holds the date shape, and lets null through
     - UpdateBundleVersionDraftDto
         - accepts an empty patch and the same shapes as create

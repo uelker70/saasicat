@@ -264,10 +264,16 @@ _Source:_ release 1.0.0-rc.7
 
 _Tested by:_
 
+- `packages/nest/tests/a-contracts-lines-add-up-to-its-totals.test.js`
+    - a contract mixing rhythms
+        - each rhythm pays its tax on its own net, and the total is what the charges come to
+        - a monthly line does not take a share of the yearly line before it
+        - the door holds such a contract to the weighted total, not to the lines counted once
 - `packages/nest/tests/subscription-contract-freeze-service.test.js`
     - a yearly contract holding a monthly add-on
         - counts the add-on as often as it falls due
         - a yearly add-on beside a yearly plan is counted once
+        - each rhythm pays its tax on its own net, so the gross is what the charges come to
         - a monthly contract adds a monthly add-on as it stands
 - `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
     - add re-freezes the contract with an unchanged plan
@@ -319,6 +325,7 @@ _Tested by:_
         - every line names the currency and the rate the installation applies
         - and the tax it names closes the gap between its own net and gross
         - a rate of zero is recorded as zero, not left to be read as absent
+        - the gross is the platform's share of the tax, not one a source sends along
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
@@ -384,6 +391,7 @@ _Tested by:_
         - every line names the currency and the rate the installation applies
         - and the tax it names closes the gap between its own net and gross
         - a rate of zero is recorded as zero, not left to be read as absent
+        - the gross is the platform's share of the tax, not one a source sends along
         - a currency other than the euro is the one that is recorded
 - `packages/nest/tests/subscription-contract-service.test.js`
     - the money facts a contract inherits from its offer
@@ -395,6 +403,77 @@ _Tested by:_
 - `packages/spec/tests/integration/a-migration-survives-a-second-run.integration.test.js`
     - a line item learns the money it was booked with
         - the values come from the contract the line belongs to
+
+<!-- END proof -->
+
+### SC-PRIC-050 — A contract's lines add up to its totals in net, gross and tax
+
+🟢 💰 The total is what is charged and the lines are what an invoice itemises, so a document whose
+lines come to a cent more or less than its total is one an auditor cannot reconcile. The tax is
+computed once on the net of the charges billed together — every line of one rhythm — and each line
+carries its share of it, at most a cent from its own conversion. A contract mixing rhythms
+(`SC-PRIC-012`) states what its charges come to: one yearly charge and twelve monthly ones, each
+rhythm taxed on its own net. A contract whose lines do not add up is refused, whoever builds it.
+
+_Source:_ #311
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contracts-lines-add-up-to-its-totals.test.js`
+    - each line carries its share of one tax computation
+        - two lines that round the same way: the total is converted once, and the second line
+          carries the cent
+        - over price pairs and triples, with and without a discount, the lines add up and none is
+          more than a cent from its own conversion
+        - a rate of zero carries no tax on any line
+    - a contract mixing rhythms
+        - each rhythm pays its tax on its own net, and the total is what the charges come to
+        - a monthly line does not take a share of the yearly line before it
+        - the door holds such a contract to the weighted total, not to the lines counted once
+    - an offer and the contract concluded from it
+        - the reproduction: lines that came to −0.01 under totals of 0 come to 0
+        - over price pairs, with and without a code, the offer and its contract add up
+        - an offer whose stored lines were each converted on their own still concludes, and its
+          contract adds up
+        - an offer stating a gross its lines do not come to is refused at the door, and nothing is
+          stored
+    - the door, approached with lines that do not add up
+        - the lines a caller builds with the exported functions go through
+        - a ${field} a cent off its lines, either way, is refused, and nothing is stored
+        - lines each converted on their own, under a total converted once, are refused
+        - a replacement whose lines do not add up leaves the contract in force
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a yearly contract holding a monthly add-on
+        - each rhythm pays its tax on its own net, so the gross is what the charges come to
+    - what a frozen line records about its money
+        - the gross is the platform's share of the tax, not one a source sends along
+
+<!-- END proof -->
+
+### SC-PRIC-051 — Nothing a contract takes off is negative
+
+🟢 💰 A discount, a promotion's amount and a promo code's amount are each zero or more. A negative
+discount would be a surcharge nobody agreed to under that name, in a record that is append-only. A
+contract stating one is refused.
+
+_Source:_ #311
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-contracts-lines-add-up-to-its-totals.test.js`
+    - nothing a contract takes off is negative
+        - ${what} resolved below zero is refused, and nothing is stored
+        - a discount line that adds money is refused, even where the totals follow it
+        - a discount of exactly zero goes through
+        - a promotion stated above 100 % takes the plan and nothing of the add-on, and a code after
+          it takes nothing
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a discount line from the source that adds money is refused before the contract in force is
+      closed
 
 <!-- END proof -->
 
