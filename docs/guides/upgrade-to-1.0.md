@@ -1772,15 +1772,18 @@ the row. Null still means a booking made before the column existed, billed in th
 - **Code of your own** that calls `resolveBundlePriceNet` or `listForSubscription` on
   `SubscriptionBundlesService`, or builds a `SubscriptionBundlePreviewContext`, passes a
   `BillingCycle` where it passed a string.
-- **Rows already stored.** The column is text. This lists the rows that would now be refused, and on
-  an installation the platform alone has written it lists none:
+- **Rows already stored — check before deploying.** The column is text. This lists the rows that
+  would now be refused, and on an installation the platform alone has written it lists none:
 
     ```sql
     SELECT "id", "billingCycle" FROM "subscription_bundles"
     WHERE "billingCycle" IS NOT NULL AND "billingCycle" NOT IN ('MONTHLY', 'YEARLY');
     ```
 
-    Set each row it returns to the rhythm the booking is actually billed in.
+    Set each row it returns to the rhythm the booking is actually billed in, before the release
+    runs. Every read of a booking goes through the check, the entitlement service's included, so a
+    row left as it is stops that tenant's feature and quota checks as well as its add-on prices, with
+    an error naming the row.
 
 - **Your persistence contract harness** gains a seed writer, `setBookingCycle`, which takes a
   booking's id and a value and overwrites the booking's `billingCycle` with it — the shipped

@@ -20,7 +20,9 @@ booking priced monthly without a word.
 - Both shipped adapters read a booking through `toSubscriptionBundleRecord`,
   new in `@saasicat/core`, which refuses a stored rhythm other than the two,
   naming the row. A `SubscriptionBundleRepository` of your own can map its rows
-  with it.
+  with it. Every read of a booking is checked, the entitlement service's
+  included, so run the query in the upgrade guide before deploying: a row it
+  lists stops that tenant's feature and quota checks until it is corrected.
 - Breaking: the persistence contract checks that refusal. A harness gives it
   the `setBookingCycle` seed writer, or names `foreignBookingCycleSeed` in
   `gaps`.
