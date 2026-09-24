@@ -3,6 +3,7 @@ import type {
     BillingCycle,
     PlanCatalog,
     SubscriptionBundleRepository,
+    SubscriptionContractRepository,
     SubscriptionUsagePort,
     UsageSnapshotPort,
 } from '@saasicat/core';
@@ -20,6 +21,7 @@ import {
 import { periodEndAfter } from './billing-period.js';
 import { bundleCycleFitsPlan } from './bundle-period.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import {
     SUBSCRIPTION_USAGE_PORT_TOKEN,
     TRIAL_PROJECTION_PORT_TOKEN,
@@ -189,6 +191,12 @@ export class PlanChangePreviewService {
         @Optional()
         @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
         private readonly subscriptionBundles: SubscriptionBundleRepository | null = null,
+        // Optional — where contracts are frozen, the plan line of the one in
+        // force is what the customer pays for the period they are in, and the
+        // catalogue may list the plan at another price by now.
+        @Optional()
+        @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
+        private readonly contracts: SubscriptionContractRepository | null = null,
     ) {}
 
     async preview(
@@ -314,10 +322,10 @@ export class PlanChangePreviewService {
                 ? this.computeProration(
                       ctx,
                       now,
-                      currentSnap,
-                      targetSnap,
-                      sub.billingCycle,
-                      targetCycle,
+                      (await this.planPricePaid(tenantId, sub.billingCycle, now)) ??
+                          priceForCycle(currentSnap, sub.billingCycle) ??
+                          0,
+                      priceForCycle(targetSnap, targetCycle) ?? 0,
                       cycleDirection,
                   )
                 : null;
@@ -607,16 +615,22 @@ export class PlanChangePreviewService {
     private computeProration(
         ctx: PlanChangeContext,
         now: Date,
-        current: PlanSnapshotDto,
-        target: PlanSnapshotDto,
-        currentCycle: string,
-        targetCycle: string,
+        currentPriceNet: number,
+        targetPriceNet: number,
         cycleDirection: CycleDirection,
     ): ProrationDto {
+        // A subscription with no period yet has nothing paid to run inside:
+        // the change opens its first period, in full.
+        if (ctx.currentPeriodEnd === null) {
+            return computeNewPeriodCharge({
+                periodStart: now,
+                periodEnd: now,
+                now,
+                currentPriceNet,
+                targetPriceNet,
+            });
+        }
         const periodStart = ctx.currentPeriodStart ?? ctx.startedAt ?? now;
-        const periodEnd =
-            ctx.currentPeriodEnd ??
-            periodEndAfter(ctx.startedAt, ctx.currentBillingCycle as BillingCycle, now);
         // In the same rhythm the target runs inside the period already paid
         // (`SC-CHG-020`); a longer rhythm is a period of its own that starts
         // today (`SC-CHG-021`), and taking a difference between a year's price
@@ -625,11 +639,28 @@ export class PlanChangePreviewService {
 
         return charge({
             periodStart,
-            periodEnd,
+            periodEnd: ctx.currentPeriodEnd,
             now,
-            currentPriceNet: priceForCycle(current, currentCycle) ?? 0,
-            targetPriceNet: priceForCycle(target, targetCycle) ?? 0,
+            currentPriceNet,
+            targetPriceNet,
         });
+    }
+
+    /**
+     * The net price of the plan line in the contract in force, when it is
+     * billed in `cycle` — what the customer pays for the period they are in.
+     * Null without contracts, or where the line is in another rhythm; the
+     * caller then prices from the catalogue.
+     */
+    private async planPricePaid(
+        tenantId: string,
+        cycle: string,
+        now: Date,
+    ): Promise<number | null> {
+        const contract = await this.contracts?.findActiveByTenantId(tenantId, now);
+        const planLine = contract?.lineItems.find((line) => line.kind === 'plan');
+        if (!planLine || planLine.billingCycle !== cycle.toLowerCase()) return null;
+        return planLine.priceNet;
     }
 }
 

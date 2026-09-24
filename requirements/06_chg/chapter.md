@@ -70,6 +70,8 @@ _Tested by:_
     - an immediate upgrade in the same rhythm
         - is charged the difference for what is left of the period
         - keeps the window and the billing day it runs in
+        - is priced at what the contract bills, not at what the catalogue lists today
+        - where the subscription has no period yet, is charged a first period in full
         - opens a window where the subscription has none to run inside
 - `packages/ui-vue-tenant/tests/component/an-upgrade-says-what-it-is-charged-for.test.ts`
     - the preview names what an upgrade is charged for
@@ -94,6 +96,7 @@ _Tested by:_
 - `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
     - an immediate upgrade into a longer rhythm
         - is charged the new period in full, less the unused rest of the old one
+        - takes the unused rest at what the contract bills
         - starts its period today, so the billing day becomes today
     - the unused rest at its edges
         - on the first day of the period the whole of it is left

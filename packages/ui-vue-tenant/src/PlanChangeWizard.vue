@@ -96,7 +96,7 @@
                                     formatCurrency(preview.proration.targetPriceNet)
                                 }}</strong>
                             </p>
-                            <p>
+                            <p v-if="preview.proration.remainderNet > 0">
                                 {{ i18n.remainderLine }}
                                 <strong>{{
                                     formatCurrency(preview.proration.remainderNet)

@@ -19,6 +19,11 @@ year on day 15 of 30 was quoted at 470.50.
 - Into a longer rhythm the new period starts today, charged in full less the
   unused rest of the old one at the price paid for it: 990 − 24.50 = 965.50
   in the example (`SC-CHG-021`). The rest is never paid out.
+- What was already paid is priced from the plan line of the contract in force,
+  not from today's catalogue, so a customer bought at 19 a month is credited at
+  19 after the plan went to 29. Without contracts the catalogue price stands.
+- A subscription with no period yet is charged its first period in full, and
+  the preview says so.
 - `ProrationDto` gains `basis` (`difference` or `newPeriod`) and `remainderNet`;
   `computeNewPeriodCharge` is new beside `computeProration`. The plan change
   wizard shows the full price and the rest it is reduced by, with three new

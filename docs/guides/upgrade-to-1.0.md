@@ -998,7 +998,12 @@ two agree:
   becomes today, as before. What changes is the price the preview names: the new period in full,
   less the unused rest of the running one at the price paid for it, floored at zero.
   `proration.basis` says which of the two applies, and `proration.remainderNet` is the rest.
-- **A subscription with no period yet** still gets its first one on an immediate upgrade.
+- **A subscription with no period yet** still gets its first one on an immediate upgrade, and the
+  preview now says so: `basis` is `newPeriod`, with no rest to take off.
+- **The price already paid** is the plan line of the contract in force, where contracts are frozen
+  (`contractFreeze`), for the difference and for the rest alike. A customer bought at 19 a month is
+  credited at 19 after the catalogue has moved to 29. Without contracts the preview prices the
+  running plan from the catalogue, as before.
 
 A page of your own that shows `proration` reads `basis`: on `newPeriod`, `targetPriceNet` is the
 new period's price and `remainderNet` what it is reduced by. The shipped plan change wizard does

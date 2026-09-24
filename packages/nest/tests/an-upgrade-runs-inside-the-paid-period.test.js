@@ -81,15 +81,31 @@ const entitlements = {
     invalidateTenant() {},
 };
 
-function previewService(subscription) {
+function previewService(subscription, { catalog = CATALOG, contract = null } = {}) {
     return new PlanChangePreviewService(
-        givenPlanCatalogSource(CATALOG),
+        givenPlanCatalogSource(catalog),
         entitlements,
         { findForTenant: async () => subscription },
         { snapshot: async () => ({ users: 1 }) },
         null,
+        null,
+        null,
+        contract ? { findActiveByTenantId: async () => contract } : null,
     );
 }
+
+/** The catalogue after STARTER went up from 19 to 29 a month. */
+const RAISED = {
+    ...CATALOG,
+    plans: CATALOG.plans.map((plan) =>
+        plan.id === 'STARTER' ? { ...plan, monthlyNet: 29, yearlyNet: 290 } : plan,
+    ),
+};
+
+/** A contract in force that bills STARTER at the 19 a month it was bought at. */
+const BOUGHT_AT_19 = {
+    lineItems: [{ kind: 'plan', sourceKey: 'STARTER', priceNet: 19, billingCycle: 'monthly' }],
+};
 
 function writePort() {
     return {
@@ -159,6 +175,29 @@ describe('an immediate upgrade in the same rhythm', () => {
         assert.equal(write.planId, 'STANDARD');
     });
 
+    test('is priced at what the contract bills, not at what the catalogue lists today', async () => {
+        const dto = await previewService(starterMonthly(JAN_1, FEB_1), {
+            catalog: RAISED,
+            contract: BOUGHT_AT_19,
+        }).preview('t1', 'STANDARD', 'MONTHLY', JAN_15);
+
+        assert.equal(dto.proration.currentPriceNet, 19);
+        assert.equal(dto.proration.prorataDeltaNet, 16.45, '(49 − 19) × 17 / 31, not (49 − 29)');
+    });
+
+    test('where the subscription has no period yet, is charged a first period in full', async () => {
+        const dto = await previewService(starterMonthly(null, null, { startedAt: JAN_1 })).preview(
+            't1',
+            'STANDARD',
+            'MONTHLY',
+            JAN_15,
+        );
+
+        assert.equal(dto.proration.basis, 'newPeriod');
+        assert.equal(dto.proration.remainderNet, 0, 'nothing was paid to run inside');
+        assert.equal(dto.proration.prorataDeltaNet, 49);
+    });
+
     test('opens a window where the subscription has none to run inside', async () => {
         // The one case where keeping the window keeps nothing: an active
         // subscription with no period yet gets its first one, as before.
@@ -187,6 +226,16 @@ describe('an immediate upgrade into a longer rhythm', () => {
         assert.equal(dto.proration.remainderNet, 10.42, '19 × 17 / 31');
         assert.equal(dto.proration.prorataDeltaNet, 479.58, '490 − 10.42');
         assert.equal(dto.proration.targetPriceNet, 490);
+    });
+
+    test('takes the unused rest at what the contract bills', async () => {
+        const dto = await previewService(starterMonthly(JAN_1, FEB_1), {
+            catalog: RAISED,
+            contract: BOUGHT_AT_19,
+        }).preview('t1', 'STANDARD', 'YEARLY', JAN_15);
+
+        assert.equal(dto.proration.remainderNet, 10.42, '19 × 17 / 31, not 29 × 17 / 31');
+        assert.equal(dto.proration.prorataDeltaNet, 479.58);
     });
 
     test('starts its period today, so the billing day becomes today', async () => {
