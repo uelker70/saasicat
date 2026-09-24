@@ -225,6 +225,11 @@ describe('an add-on cancelled under a contract', () => {
         );
         assert.deepEqual(contract.entitlementSnapshot.features, ['CORE']);
         assert.equal(contract.entitlementSnapshot.quotas.storageGb, 5);
+        assert.deepEqual(
+            contract.entitlementSnapshot.leftOutBundleVersionIds,
+            ['bv-archive'],
+            'the snapshot names what it left out, so a reader knows it is not in there',
+        );
     });
 
     test('an add-on beside it that is not cancelled runs on', async () => {
@@ -250,6 +255,38 @@ describe('an add-on cancelled under a contract', () => {
 
         assert.ok(limits.features.has('ARCHIVE'));
         assert.equal(limits.quotas.storageGb, 25);
+    });
+});
+
+describe('a contract that recorded the add-on in its own entitlements', () => {
+    // Written before the platform left a cancelled add-on out, or by an
+    // application concluding a contract itself: the snapshot contains the
+    // add-on and names nothing as left out. Counting the booking on top of it
+    // would grant the add-on's quota twice until its date.
+    test('keeps counting a cancelled add-on once', async () => {
+        const t = await bookedAndCancelled();
+        const written = await t.contracts.findActiveByTenantId('t1', BEFORE);
+        await t.contracts.terminate(written.id, {
+            effectiveUntil: CANCELLED,
+            status: 'superseded',
+        });
+        await t.contracts.create({
+            tenantId: 't1',
+            parties: PARTIES,
+            effectiveFrom: CANCELLED,
+            originalBundleVersionIds: ['bv-archive'],
+            priceSnapshot: written.priceSnapshot,
+            entitlementSnapshot: {
+                plan: 'STANDARD',
+                quotas: { users: 5, storageGb: 25 },
+                features: ['ARCHIVE', 'CORE'],
+            },
+            lineItems: [],
+        });
+
+        const limits = await t.grants(BEFORE);
+
+        assert.equal(limits.quotas.storageGb, 25, 'the add-on’s quota was counted twice');
     });
 });
 

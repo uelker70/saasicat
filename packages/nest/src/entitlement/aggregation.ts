@@ -131,16 +131,31 @@ export function contractLimits(
 
 /**
  * `BundleVersion`s the contract already accounts for — from the freeze
- * (`originalBundleVersionIds`) and from its bundle line items.
+ * (`originalBundleVersionIds`) and from its bundle line items — less the ones
+ * its entitlement snapshot says it left out.
+ *
+ * A contract written while an add-on's cancellation is declared keeps the
+ * add-on's line, because it is billed until its effective date, but leaves its
+ * features and quotas out of the snapshot and names it there. Such an add-on is
+ * not covered: its booking grants it until that date, and nothing does after.
+ * A snapshot that names nothing — written earlier, or by an application —
+ * covers every add-on its contract lists, so nothing is counted twice.
  */
 export function contractBundleVersionIds(
-    contract: Pick<SubscriptionContractRecord, 'originalBundleVersionIds' | 'lineItems'>,
+    contract: Pick<
+        SubscriptionContractRecord,
+        'originalBundleVersionIds' | 'lineItems' | 'entitlementSnapshot'
+    >,
 ): Set<string> {
     const ids = new Set<string>(contract.originalBundleVersionIds);
     for (const item of contract.lineItems) {
         if (item.kind === 'bundle' && item.sourceVersionId) {
             ids.add(item.sourceVersionId);
         }
+    }
+    const leftOut = contract.entitlementSnapshot?.leftOutBundleVersionIds;
+    if (Array.isArray(leftOut)) {
+        for (const id of leftOut) ids.delete(id);
     }
     return ids;
 }
@@ -155,12 +170,6 @@ export function contractBundleVersionIds(
  * i.e. `originalBundleVersionIds` plus the bundle line items) are skipped, so
  * their quotas are not counted twice.
  *
- * A booking whose cancellation is declared never counts as covered, even with
- * a line on the contract. It is billed until its effective date, so the
- * contract keeps the line, but a freeze leaves it out of the entitlement
- * snapshot (`EntitlementService.computeContractLimits`): what it grants comes
- * from the booking itself, and ends on that date without anybody writing the
- * contract again.
  *
  * Features are a set union, quotas add up with `-1` (unlimited) dominance, and
  * `plannedOnly` features stay out — same rules as `aggregateLimits`. The
@@ -175,7 +184,7 @@ export function mergeSubscriptionBundlesIntoLimits(
     now: Date,
 ): EffectiveLimits {
     const additional = filterActiveSubscriptionBundles(bundles, now).filter(
-        (b) => isCancellationDeclared(b) || !coveredBundleVersionIds.has(b.bundleVersionId),
+        (b) => !coveredBundleVersionIds.has(b.bundleVersionId),
     );
     if (additional.length === 0) return limits;
 

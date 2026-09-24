@@ -54,9 +54,12 @@ function makeService({
         async computeContractLimits(_tenantId, _now, catalog) {
             calls.limitsFrom.push(catalog);
             return {
-                plan: 'STANDARD',
-                quotas: { users: 8, members: 1000 },
-                features: new Set(['CORE', 'WHATSAPP']),
+                limits: {
+                    plan: 'STANDARD',
+                    quotas: { users: 8, members: 1000 },
+                    features: new Set(['CORE', 'WHATSAPP']),
+                },
+                leftOutBundleVersionIds: [],
             };
         },
     };

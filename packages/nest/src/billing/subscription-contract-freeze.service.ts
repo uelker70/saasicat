@@ -201,8 +201,9 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // What the tenant would get without the freeze, less the add-ons whose
         // cancellation is declared: those keep their line until their effective
         // date, and are granted by the booking until then rather than by a
-        // snapshot that would outlive it.
-        const limits = await this.entitlements.computeContractLimits(
+        // snapshot that would outlive it. The snapshot names them, which is how
+        // a reader tells them from the add-ons it does contain.
+        const { limits, leftOutBundleVersionIds } = await this.entitlements.computeContractLimits(
             tenantId,
             effectiveFrom,
             catalog,
@@ -223,6 +224,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 plan: limits.plan,
                 quotas: { ...limits.quotas },
                 features: [...limits.features],
+                ...(leftOutBundleVersionIds.length > 0 ? { leftOutBundleVersionIds } : {}),
             },
             priceSnapshot,
             lineItems,

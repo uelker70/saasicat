@@ -383,8 +383,9 @@ The platform writes a tenant's contract again when an add-on is booked, cancelle
 not when a date arrives. The contract written on cancelling recorded the add-on in its entitlements,
 so the add-on's features and quotas stayed granted after its effective date until something wrote
 the contract once more. Now that contract keeps the add-on's line — it is billed until its date —
-and leaves it out of its entitlements; the booking grants them until the date, and from the date
-nothing of it is granted. A remembered answer is not served past that date either.
+leaves it out of its entitlements and names it there as `leftOutBundleVersionIds`; the booking
+grants the add-on until the date, and from the date nothing of it is granted. A remembered answer is
+not served past that date either.
 
 - **Contracts written before this release** still carry such an add-on in their entitlements. Write
   each running contract once after deploying, through the `ContractFreezePort` your
@@ -392,14 +393,17 @@ nothing of it is granted. A remembered answer is not served past that date eithe
   itself: `freezeOnPlanChange(tenantId, sub.plan, sub.billingCycle, new Date(), endsAt)`, where
   `endsAt` is `sub.canceledEffectiveAt ?? sub.canceledAt ?? null`. A contract with no cancelled
   add-on comes out the same as before. Until then, an add-on cancelled under such a contract is
-  counted twice before its date and kept after it.
+  counted once, as before, and kept after its date.
 - **A job of your own that writes the contract again** once a cancelled add-on's date has passed
   is no longer needed.
 - **An installation without `contractFreeze`** writes no contract when an add-on is cancelled, so a
   contract concluded with the add-on keeps granting it; `SC-BUN-034` names that limit.
 - **A stand-in for `EntitlementService`** of your own, passed where the freeze injects it, provides
-  `computeContractLimits(tenantId, now, catalog)`: the freeze asks it for the entitlements to record
-  instead of `computeLimits`.
+  `computeContractLimits(tenantId, now, catalog)`. It answers `limits` and
+  `leftOutBundleVersionIds`, and the freeze asks it for the entitlements to record instead of
+  `computeLimits`.
+- **A contract your application writes itself** — at sign-up, say — needs no change. A snapshot that
+  names nothing as left out covers every add-on its contract lists, as before.
 
 ### A bundle now runs in step with the plan that pays for it
 

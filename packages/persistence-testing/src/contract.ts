@@ -2180,6 +2180,78 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // -------------------------------------------------------------
+        test('an entitlement snapshot keeps the add-ons it names as left out', async (t) => {
+            // A contract written while an add-on's cancellation is declared
+            // leaves the add-on out of its entitlements and names it, and the
+            // entitlement service reads that name to let the booking grant the
+            // add-on until its date. A store that kept only the snapshot's
+            // known fields would drop the name, and the add-on would be granted
+            // by nobody before its date.
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const tenantId = 'tenant-contract-left-out';
+            const signedAt = new Date('2026-05-10T00:00:00.000Z');
+            const { subscriberId } = await createSubscriber({ legalName: 'Archiv GmbH' });
+            const entitlementSnapshot = {
+                plan: 'STANDARD',
+                features: ['CORE'],
+                quotas: { storageGb: 5 },
+                leftOutBundleVersionIds: ['bundle-version-archive'],
+            };
+            const created = await contracts.create({
+                tenantId,
+                parties: partiesWith(subscriberId, 'Archiv GmbH'),
+                effectiveFrom: signedAt,
+                priceSnapshot: {
+                    currency: 'EUR',
+                    billingCycle: 'monthly',
+                    subtotalNet: 29.9,
+                    discountNet: 0,
+                    totalNet: 29.9,
+                    vatRate: 19,
+                    totalGross: 35.58,
+                },
+                entitlementSnapshot,
+                originalBundleVersionIds: ['bundle-version-archive'],
+                lineItems: [
+                    {
+                        kind: 'plan',
+                        sourceKey: 'STANDARD',
+                        sourceVersionId: 'plan-version-1',
+                        titleSnapshot: 'Standard',
+                        descriptionSnapshot: null,
+                        quantity: 1,
+                        unit: null,
+                        priceNet: 29.9,
+                        priceGross: 35.58,
+                        billingCycle: 'monthly',
+                        currency: 'EUR',
+                        taxRate: 19,
+                        taxAmount: 5.68,
+                        minimumTermUntil: null,
+                        featuresSnapshot: ['CORE'],
+                        quotaEffectsSnapshot: { storageGb: 5 },
+                        metadata: null,
+                    },
+                ],
+            });
+
+            assert.deepEqual(created.entitlementSnapshot, entitlementSnapshot);
+            assert.deepEqual(
+                (await contracts.findById(created.id))?.entitlementSnapshot,
+                entitlementSnapshot,
+            );
+            assert.deepEqual(
+                (await contracts.findActiveByTenantId(tenantId, signedAt))?.entitlementSnapshot,
+                entitlementSnapshot,
+            );
+        });
+
+        // -------------------------------------------------------------
         test('a contract keeps what was agreed, and ending it does not rewrite it', async (t) => {
             const contracts = harness.adapter.subscriptionContractRepository;
             const createSubscriber = harness.seed.createSubscriber;

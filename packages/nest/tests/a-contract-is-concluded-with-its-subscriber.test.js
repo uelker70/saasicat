@@ -267,9 +267,8 @@ function freezeService(contracts) {
         {
             invalidateTenant() {},
             computeContractLimits: async () => ({
-                plan: 'STANDARD',
-                quotas: {},
-                features: new Set(),
+                limits: { plan: 'STANDARD', quotas: {}, features: new Set() },
+                leftOutBundleVersionIds: [],
             }),
         },
         contracts,

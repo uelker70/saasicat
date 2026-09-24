@@ -1250,6 +1250,8 @@ _Tested by:_
         - the contract written on cancelling keeps its line and leaves it out of the entitlements
         - an add-on beside it that is not cancelled runs on
         - reinstated before its date, it runs on past it
+    - a contract that recorded the add-on in its own entitlements
+        - keeps counting a cancelled add-on once
     - a remembered answer and a cancelled add-on
         - an answer computed before the date is not served on it
 

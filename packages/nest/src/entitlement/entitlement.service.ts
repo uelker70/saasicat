@@ -70,6 +70,19 @@ interface LimitsAnswer {
     limits: EffectiveLimits;
     /** The earliest end still to come among the add-ons counted, or null. */
     nextBookingEnd: Date | null;
+    /** The add-ons left out of `limits` because their cancellation is declared. */
+    leftOutBundleVersionIds: string[];
+}
+
+/** What a contract frozen at a moment records as its entitlements. */
+export interface ContractLimits {
+    limits: EffectiveLimits;
+    /**
+     * The add-ons left out of `limits` because their cancellation is declared.
+     * The contract names them in its snapshot, so that their bookings grant
+     * them until their effective date and a reader knows the snapshot does not.
+     */
+    leftOutBundleVersionIds: string[];
 }
 
 interface AnswerOptions {
@@ -201,12 +214,16 @@ export class EntitlementService {
         tenantId: string,
         now: Date,
         catalog: PlanCatalog,
-    ): Promise<EffectiveLimits> {
+    ): Promise<ContractLimits> {
         const sub = await this.requireSubscription(tenantId);
-        const answer = await this.answerFor(sub, now, catalog, undefined, {
-            leaveOutCancelled: true,
-        });
-        return answer.limits;
+        const { limits, leftOutBundleVersionIds } = await this.answerFor(
+            sub,
+            now,
+            catalog,
+            undefined,
+            { leaveOutCancelled: true },
+        );
+        return { limits, leftOutBundleVersionIds };
     }
 
     /**
@@ -282,6 +299,7 @@ export class EntitlementService {
                 return {
                     limits: { plan: sub.plan, quotas: {}, features: new Set() },
                     nextBookingEnd: null,
+                    leftOutBundleVersionIds: [],
                 };
             }
             const floorVersion = await this.findActivePlanVersionOrFallback(floor, now, tx);
@@ -298,13 +316,13 @@ export class EntitlementService {
                     now,
                 ),
             );
-            return { limits, nextBookingEnd: null };
+            return { limits, nextBookingEnd: null, leftOutBundleVersionIds: [] };
         }
 
         const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
-        const counted = options.leaveOutCancelled
-            ? bundles.filter((booking) => !isCancellationDeclared(booking))
-            : bundles;
+        const leftOut = options.leaveOutCancelled ? bundles.filter(isCancellationDeclared) : [];
+        const counted = bundles.filter((booking) => !leftOut.includes(booking));
+        const leftOutBundleVersionIds = leftOut.map((booking) => booking.bundleVersionId);
         const nextBookingEnd = firstAfter(
             now,
             counted.map((booking) => booking.canceledEffectiveAt),
@@ -325,7 +343,7 @@ export class EntitlementService {
                     now,
                 ),
             );
-            return { limits, nextBookingEnd };
+            return { limits, nextBookingEnd, leftOutBundleVersionIds };
         }
 
         const effectivePlan = resolveEntitlementPlan(sub, this.resolutionConfig ?? {}, now);
@@ -347,7 +365,7 @@ export class EntitlementService {
                 now,
             ),
         );
-        return { limits, nextBookingEnd };
+        return { limits, nextBookingEnd, leftOutBundleVersionIds };
     }
 
     /**
