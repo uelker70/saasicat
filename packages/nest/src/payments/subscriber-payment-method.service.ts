@@ -14,6 +14,7 @@ import {
     type PaymentEventEffect,
     type PaymentMethodConfirmedEvent,
 } from './payment-callback.service.js';
+import { openGatewayForm } from './gateway-failure.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
 import { refuseForeignReturnUrls } from './return-urls.js';
 import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from './payments.tokens.js';
@@ -78,13 +79,17 @@ export class SubscriberPaymentMethodService implements OnModuleInit {
             throw new ConflictException(codedError(PAYMENT_ERROR_CODES.PAYMENTS_NOT_CONFIGURED));
         }
         const inUse = await this.methods.findActive(subscriber.id);
-        const session = await account.gateway.startPaymentMethodSetup({
-            subject: { kind: 'subscriber', subscriberId: subscriber.id },
-            holder: holderOf(subscriber, input.fallbackEmail, customerAt(inUse, account.name)),
-            methods: account.methods,
-            successUrl: input.successUrl,
-            cancelUrl: input.cancelUrl,
-        });
+        const session = await openGatewayForm(
+            account,
+            {
+                subject: { kind: 'subscriber', subscriberId: subscriber.id },
+                holder: holderOf(subscriber, input.fallbackEmail, customerAt(inUse, account.name)),
+                methods: account.methods,
+                successUrl: input.successUrl,
+                cancelUrl: input.cancelUrl,
+            },
+            this.logger,
+        );
         // Recorded before the person reaches the form: the confirmation is
         // accepted only for a session opened here, for this subscriber.
         await this.methods.recordSetup({

@@ -308,6 +308,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PAYMENT_CALLBACK_REJECTED: 'Die Rückmeldung des Zahlungsanbieters ließ sich nicht prüfen.',
     PAYMENT_RETURN_URL_NOT_ALLOWED:
         'Die {field} führt auf eine Seite, zu der diese Installation nicht zurückleitet.',
+    PAYMENT_GATEWAY_FAILED:
+        'Der Zahlungsanbieter hat nicht wie erwartet geantwortet. Bitte versuche es in ein paar Minuten noch einmal.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Das Feature {featureKeys} ist im aktuellen Plan nicht enthalten.',
     // ── settings ──

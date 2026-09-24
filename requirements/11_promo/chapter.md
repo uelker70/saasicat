@@ -585,7 +585,8 @@ _Tested by:_
         - from step 4 until a confirmation of the form can no longer arrive, and the confirmation
           redeems it though the code ran out meanwhile
         - a gateway whose form sets no end holds the slot for as long as the checkout runs
-        - a form that fails to open gives its slot back at once, and the failure is the answer
+        - a form that fails to open gives its slot back at once, and the answer is SaaSiCat's code
+          for it
         - a start whose slot cannot be moved to the end of its form gives it back, and the failure
           is the answer
         - a second step 4 that fails leaves the slot with the form the first one opened, which
@@ -629,7 +630,8 @@ _Tested by:_
         - from step 4 until a confirmation of the form can no longer arrive, and the confirmation
           redeems it though the code ran out meanwhile
         - a gateway whose form sets no end holds the slot for as long as the checkout runs
-        - a form that fails to open gives its slot back at once, and the failure is the answer
+        - a form that fails to open gives its slot back at once, and the answer is SaaSiCat's code
+          for it
         - a start whose slot cannot be moved to the end of its form gives it back, and the failure
           is the answer
         - a second step 4 that fails leaves the slot with the form the first one opened, which

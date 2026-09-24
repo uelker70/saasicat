@@ -29,6 +29,7 @@ import {
     confirmation,
     paymentsApp,
     paymentsCatalog,
+    providerRefusal,
     signedCallback,
 } from './helpers/payments.js';
 
@@ -535,6 +536,25 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
         );
     });
 
+    // @requirement SC-PRIC-052 — A payment gateway that fails is answered with SaaSiCat's own code
+    test("a gateway that fails to open its form is answered with SaaSiCat's code, and no setup is recorded", async (t) => {
+        const logged = t.mock.method(Logger.prototype, 'error', () => {});
+        const ctx = await withSubscriber();
+        ctx.gateway.failNextStart = providerRefusal();
+
+        await assert.rejects(ctx.routes.startSetup(adminOf('tenant-1'), URLS), (error) => {
+            assert.equal(codeOf(error), 'PAYMENT_GATEWAY_FAILED');
+            assert.equal(error.getStatus(), 502);
+            assert.doesNotMatch(JSON.stringify(error.getResponse()), /Invalid API Key|sk_test|401/);
+            return true;
+        });
+        assert.deepEqual(ctx.methods.setups, []);
+        const lines = logged.mock.calls.map((call) => call.arguments.map(String).join(' | '));
+        assert.equal(lines.length, 1);
+        assert.match(lines[0], /requestId=req_refused$/);
+        assert.doesNotMatch(lines[0], /Invalid API Key|sk_test/);
+    });
+
     test('without an account for new payment methods the change is refused, and the gateway is not asked', async () => {
         const ctx = await withSubscriber({
             catalog: paymentsCatalog({ accounts: { [MAIN_ACCOUNT]: { provider: 'stripe' } } }),
@@ -545,6 +565,35 @@ describe('changing it opens the gateway form, and the confirmation replaces the 
             (error) => codeOf(error) === 'PAYMENTS_NOT_CONFIGURED' && error.getStatus() === 409,
         );
         assert.deepEqual(ctx.gateway.setups, []);
+    });
+
+    // @requirement SC-PRIC-052 — A payment gateway that fails is answered with SaaSiCat's own code
+    test("an immediate confirmation the gateway fails to read answers the person with SaaSiCat's code", async (t) => {
+        const logged = t.mock.method(Logger.prototype, 'error', () => {});
+        const gateway = new DevPaymentGateway();
+        gateway.readCallback = async () => {
+            throw providerRefusal();
+        };
+        const ctx = await withSubscriber({
+            catalog: paymentsCatalog({
+                newPaymentMethods: MAIN_ACCOUNT,
+                accounts: { [MAIN_ACCOUNT]: { provider: 'dev', methods: ['sepa_debit'] } },
+            }),
+            gateways: { [MAIN_ACCOUNT]: gateway },
+        });
+
+        await assert.rejects(ctx.routes.startSetup(adminOf('tenant-1'), URLS), (error) => {
+            assert.equal(codeOf(error), 'PAYMENT_GATEWAY_FAILED');
+            assert.equal(error.getStatus(), 502);
+            assert.doesNotMatch(JSON.stringify(error.getResponse()), /Invalid API Key|sk_test|401/);
+            return true;
+        });
+        assert.equal(await ctx.methods.findActive(ctx.subscriber.id), null);
+        const lines = logged.mock.calls.map((call) => call.arguments.map(String).join(' | '));
+        assert.deepEqual(lines, [
+            "The payment gateway of account 'stripe-main' did not read a callback: " +
+                'StripeAuthenticationError statusCode=401 requestId=req_refused',
+        ]);
     });
 
     test('the development gateway replaces the payment method on the spot', async () => {
@@ -602,6 +651,38 @@ describe('the webhook route', () => {
             'the gateway was handed another body than the one that arrived',
         );
         assert.deepEqual(ctx.log.claims, [], 'an event nothing acts on is not claimed');
+    });
+
+    // @requirement SC-PRIC-052 — A payment gateway that fails is answered with SaaSiCat's own code
+    test("a callback the gateway fails to read is answered with SaaSiCat's code, and nothing is claimed", async (t) => {
+        const logged = t.mock.method(Logger.prototype, 'error', () => {});
+        const ctx = await paymentsApp();
+        ctx.gateway.readCallback = async () => {
+            throw providerRefusal();
+        };
+        const { body, headers } = signedCallback({
+            kind: 'unhandled',
+            eventId: 'evt_unreadable',
+            occurredAt: '2026-09-15T10:00:00.000Z',
+            type: 'setup_intent.succeeded',
+        });
+
+        await assert.rejects(
+            ctx.webhook.receive(MAIN_ACCOUNT, { rawBody: body, headers }),
+            (error) => {
+                assert.equal(codeOf(error), 'PAYMENT_GATEWAY_FAILED');
+                assert.equal(error.getStatus(), 502);
+                assert.doesNotMatch(
+                    JSON.stringify(error.getResponse()),
+                    /Invalid API Key|sk_test|401/,
+                );
+                return true;
+            },
+        );
+        assert.deepEqual(ctx.log.claims, []);
+        const lines = logged.mock.calls.map((call) => call.arguments.map(String).join(' | '));
+        assert.equal(lines.length, 1);
+        assert.match(lines[0], /did not read a callback: .*requestId=req_refused$/);
     });
 
     test('an account the configuration does not name is refused', async () => {

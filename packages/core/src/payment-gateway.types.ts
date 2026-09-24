@@ -151,6 +151,10 @@ export interface PaymentGateway {
     /**
      * Opens the gateway's form for a payment method. Nothing is confirmed until
      * the gateway says so through `readCallback`.
+     *
+     * A failure is thrown as the provider reported it: the platform answers the
+     * person with `PAYMENT_GATEWAY_FAILED` and keeps what the error carries —
+     * its kind, code, status and request id — in the server log.
      */
     startPaymentMethodSetup(
         input: StartPaymentMethodSetupInput,
@@ -158,7 +162,10 @@ export interface PaymentGateway {
     /**
      * Verifies a callback with the account's secret and translates it.
      * Throws `PaymentCallbackRejectedError` for anything the gateway did not
-     * send, before a single field of it is trusted.
+     * send, before a single field of it is trusted. Any other failure is
+     * answered with `PAYMENT_GATEWAY_FAILED` and 502, like one of
+     * `startPaymentMethodSetup` — to the gateway's webhook, or to the person
+     * an `immediateCallback` is read for.
      */
     readCallback(callback: PaymentGatewayCallback): Promise<PaymentGatewayEvent>;
 }

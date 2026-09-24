@@ -14,6 +14,7 @@ import {
 } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
+import { gatewayFailure } from './gateway-failure.js';
 import { PaymentGatewayRegistry } from './payment-gateway-registry.js';
 import { PAYMENT_EVENT_LOG_TOKEN, PAYMENT_TRANSACTION_RUNNER_TOKEN } from './payments.tokens.js';
 
@@ -230,7 +231,12 @@ export class PaymentCallbackService {
         try {
             return await readCallback(callback);
         } catch (error) {
-            if (!isPaymentCallbackRejectedError(error)) throw error;
+            // A callback is read for a person too — a gateway's immediate
+            // confirmation, within the request that opened its form — so a
+            // failure is answered as one there would be.
+            if (!isPaymentCallbackRejectedError(error)) {
+                throw gatewayFailure(account, 'did not read a callback', error, this.logger);
+            }
             this.logger.warn(`A payment callback for '${account}' was rejected: ${error.message}`);
             throw new BadRequestException(
                 codedError(PAYMENT_ERROR_CODES.PAYMENT_CALLBACK_REJECTED),

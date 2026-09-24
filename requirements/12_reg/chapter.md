@@ -347,6 +347,8 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
     - the webhook route
         - is public, one route per account, and hands the gateway the body as it arrived
+        - a callback the gateway fails to read is answered with SaaSiCat's code, and nothing is
+          claimed
         - an account the configuration does not name is refused
         - a JSON or form callback without its raw body is a setup error, and says how to keep the
           body
