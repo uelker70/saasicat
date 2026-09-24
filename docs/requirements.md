@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 52      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 57      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 24      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -127,12 +127,12 @@ properties it has while doing it.
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 14      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
-| 21  | Answering the question afterwards            | `SC-AUD-…`   | 16      |
+| 21  | Answering the question afterwards            | `SC-AUD-…`   | 17      |
 | 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 497 entries: 🟢 425 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 503 entries: 🟢 434 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -143,9 +143,7 @@ Of 497 entries: 🟢 425 stand today, 🟡 68 decided but not yet delivered, ⚪
 [SC-CANC-020](#sc-canc-020--an-ended-subscription-leaves-the-tenant-a-period-to-read-and-export-before-its-deletion),
 [SC-CANC-021](#sc-canc-021--the-read-only-period-and-the-deletion-date-are-stated-before-a-tenant-cancels),
 [SC-CANC-022](#sc-canc-022--a-tenant-is-reminded-before-its-data-is-deleted),
-[SC-PRIC-018](#sc-pric-018--rounding-happens-once-when-a-charge-is-written),
 [SC-PRIC-019](#sc-pric-019--a-tenant-can-see-their-own-account),
-[SC-PRIC-020](#sc-pric-020--a-charge-once-written-is-never-edited),
 [SC-PRIC-021](#sc-pric-021--an-internal-account-reference-is-never-shown-to-a-customer-as-an-invoice-number),
 [SC-PRIC-022](#sc-pric-022--every-charge-of-a-subscription-is-invoiced-once-on-that-subscriptions-invoice),
 [SC-PRIC-023](#sc-pric-023--invoice-numbers-have-no-gaps-within-an-installation-and-a-prefix-sets-it-apart),
@@ -197,7 +195,6 @@ Of 497 entries: 🟢 425 stand today, 🟡 68 decided but not yet delivered, ⚪
 [SC-PRIV-017](#sc-priv-017--a-tenant-is-deleted-only-after-its-full-export-was-offered-in-the-read-only-period),
 [SC-PRIV-018](#sc-priv-018--a-tenants-deletion-can-safely-run-again-and-is-done-only-once-every-store-confirms),
 [SC-AUD-010](#sc-aud-010--a-charge-names-where-it-came-from-and-which-agreement-line-it-belongs-to),
-[SC-AUD-011](#sc-aud-011--a-charge-carries-the-period-it-belongs-to),
 [SC-AUD-012](#sc-aud-012--a-contract-carries-both-parties-as-they-were-when-it-was-concluded),
 [SC-AUD-013](#sc-aud-013--every-invoice-line-can-be-traced-to-the-charge-and-the-contract-line-it-came-from),
 [SC-AUD-014](#sc-aud-014--an-invoice-downloaded-later-is-the-document-that-was-issued-not-a-new-rendering),
@@ -210,7 +207,7 @@ Of 497 entries: 🟢 425 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 497 requirements. Do not edit by hand:
+Generated from `requirements/` — 503 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -2309,6 +2306,16 @@ _Tested by:_
         - stepping back from January lands in December of the year before
         - a leap day retreats to the 28th, and forwards again to the 29th
         - the start it gives back is the boundary that leads to that end
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an add-on is charged its short first period, then whole ones
+        - the first period for exactly that stretch of a whole month, the next in full
+        - an add-on no contract names yet is not charged, and is once one does
+        - a cancelled add-on is not charged from its effective date on
+- `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
+    - an add-on booking brings the account up to date
+        - after the contract takes the booking in
+        - a journal that fails does not undo the booking
+        - a cancellation charges nothing new
 
 <!-- END proof -->
 
@@ -5318,6 +5325,10 @@ _Tested by:_
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
     - a failed mutation triggers no freeze
+    - an add-on booking brings the account up to date
+        - after the contract takes the booking in
+        - a journal that fails does not undo the booking
+        - a cancellation charges nothing new
 
 <!-- END proof -->
 
@@ -5552,9 +5563,22 @@ _Tested by:_
 
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
-🟡 _(Decided, not yet delivered.)_ 💰 The written figure is the truth from then on.
+🟢 💰 The written figure is the truth from then on.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-charge-row-becomes-a-record.test.js`
+    - a charge is written as the figure it was rounded to
+        - as a two-place decimal string, negative for a discount
+        - a sum float arithmetic leaves a hair off a cent is still that cent
+        - an amount that is not a whole number of cents is refused, not rounded again
+        - nothing the caller added beside the charge is written
+
+<!-- END proof -->
 
 ### SC-PRIC-019 — A tenant can see their own account
 
@@ -5585,10 +5609,134 @@ _Tested by:_
 
 ### SC-PRIC-020 — A charge, once written, is never edited
 
-🟡 _(Decided, not yet delivered.)_ 💰 A correction is a counter-entry. A record that can be rewritten
+🟢 💰 A correction is a counter-entry. A record that can be rewritten
 answers what somebody thinks today, not what happened.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a written charge is never edited
+        - a contract written later changes no charge already written
+
+<!-- END proof -->
+
+### SC-PRIC-053 — A charge is written once for its contract line and period, however often it is derived
+
+🟢 💰 The platform derives an account's charges again whenever a change or a renewal asks it to, and
+several may ask at once; the account does not grow by any of it. A charge's key is its
+subscription, what it charges — the plan, an add-on booking, a discount — the period it belongs to
+and why it arose.
+
+_Source:_ #276 · #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a charge is written once
+        - a second call writes nothing, and says so
+        - calls at the same moment write it once between them
+
+<!-- END proof -->
+
+### SC-PRIC-054 — Every period of a subscription is charged, at the price in force when it starts
+
+🟢 💰 One by one, a period the application's renewal job skipped as well: the next call charges it,
+a cycle at a time, from where the account left off. A price a later contract states applies to the
+periods that start under it, and never to one already charged.
+
+_Source:_ #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - every period is charged, at the price in force when it starts
+        - the first period is the activation, the next a renewal, each for its own period
+        - periods a renewal skipped are charged one by one, from where the account left off
+        - a later price applies to the periods that start under it, not before
+        - a window opened a moment before its contract is still charged under it
+        - a subscription older than its first charge starts with a renewal, not an activation
+        - a yearly plan is charged its yearly line
+        - a contract line in another rhythm prices nothing
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - onboarding brings the account up to date
+        - once, for the tenant, after the plan is written
+        - a journal that fails does not undo the onboarding
+
+<!-- END proof -->
+
+### SC-PRIC-055 — Nothing is charged in a trial, without a contract, early, or after the end
+
+🟢 💰 A charge points at the contract line it came from, so a subscription with no contract has no
+charges. A trial commits to no period. A period is charged once it has started, not when it is
+known. No period that starts on or after the date a cancellation takes effect is charged.
+
+_Source:_ #276 · #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - what is not charged
+        - a trial
+        - a subscription without a contract
+        - a tenant without a subscriber
+        - a period that has not started
+        - a period starting on or after the date a cancellation takes effect
+
+<!-- END proof -->
+
+### SC-PRIC-056 — A charge is net, and its tax is the invoice's
+
+🟢 💰 A charge records its amount, its currency and its period, and no rate and no tax amount. The
+tax adapter decides a charge's treatment when it is invoiced, from the subscriber's origin on that
+day, and the invoice computes the tax once per rate (`SC-PRIC-041`); a tax recorded on the charge
+would be a second figure that could differ from the invoice's by cents.
+
+_Source:_ #276 · ADR 0013
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a charge is net
+        - it records the net amount and its currency, and no tax
+
+<!-- END proof -->
+
+### SC-PRIC-057 — A discount is charged for the periods it was concluded for, and no others
+
+🟢 💰 At the amount resolved when the contract was concluded (`SC-PROMO-015`), whatever contract
+is in force later: a promo code for its duration — once, a number of months or a number of billing
+periods — an intro price or free months for their months, and a percentage or an amount off,
+which states no duration, for the first period only.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a discount is charged for the periods it was concluded for
+        - a code for three months, in months one to three
+        - a code for two billing periods, in the first two
+        - a code once, and one that names no duration, in the first period only
+        - a percentage promotion, which states no duration, in the first period only
+        - an intro price for two months, in months one and two
+        - a discount line that says nothing of its duration, once
+        - a contract written again later, which carries no discount line, does not end it
+
+<!-- END proof -->
 
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 
@@ -8165,6 +8313,10 @@ _Tested by:_
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
     - a failed mutation triggers no freeze
+    - an add-on booking brings the account up to date
+        - after the contract takes the booking in
+        - a journal that fails does not undo the booking
+        - a cancellation charges nothing new
 
 <!-- END proof -->
 
@@ -13245,24 +13397,16 @@ _Tested by:_
     - every schema file is exported from both entry points
     - and the two entry points offer the same names
     - and the type shells name what the entry points export
-    - tenantLedger accepts a charge carrying its period, origin and money facts
-    - tenantLedger accepts a charge that names no contract
-    - tenantLedger accepts a payment, which carries no period
-    - tenantLedger accepts a payment on account, settling no named charge
-    - tenantLedger rejects a charge without an origin
-    - tenantLedger rejects an origin outside the catalogue of origins
-    - tenantLedger rejects an empty originRef, which would not collide with itself
-    - tenantLedger rejects a charge that names no period
-    - tenantLedger rejects a payment without an external reference
-    - tenantLedger rejects a payment whose external reference is empty
-    - tenantLedger rejects an entry that is neither a charge nor a payment
-    - tenantLedger rejects a charge wearing a payment field
-    - tenantLedger rejects a payment that states a tax of its own
-    - tenantLedger rejects a currency that is not an ISO 4217 code
-    - tenantLedger rejects a tax rate above 100 per cent
-    - tenantLedger accepts a credit, which is a negative charge
-    - tenantLedger accepts an account with a balance, open items and history
-    - tenantLedger rejects an account that does not say when its balance is true
+    - subscriberLedger accepts a charge carrying its period, origin, source and amount
+    - subscriberLedger accepts a discount, which is a negative charge
+    - subscriberLedger rejects a charge that states a tax of its own
+    - subscriberLedger rejects a charge that names no contract line
+    - subscriberLedger rejects a charge without an origin
+    - subscriberLedger rejects an origin outside the catalogue of origins
+    - subscriberLedger rejects a source outside the kinds of contract line
+    - subscriberLedger rejects an empty sourceRef, which would not collide with itself
+    - subscriberLedger rejects a charge that names no period
+    - subscriberLedger rejects a currency that is not an ISO 4217 code
 - `packages/ui-vue/tests/component/payload-shapes-that-are-not-the-type.test.ts`
     - DiscoveryPage survives a snapshot that is not a snapshot
         - ${label} renders instead of throwing
@@ -13799,10 +13943,49 @@ _Source:_ #214
 
 ### SC-AUD-011 — A charge carries the period it belongs to
 
-🟡 _(Decided, not yet delivered.)_ Which charges belong on one invoice has to be derivable, and a set
+🟢 Which charges belong on one invoice has to be derivable, and a set
 of individually booked amounts with no grouping leaves that to guesswork.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - every period is charged, at the price in force when it starts
+        - the first period is the activation, the next a renewal, each for its own period
+        - periods a renewal skipped are charged one by one, from where the account left off
+        - a later price applies to the periods that start under it, not before
+        - a window opened a moment before its contract is still charged under it
+        - a subscription older than its first charge starts with a renewal, not an activation
+        - a yearly plan is charged its yearly line
+        - a contract line in another rhythm prices nothing
+
+<!-- END proof -->
+
+### SC-AUD-017 — Every charge names the contract line it came from
+
+🟢 So the account can always be walked back to what was agreed, which is what an invoice line will
+be traced through (`SC-AUD-013`).
+
+_Source:_ #214 · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - every period is charged, at the price in force when it starts
+        - the first period is the activation, the next a renewal, each for its own period
+        - periods a renewal skipped are charged one by one, from where the account left off
+        - a later price applies to the periods that start under it, not before
+        - a window opened a moment before its contract is still charged under it
+        - a subscription older than its first charge starts with a renewal, not an activation
+        - a yearly plan is charged its yearly line
+        - a contract line in another rhythm prices nothing
+
+<!-- END proof -->
 
 ### SC-AUD-012 — A contract carries both parties as they were when it was concluded
 

@@ -281,6 +281,10 @@ _Tested by:_
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
     - a failed mutation triggers no freeze
+    - an add-on booking brings the account up to date
+        - after the contract takes the booking in
+        - a journal that fails does not undo the booking
+        - a cancellation charges nothing new
 
 <!-- END proof -->
 
@@ -515,9 +519,22 @@ _Tested by:_
 
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
-🟡 _(Decided, not yet delivered.)_ 💰 The written figure is the truth from then on.
+🟢 💰 The written figure is the truth from then on.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/core/tests/a-charge-row-becomes-a-record.test.js`
+    - a charge is written as the figure it was rounded to
+        - as a two-place decimal string, negative for a discount
+        - a sum float arithmetic leaves a hair off a cent is still that cent
+        - an amount that is not a whole number of cents is refused, not rounded again
+        - nothing the caller added beside the charge is written
+
+<!-- END proof -->
 
 ### SC-PRIC-019 — A tenant can see their own account
 
@@ -548,10 +565,134 @@ _Tested by:_
 
 ### SC-PRIC-020 — A charge, once written, is never edited
 
-🟡 _(Decided, not yet delivered.)_ 💰 A correction is a counter-entry. A record that can be rewritten
+🟢 💰 A correction is a counter-entry. A record that can be rewritten
 answers what somebody thinks today, not what happened.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a written charge is never edited
+        - a contract written later changes no charge already written
+
+<!-- END proof -->
+
+### SC-PRIC-053 — A charge is written once for its contract line and period, however often it is derived
+
+🟢 💰 The platform derives an account's charges again whenever a change or a renewal asks it to, and
+several may ask at once; the account does not grow by any of it. A charge's key is its
+subscription, what it charges — the plan, an add-on booking, a discount — the period it belongs to
+and why it arose.
+
+_Source:_ #276 · #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a charge is written once
+        - a second call writes nothing, and says so
+        - calls at the same moment write it once between them
+
+<!-- END proof -->
+
+### SC-PRIC-054 — Every period of a subscription is charged, at the price in force when it starts
+
+🟢 💰 One by one, a period the application's renewal job skipped as well: the next call charges it,
+a cycle at a time, from where the account left off. A price a later contract states applies to the
+periods that start under it, and never to one already charged.
+
+_Source:_ #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - every period is charged, at the price in force when it starts
+        - the first period is the activation, the next a renewal, each for its own period
+        - periods a renewal skipped are charged one by one, from where the account left off
+        - a later price applies to the periods that start under it, not before
+        - a window opened a moment before its contract is still charged under it
+        - a subscription older than its first charge starts with a renewal, not an activation
+        - a yearly plan is charged its yearly line
+        - a contract line in another rhythm prices nothing
+- `packages/nest/tests/onboarding-subscription.test.js`
+    - onboarding brings the account up to date
+        - once, for the tenant, after the plan is written
+        - a journal that fails does not undo the onboarding
+
+<!-- END proof -->
+
+### SC-PRIC-055 — Nothing is charged in a trial, without a contract, early, or after the end
+
+🟢 💰 A charge points at the contract line it came from, so a subscription with no contract has no
+charges. A trial commits to no period. A period is charged once it has started, not when it is
+known. No period that starts on or after the date a cancellation takes effect is charged.
+
+_Source:_ #276 · #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - what is not charged
+        - a trial
+        - a subscription without a contract
+        - a tenant without a subscriber
+        - a period that has not started
+        - a period starting on or after the date a cancellation takes effect
+
+<!-- END proof -->
+
+### SC-PRIC-056 — A charge is net, and its tax is the invoice's
+
+🟢 💰 A charge records its amount, its currency and its period, and no rate and no tax amount. The
+tax adapter decides a charge's treatment when it is invoiced, from the subscriber's origin on that
+day, and the invoice computes the tax once per rate (`SC-PRIC-041`); a tax recorded on the charge
+would be a second figure that could differ from the invoice's by cents.
+
+_Source:_ #276 · ADR 0013
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a charge is net
+        - it records the net amount and its currency, and no tax
+
+<!-- END proof -->
+
+### SC-PRIC-057 — A discount is charged for the periods it was concluded for, and no others
+
+🟢 💰 At the amount resolved when the contract was concluded (`SC-PROMO-015`), whatever contract
+is in force later: a promo code for its duration — once, a number of months or a number of billing
+periods — an intro price or free months for their months, and a percentage or an amount off,
+which states no duration, for the first period only.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - a discount is charged for the periods it was concluded for
+        - a code for three months, in months one to three
+        - a code for two billing periods, in the first two
+        - a code once, and one that names no duration, in the first period only
+        - a percentage promotion, which states no duration, in the first period only
+        - an intro price for two months, in months one and two
+        - a discount line that says nothing of its duration, once
+        - a contract written again later, which carries no discount line, does not end it
+
+<!-- END proof -->
 
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 

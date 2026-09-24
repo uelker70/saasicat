@@ -17,6 +17,7 @@
 --   prisma-fragments/12-applied-settings.prisma
 --   prisma-fragments/13-subscriber.prisma
 --   prisma-fragments/14-payments.prisma
+--   prisma-fragments/15-subscriber-ledger.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -684,6 +685,27 @@ CREATE TABLE "PaymentEventLog" (
     CONSTRAINT "PaymentEventLog_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "subscriber_ledger_entries" (
+    "id" TEXT NOT NULL,
+    "subscriberId" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "contractId" TEXT NOT NULL,
+    "contractLineItemId" TEXT NOT NULL,
+    "origin" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "sourceRef" TEXT NOT NULL,
+    "periodStart" TIMESTAMP(3) NOT NULL,
+    "periodEnd" TIMESTAMP(3) NOT NULL,
+    "currency" TEXT NOT NULL,
+    "amountNet" DECIMAL(10,2) NOT NULL,
+    "bookedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "subscriber_ledger_entries_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -909,6 +931,15 @@ CREATE INDEX "PaymentEventLog_status_processedAt_idx" ON "PaymentEventLog"("stat
 -- CreateIndex
 CREATE UNIQUE INDEX "PaymentEventLog_gatewayAccount_eventId_key" ON "PaymentEventLog"("gatewayAccount", "eventId");
 
+-- CreateIndex
+CREATE INDEX "subscriber_ledger_entries_subscriberId_bookedAt_idx" ON "subscriber_ledger_entries"("subscriberId", "bookedAt");
+
+-- CreateIndex
+CREATE INDEX "subscriber_ledger_entries_contractLineItemId_idx" ON "subscriber_ledger_entries"("contractLineItemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "subscriber_ledger_entries_subscriptionId_source_sourceRef_p_key" ON "subscriber_ledger_entries"("subscriptionId", "source", "sourceRef", "periodStart", "origin");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -959,6 +990,15 @@ ALTER TABLE "subscriber_payment_methods" ADD CONSTRAINT "subscriber_payment_meth
 
 -- AddForeignKey
 ALTER TABLE "subscriber_payment_method_setups" ADD CONSTRAINT "subscriber_payment_method_setups_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entries_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "subscribers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entries_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscriber_ledger_entries" ADD CONSTRAINT "subscriber_ledger_entries_contractLineItemId_fkey" FOREIGN KEY ("contractLineItemId") REFERENCES "contract_line_items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.

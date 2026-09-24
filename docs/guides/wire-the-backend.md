@@ -759,6 +759,60 @@ context)`. A callback that does not verify is refused with `PAYMENT_CALLBACK_REJ
   that port which needs a request context, or answers with the caller's tenant scope, turns the
   check that exists to refuse into one that passes.
 
+## The Subscriber's Account
+
+The journal of what each subscriber owes: one charge per contract line and period — the plan, each
+add-on booking, a discount — derived from the contract in force, the billing windows and the
+bookings, and written once. A charge is net, with its currency and its period, and names the
+contract line it came from; its tax is decided when it is invoiced. Nothing here updates or deletes
+a charge.
+
+It needs frozen contracts, because a charge points at a contract line: configure it beside
+`contractFreeze`, adopt `prisma-fragments/15-subscriber-ledger.prisma` and run
+`sql/1.0-a-subscriber-account-records-its-charges.postgres.sql` once.
+
+```ts
+tenantBilling: {
+    authGuards: [JwtAuthGuard, TenantGuard],
+    contractFreeze: {
+        sourcePort: MyContractFreezeSource,
+        subscriptionContractRepository: persistence.entitlement!.subscriptionContractRepository!,
+        subscriberRepository: persistence.entitlement!.subscriberRepository!,
+    },
+    chargeJournal: {
+        ledgerRepository: persistence.entitlement!.subscriberLedgerRepository!,
+    },
+},
+```
+
+The platform brings an account up to date where it writes a change itself: after onboarding and
+after an add-on booking. Your application calls it where it writes one — when it activates a
+subscription, and from the job that renews billing periods:
+
+```ts
+import { SubscriberChargeService } from '@saasicat/nest/billing';
+
+@Injectable()
+export class RenewalJob {
+    constructor(private readonly charges: SubscriberChargeService) {}
+
+    async renew(tenantId: string): Promise<void> {
+        // … roll the subscription's and the bookings' windows forward, then:
+        await this.charges.recordDueCharges(tenantId);
+    }
+}
+```
+
+`recordDueCharges` is safe to call as often as you like, from as many places at once as you like: a
+charge is written once for its contract line, period and origin. A period your job skipped is
+charged on the next call, one cycle at a time, at the price of the contract in force when it
+started. Nothing is charged during a trial, without a contract, before a period starts, or from the
+date a cancellation takes effect. A promo code's or a promotion's discount is charged for the
+periods it was concluded for, at the amount resolved then.
+
+What it does not do yet: charge what an immediate plan change adds, collect anything, or show the
+account on a screen.
+
 ## Admin Module
 
 `SaaSiCatModule` owns `PlatformAdminModule`, `AdminManifestModule` and the

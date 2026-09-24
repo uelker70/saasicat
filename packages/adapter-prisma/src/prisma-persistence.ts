@@ -36,6 +36,7 @@ import { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-vali
 import { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.adapter.js';
 import { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
 import { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
+import { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.repository.js';
 import { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 import { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
@@ -62,6 +63,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     subscriberCorrection: unknown;
     subscriberPaymentMethod: unknown;
     subscriberPaymentMethodSetup: unknown;
+    subscriberLedgerEntry: unknown;
 }
 
 export interface PrismaPersistenceOptions {
@@ -163,6 +165,10 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             ),
             subscriberRepository: provide(
                 (prisma) => new PrismaSubscriberRepository(canonical(prisma)),
+            ),
+            // The charges those contracts give rise to, written once each.
+            subscriberLedgerRepository: provide(
+                (prisma) => new PrismaSubscriberLedgerRepository(canonical(prisma)),
             ),
             subscriptionBundleRepository: provide(
                 (prisma) => new PrismaSubscriptionBundleRepository(canonical(prisma)),

@@ -19,6 +19,7 @@ import type {
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
     PromoSubscriptionLookup,
+    SubscriberLedgerRepository,
     SubscriberPaymentMethodRepository,
     SubscriberRepository,
     SubscriptionContractRepository,
@@ -74,6 +75,14 @@ export interface ContractAdapterInstances {
      * Its subscribers come from `seed.createSubscriber`.
      */
     subscriberPaymentMethodRepository?: SubscriberPaymentMethodRepository;
+    /**
+     * Enables the charge journal scenarios: a charge is written once however
+     * often and however concurrently it is recorded, keeps its amount to the
+     * cent, and is undone with the transaction it was written on. A charge
+     * points at a contract line, so they also need `subscriptionContractRepository`
+     * and `seed.createSubscriber`.
+     */
+    subscriberLedgerRepository?: SubscriberLedgerRepository;
     /**
      * Enables the checkout offer scenarios: an offer is consumed once, and a
      * consume on a transaction that rolls back leaves it open. Neither shipped
@@ -235,6 +244,7 @@ export type ContractGap =
     | 'subscribers'
     | 'paymentEventLog'
     | 'subscriberPaymentMethods'
+    | 'subscriberLedger'
     | 'checkoutOffers'
     | 'appliedSettings';
 

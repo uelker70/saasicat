@@ -11,6 +11,7 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test, type TestContext } from 'node:test';
 import type {
+    NewSubscriberCharge,
     AppliedSettingsValues,
     ConfirmedPaymentMethod,
     CreateCheckoutOfferData,
@@ -337,6 +338,15 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no SubscriberPaymentMethodRepository, or no subscriber seed for it',
         present: ({ adapter, seed }) =>
             Boolean(adapter.subscriberPaymentMethodRepository && seed.createSubscriber),
+    },
+    subscriberLedger: {
+        reason: 'adapter provides no SubscriberLedgerRepository, or no contracts and subscriber seed for it',
+        present: ({ adapter, seed }) =>
+            Boolean(
+                adapter.subscriberLedgerRepository &&
+                adapter.subscriptionContractRepository &&
+                seed.createSubscriber,
+            ),
     },
     checkoutOffers: {
         reason: 'adapter provides no CheckoutOfferRepository',
@@ -3878,6 +3888,213 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             await methods.recordSetup(setup);
 
             await assert.rejects(methods.recordSetup(setup));
+        });
+
+        // -------------------------------------------------------------
+        // The subscriber's account — a charge is written once, to the cent
+        // -------------------------------------------------------------
+
+        /**
+         * A subscriber, a contract with a plan line and a discount line, and a
+         * charge builder pointing at them — the foreign keys a charge carries
+         * are real. Null where the adapter provides no journal.
+         */
+        async function anAccount(t: TestContext, tenantId: string) {
+            const ledger = harness.adapter.subscriberLedgerRepository;
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!ledger || !contracts || !createSubscriber) {
+                missing(t, 'subscriberLedger');
+                return null;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: `${tenantId} GmbH` });
+            const line = (
+                kind: 'plan' | 'discount',
+                sourceKey: string,
+                priceNet: number,
+            ): NewContractLineItemData => ({
+                kind,
+                sourceKey,
+                sourceVersionId: null,
+                titleSnapshot: sourceKey,
+                descriptionSnapshot: null,
+                quantity: 1,
+                unit: null,
+                priceNet,
+                priceGross: Math.round(priceNet * 119) / 100,
+                billingCycle: 'monthly',
+                currency: 'EUR',
+                taxRate: 19,
+                taxAmount: Math.round(priceNet * 19) / 100,
+                minimumTermUntil: null,
+                featuresSnapshot: [],
+                quotaEffectsSnapshot: {},
+                metadata: null,
+            });
+            const contract = await contracts.create({
+                tenantId,
+                parties: partiesWith(subscriberId, `${tenantId} GmbH`),
+                effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+                priceSnapshot: {
+                    currency: 'EUR',
+                    billingCycle: 'monthly',
+                    subtotalNet: 19.9,
+                    discountNet: 3.98,
+                    totalNet: 15.92,
+                    vatRate: 19,
+                    totalGross: 18.94,
+                },
+                lineItems: [line('plan', 'STANDARD', 19.9), line('discount', 'WELCOME20', -3.98)],
+            });
+            const planLine = contract.lineItems.find((item) => item.kind === 'plan')!;
+            const discountLine = contract.lineItems.find((item) => item.kind === 'discount')!;
+            const subscriptionId = `sub-${tenantId}`;
+            const charge = (overrides: Partial<NewSubscriberCharge> = {}): NewSubscriberCharge => ({
+                subscriberId,
+                tenantId,
+                subscriptionId,
+                contractId: contract.id,
+                contractLineItemId: planLine.id,
+                origin: 'renewal',
+                source: 'plan',
+                sourceRef: subscriptionId,
+                periodStart: new Date('2026-02-01T00:00:00.000Z'),
+                periodEnd: new Date('2026-03-01T00:00:00.000Z'),
+                currency: 'EUR',
+                amountNet: 19.9,
+                bookedAt: new Date('2026-02-01T00:00:00.000Z'),
+                ...overrides,
+            });
+            return { ledger, subscriptionId, discountLineId: discountLine.id, charge };
+        }
+
+        test('a charge is written once, however often it is recorded', async (t) => {
+            // Every derivation writes every charge it finds, so a second call —
+            // a renewal job run twice, a retried deploy — hands the same charge
+            // over again. The account must not grow by it.
+            const account = await anAccount(t, 'tenant-ledger-once');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+
+            const first = await ledger.recordCharges([charge()]);
+            const again = await ledger.recordCharges([charge()]);
+            const twiceInOneCall = await ledger.recordCharges([
+                charge({ periodStart: new Date('2026-03-01T00:00:00.000Z') }),
+                charge({ periodStart: new Date('2026-03-01T00:00:00.000Z') }),
+            ]);
+
+            assert.equal(first.length, 1);
+            assert.equal(again.length, 0, 'a charge written before came back as written again');
+            assert.equal(twiceInOneCall.length, 1);
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 2);
+        });
+
+        test('callers recording the same charge at the same time write it once', async (t) => {
+            // The key decides, not a read before the write: two derivations that
+            // both saw no charge must not both write one.
+            const account = await anAccount(t, 'tenant-ledger-race');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+
+            const results = await Promise.all(
+                Array.from({ length: 4 }, () => ledger.recordCharges([charge()])),
+            );
+
+            assert.equal(
+                results.reduce((sum, written) => sum + written.length, 0),
+                1,
+            );
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 1);
+        });
+
+        test('a charge keeps its amount to the cent, and a discount stays below zero', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-cents');
+            if (!account) return;
+            const { ledger, subscriptionId, discountLineId, charge } = account;
+
+            await ledger.recordCharges([
+                charge({ amountNet: 19.9 }),
+                charge({
+                    source: 'discount',
+                    sourceRef: 'WELCOME20',
+                    contractLineItemId: discountLineId,
+                    amountNet: -3.98,
+                }),
+                charge({ sourceRef: 'large', amountNet: 99_999_999.99 }),
+            ]);
+
+            const amounts = (await ledger.listBySubscription(subscriptionId)).map(
+                (entry) => entry.amountNet,
+            );
+            assert.deepEqual(
+                [...amounts].sort((a, b) => a - b),
+                [-3.98, 19.9, 99_999_999.99],
+            );
+        });
+
+        test('another period, origin or source reference is a charge of its own', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-keys');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+
+            const written = await ledger.recordCharges([
+                charge(),
+                charge({ periodStart: new Date('2026-03-01T00:00:00.000Z') }),
+                charge({ origin: 'planChange' }),
+                charge({ sourceRef: 'another-booking', source: 'bundle' }),
+            ]);
+
+            assert.equal(written.length, 4);
+            assert.equal((await ledger.listBySubscription(subscriptionId)).length, 4);
+        });
+
+        test("a subscription's charges come back oldest period first", async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-order');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+            const month = (m: number) => new Date(Date.UTC(2026, m, 1));
+
+            await ledger.recordCharges([
+                charge({ periodStart: month(3), periodEnd: month(4) }),
+                charge({ periodStart: month(1), periodEnd: month(2) }),
+                charge({ periodStart: month(2), periodEnd: month(3) }),
+            ]);
+
+            const starts = (await ledger.listBySubscription(subscriptionId)).map((entry) =>
+                entry.periodStart.toISOString(),
+            );
+            assert.deepEqual(
+                starts,
+                [month(1), month(2), month(3)].map((d) => d.toISOString()),
+            );
+            assert.deepEqual(await ledger.listBySubscription('sub-nobody'), []);
+        });
+
+        test('a charge written on a transaction is undone with it', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-rollback');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+
+            await assert.rejects(
+                harness.adapter.transactionRunner.run(async (tx) => {
+                    await ledger.recordCharges([charge()], tx);
+                    throw new Error('the change the charge belonged to failed');
+                }),
+            );
+
+            assert.deepEqual(await ledger.listBySubscription(subscriptionId), []);
+            assert.equal((await ledger.recordCharges([charge()])).length, 1);
+        });
+
+        test('a charge naming a contract line that does not exist is refused', async (t) => {
+            const account = await anAccount(t, 'tenant-ledger-orphan');
+            if (!account) return;
+            const { ledger, subscriptionId, charge } = account;
+
+            await assert.rejects(
+                ledger.recordCharges([charge({ contractLineItemId: 'no-such-line' })]),
+            );
+            assert.deepEqual(await ledger.listBySubscription(subscriptionId), []);
         });
 
         // -------------------------------------------------------------

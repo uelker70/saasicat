@@ -64,7 +64,8 @@ model SubscriptionContract {
     promoCodeSnapshots  Json @default("[]")
     termsSnapshot       Json?
 
-    lineItems ContractLineItem[]
+    lineItems     ContractLineItem[]
+    ledgerEntries SubscriberLedgerEntry[] // see 15-subscriber-ledger.prisma
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -121,7 +122,8 @@ model ContractLineItem {
 
     createdAt DateTime @default(now())
 
-    contract SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+    contract      SubscriptionContract    @relation(fields: [contractId], references: [id], onDelete: Cascade)
+    ledgerEntries SubscriberLedgerEntry[] // see 15-subscriber-ledger.prisma
 
     @@index([contractId, kind])
     @@index([sourceVersionId])

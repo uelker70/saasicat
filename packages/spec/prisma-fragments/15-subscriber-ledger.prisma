@@ -1,0 +1,65 @@
+// =============================================================================
+// SaaS platform Prisma fragment: SubscriberLedgerEntry
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// The subscriber's account: one row per charge that became due, one per
+// contract line and period. The platform derives each charge from the contract
+// in force, the billing windows and the bookings, and writes it once — the
+// unique index below is what makes a second derivation of the same charge a
+// no-op, however many run at the same time. A row is never updated or deleted:
+// a mistake is answered with a counter-entry.
+//
+// A charge is net. The tax is the invoice's, decided by the tax adapter when
+// the charge is invoiced (ADR 0013), so this table records the amount, its
+// currency and the period, and nothing that a later invoice would have to
+// agree with to the cent.
+//
+// The account belongs to the subscriber, not to the tenant, and outlives it
+// (ADR 0012): `tenantId` and `subscriptionId` are kept as values, and the keys
+// that point anywhere point at the subscriber and the contract line, which are
+// kept as long as the documents that need them.
+//
+// `origin` and `source` are text holding a closed set, checked when a row is
+// read (`toSubscriberChargeRecord` in @saasicat/core):
+//   origin: activation | renewal | planChange | bundleBooking | credit | correction
+//   source: plan | bundle | discount
+//
+// Optional: adopt it where `tenantBilling.chargeJournal` is configured, which
+// needs frozen contracts (`contractFreeze`).
+//
+// Contract: @saasicat/core (SubscriberLedgerRepository).
+
+model SubscriberLedgerEntry {
+    id                 String @id @default(uuid())
+    subscriberId       String
+    tenantId           String
+    subscriptionId     String
+    contractId         String
+    contractLineItemId String
+
+    origin String
+    source String
+    // The subscription id for the plan, the booking id for an add-on, the
+    // discount's key — stable across the contracts that replace one another.
+    sourceRef String
+
+    periodStart DateTime
+    periodEnd   DateTime
+
+    currency  String
+    amountNet Decimal @db.Decimal(10, 2)
+
+    bookedAt  DateTime
+    createdAt DateTime @default(now())
+
+    subscriber       Subscriber           @relation(fields: [subscriberId], references: [id], onDelete: Restrict)
+    contract         SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+    contractLineItem ContractLineItem     @relation(fields: [contractLineItemId], references: [id], onDelete: Restrict)
+
+    @@unique([subscriptionId, source, sourceRef, periodStart, origin])
+    @@index([subscriberId, bookedAt])
+    @@index([contractLineItemId])
+    @@map("subscriber_ledger_entries")
+}

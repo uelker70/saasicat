@@ -39,6 +39,7 @@ import {
     DrizzlePlanRepository,
     DrizzlePaymentEventLog,
     DrizzleSubscriberPaymentMethodRepository,
+    DrizzleSubscriberLedgerRepository,
     DrizzleSubscriberRepository,
     DrizzleSubscriptionContractRepository,
     DrizzleTenantSubscriptionWrite,
@@ -98,6 +99,7 @@ function createHarness() {
             subscriberRepository: new DrizzleSubscriberRepository(db),
             paymentEventLog: new DrizzlePaymentEventLog(db),
             subscriberPaymentMethodRepository: new DrizzleSubscriberPaymentMethodRepository(db),
+            subscriberLedgerRepository: new DrizzleSubscriberLedgerRepository(db),
             appliedSettings: new DrizzleAppliedSettingsRepository(db),
         },
         seed: {

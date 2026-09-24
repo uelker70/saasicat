@@ -38,6 +38,7 @@ import {
     PrismaAppliedSettingsRepository,
     PrismaPaymentEventLog,
     PrismaSubscriberPaymentMethodRepository,
+    PrismaSubscriberLedgerRepository,
     PrismaSubscriberRepository,
     PrismaSubscriptionContractRepository,
     PrismaSubscriptionRepository,
@@ -177,6 +178,7 @@ function createHarness() {
             subscriberRepository: new PrismaSubscriberRepository(prisma),
             paymentEventLog: new PrismaPaymentEventLog(prisma),
             subscriberPaymentMethodRepository: new PrismaSubscriberPaymentMethodRepository(prisma),
+            subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
         },
         seed: {

@@ -56,6 +56,8 @@ import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { recordChargesAfter } from './charges/record-charges-after.js';
+import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import {
     AddSubscriptionBundleDto,
     CancelSubscriptionBundleDto,
@@ -134,6 +136,10 @@ export function buildTenantSubscriptionBundlesController(
             @Optional()
             @Inject(CONTRACT_FREEZE_PORT_TOKEN)
             private readonly contractFreeze: ContractFreezePort | null = null,
+            // Only where `chargeJournal` is configured.
+            @Optional()
+            @Inject(SubscriberChargeService)
+            private readonly charges: SubscriberChargeService | null = null,
         ) {}
 
         @Get()
@@ -192,6 +198,7 @@ export function buildTenantSubscriptionBundlesController(
                 billingCycle: dto.billingCycle as BillingCycle | undefined,
             });
             await this.refreezeContract(tenantId, sub);
+            await recordChargesAfter(this.charges, tenantId, 'an add-on booking', this.logger);
             return result;
         }
 

@@ -71,6 +71,8 @@ export * from './plan-change-preview.service.js';
 export * from './pending-plan-materialization.service.js';
 export * from './contract-freeze.tokens.js';
 export * from './subscription-contract-freeze.service.js';
+export { SubscriberChargeService } from './charges/subscriber-charge.service.js';
+export { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 export * from './trial-carryover.js';
 export * from './dto/tenant-billing.dto.js';
 export * from './dto/onboarding-subscription.dto.js';

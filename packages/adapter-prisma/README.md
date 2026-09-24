@@ -98,6 +98,7 @@ PromoCodesModule.forRoot({
 | `PrismaMarketingSettingsRepository`      | `MarketingSettingsRepository`      | `marketing_settings`                                                |
 | `PrismaPromotionRepository`              | `PromotionRepository`              | `promotions`                                                        |
 | `PrismaSubscriptionContractRepository`   | `SubscriptionContractRepository`   | `subscription_contracts`, `contract_line_items`                     |
+| `PrismaSubscriberLedgerRepository`       | `SubscriberLedgerRepository`       | `subscriber_ledger_entries`                                         |
 | `PrismaAppliedSettingsRepository`        | `AppliedSettingsPort`              | `applied_settings`, `settings_changes`                              |
 
 Not shipped (custom adapters stay yours): registration persistence,

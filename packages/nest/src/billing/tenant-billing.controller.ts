@@ -43,6 +43,8 @@ import {
     CANCELLATION_NOTICE_DAYS_TOKEN,
 } from './tenant-billing.tokens.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
+import { recordChargesAfter } from './charges/record-charges-after.js';
+import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import {
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
     type SelfServiceBlockedPlans,
@@ -201,6 +203,11 @@ export class TenantBillingController {
         @Optional()
         @Inject(CANCELLATION_NOTICE_DAYS_TOKEN)
         private readonly cancellationNoticeDays: CancellationNoticePeriods = NO_NOTICE_PERIOD,
+        // Appended after the notice periods for the reason given above. Only
+        // where `chargeJournal` is configured.
+        @Optional()
+        @Inject(SubscriberChargeService)
+        private readonly charges: SubscriberChargeService | null = null,
     ) {}
 
     private readonly logger = new Logger(TenantBillingController.name);
@@ -762,6 +769,8 @@ export class TenantBillingController {
                     'is not registered in the consumer. No bundles were created.',
             );
         }
+
+        await recordChargesAfter(this.charges, tenantId, 'onboarding', this.logger);
 
         return {
             plan: planResult.plan,

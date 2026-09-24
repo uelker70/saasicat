@@ -497,6 +497,10 @@ _Tested by:_
     - without a ContractFreezePort, add works unchanged
     - freeze error is non-fatal — the mutation result still comes back
     - a failed mutation triggers no freeze
+    - an add-on booking brings the account up to date
+        - after the contract takes the booking in
+        - a journal that fails does not undo the booking
+        - a cancellation charges nothing new
 
 <!-- END proof -->
 

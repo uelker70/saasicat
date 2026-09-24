@@ -10,7 +10,9 @@ import {
     formatCustomerNumber,
     identityCorrectionDelta,
     refuseForeignPaymentMethodReference,
+    subscriberChargeColumns,
     subscriberPaymentMethodColumns,
+    toSubscriberChargeRecord,
     toSubscriptionBundleRecord,
 } from '@saasicat/core';
 
@@ -51,6 +53,7 @@ export function createMemoryHarness() {
         mfa: new Map(),
         contracts: [],
         contractLines: [],
+        ledgerEntries: [],
         subscribers: [],
         subscriberCorrections: [],
         paymentEvents: [],
@@ -1086,6 +1089,42 @@ export function createMemoryHarness() {
         },
     };
 
+    // The subscriber's account. The natural key is checked the way the unique
+    // index checks it, and a charge must name a contract line that exists, the
+    // way the foreign key does.
+    const subscriberLedgerRepository = {
+        async recordCharges(charges) {
+            const keyOf = (c) =>
+                [
+                    c.subscriptionId,
+                    c.source,
+                    c.sourceRef,
+                    c.periodStart.toISOString(),
+                    c.origin,
+                ].join('|');
+            for (const charge of charges) {
+                if (!state.contractLines.some((line) => line.id === charge.contractLineItemId)) {
+                    throw new Error(`contract line '${charge.contractLineItemId}' does not exist`);
+                }
+            }
+            const written = [];
+            for (const charge of charges) {
+                const columns = subscriberChargeColumns(charge);
+                if (state.ledgerEntries.some((entry) => keyOf(entry) === keyOf(charge))) continue;
+                const row = { id: nextId('charge'), ...columns, createdAt: FIXED_NOW };
+                state.ledgerEntries.push(row);
+                written.push(toSubscriberChargeRecord(row));
+            }
+            return written;
+        },
+        async listBySubscription(subscriptionId) {
+            return state.ledgerEntries
+                .filter((entry) => entry.subscriptionId === subscriptionId)
+                .sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime())
+                .map(toSubscriberChargeRecord);
+        },
+    };
+
     return {
         adapter: {
             capabilities: {
@@ -1099,6 +1138,7 @@ export function createMemoryHarness() {
             planVersionRepository,
             paymentEventLog,
             subscriberPaymentMethodRepository,
+            subscriberLedgerRepository,
             promoCodeRepository,
             promoCodeRedemptionRepository,
             promoCodeHoldRepository,

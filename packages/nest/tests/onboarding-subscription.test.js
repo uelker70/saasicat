@@ -3,7 +3,7 @@
 // SubscriptionUsagePort, EntitlementService, PlanChangePreviewService,
 // PromoCodesService are minimally stubbed.
 
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TenantBillingController } from '../dist/billing/index.js';
 
@@ -115,6 +115,8 @@ function buildController(overrides = {}) {
         overrides.subscriptionBundles ?? null,
         overrides.contractFreeze ?? null,
         overrides.trialProjection ?? null,
+        undefined,
+        overrides.charges ?? null,
     );
 }
 
@@ -668,4 +670,52 @@ test('onboarding: bundleVersionIds without a registered module → warning, no c
     );
     assert.equal(result.bundlesAdded, 0);
     assert.match(result.warnings[0], /SubscriptionBundleModule is not/);
+});
+
+// @requirement SC-PRIC-054 — Every period of a subscription is charged, at the price in force when it starts
+describe('onboarding brings the account up to date', () => {
+    function recordingCharges({ fails = false } = {}) {
+        return {
+            calls: [],
+            async recordDueCharges(tenantId) {
+                this.calls.push(tenantId);
+                if (fails) throw new Error('the journal is down');
+                return [];
+            },
+        };
+    }
+
+    test('once, for the tenant, after the plan is written', async () => {
+        const charges = recordingCharges();
+        const write = buildWritePort();
+        const ctrl = buildController({
+            charges,
+            subscriptionWrite: write,
+            subscriptionUsage: { findForTenant: async () => buildSub({ status: 'ACTIVE' }) },
+        });
+
+        await ctrl.completeOnboardingSubscription(
+            { user: { tenantId: 't1', sub: 'u1' } },
+            { plan: 'SPORT', billingCycle: 'YEARLY' },
+        );
+
+        assert.deepEqual(charges.calls, ['t1']);
+        assert.equal(write.changePlanCalls.length, 1);
+    });
+
+    test('a journal that fails does not undo the onboarding', async () => {
+        // The plan is written, and the charge is derived again from records
+        // that stay — by the application's renewal job at the latest.
+        const ctrl = buildController({
+            charges: recordingCharges({ fails: true }),
+            subscriptionUsage: { findForTenant: async () => buildSub({ status: 'ACTIVE' }) },
+        });
+
+        const result = await ctrl.completeOnboardingSubscription(
+            { user: { tenantId: 't1', sub: 'u1' } },
+            { plan: 'SPORT', billingCycle: 'YEARLY' },
+        );
+
+        assert.equal(result.plan, 'SPORT');
+    });
 });
