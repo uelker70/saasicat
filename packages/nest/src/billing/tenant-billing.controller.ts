@@ -418,12 +418,19 @@ export class TenantBillingController {
 
         if (decision.isImmediate) {
             const wasTrial = sub.status === 'TRIAL';
-            // A fresh window is a fresh term, and a cancellation still to come
-            // ends the subscription on a date this change does not move. Opening
-            // one anyway sells a period the customer loses partway through. The
-            // plan changes today either way; what stays is when it runs out.
+            // In the same rhythm the new plan runs inside the period already
+            // paid, on the same billing day, and the preview charged the
+            // difference for what is left of it (`SC-CHG-020`). Only a longer
+            // rhythm is a period of its own that starts today (`SC-CHG-021`) —
+            // or a subscription that has no period to run inside yet.
+            //
+            // Never during a trial, which commits to no period, and never with
+            // a cancellation still to come: that ends the subscription on a
+            // date this change does not move, and a fresh window would sell a
+            // period the customer loses partway through.
+            const opensPeriod = decision.cycleDirection !== 'SAME' || !sub.currentPeriodEnd;
             const period =
-                wasTrial || cancellationOutstanding
+                wasTrial || cancellationOutstanding || !opensPeriod
                     ? null
                     : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
             // #17: in trial, carry the remaining time over to the target package

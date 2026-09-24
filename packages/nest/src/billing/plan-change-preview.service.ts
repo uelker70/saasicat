@@ -30,7 +30,7 @@ import {
     SELF_SERVICE_BLOCKED_PLANS_TOKEN,
     type SelfServiceBlockedPlans,
 } from './self-service-policy.js';
-import { computeProration, type ProrationDto } from './proration.js';
+import { computeNewPeriodCharge, computeProration, type ProrationDto } from './proration.js';
 
 // PlanChangePreviewService — platform variant (data-driven).
 //
@@ -318,6 +318,7 @@ export class PlanChangePreviewService {
                       targetSnap,
                       sub.billingCycle,
                       targetCycle,
+                      cycleDirection,
                   )
                 : null;
 
@@ -610,13 +611,19 @@ export class PlanChangePreviewService {
         target: PlanSnapshotDto,
         currentCycle: string,
         targetCycle: string,
+        cycleDirection: CycleDirection,
     ): ProrationDto {
         const periodStart = ctx.currentPeriodStart ?? ctx.startedAt ?? now;
         const periodEnd =
             ctx.currentPeriodEnd ??
             periodEndAfter(ctx.startedAt, ctx.currentBillingCycle as BillingCycle, now);
+        // In the same rhythm the target runs inside the period already paid
+        // (`SC-CHG-020`); a longer rhythm is a period of its own that starts
+        // today (`SC-CHG-021`), and taking a difference between a year's price
+        // and a month's over what is left of the month prices nothing.
+        const charge = cycleDirection === 'SAME' ? computeProration : computeNewPeriodCharge;
 
-        return computeProration({
+        return charge({
             periodStart,
             periodEnd,
             now,

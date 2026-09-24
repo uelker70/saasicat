@@ -89,7 +89,23 @@
 
                     <div v-if="preview.proration" class="sp-wizard__proration">
                         <h4>{{ i18n.prorationTitle }}</h4>
-                        <p>
+                        <template v-if="preview.proration.basis === 'newPeriod'">
+                            <p>
+                                {{ i18n.newPeriodLine }}
+                                <strong>{{
+                                    formatCurrency(preview.proration.targetPriceNet)
+                                }}</strong>
+                            </p>
+                            <p>
+                                {{ i18n.remainderLine }}
+                                <strong>{{
+                                    formatCurrency(preview.proration.remainderNet)
+                                }}</strong>
+                                ({{ preview.proration.daysRemainingInPeriod }} /
+                                {{ preview.proration.daysInPeriod }} {{ i18n.prorationDays }})
+                            </p>
+                        </template>
+                        <p v-else>
                             {{ i18n.prorationLine }}
                             <strong>{{ formatCurrency(preview.proration.prorataDeltaNet) }}</strong>
                             ({{ preview.proration.daysRemainingInPeriod }} /
@@ -248,7 +264,11 @@
                         {{ i18n.confirmTrialNote }}
                     </div>
                     <div v-else-if="preview.proration" class="sp-wizard__price-row">
-                        <span>{{ i18n.confirmProratedNow }}</span>
+                        <span>{{
+                            preview.proration.basis === 'newPeriod'
+                                ? i18n.confirmDueNow
+                                : i18n.confirmProratedNow
+                        }}</span>
                         <strong>{{ formatCurrency(preview.proration.prorataDeltaNet) }}</strong>
                     </div>
                     <div class="sp-wizard__price-row">

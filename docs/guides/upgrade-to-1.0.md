@@ -985,6 +985,26 @@ zero.
   as the offer does, and `ConfiguratorPriceBreakdown.discountAmount` is that net figure. An adapter
   that returned a net amount returns the gross one.
 
+### An immediate upgrade keeps the paid period, or starts a longer one today
+
+An immediate upgrade opened a new period on the day of the change, which moved the day the customer
+is billed on, while the preview charged the difference over the period that was running. Now the
+two agree:
+
+- **In the same rhythm** the new plan runs inside the period already paid. `changePlanImmediate`
+  receives no window, so the subscription keeps its `currentPeriodStart`, `currentPeriodEnd` and
+  billing day, and the preview's `proration.prorataDeltaNet` is the difference for what is left.
+- **Into a longer rhythm** — monthly to yearly — the new period starts today and the billing day
+  becomes today, as before. What changes is the price the preview names: the new period in full,
+  less the unused rest of the running one at the price paid for it, floored at zero.
+  `proration.basis` says which of the two applies, and `proration.remainderNet` is the rest.
+- **A subscription with no period yet** still gets its first one on an immediate upgrade.
+
+A page of your own that shows `proration` reads `basis`: on `newPeriod`, `targetPriceNet` is the
+new period's price and `remainderNet` what it is reduced by. The shipped plan change wizard does
+this, with three new catalogue keys — `wizardNewPeriodLine`, `wizardRemainderLine` and
+`wizardConfirmDueNow` — which a map of your own passed as `i18n` provides.
+
 ### A plan is sold only in a rhythm it carries a price for
 
 A plan without a yearly price is a monthly plan, and one without any price is sold on request. The

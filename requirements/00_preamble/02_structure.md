@@ -80,7 +80,7 @@ properties it has while doing it.
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 18      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 21      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 52      |
@@ -100,8 +100,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 496 entries: 🟢 424 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
-🔵 3 superseded, 🔴 1 withdrawn.
+Of 498 entries: 🟢 425 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -172,7 +172,8 @@ Of 496 entries: 🟢 424 stand today, 🟡 68 decided but not yet delivered, ⚪
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered),
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
-🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
+🔵 **Superseded** — [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
 
