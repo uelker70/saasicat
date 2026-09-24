@@ -169,6 +169,19 @@ describe('the form is opened at Stripe', () => {
         assert.equal(ctx.requests[0].body.customer, 'cus_known');
     });
 
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('the session can be confirmed until its end plus the three days Stripe retries a webhook', async () => {
+        const ctx = await gatewayOver({ 'POST /v1/checkout/sessions': SESSION });
+
+        const session = await ctx.gateway.startPaymentMethodSetup({
+            ...SETUP,
+            holder: { ...HOLDER, customerRef: 'cus_known' },
+        });
+
+        const threeDays = 3 * 24 * 60 * 60 * 1000;
+        assert.equal(session.confirmableUntil.getTime(), SESSION.expires_at * 1000 + threeDays);
+    });
+
     test('a party without an invoice address of its own leaves the field out rather than sending nothing', async () => {
         const ctx = await gatewayOver({
             'POST /v1/customers': { id: 'cus_new', object: 'customer' },

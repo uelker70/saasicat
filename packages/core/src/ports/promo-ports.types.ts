@@ -208,12 +208,23 @@ export interface PromoCodeHoldRepository {
         expiresAt: Date;
     }): Promise<PromoCodeHoldTaken>;
     /**
-     * Moves the expiry of the offer's hold on that code. False when the offer
-     * holds no slot of it any more — it ended in the meantime.
+     * Moves the expiry of the offer's hold on that code to `expiresAt`, and
+     * never earlier than it stands: the later of the two is written in the one
+     * statement, so a start of the same checkout that asks for less cannot
+     * shorten the slot a form opened by another start relies on, however the
+     * two interleave. False when the offer holds no slot of it any more — it
+     * ended in the meantime.
      */
     extend(checkoutOfferId: string, promoCodeId: string, expiresAt: Date): Promise<boolean>;
     /** Ends the offer's hold and gives its slot back. False when it had none. */
     release(checkoutOfferId: string, tx?: TransactionContext): Promise<boolean>;
+    /**
+     * Ends the offer's hold and gives its slot back only while it still expires
+     * at `expiresAt` — the hold as the caller wrote it. A hold another start
+     * moved since stays, and so does its slot, in the same statement. False when
+     * nothing was given back.
+     */
+    releaseIfUnmoved(checkoutOfferId: string, expiresAt: Date): Promise<boolean>;
     /**
      * Marks the offer's hold, if it is live at `now`, as the slot of the
      * redemption that runs on `tx`. The mark never outlives the transaction: the

@@ -273,14 +273,13 @@ export class CheckoutOfferService {
         throw offerChanged(id, 'its promo code was being held');
     }
 
-    /** Whether a live slot of a promo code is held for the offer's checkout. */
-    async holdsPromoCode(id: string): Promise<boolean> {
-        return (await this.promoCodes?.holdsCheckoutSlot(id)) ?? false;
-    }
-
-    /** Gives back the slot held for the offer's checkout, if one is held. */
-    async releasePromoCodeHold(id: string): Promise<void> {
-        await this.promoCodes?.releaseCheckoutHold(id);
+    /**
+     * Gives back the slot held for the offer's checkout while it is still held
+     * until `heldUntil`, as the caller wrote it. A slot another start of the
+     * checkout moved later stays with the form that start opened.
+     */
+    async releasePromoCodeHold(id: string, heldUntil: Date): Promise<void> {
+        await this.promoCodes?.releaseCheckoutHoldIfUnmoved(id, heldUntil);
     }
 
     /**

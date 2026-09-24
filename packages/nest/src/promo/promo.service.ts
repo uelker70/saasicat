@@ -12,7 +12,6 @@ import type {
     FirstTimeCustomerCheck,
     PlanCatalog,
     PromoCodeFilter,
-    PromoCodeHoldRecord,
     PromoCodeHoldRepository,
     PromoCodeRecord,
     PromoCodeRedemptionListItem,
@@ -426,15 +425,15 @@ export class PromoCodesService {
      * check a preview makes — so a customer who reaches the payment form keeps
      * the code however many others redeem it meanwhile. Starting the same
      * checkout again moves the expiry of the slot it holds rather than taking a
-     * second — later, never earlier, while that slot is live; a checkout that
-     * held another code gives that one back.
+     * second — later, never earlier (`PromoCodeHoldRepository.extend`); a
+     * checkout that held another code gives that one back.
      *
      * Refused with `PROMO_CODE_NOT_REDEEMABLE` and the reason a preview would
      * give, `EXHAUSTED` when every slot is redeemed or held — also when the
      * code changed between that check and taking the slot. Nothing is held
      * then, and a slot the offer held before stays with it until it expires.
      */
-    async holdForCheckout(input: CheckoutHoldInput): Promise<PromoCodeHoldRecord> {
+    async holdForCheckout(input: CheckoutHoldInput): Promise<void> {
         const holds = this.requireHolds();
         const offerId = input.checkoutOfferId;
         await this.lazyExpire();
@@ -454,21 +453,14 @@ export class PromoCodesService {
             if (verdict.reason !== null) throw notRedeemable(verdict.reason);
             const promoCodeId = verdict.promo.id;
 
-            // Never earlier than it stands: a form this checkout opened before
-            // may still be paid on, and a later start of the same checkout that
-            // asks for less must not take that away.
-            const until =
-                held && own !== null && own.expiresAt > input.until ? own.expiresAt : input.until;
-            if (ownSlot && (await holds.extend(offerId, promoCodeId, until))) {
-                return { ...own, expiresAt: until };
-            }
+            if (ownSlot && (await holds.extend(offerId, promoCodeId, input.until))) return;
             if (own && !ownSlot) await holds.release(offerId);
             const taken = await holds.take({
                 promoCodeId,
                 checkoutOfferId: offerId,
                 expiresAt: input.until,
             });
-            if (taken.outcome === 'taken') return taken.hold;
+            if (taken.outcome === 'taken') return;
             if (taken.outcome === 'no-slot') throw notRedeemable(await this.whyNoSlot(promoCodeId));
             // 'offer-holds-one': a start of the same checkout took it a moment
             // ago. The next round finds that slot as this checkout's own.
@@ -480,15 +472,18 @@ export class PromoCodesService {
         });
     }
 
-    /** Whether the checkout offer holds a slot of any code that has not expired. */
-    async holdsCheckoutSlot(checkoutOfferId: string): Promise<boolean> {
-        const hold = await this.holds?.findByCheckoutOffer(checkoutOfferId);
-        return hold != null && hold.expiresAt > new Date();
-    }
-
     /** Gives back the slot a checkout offer holds, if it holds one. */
     async releaseCheckoutHold(checkoutOfferId: string, tx?: TransactionContext): Promise<void> {
         await this.holds?.release(checkoutOfferId, tx);
+    }
+
+    /**
+     * Gives back the slot a checkout offer holds only while it still expires at
+     * `expiresAt` — the hold as the caller wrote it. A slot another start of the
+     * checkout moved since stays with the form that start opened.
+     */
+    async releaseCheckoutHoldIfUnmoved(checkoutOfferId: string, expiresAt: Date): Promise<void> {
+        await this.holds?.releaseIfUnmoved(checkoutOfferId, expiresAt);
     }
 
     /**

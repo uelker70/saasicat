@@ -129,6 +129,24 @@ describe('ending a hold', () => {
         assert.deepEqual(statements.map(kindOf), ['delete']);
     });
 
+    test('a release of a hold as it was written deletes it only while it still expires then', async () => {
+        const { repo, statements } = recordingDb([[/^delete/i, [['code-1']]]]);
+
+        assert.equal(await repo.releaseIfUnmoved('offer-1', EXPIRES), true);
+
+        assert.deepEqual(statements.map(kindOf), ['delete', 'update']);
+        assert.match(statements[0].sql, /"expiresAt" = \$\d/);
+        assert.ok(statements[0].params.includes(EXPIRES.toISOString()));
+    });
+
+    test('a hold moved since stays, and its slot with it', async () => {
+        const { repo, statements } = recordingDb();
+
+        assert.equal(await repo.releaseIfUnmoved('offer-1', EXPIRES), false);
+
+        assert.deepEqual(statements.map(kindOf), ['delete']);
+    });
+
     test('a sweep gives the slots back per code, in one fixed order of codes', async () => {
         const { repo, statements } = recordingDb([
             [/^delete/i, [['code-b'], ['code-a'], ['code-b']]],
@@ -196,11 +214,15 @@ describe('handing a hold to the redemption on the same transaction', () => {
 });
 
 describe('starting the same checkout again', () => {
-    test('moves the expiry of the hold it has on that code', async () => {
+    test('moves the expiry of the hold it has on that code, never earlier than it stands', async () => {
         const { repo, statements } = recordingDb([[/^update/i, [['hold-1']]]]);
 
         assert.equal(await repo.extend('offer-1', 'code-1', EXPIRES), true);
 
+        assert.match(
+            statements[0].sql,
+            /"expiresAt" = GREATEST\("promo_code_holds"\."expiresAt", \$\d\)/,
+        );
         assert.ok(statements[0].params.includes('offer-1'));
         assert.ok(statements[0].params.includes('code-1'));
     });

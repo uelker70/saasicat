@@ -90,25 +90,22 @@ export class PrismaPromoCodeHoldRepository implements PromoCodeHoldRepository {
     }
 
     async extend(checkoutOfferId: string, promoCodeId: string, expiresAt: Date): Promise<boolean> {
-        const { count } = await holdsOf(this.prisma).updateMany({
-            where: { checkoutOfferId, promoCodeId },
-            data: { expiresAt },
-        });
-        return count === 1;
+        const extended = await this.prisma.$executeRaw`
+            UPDATE promo_code_holds
+            SET "expiresAt" = GREATEST(
+                "expiresAt",
+                (${expiresAt.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+            )
+            WHERE "checkoutOfferId" = ${checkoutOfferId} AND "promoCodeId" = ${promoCodeId}`;
+        return extended === 1;
     }
 
     async release(checkoutOfferId: string, tx?: TransactionContext): Promise<boolean> {
-        const released = await resolveClient(this.prisma, tx).$executeRaw`
-            WITH gone AS (
-                DELETE FROM promo_code_holds
-                WHERE "checkoutOfferId" = ${checkoutOfferId}
-                RETURNING "promoCodeId"
-            )
-            UPDATE promo_codes p
-            SET "heldCount" = GREATEST(p."heldCount" - 1, 0), "updatedAt" = NOW()
-            FROM gone
-            WHERE p.id = gone."promoCodeId"`;
-        return released === 1;
+        return this.giveBack(checkoutOfferId, null, tx);
+    }
+
+    async releaseIfUnmoved(checkoutOfferId: string, expiresAt: Date): Promise<boolean> {
+        return this.giveBack(checkoutOfferId, expiresAt);
     }
 
     async handOver(checkoutOfferId: string, now: Date, tx: TransactionContext): Promise<boolean> {
@@ -163,6 +160,31 @@ export class PrismaPromoCodeHoldRepository implements PromoCodeHoldRepository {
             ended: number;
         }>;
         return rows[0]?.ended ?? 0;
+    }
+
+    /**
+     * Deletes the offer's hold — only while it expires at `onlyAt`, where one
+     * is given — and gives its slot back, in one statement.
+     */
+    private async giveBack(
+        checkoutOfferId: string,
+        onlyAt: Date | null,
+        tx?: TransactionContext,
+    ): Promise<boolean> {
+        const at = onlyAt ? onlyAt.toISOString() : null;
+        const released = await resolveClient(this.prisma, tx).$executeRaw`
+            WITH gone AS (
+                DELETE FROM promo_code_holds
+                WHERE "checkoutOfferId" = ${checkoutOfferId}
+                  AND (${at}::timestamptz IS NULL
+                       OR "expiresAt" = (${at}::timestamptz AT TIME ZONE 'UTC'))
+                RETURNING "promoCodeId"
+            )
+            UPDATE promo_codes p
+            SET "heldCount" = GREATEST(p."heldCount" - 1, 0), "updatedAt" = NOW()
+            FROM gone
+            WHERE p.id = gone."promoCodeId"`;
+        return released === 1;
     }
 }
 

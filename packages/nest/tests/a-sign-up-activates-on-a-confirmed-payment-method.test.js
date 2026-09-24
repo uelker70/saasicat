@@ -1010,6 +1010,49 @@ describe('step 4 holds the promo code of the offer the sign-up concludes', () =>
     });
 
     // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('of two step 4s at once, the one that fails leaves the slot with the form the other opened', async () => {
+        // A double submit: both start before either has held anything, the
+        // first opens its form while the second is still at the gateway, and
+        // the second then fails.
+        const ctx = await signUpWithOffer();
+        const lastConfirmation = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
+        ctx.gateway.confirmableUntil = lastConfirmation;
+        const down = new Error('the gateway timed out');
+        const open = ctx.gateway.startPaymentMethodSetup.bind(ctx.gateway);
+        let secondAtGateway;
+        const secondArrived = new Promise((resolve) => (secondAtGateway = resolve));
+        let firstDone;
+        const firstFinished = new Promise((resolve) => (firstDone = resolve));
+        let calls = 0;
+        ctx.gateway.startPaymentMethodSetup = async (input) => {
+            calls += 1;
+            if (calls === 1) {
+                await secondArrived;
+                return open(input);
+            }
+            secondAtGateway();
+            await firstFinished;
+            throw down;
+        };
+
+        const first = startCheckoutFor(ctx);
+        const second = startCheckoutFor(ctx);
+        const opened = await first;
+        firstDone();
+        await assert.rejects(second, (error) => error === down);
+
+        const hold = await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id);
+        assert.equal(hold?.expiresAt.getTime(), lastConfirmation.getTime());
+        const event = confirmation({
+            eventId: 'evt_opened_form',
+            sessionRef: opened.checkoutSessionId,
+            subject: { kind: 'registration', pendingRegistrationId: ctx.pendingId },
+        });
+        assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, signedCallback(event)), 'handled');
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 1, status: 'EXHAUSTED' });
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
     test('a step 4 refused before the gateway is asked gives its slot back as well', async () => {
         const ctx = await signUpWithOffer();
 

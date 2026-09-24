@@ -1770,6 +1770,43 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
         });
 
+        test('a hold is never moved earlier, whichever of two starts writes last', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId } = scenario;
+            const expiryOf = async () =>
+                (await holds.findByCheckoutOffer('offer-1'))?.expiresAt.getTime();
+            const form = inDays(4);
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: form });
+
+            assert.equal(await holds.extend('offer-1', promoCodeId, inDays(1)), true);
+            assert.equal(await expiryOf(), form.getTime(), 'a start asking for less');
+
+            const later = inDays(5);
+            await Promise.all([
+                holds.extend('offer-1', promoCodeId, later),
+                holds.extend('offer-1', promoCodeId, inDays(2)),
+            ]);
+            assert.equal(await expiryOf(), later.getTime(), 'two starts at once');
+        });
+
+        test('a hold is given back as written only while nobody moved it since', async (t) => {
+            const scenario = await holdScenario(t, 2);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+            const moved = inDays(1);
+            const unmoved = inDays(1);
+            await holds.take({ promoCodeId, checkoutOfferId: 'moved', expiresAt: moved });
+            await holds.take({ promoCodeId, checkoutOfferId: 'unmoved', expiresAt: unmoved });
+            await holds.extend('moved', promoCodeId, inDays(4));
+
+            assert.equal(await holds.releaseIfUnmoved('moved', moved), false);
+            assert.notEqual(await holds.findByCheckoutOffer('moved'), null);
+            assert.equal(await holds.releaseIfUnmoved('unmoved', unmoved), true);
+            assert.equal(await holds.findByCheckoutOffer('unmoved'), null);
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+        });
+
         test('a hold handed over on a transaction becomes the slot of the redemption on it', async (t) => {
             const scenario = await holdScenario(t, 1);
             if (!scenario) return;

@@ -7069,6 +7069,8 @@ _Tested by:_
     - ending a hold
         - a release deletes the offer’s hold and gives its slot back
         - a release that finds no hold changes no count
+        - a release of a hold as it was written deletes it only while it still expires then
+        - a hold moved since stays, and its slot with it
         - a sweep gives the slots back per code, in one fixed order of codes
         - a sweep of one code names it
     - handing a hold to the redemption on the same transaction
@@ -7076,7 +7078,7 @@ _Tested by:_
         - the redemption on that transaction takes it as its slot
         - a redemption on another transaction finds nothing and changes nothing
     - starting the same checkout again
-        - moves the expiry of the hold it has on that code
+        - moves the expiry of the hold it has on that code, never earlier than it stands
         - answers false when the hold ended meanwhile
         - reads the hold an offer has
 - `packages/nest/tests/a-promo-slot-is-held-through-checkout.test.js`
@@ -7127,6 +7129,7 @@ _Tested by:_
           is the answer
         - a second step 4 that fails leaves the slot with the form the first one opened, which
           redeems it
+        - of two step 4s at once, the one that fails leaves the slot with the form the other opened
         - a step 4 refused before the gateway is asked gives its slot back as well
         - a code that cannot be held refuses step 4 before the gateway form opens
         - a sign-up that names no offer holds nothing
@@ -7170,7 +7173,11 @@ _Tested by:_
           is the answer
         - a second step 4 that fails leaves the slot with the form the first one opened, which
           redeems it
+        - of two step 4s at once, the one that fails leaves the slot with the form the other opened
         - a step 4 refused before the gateway is asked gives its slot back as well
+- `packages/payment-stripe/tests/a-payment-method-is-set-up-in-stripes-own-form.test.js`
+    - the form is opened at Stripe
+        - the session can be confirmed until its end plus the three days Stripe retries a webhook
 
 <!-- END proof -->
 

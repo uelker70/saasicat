@@ -247,11 +247,17 @@ function holdRepositoryOver(store) {
         async extend(checkoutOfferId, promoCodeId, expiresAt) {
             const hold = store.heldBy.get(checkoutOfferId);
             if (!hold || hold.promoCodeId !== promoCodeId) return false;
-            hold.expiresAt = expiresAt;
+            if (expiresAt > hold.expiresAt) hold.expiresAt = expiresAt;
             return true;
         },
         async release(checkoutOfferId) {
             if (!store.heldBy.has(checkoutOfferId)) return false;
+            store.endHold(checkoutOfferId, { redeemed: false });
+            return true;
+        },
+        async releaseIfUnmoved(checkoutOfferId, expiresAt) {
+            const hold = store.heldBy.get(checkoutOfferId);
+            if (!hold || hold.expiresAt.getTime() !== expiresAt.getTime()) return false;
             store.endHold(checkoutOfferId, { redeemed: false });
             return true;
         },

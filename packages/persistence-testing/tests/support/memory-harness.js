@@ -260,12 +260,18 @@ export function createMemoryHarness() {
         async extend(checkoutOfferId, promoCodeId, expiresAt) {
             const hold = heldBy(checkoutOfferId);
             if (!hold || hold.promoCodeId !== promoCodeId) return false;
-            hold.expiresAt = expiresAt;
+            if (expiresAt > hold.expiresAt) hold.expiresAt = expiresAt;
             return true;
         },
         async release(checkoutOfferId) {
             const hold = heldBy(checkoutOfferId);
             if (!hold) return false;
+            endHold(hold, { redeemed: false });
+            return true;
+        },
+        async releaseIfUnmoved(checkoutOfferId, expiresAt) {
+            const hold = heldBy(checkoutOfferId);
+            if (!hold || hold.expiresAt.getTime() !== expiresAt.getTime()) return false;
             endHold(hold, { redeemed: false });
             return true;
         },

@@ -244,16 +244,16 @@ export class PendingRegistrationService {
         // a confirmation of that form can still arrive. A form abandoned at the
         // gateway gives its slot back once nobody can pay on it any more.
         //
-        // A slot a form this sign-up opened earlier holds stays with it whatever
-        // becomes of this start: that form can still be paid on. The hold is
-        // never shortened, and only a slot this start took is given back when
-        // it fails.
+        // A slot a form of this sign-up holds stays with it whatever becomes of
+        // this start, also when two starts run at once: that form can be paid
+        // on. The store never moves a hold earlier, and a start that fails gives
+        // the slot back only while it still stands where this start put it. A
+        // start hands out its form's address only after moving the slot to that
+        // form's end, later than the minutes a start holds it while opening.
         const startedAt = new Date();
         const offerId = input.checkoutOfferId;
-        const heldBefore = offerId ? await this.holdsPromoCodeOf(offerId) : false;
-        if (offerId) {
-            await this.holdPromoCodeOf(offerId, pending, whileTheFormOpens(startedAt));
-        }
+        const whileOpening = whileTheFormOpens(startedAt);
+        if (offerId) await this.holdPromoCodeOf(offerId, pending, whileOpening);
         let started: RegistrationSetupStarted;
         try {
             started = await this.payments.startSetup(
@@ -270,7 +270,7 @@ export class PendingRegistrationService {
                 );
             }
         } catch (error) {
-            if (offerId && !heldBefore) await this.giveBackHoldOf(offerId);
+            if (offerId) await this.giveBackHoldOf(offerId, whileOpening);
             throw error;
         }
         await this.record('CHECKOUT_STARTED', pending.id, context, {
@@ -287,20 +287,15 @@ export class PendingRegistrationService {
         };
     }
 
-    /** Whether a form this sign-up opened before holds a live slot of the offer's code. */
-    private async holdsPromoCodeOf(checkoutOfferId: string): Promise<boolean> {
-        return (await this.checkoutOffers?.holdsPromoCode(checkoutOfferId)) ?? false;
-    }
-
     /**
      * Gives back the slot a failed start took: its form did not open, or its
      * slot could not be moved to the form's end. The failure is the answer the
      * caller gets; a slot that cannot be given back here lapses with its short
      * hold, so this failure is logged rather than put in the way of that answer.
      */
-    private async giveBackHoldOf(checkoutOfferId: string): Promise<void> {
+    private async giveBackHoldOf(checkoutOfferId: string, heldUntil: Date): Promise<void> {
         try {
-            await this.checkoutOffers?.releasePromoCodeHold(checkoutOfferId);
+            await this.checkoutOffers?.releasePromoCodeHold(checkoutOfferId, heldUntil);
         } catch (error) {
             this.logger.error(
                 `The promo code slot of checkout offer '${checkoutOfferId}' was not given back ` +

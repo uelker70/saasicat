@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gt, lte, sql } from 'drizzle-orm';
+import { and, eq, gt, lte, sql, type SQL } from 'drizzle-orm';
 import type {
     PromoCodeHoldRecord,
     PromoCodeHoldRepository,
@@ -21,6 +21,9 @@ const HOLD_FIELDS = {
 
 /** The transaction a conclusion runs on, as Postgres numbers it. */
 const CURRENT_TRANSACTION = sql`txid_current()`;
+
+/** `expiresAt` bound the way the column writes it, for a raw expression. */
+const atExpiry = (expiresAt: Date) => sql.param(expiresAt, promoCodeHolds.expiresAt);
 
 /**
  * `PromoCodeHoldRepository` against the canonical `promo_code_holds` table and
@@ -84,7 +87,7 @@ export class DrizzlePromoCodeHoldRepository implements PromoCodeHoldRepository {
     async extend(checkoutOfferId: string, promoCodeId: string, expiresAt: Date): Promise<boolean> {
         const extended = await this.db
             .update(promoCodeHolds)
-            .set({ expiresAt })
+            .set({ expiresAt: sql`GREATEST(${promoCodeHolds.expiresAt}, ${atExpiry(expiresAt)})` })
             .where(
                 and(
                     eq(promoCodeHolds.checkoutOfferId, checkoutOfferId),
@@ -96,14 +99,16 @@ export class DrizzlePromoCodeHoldRepository implements PromoCodeHoldRepository {
     }
 
     async release(checkoutOfferId: string, tx?: TransactionContext): Promise<boolean> {
-        return this.onTransaction(tx, async (db) => {
-            const gone = await db
-                .delete(promoCodeHolds)
-                .where(eq(promoCodeHolds.checkoutOfferId, checkoutOfferId))
-                .returning({ promoCodeId: promoCodeHolds.promoCodeId });
-            await giveBack(db, gone, { redeemed: false });
-            return gone.length === 1;
-        });
+        return this.releaseWhere(eq(promoCodeHolds.checkoutOfferId, checkoutOfferId), tx);
+    }
+
+    async releaseIfUnmoved(checkoutOfferId: string, expiresAt: Date): Promise<boolean> {
+        return this.releaseWhere(
+            and(
+                eq(promoCodeHolds.checkoutOfferId, checkoutOfferId),
+                eq(promoCodeHolds.expiresAt, expiresAt),
+            ),
+        );
     }
 
     async handOver(checkoutOfferId: string, now: Date, tx: TransactionContext): Promise<boolean> {
@@ -155,6 +160,18 @@ export class DrizzlePromoCodeHoldRepository implements PromoCodeHoldRepository {
                 .returning({ promoCodeId: promoCodeHolds.promoCodeId });
             await giveBack(db, gone, { redeemed: false });
             return gone.length;
+        });
+    }
+
+    /** Deletes the holds `where` matches and gives their slots back. */
+    private releaseWhere(where: SQL | undefined, tx?: TransactionContext): Promise<boolean> {
+        return this.onTransaction(tx, async (db) => {
+            const gone = await db
+                .delete(promoCodeHolds)
+                .where(where)
+                .returning({ promoCodeId: promoCodeHolds.promoCodeId });
+            await giveBack(db, gone, { redeemed: false });
+            return gone.length === 1;
         });
     }
 

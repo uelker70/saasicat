@@ -177,8 +177,9 @@ describe('a checkout keeps one slot, for as long as it runs', () => {
             });
         await hold('LAST-SLOT');
 
-        const held = await hold('OTHER-CODE');
+        await hold('OTHER-CODE');
 
+        const held = await ctx.codes.holdRepository.findByCheckoutOffer('offer-anna');
         assert.equal(held.promoCodeId, other.id);
         assert.deepEqual(await ctx.counts(), { held: 0, redeemed: 0, status: 'ACTIVE' });
         assert.equal((await ctx.codes.findById(other.id)).heldCount, 1);
