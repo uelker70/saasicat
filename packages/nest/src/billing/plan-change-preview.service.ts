@@ -564,10 +564,7 @@ export class PlanChangePreviewService {
             .filter(
                 (booking) =>
                     booking.billingCycle != null &&
-                    !bundleCycleFitsPlan(
-                        booking.billingCycle as BillingCycle,
-                        targetCycle as BillingCycle,
-                    ),
+                    !bundleCycleFitsPlan(booking.billingCycle, targetCycle as BillingCycle),
             )
             .map((booking) => ({
                 until: (booking.currentPeriodEnd ?? booking.minimumTermEndsAt ?? now)

@@ -97,6 +97,7 @@ persistenceAdapterContract({
             createSubscription,
             createBundleVersion,
             clearBookingRequestDate,
+            setBookingCycle,
             createPromoCode,
         },
         reset: () => truncatePlatformTables(),

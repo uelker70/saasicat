@@ -26,6 +26,7 @@ import type {
     CancelSubscriptionBundleData,
     CreateSubscriberData,
     CreateSubscriptionBundleData,
+    EffectiveLimitsSnapshot,
     NewSubscriptionContractData,
     RunningContractIssuers,
     SubscriberContactChange,
@@ -305,11 +306,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             originalPlanVersionId: data.originalPlanVersionId ?? null,
             originalBundleVersionIds: [...(data.originalBundleVersionIds ?? [])],
             entitlementSnapshot: data.entitlementSnapshot
-                ? {
-                      plan: data.entitlementSnapshot.plan,
-                      quotas: { ...data.entitlementSnapshot.quotas },
-                      features: [...data.entitlementSnapshot.features],
-                  }
+                ? cloneEntitlementSnapshot(data.entitlementSnapshot)
                 : null,
             priceSnapshot: { ...data.priceSnapshot },
             promotionSnapshots: [...(data.promotionSnapshots ?? [])],
@@ -394,11 +391,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             effectiveUntil: row.effectiveUntil ? new Date(row.effectiveUntil) : null,
             originalBundleVersionIds: [...row.originalBundleVersionIds],
             entitlementSnapshot: row.entitlementSnapshot
-                ? {
-                      plan: row.entitlementSnapshot.plan,
-                      quotas: { ...row.entitlementSnapshot.quotas },
-                      features: [...row.entitlementSnapshot.features],
-                  }
+                ? cloneEntitlementSnapshot(row.entitlementSnapshot)
                 : null,
             priceSnapshot: { ...row.priceSnapshot },
             promotionSnapshots: [...row.promotionSnapshots],
@@ -1266,4 +1259,15 @@ export class FakePlanRepository implements PlanRepository {
         this.versions.set(versionId, updated);
         return updated;
     }
+}
+
+function cloneEntitlementSnapshot(snapshot: EffectiveLimitsSnapshot): EffectiveLimitsSnapshot {
+    return {
+        plan: snapshot.plan,
+        quotas: { ...snapshot.quotas },
+        features: [...snapshot.features],
+        ...(snapshot.leftOutBundleVersionIds
+            ? { leftOutBundleVersionIds: [...snapshot.leftOutBundleVersionIds] }
+            : {}),
+    };
 }

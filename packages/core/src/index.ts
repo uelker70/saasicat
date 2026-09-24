@@ -63,6 +63,7 @@ export * from './subscriber-mapping.js';
 export * from './subscriber-payment-method-mapping.js';
 export * from './subscriber-payment-method.types.js';
 export * from './subscriber.types.js';
+export * from './subscription-bundle-mapping.js';
 export * from './subscription-contract-mapping.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';

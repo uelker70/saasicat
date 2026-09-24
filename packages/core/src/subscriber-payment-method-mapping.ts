@@ -1,6 +1,7 @@
 // Canonical row -> record mapping for subscriber payment methods. Pure, and
 // shared by both adapters for the reason `subscriber-mapping.ts` gives.
 
+import { oneOf } from './closed-value.js';
 import type { PaymentMethodType } from './payment-gateway.types.js';
 import type {
     RecordSubscriberPaymentMethodData,
@@ -12,6 +13,8 @@ import type {
 export const PAYMENT_METHOD_TYPES: readonly PaymentMethodType[] = ['card', 'sepa_debit'];
 
 const STATUSES: readonly SubscriberPaymentMethodStatus[] = ['ACTIVE', 'REPLACED'];
+
+const TABLE = 'subscriber_payment_methods';
 
 /** A `subscriber_payment_methods` row as either adapter reads it back. */
 export interface CanonicalSubscriberPaymentMethodRow {
@@ -52,7 +55,7 @@ export function toSubscriberPaymentMethodRecord(
         provider: row.provider,
         customerRef: row.customerRef,
         paymentMethodRef: row.paymentMethodRef,
-        type: oneOf(PAYMENT_METHOD_TYPES, row.type, 'type', row.id),
+        type: oneOf(PAYMENT_METHOD_TYPES, row.type, { table: TABLE, column: 'type', id: row.id }),
         brand: row.brand,
         last4: row.last4,
         expiryMonth: row.expiryMonth,
@@ -60,7 +63,7 @@ export function toSubscriberPaymentMethodRecord(
         country: row.country,
         bankCode: row.bankCode,
         mandateReference: row.mandateReference,
-        status: oneOf(STATUSES, row.status, 'status', row.id),
+        status: oneOf(STATUSES, row.status, { table: TABLE, column: 'status', id: row.id }),
         confirmedAt: row.confirmedAt,
         replacedAt: row.replacedAt,
         createdAt: row.createdAt,
@@ -87,22 +90,6 @@ export function subscriberPaymentMethodColumns(
         mandateReference: data.mandateReference,
         confirmedAt: data.confirmedAt,
     };
-}
-
-function oneOf<T extends string>(
-    allowed: readonly T[],
-    value: string,
-    column: string,
-    id: string,
-): T {
-    const match = allowed.find((entry) => entry === value);
-    if (match === undefined) {
-        throw new Error(
-            `subscriber_payment_methods row '${id}' holds ${column} '${value}', ` +
-                `which is none of ${allowed.join(', ')}.`,
-        );
-    }
-    return match;
 }
 
 /** Marks the refusal across module copies, the way `PaymentCallbackRejectedError` does. */

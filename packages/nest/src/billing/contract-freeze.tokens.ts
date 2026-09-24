@@ -109,6 +109,11 @@ export interface ContractFreezeSourcePort {
      * The tenant's active (non-terminated) bundle bookings as line items,
      * priced in net. Apps without a bundle schema return empty lists.
      *
+     * A booking whose cancellation is declared is still active until its
+     * effective date, and it belongs here while it is billed. Its line does not
+     * put it into the contract's entitlements: the freeze leaves it out of the
+     * snapshot, and the booking grants its features and quotas until that date.
+     *
      * `cycle` is the **plan's** rhythm, not the bookings'. A tenant on a yearly
      * plan may hold monthly add-ons, so a source prices each booking in the
      * rhythm that booking was made in and says which one that is on the line's

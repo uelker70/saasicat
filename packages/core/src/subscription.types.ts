@@ -156,7 +156,7 @@ export interface SubscriptionBundleRecord {
      * or on one whose plan has no period; readers fall back to the plan's
      * cycle, which is what every booking used before.
      */
-    billingCycle: string | null;
+    billingCycle: BillingCycle | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
     createdAt: Date;
@@ -192,7 +192,7 @@ export interface CreateSubscriptionBundleData {
     /** Null unless a commitment was configured or asked for. */
     minimumTermEndsAt?: Date | null;
     /** The rhythm and window worked out above this port. */
-    billingCycle?: string | null;
+    billingCycle?: BillingCycle | null;
     currentPeriodStart?: Date | null;
     currentPeriodEnd?: Date | null;
 }

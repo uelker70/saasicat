@@ -266,7 +266,10 @@ function freezeService(contracts) {
         givenPlanCatalogSource({ ...SUBSCRIBER_CATALOG, plans: [STANDARD] }),
         {
             invalidateTenant() {},
-            computeLimits: async () => ({ plan: 'STANDARD', quotas: {}, features: new Set() }),
+            computeContractLimits: async () => ({
+                limits: { plan: 'STANDARD', quotas: {}, features: new Set() },
+                leftOutBundleVersionIds: [],
+            }),
         },
         contracts,
         {

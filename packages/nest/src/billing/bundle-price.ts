@@ -20,7 +20,7 @@ import type { BillingCycle, BundleVersionRow } from '@saasicat/core';
 export function resolveBundlePriceNet(
     bundleVersion: BundleVersionRow,
     planKey: string,
-    billingCycle: string,
+    billingCycle: BillingCycle,
 ): number | null {
     const override = (bundleVersion.pricingOverrides ?? []).find((o) => o.planId === planKey);
     const yearly = billingCycle === 'YEARLY';

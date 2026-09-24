@@ -377,6 +377,34 @@ them cannot tell a subscription that ends next January from one that ended last 
 silent answer is the wrong one. `@saasicat/adapter-prisma` and `@saasicat/adapter-drizzle` both
 supply them.
 
+### A cancelled add-on ends on its effective date under a contract too
+
+The platform writes a tenant's contract again when an add-on is booked, cancelled or reinstated, and
+not when a date arrives. The contract written on cancelling recorded the add-on in its entitlements,
+so the add-on's features and quotas stayed granted after its effective date until something wrote
+the contract once more. Now that contract keeps the add-on's line — it is billed until its date —
+leaves it out of its entitlements and names it there as `leftOutBundleVersionIds`; the booking
+grants the add-on until the date, and from the date nothing of it is granted. A remembered answer is
+not served past that date either.
+
+- **Contracts written before this release** still carry such an add-on in their entitlements. Write
+  each running contract once after deploying, through the `ContractFreezePort` your
+  `TenantBillingModule` configures with `contractFreeze`, with the arguments the platform passes
+  itself: `freezeOnPlanChange(tenantId, sub.plan, sub.billingCycle, new Date(), endsAt)`, where
+  `endsAt` is `sub.canceledEffectiveAt ?? sub.canceledAt ?? null`. A contract with no cancelled
+  add-on comes out the same as before. Until then, an add-on cancelled under such a contract is
+  counted once, as before, and kept after its date.
+- **A job of your own that writes the contract again** once a cancelled add-on's date has passed
+  is no longer needed.
+- **An installation without `contractFreeze`** writes no contract when an add-on is cancelled, so a
+  contract concluded with the add-on keeps granting it; `SC-BUN-034` names that limit.
+- **A stand-in for `EntitlementService`** of your own, passed where the freeze injects it, provides
+  `computeContractLimits(tenantId, now, catalog)`. It answers `limits` and
+  `leftOutBundleVersionIds`, and the freeze asks it for the entitlements to record instead of
+  `computeLimits`.
+- **A contract your application writes itself** — at sign-up, say — needs no change. A snapshot that
+  names nothing as left out covers every add-on its contract lists, as before.
+
 ### A bundle now runs in step with the plan that pays for it
 
 A booked bundle used to have no period of its own. It was billed alongside the plan by
@@ -1781,6 +1809,39 @@ as 100, an amount above the plan's gross price as that price.
   refused where it does not. Find such codes with the admin list and correct them.
 - **An admin page of your own** that switches a code to a one-off discount sends
   `durationValue: null` with it; the shipped dialog does.
+
+### A bundle booking's rhythm is `MONTHLY` or `YEARLY`
+
+The platform writes a booking's `billingCycle` only as `MONTHLY` or `YEARLY`, and prices the booking
+by asking whether it is `YEARLY`. `SubscriptionBundleRecord` typed the field as any string, so a
+repository that handed back `'yearly'` had the booking priced monthly. The field is now
+`BillingCycle | null` on `SubscriptionBundleRecord` and `CreateSubscriptionBundleData`, and both
+shipped adapters refuse a stored value other than the two when they read it, with an error naming
+the row. Null still means a booking made before the column existed, billed in the plan's rhythm.
+
+- **A `SubscriptionBundleRepository` of your own** returns `BillingCycle | null`; the TypeScript
+  types say where. Map each row with `toSubscriptionBundleRecord` from `@saasicat/core`, which is
+  what the shipped adapters do, rather than casting the column.
+- **Code of your own** that calls `resolveBundlePriceNet` or `listForSubscription` on
+  `SubscriptionBundlesService`, or builds a `SubscriptionBundlePreviewContext`, passes a
+  `BillingCycle` where it passed a string.
+- **Rows already stored — check before deploying.** The column is text. This lists the rows that
+  would now be refused, and on an installation the platform alone has written it lists none:
+
+    ```sql
+    SELECT "id", "billingCycle" FROM "subscription_bundles"
+    WHERE "billingCycle" IS NOT NULL AND "billingCycle" NOT IN ('MONTHLY', 'YEARLY');
+    ```
+
+    Set each row it returns to the rhythm the booking is actually billed in, before the release
+    runs. Every read of a booking goes through the check, the entitlement service's included, so a
+    row left as it is stops that tenant's feature and quota checks as well as its add-on prices, with
+    an error naming the row.
+
+- **Your persistence contract harness** gains a seed writer, `setBookingCycle`, which takes a
+  booking's id and a value and overwrites the booking's `billingCycle` with it — the shipped
+  harnesses do it with one update. A harness without it declares
+  `gaps: ['foreignBookingCycleSeed']`.
 
 ## What the codemod leaves to you
 

@@ -304,6 +304,10 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter harness cannot write the half-cancelled shape',
         present: ({ seed }) => Boolean(seed.clearBookingRequestDate),
     },
+    foreignBookingCycleSeed: {
+        reason: 'adapter harness cannot write a rhythm the platform never writes',
+        present: ({ seed }) => Boolean(seed.setBookingCycle),
+    },
     countByPlanVersionId: {
         reason: 'adapter does not implement countByPlanVersionId (fail-closed fallback)',
         present: ({ adapter }) => Boolean(adapter.subscriptionRepository.countByPlanVersionId),
@@ -915,6 +919,62 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(legacyReadBack.billingCycle, null);
             assert.equal(legacyReadBack.currentPeriodStart, null);
             assert.equal(legacyReadBack.currentPeriodEnd, null);
+        });
+
+        test('a booking whose rhythm is neither monthly nor yearly is refused when read', async (t) => {
+            // A price is chosen by asking whether the rhythm is yearly, so any
+            // other value would be billed monthly without a word. The column is
+            // text; what keeps it to the two values is the adapter reading it.
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                missing(t, 'bundleBookings');
+                return;
+            }
+            const setBookingCycle = seed.setBookingCycle;
+            if (!setBookingCycle) {
+                missing(t, 'foreignBookingCycleSeed');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-foreign-cycle',
+                plan: 'PRO',
+                planVersionId,
+                billingCycle: 'YEARLY',
+            });
+            const { bundleVersionId } = await seed.createBundleVersion({
+                bundleKey: 'ANALYTICS',
+                features: ['REPORTS'],
+            });
+            const booking = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-02-21T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+                billingCycle: 'YEARLY',
+            });
+            await setBookingCycle(booking.id, 'yearly');
+
+            const namesTheRow = (error: unknown): boolean =>
+                error instanceof Error &&
+                error.message.includes(`'${booking.id}' holds billingCycle 'yearly'`);
+            await assert.rejects(() => repository.findById(booking.id), namesTheRow);
+            await assert.rejects(() => repository.listBySubscription(subscriptionId), namesTheRow);
+            await assert.rejects(
+                () =>
+                    repository.listActiveBySubscription(
+                        subscriptionId,
+                        new Date('2026-03-01T00:00:00.000Z'),
+                    ),
+                namesTheRow,
+            );
         });
 
         test('a second cancellation of one booking is refused, not applied', async (t) => {
@@ -2177,6 +2237,78 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             );
             assert.equal(seen?.id, subscriptionId);
             assert.equal(seen?.tenantId, 'tenant-a');
+        });
+
+        // -------------------------------------------------------------
+        test('an entitlement snapshot keeps the add-ons it names as left out', async (t) => {
+            // A contract written while an add-on's cancellation is declared
+            // leaves the add-on out of its entitlements and names it, and the
+            // entitlement service reads that name to let the booking grant the
+            // add-on until its date. A store that kept only the snapshot's
+            // known fields would drop the name, and the add-on would be granted
+            // by nobody before its date.
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const tenantId = 'tenant-contract-left-out';
+            const signedAt = new Date('2026-05-10T00:00:00.000Z');
+            const { subscriberId } = await createSubscriber({ legalName: 'Archiv GmbH' });
+            const entitlementSnapshot = {
+                plan: 'STANDARD',
+                features: ['CORE'],
+                quotas: { storageGb: 5 },
+                leftOutBundleVersionIds: ['bundle-version-archive'],
+            };
+            const created = await contracts.create({
+                tenantId,
+                parties: partiesWith(subscriberId, 'Archiv GmbH'),
+                effectiveFrom: signedAt,
+                priceSnapshot: {
+                    currency: 'EUR',
+                    billingCycle: 'monthly',
+                    subtotalNet: 29.9,
+                    discountNet: 0,
+                    totalNet: 29.9,
+                    vatRate: 19,
+                    totalGross: 35.58,
+                },
+                entitlementSnapshot,
+                originalBundleVersionIds: ['bundle-version-archive'],
+                lineItems: [
+                    {
+                        kind: 'plan',
+                        sourceKey: 'STANDARD',
+                        sourceVersionId: 'plan-version-1',
+                        titleSnapshot: 'Standard',
+                        descriptionSnapshot: null,
+                        quantity: 1,
+                        unit: null,
+                        priceNet: 29.9,
+                        priceGross: 35.58,
+                        billingCycle: 'monthly',
+                        currency: 'EUR',
+                        taxRate: 19,
+                        taxAmount: 5.68,
+                        minimumTermUntil: null,
+                        featuresSnapshot: ['CORE'],
+                        quotaEffectsSnapshot: { storageGb: 5 },
+                        metadata: null,
+                    },
+                ],
+            });
+
+            assert.deepEqual(created.entitlementSnapshot, entitlementSnapshot);
+            assert.deepEqual(
+                (await contracts.findById(created.id))?.entitlementSnapshot,
+                entitlementSnapshot,
+            );
+            assert.deepEqual(
+                (await contracts.findActiveByTenantId(tenantId, signedAt))?.entitlementSnapshot,
+                entitlementSnapshot,
+            );
         });
 
         // -------------------------------------------------------------
