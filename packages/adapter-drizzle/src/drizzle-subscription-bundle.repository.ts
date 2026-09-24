@@ -1,17 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, gt, isNull, or } from 'drizzle-orm';
-import type {
-    CancelSubscriptionBundleData,
-    CreateSubscriptionBundleData,
-    SubscriptionBundleRecord,
-    SubscriptionBundleRepository,
-    TransactionContext,
+import {
+    toSubscriptionBundleRecord,
+    type CancelSubscriptionBundleData,
+    type CreateSubscriptionBundleData,
+    type SubscriptionBundleRecord,
+    type SubscriptionBundleRepository,
+    type TransactionContext,
 } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { subscriptionBundles } from './schema.js';
-
-type SubscriptionBundleRow = typeof subscriptionBundles.$inferSelect;
 
 /**
  * `SubscriptionBundleRepository` against the canonical `subscription_bundles`
@@ -39,7 +38,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             // handed over — so the page would reorder itself between reloads
             // for no reason a reader could see.
             .orderBy(desc(subscriptionBundles.startedAt));
-        return rows.map(toRecord);
+        return rows.map(toSubscriptionBundleRecord);
     }
 
     async findById(subscriptionBundleId: string): Promise<SubscriptionBundleRecord | null> {
@@ -48,7 +47,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             .from(subscriptionBundles)
             .where(eq(subscriptionBundles.id, subscriptionBundleId))
             .limit(1);
-        return rows[0] ? toRecord(rows[0]) : null;
+        return rows[0] ? toSubscriptionBundleRecord(rows[0]) : null;
     }
 
     async listActiveBySubscription(
@@ -60,7 +59,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             .select()
             .from(subscriptionBundles)
             .where(and(eq(subscriptionBundles.subscriptionId, subscriptionId), stillActive(asOf)));
-        return rows.map(toRecord);
+        return rows.map(toSubscriptionBundleRecord);
     }
 
     async add(data: CreateSubscriptionBundleData): Promise<SubscriptionBundleRecord> {
@@ -81,7 +80,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
                 updatedAt: now,
             })
             .returning();
-        return toRecord(rows[0]);
+        return toSubscriptionBundleRecord(rows[0]);
     }
 
     async cancel(
@@ -118,7 +117,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
                 `SubscriptionBundle '${subscriptionBundleId}' not found or already cancelled`,
             );
         }
-        return toRecord(rows[0]);
+        return toSubscriptionBundleRecord(rows[0]);
     }
 
     async reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
@@ -128,7 +127,7 @@ export class DrizzleSubscriptionBundleRepository implements SubscriptionBundleRe
             .where(eq(subscriptionBundles.id, subscriptionBundleId))
             .returning();
         if (!rows[0]) throw new Error(`SubscriptionBundle '${subscriptionBundleId}' not found`);
-        return toRecord(rows[0]);
+        return toSubscriptionBundleRecord(rows[0]);
     }
 
     async countActiveByBundleVersionId(
@@ -162,21 +161,4 @@ function stillActive(asOf: Date) {
         isNull(subscriptionBundles.canceledAt),
         gt(subscriptionBundles.canceledEffectiveAt, asOf),
     );
-}
-
-function toRecord(row: SubscriptionBundleRow): SubscriptionBundleRecord {
-    return {
-        id: row.id,
-        subscriptionId: row.subscriptionId,
-        bundleVersionId: row.bundleVersionId,
-        startedAt: row.startedAt,
-        minimumTermEndsAt: row.minimumTermEndsAt,
-        billingCycle: row.billingCycle,
-        currentPeriodStart: row.currentPeriodStart,
-        currentPeriodEnd: row.currentPeriodEnd,
-        canceledAt: row.canceledAt,
-        canceledEffectiveAt: row.canceledEffectiveAt,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-    };
 }

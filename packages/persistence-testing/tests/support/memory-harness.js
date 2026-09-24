@@ -11,6 +11,7 @@ import {
     identityCorrectionDelta,
     refuseForeignPaymentMethodReference,
     subscriberPaymentMethodColumns,
+    toSubscriptionBundleRecord,
 } from '@saasicat/core';
 
 // A fixed instant: this harness has no clock of its own, and a timestamp that
@@ -387,17 +388,17 @@ export function createMemoryHarness() {
                 canceledEffectiveAt: null,
             };
             state.subscriptionBundles.push(row);
-            return { ...row };
+            return toSubscriptionBundleRecord(row);
         },
         async listBySubscription(subscriptionId) {
             return state.subscriptionBundles
                 .filter((row) => row.subscriptionId === subscriptionId)
                 .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
-                .map((row) => ({ ...row }));
+                .map(toSubscriptionBundleRecord);
         },
         async findById(id) {
             const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
-            return row ? { ...row } : null;
+            return row ? toSubscriptionBundleRecord(row) : null;
         },
         async listActiveBySubscription(subscriptionId, now = new Date()) {
             return state.subscriptionBundles
@@ -406,7 +407,7 @@ export function createMemoryHarness() {
                         row.subscriptionId === subscriptionId &&
                         (row.canceledAt === null || row.canceledEffectiveAt > now),
                 )
-                .map((row) => ({ ...row }));
+                .map(toSubscriptionBundleRecord);
         },
         async cancel(id, { canceledAt, canceledEffectiveAt }) {
             // Refuses an already-cancelled booking, as the port says and both
@@ -418,14 +419,14 @@ export function createMemoryHarness() {
             if (!row) throw new Error(`SubscriptionBundle '${id}' not found or already cancelled`);
             row.canceledAt = canceledAt;
             row.canceledEffectiveAt = canceledEffectiveAt;
-            return { ...row };
+            return toSubscriptionBundleRecord(row);
         },
         async reactivate(id) {
             const row = state.subscriptionBundles.find((candidate) => candidate.id === id);
             if (!row) throw new Error(`SubscriptionBundle '${id}' not found`);
             row.canceledAt = null;
             row.canceledEffectiveAt = null;
-            return { ...row };
+            return toSubscriptionBundleRecord(row);
         },
         async countActiveByBundleVersionId(bundleVersionId, now = new Date()) {
             return state.subscriptionBundles.filter(
@@ -904,6 +905,12 @@ export function createMemoryHarness() {
                 (candidate) => candidate.id === subscriptionBundleId,
             );
             if (row) row.canceledAt = null;
+        },
+        async setBookingCycle(subscriptionBundleId, billingCycle) {
+            const row = state.subscriptionBundles.find(
+                (candidate) => candidate.id === subscriptionBundleId,
+            );
+            if (row) row.billingCycle = billingCycle;
         },
         async createBundleVersion(input) {
             const row = {

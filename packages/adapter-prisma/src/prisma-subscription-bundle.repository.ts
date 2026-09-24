@@ -1,32 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type {
-    CancelSubscriptionBundleData,
-    CreateSubscriptionBundleData,
-    SubscriptionBundleRecord,
-    SubscriptionBundleRepository,
-    TransactionContext,
+import {
+    toSubscriptionBundleRecord,
+    type CancelSubscriptionBundleData,
+    type CanonicalSubscriptionBundleRow,
+    type CreateSubscriptionBundleData,
+    type SubscriptionBundleRecord,
+    type SubscriptionBundleRepository,
+    type TransactionContext,
 } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
-/** DB columns this repository reads from `subscription_bundles`. */
-interface SubscriptionBundleDbRow {
-    billingCycle?: string | null;
-    currentPeriodStart?: Date | null;
-    currentPeriodEnd?: Date | null;
-    id: string;
-    subscriptionId: string;
-    bundleVersionId: string;
-    startedAt: Date;
-    minimumTermEndsAt: Date | null;
-    canceledAt: Date | null;
-    canceledEffectiveAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
 /** Narrow view of the injected client used by this repository. */
 interface SubscriptionBundlePrisma {
-    subscriptionBundle: PrismaModelDelegateLike<SubscriptionBundleDbRow>;
+    subscriptionBundle: PrismaModelDelegateLike<CanonicalSubscriptionBundleRow>;
 }
 
 interface SubscriptionBundleClient {
@@ -57,14 +43,14 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
             where: { subscriptionId },
             orderBy: { startedAt: 'desc' },
         });
-        return rows.map(toRecord);
+        return rows.map(toSubscriptionBundleRecord);
     }
 
     async findById(subscriptionBundleId: string): Promise<SubscriptionBundleRecord | null> {
         const row = await this.db().subscriptionBundle.findUnique({
             where: { id: subscriptionBundleId },
         });
-        return row ? toRecord(row) : null;
+        return row ? toSubscriptionBundleRecord(row) : null;
     }
 
     async listActiveBySubscription(
@@ -79,7 +65,7 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
             },
             orderBy: { startedAt: 'desc' },
         });
-        return rows.map(toRecord);
+        return rows.map(toSubscriptionBundleRecord);
     }
 
     async add(data: CreateSubscriptionBundleData): Promise<SubscriptionBundleRecord> {
@@ -94,7 +80,7 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
                 currentPeriodEnd: data.currentPeriodEnd ?? null,
             },
         });
-        return toRecord(row);
+        return toSubscriptionBundleRecord(row);
     }
 
     async cancel(
@@ -132,7 +118,7 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
         // The update matched a row a moment ago, so this can only be null if
         // something deleted it in between — which nothing in the platform does.
         if (!row) throw new Error(`SubscriptionBundle '${subscriptionBundleId}' disappeared`);
-        return toRecord(row);
+        return toSubscriptionBundleRecord(row);
     }
 
     async reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
@@ -140,7 +126,7 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
             where: { id: subscriptionBundleId },
             data: { canceledAt: null, canceledEffectiveAt: null },
         });
-        return toRecord(row);
+        return toSubscriptionBundleRecord(row);
     }
 
     async countActiveByBundleVersionId(
@@ -154,21 +140,4 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
             },
         });
     }
-}
-
-function toRecord(row: SubscriptionBundleDbRow): SubscriptionBundleRecord {
-    return {
-        id: row.id,
-        subscriptionId: row.subscriptionId,
-        bundleVersionId: row.bundleVersionId,
-        startedAt: row.startedAt,
-        minimumTermEndsAt: row.minimumTermEndsAt,
-        billingCycle: row.billingCycle ?? null,
-        currentPeriodStart: row.currentPeriodStart ?? null,
-        currentPeriodEnd: row.currentPeriodEnd ?? null,
-        canceledAt: row.canceledAt,
-        canceledEffectiveAt: row.canceledEffectiveAt,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-    };
 }

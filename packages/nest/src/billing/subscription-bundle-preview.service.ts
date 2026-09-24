@@ -89,8 +89,8 @@ export interface SubscriptionBundlePreviewContext {
     subscriptionId: string;
     /** PlanKey of the current subscription (plan compatibility + redundancy source). */
     currentPlanKey: string;
-    /** 'MONTHLY' | 'YEARLY' (port convention). */
-    billingCycle: string;
+    /** The rhythm the plan is billed in. */
+    billingCycle: BillingCycle;
     /** Subscription status (TRIAL/ACTIVE/...). No proration during TRIAL. */
     status: string;
     startedAt: Date | null;
@@ -242,7 +242,7 @@ export class SubscriptionBundlePreviewService {
         // The bundle's rhythm, not the plan's — the same default the booking
         // takes, and the same refusal. Quoting the plan's rhythm for a bundle
         // asked for in another one prices a contract nobody is about to sign.
-        const planCycle = ctx.billingCycle as BillingCycle;
+        const planCycle = ctx.billingCycle;
         const billingCycle = input.billingCycle ?? planCycle;
         if (!bundleCycleFitsPlan(billingCycle, planCycle)) {
             blockers.push({
