@@ -3436,6 +3436,7 @@ _Tested by:_
         - reinstated before its date, it runs on past it
     - a contract that recorded the add-on in its own entitlements
         - keeps counting a cancelled add-on once
+        - does not report the add-on as left out, since it is in there
     - a remembered answer and a cancelled add-on
         - an answer computed before the date is not served on it
 

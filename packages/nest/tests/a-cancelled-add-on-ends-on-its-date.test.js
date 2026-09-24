@@ -263,7 +263,7 @@ describe('a contract that recorded the add-on in its own entitlements', () => {
     // application concluding a contract itself: the snapshot contains the
     // add-on and names nothing as left out. Counting the booking on top of it
     // would grant the add-on's quota twice until its date.
-    test('keeps counting a cancelled add-on once', async () => {
+    async function underAContractThatContainsIt() {
         const t = await bookedAndCancelled();
         const written = await t.contracts.findActiveByTenantId('t1', BEFORE);
         await t.contracts.terminate(written.id, {
@@ -283,10 +283,26 @@ describe('a contract that recorded the add-on in its own entitlements', () => {
             },
             lineItems: [],
         });
+        return t;
+    }
+
+    test('keeps counting a cancelled add-on once', async () => {
+        const t = await underAContractThatContainsIt();
 
         const limits = await t.grants(BEFORE);
 
         assert.equal(limits.quotas.storageGb, 25, 'the add-on’s quota was counted twice');
+    });
+
+    test('does not report the add-on as left out, since it is in there', async () => {
+        // A snapshot written from such an answer would name the add-on while
+        // containing it, and the booking would then count it a second time.
+        const t = await underAContractThatContainsIt();
+
+        const answer = await t.entitlements.computeContractLimits('t1', BEFORE, CATALOG);
+
+        assert.equal(answer.limits.quotas.storageGb, 25);
+        assert.deepEqual(answer.leftOutBundleVersionIds, []);
     });
 });
 

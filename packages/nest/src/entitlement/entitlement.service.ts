@@ -333,17 +333,24 @@ export class EntitlementService {
             // Bundles booked after the contract was signed take effect
             // immediately — otherwise the purchase stays without consequence
             // until something re-freezes the contract.
+            const covered = contractBundleVersionIds(contract);
             const limits = this.asGrantable(
                 catalog,
                 mergeSubscriptionBundlesIntoLimits(
                     contractLimits(contract),
                     counted,
-                    contractBundleVersionIds(contract),
+                    covered,
                     catalog,
                     now,
                 ),
             );
-            return { limits, nextBookingEnd, leftOutBundleVersionIds };
+            // An add-on the contract covers is in its snapshot, cancelled or
+            // not, so it is in these limits and was not left out of them.
+            return {
+                limits,
+                nextBookingEnd,
+                leftOutBundleVersionIds: leftOutBundleVersionIds.filter((id) => !covered.has(id)),
+            };
         }
 
         const effectivePlan = resolveEntitlementPlan(sub, this.resolutionConfig ?? {}, now);

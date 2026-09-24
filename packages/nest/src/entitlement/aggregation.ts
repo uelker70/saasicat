@@ -170,7 +170,6 @@ export function contractBundleVersionIds(
  * i.e. `originalBundleVersionIds` plus the bundle line items) are skipped, so
  * their quotas are not counted twice.
  *
- *
  * Features are a set union, quotas add up with `-1` (unlimited) dominance, and
  * `plannedOnly` features stay out — same rules as `aggregateLimits`. The
  * contract's own features are passed through untouched: what was agreed stays
