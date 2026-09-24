@@ -322,7 +322,7 @@ export class PlanChangePreviewService {
                 ? this.computeProration(
                       ctx,
                       now,
-                      (await this.planPricePaid(tenantId, sub.billingCycle, now)) ??
+                      (await this.planPricePaid(tenantId, sub.plan, sub.billingCycle, now)) ??
                           priceForCycle(currentSnap, sub.billingCycle) ??
                           0,
                       priceForCycle(targetSnap, targetCycle) ?? 0,
@@ -644,19 +644,23 @@ export class PlanChangePreviewService {
     }
 
     /**
-     * The net price of the plan line in the contract in force, when it is
-     * billed in `cycle` — what the customer pays for the period they are in.
-     * Null without contracts, or where the line is in another rhythm; the
-     * caller then prices from the catalogue.
+     * The net price of the plan line in the contract in force, when it is for
+     * `plan` billed in `cycle` — what the customer pays for the period they are
+     * in. Null without contracts, or where the line is for another plan or
+     * rhythm: a freeze is optional and does not stop the change it follows when
+     * it fails, so the contract in force can still describe the plan before.
+     * The caller then prices from the catalogue.
      */
     private async planPricePaid(
         tenantId: string,
+        plan: string,
         cycle: string,
         now: Date,
     ): Promise<number | null> {
         const contract = await this.contracts?.findActiveByTenantId(tenantId, now);
         const planLine = contract?.lineItems.find((line) => line.kind === 'plan');
-        if (!planLine || planLine.billingCycle !== cycle.toLowerCase()) return null;
+        if (!planLine || planLine.sourceKey !== plan) return null;
+        if (planLine.billingCycle !== cycle.toLowerCase()) return null;
         return planLine.priceNet;
     }
 }

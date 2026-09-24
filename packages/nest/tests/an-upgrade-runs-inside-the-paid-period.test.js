@@ -107,6 +107,11 @@ const BOUGHT_AT_19 = {
     lineItems: [{ kind: 'plan', sourceKey: 'STARTER', priceNet: 19, billingCycle: 'monthly' }],
 };
 
+/** A contract a failed freeze left behind: it still bills the plan before, STANDARD at 49. */
+const STILL_ON_STANDARD = {
+    lineItems: [{ kind: 'plan', sourceKey: 'STANDARD', priceNet: 49, billingCycle: 'monthly' }],
+};
+
 function writePort() {
     return {
         immediate: [],
@@ -183,6 +188,18 @@ describe('an immediate upgrade in the same rhythm', () => {
 
         assert.equal(dto.proration.currentPriceNet, 19);
         assert.equal(dto.proration.prorataDeltaNet, 16.45, '(49 − 19) × 17 / 31, not (49 − 29)');
+    });
+
+    test('a contract that still names another plan prices nothing, and the catalogue does', async () => {
+        // A deferred downgrade to STARTER took effect and its freeze failed:
+        // pricing the rest from the STANDARD line would make the upgrade back
+        // free, (49 − 49) × what is left.
+        const dto = await previewService(starterMonthly(JAN_1, FEB_1), {
+            contract: STILL_ON_STANDARD,
+        }).preview('t1', 'STANDARD', 'MONTHLY', JAN_15);
+
+        assert.equal(dto.proration.currentPriceNet, 19, 'priced from a line for another plan');
+        assert.equal(dto.proration.prorataDeltaNet, 16.45);
     });
 
     test('where the subscription has no period yet, is charged a first period in full', async () => {
