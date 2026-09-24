@@ -1676,7 +1676,12 @@ redemption refused, the conclusion was undone, and the customer had entered a pa
 nothing. Now a slot of the code is held from the start of the checkout until the checkout
 concludes, or until a confirmation of its payment form can no longer arrive.
 
-**Run `sql/1.0-a-promo-slot-is-held-through-checkout.postgres.sql`** once, before `db push` where
+**Every schema that adopts `PromoCode` carries `heldCount`**, whether or not the installation keeps
+holds: the column belongs to the model, and `saasicat schema check` reports it missing otherwise.
+What else to run depends on the holds.
+
+**An installation that keeps holds** — the shipped adapters, or a `PromoCodeHoldRepository` of your
+own — runs `sql/1.0-a-promo-slot-is-held-through-checkout.postgres.sql` once, before `db push` where
 you use one:
 
 ```bash
@@ -1686,6 +1691,15 @@ psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-promo-slot-is-held
 It adds `heldCount` to `promo_codes` and creates `promo_code_holds`, and does nothing on a second
 run or on an installation without promo codes. `examples/notesapp/prisma/schema.prisma` shows the
 two models as they are now.
+
+**An installation that keeps no holds** — a `PromoCodeRepository` of your own and no hold
+repository — adds the column alone and leaves `PromoCodeHold` out of its schema, which
+`schema check` lists as not adopted. The whole file would create a table the schema does not
+declare, and Prisma would then want to drop it again:
+
+```sql
+ALTER TABLE "promo_codes" ADD COLUMN IF NOT EXISTS "heldCount" INTEGER NOT NULL DEFAULT 0;
+```
 
 - **Name the offer at step 4.** `startCheckout` — and `StartRegistrationCheckoutDto` — take
   `checkoutOfferId`, the offer the sign-up concludes on activation. With it, the offer's code is
