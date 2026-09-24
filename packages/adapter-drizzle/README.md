@@ -75,7 +75,8 @@ Conventions the adapter upholds for Prisma parity on the shared schema:
 Identical port coverage to `@saasicat/adapter-prisma` (see its README for
 the table): transaction runner, subscription/plan-version repositories
 (row-locked `findByTenantIdLocked`), the three promo repositories with
-atomic `claimSlot`/`releaseSlot`/`markExhaustedIfFull`, audit
+atomic `claimSlot`/`releaseSlot`/`markExhaustedIfFull` and the slots held for
+checkouts, audit
 write/query/stats, MFA, RLS bypass, SuperAdmin bootstrap
 (`PASSWORD_HASHER_TOKEN`), plan-catalog read/import sinks, the record of the
 applied settings, and the `ZeroPromoRevenueDeductionAggregator` default. Not shipped: contracts,

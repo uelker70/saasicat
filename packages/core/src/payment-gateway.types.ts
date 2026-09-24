@@ -66,6 +66,15 @@ export interface PaymentMethodSetupSession {
     /** The customer the payment method is set up for, created if none was given. */
     customerRef: string;
     /**
+     * The last moment a confirmation of this session can still arrive: the end
+     * of its form, after which nobody can complete it, plus the time the
+     * gateway goes on retrying a confirmation it could not deliver. `null` for
+     * a gateway that states neither. A sign-up's promo code slot is held until
+     * then, so a form paid shortly before its end still finds its slot when the
+     * confirmation arrives late, and an abandoned form gives it back.
+     */
+    confirmableUntil: Date | null;
+    /**
      * A confirmation the gateway already holds when the session starts, to be
      * handled like any callback. Only a gateway without a form of its own has
      * one — the development gateway; a real gateway confirms through its

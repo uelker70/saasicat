@@ -23,6 +23,7 @@ const promo = (code: string) => ({
         status: 'ACTIVE',
         maxRedemptions: null,
         redemptionsCount: 0,
+        heldCount: 0,
         validFrom: null,
         validUntil: null,
         appliesToPlans: [],

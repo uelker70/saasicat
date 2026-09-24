@@ -29,6 +29,11 @@ export interface PromoCodeRecord {
     validUntil: Date | null;
     maxRedemptions: number | null;
     redemptionsCount: number;
+    /**
+     * Slots held for checkouts that started and have not concluded
+     * (`PromoCodeHoldRepository`). An adapter without holds reports 0.
+     */
+    heldCount: number;
     appliesToPlans: string[];
     appliesToBilling: BillingCycle | null;
     firstTimeCustomersOnly: boolean;
@@ -120,7 +125,7 @@ export interface PromoCodeRedemptionListItem extends PromoCodeRedemptionRecord {
 /**
  * Adapter for PromoCode persistence. Atomic slot reservation lives in the
  * adapter because it is DB-specific (Postgres `UPDATE ... WHERE ... AND
- * (maxRedemptions IS NULL OR redemptionsCount < maxRedemptions)`).
+ * (maxRedemptions IS NULL OR redemptionsCount + heldCount < maxRedemptions)`).
  */
 export interface PromoCodeRepository {
     findById(id: string): Promise<PromoCodeRecord | null>;
@@ -131,12 +136,17 @@ export interface PromoCodeRepository {
     softDelete(id: string): Promise<void>;
     /**
      * Atomic slot reservation: increments `redemptionsCount` and checks
-     * `status === 'ACTIVE' && (maxRedemptions IS NULL || redemptionsCount < maxRedemptions)`.
+     * `status === 'ACTIVE' && (maxRedemptions IS NULL || redemptionsCount + heldCount < maxRedemptions)`.
      * Returns true if the slot was reserved, false if EXHAUSTED
-     * or the status is not ACTIVE.
+     * or the status is not ACTIVE. A slot held for a checkout is not free, so
+     * an adapter that keeps holds counts `heldCount` here.
      */
     claimSlot(id: string, tx?: TransactionContext): Promise<boolean>;
-    /** Sets the status to `EXHAUSTED` when `redemptionsCount >= maxRedemptions`. */
+    /**
+     * Sets the status to `EXHAUSTED` when `redemptionsCount >= maxRedemptions`.
+     * Holds do not count: a code full only because of held slots stays ACTIVE,
+     * and gets its slots back when the holds end.
+     */
     markExhaustedIfFull(id: string, tx?: TransactionContext): Promise<void>;
     /** Decrements `redemptionsCount` by 1 (min 0); EXHAUSTED → ACTIVE. */
     releaseSlot(id: string, tx?: TransactionContext): Promise<void>;
@@ -145,6 +155,98 @@ export interface PromoCodeRepository {
      * ACTIVE/PAUSED to EXPIRED. Returns: number of updated rows.
      */
     expireDueCodes(now: Date): Promise<number>;
+}
+
+/**
+ * A slot of a code kept for a checkout offer, from the start of its checkout
+ * until the checkout concludes, the offer's code changes, or `expiresAt`
+ * passes, whichever comes first. For a sign-up, `expiresAt` is the last moment
+ * a confirmation of its payment form can arrive
+ * (`PaymentMethodSetupSession.confirmableUntil`), not the checkout's lifetime.
+ */
+export interface PromoCodeHoldRecord {
+    id: string;
+    promoCodeId: string;
+    checkoutOfferId: string;
+    expiresAt: Date;
+    createdAt: Date;
+}
+
+/** What `PromoCodeHoldRepository.take` did. */
+export type PromoCodeHoldTaken =
+    | { outcome: 'taken'; hold: PromoCodeHoldRecord }
+    /** The code is not ACTIVE, is deleted, or has no free slot. */
+    | { outcome: 'no-slot' }
+    /** The offer holds a slot already, perhaps taken by a concurrent call. */
+    | { outcome: 'offer-holds-one' };
+
+/**
+ * Adapter for the slots a code keeps for checkouts. Every method that ends a
+ * hold deletes its row and gives its slot back in one statement, so a hold is
+ * counted in `PromoCodeRecord.heldCount` exactly as long as its row exists.
+ *
+ * Optional in the promo module: an adapter that has no holds leaves
+ * `heldCount` at 0, and taking a hold then refuses to start rather than
+ * quietly holding nothing.
+ */
+export interface PromoCodeHoldRepository {
+    /** The offer's hold, live or past its expiry and not yet given back. */
+    findByCheckoutOffer(
+        checkoutOfferId: string,
+        tx?: TransactionContext,
+    ): Promise<PromoCodeHoldRecord | null>;
+    /**
+     * Takes a slot of an ACTIVE, undeleted code for the offer, atomically with
+     * `claimSlot`'s rule: `maxRedemptions IS NULL OR redemptionsCount +
+     * heldCount < maxRedemptions`. An offer holds one slot at most. Runs on a
+     * transaction of its own: a checkout starts outside any other, and the
+     * slot is committed before the gateway's form opens.
+     */
+    take(hold: {
+        promoCodeId: string;
+        checkoutOfferId: string;
+        expiresAt: Date;
+    }): Promise<PromoCodeHoldTaken>;
+    /**
+     * Moves the expiry of the offer's hold on that code to `expiresAt`, and
+     * never earlier than it stands: the later of the two is written in the one
+     * statement, so a start of the same checkout that asks for less cannot
+     * shorten the slot a form opened by another start relies on, however the
+     * two interleave. False when the offer holds no slot of it any more — it
+     * ended in the meantime.
+     */
+    extend(checkoutOfferId: string, promoCodeId: string, expiresAt: Date): Promise<boolean>;
+    /** Ends the offer's hold and gives its slot back. False when it had none. */
+    release(checkoutOfferId: string, tx?: TransactionContext): Promise<boolean>;
+    /**
+     * Ends the offer's hold and gives its slot back only while it still expires
+     * at `expiresAt` — the hold as the caller wrote it. A hold another start
+     * moved since stays, and so does its slot, in the same statement. False when
+     * nothing was given back.
+     */
+    releaseIfUnmoved(checkoutOfferId: string, expiresAt: Date): Promise<boolean>;
+    /**
+     * Marks the offer's hold, if it is live at `now`, as the slot of the
+     * redemption that runs on `tx`. The mark never outlives the transaction: the
+     * redemption turns the hold into its slot (`convertHandedOver`), or the
+     * caller releases it before committing. False when the offer has no live
+     * hold.
+     */
+    handOver(checkoutOfferId: string, now: Date, tx: TransactionContext): Promise<boolean>;
+    /**
+     * Turns the hold of that code handed over on `tx` into a redemption's slot:
+     * the row goes, `heldCount` drops by one and `redemptionsCount` rises by one,
+     * whatever the code's status. False when nothing was handed over on `tx`.
+     */
+    convertHandedOver(promoCodeId: string, tx: TransactionContext): Promise<boolean>;
+    /**
+     * Ends every hold past its expiry at `now` — of one code when `promoCodeId`
+     * is given — and gives the slots back. A hold handed over on `tx` is left
+     * to the conclusion running there; one handed over on another running
+     * transaction is waited for, and is gone once that transaction ends.
+     * Returns how many ended.
+     */
+    expireDue(now: Date, promoCodeId?: string, tx?: TransactionContext): Promise<number>;
 }
 
 /** Adapter for PromoCodeRedemption persistence. */

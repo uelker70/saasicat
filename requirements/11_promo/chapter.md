@@ -116,6 +116,11 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-code-takes-off-no-more-than-the-price.test.js`
+    - a changed percentage stays between 0 and 100
+        - ${value} % is refused
+        - 100 % and 0.01 % are accepted
+        - an amount of 150 turned into a percentage without a new value is refused
 - `packages/nest/tests/promo-admin-controller.test.js`
     - standard promo Admin controller exposes list, create, edit and delete
 - `packages/ui-vue/tests/component/promo-code-dialogs.test.ts`
@@ -197,6 +202,18 @@ _Source:_ `docs/reference/error-codes.md`
 
 _Tested by:_
 
+- `packages/nest/tests/a-code-takes-off-no-more-than-the-price.test.js`
+    - a changed amount stays below the lowest price it can apply to
+        - an amount of nothing, or less, is refused
+        - the lowest price itself is refused, and a cent below it accepted
+        - more than the price is accepted where the operator allows an invoice of zero
+        - taking back the allowance of an invoice of zero is refused while the amount needs it
+        - limiting it to a plan it would make free is refused
+    - redeeming takes off no more than the price
+        - ${what}, ${allowance}: ${outcome}
+        - a percentage of 100 is refused where an invoice of zero is not allowed
+        - a percentage stored above 100 is recorded at 100
+        - a plan made cheaper than the code after it was created refuses the redemption
 - `packages/nest/tests/promo-service.test.js`
     - PromoCodesService.preview — eligibility
         - NOT_FOUND when no code exists
@@ -487,3 +504,140 @@ _Source:_ #105
 🟢
 
 _Source:_ release 1.0.0-rc.7
+
+### SC-PROMO-023 — A customer at the payment form keeps the promo code the checkout started with
+
+🟢 💰 A checkout that names its offer holds a slot of the offer's code from its start until it
+concludes or its hold runs out — for a sign-up, when `SC-PROMO-024` says — and the conclusion
+redeems the code on that slot — also when every other slot went to somebody else in between, or the
+code was paused or ran past its validity. A held slot counts against the limit like a redemption
+(`SC-PROMO-002`), so a code whose remaining slots are held refuses new checkouts; the slot goes back
+when its hold runs out or its offer's code changes. Where this stops: a checkout concluded after its
+hold ran out redeems a free slot if one is left, and is refused otherwise.
+
+_Source:_ #290
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/adapter-drizzle/tests/a-held-slot-is-counted-in-the-statements.test.js`
+    - taking a slot for a checkout
+        - locks the code, finds no hold for the offer, counts the slot, then writes the hold
+        - an offer that holds a slot already takes no second one
+        - a code without a free slot writes no hold
+        - a code that does not exist is asked nothing further
+    - ending a hold
+        - a release deletes the offer’s hold and gives its slot back
+        - a release that finds no hold changes no count
+        - a release of a hold as it was written deletes it only while it still expires then
+        - a hold moved since stays, and its slot with it
+        - a sweep gives the slots back per code, in one fixed order of codes
+        - a sweep of one code names it
+    - handing a hold to the redemption on the same transaction
+        - marks it with the transaction, only while it has not expired
+        - the redemption on that transaction takes it as its slot
+        - a redemption on another transaction finds nothing and changes nothing
+    - starting the same checkout again
+        - moves the expiry of the hold it has on that code, never earlier than it stands
+        - answers false when the hold ended meanwhile
+        - reads the hold an offer has
+- `packages/nest/tests/a-promo-slot-is-held-through-checkout.test.js`
+    - the last slot of a code, held for a checkout
+        - is refused to a second checkout and to a redemption, and the paid checkout redeems it
+        - without a hold, it can go to somebody else between checkout and payment
+        - is redeemed for its checkout even when the code was paused since
+        - is redeemed for its checkout even when the code ran past its validity since
+    - a checkout keeps one slot, for as long as it runs
+        - starting it again moves the expiry of its slot and takes no second one
+        - starting it again for less keeps the later expiry: a form opened before can still be paid
+          on
+        - starting it again on the last slot, which it holds itself, is not refused
+        - changing its offer keeps the slot while the code stays on it
+        - removing the code from its offer gives the slot back
+        - holding another code for it gives the slot of the first one back
+        - a code changed on the offer while its slot is being taken moves the slot to the new code
+        - an offer whose code keeps changing under the hold is refused as changed, and holds nothing
+        - opening its form again after the code was paused moves its live slot rather than refusing
+          it
+        - a slot that expired is no longer its own: a paused code refuses it a new one
+        - an offer without a code holds nothing
+        - a slot whose checkout expired is free again for somebody else
+        - a redemption outside any checkout takes the slot of a checkout that expired
+        - a checkout concluded after its slot expired redeems a free one, if one is left
+        - and is refused when the slot went to somebody else after it expired
+    - the conclusion and the held slot
+        - a conclusion that does not redeem the code gives its slot back
+        - a conclusion that fails keeps the slot for the retry, which redeems it
+        - a slot held for one offer is not taken by the redemption of another
+    - a code a checkout cannot hold
+        - refuses the start with the reason, and holds nothing
+        - a code paused while its slot is being taken is refused as paused, not as run out
+        - an offer no longer open holds nothing
+        - an installation whose persistence keeps no holds says what is missing
+    - the operator and a held slot
+        - a code a checkout holds a slot of is not deleted, and says so
+        - once the checkout expired, the code can be deleted
+        - the list shows what is held right now, expired checkouts given back
+        - the nightly sweep gives back the slots of checkouts that expired
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 holds the promo code of the offer the sign-up concludes
+        - from step 4 until a confirmation of the form can no longer arrive, and the confirmation
+          redeems it though the code ran out meanwhile
+        - a gateway whose form sets no end holds the slot for as long as the checkout runs
+        - a form that fails to open gives its slot back at once, and the failure is the answer
+        - a start whose slot cannot be moved to the end of its form gives it back, and the failure
+          is the answer
+        - a second step 4 that fails leaves the slot with the form the first one opened, which
+          redeems it
+        - of two step 4s at once, the one that fails leaves the slot with the form the other opened
+        - a step 4 refused before the gateway is asked gives its slot back as well
+        - a code that cannot be held refuses step 4 before the gateway form opens
+        - a sign-up that names no offer holds nothing
+        - naming an offer where no checkout offers are registered says what to wire
+- `packages/ui-vue/tests/component/a-code-shows-the-slots-checkouts-hold.test.ts`
+    - the redemptions of a code in the list
+        - name the slots checkouts hold beside the redeemed ones
+        - read as before while no checkout holds one
+        - read as before for a row that does not report held slots
+
+<!-- END proof -->
+
+### SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+
+🟢 💰 The slot a sign-up holds (`SC-PROMO-023`) lasts until a confirmation of the payment form it
+opened can no longer arrive, as the gateway reports it: the end of the form plus the time the
+gateway goes on retrying a confirmation it could not deliver — at Stripe 24 hours plus three days —
+and not for the sign-up's whole lifetime. A form paid shortly before its end therefore still finds
+its slot when the confirmation comes late, and a form abandoned at the gateway gives its slot back
+once nobody can pay on it and nothing is left to arrive, so abandoned checkouts do not keep a
+limited code blocked; a customer who returns later starts a new form, which holds a slot again if
+one is free. Starting step 4 again never takes the slot from a form opened before, which can still
+be paid on. Where this stops: a gateway that reports no end holds the slot for as long as the
+sign-up's checkout runs; a start that fails gives back at once the slot it took itself; and a
+confirmation resent by hand after that moment — Stripe's dashboard allows it for fifteen days —
+finds no slot, and is refused if the code ran out meanwhile.
+
+_Source:_ #290
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - step 4 holds the promo code of the offer the sign-up concludes
+        - from step 4 until a confirmation of the form can no longer arrive, and the confirmation
+          redeems it though the code ran out meanwhile
+        - a gateway whose form sets no end holds the slot for as long as the checkout runs
+        - a form that fails to open gives its slot back at once, and the failure is the answer
+        - a start whose slot cannot be moved to the end of its form gives it back, and the failure
+          is the answer
+        - a second step 4 that fails leaves the slot with the form the first one opened, which
+          redeems it
+        - of two step 4s at once, the one that fails leaves the slot with the form the other opened
+        - a step 4 refused before the gateway is asked gives its slot back as well
+- `packages/payment-stripe/tests/a-payment-method-is-set-up-in-stripes-own-form.test.js`
+    - the form is opened at Stripe
+        - the session can be confirmed until its end plus the three days Stripe retries a webhook
+
+<!-- END proof -->

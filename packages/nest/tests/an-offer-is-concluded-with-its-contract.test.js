@@ -21,65 +21,9 @@ import {
     buildOfferService,
     fakePromoCodes,
 } from './helpers/checkout-catalogue.js';
+import { fakeContractRepo, fakeSubscriberRepo } from './helpers/conclusion.js';
 
 const OPTIONS = { tenantId: 'tenant-meier', effectiveFrom: new Date('2026-10-01T00:00:00.000Z') };
-
-/** Contracts in memory, recording the transaction each write ran on. */
-function fakeContractRepo() {
-    const rows = [];
-    return {
-        rows,
-        async create(data, tx) {
-            const row = { ...structuredClone(data), id: `contract-${rows.length + 1}`, tx };
-            rows.push(row);
-            return row;
-        },
-        async findByOriginalOfferId(offerId) {
-            return rows.find((row) => row.originalOfferId === offerId) ?? null;
-        },
-    };
-}
-
-/**
- * Subscribers in memory, one live per tenant, recording the transaction each
- * was created on. `tenants` already have one.
- */
-function fakeSubscriberRepo(tenants = []) {
-    const rows = tenants.map((tenantId, index) => subscriberRow(tenantId, index, undefined));
-    return {
-        rows,
-        async createForTenant(data, tx) {
-            if (rows.some((row) => row.tenantId === data.tenantId)) return null;
-            const { customerNumberPrefix, ...details } = data;
-            const row = { ...subscriberRow(data.tenantId, rows.length, tx), ...details };
-            row.customerNumber = `${customerNumberPrefix}${10001 + rows.length}`;
-            rows.push(row);
-            return row;
-        },
-        async findByTenantId(tenantId) {
-            return rows.find((row) => row.tenantId === tenantId) ?? null;
-        },
-    };
-}
-
-function subscriberRow(tenantId, index, tx) {
-    return {
-        id: `subscriber-${index + 1}`,
-        customerNumber: `${10001 + index}`,
-        tenantId,
-        legalName: `Customer of ${tenantId}`,
-        vatId: null,
-        taxNumber: null,
-        addressLine1: null,
-        addressLine2: null,
-        postalCode: null,
-        city: null,
-        country: null,
-        invoiceEmail: null,
-        migrated: false,
-        tx,
-    };
-}
 
 /**
  * A transaction over the offer store, the contract store and the subscriber

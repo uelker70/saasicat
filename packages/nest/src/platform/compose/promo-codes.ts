@@ -38,6 +38,7 @@ export function composePromoCodes({
             validationLogRepository: promo.validationLogRepository,
             subscriptionLookup: promo.subscriptionLookup,
             revenueAggregator: promo.revenueAggregator,
+            holdRepository: promo.holdRepository,
             transactionRunner: adapters.transactionRunner as ProviderSpec<TransactionRunner>,
             firstTimeCustomerCheck: firstTimeCustomerCheck ?? {
                 hasExistingCustomerForEmail: async () => false,

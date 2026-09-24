@@ -129,6 +129,7 @@ _Tested by:_
 - `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
     - the request for step 4 is validated where it arrives
         - a complete request passes, the tax identifiers left out
+        - the offer the sign-up concludes may be named, and an empty name is refused
         - a request without billing details is refused
         - a missing address line, a lower-case country and a script URL are each refused
 - `packages/nest/tests/bundle-dtos-validate.test.js`

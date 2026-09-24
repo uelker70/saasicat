@@ -42,6 +42,7 @@ const SESSION = {
     customer: 'cus_1',
     mode: 'setup',
     setup_intent: 'seti_1',
+    expires_at: 1790000000,
     metadata: { saasicat_subject_kind: 'registration', saasicat_subject_id: 'pending-1' },
 };
 
@@ -118,6 +119,9 @@ describe('the form is opened at Stripe', () => {
             sessionRef: 'cs_test_1',
             redirectUrl: 'https://checkout.stripe.com/c/pay/cs_test_1',
             customerRef: 'cus_new',
+            // The form's end, in Stripe's seconds, plus the three days Stripe goes
+            // on retrying a confirmation it could not deliver.
+            confirmableUntil: new Date((SESSION.expires_at + 3 * 24 * 60 * 60) * 1000),
         });
         const [customer, checkout] = ctx.requests;
         assert.deepEqual(customer.body, {
@@ -163,6 +167,19 @@ describe('the form is opened at Stripe', () => {
             ['/v1/checkout/sessions'],
         );
         assert.equal(ctx.requests[0].body.customer, 'cus_known');
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('the session can be confirmed until its end plus the three days Stripe retries a webhook', async () => {
+        const ctx = await gatewayOver({ 'POST /v1/checkout/sessions': SESSION });
+
+        const session = await ctx.gateway.startPaymentMethodSetup({
+            ...SETUP,
+            holder: { ...HOLDER, customerRef: 'cus_known' },
+        });
+
+        const threeDays = 3 * 24 * 60 * 60 * 1000;
+        assert.equal(session.confirmableUntil.getTime(), SESSION.expires_at * 1000 + threeDays);
     });
 
     test('a party without an invoice address of its own leaves the field out rather than sending nothing', async () => {

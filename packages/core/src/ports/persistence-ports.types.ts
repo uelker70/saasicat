@@ -40,6 +40,7 @@ import type {
     PromotionRepository,
 } from './catalog-ports.types.js';
 import type {
+    PromoCodeHoldRepository,
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
     PromoCodeValidationLogRepository,
@@ -183,6 +184,8 @@ export interface SaaSiCatPersistencePromo {
     validationLogRepository: PersistenceProvider<PromoCodeValidationLogRepository>;
     subscriptionLookup: PersistenceProvider<PromoSubscriptionLookup>;
     revenueAggregator: PersistenceProvider<PromoRevenueDeductionAggregator>;
+    /** The slots a code keeps for checkouts; left out, no checkout holds one. */
+    holdRepository?: PersistenceProvider<PromoCodeHoldRepository>;
 }
 
 /**

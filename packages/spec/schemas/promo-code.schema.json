@@ -129,7 +129,8 @@
                 "value",
                 "durationType",
                 "status",
-                "redemptionsCount"
+                "redemptionsCount",
+                "heldCount"
             ],
             "additionalProperties": false,
             "properties": {
@@ -143,6 +144,11 @@
                 "validUntil": { "type": ["string", "null"], "format": "date-time" },
                 "maxRedemptions": { "type": ["integer", "null"], "minimum": 1 },
                 "redemptionsCount": { "type": "integer", "minimum": 0 },
+                "heldCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Slots held for checkouts that started and have not concluded. A code has a free slot while redemptionsCount + heldCount is below maxRedemptions."
+                },
                 "appliesToPlans": {
                     "type": "array",
                     "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" }

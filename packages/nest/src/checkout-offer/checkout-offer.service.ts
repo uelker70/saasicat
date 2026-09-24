@@ -1,10 +1,11 @@
 // CheckoutOfferService — package snapshot website → onboarding → billing
 //
 // `create` is called by the pricing page, `getById`/`update` by
-// onboarding (customization), and `conclude` on subscription completion, which
-// consumes the offer and writes its contract together (`consume` alone freezes
-// the offer and leaves the contract to the caller). Every amount on an offer
-// comes from `CheckoutOfferPricing`; a caller only chooses.
+// onboarding (customization), `holdPromoCode` when its checkout starts, and
+// `conclude` on subscription completion, which consumes the offer and writes
+// its contract together (`consume` alone freezes the offer and leaves the
+// contract to the caller). Every amount on an offer comes from
+// `CheckoutOfferPricing`; a caller only chooses.
 
 import { isDeepStrictEqual } from 'node:util';
 
@@ -51,6 +52,7 @@ import {
 import { settleNewSubscriberDetails } from '../subscriber/subscriber-details.js';
 import { SubscriberService } from '../subscriber/subscriber.service.js';
 import { codedError } from '../errors/coded-error.js';
+import { PromoCodesService } from '../promo/promo.service.js';
 import { CheckoutOfferPricing } from './checkout-offer-pricing.js';
 import {
     CHECKOUT_OFFER_REPOSITORY_TOKEN,
@@ -59,6 +61,13 @@ import {
 
 /** The language an offer is described in when the caller names none. */
 const DEFAULT_OFFER_LOCALE = 'de';
+
+/**
+ * How often a hold follows an offer whose code changes under it before the
+ * start is refused as changed: once to follow one change, and once more for a
+ * change that crossed the first.
+ */
+const HOLD_ATTEMPTS = 3;
 
 /** What concluding an offer produced: the consumed offer and its contract. */
 export interface ConcludedCheckoutOffer {
@@ -127,6 +136,11 @@ export class CheckoutOfferService {
         @Optional()
         @Inject(SubscriberService)
         private readonly subscribers: SubscriberService | null = null,
+        // Where the promo module is registered: an offer's promo code is held
+        // for its checkout and handed to the redemption its conclusion runs.
+        @Optional()
+        @Inject(PromoCodesService)
+        private readonly promoCodes: PromoCodesService | null = null,
     ) {}
 
     list(filter: CheckoutOfferFilter): Promise<CheckoutOfferRow[]> {
@@ -172,7 +186,9 @@ export class CheckoutOfferService {
 
     /**
      * Customization in onboarding — only while the offer is `open`. The plan
-     * stays; whatever else changes, the whole offer is priced again.
+     * stays; whatever else changes, the whole offer is priced again. A slot of
+     * its promo code held for its checkout stays with it while the code does,
+     * and is given back when the code is changed or removed.
      */
     async update(id: string, change: CheckoutOfferSelectionUpdate): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
@@ -185,6 +201,7 @@ export class CheckoutOfferService {
             bundleVersionIds: change.bundleVersionIds ?? existing.bundleVersionIds ?? [],
             promoCode: change.promoCode !== undefined ? change.promoCode : existing.promoCode,
             locale,
+            checkoutOfferId: id,
         });
         await this.assertFeatureRequiresSatisfied({
             planKey: existing.planKey,
@@ -192,12 +209,77 @@ export class CheckoutOfferService {
             bundleVersionIds: priced.bundleVersionIds,
             lineItems: priced.lineItems,
         });
-        return this.repo.update(id, {
+        const codeChanges = priced.promoCode !== existing.promoCode;
+        const updated = await this.repo.update(id, {
             billingCycle,
             locale,
             ...(change.validUntil !== undefined ? { validUntil: change.validUntil } : {}),
             ...priced,
         });
+        if (codeChanges) await this.promoCodes?.releaseCheckoutHold(id);
+        return updated;
+    }
+
+    /**
+     * Holds a slot of the offer's promo code for its checkout until `until` —
+     * what a sign-up does as its checkout starts, until a confirmation of its
+     * payment form can no longer arrive — so that the code cannot run out
+     * before the payment is confirmed and the offer concluded. A live slot the
+     * offer holds of that code already moves to `until`, never earlier. The
+     * conclusion turns the slot into the redemption; the slot goes back when
+     * the offer's code changes or `until` passes.
+     *
+     * Refused, and nothing held, when the offer is no longer open or its code
+     * cannot be held: `PROMO_CODE_NOT_REDEEMABLE` with the reason a preview
+     * gives, `EXHAUSTED` when every slot is redeemed or held. An offer without
+     * a code holds nothing.
+     */
+    async holdPromoCode(id: string, hold: { email?: string; until: Date }): Promise<void> {
+        // The offer can be changed while its code is being held. Its update
+        // gives back the slot of the code it replaces, and a slot taken for that
+        // code a moment later would outlive it: the old code blocked, the new
+        // one unheld. So the offer is read again once the slot is taken, and the
+        // hold follows the code the offer carries by then — holding another
+        // code for the offer gives the first one's slot back.
+        for (let attempt = 0; attempt < HOLD_ATTEMPTS; attempt += 1) {
+            const offer = await this.getById(id);
+            this.assertOpen(offer, 'held');
+            // Kept apart from the row: a repository may hand out the row it
+            // stores, and the change being guarded against would move it too.
+            const code = offer.promoCode;
+            if (!code) {
+                await this.promoCodes?.releaseCheckoutHold(id);
+                return;
+            }
+            if (!this.promoCodes) {
+                throw new Error(
+                    `Checkout offer '${id}' carries a promo code and no promo module is registered to ` +
+                        'hold it: enable `promoCodes` in SaaSiCatModule.forRoot, or register ' +
+                        'PromoCodesModule globally beside CheckoutOfferModule.',
+                );
+            }
+            await this.promoCodes.holdForCheckout({
+                checkoutOfferId: id,
+                code,
+                planId: offer.planKey,
+                billingCycle: offer.billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY',
+                email: hold.email,
+                until: hold.until,
+            });
+            if ((await this.getById(id)).promoCode === code) return;
+        }
+        // A slot for a code the offer no longer carries would only block it.
+        await this.promoCodes?.releaseCheckoutHold(id);
+        throw offerChanged(id, 'its promo code was being held');
+    }
+
+    /**
+     * Gives back the slot held for the offer's checkout while it is still held
+     * until `heldUntil`, as the caller wrote it. A slot another start of the
+     * checkout moved later stays with the form that start opened.
+     */
+    async releasePromoCodeHold(id: string, heldUntil: Date): Promise<void> {
+        await this.promoCodes?.releaseCheckoutHoldIfUnmoved(id, heldUntil);
     }
 
     /**
@@ -254,6 +336,12 @@ export class CheckoutOfferService {
      * where a refusal still undoes everything. Nothing checks the code again
      * after `within`, so a redemption that takes its last slot does not refuse
      * the offer it was redeemed for.
+     *
+     * A slot held for the offer's checkout (`holdPromoCode`) is the offer's own
+     * throughout: the checks before the transaction do not count it against
+     * the code and accept the code as it stood when the slot was held, and the
+     * redemption in `within` takes that slot rather than a free one. A slot
+     * `within` did not redeem is given back before the conclusion commits.
      */
     async conclude(
         id: string,
@@ -295,7 +383,9 @@ export class CheckoutOfferService {
             if (subscriber) await subscribers.createForTenant(tenantId, subscriber, tx);
             const contract = await contracts.create(data, tx);
             const concluded = { offer, contract };
+            const handedOver = (await this.promoCodes?.handOverCheckoutHold(id, tx)) ?? false;
             if (within) await within(tx, concluded);
+            if (handedOver) await this.promoCodes?.releaseCheckoutHold(id, tx);
             return concluded;
         };
         try {
@@ -495,7 +585,7 @@ export class CheckoutOfferService {
         }
     }
 
-    private assertOpen(existing: CheckoutOfferRow, action: 'changed' | 'consumed'): void {
+    private assertOpen(existing: CheckoutOfferRow, action: 'changed' | 'consumed' | 'held'): void {
         if (existing.status === 'consumed') {
             throw new ConflictException({
                 code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_ALREADY_CONSUMED,
@@ -524,10 +614,10 @@ export class CheckoutOfferService {
     }
 }
 
-function offerChanged(offerId: string): ConflictException {
+function offerChanged(offerId: string, during = 'it was being concluded'): ConflictException {
     return new ConflictException({
         code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_CHANGED,
-        message: `Checkout offer '${offerId}' changed while it was being concluded. Load it again.`,
+        message: `Checkout offer '${offerId}' changed while ${during}. Load it again.`,
         params: { offerId },
     });
 }

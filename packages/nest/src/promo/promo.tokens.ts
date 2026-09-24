@@ -3,6 +3,7 @@
 // in `PromoCodesModule.forRoot({...})`.
 
 export const PROMO_CODE_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/PromoCodeRepository');
+export const PROMO_CODE_HOLD_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/PromoCodeHoldRepository');
 export const PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN = Symbol.for(
     'saasicat/nest/PromoCodeRedemptionRepository',
 );

@@ -39,6 +39,23 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** When a checkout started at `startedAt` expires, and the sign-up with it. */
+export function checkoutExpiresAt(startedAt: Date): Date {
+    return new Date(startedAt.getTime() + PENDING_CHECKOUT_TTL_DAYS * DAY_MS);
+}
+
+/**
+ * How long a promo code slot is held while the gateway's form is being opened:
+ * long enough for that request, short enough that the slot of a form that
+ * never opened is free again soon, should giving it back have failed as well.
+ */
+const FORM_OPENING_MS = 10 * 60 * 1000;
+
+/** Until when a slot is held while the form started at `startedAt` is being opened. */
+export function whileTheFormOpens(startedAt: Date): Date {
+    return new Date(startedAt.getTime() + FORM_OPENING_MS);
+}
+
 export interface RegistrationSetupUrls {
     successUrl: string;
     cancelUrl: string;
@@ -48,6 +65,8 @@ export interface RegistrationSetupStarted {
     updated: PendingRegistration;
     sessionRef: string;
     redirectUrl: string;
+    /** The last moment a confirmation of this session can arrive, as the gateway reports it. */
+    confirmableUntil: Date | null;
     /** A confirmation the gateway already holds, for `confirm`. */
     immediate: { account: string; callback: PaymentGatewayCallback } | null;
 }
@@ -108,12 +127,14 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
     /**
      * Records the billing details and opens the gateway's form. Returns the
      * record as it now stands, where to send the person, and what `confirm`
-     * hands on when the gateway confirmed on the spot.
+     * hands on when the gateway confirmed on the spot. The checkout expires
+     * `PENDING_CHECKOUT_TTL_DAYS` after `startedAt`.
      */
     async startSetup(
         pending: PendingRegistration,
         billingDetails: RegistrationBillingDetails,
         urls: RegistrationSetupUrls,
+        startedAt: Date,
     ): Promise<RegistrationSetupStarted> {
         const { registry } = this.payments();
         refuseForeignReturnUrls(urls, registry.returnUrlOrigins());
@@ -143,7 +164,6 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
             successUrl: urls.successUrl,
             cancelUrl: urls.cancelUrl,
         });
-        const now = new Date();
         const updated = await this.repo.update(pending.id, {
             ...billing,
             status: 'CHECKOUT_STARTED',
@@ -151,13 +171,14 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
             checkoutSessionId: session.sessionRef,
             checkoutGatewayAccount: account.name,
             gatewayCustomerRef: session.customerRef,
-            checkoutStartedAt: now,
-            expiresAt: new Date(now.getTime() + PENDING_CHECKOUT_TTL_DAYS * DAY_MS),
+            checkoutStartedAt: startedAt,
+            expiresAt: checkoutExpiresAt(startedAt),
         });
         return {
             updated,
             sessionRef: session.sessionRef,
             redirectUrl: session.redirectUrl,
+            confirmableUntil: session.confirmableUntil,
             immediate: session.immediateCallback
                 ? { account: account.name, callback: session.immediateCallback }
                 : null,

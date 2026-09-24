@@ -219,6 +219,11 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter provides no PromoCodeRedemptionRepository',
         present: ({ adapter }) => Boolean(adapter.promoCodeRedemptionRepository),
     },
+    promoCodeHolds: {
+        reason: 'adapter provides no PromoCodeHoldRepository beside its PromoCodeRepository',
+        present: ({ adapter }) =>
+            Boolean(adapter.promoCodeHoldRepository && adapter.promoCodeRepository),
+    },
     promoSubscriptionLookup: {
         reason: 'adapter provides no PromoSubscriptionLookup',
         present: ({ adapter }) => Boolean(adapter.promoSubscriptionLookup),
@@ -341,6 +346,11 @@ const CONTRACT_GAPS: Record<
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** A moment `days` from now; negative for the past. */
+function inDays(days: number): Date {
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
 /**
@@ -1597,6 +1607,327 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             const released = await promoCodes.findById(promoCodeId);
             assert.equal(released?.status, 'ACTIVE');
             assert.equal(released?.redemptionsCount, 0);
+        });
+
+        // -------------------------------------------------------------
+        // Promo codes — a slot held for a checkout
+        // -------------------------------------------------------------
+
+        /** The hold repository and a code with `maxRedemptions` slots, or `null` after `missing`. */
+        async function holdScenario(
+            t: TestContext,
+            maxRedemptions: number | null,
+            status = 'ACTIVE',
+        ) {
+            const { seed, adapter } = harness;
+            const holds = adapter.promoCodeHoldRepository;
+            const promoCodes = adapter.promoCodeRepository;
+            if (!holds || !promoCodes) {
+                missing(t, 'promoCodeHolds');
+                return null;
+            }
+            const { promoCodeId } = await seed.createPromoCode({
+                code: 'HELD-FOR-CHECKOUT',
+                maxRedemptions,
+                status,
+            });
+            const counts = async () => {
+                const code = await promoCodes.findById(promoCodeId);
+                return { held: code?.heldCount, redeemed: code?.redemptionsCount };
+            };
+            return { holds, promoCodes, promoCodeId, counts };
+        }
+
+        test('a held slot is not given to a second checkout, nor to a redemption', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodes, promoCodeId, counts } = scenario;
+
+            const first = await holds.take({
+                promoCodeId,
+                checkoutOfferId: 'offer-1',
+                expiresAt: inDays(30),
+            });
+            assert.equal(first.outcome, 'taken');
+            const second = await holds.take({
+                promoCodeId,
+                checkoutOfferId: 'offer-2',
+                expiresAt: inDays(30),
+            });
+            assert.equal(second.outcome, 'no-slot');
+            assert.equal(await promoCodes.claimSlot(promoCodeId), false, 'the held slot is taken');
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+
+            await promoCodes.markExhaustedIfFull(promoCodeId);
+            assert.equal(
+                (await promoCodes.findById(promoCodeId))?.status,
+                'ACTIVE',
+                'a code full only of holds is not exhausted: the holds may still end',
+            );
+        });
+
+        test('checkouts racing for the last slots get exactly as many holds as there are slots', async (t) => {
+            const scenario = await holdScenario(t, 2);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+
+            const outcomes = await Promise.all(
+                Array.from({ length: 6 }, (_, index) =>
+                    holds.take({
+                        promoCodeId,
+                        checkoutOfferId: `offer-${index}`,
+                        expiresAt: inDays(30),
+                    }),
+                ),
+            );
+
+            assert.equal(outcomes.filter((taken) => taken.outcome === 'taken').length, 2);
+            assert.deepEqual(await counts(), { held: 2, redeemed: 0 });
+        });
+
+        test('one checkout started twice at once holds one slot', async (t) => {
+            const scenario = await holdScenario(t, null);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+
+            const outcomes = await Promise.all(
+                Array.from({ length: 4 }, () =>
+                    holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) }),
+                ),
+            );
+
+            assert.deepEqual(outcomes.map((taken) => taken.outcome).sort(), [
+                'offer-holds-one',
+                'offer-holds-one',
+                'offer-holds-one',
+                'taken',
+            ]);
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+        });
+
+        test('a paused or deleted code gives no slot to hold', async (t) => {
+            const scenario = await holdScenario(t, null, 'PAUSED');
+            if (!scenario) return;
+            const { holds, promoCodes, promoCodeId, counts } = scenario;
+            const hold = { promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) };
+
+            assert.equal((await holds.take(hold)).outcome, 'no-slot');
+            await promoCodes.update(promoCodeId, { status: 'ACTIVE' });
+            await promoCodes.softDelete(promoCodeId);
+            assert.equal((await holds.take(hold)).outcome, 'no-slot');
+            assert.deepEqual(await counts(), { held: 0, redeemed: 0 });
+        });
+
+        test('a released hold gives its slot back once', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodes, promoCodeId, counts } = scenario;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) });
+
+            assert.equal(await holds.release('offer-1'), true);
+            assert.equal(await holds.release('offer-1'), false, 'nothing is left to release');
+            assert.equal(await holds.findByCheckoutOffer('offer-1'), null);
+            assert.deepEqual(await counts(), { held: 0, redeemed: 0 });
+            assert.equal(await promoCodes.claimSlot(promoCodeId), true, 'the slot is free again');
+        });
+
+        test('an expired hold gives its slot back, and a live one keeps it', async (t) => {
+            const scenario = await holdScenario(t, 2);
+            if (!scenario) return;
+            const { holds, promoCodes, promoCodeId, counts } = scenario;
+            const { promoCodeId: otherCodeId } = await harness.seed.createPromoCode({
+                code: 'OTHER-CODE',
+                maxRedemptions: 1,
+            });
+            const now = new Date();
+            await holds.take({ promoCodeId, checkoutOfferId: 'expired', expiresAt: inDays(-1) });
+            await holds.take({ promoCodeId, checkoutOfferId: 'live', expiresAt: inDays(1) });
+            await holds.take({
+                promoCodeId: otherCodeId,
+                checkoutOfferId: 'other',
+                expiresAt: inDays(-1),
+            });
+
+            assert.equal(await holds.expireDue(now, promoCodeId), 1, 'only the code asked for');
+            assert.equal(await holds.findByCheckoutOffer('expired'), null);
+            assert.notEqual(await holds.findByCheckoutOffer('live'), null);
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+
+            assert.equal(await holds.expireDue(now), 1, 'every code when none is named');
+            assert.equal(await holds.findByCheckoutOffer('other'), null);
+            assert.equal((await promoCodes.findById(otherCodeId))?.heldCount, 0);
+        });
+
+        test('an extended hold outlives its first expiry', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(1) });
+
+            assert.equal(await holds.extend('offer-1', promoCodeId, inDays(30)), true);
+            assert.equal(await holds.extend('offer-1', 'another-code', inDays(30)), false);
+            assert.equal(await holds.expireDue(inDays(2)), 0);
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+        });
+
+        test('a hold is never moved earlier, whichever of two starts writes last', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId } = scenario;
+            const expiryOf = async () =>
+                (await holds.findByCheckoutOffer('offer-1'))?.expiresAt.getTime();
+            const form = inDays(4);
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: form });
+
+            assert.equal(await holds.extend('offer-1', promoCodeId, inDays(1)), true);
+            assert.equal(await expiryOf(), form.getTime(), 'a start asking for less');
+
+            const later = inDays(5);
+            await Promise.all([
+                holds.extend('offer-1', promoCodeId, later),
+                holds.extend('offer-1', promoCodeId, inDays(2)),
+            ]);
+            assert.equal(await expiryOf(), later.getTime(), 'two starts at once');
+        });
+
+        test('a hold is given back as written only while nobody moved it since', async (t) => {
+            const scenario = await holdScenario(t, 2);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+            const moved = inDays(1);
+            const unmoved = inDays(1);
+            await holds.take({ promoCodeId, checkoutOfferId: 'moved', expiresAt: moved });
+            await holds.take({ promoCodeId, checkoutOfferId: 'unmoved', expiresAt: unmoved });
+            await holds.extend('moved', promoCodeId, inDays(4));
+
+            assert.equal(await holds.releaseIfUnmoved('moved', moved), false);
+            assert.notEqual(await holds.findByCheckoutOffer('moved'), null);
+            assert.equal(await holds.releaseIfUnmoved('unmoved', unmoved), true);
+            assert.equal(await holds.findByCheckoutOffer('unmoved'), null);
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+        });
+
+        test('a hold handed over on a transaction becomes the slot of the redemption on it', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+            const { transactionRunner } = harness.adapter;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) });
+
+            const converted = await transactionRunner.run(async (tx) => {
+                assert.equal(await holds.handOver('offer-1', new Date(), tx), true);
+                assert.equal(
+                    await holds.expireDue(inDays(60), promoCodeId, tx),
+                    0,
+                    'a sweep leaves a handed-over hold to the conclusion it was handed to',
+                );
+                const elsewhere = await transactionRunner.run((other) =>
+                    holds.convertHandedOver(promoCodeId, other),
+                );
+                assert.equal(elsewhere, false, 'no other transaction can convert it');
+                return holds.convertHandedOver(promoCodeId, tx);
+            });
+
+            assert.equal(converted, true);
+            assert.equal(await holds.findByCheckoutOffer('offer-1'), null);
+            assert.deepEqual(await counts(), { held: 0, redeemed: 1 });
+        });
+
+        test('a hand-over rolled back with its transaction leaves the hold as it was', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+            const { transactionRunner } = harness.adapter;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) });
+
+            await assert.rejects(
+                transactionRunner.run(async (tx) => {
+                    await holds.handOver('offer-1', new Date(), tx);
+                    await holds.convertHandedOver(promoCodeId, tx);
+                    throw new Error('the conclusion failed');
+                }),
+                /the conclusion failed/,
+            );
+
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+            const again = await transactionRunner.run(async (tx) => {
+                assert.equal(await holds.handOver('offer-1', new Date(), tx), true);
+                return holds.convertHandedOver(promoCodeId, tx);
+            });
+            assert.equal(again, true, 'the retry hands it over again');
+        });
+
+        test('a mark left by a transaction that committed binds no later one', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+            const { transactionRunner } = harness.adapter;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) });
+
+            await transactionRunner.run((tx) => holds.handOver('offer-1', new Date(), tx));
+            const later = await transactionRunner.run((tx) =>
+                holds.convertHandedOver(promoCodeId, tx),
+            );
+            assert.equal(later, false, 'a redemption elsewhere does not take it as its slot');
+            assert.deepEqual(await counts(), { held: 1, redeemed: 0 });
+
+            assert.equal(await holds.expireDue(inDays(60)), 1, 'and it still expires');
+            assert.deepEqual(await counts(), { held: 0, redeemed: 0 });
+        });
+
+        test('an expired hold is not handed over', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId } = scenario;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(1) });
+
+            const handedOver = await harness.adapter.transactionRunner.run((tx) =>
+                holds.handOver('offer-1', inDays(2), tx),
+            );
+
+            assert.equal(handedOver, false);
+        });
+
+        test('a hold converts whatever the status of its code became', async (t) => {
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodes, promoCodeId, counts } = scenario;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) });
+            await promoCodes.update(promoCodeId, { status: 'PAUSED' });
+
+            const converted = await harness.adapter.transactionRunner.run(async (tx) => {
+                await holds.handOver('offer-1', new Date(), tx);
+                return holds.convertHandedOver(promoCodeId, tx);
+            });
+
+            assert.equal(converted, true);
+            assert.deepEqual(await counts(), { held: 0, redeemed: 1 });
+        });
+
+        test('a conversion and a release racing for one hold count it once', async (t) => {
+            if (!harness.adapter.capabilities.pessimisticLocking) {
+                t.skip('adapter declares no pessimistic-locking capability');
+                return;
+            }
+            const scenario = await holdScenario(t, 1);
+            if (!scenario) return;
+            const { holds, promoCodeId, counts } = scenario;
+            const { transactionRunner } = harness.adapter;
+            await holds.take({ promoCodeId, checkoutOfferId: 'offer-1', expiresAt: inDays(30) });
+
+            let released: Promise<boolean> | undefined;
+            const converted = await transactionRunner.run(async (tx) => {
+                await holds.handOver('offer-1', new Date(), tx);
+                // Started while the hand-over holds the row, so it waits for the
+                // conversion to commit and then finds nothing left to release.
+                released = holds.release('offer-1');
+                await sleep(LOCK_HOLD_MS);
+                return holds.convertHandedOver(promoCodeId, tx);
+            });
+
+            assert.equal(converted, true);
+            assert.equal(await released, false);
+            assert.deepEqual(await counts(), { held: 0, redeemed: 1 });
         });
 
         test('a subscription cannot redeem twice (unique guard)', async (t) => {

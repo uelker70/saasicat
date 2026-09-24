@@ -1668,6 +1668,81 @@ WHERE EXISTS (
 );
 ```
 
+### A sign-up holds its promo code from step 4 to the payment
+
+A sign-up concluded its offer when the gateway confirmed the payment method, and redeemed the
+offer's promo code there. When the code's last redemption went to somebody else in between, the
+redemption refused, the conclusion was undone, and the customer had entered a payment method for
+nothing. Now a slot of the code is held from the start of the checkout until the checkout
+concludes, or until a confirmation of its payment form can no longer arrive.
+
+**Run `sql/1.0-a-promo-slot-is-held-through-checkout.postgres.sql`** once, before `db push` where
+you use one:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-promo-slot-is-held-through-checkout.postgres.sql
+```
+
+It adds `heldCount` to `promo_codes` and creates `promo_code_holds`, and does nothing on a second
+run or on an installation without promo codes. `examples/notesapp/prisma/schema.prisma` shows the
+two models as they are now.
+
+- **Name the offer at step 4.** `startCheckout` — and `StartRegistrationCheckoutDto` — take
+  `checkoutOfferId`, the offer the sign-up concludes on activation. With it, the offer's code is
+  held before the gateway's form opens; a code that cannot be held refuses the step with
+  `PROMO_CODE_NOT_REDEEMABLE` and its `reason`, and no form is opened. A
+  check of your own before `startCheckout` that previews the code can go: the hold asks everything
+  the preview asks. Without `checkoutOfferId` nothing is held, as before.
+- **Nothing changes in your activation.** Conclude the offer and redeem its code in `within`, on
+  `tx`, as the previous section shows: the conclusion hands the held slot to that redemption, which
+  redeems the code on it — also when the code was paused or ran past its validity in the meantime,
+  because the customer was promised it when the checkout started. A slot the redemption does not
+  take is given back when the conclusion commits.
+- **What the operator sees.** `PromoCodeRecord.heldCount`, and `heldCount` in the admin list beside
+  the redemptions: a code whose remaining slots are all held refuses new checkouts with `EXHAUSTED`
+  while its status stays `ACTIVE`, and gets the slots back as the checkouts conclude or their
+  holds run out. A sign-up's slot is held until a confirmation of the form it opened can no longer
+  arrive — at Stripe the form's 24 hours plus the three days Stripe goes on retrying a webhook, so
+  at most four days — so a form abandoned at the gateway gives its slot back once nobody can pay on
+  it and nothing is left to arrive; a gateway that reports no end holds it for the checkout's
+  `PENDING_CHECKOUT_TTL_DAYS`. Size `maxRedemptions` for a campaign with that in mind: a slot an
+  abandoned form holds comes back after those four days, not at once. A code a checkout holds a
+  slot of is not deleted, with `PROMO_CODE_HAS_REDEMPTIONS` and `held` in its `params`.
+- **An offer changed at step 4** keeps its slot while its code stays on it, and gives it back when
+  the code is changed or removed.
+- **A `PromoCodeRepository` of your own** reports `heldCount` on every record — 0 when it keeps no
+  holds — and the TypeScript types say where. Holds are a port of their own,
+  `PromoCodeHoldRepository`, which both shipped adapters provide as `promo.holdRepository` in their
+  persistence bundle; wired by hand, pass it to `PromoCodesModule.forRoot` as `holdRepository`. An
+  installation without one holds nothing, and a sign-up that names an offer with a code is refused
+  with an error saying so. If you provide holds, your `claimSlot` counts `heldCount`, and your
+  persistence contract harness wires `promoCodeHoldRepository`; a harness without it declares
+  `gaps: ['promoCodeHolds']`.
+- **A `PaymentGateway` of your own** states `confirmableUntil` on the `PaymentMethodSetupSession`
+  it returns: the end of its form plus the time it goes on retrying a confirmation it could not
+  deliver, or `null` where it states neither, which holds the slot for the checkout's
+  `PENDING_CHECKOUT_TTL_DAYS`. The TypeScript types say where; `StripePaymentGateway` states it for
+  you.
+
+### A promo code takes off no more than the price
+
+`PromoCodesService.update` holds a change to the rules `create` holds, for the fields the change
+names: a percentage between 0 and 100, an amount above 0, an amount below the lowest price it can
+apply to unless `allowZeroInvoice` is set, a one-off discount without a duration, a validity that
+ends after it begins, and no plan that is not discountable. A change that only pauses a code is not
+asked about its value, so an operator can stop any code.
+
+Redeeming refuses where the preview refuses — `PROMO_CODE_NOT_REDEEMABLE` with the reason
+`WOULD_PRODUCE_ZERO_INVOICE` for a code that would leave an invoice of zero it does not allow — and
+the redemption records at most the price it is redeemed against: a percentage above 100 is recorded
+as 100, an amount above the plan's gross price as that price.
+
+- **A code changed before this release** can carry a value these rules refuse — 150 %, or an amount
+  above every price. It still redeems, at the price, where it allows an invoice of zero, and is
+  refused where it does not. Find such codes with the admin list and correct them.
+- **An admin page of your own** that switches a code to a one-off discount sends
+  `durationValue: null` with it; the shipped dialog does.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

@@ -18,6 +18,7 @@ import { validateSync } from 'class-validator';
 import { subscriberFromRegistration } from '@saasicat/core';
 
 import { PlanCatalogModule } from '../dist/billing/index.js';
+import { CheckoutOfferService } from '../dist/checkout-offer/index.js';
 import {
     DevPaymentGateway,
     PaymentCallbackService,
@@ -41,6 +42,7 @@ import {
     paymentsCatalog,
     signedCallback,
 } from './helpers/payments.js';
+import { concludeFor, installation } from './helpers/held-code-installation.js';
 import {
     FakeAuditLogger,
     FakeOtpDelivery,
@@ -91,6 +93,49 @@ class RecordingOrchestrator {
     }
 }
 
+/**
+ * Concludes the checkout offer a sign-up chose and redeems its code, on the
+ * transaction of the activation — what an application selling offers does.
+ * Which offer a sign-up chose is the application's to remember; `offerOf` does.
+ */
+class ConcludingOrchestrator {
+    constructor(shop) {
+        this.shop = shop;
+        this.offerOf = new Map();
+        this.calls = [];
+    }
+
+    async activate(pending, activation) {
+        this.calls.push({ pendingId: pending.id, tx: activation.tx });
+        const tenantId = `tenant-${this.calls.length}`;
+        const { contract, subscriptionId } = await concludeFor(
+            this.shop,
+            this.offerOf.get(pending.id),
+            tenantId,
+            {
+                conclusion: { subscriber: subscriberFromRegistration(pending), tx: activation.tx },
+                email: pending.email,
+            },
+        );
+        return {
+            userId: `user-${tenantId}`,
+            tenantId,
+            subscriberId: contract.subscriberId,
+            subscriptionId,
+        };
+    }
+}
+
+/** Makes the shop's checkout offers reachable from every module, as a global module would. */
+function checkoutOffersOf(shop) {
+    return {
+        module: class CheckoutOffersOfTheShop {},
+        global: true,
+        providers: [{ provide: CheckoutOfferService, useValue: shop.service }],
+        exports: [CheckoutOfferService],
+    };
+}
+
 /** A gateway for every account the catalogue names, `main` for the one taking new payment methods. */
 function gatewaysFor(catalog, main) {
     return Object.fromEntries(
@@ -111,17 +156,19 @@ async function signUpApp({
     gateways,
     repo = new FakeRepository(),
     withPayments = true,
+    shop,
 } = {}) {
     const gateway = new ScriptedGateway();
     const log = new MemoryPaymentEventLog();
     const methods = new MemoryPaymentMethods();
     const subscriberRepository = new FakeSubscriberRepository();
-    const orchestrator = new RecordingOrchestrator(
-        new SubscriberService(subscriberRepository, catalog),
-    );
+    const orchestrator = shop
+        ? new ConcludingOrchestrator(shop)
+        : new RecordingOrchestrator(new SubscriberService(subscriberRepository, catalog));
     const audit = new FakeAuditLogger();
     const delivery = new FakeOtpDelivery();
     const imports = [PlanCatalogModule.forRootWithCatalog(catalog)];
+    if (shop) imports.push(checkoutOffersOf(shop));
     if (withPayments) {
         imports.push(
             PaymentsModule.forRoot({
@@ -129,7 +176,12 @@ async function signUpApp({
                 paymentEventLog: log,
                 subscriberPaymentMethodRepository: methods,
                 subscriberRepository,
-                transactionRunner: new RollbackRunner([log, methods, repo]),
+                transactionRunner: new RollbackRunner([
+                    log,
+                    methods,
+                    repo,
+                    ...(shop?.stores ?? []),
+                ]),
             }),
         );
     }
@@ -401,6 +453,13 @@ describe('the request for step 4 is validated where it arrives', () => {
 
     test('a complete request passes, the tax identifiers left out', () => {
         assert.deepEqual(errorsFor(valid), []);
+    });
+
+    test('the offer the sign-up concludes may be named, and an empty name is refused', () => {
+        assert.deepEqual(errorsFor({ ...valid, checkoutOfferId: 'offer-1' }), []);
+        assert.deepEqual(fieldsOf(errorsFor({ ...valid, checkoutOfferId: '' })), [
+            'checkoutOfferId',
+        ]);
     });
 
     test('a request without billing details is refused', () => {
@@ -819,6 +878,243 @@ describe('an open sign-up keeps its account configured', () => {
         const ctx = await signUpApp({ repo, catalog: TWO_ACCOUNTS });
 
         assert.ok(ctx.service);
+    });
+});
+
+// @requirement SC-PROMO-023 — A customer at the payment form keeps the promo code the checkout started with
+describe('step 4 holds the promo code of the offer the sign-up concludes', () => {
+    /** A sign-up at step 4 that chose an offer with the code `LAST-SLOT`. */
+    async function signUpWithOffer({ code } = {}) {
+        const shop = installation({ code });
+        const ctx = await signUpApp({ shop });
+        const pendingId = await atStepFour(ctx);
+        const offer = await shop.offerWithCode();
+        ctx.orchestrator.offerOf.set(pendingId, offer.id);
+        return { ...ctx, shop, pendingId, offer };
+    }
+
+    function startCheckoutFor(ctx) {
+        return ctx.service.startCheckout({
+            pendingRegistrationId: ctx.pendingId,
+            billingDetails: BILLING,
+            ...URLS,
+            checkoutOfferId: ctx.offer.id,
+        });
+    }
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('from step 4 until a confirmation of the form can no longer arrive, and the confirmation redeems it though the code ran out meanwhile', async () => {
+        const ctx = await signUpWithOffer();
+        const lastConfirmation = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
+        ctx.gateway.confirmableUntil = lastConfirmation;
+
+        const started = await startCheckoutFor(ctx);
+
+        assert.deepEqual(await ctx.shop.counts(), { held: 1, redeemed: 0, status: 'ACTIVE' });
+        const hold = await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id);
+        assert.equal(hold.expiresAt.getTime(), lastConfirmation.getTime());
+        const stored = await ctx.repo.findById(ctx.pendingId);
+        assert.ok(stored.expiresAt > lastConfirmation, 'the sign-up outlives the slot of its form');
+        const somebodyElse = ctx.shop.subscriptions;
+        somebodyElse.add({ id: 'subscription-of-cleo', tenantId: 'tenant-cleo' });
+        await assert.rejects(
+            ctx.shop.promoCodes.redeem({
+                code: 'LAST-SLOT',
+                subscriptionId: 'subscription-of-cleo',
+                tenantId: 'tenant-cleo',
+            }),
+            (error) => error.getResponse().params.reason === 'EXHAUSTED',
+        );
+
+        const event = confirmation({
+            eventId: 'evt_code',
+            sessionRef: started.checkoutSessionId,
+            subject: { kind: 'registration', pendingRegistrationId: ctx.pendingId },
+        });
+        assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, signedCallback(event)), 'handled');
+
+        assert.equal(await ctx.repo.findById(ctx.pendingId), null, 'the sign-up is activated');
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 1, status: 'EXHAUSTED' });
+        assert.deepEqual(
+            ctx.shop.redemptions.rows.map((row) => row.tenantId),
+            ['tenant-1'],
+        );
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('a gateway whose form sets no end holds the slot for as long as the checkout runs', async () => {
+        const ctx = await signUpWithOffer();
+        ctx.gateway.confirmableUntil = null;
+
+        await startCheckoutFor(ctx);
+
+        const hold = await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id);
+        const stored = await ctx.repo.findById(ctx.pendingId);
+        assert.equal(hold.expiresAt.getTime(), stored.expiresAt.getTime());
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('a form that fails to open gives its slot back at once, and the failure is the answer', async () => {
+        const ctx = await signUpWithOffer();
+        const down = new Error('the gateway is down');
+        ctx.gateway.failNextStart = down;
+
+        await assert.rejects(startCheckoutFor(ctx), (error) => error === down);
+
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 0, status: 'ACTIVE' });
+        assert.equal(await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id), null);
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('a start whose slot cannot be moved to the end of its form gives it back, and the failure is the answer', async () => {
+        const ctx = await signUpWithOffer();
+        const broken = new Error('the database went away');
+        ctx.shop.codes.holdRepository.extend = async () => {
+            throw broken;
+        };
+
+        await assert.rejects(startCheckoutFor(ctx), (error) => error === broken);
+
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 0, status: 'ACTIVE' });
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('a second step 4 that fails leaves the slot with the form the first one opened, which redeems it', async () => {
+        const ctx = await signUpWithOffer();
+        const lastConfirmation = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
+        ctx.gateway.confirmableUntil = lastConfirmation;
+        const first = await startCheckoutFor(ctx);
+        const down = new Error('the gateway is down');
+        ctx.gateway.failNextStart = down;
+
+        await assert.rejects(startCheckoutFor(ctx), (error) => error === down);
+
+        const hold = await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id);
+        assert.equal(hold.expiresAt.getTime(), lastConfirmation.getTime(), 'not shortened either');
+        ctx.shop.subscriptions.add({ id: 'subscription-of-cleo', tenantId: 'tenant-cleo' });
+        await assert.rejects(
+            ctx.shop.promoCodes.redeem({
+                code: 'LAST-SLOT',
+                subscriptionId: 'subscription-of-cleo',
+                tenantId: 'tenant-cleo',
+            }),
+            (error) => error.getResponse().params.reason === 'EXHAUSTED',
+        );
+        const event = confirmation({
+            eventId: 'evt_first_form',
+            sessionRef: first.checkoutSessionId,
+            subject: { kind: 'registration', pendingRegistrationId: ctx.pendingId },
+        });
+        assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, signedCallback(event)), 'handled');
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 1, status: 'EXHAUSTED' });
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('of two step 4s at once, the one that fails leaves the slot with the form the other opened', async () => {
+        // A double submit: both start before either has held anything, the
+        // first opens its form while the second is still at the gateway, and
+        // the second then fails.
+        const ctx = await signUpWithOffer();
+        const lastConfirmation = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
+        ctx.gateway.confirmableUntil = lastConfirmation;
+        const down = new Error('the gateway timed out');
+        const open = ctx.gateway.startPaymentMethodSetup.bind(ctx.gateway);
+        let secondAtGateway;
+        const secondArrived = new Promise((resolve) => (secondAtGateway = resolve));
+        let firstDone;
+        const firstFinished = new Promise((resolve) => (firstDone = resolve));
+        let calls = 0;
+        ctx.gateway.startPaymentMethodSetup = async (input) => {
+            calls += 1;
+            if (calls === 1) {
+                await secondArrived;
+                return open(input);
+            }
+            secondAtGateway();
+            await firstFinished;
+            throw down;
+        };
+
+        const first = startCheckoutFor(ctx);
+        const second = startCheckoutFor(ctx);
+        const opened = await first;
+        firstDone();
+        await assert.rejects(second, (error) => error === down);
+
+        const hold = await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id);
+        assert.equal(hold?.expiresAt.getTime(), lastConfirmation.getTime());
+        const event = confirmation({
+            eventId: 'evt_opened_form',
+            sessionRef: opened.checkoutSessionId,
+            subject: { kind: 'registration', pendingRegistrationId: ctx.pendingId },
+        });
+        assert.equal(await ctx.callbacks.handle(MAIN_ACCOUNT, signedCallback(event)), 'handled');
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 1, status: 'EXHAUSTED' });
+    });
+
+    // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
+    test('a step 4 refused before the gateway is asked gives its slot back as well', async () => {
+        const ctx = await signUpWithOffer();
+
+        await assert.rejects(
+            ctx.service.startCheckout({
+                pendingRegistrationId: ctx.pendingId,
+                billingDetails: BILLING,
+                ...URLS,
+                successUrl: 'https://elsewhere.example/back',
+                checkoutOfferId: ctx.offer.id,
+            }),
+            (error) => codeOf(error) === 'PAYMENT_RETURN_URL_NOT_ALLOWED',
+        );
+
+        assert.deepEqual(ctx.gateway.setups, []);
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 0, status: 'ACTIVE' });
+    });
+
+    test('a code that cannot be held refuses step 4 before the gateway form opens', async () => {
+        const ctx = await signUpWithOffer();
+        const other = await ctx.shop.offerWithCode();
+        await ctx.shop.service.holdPromoCode(other.id, { until: new Date(Date.now() + 60_000) });
+
+        await assert.rejects(
+            startCheckoutFor(ctx),
+            (error) =>
+                codeOf(error) === 'PROMO_CODE_NOT_REDEEMABLE' &&
+                error.getResponse().params.reason === 'EXHAUSTED',
+        );
+
+        assert.deepEqual(ctx.gateway.setups, [], 'no form was opened');
+        const stored = await ctx.repo.findById(ctx.pendingId);
+        assert.equal(stored.status, 'PLAN_SELECTED');
+        assert.equal(stored.addressLine1, null);
+    });
+
+    test('a sign-up that names no offer holds nothing', async () => {
+        const ctx = await signUpWithOffer();
+
+        await ctx.service.startCheckout({
+            pendingRegistrationId: ctx.pendingId,
+            billingDetails: BILLING,
+            ...URLS,
+        });
+
+        assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 0, status: 'ACTIVE' });
+    });
+
+    test('naming an offer where no checkout offers are registered says what to wire', async () => {
+        const ctx = await signUpApp();
+        const pendingId = await atStepFour(ctx);
+
+        await assert.rejects(
+            ctx.service.startCheckout({
+                pendingRegistrationId: pendingId,
+                billingDetails: BILLING,
+                ...URLS,
+                checkoutOfferId: 'offer-1',
+            }),
+            /no CheckoutOfferService is registered/,
+        );
+        assert.deepEqual(ctx.gateway.setups, []);
     });
 });
 

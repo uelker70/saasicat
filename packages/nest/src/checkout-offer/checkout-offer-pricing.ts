@@ -55,6 +55,16 @@ export interface CheckoutOfferPricingInput {
     bundleVersionIds: readonly string[];
     promoCode: string | null;
     locale: string;
+    /**
+     * The offer when it is priced again. A slot of its promo code held for its
+     * checkout is its own, not counted against it.
+     */
+    checkoutOfferId?: string;
+    /**
+     * Priced as the offer is concluded: its held slot also keeps the code as it
+     * stood when the slot was taken.
+     */
+    concluding?: boolean;
 }
 
 /** The part of a stored offer the server computes. */
@@ -124,6 +134,8 @@ export class CheckoutOfferPricing {
             bundleVersionIds: offer.bundleVersionIds ?? [],
             promoCode: offer.promoCode,
             locale: offer.locale,
+            checkoutOfferId: offer.id,
+            concluding: true,
         };
         const pricedAt = new Date(offer.updatedAt);
         let repriced: PricedCheckoutOffer;
@@ -357,11 +369,14 @@ export class CheckoutOfferPricing {
     ): Promise<CheckoutOfferPromoCodeSnapshot | null> {
         if (!input.promoCode) return null;
         if (!this.promoCodes) throw promoCodeNotAccepted('PROMO_CODES_NOT_AVAILABLE');
-        const preview = await this.promoCodes.preview({
-            code: input.promoCode,
-            planId: input.planKey,
-            billingCycle: wireCycle(input.billingCycle),
-        });
+        const preview = await this.promoCodes.preview(
+            {
+                code: input.promoCode,
+                planId: input.planKey,
+                billingCycle: wireCycle(input.billingCycle),
+            },
+            { checkoutOfferId: input.checkoutOfferId, concluding: input.concluding },
+        );
         if (!preview.valid) throw promoCodeNotAccepted(preview.reason);
 
         const planGross = grossFromNet(planNet, vatRate);

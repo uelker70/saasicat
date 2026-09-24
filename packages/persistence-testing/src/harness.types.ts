@@ -15,6 +15,7 @@ import type {
     PersistenceCapabilities,
     PlanRepository,
     PlanVersionRepository,
+    PromoCodeHoldRepository,
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
     PromoSubscriptionLookup,
@@ -41,6 +42,13 @@ export interface ContractAdapterInstances {
     planVersionRepository: PlanVersionRepository;
     promoCodeRepository?: PromoCodeRepository;
     promoCodeRedemptionRepository?: PromoCodeRedemptionRepository;
+    /**
+     * Enables the hold scenarios: a slot held for a checkout counts against the
+     * limit beside the redemptions, however many checkouts race for it, and
+     * ends exactly once — released, expired, or turned into the redemption on
+     * the transaction it was handed over on and no other.
+     */
+    promoCodeHoldRepository?: PromoCodeHoldRepository;
     mfa?: MfaPort;
     audit?: AuditPort;
     auditQuery?: AuditQueryPort;
@@ -196,6 +204,7 @@ export type ContractGap =
     | 'atomicOnboarding'
     | 'promoCodes'
     | 'promoCodeRedemptions'
+    | 'promoCodeHolds'
     | 'promoSubscriptionLookup'
     | 'planRepository'
     | 'planLifecycle'

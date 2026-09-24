@@ -692,6 +692,10 @@ model PromoCode {
     // Availability-relevant — counts only redemptions with status=ACTIVE.
     // Incremented atomically in the redeem() path, decremented on trial cancellation.
     redemptionsCount Int @default(0)
+    // Slots kept for checkouts that have started and not concluded (see
+    // PromoCodeHold). A code has a free slot while redemptionsCount + heldCount
+    // stays below maxRedemptions; the status says nothing about holds.
+    heldCount        Int @default(0)
 
     // Plan whitelist as String[] — values are plan IDs from plans.yaml.
     // Consumers using a Postgres enum can cast the field locally.
@@ -718,6 +722,7 @@ model PromoCode {
 
     redemptions    PromoCodeRedemption[]
     validationLogs PromoCodeValidationLog[]
+    holds          PromoCodeHold[]
 
     @@index([status, validFrom, validUntil])
     @@index([campaignTag])
@@ -756,6 +761,39 @@ model PromoCodeRedemption {
     @@index([promoCodeId, status])
     @@index([startsAt, endsAt])
     @@map("promo_code_redemptions")
+}
+
+// -----------------------------------------------------------------------------
+// PromoCodeHold — a slot of a code kept for a checkout from its start, so that
+// a customer who reaches the payment form keeps the code they started with.
+// For a sign-up, `expiresAt` is the last moment a confirmation of its payment
+// form can arrive, not the checkout's lifetime. It counts in
+// PromoCode.heldCount, and it ends in one of three ways, each deleting the row
+// and giving the count back: the conclusion turns it into the redemption, the
+// checkout offer's code changes, or `expiresAt` passes. It is a reservation
+// rather than a record — what a customer was granted is the
+// PromoCodeRedemption.
+// -----------------------------------------------------------------------------
+
+model PromoCodeHold {
+    id          String @id @default(uuid())
+    promoCodeId String
+    // Not a foreign key: an offer deleted while it holds a slot leaves the hold
+    // to expire, which gives the slot back. A cascade would delete the row and
+    // leave heldCount counting it.
+    checkoutOfferId String    @unique
+    expiresAt       DateTime
+    // The id of the transaction a conclusion runs on (`txid_current()`), set on
+    // that transaction and gone before it commits: the redemption running on
+    // the same transaction finds its slot by it, and no other one can.
+    handedOverTx    BigInt?
+    createdAt       DateTime  @default(now())
+
+    promoCode PromoCode @relation(fields: [promoCodeId], references: [id])
+
+    @@index([promoCodeId, expiresAt])
+    @@index([expiresAt])
+    @@map("promo_code_holds")
 }
 
 // -----------------------------------------------------------------------------

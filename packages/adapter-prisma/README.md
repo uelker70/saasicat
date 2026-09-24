@@ -84,6 +84,7 @@ PromoCodesModule.forRoot({
 | `PrismaPlanVersionRepository`            | `PlanVersionRepository`            | `plan_versions`                                                     |
 | `PrismaPromoCodeRepository`              | `PromoCodeRepository`              | `promo_codes`                                                       |
 | `PrismaPromoCodeRedemptionRepository`    | `PromoCodeRedemptionRepository`    | `promo_code_redemptions`                                            |
+| `PrismaPromoCodeHoldRepository`          | `PromoCodeHoldRepository`          | `promo_code_holds`, `promo_codes`                                   |
 | `PrismaPromoCodeValidationLogRepository` | `PromoCodeValidationLogRepository` | `promo_code_validation_logs`                                        |
 | `PrismaPromoSubscriptionLookup`          | `PromoSubscriptionLookup`          | `subscriptions`                                                     |
 | `ZeroPromoRevenueDeductionAggregator`    | `PromoRevenueDeductionAggregator`  | — (constant `'0.00'`)                                               |

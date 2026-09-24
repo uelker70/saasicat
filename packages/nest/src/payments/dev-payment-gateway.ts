@@ -69,6 +69,8 @@ export class DevPaymentGateway implements PaymentGateway {
             sessionRef,
             redirectUrl: input.successUrl,
             customerRef,
+            // Confirmed on the spot: there is no form left to complete later.
+            confirmableUntil: null,
             immediateCallback: { body, headers: { [SIGNATURE_HEADER]: this.sign(body) } },
         };
     }

@@ -184,6 +184,11 @@ export interface PromoRow {
     validFrom?: string | Date | null;
     status: 'ACTIVE' | 'PAUSED' | 'EXHAUSTED' | 'EXPIRED' | string;
     redemptionsCount: number;
+    /**
+     * Slots held for checkouts that have not concluded. Optional: a row mapped
+     * from an API that does not report it reads as holding none.
+     */
+    heldCount?: number;
     maxRedemptions: number | string | null;
     validUntil: string | Date | null;
     appliesToPlans?: string[];
@@ -369,7 +374,7 @@ const baseColumns = computed(() => [
     {
         name: 'redemptions',
         label: msg.value.list.columnRedemptions,
-        field: (r: PromoRow) => `${r.redemptionsCount} / ${r.maxRedemptions ?? '∞'}`,
+        field: redemptionsOf,
         align: 'right' as const,
     },
     {
@@ -440,6 +445,22 @@ const effectiveColumns = computed(() => {
 
 function visibleActions(row: PromoRow): PromoRowAction[] {
     return mergedActions.value.filter((a) => !a.condition || a.condition(row));
+}
+
+/**
+ * Redeemed against the limit, and — while checkouts hold some — the held ones
+ * beside them: a code whose remaining slots are held refuses new checkouts
+ * while it still reads ACTIVE, and this is where the operator sees why.
+ */
+function redemptionsOf(row: PromoRow): string {
+    const max = row.maxRedemptions ?? '∞';
+    const held = row.heldCount ?? 0;
+    if (!(held > 0)) return `${row.redemptionsCount} / ${max}`;
+    return formatMessage(msg.value.list.redemptionsHeld, {
+        redeemed: row.redemptionsCount,
+        held,
+        max,
+    });
 }
 
 function statusColor(status: string): string {
