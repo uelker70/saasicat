@@ -39,6 +39,7 @@ import {
     contractBundleVersionIds,
     contractLimits,
     filterPlannedOnlyFeatures,
+    isCancellationDeclared,
     mergeSubscriptionBundlesIntoLimits,
 } from './aggregation.js';
 import {
@@ -62,6 +63,31 @@ const CACHE_MAX_ENTRIES = 1_000;
 interface CacheEntry {
     value: EffectiveLimits;
     expiresAt: number;
+}
+
+/** Limits, and the first date still to come on which they change by themselves. */
+interface LimitsAnswer {
+    limits: EffectiveLimits;
+    /** The earliest end still to come among the add-ons counted, or null. */
+    nextBookingEnd: Date | null;
+    /** The add-ons left out of `limits` because their cancellation is declared. */
+    leftOutBundleVersionIds: string[];
+}
+
+/** What a contract frozen at a moment records as its entitlements. */
+export interface ContractLimits {
+    limits: EffectiveLimits;
+    /**
+     * The add-ons left out of `limits` because their cancellation is declared.
+     * The contract names them in its snapshot, so that their bookings grant
+     * them until their effective date and a reader knows the snapshot does not.
+     */
+    leftOutBundleVersionIds: string[];
+}
+
+interface AnswerOptions {
+    /** Leaves out the add-ons whose cancellation is declared. */
+    leaveOutCancelled?: boolean;
 }
 
 export interface EnforceLimitInput<T> {
@@ -156,23 +182,48 @@ export class EntitlementService {
             if (cached) return cached;
         }
 
-        const sub = await this.subscriptions.findByTenantId(tenantId);
-        if (!sub) {
-            throw new NotFoundException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
-                message: `No subscription for tenant ${tenantId}`,
-                params: { tenantId },
-            });
-        }
-        if (catalog) return this.limitsFor(sub, now, catalog);
-        const limits = await this.limitsFor(sub, now, await this.catalogs.current());
+        const sub = await this.requireSubscription(tenantId);
+        if (catalog) return (await this.answerFor(sub, now, catalog)).limits;
+        const answer = await this.answerFor(sub, now, await this.catalogs.current());
         // A cached answer may not outlive the cancellation it was computed
-        // before. Every other thing that changes these limits is a mutation,
-        // and every mutation invalidates the entry; a date arriving is not a
-        // mutation, so nothing would have cleared it and the old features would
-        // be granted for up to a further minute past the end of the contract.
-        this.writeCache(tenantId, limits, now.getTime(), cancellationLandsAt(sub));
-        return limits;
+        // before — the subscription's or an add-on's. Every other thing that
+        // changes these limits is a mutation, and every mutation invalidates
+        // the entry; a date arriving is not a mutation, so nothing would have
+        // cleared it and the old features would be granted for up to a further
+        // minute past the end.
+        this.writeCache(
+            tenantId,
+            answer.limits,
+            now.getTime(),
+            firstAfter(now, [cancellationLandsAt(sub), answer.nextBookingEnd]),
+        );
+        return answer.limits;
+    }
+
+    /**
+     * What a contract frozen at `now` records as its entitlements: what
+     * `computeLimits` grants, less the add-ons whose cancellation is declared.
+     *
+     * Those are granted until their effective date by the booking rather than
+     * by the contract (`mergeSubscriptionBundlesIntoLimits`), so their end
+     * needs nobody to write the contract again. Frozen into the snapshot, they
+     * would be granted for as long as the contract runs. Never cached, like
+     * `computeLimits` with a catalogue.
+     */
+    async computeContractLimits(
+        tenantId: string,
+        now: Date,
+        catalog: PlanCatalog,
+    ): Promise<ContractLimits> {
+        const sub = await this.requireSubscription(tenantId);
+        const { limits, leftOutBundleVersionIds } = await this.answerFor(
+            sub,
+            now,
+            catalog,
+            undefined,
+            { leaveOutCancelled: true },
+        );
+        return { limits, leftOutBundleVersionIds };
     }
 
     /**
@@ -199,7 +250,19 @@ export class EntitlementService {
         now: Date,
         tx?: TransactionContext,
     ): Promise<EffectiveLimits> {
-        return this.limitsFor(sub, now, await this.catalogs.current(), tx);
+        return (await this.answerFor(sub, now, await this.catalogs.current(), tx)).limits;
+    }
+
+    private async requireSubscription(tenantId: string): Promise<SubscriptionRecord> {
+        const sub = await this.subscriptions.findByTenantId(tenantId);
+        if (!sub) {
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                message: `No subscription for tenant ${tenantId}`,
+                params: { tenantId },
+            });
+        }
+        return sub;
     }
 
     /**
@@ -208,12 +271,13 @@ export class EntitlementService {
      * a caller holds, so that checking a limit does not wait for a second
      * connection while the subscription row is locked.
      */
-    private async limitsFor(
+    private async answerFor(
         sub: SubscriptionRecord,
         now: Date,
         catalog: PlanCatalog,
         tx?: TransactionContext,
-    ): Promise<EffectiveLimits> {
+        options: AnswerOptions = {},
+    ): Promise<LimitsAnswer> {
         // A cancellation that has taken effect ends everything below it, and
         // this is the only place that can say so: no repository filters a
         // cancelled subscription out, and the renewal decision stops the
@@ -232,10 +296,14 @@ export class EntitlementService {
                 // The plan is what they had, and nothing comes with it. Naming
                 // the plan keeps `effectivePlan` readable on a page that has to
                 // say which contract ended; the empty sets are the answer.
-                return { plan: sub.plan, quotas: {}, features: new Set() };
+                return {
+                    limits: { plan: sub.plan, quotas: {}, features: new Set() },
+                    nextBookingEnd: null,
+                    leftOutBundleVersionIds: [],
+                };
             }
             const floorVersion = await this.findActivePlanVersionOrFallback(floor, now, tx);
-            return this.asGrantable(
+            const limits = this.asGrantable(
                 catalog,
                 aggregateLimits(
                     {
@@ -248,24 +316,41 @@ export class EntitlementService {
                     now,
                 ),
             );
+            return { limits, nextBookingEnd: null, leftOutBundleVersionIds: [] };
         }
+
+        const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
+        const leftOut = options.leaveOutCancelled ? bundles.filter(isCancellationDeclared) : [];
+        const counted = bundles.filter((booking) => !leftOut.includes(booking));
+        const leftOutBundleVersionIds = leftOut.map((booking) => booking.bundleVersionId);
+        const nextBookingEnd = firstAfter(
+            now,
+            counted.map((booking) => booking.canceledEffectiveAt),
+        );
 
         const contract = await this.findActiveContract(sub.tenantId, now, tx);
         if (contract) {
             // Bundles booked after the contract was signed take effect
             // immediately — otherwise the purchase stays without consequence
             // until something re-freezes the contract.
-            const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
-            return this.asGrantable(
+            const covered = contractBundleVersionIds(contract);
+            const limits = this.asGrantable(
                 catalog,
                 mergeSubscriptionBundlesIntoLimits(
                     contractLimits(contract),
-                    bundles,
-                    contractBundleVersionIds(contract),
+                    counted,
+                    covered,
                     catalog,
                     now,
                 ),
             );
+            // An add-on the contract covers is in its snapshot, cancelled or
+            // not, so it is in these limits and was not left out of them.
+            return {
+                limits,
+                nextBookingEnd,
+                leftOutBundleVersionIds: leftOutBundleVersionIds.filter((id) => !covered.has(id)),
+            };
         }
 
         const effectivePlan = resolveEntitlementPlan(sub, this.resolutionConfig ?? {}, now);
@@ -274,21 +359,20 @@ export class EntitlementService {
                 ? sub.planVersion
                 : await this.findActivePlanVersionOrFallback(effectivePlan, now, tx);
 
-        const subscriptionBundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
-
-        return this.asGrantable(
+        const limits = this.asGrantable(
             catalog,
             aggregateLimits(
                 {
                     plan: effectivePlan,
                     planVersion,
-                    subscriptionBundles,
+                    subscriptionBundles: counted,
                     customLimits: sub.customLimits ?? null,
                 },
                 catalog,
                 now,
             ),
         );
+        return { limits, nextBookingEnd, leftOutBundleVersionIds };
     }
 
     /**
@@ -405,7 +489,7 @@ export class EntitlementService {
                 });
             }
 
-            const limits = await this.limitsFor(sub, now, catalog, tx);
+            const { limits } = await this.answerFor(sub, now, catalog, tx);
             const max = limits.quotas[input.dimension];
             if (max === undefined) {
                 // Misconfiguration, not user input: the call site names a
@@ -496,4 +580,14 @@ export class EntitlementService {
             this.cache.delete(oldest);
         }
     }
+}
+
+/** The earliest of `dates` that is still to come at `now`, or null. */
+function firstAfter(now: Date, dates: ReadonlyArray<Date | null>): Date | null {
+    let first: Date | null = null;
+    for (const date of dates) {
+        if (date === null || date <= now) continue;
+        if (first === null || date < first) first = date;
+    }
+    return first;
 }

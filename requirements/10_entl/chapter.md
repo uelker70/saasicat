@@ -410,6 +410,9 @@ _Source:_ #219
 
 _Tested by:_
 
+- `packages/nest/tests/a-cancelled-add-on-ends-on-its-date.test.js`
+    - a remembered answer and a cancelled add-on
+        - an answer computed before the date is not served on it
 - `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
     - a cached answer at the cancellation boundary
         - is not served past the moment it ends

@@ -35,6 +35,16 @@ export function filterActiveSubscriptionBundles(
 }
 
 /**
+ * Whether a booking's end is already set. Such a booking is still active until
+ * that date, but it is not part of what a contract agrees to from here on.
+ */
+export function isCancellationDeclared(
+    booking: Pick<SubscriptionBundleSnapshot, 'canceledEffectiveAt'>,
+): boolean {
+    return booking.canceledEffectiveAt !== null;
+}
+
+/**
  * Aggregates the quotas of all active SubscriptionBundle bookings:
  * Σ per QuotaKey, `-1` (unlimited) dominates. Bundle features +
  * bundle quotas are **additive** to the PlanVersion (not replacing).
@@ -121,16 +131,31 @@ export function contractLimits(
 
 /**
  * `BundleVersion`s the contract already accounts for — from the freeze
- * (`originalBundleVersionIds`) and from its bundle line items.
+ * (`originalBundleVersionIds`) and from its bundle line items — less the ones
+ * its entitlement snapshot says it left out.
+ *
+ * A contract written while an add-on's cancellation is declared keeps the
+ * add-on's line, because it is billed until its effective date, but leaves its
+ * features and quotas out of the snapshot and names it there. Such an add-on is
+ * not covered: its booking grants it until that date, and nothing does after.
+ * A snapshot that names nothing — written earlier, or by an application —
+ * covers every add-on its contract lists, so nothing is counted twice.
  */
 export function contractBundleVersionIds(
-    contract: Pick<SubscriptionContractRecord, 'originalBundleVersionIds' | 'lineItems'>,
+    contract: Pick<
+        SubscriptionContractRecord,
+        'originalBundleVersionIds' | 'lineItems' | 'entitlementSnapshot'
+    >,
 ): Set<string> {
     const ids = new Set<string>(contract.originalBundleVersionIds);
     for (const item of contract.lineItems) {
         if (item.kind === 'bundle' && item.sourceVersionId) {
             ids.add(item.sourceVersionId);
         }
+    }
+    const leftOut = contract.entitlementSnapshot?.leftOutBundleVersionIds;
+    if (Array.isArray(leftOut)) {
+        for (const id of leftOut) ids.delete(id);
     }
     return ids;
 }
