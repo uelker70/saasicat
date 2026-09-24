@@ -411,6 +411,13 @@ export const PAYMENT_ERROR_CODES = {
      * does not name. Carries `field`.
      */
     PAYMENT_RETURN_URL_NOT_ALLOWED: 'PAYMENT_RETURN_URL_NOT_ALLOWED',
+    /**
+     * The gateway failed — unreachable, refusing the account's keys, or
+     * answering with an error — while opening its form or reading a callback
+     * back. Answered with 502; what the gateway answered stays in the server
+     * log.
+     */
+    PAYMENT_GATEWAY_FAILED: 'PAYMENT_GATEWAY_FAILED',
 } as const;
 
 export type PaymentErrorCode = (typeof PAYMENT_ERROR_CODES)[keyof typeof PAYMENT_ERROR_CODES];

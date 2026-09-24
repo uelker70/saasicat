@@ -29,6 +29,7 @@ import {
 } from '../payments/payment-callback.service.js';
 import { PaymentGatewayRegistry } from '../payments/payment-gateway-registry.js';
 import { SUBSCRIBER_PAYMENT_METHOD_REPOSITORY_TOKEN } from '../payments/payments.tokens.js';
+import { openGatewayForm } from '../payments/gateway-failure.js';
 import { refuseForeignReturnUrls } from '../payments/return-urls.js';
 import { settleBillingDetails } from './billing-details.js';
 import {
@@ -143,27 +144,31 @@ export class RegistrationPaymentService implements OnModuleInit, OnApplicationBo
         if (!account) {
             throw new ConflictException(codedError(PAYMENT_ERROR_CODES.PAYMENTS_NOT_CONFIGURED));
         }
-        const session = await account.gateway.startPaymentMethodSetup({
-            subject: { kind: 'registration', pendingRegistrationId: pending.id },
-            holder: {
-                name: pending.tenantName,
-                email: pending.email,
-                address: {
-                    addressLine1: billing.addressLine1,
-                    addressLine2: billing.addressLine2,
-                    postalCode: billing.postalCode,
-                    city: billing.city,
-                    country: billing.country,
+        const session = await openGatewayForm(
+            account,
+            {
+                subject: { kind: 'registration', pendingRegistrationId: pending.id },
+                holder: {
+                    name: pending.tenantName,
+                    email: pending.email,
+                    address: {
+                        addressLine1: billing.addressLine1,
+                        addressLine2: billing.addressLine2,
+                        postalCode: billing.postalCode,
+                        city: billing.city,
+                        country: billing.country,
+                    },
+                    customerRef:
+                        pending.checkoutGatewayAccount === account.name
+                            ? pending.gatewayCustomerRef
+                            : null,
                 },
-                customerRef:
-                    pending.checkoutGatewayAccount === account.name
-                        ? pending.gatewayCustomerRef
-                        : null,
+                methods: account.methods,
+                successUrl: urls.successUrl,
+                cancelUrl: urls.cancelUrl,
             },
-            methods: account.methods,
-            successUrl: urls.successUrl,
-            cancelUrl: urls.cancelUrl,
-        });
+            this.logger,
+        );
         const updated = await this.repo.update(pending.id, {
             ...billing,
             status: 'CHECKOUT_STARTED',

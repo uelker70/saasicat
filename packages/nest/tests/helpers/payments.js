@@ -87,6 +87,18 @@ export class ScriptedGateway {
     }
 }
 
+/**
+ * What a provider's SDK throws when it refuses the account's keys: its own
+ * status and a message meant for the operator, shaped as Stripe's errors are.
+ */
+export function providerRefusal() {
+    return Object.assign(new Error('Invalid API Key provided: sk_test_****1234'), {
+        type: 'StripeAuthenticationError',
+        statusCode: 401,
+        requestId: 'req_refused',
+    });
+}
+
 /** The callback a gateway sends for `event`, as the webhook route receives it. */
 export function signedCallback(event) {
     return { body: Buffer.from(JSON.stringify(event)), headers: { [SIGNATURE_HEADER]: SIGNED } };

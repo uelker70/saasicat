@@ -477,6 +477,42 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PRIC-052 — A payment gateway that fails is answered with SaaSiCat's own code
+
+🟢 💰 When the gateway fails — unreachable, refusing the account's keys, or answering with an error
+— while opening the form for a payment method or reading a callback back, the request is refused
+with `PAYMENT_GATEWAY_FAILED` and the status 502: the person at sign-up, the tenant changing its
+payment method, the person a gateway's immediate confirmation is read for, and the gateway's own
+webhook, which then retries. A form that failed to open records nothing, and a callback that could
+not be read claims nothing. The gateway's own status and wording stay on the server: the operator
+finds the failure's kind, code, status and request identifier in the log (`SC-LANG-008`,
+`SC-PRIV-001`). Where this stops: a callback whose signature does not verify is refused with
+`PAYMENT_CALLBACK_REJECTED` instead.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - a gateway that fails to open its form at step 4
+        - is answered with SaaSiCat's code and 502, and the provider's answer stays in the server
+          log
+        - keeps the adapter's own diagnostic in the log, with where it broke, since no status marks
+          it as the provider's
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - a gateway that fails to open its form is answered with SaaSiCat's code, and no setup is
+          recorded
+        - an immediate confirmation the gateway fails to read answers the person with SaaSiCat's
+          code
+    - the webhook route
+        - a callback the gateway fails to read is answered with SaaSiCat's code, and nothing is
+          claimed
+
+<!-- END proof -->
+
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
 🟡 _(Decided, not yet delivered.)_ 💰 The written figure is the truth from then on.
@@ -784,8 +820,12 @@ _Tested by:_
           once
         - a confirmation for a session nobody opened, or for a setup already completed, records
           nothing
+        - a gateway that fails to open its form is answered with SaaSiCat's code, and no setup is
+          recorded
         - without an account for new payment methods the change is refused, and the gateway is not
           asked
+        - an immediate confirmation the gateway fails to read answers the person with SaaSiCat's
+          code
         - the development gateway replaces the payment method on the spot
     - the accounts the file names and the gateways the application binds
         - and it reads them platform-wide, which needs the bypass frame

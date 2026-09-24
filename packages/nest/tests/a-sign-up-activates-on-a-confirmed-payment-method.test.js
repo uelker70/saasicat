@@ -12,6 +12,7 @@
 import { afterEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
@@ -40,6 +41,7 @@ import {
     confirmation,
     forgedCallback,
     paymentsCatalog,
+    providerRefusal,
     signedCallback,
 } from './helpers/payments.js';
 import { concludeFor, installation } from './helpers/held-code-installation.js';
@@ -424,6 +426,48 @@ describe('step 4 takes the billing address and opens the gateway form', () => {
         const stored = await ctx.repo.findById(pendingId);
         assert.equal(stored.status, 'PLAN_SELECTED');
         assert.equal(stored.addressLine1, null);
+    });
+});
+
+// @requirement SC-PRIC-052 — A payment gateway that fails is answered with SaaSiCat's own code
+describe('a gateway that fails to open its form at step 4', () => {
+    async function failingAt(failure) {
+        const ctx = await signUpApp();
+        const pendingId = await atStepFour(ctx);
+        ctx.gateway.failNextStart = failure;
+        const answer = ctx.service.startCheckout({
+            pendingRegistrationId: pendingId,
+            billingDetails: BILLING,
+            ...URLS,
+        });
+        return { ctx, pendingId, answer };
+    }
+
+    test("is answered with SaaSiCat's code and 502, and the provider's answer stays in the server log", async (t) => {
+        const logged = t.mock.method(Logger.prototype, 'error', () => {});
+        const { ctx, pendingId, answer } = await failingAt(providerRefusal());
+
+        await assert.rejects(answer, (error) => {
+            assert.equal(codeOf(error), 'PAYMENT_GATEWAY_FAILED');
+            assert.equal(error.getStatus(), 502);
+            assert.doesNotMatch(JSON.stringify(error.getResponse()), /Invalid API Key|sk_test|401/);
+            return true;
+        });
+        const lines = logged.mock.calls.map((call) => call.arguments.map(String).join(' | '));
+        assert.equal(lines.length, 1);
+        assert.match(lines[0], /StripeAuthenticationError statusCode=401 requestId=req_refused$/);
+        assert.doesNotMatch(lines[0], /Invalid API Key|sk_test/);
+        assert.equal((await ctx.repo.findById(pendingId)).status, 'PLAN_SELECTED');
+    });
+
+    test("keeps the adapter's own diagnostic in the log, with where it broke, since no status marks it as the provider's", async (t) => {
+        const logged = t.mock.method(Logger.prototype, 'error', () => {});
+        const { answer } = await failingAt(new Error('the session came back without a form'));
+
+        await assert.rejects(answer, (error) => codeOf(error) === 'PAYMENT_GATEWAY_FAILED');
+        const [line, stack] = logged.mock.calls[0].arguments;
+        assert.match(line, /Error message="the session came back without a form"$/);
+        assert.match(stack, /^Error: the session came back without a form\n\s+at /);
     });
 });
 
@@ -954,12 +998,15 @@ describe('step 4 holds the promo code of the offer the sign-up concludes', () =>
     });
 
     // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
-    test('a form that fails to open gives its slot back at once, and the failure is the answer', async () => {
+    test("a form that fails to open gives its slot back at once, and the answer is SaaSiCat's code for it", async (t) => {
+        t.mock.method(Logger.prototype, 'error', () => {});
         const ctx = await signUpWithOffer();
-        const down = new Error('the gateway is down');
-        ctx.gateway.failNextStart = down;
+        ctx.gateway.failNextStart = new Error('the gateway is down');
 
-        await assert.rejects(startCheckoutFor(ctx), (error) => error === down);
+        await assert.rejects(
+            startCheckoutFor(ctx),
+            (error) => codeOf(error) === 'PAYMENT_GATEWAY_FAILED',
+        );
 
         assert.deepEqual(await ctx.shop.counts(), { held: 0, redeemed: 0, status: 'ACTIVE' });
         assert.equal(await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id), null);
@@ -979,15 +1026,18 @@ describe('step 4 holds the promo code of the offer the sign-up concludes', () =>
     });
 
     // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
-    test('a second step 4 that fails leaves the slot with the form the first one opened, which redeems it', async () => {
+    test('a second step 4 that fails leaves the slot with the form the first one opened, which redeems it', async (t) => {
+        t.mock.method(Logger.prototype, 'error', () => {});
         const ctx = await signUpWithOffer();
         const lastConfirmation = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
         ctx.gateway.confirmableUntil = lastConfirmation;
         const first = await startCheckoutFor(ctx);
-        const down = new Error('the gateway is down');
-        ctx.gateway.failNextStart = down;
+        ctx.gateway.failNextStart = new Error('the gateway is down');
 
-        await assert.rejects(startCheckoutFor(ctx), (error) => error === down);
+        await assert.rejects(
+            startCheckoutFor(ctx),
+            (error) => codeOf(error) === 'PAYMENT_GATEWAY_FAILED',
+        );
 
         const hold = await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id);
         assert.equal(hold.expiresAt.getTime(), lastConfirmation.getTime(), 'not shortened either');
@@ -1010,10 +1060,11 @@ describe('step 4 holds the promo code of the offer the sign-up concludes', () =>
     });
 
     // @requirement SC-PROMO-024 — A sign-up's promo code slot is held while a confirmation of its form can arrive
-    test('of two step 4s at once, the one that fails leaves the slot with the form the other opened', async () => {
+    test('of two step 4s at once, the one that fails leaves the slot with the form the other opened', async (t) => {
         // A double submit: both start before either has held anything, the
         // first opens its form while the second is still at the gateway, and
         // the second then fails.
+        t.mock.method(Logger.prototype, 'error', () => {});
         const ctx = await signUpWithOffer();
         const lastConfirmation = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
         ctx.gateway.confirmableUntil = lastConfirmation;
@@ -1039,7 +1090,7 @@ describe('step 4 holds the promo code of the offer the sign-up concludes', () =>
         const second = startCheckoutFor(ctx);
         const opened = await first;
         firstDone();
-        await assert.rejects(second, (error) => error === down);
+        await assert.rejects(second, (error) => codeOf(error) === 'PAYMENT_GATEWAY_FAILED');
 
         const hold = await ctx.shop.codes.holdRepository.findByCheckoutOffer(ctx.offer.id);
         assert.equal(hold?.expiresAt.getTime(), lastConfirmation.getTime());

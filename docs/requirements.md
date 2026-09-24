@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 51      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 52      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 24      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 495 entries: 🟢 423 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 496 entries: 🟢 424 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -210,7 +210,7 @@ Of 495 entries: 🟢 423 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 495 requirements. Do not edit by hand:
+Generated from `requirements/` — 496 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5474,6 +5474,42 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PRIC-052 — A payment gateway that fails is answered with SaaSiCat's own code
+
+🟢 💰 When the gateway fails — unreachable, refusing the account's keys, or answering with an error
+— while opening the form for a payment method or reading a callback back, the request is refused
+with `PAYMENT_GATEWAY_FAILED` and the status 502: the person at sign-up, the tenant changing its
+payment method, the person a gateway's immediate confirmation is read for, and the gateway's own
+webhook, which then retries. A form that failed to open records nothing, and a callback that could
+not be read claims nothing. The gateway's own status and wording stay on the server: the operator
+finds the failure's kind, code, status and request identifier in the log (`SC-LANG-008`,
+`SC-PRIV-001`). Where this stops: a callback whose signature does not verify is refused with
+`PAYMENT_CALLBACK_REJECTED` instead.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-sign-up-activates-on-a-confirmed-payment-method.test.js`
+    - a gateway that fails to open its form at step 4
+        - is answered with SaaSiCat's code and 502, and the provider's answer stays in the server
+          log
+        - keeps the adapter's own diagnostic in the log, with where it broke, since no status marks
+          it as the provider's
+- `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
+    - changing it opens the gateway form, and the confirmation replaces the one in use
+        - a gateway that fails to open its form is answered with SaaSiCat's code, and no setup is
+          recorded
+        - an immediate confirmation the gateway fails to read answers the person with SaaSiCat's
+          code
+    - the webhook route
+        - a callback the gateway fails to read is answered with SaaSiCat's code, and nothing is
+          claimed
+
+<!-- END proof -->
+
 ### SC-PRIC-018 — Rounding happens once, when a charge is written
 
 🟡 _(Decided, not yet delivered.)_ 💰 The written figure is the truth from then on.
@@ -5781,8 +5817,12 @@ _Tested by:_
           once
         - a confirmation for a session nobody opened, or for a setup already completed, records
           nothing
+        - a gateway that fails to open its form is answered with SaaSiCat's code, and no setup is
+          recorded
         - without an account for new payment methods the change is refused, and the gateway is not
           asked
+        - an immediate confirmation the gateway fails to read answers the person with SaaSiCat's
+          code
         - the development gateway replaces the payment method on the spot
     - the accounts the file names and the gateways the application binds
         - and it reads them platform-wide, which needs the bypass frame
@@ -7124,7 +7164,8 @@ _Tested by:_
         - from step 4 until a confirmation of the form can no longer arrive, and the confirmation
           redeems it though the code ran out meanwhile
         - a gateway whose form sets no end holds the slot for as long as the checkout runs
-        - a form that fails to open gives its slot back at once, and the failure is the answer
+        - a form that fails to open gives its slot back at once, and the answer is SaaSiCat's code
+          for it
         - a start whose slot cannot be moved to the end of its form gives it back, and the failure
           is the answer
         - a second step 4 that fails leaves the slot with the form the first one opened, which
@@ -7168,7 +7209,8 @@ _Tested by:_
         - from step 4 until a confirmation of the form can no longer arrive, and the confirmation
           redeems it though the code ran out meanwhile
         - a gateway whose form sets no end holds the slot for as long as the checkout runs
-        - a form that fails to open gives its slot back at once, and the failure is the answer
+        - a form that fails to open gives its slot back at once, and the answer is SaaSiCat's code
+          for it
         - a start whose slot cannot be moved to the end of its form gives it back, and the failure
           is the answer
         - a second step 4 that fails leaves the slot with the form the first one opened, which
@@ -7528,6 +7570,8 @@ _Tested by:_
 - `packages/nest/tests/a-tenant-changes-its-payment-method-through-the-gateway.test.js`
     - the webhook route
         - is public, one route per account, and hands the gateway the body as it arrived
+        - a callback the gateway fails to read is answered with SaaSiCat's code, and nothing is
+          claimed
         - an account the configuration does not name is refused
         - a JSON or form callback without its raw body is a setup error, and says how to keep the
           body

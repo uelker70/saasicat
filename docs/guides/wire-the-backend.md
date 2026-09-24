@@ -669,13 +669,17 @@ level therefore gives `payments` an empty list, and a guard resolving from a mod
 with `Symbol(saasicat/nest/TenantAuthGuards)` and an unresolvable `TenantGuard`, which does not read
 as a missing import.
 
-A gateway adapter implements `PaymentGateway` from `@saasicat/core`: it opens the form for a
-payment method, and it reads a callback, verifying it with the account's secret before a single
-field is trusted. The session it opens states `confirmableUntil`, the last moment a confirmation of
-its form can still arrive — the form's end plus the time the gateway goes on retrying a delivery —
-or `null` where the gateway states neither: a sign-up's promo code slot is held until then.
-`config/saas.yaml` names the provider each account is at, and a start refuses an adapter that names
-another.
+A gateway adapter implements `PaymentGateway` from `@saasicat/core`: it opens the form for a payment
+method, and it reads a callback, verifying it with the account's secret before a single field is
+trusted. The session it opens states `confirmableUntil`, the last moment a confirmation of its form
+can still arrive — the form's end plus the time the gateway goes on retrying a delivery — or `null`
+where the gateway states neither: a sign-up's promo code slot is held until then. When the provider
+fails, opening the form or reading a callback back, throw its error as it came: the request is
+answered with `PAYMENT_GATEWAY_FAILED` and 502, and the error's kind, `code`, `statusCode` and
+`requestId` go to the server log — its message and stack only when it carries no `statusCode`, so a
+failure of the adapter's own can be traced. A callback whose signature does not verify throws
+`PaymentCallbackRejectedError` instead. `config/saas.yaml` names the provider each account is at,
+and a start refuses an adapter that names another.
 
 For a real one, `@saasicat/payment-stripe` is shipped:
 

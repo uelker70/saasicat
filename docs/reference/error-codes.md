@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 179 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 180 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -223,12 +223,13 @@ The party a contract is concluded with.
 
 Payment methods and the gateway callbacks that confirm them.
 
-| Code                              | Shipped English text                                              |
-| --------------------------------- | ----------------------------------------------------------------- |
-| `PAYMENTS_NOT_CONFIGURED`         | Payment methods cannot be set up here yet.                        |
-| `PAYMENT_CALLBACK_REJECTED`       | The payment callback could not be verified.                       |
-| `PAYMENT_GATEWAY_ACCOUNT_UNKNOWN` | No payment gateway account is configured under '{account}'.       |
-| `PAYMENT_RETURN_URL_NOT_ALLOWED`  | The {field} leads to a site this installation does not return to. |
+| Code                              | Shipped English text                                                                |
+| --------------------------------- | ----------------------------------------------------------------------------------- |
+| `PAYMENTS_NOT_CONFIGURED`         | Payment methods cannot be set up here yet.                                          |
+| `PAYMENT_CALLBACK_REJECTED`       | The payment callback could not be verified.                                         |
+| `PAYMENT_GATEWAY_ACCOUNT_UNKNOWN` | No payment gateway account is configured under '{account}'.                         |
+| `PAYMENT_GATEWAY_FAILED`          | The payment provider did not answer as expected. Please try again in a few minutes. |
+| `PAYMENT_RETURN_URL_NOT_ALLOWED`  | The {field} leads to a site this installation does not return to.                   |
 
 ## Promo codes
 

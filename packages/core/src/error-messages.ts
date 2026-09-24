@@ -299,6 +299,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PAYMENT_CALLBACK_REJECTED: 'The payment callback could not be verified.',
     PAYMENT_RETURN_URL_NOT_ALLOWED:
         'The {field} leads to a site this installation does not return to.',
+    PAYMENT_GATEWAY_FAILED:
+        'The payment provider did not answer as expected. Please try again in a few minutes.',
     // ── entitlement (code lives in upsell.types.ts) ──
     [FEATURE_NOT_LICENSED]: 'Feature {featureKeys} is not included in the current plan.',
     // ── settings ──
