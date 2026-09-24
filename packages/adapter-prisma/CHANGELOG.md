@@ -1,5 +1,212 @@
 # @saasicat/adapter-prisma
 
+## 1.0.0-rc.21
+
+### Major Changes
+
+- 4264bfd: Hold a promo code for a checkout until the payment is confirmed
+
+    A sign-up concluded its checkout offer when the gateway confirmed the payment
+    method, and redeemed the offer's promo code there. When the code's last
+    redemption went to somebody else in between, the redemption refused, the
+    conclusion was undone, and the customer had entered a payment method for
+    nothing.
+
+    - `startCheckout` takes `checkoutOfferId`, the offer the sign-up concludes.
+      The offer's promo code is held from that step, before the gateway's form
+      opens, until a confirmation of that form can no longer arrive — at Stripe
+      the form's 24 hours plus the three days Stripe retries a webhook — so an
+      abandoned form gives its slot back once nobody can pay on it. A code that
+      cannot be held refuses the step with `PROMO_CODE_NOT_REDEEMABLE` and its
+      `reason`, and no form is opened. A start that fails gives back at once the
+      slot it took; a slot a form opened before holds stays with that form, and
+      starting step 4 again never shortens it.
+      `CheckoutOfferService.holdPromoCode` takes a hold directly.
+    - Breaking: `PaymentMethodSetupSession` carries `confirmableUntil`, the last
+      moment a confirmation of the session can arrive, or `null` for a gateway
+      that states none, which holds the slot for the checkout's lifetime.
+      `StripePaymentGateway` reports the session's `expires_at` plus Stripe's
+      three days of webhook retries; a gateway adapter of your own has to state
+      it.
+    - The conclusion redeems the code on the held slot, as the application's
+      `redeemInTransaction` in `within` runs today — also when the code was paused
+      or ran past its validity since the checkout started. A slot the conclusion
+      does not redeem is given back before it commits, and a conclusion that fails
+      keeps the slot for its retry.
+    - A held slot counts against `maxRedemptions` beside the redemptions. A code
+      whose remaining slots are held refuses new checkouts with `EXHAUSTED` and
+      stays `ACTIVE`, and gets its slots back as checkouts conclude, change their
+      code or their holds run out. The admin list shows the held slots beside the
+      redemptions, the statistics carry `held`, and a code a checkout holds a slot
+      of is not deleted.
+    - Breaking: `PromoCodeRecord` carries `heldCount`; a `PromoCodeRepository` of
+      your own reports 0 when it keeps no holds. Holds are the new
+      `PromoCodeHoldRepository`, which both shipped adapters provide as
+      `promo.holdRepository`, and which the persistence contract holds against
+      PostgreSQL — declare `gaps: ['promoCodeHolds']` in a harness without it.
+    - Run `sql/1.0-a-promo-slot-is-held-through-checkout.postgres.sql` before
+      `db push`: it adds `promo_codes.heldCount` and the `promo_code_holds` table,
+      and does nothing on a second run.
+
+    Changing a promo code is held to the rules creating one is: a percentage
+    between 0 and 100, an amount above 0 and below the lowest price it can apply to
+    unless an invoice of zero is allowed. Redeeming refuses where the preview
+    refuses, with `WOULD_PRODUCE_ZERO_INVOICE`, and records at most the price it is
+    redeemed against. A change that only pauses a code is always accepted.
+
+- 6a83734: Read the plans when an operation asks for them, not when the application starts
+
+    On the database path the plan catalogue was read once, at start, and every
+    service kept that reading. A plan the operator published afterwards was unknown
+    until the next restart: a promo code for it was refused with `PLAN_MISMATCH`, a
+    plan change to it with `PLAN_NOT_IN_CATALOG`, and a contract frozen after a
+    price change named the new version while recording the old one's price,
+    features and quotas. `SC-PLAN-026` is the promise that replaces it.
+
+    - Breaking: `PLAN_CATALOG_TOKEN` is gone. `PLAN_CATALOG_SETTINGS_TOKEN` carries
+      the settings of `config/saas.yaml`, which are fixed while the process runs.
+      `PLAN_CATALOG_SOURCE_TOKEN` carries a `PlanCatalogSource`, whose `current()`
+      reads the plans and features as they stand. Read it once per operation and
+      hand the value on. The token was removed rather than narrowed, because Nest
+      does not type an injection: a token that kept its name and lost its plans
+      would have compiled and answered every `catalog.plans ?? []` with an empty
+      list.
+    - Every platform service that reads plans reads them per operation: promo code
+      preview, creation and redemption, the plan change preview, the contract
+      freeze, the entitlement computation (for `plannedOnly`), the static
+      entitlements, the public plan list and the admin manifest. `enforceLimit`
+      reads before it opens its transaction, so the lock it holds on the
+      subscription row does not wait for a second connection.
+    - Breaking: `AdminManifestConfig` has no `planCatalogSnapshot`. The service
+      fills it on every request, with a hash over what it carries, so the ETag
+      moves when a plan is published. `AdminManifestService.getManifest()` and
+      `rebuild()` return a `Promise`, and the service needs a `PlanCatalogModule`
+      in scope — `SaaSiCatModule.forRoot` provides one globally; an
+      `AdminManifestModule` wired by hand imports one beside it.
+    - Breaking: `ManifestAccessPort.getManifest()` and `rebuild()` return a
+      `Promise`, and `ManifestCliFlow.dump()`, `hash()`, `validate()` and `diff()`
+      are asynchronous. A `manifestAccessPort` that delegates to
+      `AdminManifestService` needs no change: the flow awaits it.
+    - Breaking: `PlanCatalogDoctorCheck` takes a `PlanCatalogSource` and reports
+      a catalogue that cannot be read as an error.
+    - Plans and features that share a `sortOrder` are ordered by their key. The
+      catalogue is read for every operation now, and a tie the database breaks
+      differently from one read to the next would reorder the plans between a
+      preview and the change it describes. Where two of yours share a value, the
+      order you see may change once.
+    - Breaking: a contract records the plan version its subscription is bound to.
+      The freeze priced the plan line from the version on sale, so a tenant on v1
+      who booked an add-on after v2 was published got a contract at v2's price
+      with v1's entitlements (`SC-SUB-012`). `ContractFreezeSourcePort` replaces
+      `findLivePlanVersionId(planId)` with `findBoundPlanVersion(tenantId)`, and
+      the freeze refuses a plan the subscription is not bound to before it closes
+      the contract in force. That relies on the write binding `planVersionId` on a
+      plan change: `TenantSubscriptionWritePort.bindsPlanVersion` says whether it
+      does, and a freeze beside a write that says `false` stops the start.
+    - Breaking: `@saasicat/adapter-prisma` binds the plan version on a plan change
+      by default — `tenantSubscription.synchronizePlanVersion` defaults to `true`,
+      as the Drizzle adapter has always behaved, and `false` opts out. A
+      subscription's `planVersionId` then follows the plan it was changed to, so
+      an upgraded tenant's entitlements come from the version they bought rather
+      than the one they left. The default needs a schema that carries it: a
+      `planVersionId` column on the subscription model, the plan-version model,
+      and a live version for every plan a tenant can change to. The adapter checks
+      the model when it is constructed, so a schema without one stops the start,
+      and a plan change that cannot write the column says which option to set.
+      `false` opts out, but then a contract freeze refuses to start beside it — an
+      installation whose schema cannot bind the version cannot freeze contracts.
+      The persistence contract holds each adapter's `bindsPlanVersion` to what
+      both of its plan-changing writes do.
+    - `EntitlementService.computeLimits` takes an optional catalogue. With it, the
+      answer is computed from that reading and kept out of the cache both ways;
+      the freeze passes its reading. A tenant's cached entitlements may otherwise
+      be up to a minute old, which is the one lag `SC-PLAN-026` allows.
+    - `listPriceNet(plan, cycle)` states the list-price rule `getPlanPriceNet`
+      applies, for a plan already in hand. A price a version row does not carry —
+      a nullable column in an installation's own schema — reads as no price rather
+      than `NaN`.
+    - The promo preview reads the catalogue only once the code itself has passed,
+      so trying codes that do not exist costs no read of the plan tables.
+    - `settingsSubtreeOf` accepts `PlanCatalogSettings` as well as a whole
+      catalogue.
+    - `givenPlanCatalogSource(catalog)` builds a source over a fixed catalogue, for
+      a test that constructs a service by hand. `forRootWithCatalog` uses it.
+
+    What it costs: one read of the three catalogue tables for each operation that
+    needs plans. The start still reads once, so a sink that cannot read stops the
+    boot rather than the first customer. The catalogue is now read inside tenant
+    requests: a row-level security policy on `plans`, `plan_versions` or
+    `feature_catalog_entries` — none ships — would shrink it there.
+
+    `docs/guides/upgrade-to-1.0.md` has the migration, with a before and after.
+
+- d64bf82: Say whose payment method a gateway reference is
+
+    A payment method is kept under the gateway's reference, and that reference is
+    unique within the gateway account rather than per subscriber. One read could
+    not say whose it was: `findByReference` was given the account and the reference
+    alone, so on the gateway's callback — which arrives without a session, where an
+    installation lifts the policy that keeps its tenants apart — it answered with
+    whichever subscriber's row held the reference. That the case does not arise
+    today is a property of the provider, not a promise of this platform's;
+    `SC-SEC-014` is the promise it makes instead.
+
+    - Breaking: `SubscriberPaymentMethodRepository.findByReference` takes the new
+      `SubscriberPaymentMethodReference`, which carries `subscriberId`,
+      `gatewayAccount` and `paymentMethodRef` together, and answers `null`
+      wherever that subscriber holds nothing under the reference — another
+      subscriber's payment method included.
+      One argument rather than a subscriber added in front of the two strings,
+      because `TransactionContext` is `unknown` and accepts a string: the
+      positional form let an implementation written against the older shape
+      compile untouched and read the account out of the subscriber's place. An
+      object fails that implementation at the type level, which is where this
+      break belongs.
+    - `recordConfirmed` refuses a reference another subscriber holds, rather than
+      answering `already-recorded` with that subscriber's payment method. The
+      refusal is the new `ForeignPaymentMethodReferenceError` from
+      `@saasicat/core`, with `isForeignPaymentMethodReferenceError` beside it; it
+      carries the account and the reference and names no subscriber the caller is
+      not acting for.
+    - Two subscribers can reach one reference at the same time, because the lock is
+      on the subscriber — so reading is not enough to decide it. An implementation
+      **claims the reference with its first write**, conflict-free on that key, and
+      refuses when the claim takes no row. That is now part of the port's contract:
+      because the claim comes first, a refusal leaves the caller's transaction as it
+      found it.
+    - The two adapters differ in one stated way. `@saasicat/adapter-drizzle` names
+      the reference's key as the conflict target, so a claim it skips is certainly
+      that key. Prisma's `skipDuplicates` names no target, so a skipped claim is
+      attributed to the reference: sound in the canonical schema, where no other
+      unique key can contain the claimed row, and wrong only for a consumer that
+      adds one to that table. It is not read back to confirm, because a read is
+      bound by a policy on the table while the unique index is not — an
+      installation that does not lift its policy for the callback would then be
+      told the reference is free.
+    - `@saasicat/adapter-prisma` now needs **Prisma ORM 5.14 or newer**, and says so
+      as an optional `@prisma/client` peer range. The claim uses
+      `createManyAndReturn`, which arrived in 5.14; the client reaches the adapter
+      through a token and is typed structurally, so without the range an older one
+      would typecheck, boot, and fail on the first confirmed payment method.
+    - A gateway callback refused that way is logged at error level, naming the
+      account, the reference and the subject the event was about. It still rolls the
+      transaction back, so nothing durable would otherwise say why: by then the
+      handler has marked a setup complete, or activated a whole sign-up.
+    - Both shipped adapters put the subscriber into the statement rather than
+      checking what came back, so a policy on the table and the query bound the
+      read the same way. The persistence contract comes at the boundary from the
+      wrong side — two subscribers, one reference — for the read and the write
+      alike.
+
+### Patch Changes
+
+- Updated dependencies [07c30c6]
+- Updated dependencies [877faa4]
+- Updated dependencies [4264bfd]
+- Updated dependencies [6a83734]
+- Updated dependencies [d64bf82]
+    - @saasicat/core@1.0.0-rc.21
+
 ## 1.0.0-rc.20
 
 ### Patch Changes
