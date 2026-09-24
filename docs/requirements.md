@@ -110,7 +110,7 @@ properties it has while doing it.
 | 1   | The product and its boundary                 | `SC-SCOPE-…` | 13      |
 | 2   | Capabilities, features and quotas            | `SC-CAT-…`   | 16      |
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
-| 4   | Add-on bundles                               | `SC-BUN-…`   | 33      |
+| 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 18      |
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 496 entries: 🟢 424 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
+Of 497 entries: 🟢 425 stand today, 🟡 68 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -210,7 +210,7 @@ Of 496 entries: 🟢 424 stand today, 🟡 68 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 496 requirements. Do not edit by hand:
+Generated from `requirements/` — 497 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3409,6 +3409,36 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-BUN-034 — A cancelled add-on ends on its effective date, whatever contract is in force
+
+🟢 Its features and quotas: until that date the add-on grants what it granted before, counted once;
+from that date it grants nothing, and nobody has to write the contract again for that. A contract
+written while the cancellation is declared keeps the add-on's line, because the add-on is billed
+until then, and leaves it out of the entitlements the contract records.
+
+Where this stops: it relies on the contract being written again when an add-on is cancelled, which
+the platform does where `contractFreeze` is configured. An installation that concludes contracts
+without it keeps the add-on in whatever entitlements its contract recorded.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancelled-add-on-ends-on-its-date.test.js`
+    - an add-on cancelled under a contract
+        - grants what it granted until its effective date, counted once
+        - still grants it a moment before the date
+        - grants nothing of it from the date on, with no write in between
+        - the contract written on cancelling keeps its line and leaves it out of the entitlements
+        - an add-on beside it that is not cancelled runs on
+        - reinstated before its date, it runs on past it
+    - a remembered answer and a cancelled add-on
+        - an answer computed before the date is not served on it
+
+<!-- END proof -->
+
 ## 5. Subscriptions, terms and billing periods
 
 This chapter is about time: when a term starts, how long it runs, which day of the month a tenant
@@ -6486,6 +6516,9 @@ _Source:_ #219
 
 _Tested by:_
 
+- `packages/nest/tests/a-cancelled-add-on-ends-on-its-date.test.js`
+    - a remembered answer and a cancelled add-on
+        - an answer computed before the date is not served on it
 - `packages/nest/tests/both-enforcement-paths-see-the-end.test.js`
     - a cached answer at the cancellation boundary
         - is not served past the moment it ends

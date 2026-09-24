@@ -1224,3 +1224,33 @@ _Tested by:_
         - ignores a booking that is already canceled
 
 <!-- END proof -->
+
+### SC-BUN-034 — A cancelled add-on ends on its effective date, whatever contract is in force
+
+🟢 Its features and quotas: until that date the add-on grants what it granted before, counted once;
+from that date it grants nothing, and nobody has to write the contract again for that. A contract
+written while the cancellation is declared keeps the add-on's line, because the add-on is billed
+until then, and leaves it out of the entitlements the contract records.
+
+Where this stops: it relies on the contract being written again when an add-on is cancelled, which
+the platform does where `contractFreeze` is configured. An installation that concludes contracts
+without it keeps the add-on in whatever entitlements its contract recorded.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-cancelled-add-on-ends-on-its-date.test.js`
+    - an add-on cancelled under a contract
+        - grants what it granted until its effective date, counted once
+        - still grants it a moment before the date
+        - grants nothing of it from the date on, with no write in between
+        - the contract written on cancelling keeps its line and leaves it out of the entitlements
+        - an add-on beside it that is not cancelled runs on
+        - reinstated before its date, it runs on past it
+    - a remembered answer and a cancelled add-on
+        - an answer computed before the date is not served on it
+
+<!-- END proof -->

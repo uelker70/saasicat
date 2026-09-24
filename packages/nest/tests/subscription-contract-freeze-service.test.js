@@ -1,7 +1,7 @@
 // Tests for SubscriptionContractFreezeService (#18) — generic freeze:
 // plan line item from the version the subscription is bound to, bundle line
-// items from the source port, entitlementSnapshot from computeLimits, previous
-// contract is superseded.
+// items from the source port, entitlementSnapshot from computeContractLimits,
+// previous contract is superseded.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,7 +51,7 @@ function makeService({
         invalidateTenant() {
             calls.invalidated += 1;
         },
-        async computeLimits(_tenantId, _now, catalog) {
+        async computeContractLimits(_tenantId, _now, catalog) {
             calls.limitsFrom.push(catalog);
             return {
                 plan: 'STANDARD',

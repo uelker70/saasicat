@@ -187,7 +187,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         assertOnePlanLine(lineItems);
         assertNoNegativeDiscount({ priceSnapshot });
 
-        // Terminate the old active contract so that `computeLimits` takes the
+        // Terminate the old active contract so that `computeContractLimits` takes the
         // catalog path (otherwise it would read back the OLD frozen snapshot).
         const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
         if (previous) {
@@ -198,9 +198,15 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         }
         this.entitlements.invalidateTenant(tenantId);
 
-        // Effective entitlements (plan + bundles + add-ons) as a snapshot — exactly
-        // what the tenant would get without the freeze. That makes the snapshot correct.
-        const limits = await this.entitlements.computeLimits(tenantId, effectiveFrom, catalog);
+        // What the tenant would get without the freeze, less the add-ons whose
+        // cancellation is declared: those keep their line until their effective
+        // date, and are granted by the booking until then rather than by a
+        // snapshot that would outlive it.
+        const limits = await this.entitlements.computeContractLimits(
+            tenantId,
+            effectiveFrom,
+            catalog,
+        );
 
         const data: CreateSubscriptionContractData = {
             tenantId,

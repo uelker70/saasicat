@@ -35,6 +35,16 @@ export function filterActiveSubscriptionBundles(
 }
 
 /**
+ * Whether a booking's end is already set. Such a booking is still active until
+ * that date, but it is not part of what a contract agrees to from here on.
+ */
+export function isCancellationDeclared(
+    booking: Pick<SubscriptionBundleSnapshot, 'canceledEffectiveAt'>,
+): boolean {
+    return booking.canceledEffectiveAt !== null;
+}
+
+/**
  * Aggregates the quotas of all active SubscriptionBundle bookings:
  * Σ per QuotaKey, `-1` (unlimited) dominates. Bundle features +
  * bundle quotas are **additive** to the PlanVersion (not replacing).
@@ -145,6 +155,13 @@ export function contractBundleVersionIds(
  * i.e. `originalBundleVersionIds` plus the bundle line items) are skipped, so
  * their quotas are not counted twice.
  *
+ * A booking whose cancellation is declared never counts as covered, even with
+ * a line on the contract. It is billed until its effective date, so the
+ * contract keeps the line, but a freeze leaves it out of the entitlement
+ * snapshot (`EntitlementService.computeContractLimits`): what it grants comes
+ * from the booking itself, and ends on that date without anybody writing the
+ * contract again.
+ *
  * Features are a set union, quotas add up with `-1` (unlimited) dominance, and
  * `plannedOnly` features stay out — same rules as `aggregateLimits`. The
  * contract's own features are passed through untouched: what was agreed stays
@@ -158,7 +175,7 @@ export function mergeSubscriptionBundlesIntoLimits(
     now: Date,
 ): EffectiveLimits {
     const additional = filterActiveSubscriptionBundles(bundles, now).filter(
-        (b) => !coveredBundleVersionIds.has(b.bundleVersionId),
+        (b) => isCancellationDeclared(b) || !coveredBundleVersionIds.has(b.bundleVersionId),
     );
     if (additional.length === 0) return limits;
 

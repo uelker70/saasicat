@@ -72,7 +72,7 @@ function service(contracts) {
             plans: [],
         }),
         {
-            computeLimits: async () => ({ plan: 'PRO', quotas: {}, features: new Set() }),
+            computeContractLimits: async () => ({ plan: 'PRO', quotas: {}, features: new Set() }),
             invalidateTenant() {},
         },
         contracts,
