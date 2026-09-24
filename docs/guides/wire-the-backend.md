@@ -797,6 +797,8 @@ export class RenewalJob {
     constructor(private readonly charges: SubscriberChargeService) {}
 
     async renew(tenantId: string): Promise<void> {
+        // What the ending window owes, before it moves — a throw stops the renewal here.
+        await this.charges.recordDueCharges(tenantId);
         // … roll the subscription's and the bookings' windows forward, then:
         await this.charges.recordDueCharges(tenantId);
     }
@@ -805,10 +807,19 @@ export class RenewalJob {
 
 `recordDueCharges` is safe to call as often as you like, from as many places at once as you like: a
 charge is written once for its contract line, period and origin. A period your job skipped is
-charged on the next call, one cycle at a time, at the price of the contract in force when it
-started. Nothing is charged during a trial, without a contract, before a period starts, or from the
-date a cancellation takes effect. A promo code's or a promotion's discount is charged for the
-periods it was concluded for, at the amount resolved then.
+charged on the next call, one cycle at a time from where the account left off, at the price of the
+contract in force when it started. Nothing is charged during a trial, without a contract, before a
+period starts, or from the date a cancellation takes effect. A promo code's or a promotion's
+discount is charged for the periods it was concluded for, at the amount resolved then, counted from
+the first period the concluded contract prices.
+
+An account with no charge yet begins with the window its subscription is in. Where the paid periods
+began is recorded nowhere a charge could be derived from — a contract may be concluded during a
+trial — so nothing before that window is guessed. That is why the job above charges before it moves
+a window: a window that moved on before anything charged it is not charged afterwards. An add-on is
+charged from its booking, but not from before the account begins. Where writing the contract failed
+after a booking, the next call writes it again, so that the booking has a contract line to be
+charged under.
 
 What it does not do yet: charge what an immediate plan change adds, collect anything, or show the
 account on a screen.

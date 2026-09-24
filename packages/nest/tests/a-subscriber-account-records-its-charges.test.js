@@ -9,7 +9,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SubscriberChargeService, TenantBillingModule } from '../dist/billing/index.js';
-import { anAccount, discountLine, line, utc } from './helpers/charge-journal.js';
+import { ARCHIVE, anAccount, discountLine, line, utc } from './helpers/charge-journal.js';
 
 const STANDARD = () => line('plan', 'STANDARD', 49);
 
@@ -106,8 +106,9 @@ describe('every period is charged, at the price in force when it starts', () => 
     });
 
     test('a window opened a moment before its contract is still charged under it', async () => {
-        // Onboarding opens the window and freezes the contract right after.
-        const account = anAccount();
+        // Onboarding opens the window and freezes the contract right after,
+        // and records no start of its own.
+        const account = anAccount({ subscription: { startedAt: null } });
         await account.contract({
             effectiveFrom: new Date(utc('2026-01-01').getTime() + 40),
             lineItems: [STANDARD()],
@@ -204,6 +205,105 @@ describe('what is not charged', () => {
     });
 });
 
+// @requirement SC-PRIC-058 — An account begins with the current window, and nothing before it is guessed
+describe('an account begins with the window its subscription is in', () => {
+    test('not with a contract concluded during the trial before it', async () => {
+        // Concluded at sign-up on 5 December; the trial ended on 1 January.
+        const account = anAccount({ subscription: { trialEndsAt: utc('2026-01-01') } });
+        await account.contract({ effectiveFrom: utc('2025-12-05'), lineItems: [STANDARD()] });
+
+        await account.charge(utc('2026-01-02'));
+
+        assert.deepEqual(account.entries(), [['2026-01-01', 'plan', 'activation', 49]]);
+    });
+
+    test('a window that moved on before anything charged it is not charged afterwards', async () => {
+        const account = anAccount();
+        await account.contract({ lineItems: [STANDARD()] });
+        // The renewal job moved the window without charging January first.
+        account.roll(utc('2026-02-01'), utc('2026-03-01'));
+
+        await account.charge(utc('2026-02-02'));
+
+        assert.deepEqual(account.entries(), [['2026-02-01', 'plan', 'renewal', 49]]);
+    });
+
+    test('an add-on whose first charge was missed is charged from its booking', async () => {
+        const account = anAccount();
+        await account.contract({ lineItems: [STANDARD()] });
+        await account.charge(utc('2026-01-10'));
+        // Booked on 21 January, and nothing charged it before the windows moved on.
+        account.book();
+        await account.supersede(utc('2026-01-21'));
+        await account.contract({
+            effectiveFrom: utc('2026-01-21'),
+            lineItems: [STANDARD(), ARCHIVE()],
+        });
+        account.roll(utc('2026-02-01'), utc('2026-03-01'));
+        account.bookings[0].currentPeriodStart = utc('2026-02-01');
+        account.bookings[0].currentPeriodEnd = utc('2026-03-01');
+
+        await account.charge(utc('2026-02-02'));
+
+        assert.deepEqual(
+            account.entries().filter(([, source]) => source === 'bundle'),
+            [
+                ['2026-01-21', 'bundle', 'bundleBooking', 3.55],
+                ['2026-02-01', 'bundle', 'renewal', 10],
+            ],
+        );
+    });
+
+    test('an add-on whose window ended before the account began is not charged', async () => {
+        const account = anAccount({
+            subscription: {
+                currentPeriodStart: utc('2026-02-01'),
+                currentPeriodEnd: utc('2026-03-01'),
+            },
+        });
+        await account.contract({ lineItems: [STANDARD(), ARCHIVE()] });
+        account.book();
+
+        await account.charge(utc('2026-02-02'));
+
+        assert.deepEqual(account.entries(), [['2026-02-01', 'plan', 'renewal', 49]]);
+    });
+
+    test('an add-on booked in the trial is charged from the first paid window', async () => {
+        const account = anAccount({
+            subscription: {
+                status: 'TRIAL',
+                startedAt: utc('2025-12-05'),
+                trialEndsAt: utc('2026-01-01'),
+                currentPeriodStart: utc('2025-12-05'),
+                currentPeriodEnd: utc('2026-01-01'),
+            },
+        });
+        await account.contract({
+            effectiveFrom: utc('2025-12-05'),
+            lineItems: [STANDARD(), ARCHIVE()],
+        });
+        account.book({
+            startedAt: utc('2025-12-10'),
+            currentPeriodStart: utc('2025-12-10'),
+            currentPeriodEnd: utc('2026-01-01'),
+        });
+        assert.deepEqual(await account.charge(utc('2025-12-15')), []);
+
+        // The trial ends: the first paid window opens, and the add-on moves beside it.
+        Object.assign(account.subscription, { status: 'ACTIVE', startedAt: utc('2026-01-01') });
+        account.roll(utc('2026-01-01'), utc('2026-02-01'));
+        account.bookings[0].currentPeriodStart = utc('2026-01-01');
+        account.bookings[0].currentPeriodEnd = utc('2026-02-01');
+        await account.charge(utc('2026-01-02'));
+
+        assert.deepEqual(account.entries(), [
+            ['2026-01-01', 'bundle', 'bundleBooking', 10],
+            ['2026-01-01', 'plan', 'activation', 49],
+        ]);
+    });
+});
+
 // @requirement SC-PRIC-056 — A charge is net, and its tax is the invoice's
 describe('a charge is net', () => {
     test('it records the net amount and its currency, and no tax', async () => {
@@ -237,31 +337,12 @@ describe('a written charge is never edited', () => {
 
 // @requirement SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
 describe('an add-on is charged its short first period, then whole ones', () => {
-    function bookedOn21January(account, overrides = {}) {
-        account.bookings.push({
-            id: 'booking-1',
-            subscriptionId: 'sub-1',
-            bundleVersionId: 'bv-archive',
-            startedAt: utc('2026-01-21'),
-            minimumTermEndsAt: null,
-            billingCycle: 'MONTHLY',
-            currentPeriodStart: utc('2026-01-21'),
-            currentPeriodEnd: utc('2026-02-01'),
-            canceledAt: null,
-            canceledEffectiveAt: null,
-            createdAt: utc('2026-01-21'),
-            updatedAt: utc('2026-01-21'),
-            ...overrides,
-        });
-    }
-    const ARCHIVE = () => line('bundle', 'ARCHIVE', 10, { sourceVersionId: 'bv-archive' });
-
     test('the first period for exactly that stretch of a whole month, the next in full', async () => {
         const account = anAccount();
         await account.contract({ lineItems: [STANDARD()] });
         await account.charge(utc('2026-01-10'));
         // The booking comes before the contract that takes it in.
-        bookedOn21January(account);
+        account.book();
         await account.supersede(new Date(utc('2026-01-21').getTime() + 30));
         await account.contract({
             effectiveFrom: new Date(utc('2026-01-21').getTime() + 30),
@@ -285,7 +366,7 @@ describe('an add-on is charged its short first period, then whole ones', () => {
     test('an add-on no contract names yet is not charged, and is once one does', async () => {
         const account = anAccount();
         await account.contract({ lineItems: [STANDARD()] });
-        bookedOn21January(account);
+        account.book();
 
         await account.charge(utc('2026-01-21'));
         assert.equal(account.entries().filter(([, source]) => source === 'bundle').length, 0);
@@ -302,7 +383,7 @@ describe('an add-on is charged its short first period, then whole ones', () => {
     test('a cancelled add-on is not charged from its effective date on', async () => {
         const account = anAccount();
         await account.contract({ lineItems: [STANDARD(), ARCHIVE()] });
-        bookedOn21January(account, {
+        account.book({
             canceledAt: utc('2026-01-25'),
             canceledEffectiveAt: utc('2026-02-01'),
         });
@@ -408,6 +489,22 @@ describe('a discount is charged for the periods it was concluded for', () => {
         ]);
     });
 
+    test('an offer concluded during a trial is discounted from the first paid period', async () => {
+        const account = anAccount();
+        await account.contract({
+            effectiveFrom: utc('2025-12-05'),
+            offer: 'offer-1',
+            lineItems: [STANDARD(), discountLine(9.8, { promoCode: code('ONCE', null) })],
+        });
+
+        await account.charge(utc('2026-01-02'));
+
+        assert.deepEqual(
+            account.entries().filter(([, source]) => source === 'discount'),
+            [['2026-01-01', 'discount', 'activation', -9.8]],
+        );
+    });
+
     test('a contract written again later, which carries no discount line, does not end it', async () => {
         const account = anAccount();
         await account.contract({
@@ -428,6 +525,114 @@ describe('a discount is charged for the periods it was concluded for', () => {
                 ['2026-02-01', 'discount', 'renewal', -9.8],
             ],
         );
+    });
+});
+
+// @requirement SC-PRIC-054 — Every period of a subscription is charged, at the price in force when it starts
+describe('an add-on is charged even where writing its contract failed', () => {
+    /** Writes the contract the way the platform's freeze does: the plan and the add-on booked. */
+    function freezingInto(accountOf, { fails = false } = {}) {
+        return {
+            calls: [],
+            async freezeOnPlanChange(tenantId, plan, cycle, at, endsAt) {
+                this.calls.push({ tenantId, plan, cycle, at, endsAt });
+                if (fails) throw new Error('the catalogue is down');
+                const account = accountOf();
+                await account.supersede(at);
+                await account.contract({ effectiveFrom: at, lineItems: [STANDARD(), ARCHIVE()] });
+            },
+        };
+    }
+
+    test('the journal writes the contract the booking missed, and charges the add-on under it', async () => {
+        let account;
+        const freeze = freezingInto(() => account);
+        account = anAccount({
+            subscription: { canceledAt: utc('2026-01-20'), canceledEffectiveAt: utc('2026-03-01') },
+            freeze,
+        });
+        await account.contract({ lineItems: [STANDARD()] });
+        await account.charge(utc('2026-01-10'));
+        // Booked on 21 January; the contract write after it failed.
+        account.book();
+
+        await account.charge(utc('2026-01-22'));
+
+        assert.deepEqual(
+            freeze.calls.map(({ tenantId, plan, cycle, at, endsAt }) => [
+                tenantId,
+                plan,
+                cycle,
+                at.toISOString(),
+                endsAt?.toISOString(),
+            ]),
+            [
+                [
+                    't1',
+                    'STANDARD',
+                    'MONTHLY',
+                    utc('2026-01-22').toISOString(),
+                    utc('2026-03-01').toISOString(),
+                ],
+            ],
+        );
+        assert.deepEqual(
+            account.entries().filter(([, source]) => source === 'bundle'),
+            [['2026-01-21', 'bundle', 'bundleBooking', 3.55]],
+        );
+    });
+
+    test('only a running add-on the contract misses makes the journal write one', async () => {
+        let account;
+        const freeze = freezingInto(() => account);
+        account = anAccount({ freeze });
+        await account.contract({ lineItems: [STANDARD(), ARCHIVE()] });
+        account.book();
+        account.book({
+            bundleVersionId: 'bv-ended',
+            canceledAt: utc('2026-01-05'),
+            canceledEffectiveAt: utc('2026-01-15'),
+        });
+        account.book({
+            bundleVersionId: 'bv-not-started',
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+        });
+
+        await account.charge(utc('2026-01-22'));
+
+        assert.equal(freeze.calls.length, 0);
+    });
+
+    test('nor in a trial, nor once the subscription has ended', async () => {
+        for (const subscription of [
+            { status: 'TRIAL' },
+            { canceledAt: utc('2026-01-05'), canceledEffectiveAt: utc('2026-01-15') },
+        ]) {
+            let account;
+            const freeze = freezingInto(() => account);
+            account = anAccount({ subscription, freeze });
+            await account.contract({ lineItems: [STANDARD()] });
+            account.book();
+
+            await account.charge(utc('2026-01-22'));
+
+            assert.equal(freeze.calls.length, 0, JSON.stringify(subscription));
+        }
+    });
+
+    test('a contract write that fails leaves the rest of the account charged', async () => {
+        let account;
+        const freeze = freezingInto(() => account, { fails: true });
+        account = anAccount({ freeze });
+        await account.contract({ lineItems: [STANDARD()] });
+        account.book();
+
+        const written = await account.charge(utc('2026-01-22'));
+
+        assert.equal(freeze.calls.length, 1);
+        assert.equal(written.length, 1);
+        assert.deepEqual(account.entries(), [['2026-01-01', 'plan', 'activation', 49]]);
     });
 });
 

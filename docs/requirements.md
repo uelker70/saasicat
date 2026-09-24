@@ -115,7 +115,7 @@ properties it has while doing it.
 | 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
-| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 57      |
+| 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 58      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
 | 11  | Promotional codes                            | `SC-PROMO-…` | 24      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 503 entries: 🟢 434 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 504 entries: 🟢 435 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 3 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -207,7 +207,7 @@ Of 503 entries: 🟢 434 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 503 requirements. Do not edit by hand:
+Generated from `requirements/` — 504 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5665,6 +5665,11 @@ _Tested by:_
         - a subscription older than its first charge starts with a renewal, not an activation
         - a yearly plan is charged its yearly line
         - a contract line in another rhythm prices nothing
+    - an add-on is charged even where writing its contract failed
+        - the journal writes the contract the booking missed, and charges the add-on under it
+        - only a running add-on the contract misses makes the journal write one
+        - nor in a trial, nor once the subscription has ended
+        - a contract write that fails leaves the rest of the account charged
 - `packages/nest/tests/onboarding-subscription.test.js`
     - onboarding brings the account up to date
         - once, for the tenant, after the plan is written
@@ -5734,7 +5739,34 @@ _Tested by:_
         - a percentage promotion, which states no duration, in the first period only
         - an intro price for two months, in months one and two
         - a discount line that says nothing of its duration, once
+        - an offer concluded during a trial is discounted from the first paid period
         - a contract written again later, which carries no discount line, does not end it
+
+<!-- END proof -->
+
+### SC-PRIC-058 — An account begins with the current window, and nothing before it is guessed
+
+🟢 💰 Where the paid periods began is recorded nowhere a charge could be derived from: a contract
+may be concluded during a trial and priced only from its end, and a window and the contract written
+for it are moments apart, in either order. So an account that holds no charge yet begins with the
+window its subscription is in, and an add-on booked before that is charged from there. An add-on
+booked later is charged from its booking, a first charge that was missed included. A window that
+moved on before anything charged it is not charged afterwards, which is why a renewal job charges a
+window before it moves it (`SC-PRIC-054`).
+
+_Source:_ #276 · #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an account begins with the window its subscription is in
+        - not with a contract concluded during the trial before it
+        - a window that moved on before anything charged it is not charged afterwards
+        - an add-on whose first charge was missed is charged from its booking
+        - an add-on whose window ended before the account began is not charged
+        - an add-on booked in the trial is charged from the first paid window
 
 <!-- END proof -->
 

@@ -37,6 +37,8 @@ export interface ChargedSubscription {
     currentPeriodEnd: Date | null;
     /** The day of the month the plan is billed on, where it is known. */
     anchorDay: number | null;
+    /** When the subscription started, where the application records it. */
+    startedAt: Date | null;
     /** When a declared cancellation takes effect; no period starting then or later is charged. */
     endsAt: Date | null;
 }
@@ -69,14 +71,46 @@ const CENTS = 100;
  * The charges due for a subscription and not yet in its journal: the plan's
  * periods, each add-on's periods, and the discount a concluded offer carried
  * for as long as it applies.
+ *
+ * Nothing is reconstructed from before the account begins, which is the first
+ * plan period it charged — or, before it charged one, the plan's current
+ * window. The records do not say where the paid periods began: a contract may
+ * be concluded during a trial and priced from its end, and a window and the
+ * contract written for it are moments apart, in either order. A guess there
+ * charges a trial. Starting from what the subscription says it is in now errs
+ * the other way, and only where a window moved before anything charged it.
  */
 export function deriveDueCharges(input: ChargeDerivationInput): NewSubscriberCharge[] {
     const planCharges = derivePlanCharges(input);
     return [
         ...planCharges,
         ...deriveDiscountCharges(input, planCharges),
-        ...deriveBundleCharges(input),
+        ...deriveBundleCharges(input, accountStart(input)),
     ];
+}
+
+/**
+ * The running bookings the contract in force at `now` does not name — what a
+ * contract write that failed after a booking leaves behind. Empty where no
+ * contract is in force: a subscription without one gets no charges, and no
+ * contract either, from here.
+ */
+export function bookingsTheContractMisses(
+    contracts: readonly SubscriptionContractRecord[],
+    bookings: readonly SubscriptionBundleRecord[],
+    now: Date,
+): SubscriptionBundleRecord[] {
+    const inForce = contractInForce(contracts, now);
+    if (!inForce) return [];
+    return bookings.filter(
+        (booking) =>
+            booking.currentPeriodEnd !== null &&
+            (booking.canceledEffectiveAt === null || booking.canceledEffectiveAt > now) &&
+            !inForce.lineItems.some(
+                (item) =>
+                    item.kind === 'bundle' && item.sourceVersionId === booking.bundleVersionId,
+            ),
+    );
 }
 
 // ── The plan ─────────────────────────────────────────────────────────────
@@ -87,60 +121,90 @@ function derivePlanCharges(input: ChargeDerivationInput): NewSubscriberCharge[] 
     const window = windowOf(subscription.currentPeriodStart, subscription.currentPeriodEnd);
     if (!window) return [];
 
-    const firstContract = earliest(input.contracts);
-    const charges: NewSubscriberCharge[] = [];
-    for (const period of periodsToCharge({
+    const priced = periodsToCharge({
         window,
-        lastEnd: lastPeriodEnd(input.written, 'plan', subscription.id),
+        from: lastPeriodEnd(input.written, 'plan', subscription.id) ?? window.start,
         cycle: subscription.billingCycle,
         anchorDay: subscription.anchorDay,
-        now: input.now,
+        input,
         endsAt: subscription.endsAt,
-    })) {
-        const priced = lineFor(
+    }).flatMap((period) => {
+        const found = lineFor(
             input.contracts,
             period,
             (item) =>
                 item.kind === 'plan' && item.billingCycle === rhythmOf(subscription.billingCycle),
         );
-        if (!priced) continue;
-        const { contract, line } = priced;
-        const opensFirstContract =
-            firstContract !== null &&
-            period.start <= firstContract.effectiveFrom &&
-            firstContract.effectiveFrom < period.end;
-        charges.push(
-            chargeOf(input, contract, line, {
-                origin: opensFirstContract ? 'activation' : 'renewal',
-                source: 'plan',
-                sourceRef: subscription.id,
-                period,
-                amountNet: line.priceNet,
-                bookedAt: period.start,
-            }),
-        );
-    }
-    return charges;
+        return found ? [{ period, ...found }] : [];
+    });
+
+    // A period is the subscription's first when it holds the subscription's
+    // start or the moment its first contract took effect. Either alone misses
+    // a path: a contract concluded during a trial takes effect before the
+    // first paid window, and not every application records a start.
+    const firstContract = earliest(input.contracts);
+    const opensSubscription = (period: ChargePeriod) =>
+        holds(period, subscription.startedAt) ||
+        holds(period, firstContract?.effectiveFrom ?? null);
+    return priced.map(({ period, contract, line }) =>
+        chargeOf(input, contract, line, {
+            origin: opensSubscription(period) ? 'activation' : 'renewal',
+            source: 'plan',
+            sourceRef: subscription.id,
+            period,
+            amountNet: line.priceNet,
+            bookedAt: period.start,
+        }),
+    );
+}
+
+/**
+ * Where the account begins: the first plan period it charged, or — before it
+ * charged one — the plan's current window. Null in a trial with nothing
+ * charged, or without a window: then nothing is charged at all.
+ */
+function accountStart(input: ChargeDerivationInput): Date | null {
+    const { subscription } = input;
+    const firstCharged = firstPlanPeriodStart(input.written, subscription.id);
+    if (firstCharged) return firstCharged;
+    if (subscription.status === 'TRIAL') return null;
+    return windowOf(subscription.currentPeriodStart, subscription.currentPeriodEnd)?.start ?? null;
 }
 
 // ── The add-ons ──────────────────────────────────────────────────────────
 
-function deriveBundleCharges(input: ChargeDerivationInput): NewSubscriberCharge[] {
+function deriveBundleCharges(
+    input: ChargeDerivationInput,
+    accountBegins: Date | null,
+): NewSubscriberCharge[] {
+    if (!accountBegins) return [];
     const { subscription } = input;
+    const anchorDay = subscription.anchorDay;
     const charges: NewSubscriberCharge[] = [];
     for (const booking of input.bookings) {
         const window = windowOf(booking.currentPeriodStart, booking.currentPeriodEnd);
         if (!window) continue;
         const cycle = booking.billingCycle ?? subscription.billingCycle;
         const endsAt = earlierOf(booking.canceledEffectiveAt, subscription.endsAt);
-        for (const period of periodsToCharge({
-            window,
-            lastEnd: lastPeriodEnd(input.written, 'bundle', booking.id),
-            cycle,
-            anchorDay: subscription.anchorDay,
-            now: input.now,
-            endsAt,
-        })) {
+        const lastEnd = lastPeriodEnd(input.written, 'bundle', booking.id);
+        // A booking carries its start, so its periods are rebuilt from there —
+        // but not from before the account begins: a booking made in a trial
+        // runs from the first period the plan is charged for.
+        const chainStart = laterOf(booking.startedAt, accountBegins);
+        const periods = lastEnd
+            ? periodsToCharge({ window, from: lastEnd, cycle, anchorDay, input, endsAt })
+            : [
+                  ...firstBundlePeriod(window, chainStart, cycle, anchorDay),
+                  ...periodsToCharge({
+                      window,
+                      from: firstBoundaryAfter(window, chainStart, cycle, anchorDay),
+                      cycle,
+                      anchorDay,
+                      input,
+                      endsAt,
+                  }),
+              ].filter((period) => isChargeable(period, input, endsAt));
+        for (const period of periods) {
             const priced = lineFor(
                 input.contracts,
                 period,
@@ -149,29 +213,26 @@ function deriveBundleCharges(input: ChargeDerivationInput): NewSubscriberCharge[
             );
             if (!priced) continue;
             const { contract, line } = priced;
-            // The booking's first period is short, and charged for exactly
-            // that stretch of a whole cycle — the same arithmetic the preview
-            // quoted (`SC-BUN-003`, `SC-PRIC-002`).
-            const isFirst = period.start.getTime() === booking.startedAt.getTime();
             charges.push(
                 chargeOf(input, contract, line, {
-                    origin: isFirst ? 'bundleBooking' : 'renewal',
+                    origin:
+                        !lastEnd && sameInstant(period.start, chainStart)
+                            ? 'bundleBooking'
+                            : 'renewal',
                     source: 'bundle',
                     sourceRef: booking.id,
                     period,
-                    amountNet: isFirst
-                        ? computeProration({
-                              periodStart: bundleFirstPeriodStart(
-                                  period.end,
-                                  cycle,
-                                  subscription.anchorDay,
-                              ),
-                              periodEnd: period.end,
-                              now: period.start,
-                              currentPriceNet: 0,
-                              targetPriceNet: line.priceNet,
-                          }).prorataDeltaNet
-                        : line.priceNet,
+                    // Every period is charged for its share of the whole cycle
+                    // it ends, which is all of it except for the short first
+                    // one — the same arithmetic the preview quoted
+                    // (`SC-BUN-003`, `SC-PRIC-002`).
+                    amountNet: computeProration({
+                        periodStart: bundleFirstPeriodStart(period.end, cycle, anchorDay),
+                        periodEnd: period.end,
+                        now: period.start,
+                        currentPriceNet: 0,
+                        targetPriceNet: line.priceNet,
+                    }).prorataDeltaNet,
                     bookedAt: period.start,
                 }),
             );
@@ -206,8 +267,11 @@ function deriveDiscountCharges(
     const discounts = concluded.lineItems.filter((item) => item.kind === 'discount');
     if (discounts.length === 0) return [];
 
+    // Counted from the first plan period the concluded contract prices, not
+    // from the day it was concluded: an offer concluded during a trial is
+    // discounted from the first period that is paid.
     const { subscription } = input;
-    const first = firstPeriodStart(subscription, concluded.effectiveFrom);
+    const first = firstPricedBy(concluded.id, input.written, planCharges);
     if (!first) return [];
 
     const charges: NewSubscriberCharge[] = [];
@@ -319,36 +383,72 @@ function promotionMonths(value: unknown): number | null {
 // ── Periods ──────────────────────────────────────────────────────────────
 
 /**
- * The periods of one source still to charge: those after the last one charged,
- * up to and including the window it is in now, each a whole cycle on the
- * plan's day. None that starts after `now`, or at or after `endsAt`.
+ * The periods of one source still to charge: from `from` — where the journal
+ * left off, or where the source's chain begins — up to and including the
+ * window it is in now, each a whole cycle on the plan's day. None that starts
+ * after `now`, or at or after `endsAt`.
  *
- * A window a renewal skipped ahead of is walked cycle by cycle from where the
- * journal left off. A walk that does not land on the window's start — the
- * window was opened afresh, as a plan change into a longer rhythm does — stops
- * short rather than inventing a period of a length nobody agreed to.
+ * A window a renewal skipped ahead of is walked cycle by cycle. A walk that
+ * does not land on the window's start — the window was opened afresh, as a
+ * plan change into a longer rhythm does — stops short rather than inventing a
+ * period of a length nobody agreed to.
  */
 function periodsToCharge(args: {
     window: ChargePeriod;
-    lastEnd: Date | null;
+    from: Date;
     cycle: BillingCycle;
     anchorDay: number | null;
-    now: Date;
+    input: ChargeDerivationInput;
     endsAt: Date | null;
 }): ChargePeriod[] {
-    const { window, lastEnd, cycle, anchorDay, now, endsAt } = args;
+    const { window, from, cycle, anchorDay, input, endsAt } = args;
     const periods: ChargePeriod[] = [];
-    if (lastEnd && lastEnd < window.start) {
-        let start = lastEnd;
-        for (let step = 0; step < MAX_CYCLES && start < window.start; step++) {
-            const end = advanceOneCycle(start, cycle, anchorDay ?? undefined);
-            if (end > window.start) break;
-            periods.push({ start, end });
-            start = end;
-        }
+    let start = from;
+    for (let step = 0; step < MAX_CYCLES && start < window.start; step++) {
+        const end = advanceOneCycle(start, cycle, anchorDay ?? undefined);
+        if (end > window.start) break;
+        periods.push({ start, end });
+        start = end;
     }
-    if (!lastEnd || lastEnd <= window.start) periods.push(window);
-    return periods.filter((period) => period.start <= now && (!endsAt || period.start < endsAt));
+    if (from <= window.start) periods.push(window);
+    return periods.filter((period) => isChargeable(period, input, endsAt));
+}
+
+function isChargeable(
+    period: ChargePeriod,
+    input: ChargeDerivationInput,
+    endsAt: Date | null,
+): boolean {
+    return (
+        period.start < period.end && period.start <= input.now && (!endsAt || period.start < endsAt)
+    );
+}
+
+/** The first boundary after `start` on the chain that leads to `window`. */
+function firstBoundaryAfter(
+    window: ChargePeriod,
+    start: Date,
+    cycle: BillingCycle,
+    anchorDay: number | null,
+): Date {
+    if (window.start <= start) return window.end;
+    let boundary = window.start;
+    for (let step = 0; step < MAX_CYCLES; step++) {
+        const before = retreatOneCycle(boundary, cycle, anchorDay ?? undefined);
+        if (before <= start) break;
+        boundary = before;
+    }
+    return boundary;
+}
+
+/** A booking's first period: from where its chain begins to the first boundary after it. */
+function firstBundlePeriod(
+    window: ChargePeriod,
+    start: Date,
+    cycle: BillingCycle,
+    anchorDay: number | null,
+): ChargePeriod[] {
+    return [{ start, end: firstBoundaryAfter(window, start, cycle, anchorDay) }];
 }
 
 /** The end of the latest whole period charged for one source. */
@@ -366,18 +466,38 @@ function lastPeriodEnd(
     return last;
 }
 
-/** The start of the plan period in which `at` falls, walked back from the current window. */
-function firstPeriodStart(subscription: ChargedSubscription, at: Date): Date | null {
-    let start = subscription.currentPeriodStart;
-    if (!start) return null;
-    for (let step = 0; step < MAX_CYCLES && start > at; step++) {
-        start = retreatOneCycle(
-            start,
-            subscription.billingCycle,
-            subscription.anchorDay ?? undefined,
-        );
+/** The start of the earliest whole plan period the journal holds. */
+function firstPlanPeriodStart(
+    written: readonly SubscriberChargeRecord[],
+    subscriptionId: string,
+): Date | null {
+    let first: Date | null = null;
+    for (const charge of written) {
+        if (charge.source !== 'plan' || charge.sourceRef !== subscriptionId) continue;
+        if (!PERIOD_ORIGINS.includes(charge.origin)) continue;
+        if (!first || charge.periodStart < first) first = charge.periodStart;
     }
-    return start > at ? null : start;
+    return first;
+}
+
+/**
+ * The start of the first plan period a contract prices, among those already
+ * written and those about to be.
+ */
+function firstPricedBy(
+    contractId: string,
+    written: readonly SubscriberChargeRecord[],
+    due: readonly { contractId: string; periodStart: Date }[],
+): Date | null {
+    let first: Date | null = null;
+    const planPeriods = written.filter(
+        (charge) => charge.source === 'plan' && PERIOD_ORIGINS.includes(charge.origin),
+    );
+    for (const charge of [...planPeriods, ...due]) {
+        if (charge.contractId !== contractId) continue;
+        if (!first || charge.periodStart < first) first = charge.periodStart;
+    }
+    return first;
 }
 
 /** How many whole cycles lie between `from` and `to`, or null where `to` is not on the walk. */
@@ -491,6 +611,18 @@ function chargeOf(
 
 function windowOf(start: Date | null, end: Date | null): ChargePeriod | null {
     return start && end && start < end ? { start, end } : null;
+}
+
+function laterOf(a: Date, b: Date): Date {
+    return b > a ? b : a;
+}
+
+function sameInstant(a: Date, b: Date): boolean {
+    return a.getTime() === b.getTime();
+}
+
+function holds(period: ChargePeriod, at: Date | null): boolean {
+    return at !== null && period.start <= at && at < period.end;
 }
 
 function earlierOf(a: Date | null, b: Date | null): Date | null {

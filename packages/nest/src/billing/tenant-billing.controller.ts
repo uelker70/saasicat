@@ -699,16 +699,6 @@ export class TenantBillingController {
             }
         }
 
-        // Contract snapshots are a domain side effect of a successful plan
-        // change, independent of whether the persistence adapter used the
-        // atomic onboarding capability or the legacy sequential fallback.
-        await this.tryFreezeOnPlanChange(
-            tenantId,
-            dto.plan,
-            dto.billingCycle as BillingCycle,
-            wasTrial,
-        );
-
         this.entitlements.invalidateTenant(tenantId);
 
         await this.auditLog(
@@ -769,6 +759,17 @@ export class TenantBillingController {
                     'is not registered in the consumer. No bundles were created.',
             );
         }
+
+        // Contract snapshots are a domain side effect of a successful plan
+        // change, independent of whether the persistence adapter used the
+        // atomic onboarding capability or the legacy sequential fallback. After
+        // the add-ons: the contract names what is booked when it is written.
+        await this.tryFreezeOnPlanChange(
+            tenantId,
+            dto.plan,
+            dto.billingCycle as BillingCycle,
+            wasTrial,
+        );
 
         await recordChargesAfter(this.charges, tenantId, 'onboarding', this.logger);
 

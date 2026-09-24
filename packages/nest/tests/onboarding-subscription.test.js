@@ -672,6 +672,37 @@ test('onboarding: bundleVersionIds without a registered module → warning, no c
     assert.match(result.warnings[0], /SubscriptionBundleModule is not/);
 });
 
+test('onboarding: the contract is written after the add-ons it books, so it names them', async () => {
+    const events = [];
+    const bundles = buildSubscriptionBundlesStub();
+    const book = bundles.addBundleToSubscription.bind(bundles);
+    bundles.addBundleToSubscription = async (input) => {
+        events.push('book');
+        return book(input);
+    };
+    const ctrl = buildController({
+        subscriptionBundles: bundles,
+        subscriptionUsage: { findForTenant: async () => buildSub({ status: 'ACTIVE' }) },
+        contractFreeze: {
+            async assertPartyFor() {},
+            async freezeOnPlanChange() {
+                events.push('freeze');
+            },
+        },
+    });
+
+    await ctrl.completeOnboardingSubscription(
+        { user: { tenantId: 't1', sub: 'u1' } },
+        {
+            plan: 'SPORT',
+            billingCycle: 'YEARLY',
+            bundleVersionIds: ['11111111-2222-3333-4444-555555555555'],
+        },
+    );
+
+    assert.deepEqual(events, ['book', 'freeze']);
+});
+
 // @requirement SC-PRIC-054 — Every period of a subscription is charged, at the price in force when it starts
 describe('onboarding brings the account up to date', () => {
     function recordingCharges({ fails = false } = {}) {

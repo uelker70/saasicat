@@ -25,6 +25,9 @@ export const PARTIES = {
 
 export const utc = (iso) => new Date(`${iso}T00:00:00.000Z`);
 
+/** The add-on the account books: 10 a month. */
+export const ARCHIVE = () => line('bundle', 'ARCHIVE', 10, { sourceVersionId: 'bv-archive' });
+
 /** A contract line as the freeze or an offer writes it. */
 export function line(kind, sourceKey, priceNet, overrides = {}) {
     return {
@@ -98,10 +101,12 @@ function journal() {
 export function anAccount({
     subscription: overrides = {},
     subscriber = { id: 'subscriber-1' },
+    freeze = null,
 } = {}) {
     const subscription = {
         id: 'sub-1',
         plan: 'STANDARD',
+        planVersion: { id: 'pv-standard', planId: 'STANDARD' },
         billingCycle: 'MONTHLY',
         status: 'ACTIVE',
         isPilot: false,
@@ -125,6 +130,7 @@ export function anAccount({
         { findByTenantId: async () => subscriber },
         { findForTenant: async () => subscription },
         { listBySubscription: async () => bookings },
+        freeze,
     );
     return {
         subscription,
@@ -172,6 +178,26 @@ export function anAccount({
         roll(start, end) {
             subscription.currentPeriodStart = start;
             subscription.currentPeriodEnd = end;
+        },
+        /** Books an add-on, by default on 21 January for the rest of the month. */
+        book(overrides = {}) {
+            const booking = {
+                id: `booking-${bookings.length + 1}`,
+                subscriptionId: 'sub-1',
+                bundleVersionId: 'bv-archive',
+                startedAt: utc('2026-01-21'),
+                minimumTermEndsAt: null,
+                billingCycle: 'MONTHLY',
+                currentPeriodStart: utc('2026-01-21'),
+                currentPeriodEnd: utc('2026-02-01'),
+                canceledAt: null,
+                canceledEffectiveAt: null,
+                createdAt: utc('2026-01-21'),
+                updatedAt: utc('2026-01-21'),
+                ...overrides,
+            };
+            bookings.push(booking);
+            return booking;
         },
         /** The journal as `[period start, source, origin, amount]`, oldest first. */
         entries() {

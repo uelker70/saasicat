@@ -19,12 +19,19 @@ charged at the price in force when it starts, a skipped one too
 starts or from a cancellation's effective date (`SC-PRIC-055`). A charge
 carries no tax; the invoice decides it (`SC-PRIC-056`). A discount is charged
 for the periods it was concluded for (`SC-PRIC-057`). A charge is rounded
-once and never edited (`SC-PRIC-018`, `SC-PRIC-020`).
+once and never edited (`SC-PRIC-018`, `SC-PRIC-020`). An account with no
+charge yet begins with the window its subscription is in, and nothing before
+it is guessed; an add-on is charged from its booking, but not from before the
+account begins (`SC-PRIC-058`).
 
 - `tenantBilling.chargeJournal: { ledgerRepository }` enables it beside
   `contractFreeze`, and `SubscriberChargeService.recordDueCharges(tenantId)`
-  is what an application calls at activation and from its renewal job. The
-  platform calls it after onboarding and after an add-on booking.
+  is what an application calls at activation and from its renewal job, before
+  it moves a window and after. The platform calls it after onboarding and
+  after an add-on booking, and where writing the contract after a booking
+  failed, the call writes it again.
+- Onboarding writes the contract after the add-ons it books, so the contract
+  names them.
 - `SubscriberLedgerRepository` in `@saasicat/core`, with both shipped adapters
   (`persistence.entitlement.subscriberLedgerRepository`), the Prisma fragment
   `15-subscriber-ledger.prisma` and the migration

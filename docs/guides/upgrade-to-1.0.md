@@ -1478,11 +1478,16 @@ net, written once. It needs frozen contracts. To adopt it:
    `persistence.entitlement.subscriberLedgerRepository` from either shipped adapter. Without
    `contractFreeze` the module refuses to start and says why.
 4. Call `SubscriberChargeService.recordDueCharges(tenantId)` where your application activates a
-   subscription and from its renewal job, after it rolls the windows forward. The platform calls it
-   itself after onboarding and after an add-on booking.
+   subscription, and from its renewal job both before it rolls the windows forward and after — and
+   roll them only when the first call succeeded. A window that moved on before anything charged it
+   is not charged afterwards. The platform calls it itself after onboarding and after an add-on
+   booking.
 
 Nothing is backfilled: the first call charges the period each subscription is in, and nothing before
-it.
+it; an add-on booked earlier is charged from that period on.
+
+Onboarding now writes the contract after the add-ons it books, so the contract names them. Before,
+it named only the plan until the next change wrote it again.
 
 - **A persistence contract harness** gains the `subscriberLedgerRepository` member, which needs
   `subscriptionContractRepository` and `seed.createSubscriber` beside it; a harness without it

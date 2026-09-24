@@ -621,6 +621,11 @@ _Tested by:_
         - a subscription older than its first charge starts with a renewal, not an activation
         - a yearly plan is charged its yearly line
         - a contract line in another rhythm prices nothing
+    - an add-on is charged even where writing its contract failed
+        - the journal writes the contract the booking missed, and charges the add-on under it
+        - only a running add-on the contract misses makes the journal write one
+        - nor in a trial, nor once the subscription has ended
+        - a contract write that fails leaves the rest of the account charged
 - `packages/nest/tests/onboarding-subscription.test.js`
     - onboarding brings the account up to date
         - once, for the tenant, after the plan is written
@@ -690,7 +695,34 @@ _Tested by:_
         - a percentage promotion, which states no duration, in the first period only
         - an intro price for two months, in months one and two
         - a discount line that says nothing of its duration, once
+        - an offer concluded during a trial is discounted from the first paid period
         - a contract written again later, which carries no discount line, does not end it
+
+<!-- END proof -->
+
+### SC-PRIC-058 — An account begins with the current window, and nothing before it is guessed
+
+🟢 💰 Where the paid periods began is recorded nowhere a charge could be derived from: a contract
+may be concluded during a trial and priced only from its end, and a window and the contract written
+for it are moments apart, in either order. So an account that holds no charge yet begins with the
+window its subscription is in, and an add-on booked before that is charged from there. An add-on
+booked later is charged from its booking, a first charge that was missed included. A window that
+moved on before anything charged it is not charged afterwards, which is why a renewal job charges a
+window before it moves it (`SC-PRIC-054`).
+
+_Source:_ #276 · #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an account begins with the window its subscription is in
+        - not with a contract concluded during the trial before it
+        - a window that moved on before anything charged it is not charged afterwards
+        - an add-on whose first charge was missed is charged from its booking
+        - an add-on whose window ended before the account began is not charged
+        - an add-on booked in the trial is charged from the first paid window
 
 <!-- END proof -->
 
