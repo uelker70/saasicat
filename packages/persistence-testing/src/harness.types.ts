@@ -168,6 +168,15 @@ export interface ContractSeed {
      * scenario skips, rather than the scenario inventing a way in.
      */
     clearBookingRequestDate?(subscriptionBundleId: string): Promise<void>;
+    /**
+     * Overwrites a booking's `billingCycle` column with the value given.
+     *
+     * The column is text, and the platform writes only `MONTHLY` or `YEARLY` to
+     * it; this writes what nothing else does, so the scenario can ask whether
+     * the adapter reads such a value back as one of the two. Optional for the
+     * reason `clearBookingRequestDate` is.
+     */
+    setBookingCycle?(subscriptionBundleId: string, billingCycle: string): Promise<void>;
     createPromoCode(input: {
         code: string;
         maxRedemptions: number | null;
@@ -218,6 +227,7 @@ export type ContractGap =
     | 'bundleRetirement'
     | 'bundleBookings'
     | 'halfCancelledBookingSeed'
+    | 'foreignBookingCycleSeed'
     | 'countByPlanVersionId'
     | 'audit'
     | 'mfa'

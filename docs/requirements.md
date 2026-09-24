@@ -2341,6 +2341,13 @@ _Source:_ #234
 
 _Tested by:_
 
+- `packages/core/tests/a-bundle-booking-row-becomes-a-record.test.js`
+    - a bundle booking row becomes a record
+        - every column is carried over as it is
+        - both rhythms are read
+        - a booking made before the billing columns existed reads as null throughout
+        - a schema without the billing columns reads the same as one holding nulls
+        - a rhythm of '${value}' stops the read, naming the row
 - `packages/nest/tests/every-way-a-tenant-meets-a-bundle.test.js`
     - the request bodies a tenant can send
         - a booking needs a version id, and it must be one

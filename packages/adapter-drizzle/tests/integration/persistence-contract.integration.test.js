@@ -166,6 +166,12 @@ function createHarness() {
                     .set({ canceledAt: null })
                     .where(eq(saasicatSchema.subscriptionBundles.id, subscriptionBundleId));
             },
+            async setBookingCycle(subscriptionBundleId, billingCycle) {
+                await db
+                    .update(saasicatSchema.subscriptionBundles)
+                    .set({ billingCycle })
+                    .where(eq(saasicatSchema.subscriptionBundles.id, subscriptionBundleId));
+            },
             async createSubscriber(input) {
                 const id = randomUUID();
                 await db.insert(saasicatSchema.subscribers).values({

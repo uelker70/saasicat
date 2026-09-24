@@ -157,7 +157,7 @@ export class SubscriptionBundlesService {
     async listForSubscription(
         subscriptionId: string,
         planKey: string,
-        planCycle: string,
+        planCycle: BillingCycle,
     ): Promise<SubscriptionBundleView[]> {
         const records = await this.repo.listBySubscription(subscriptionId);
         // Resolve label/key/price from the booked BundleVersion so the UI

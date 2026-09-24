@@ -1757,6 +1757,39 @@ as 100, an amount above the plan's gross price as that price.
 - **An admin page of your own** that switches a code to a one-off discount sends
   `durationValue: null` with it; the shipped dialog does.
 
+### A bundle booking's rhythm is `MONTHLY` or `YEARLY`
+
+The platform writes a booking's `billingCycle` only as `MONTHLY` or `YEARLY`, and prices the booking
+by asking whether it is `YEARLY`. `SubscriptionBundleRecord` typed the field as any string, so a
+repository that handed back `'yearly'` had the booking priced monthly. The field is now
+`BillingCycle | null` on `SubscriptionBundleRecord` and `CreateSubscriptionBundleData`, and both
+shipped adapters refuse a stored value other than the two when they read it, with an error naming
+the row. Null still means a booking made before the column existed, billed in the plan's rhythm.
+
+- **A `SubscriptionBundleRepository` of your own** returns `BillingCycle | null`; the TypeScript
+  types say where. Map each row with `toSubscriptionBundleRecord` from `@saasicat/core`, which is
+  what the shipped adapters do, rather than casting the column.
+- **Code of your own** that calls `resolveBundlePriceNet` or `listForSubscription` on
+  `SubscriptionBundlesService`, or builds a `SubscriptionBundlePreviewContext`, passes a
+  `BillingCycle` where it passed a string.
+- **Rows already stored — check before deploying.** The column is text. This lists the rows that
+  would now be refused, and on an installation the platform alone has written it lists none:
+
+    ```sql
+    SELECT "id", "billingCycle" FROM "subscription_bundles"
+    WHERE "billingCycle" IS NOT NULL AND "billingCycle" NOT IN ('MONTHLY', 'YEARLY');
+    ```
+
+    Set each row it returns to the rhythm the booking is actually billed in, before the release
+    runs. Every read of a booking goes through the check, the entitlement service's included, so a
+    row left as it is stops that tenant's feature and quota checks as well as its add-on prices, with
+    an error naming the row.
+
+- **Your persistence contract harness** gains a seed writer, `setBookingCycle`, which takes a
+  booking's id and a value and overwrites the booking's `billingCycle` with it — the shipped
+  harnesses do it with one update. A harness without it declares
+  `gaps: ['foreignBookingCycleSeed']`.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

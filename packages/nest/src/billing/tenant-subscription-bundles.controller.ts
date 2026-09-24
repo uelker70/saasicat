@@ -78,6 +78,18 @@ interface RequestLike {
     user?: { tenantId?: string | null } | null;
 }
 
+/**
+ * The rhythm the tenant's plan is billed in.
+ *
+ * The usage port types it as a string, but the column behind it is the
+ * `BillingCycle` enum in the canonical schema, so the database already holds it
+ * to the two values — unlike a booking's, which is text and is checked when
+ * the adapter reads it.
+ */
+function planCycleOf(sub: SubscriptionUsageRecord): BillingCycle {
+    return sub.billingCycle as BillingCycle;
+}
+
 // Auth stack, the same shape `tenant-billing.controller.ts` uses:
 //   - `ComposedTenantAuthGuard` (always): the consumer's own auth guards.
 //   - `TenantAdminGuard` (the three routes that cost money): additionally
@@ -132,7 +144,7 @@ export function buildTenantSubscriptionBundlesController(
             return this.service.listForSubscription(
                 this.requireSubscriptionPk(sub),
                 sub.plan,
-                sub.billingCycle,
+                planCycleOf(sub),
             );
         }
 
@@ -170,7 +182,7 @@ export function buildTenantSubscriptionBundlesController(
                 // A bundle cannot commit past the subscription paying for it.
                 parentEndsAt: sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
                 // And it runs in the plan's rhythm, on the plan's day.
-                planCycle: sub.billingCycle as BillingCycle,
+                planCycle: planCycleOf(sub),
                 planPeriodEnd: sub.currentPeriodEnd ?? null,
                 // Resolved rather than passed through: a null here would let
                 // the arithmetic read the period END, which a short month has
@@ -206,7 +218,7 @@ export function buildTenantSubscriptionBundlesController(
                 subscriptionId: this.requireSubscriptionPk(sub),
                 // Plan KEY (compatibility.planIds is key-based) — not the planVersion UUID.
                 currentPlanKey: sub.plan,
-                billingCycle: sub.billingCycle,
+                billingCycle: planCycleOf(sub),
                 status: sub.status,
                 startedAt: sub.startedAt,
                 currentPeriodStart: sub.currentPeriodStart,
@@ -360,7 +372,7 @@ export function buildTenantSubscriptionBundlesController(
                 await this.contractFreeze.freezeOnPlanChange(
                     tenantId,
                     sub.planVersion.planId,
-                    sub.billingCycle as BillingCycle,
+                    planCycleOf(sub),
                     new Date(),
                     // Cancelling a bundle stays open on a cancelled
                     // subscription, and it re-freezes: the replacement contract

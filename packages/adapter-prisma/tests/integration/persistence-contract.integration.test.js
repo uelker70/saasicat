@@ -235,6 +235,12 @@ function createHarness() {
                     data: { canceledAt: null },
                 });
             },
+            async setBookingCycle(subscriptionBundleId, billingCycle) {
+                await prisma.subscriptionBundle.update({
+                    where: { id: subscriptionBundleId },
+                    data: { billingCycle },
+                });
+            },
             async createSubscriber(input) {
                 const row = await prisma.subscriber.create({
                     data: { legalName: input.legalName },

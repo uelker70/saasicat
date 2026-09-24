@@ -304,6 +304,10 @@ const CONTRACT_GAPS: Record<
         reason: 'adapter harness cannot write the half-cancelled shape',
         present: ({ seed }) => Boolean(seed.clearBookingRequestDate),
     },
+    foreignBookingCycleSeed: {
+        reason: 'adapter harness cannot write a rhythm the platform never writes',
+        present: ({ seed }) => Boolean(seed.setBookingCycle),
+    },
     countByPlanVersionId: {
         reason: 'adapter does not implement countByPlanVersionId (fail-closed fallback)',
         present: ({ adapter }) => Boolean(adapter.subscriptionRepository.countByPlanVersionId),
@@ -915,6 +919,62 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(legacyReadBack.billingCycle, null);
             assert.equal(legacyReadBack.currentPeriodStart, null);
             assert.equal(legacyReadBack.currentPeriodEnd, null);
+        });
+
+        test('a booking whose rhythm is neither monthly nor yearly is refused when read', async (t) => {
+            // A price is chosen by asking whether the rhythm is yearly, so any
+            // other value would be billed monthly without a word. The column is
+            // text; what keeps it to the two values is the adapter reading it.
+            const repository = harness.adapter.subscriptionBundleRepository;
+            const { seed } = harness;
+            if (!repository || !seed.createBundleVersion) {
+                missing(t, 'bundleBookings');
+                return;
+            }
+            const setBookingCycle = seed.setBookingCycle;
+            if (!setBookingCycle) {
+                missing(t, 'foreignBookingCycleSeed');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: ['CORE'],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-foreign-cycle',
+                plan: 'PRO',
+                planVersionId,
+                billingCycle: 'YEARLY',
+            });
+            const { bundleVersionId } = await seed.createBundleVersion({
+                bundleKey: 'ANALYTICS',
+                features: ['REPORTS'],
+            });
+            const booking = await repository.add({
+                subscriptionId,
+                bundleVersionId,
+                startedAt: new Date('2026-02-21T00:00:00.000Z'),
+                minimumTermEndsAt: null,
+                billingCycle: 'YEARLY',
+            });
+            await setBookingCycle(booking.id, 'yearly');
+
+            const namesTheRow = (error: unknown): boolean =>
+                error instanceof Error &&
+                error.message.includes(`'${booking.id}' holds billingCycle 'yearly'`);
+            await assert.rejects(() => repository.findById(booking.id), namesTheRow);
+            await assert.rejects(() => repository.listBySubscription(subscriptionId), namesTheRow);
+            await assert.rejects(
+                () =>
+                    repository.listActiveBySubscription(
+                        subscriptionId,
+                        new Date('2026-03-01T00:00:00.000Z'),
+                    ),
+                namesTheRow,
+            );
         });
 
         test('a second cancellation of one booking is refused, not applied', async (t) => {
