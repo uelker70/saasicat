@@ -184,10 +184,9 @@ describe('a yearly subscription billed on the 31st', () => {
 });
 
 // @requirement SC-SUB-005 — The billing day is fixed when a period opens and is never rewritten by a renewal
-// @requirement SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
-describe('a plan change reopens the window', () => {
-    test('and the day the customer is billed on moves with it', () => {
-        // A change on the 5th makes the 5th the billing day. The window that
+describe('a window opened by a change', () => {
+    test('makes the day it opens on the day the customer is billed on', () => {
+        // A window opened on the 5th makes the 5th the billing day. The window that
         // opens is the anchor — which is why the platform derives it from
         // `periodStart` rather than carrying a second field that could differ.
         const window = initialPeriodWindow(new Date('2026-03-05T00:00:00.000Z'), 'MONTHLY');

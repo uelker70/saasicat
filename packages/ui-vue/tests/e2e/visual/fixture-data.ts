@@ -790,6 +790,8 @@ export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = {
     isImmediate: false,
     projectedTrialEndsAt: null,
     proration: {
+        basis: 'difference',
+        remainderNet: 0,
         daysRemainingInPeriod: 17,
         daysInPeriod: 31,
         periodStart: '2026-01-01T00:00:00.000Z',
