@@ -3963,6 +3963,7 @@ _Tested by:_
         - is charged the difference for what is left of the period
         - keeps the window and the billing day it runs in
         - is priced at what the contract bills, not at what the catalogue lists today
+        - a contract that still names another plan prices nothing, and the catalogue does
         - where the subscription has no period yet, is charged a first period in full
         - opens a window where the subscription has none to run inside
 - `packages/ui-vue-tenant/tests/component/an-upgrade-says-what-it-is-charged-for.test.ts`
