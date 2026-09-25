@@ -12,7 +12,7 @@
 //
 // Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
 
-import { after, before, describe, test } from 'node:test';
+import { after, before, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -34,6 +34,7 @@ const UPGRADE_STEP = new URL(
 
 let pool;
 let berlin;
+let utc;
 let redemptions;
 let planVersionId;
 let promoCodeId;
@@ -65,8 +66,13 @@ before(async () => {
     ({ pool } = await openDisposableDatabase({ max: 2 }));
     berlin = new pg.Pool({
         connectionString: process.env.SAASICAT_TEST_DATABASE_URL,
-        max: 2,
+        max: 4,
         options: `-c TimeZone=${ZONE}`,
+    });
+    utc = new pg.Pool({
+        connectionString: process.env.SAASICAT_TEST_DATABASE_URL,
+        max: 1,
+        options: '-c TimeZone=UTC',
     });
     redemptions = new DrizzlePromoCodeRedemptionRepository(drizzle(berlin));
 
@@ -87,6 +93,7 @@ before(async () => {
 });
 
 after(async () => {
+    await utc?.end();
     await berlin?.end();
     await pool?.end();
 });
@@ -157,9 +164,11 @@ describe('a terminated plan version ends when it ends, not hours before', () => 
 });
 
 describe('the upgrade step moves a redemption written before this version to UTC', () => {
-    test('once, and a second run leaves it where the first put it', async () => {
+    const step = readFileSync(UPGRADE_STEP, 'utf8');
+
+    /** A redemption written the way the adapter used to: `redeemedAt` left to `now()`. */
+    async function writtenTheOldWay() {
         const subscriptionId = await aSubscription();
-        // Written the way the adapter used to: `redeemedAt` left to `now()`.
         const from = new Date();
         await berlin.query(
             `INSERT INTO promo_code_redemptions
@@ -173,13 +182,63 @@ describe('the upgrade step moves a redemption written before this version to UTC
             (await redemptions.findBySubscription(subscriptionId)).redeemedAt;
         const written = await redeemedAt();
         assert.ok(written > to, `the old write is not off at all: ${written.toISOString()}`);
+        return { from, to, redeemedAt };
+    }
 
-        const step = readFileSync(UPGRADE_STEP, 'utf8');
+    const marked = async () =>
+        (
+            await pool.query(
+                `SELECT col_description('promo_code_redemptions'::regclass, attnum) AS mark
+                   FROM pg_attribute
+                  WHERE attrelid = 'promo_code_redemptions'::regclass AND attname = 'redeemedAt'`,
+            )
+        ).rows[0].mark;
+
+    // Each case starts from a column no run has converted yet.
+    beforeEach(async () => {
+        await pool.query('COMMENT ON COLUMN promo_code_redemptions."redeemedAt" IS NULL');
+    });
+
+    test('once, and a second run leaves it where the first put it', async () => {
+        const { from, to, redeemedAt } = await writtenTheOldWay();
+
         await berlin.query(step);
         const converted = await redeemedAt();
         await berlin.query(step);
 
         assertBetween('after the step', converted, from, to);
         assert.equal((await redeemedAt()).toISOString(), converted.toISOString());
+    });
+
+    test('a run in UTC by mistake converts nothing and marks nothing, so the right run still converts', async () => {
+        const { from, to, redeemedAt } = await writtenTheOldWay();
+        const late = await redeemedAt();
+
+        await utc.query(step);
+
+        assert.equal((await redeemedAt()).toISOString(), late.toISOString());
+        assert.equal(await marked(), null);
+        await berlin.query(step);
+        assertBetween('after the right run', await redeemedAt(), from, to);
+    });
+
+    test('two runs at the same time convert it once', async () => {
+        const { from, to, redeemedAt } = await writtenTheOldWay();
+        const first = await berlin.connect();
+        const second = await berlin.connect();
+        try {
+            await first.query('BEGIN');
+            await first.query(step);
+            // The second run starts while the first has not committed.
+            const secondRun = second.query(step);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            await first.query('COMMIT');
+            await secondRun;
+        } finally {
+            first.release();
+            second.release();
+        }
+
+        assertBetween('after both runs', await redeemedAt(), from, to);
     });
 });

@@ -33,5 +33,5 @@ contract, and one carried forward into later contracts does not start again
   outside UTC put them hours off, because the canonical columns carry no time
   zone. An installation whose session runs outside UTC converts its old
   redemptions once with
-  `sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql`, before the new
-  version starts.
+  `sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql`, after the old
+  version has stopped and before the new one starts.

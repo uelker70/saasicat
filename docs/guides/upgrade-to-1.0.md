@@ -1876,20 +1876,26 @@ contract concluded from an offer.
   plan version's end is compared with the application's clock too, rather than with the database's
   `NOW()`.
 - **With `@saasicat/adapter-drizzle` and a database session outside UTC, convert the old
-  redemptions before the new version starts.** The contract freeze compares a redemption's
+  redemptions between the two versions.** The contract freeze compares a redemption's
   `redeemedAt` with a contract's `createdAt`. Written before this version, `redeemedAt` is hours
-  off, and east of UTC an old code would be recorded, and its discount start, again. Run this
-  once, in a session with the zone the application's sessions use — the database's default
-  unless the application sets one:
+  off, and east of UTC an old code would be recorded, and its discount start, again. Check the
+  zone with `SHOW TimeZone` through the application's own connection, then run this once in a
+  session with that zone:
 
     ```bash
     psql "$DATABASE_URL" -f node_modules/@saasicat/adapter-drizzle/sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql
     ```
 
-    It marks the column when it has converted it and does nothing on a second run. Run it before
-    the new version writes a redemption, which is already in UTC and would be moved too. A session
-    in UTC needs nothing, and an installation on `@saasicat/adapter-prisma` does not run it: there
-    both columns come from the same clock.
+    Run it after the last instance of the old version has stopped and before the first instance
+    of the new one starts. The old version writes wall time, which the step no longer converts
+    once it has marked the column; the new version writes UTC, which the step would move. In a
+    rolling deployment there is no such moment, so pause onboarding for the step. It locks the
+    table while it runs, marks the column, and does nothing on a second run, whether after the
+    first or at the same time. In a session that is in UTC it converts nothing and marks nothing,
+    so a run there by mistake does not stand in the way of the right one. A redemption written in
+    the hour a zone repeats when its clocks go back can stay an hour off: that hour happened twice.
+    An installation on `@saasicat/adapter-prisma` does not run it, since there both columns come
+    from the same clock, and neither does one whose older rows were written by it.
 
 - **Contracts you write yourself** record what you give them; the freeze does not touch them. The
   subscriber's account now reads their discount lines too: a line without the snapshot a
