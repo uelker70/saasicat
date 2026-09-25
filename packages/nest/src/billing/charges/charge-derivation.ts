@@ -273,13 +273,12 @@ function deriveDiscountCharges(
     const discounts = concluded.lineItems.filter((item) => item.kind === 'discount');
     if (discounts.length === 0) return [];
 
-    // Counted from the first plan period of the account that ends after the
-    // offer was concluded, whichever contract prices it: an offer concluded
-    // during a trial is discounted from the first period that is paid, and a
-    // contract written in between — an add-on booked in the trial — does not
-    // take the discount with it.
+    // Counted from the first plan period the offer applies to, whichever
+    // contract prices it: an offer concluded during a trial is discounted from
+    // the first period that is paid, and a contract written in between — an
+    // add-on booked in the trial — does not take the discount with it.
     const { subscription } = input;
-    const first = firstPlanPeriodEndingAfter(concluded.effectiveFrom, input.written, planCharges);
+    const first = firstPeriodConcludedFor(concluded, input.written, planCharges);
     if (!first) return [];
 
     const charges: NewSubscriberCharge[] = [];
@@ -489,20 +488,25 @@ function firstPlanPeriodStart(
 }
 
 /**
- * The start of the first plan period that ends after `at`, among those already
- * written and those about to be.
+ * The start of the first plan period a concluded offer applies to, among those
+ * already written and those about to be: one that ends after the offer was
+ * concluded, and either starts after it or is priced by it. A period that
+ * began under an earlier contract and is priced by it is that contract's, even
+ * where the offer was concluded while it ran.
  */
-function firstPlanPeriodEndingAfter(
-    at: Date,
+function firstPeriodConcludedFor(
+    concluded: SubscriptionContractRecord,
     written: readonly SubscriberChargeRecord[],
     due: readonly NewSubscriberCharge[],
 ): Date | null {
+    const at = concluded.effectiveFrom;
     let first: Date | null = null;
     const planPeriods = written.filter(
         (charge) => charge.source === 'plan' && PERIOD_ORIGINS.includes(charge.origin),
     );
     for (const charge of [...planPeriods, ...due]) {
         if (charge.periodEnd <= at) continue;
+        if (charge.periodStart < at && charge.contractId !== concluded.id) continue;
         if (!first || charge.periodStart < first) first = charge.periodStart;
     }
     return first;

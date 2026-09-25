@@ -824,7 +824,8 @@ a contract line to be charged under.
 
 What it does not do yet: charge an immediate plan change — the difference an upgrade in the same
 rhythm adds to the period already charged (`SC-CHG-020`), or the new period an upgrade into a longer
-rhythm starts, less the unused rest (`SC-CHG-021`) — collect anything, or show the account on a
+rhythm starts, less the unused rest (`SC-CHG-021`) — take off a promo code redeemed through the
+onboarding route, whose contract does not record it yet, collect anything, or show the account on a
 screen.
 
 ## Admin Module
