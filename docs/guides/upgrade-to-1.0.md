@@ -1872,8 +1872,25 @@ contract concluded from an offer.
   redemption, however much later that is.
 - **With `@saasicat/adapter-drizzle`**, the moments the database used to fill — `createdAt`,
   `redeemedAt` and the others — are written on the application's clock. Left to the database, a
-  session outside UTC stored them hours off, because the canonical columns carry no time zone.
-  Rows written before keep what they have.
+  session outside UTC stored them hours off, because the canonical columns carry no time zone. A
+  plan version's end is compared with the application's clock too, rather than with the database's
+  `NOW()`.
+- **With `@saasicat/adapter-drizzle` and a database session outside UTC, convert the old
+  redemptions before the new version starts.** The contract freeze compares a redemption's
+  `redeemedAt` with a contract's `createdAt`. Written before this version, `redeemedAt` is hours
+  off, and east of UTC an old code would be recorded, and its discount start, again. Run this
+  once, in a session with the zone the application's sessions use — the database's default
+  unless the application sets one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/adapter-drizzle/sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql
+    ```
+
+    It marks the column when it has converted it and does nothing on a second run. Run it before
+    the new version writes a redemption, which is already in UTC and would be moved too. A session
+    in UTC needs nothing, and an installation on `@saasicat/adapter-prisma` does not run it: there
+    both columns come from the same clock.
+
 - **Contracts you write yourself** record what you give them; the freeze does not touch them. The
   subscriber's account now reads their discount lines too: a line without the snapshot a
   generated one carries is taken off once, in the first period after the earliest contract that

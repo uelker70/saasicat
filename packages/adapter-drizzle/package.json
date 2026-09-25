@@ -20,7 +20,8 @@
         "./package.json": "./package.json"
     },
     "files": [
-        "dist"
+        "dist",
+        "sql"
     ],
     "scripts": {
         "build": "node ../../scripts/build-and-prune.mjs tsup",
