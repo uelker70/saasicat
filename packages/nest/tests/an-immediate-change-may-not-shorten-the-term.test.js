@@ -130,7 +130,6 @@ function shouldBeImmediate({ fromPlan, fromCycle, toPlan, toCycle }) {
 }
 
 // @requirement SC-CHG-002 — An immediate change may improve the service; it may not shorten the commitment
-// @requirement SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 describe('an immediate change may not shorten the term', () => {
     const rows = everyCombination();
 

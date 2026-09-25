@@ -123,8 +123,8 @@ _Tested by:_
     - a subscription billed on an ordinary day
         - is billed on that day in every month, long or short
         - and the first of the month is not confused with the last of the one before
-    - a plan change reopens the window
-        - and the day the customer is billed on moves with it
+    - a window opened by a change
+        - makes the day it opens on the day the customer is billed on
     - an anchor that cannot be a day of a month
         - ${impossible} is treated as absent, not as a day
         - while a possible one is used

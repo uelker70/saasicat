@@ -68,6 +68,12 @@ _Tested by:_
         - a cheaper target after a price cut is free rather than a credit
         - an ordinary upgrade still costs what it costs
         - a change that costs exactly nothing is not a free upgrade
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - the unused rest at its edges
+        - on the first day of the period the whole of it is left
+        - on its last day nothing is left, and the new period costs its price
+        - a rest worth more than the new period makes it free, and nothing is paid out
+        - a rest worth exactly the new period costs nothing and is not free
 
 <!-- END proof -->
 
@@ -738,7 +744,7 @@ _Source:_ #214
 
 🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
 period opens with together, and a charge that arises later in the period, such as a bundle booked
-mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-003`), on an invoice of
+mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
 its own rather than added to one already issued. A charge correcting one on a cancelled invoice is
 the exception: it goes on that invoice's replacement (`SC-PRIC-025`). A billing period whose charges
 are all zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoice that

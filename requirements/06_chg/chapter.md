@@ -46,23 +46,67 @@ _Tested by:_
 
 ### SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 
-🟢 💰 The customer keeps the period they already paid for, the higher plan runs inside it, and only
-the difference is charged for what is left of it. So an immediate upgrade never lengthens the
-commitment.
+🔵 _(Superseded on 2026-09-24 by `SC-CHG-020`.)_ 💰 The customer keeps the period they already paid
+for, the higher plan runs inside it, and only the difference is charged for what is left of it. So
+an immediate upgrade never lengthens the commitment.
 
 _Source:_ #212
+
+### SC-CHG-020 — An immediate upgrade in the same rhythm runs inside the period already paid
+
+🟢 💰 The period and the day the customer is billed on stay. The higher plan applies from today, and
+only the difference is charged, for what is left of the period: Standard at 49 a month to Pro at 99
+on day 15 of 30 costs 25.00 now, and the next renewal on the usual day charges 99. So an immediate
+upgrade in the same rhythm never lengthens the commitment. A move into a longer rhythm is
+`SC-CHG-021`.
+
+_Source:_ #212 · #318
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
-- `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
-    - a plan change reopens the window
-        - and the day the customer is billed on moves with it
-- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - an immediate change may not shorten the term
-        - the matrix is complete
-        - ${label} takes effect ${expected ? 'now' : 'at term end'}
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - an immediate upgrade in the same rhythm
+        - is charged the difference for what is left of the period
+        - keeps the window and the billing day it runs in
+        - is priced at what the contract bills, not at what the catalogue lists today
+        - a contract that still names another plan prices nothing, and the catalogue does
+        - where the subscription has no period yet, is charged a first period in full
+        - opens a window where the subscription has none to run inside
+- `packages/ui-vue-tenant/tests/component/an-upgrade-says-what-it-is-charged-for.test.ts`
+    - the preview names what an upgrade is charged for
+        - in the same rhythm: the difference for what is left of the period
+
+<!-- END proof -->
+
+### SC-CHG-021 — An immediate upgrade into a longer rhythm starts today, less the unused rest
+
+🟢 💰 A year cannot run inside a month, so the new period begins on the day of the change and the day
+the customer is billed on becomes that day. It is charged in full, less what is left of the period
+it replaces at the price that was paid for it: Standard at 49 a month to Pro at 990 a year on day 15
+of 30 costs 990 − 24.50 = 965.50. The rest only reduces this charge and is never paid out
+(`SC-PRIC-003`).
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - an immediate upgrade into a longer rhythm
+        - is charged the new period in full, less the unused rest of the old one
+        - takes the unused rest at what the contract bills
+        - starts its period today, so the billing day becomes today
+    - the unused rest at its edges
+        - on the first day of the period the whole of it is left
+        - on its last day nothing is left, and the new period costs its price
+        - a rest worth more than the new period makes it free, and nothing is paid out
+        - a rest worth exactly the new period costs nothing and is not free
+- `packages/ui-vue-tenant/tests/component/an-upgrade-says-what-it-is-charged-for.test.ts`
+    - the preview names what an upgrade is charged for
+        - into a longer rhythm: the new period in full, and the rest it is reduced by
 
 <!-- END proof -->
 

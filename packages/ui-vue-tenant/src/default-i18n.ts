@@ -135,6 +135,9 @@ export interface TenantPlanSectionI18n {
     wizardProrationTitle: string;
     wizardProrationLine: string;
     wizardProrationDays: string;
+    /** An upgrade into a longer rhythm: its period starts today, less the unused rest. */
+    wizardNewPeriodLine: string;
+    wizardRemainderLine: string;
     wizardLimitsTitle: string;
     wizardLimitsUsed: string;
     wizardLimitsCurrent: string;
@@ -149,6 +152,7 @@ export interface TenantPlanSectionI18n {
     /** #17 — price overview in the confirm step. */
     wizardConfirmPriceTitle: string;
     wizardConfirmProratedNow: string;
+    wizardConfirmDueNow: string;
     wizardConfirmRecurringNext: string;
     wizardConfirmRecurringFrom: string;
     wizardConfirmPerCycleMonthly: string;
@@ -386,6 +390,8 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     wizardProrationTitle: 'Anteilige Abrechnung',
     wizardProrationLine: 'Mehrbetrag bis Periodenende:',
     wizardProrationDays: 'Tage',
+    wizardNewPeriodLine: 'Neue Periode ab heute:',
+    wizardRemainderLine: 'Abzüglich des nicht genutzten Rests der laufenden Periode:',
     wizardLimitsTitle: 'Limit-Vergleich',
     wizardLimitsUsed: 'Verbrauch',
     wizardLimitsCurrent: 'Aktuell',
@@ -399,6 +405,7 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     wizardConfirmInProgress: 'Wechsel läuft …',
     wizardConfirmPriceTitle: 'Preisübersicht',
     wizardConfirmProratedNow: 'Heute anteilig fällig',
+    wizardConfirmDueNow: 'Heute fällig',
     wizardConfirmRecurringNext: 'Regulär ab nächster Periode',
     wizardConfirmRecurringFrom: 'Regulär fällig ab',
     wizardConfirmPerCycleMonthly: 'pro Monat',
@@ -615,6 +622,8 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     wizardProrationTitle: 'Prorated billing',
     wizardProrationLine: 'Additional amount until the end of the period:',
     wizardProrationDays: 'days',
+    wizardNewPeriodLine: 'New period from today:',
+    wizardRemainderLine: 'Less the unused rest of the current period:',
     wizardLimitsTitle: 'Limit comparison',
     wizardLimitsUsed: 'Usage',
     wizardLimitsCurrent: 'Current',
@@ -628,6 +637,7 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     wizardConfirmInProgress: 'Changing …',
     wizardConfirmPriceTitle: 'Price overview',
     wizardConfirmProratedNow: 'Prorated amount due today',
+    wizardConfirmDueNow: 'Due today',
     wizardConfirmRecurringNext: 'Regular price from the next period',
     wizardConfirmRecurringFrom: 'Regular price due from',
     wizardConfirmPerCycleMonthly: 'per month',
@@ -748,6 +758,8 @@ export interface PlanChangeWizardI18n {
     prorationTitle: string;
     prorationLine: string;
     prorationDays: string;
+    newPeriodLine: string;
+    remainderLine: string;
     limitsTitle: string;
     limitsUsed: string;
     limitsCurrent: string;
@@ -773,6 +785,7 @@ export interface PlanChangeWizardI18n {
     confirmInProgress: string;
     confirmPriceTitle: string;
     confirmProratedNow: string;
+    confirmDueNow: string;
     confirmRecurringNext: string;
     confirmRecurringFrom: string;
     perCycleMonthly: string;
@@ -820,6 +833,8 @@ export function planChangeWizardI18n(i18n: TenantPlanSectionI18n): PlanChangeWiz
         prorationTitle: i18n.wizardProrationTitle,
         prorationLine: i18n.wizardProrationLine,
         prorationDays: i18n.wizardProrationDays,
+        newPeriodLine: i18n.wizardNewPeriodLine,
+        remainderLine: i18n.wizardRemainderLine,
         limitsTitle: i18n.wizardLimitsTitle,
         limitsUsed: i18n.wizardLimitsUsed,
         limitsCurrent: i18n.wizardLimitsCurrent,
@@ -845,6 +860,7 @@ export function planChangeWizardI18n(i18n: TenantPlanSectionI18n): PlanChangeWiz
         confirmInProgress: i18n.wizardConfirmInProgress,
         confirmPriceTitle: i18n.wizardConfirmPriceTitle,
         confirmProratedNow: i18n.wizardConfirmProratedNow,
+        confirmDueNow: i18n.wizardConfirmDueNow,
         confirmRecurringNext: i18n.wizardConfirmRecurringNext,
         confirmRecurringFrom: i18n.wizardConfirmRecurringFrom,
         perCycleMonthly: i18n.wizardConfirmPerCycleMonthly,

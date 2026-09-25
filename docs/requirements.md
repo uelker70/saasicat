@@ -112,7 +112,7 @@ properties it has while doing it.
 | 3   | Plans and their versions                     | `SC-PLAN-…`  | 26      |
 | 4   | Add-on bundles                               | `SC-BUN-…`   | 34      |
 | 5   | Subscriptions, terms and billing periods     | `SC-SUB-…`   | 18      |
-| 6   | Changing a plan                              | `SC-CHG-…`   | 19      |
+| 6   | Changing a plan                              | `SC-CHG-…`   | 21      |
 | 7   | Cancelling                                   | `SC-CANC-…`  | 22      |
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 58      |
@@ -132,8 +132,8 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 504 entries: 🟢 435 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
-🔵 3 superseded, 🔴 1 withdrawn.
+Of 506 entries: 🟢 436 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
 [SC-SCOPE-012](#sc-scope-012--a-tenant-holds-the-applications-data-the-subscriber-is-the-party-to-the-contract),
@@ -201,13 +201,14 @@ Of 504 entries: 🟢 435 stand today, 🟡 65 decided but not yet delivered, ⚪
 [SC-AUD-015](#sc-aud-015--an-archived-invoice-is-checked-against-the-checksum-recorded-when-it-was-rendered),
 [SC-AUD-016](#sc-aud-016--concluding-or-changing-a-contract-gives-the-subscriber-a-confirmation-to-keep)
 
-🔵 **Superseded** — [SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
+🔵 **Superseded** — [SC-CHG-003](#sc-chg-003--an-immediate-upgrade-extends-the-running-term-it-does-not-restart-it),
+[SC-ENTL-004](#sc-entl-004--once-a-contract-is-agreed-it-is-the-truth-about-what-the-tenant-may-do),
 [SC-MKT-009](#sc-mkt-009--at-most-one-plan-is-marked-as-the-recommended-one),
 [SC-CFG-026](#sc-cfg-026--the-record-of-the-applied-configuration-is-a-mirror-never-a-source)
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 504 requirements. Do not edit by hand:
+Generated from `requirements/` — 506 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -3579,8 +3580,8 @@ _Tested by:_
     - a subscription billed on an ordinary day
         - is billed on that day in every month, long or short
         - and the first of the month is not confused with the last of the one before
-    - a plan change reopens the window
-        - and the day the customer is billed on moves with it
+    - a window opened by a change
+        - makes the day it opens on the day the customer is billed on
     - an anchor that cannot be a day of a month
         - ${impossible} is treated as absent, not as a day
         - while a possible one is used
@@ -3944,23 +3945,67 @@ _Tested by:_
 
 ### SC-CHG-003 — An immediate upgrade extends the running term, it does not restart it
 
-🟢 💰 The customer keeps the period they already paid for, the higher plan runs inside it, and only
-the difference is charged for what is left of it. So an immediate upgrade never lengthens the
-commitment.
+🔵 _(Superseded on 2026-09-24 by `SC-CHG-020`.)_ 💰 The customer keeps the period they already paid
+for, the higher plan runs inside it, and only the difference is charged for what is left of it. So
+an immediate upgrade never lengthens the commitment.
 
 _Source:_ #212
+
+### SC-CHG-020 — An immediate upgrade in the same rhythm runs inside the period already paid
+
+🟢 💰 The period and the day the customer is billed on stay. The higher plan applies from today, and
+only the difference is charged, for what is left of the period: Standard at 49 a month to Pro at 99
+on day 15 of 30 costs 25.00 now, and the next renewal on the usual day charges 99. So an immediate
+upgrade in the same rhythm never lengthens the commitment. A move into a longer rhythm is
+`SC-CHG-021`.
+
+_Source:_ #212 · #318
 
 <!-- BEGIN proof -->
 
 _Tested by:_
 
-- `packages/nest/tests/a-billing-day-survives-a-short-month.test.js`
-    - a plan change reopens the window
-        - and the day the customer is billed on moves with it
-- `packages/nest/tests/an-immediate-change-may-not-shorten-the-term.test.js`
-    - an immediate change may not shorten the term
-        - the matrix is complete
-        - ${label} takes effect ${expected ? 'now' : 'at term end'}
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - an immediate upgrade in the same rhythm
+        - is charged the difference for what is left of the period
+        - keeps the window and the billing day it runs in
+        - is priced at what the contract bills, not at what the catalogue lists today
+        - a contract that still names another plan prices nothing, and the catalogue does
+        - where the subscription has no period yet, is charged a first period in full
+        - opens a window where the subscription has none to run inside
+- `packages/ui-vue-tenant/tests/component/an-upgrade-says-what-it-is-charged-for.test.ts`
+    - the preview names what an upgrade is charged for
+        - in the same rhythm: the difference for what is left of the period
+
+<!-- END proof -->
+
+### SC-CHG-021 — An immediate upgrade into a longer rhythm starts today, less the unused rest
+
+🟢 💰 A year cannot run inside a month, so the new period begins on the day of the change and the day
+the customer is billed on becomes that day. It is charged in full, less what is left of the period
+it replaces at the price that was paid for it: Standard at 49 a month to Pro at 990 a year on day 15
+of 30 costs 990 − 24.50 = 965.50. The rest only reduces this charge and is never paid out
+(`SC-PRIC-003`).
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - an immediate upgrade into a longer rhythm
+        - is charged the new period in full, less the unused rest of the old one
+        - takes the unused rest at what the contract bills
+        - starts its period today, so the billing day becomes today
+    - the unused rest at its edges
+        - on the first day of the period the whole of it is left
+        - on its last day nothing is left, and the new period costs its price
+        - a rest worth more than the new period makes it free, and nothing is paid out
+        - a rest worth exactly the new period costs nothing and is not free
+- `packages/ui-vue-tenant/tests/component/an-upgrade-says-what-it-is-charged-for.test.ts`
+    - the preview names what an upgrade is charged for
+        - into a longer rhythm: the new period in full, and the rest it is reduced by
 
 <!-- END proof -->
 
@@ -5112,6 +5157,12 @@ _Tested by:_
         - a cheaper target after a price cut is free rather than a credit
         - an ordinary upgrade still costs what it costs
         - a change that costs exactly nothing is not a free upgrade
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - the unused rest at its edges
+        - on the first day of the period the whole of it is left
+        - on its last day nothing is left, and the new period costs its price
+        - a rest worth more than the new period makes it free, and nothing is paid out
+        - a rest worth exactly the new period costs nothing and is not free
 
 <!-- END proof -->
 
@@ -5782,7 +5833,7 @@ _Source:_ #214
 
 🟡 _(Decided, not yet delivered.)_ 💰 Charges are invoiced when they arise: the charges a billing
 period opens with together, and a charge that arises later in the period, such as a bundle booked
-mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-003`), on an invoice of
+mid-period (`SC-BUN-003`) or the difference of an immediate upgrade (`SC-CHG-020`), on an invoice of
 its own rather than added to one already issued. A charge correcting one on a cancelled invoice is
 the exception: it goes on that invoice's replacement (`SC-PRIC-025`). A billing period whose charges
 are all zero is the other: it issues no invoice (`SC-PRIC-048`). Once means on one invoice that

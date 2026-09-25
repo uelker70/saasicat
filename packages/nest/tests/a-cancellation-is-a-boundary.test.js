@@ -115,6 +115,8 @@ function buildController(subscription, port, preview) {
 }
 
 const IMMEDIATE_UPGRADE = { isImmediate: true, effectiveAt: null, blockers: [] };
+/** An immediate upgrade the preview priced as a period of its own that starts today. */
+const IMMEDIATE_NEW_PERIOD = { ...IMMEDIATE_UPGRADE, proration: { basis: 'newPeriod' } };
 const request = { user: { tenantId: 't1', sub: 'u1' }, headers: {} };
 const changeTo = (controller) =>
     controller.changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
@@ -165,7 +167,7 @@ describe('a cancellation still to come', () => {
         // eleven months into.
         const port = writePort();
 
-        await changeTo(buildController(ending, port, IMMEDIATE_UPGRADE));
+        await changeTo(buildController(ending, port, IMMEDIATE_NEW_PERIOD));
 
         assert.equal(port.immediate.length, 1, 'the change was refused');
         assert.equal(port.immediate[0].periodStart, null);
@@ -174,10 +176,10 @@ describe('a cancellation still to come', () => {
 
     test('while an uncancelled subscription does get a fresh term', async () => {
         // The premise: without a cancellation the immediate branch still opens
-        // the window it is there to open.
+        // the window the preview priced as a new period.
         const port = writePort();
 
-        await changeTo(buildController(SUBSCRIPTION, port, IMMEDIATE_UPGRADE));
+        await changeTo(buildController(SUBSCRIPTION, port, IMMEDIATE_NEW_PERIOD));
 
         assert.notEqual(port.immediate[0].periodStart, null);
         assert.notEqual(port.immediate[0].periodEnd, null);
@@ -297,7 +299,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
         // The premise: what is locked is the rhythm, not the plan.
         const port = writePort();
 
-        await buildController(ending, port, IMMEDIATE_UPGRADE).changePlan(request, {
+        await buildController(ending, port, IMMEDIATE_NEW_PERIOD).changePlan(request, {
             plan: 'STANDARD',
             billingCycle: 'MONTHLY',
         });
@@ -312,7 +314,7 @@ describe('a cycle change while a cancellation is outstanding', () => {
         await buildController(
             { ...SUBSCRIPTION, billingCycle: 'MONTHLY' },
             port,
-            IMMEDIATE_UPGRADE,
+            IMMEDIATE_NEW_PERIOD,
         ).changePlan(request, { plan: 'STANDARD', billingCycle: 'YEARLY' });
 
         assert.equal(port.immediate.length, 1);

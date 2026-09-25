@@ -137,6 +137,14 @@ export interface PlanChangePreviewShape {
     /** Projected new trial end (ISO) after the change, otherwise null. */
     projectedTrialEndsAt: string | null;
     proration: {
+        /**
+         * `difference`: the new plan runs inside the period already paid, and
+         * `prorataDeltaNet` is the difference for what is left of it.
+         * `newPeriod`: a longer rhythm starts today, and `prorataDeltaNet` is
+         * its full price less `remainderNet`, the unused rest of the period.
+         */
+        basis: 'difference' | 'newPeriod';
+        remainderNet: number;
         daysRemainingInPeriod: number;
         daysInPeriod: number;
         periodStart: string;
