@@ -120,6 +120,10 @@ export interface ContractFreezeSourcePort {
      * own `billingCycle`. Pricing every line in the plan's rhythm puts a figure
      * on the contract that nobody is charged, and the contract is the evidence
      * of what was agreed.
+     *
+     * Each line names its booking's bundle version as `sourceVersionId`. The
+     * charge journal finds a booking's contract line by it, and a line without
+     * it leaves the booking uncharged.
      */
     loadBookedBundles(
         tenantId: string,

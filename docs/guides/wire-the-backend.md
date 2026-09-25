@@ -811,15 +811,16 @@ charged on the next call, one cycle at a time from where the account left off, a
 contract in force when it started. Nothing is charged during a trial, without a contract, before a
 period starts, or from the date a cancellation takes effect. A promo code's or a promotion's
 discount is charged for the periods it was concluded for, at the amount resolved then, counted from
-the first period the concluded contract prices.
+the account's first plan period that ends after it was concluded.
 
 An account with no charge yet begins with the window its subscription is in. Where the paid periods
 began is recorded nowhere a charge could be derived from — a contract may be concluded during a
 trial — so nothing before that window is guessed. That is why the job above charges before it moves
 a window: a window that moved on before anything charged it is not charged afterwards. An add-on is
-charged from its booking, but not from before the account begins. Where writing the contract failed
-after a booking, the next call writes it again, so that the booking has a contract line to be
-charged under.
+charged from its booking, but not from before the account begins; your freeze source names each
+booking's bundle version as `sourceVersionId` on its line, which is how the journal finds it. Where
+writing the contract failed after a booking, the next call writes it again, so that the booking has
+a contract line to be charged under.
 
 What it does not do yet: charge an immediate plan change — the difference an upgrade in the same
 rhythm adds to the period already charged (`SC-CHG-020`), or the new period an upgrade into a longer

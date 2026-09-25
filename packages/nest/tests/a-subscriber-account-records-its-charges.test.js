@@ -505,6 +505,54 @@ describe('a discount is charged for the periods it was concluded for', () => {
         );
     });
 
+    test('a contract written between the conclusion and the first paid period does not take it away', async () => {
+        const account = anAccount();
+        await account.contract({
+            effectiveFrom: utc('2025-12-05'),
+            offer: 'offer-1',
+            lineItems: [STANDARD(), discountLine(9.8, { promoCode: code('ONCE', null) })],
+        });
+        // An add-on booked on 20 December, still in the trial, writes the contract again.
+        await account.supersede(utc('2025-12-20'));
+        await account.contract({
+            effectiveFrom: utc('2025-12-20'),
+            lineItems: [STANDARD(), ARCHIVE()],
+        });
+
+        await account.charge(utc('2026-01-02'));
+
+        assert.deepEqual(
+            account.entries().filter(([, source]) => source === 'discount'),
+            [['2026-01-01', 'discount', 'activation', -9.8]],
+        );
+    });
+
+    test('an offer concluded as a period ends is discounted from the next one', async () => {
+        const account = anAccount({
+            subscription: {
+                startedAt: utc('2025-12-01'),
+                currentPeriodStart: utc('2025-12-01'),
+                currentPeriodEnd: utc('2026-01-01'),
+            },
+        });
+        await account.contract({ effectiveFrom: utc('2025-12-01'), lineItems: [STANDARD()] });
+        await account.charge(utc('2025-12-02'));
+        await account.supersede(utc('2026-01-01'));
+        await account.contract({
+            effectiveFrom: utc('2026-01-01'),
+            offer: 'offer-1',
+            lineItems: [STANDARD(), discountLine(9.8, { promoCode: code('ONCE', null) })],
+        });
+
+        account.roll(utc('2026-01-01'), utc('2026-02-01'));
+        await account.charge(utc('2026-01-02'));
+
+        assert.deepEqual(
+            account.entries().filter(([, source]) => source === 'discount'),
+            [['2026-01-01', 'discount', 'renewal', -9.8]],
+        );
+    });
+
     test('a contract written again later, which carries no discount line, does not end it', async () => {
         const account = anAccount();
         await account.contract({
@@ -598,10 +646,36 @@ describe('an add-on is charged even where writing its contract failed', () => {
             currentPeriodStart: null,
             currentPeriodEnd: null,
         });
+        // Started as its contract took effect: written with it, not after it.
+        account.book({
+            bundleVersionId: 'bv-with-its-contract',
+            startedAt: utc('2026-01-01'),
+            currentPeriodStart: utc('2026-01-01'),
+        });
 
         await account.charge(utc('2026-01-22'));
 
         assert.equal(freeze.calls.length, 0);
+    });
+
+    test('a source that does not name the booking has the contract written once, not on every call', async () => {
+        let account;
+        const freeze = {
+            calls: 0,
+            async freezeOnPlanChange(tenantId, plan, cycle, at) {
+                freeze.calls += 1;
+                await account.supersede(at);
+                await account.contract({ effectiveFrom: at, lineItems: [STANDARD()] });
+            },
+        };
+        account = anAccount({ freeze });
+        await account.contract({ lineItems: [STANDARD()] });
+        account.book();
+
+        await account.charge(utc('2026-01-22'));
+        await account.charge(utc('2026-01-23'));
+
+        assert.equal(freeze.calls, 1);
     });
 
     test('nor in a trial, nor once the subscription has ended', async () => {

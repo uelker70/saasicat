@@ -5719,6 +5719,7 @@ _Tested by:_
     - an add-on is charged even where writing its contract failed
         - the journal writes the contract the booking missed, and charges the add-on under it
         - only a running add-on the contract misses makes the journal write one
+        - a source that does not name the booking has the contract written once, not on every call
         - nor in a trial, nor once the subscription has ended
         - a contract write that fails leaves the rest of the account charged
 - `packages/nest/tests/onboarding-subscription.test.js`
@@ -5791,6 +5792,8 @@ _Tested by:_
         - an intro price for two months, in months one and two
         - a discount line that says nothing of its duration, once
         - an offer concluded during a trial is discounted from the first paid period
+        - a contract written between the conclusion and the first paid period does not take it away
+        - an offer concluded as a period ends is discounted from the next one
         - a contract written again later, which carries no discount line, does not end it
 
 <!-- END proof -->

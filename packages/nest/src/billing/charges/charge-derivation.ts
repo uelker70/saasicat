@@ -94,6 +94,11 @@ export function deriveDueCharges(input: ChargeDerivationInput): NewSubscriberCha
  * contract write that failed after a booking leaves behind. Empty where no
  * contract is in force: a subscription without one gets no charges, and no
  * contract either, from here.
+ *
+ * Only a booking that started after that contract took effect. A contract
+ * written after the booking that still does not name it came from a source
+ * that does not name bookings (`sourceVersionId`), and writing it again would
+ * write the same contract on every call.
  */
 export function bookingsTheContractMisses(
     contracts: readonly SubscriptionContractRecord[],
@@ -104,6 +109,7 @@ export function bookingsTheContractMisses(
     if (!inForce) return [];
     return bookings.filter(
         (booking) =>
+            inForce.effectiveFrom < booking.startedAt &&
             booking.currentPeriodEnd !== null &&
             (booking.canceledEffectiveAt === null || booking.canceledEffectiveAt > now) &&
             !inForce.lineItems.some(
@@ -267,11 +273,13 @@ function deriveDiscountCharges(
     const discounts = concluded.lineItems.filter((item) => item.kind === 'discount');
     if (discounts.length === 0) return [];
 
-    // Counted from the first plan period the concluded contract prices, not
-    // from the day it was concluded: an offer concluded during a trial is
-    // discounted from the first period that is paid.
+    // Counted from the first plan period of the account that ends after the
+    // offer was concluded, whichever contract prices it: an offer concluded
+    // during a trial is discounted from the first period that is paid, and a
+    // contract written in between — an add-on booked in the trial — does not
+    // take the discount with it.
     const { subscription } = input;
-    const first = firstPricedBy(concluded.id, input.written, planCharges);
+    const first = firstPlanPeriodEndingAfter(concluded.effectiveFrom, input.written, planCharges);
     if (!first) return [];
 
     const charges: NewSubscriberCharge[] = [];
@@ -481,20 +489,20 @@ function firstPlanPeriodStart(
 }
 
 /**
- * The start of the first plan period a contract prices, among those already
+ * The start of the first plan period that ends after `at`, among those already
  * written and those about to be.
  */
-function firstPricedBy(
-    contractId: string,
+function firstPlanPeriodEndingAfter(
+    at: Date,
     written: readonly SubscriberChargeRecord[],
-    due: readonly { contractId: string; periodStart: Date }[],
+    due: readonly NewSubscriberCharge[],
 ): Date | null {
     let first: Date | null = null;
     const planPeriods = written.filter(
         (charge) => charge.source === 'plan' && PERIOD_ORIGINS.includes(charge.origin),
     );
     for (const charge of [...planPeriods, ...due]) {
-        if (charge.contractId !== contractId) continue;
+        if (charge.periodEnd <= at) continue;
         if (!first || charge.periodStart < first) first = charge.periodStart;
     }
     return first;
