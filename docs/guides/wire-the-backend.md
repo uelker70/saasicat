@@ -821,8 +821,10 @@ charged from its booking, but not from before the account begins. Where writing 
 after a booking, the next call writes it again, so that the booking has a contract line to be
 charged under.
 
-What it does not do yet: charge what an immediate plan change adds, collect anything, or show the
-account on a screen.
+What it does not do yet: charge an immediate plan change — the difference an upgrade in the same
+rhythm adds to the period already charged (`SC-CHG-020`), or the new period an upgrade into a longer
+rhythm starts, less the unused rest (`SC-CHG-021`) — collect anything, or show the account on a
+screen.
 
 ## Admin Module
 
