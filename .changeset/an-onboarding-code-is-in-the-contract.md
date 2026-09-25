@@ -1,5 +1,6 @@
 ---
 '@saasicat/nest': patch
+'@saasicat/adapter-drizzle': patch
 ---
 
 A promo code redeemed at onboarding is recorded in the contract
@@ -26,3 +27,7 @@ contract, and one carried forward into later contracts does not start again
   discount from the first period that is paid.
 - `promoCodeDiscountNet` in `@saasicat/nest/promo` resolves what a code takes
   off a plan's net price; offers and contracts use it alike.
+- `@saasicat/adapter-drizzle` writes the moments the database used to fill —
+  `createdAt`, `redeemedAt` and the others — on the application's clock. Left
+  to the database, a session outside UTC stored them hours off, because the
+  canonical columns carry no time zone.

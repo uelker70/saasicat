@@ -25,6 +25,19 @@ import {
 
 const ts = (name: string) => timestamp(name, { precision: 3, mode: 'date' });
 
+/**
+ * The moment a row is written, on the application's clock.
+ *
+ * The canonical columns are `timestamp` without a time zone. Left to the
+ * database, `now()` is stored as the session's wall time, and Drizzle reads it
+ * back as UTC — so a database session outside UTC puts the column hours off,
+ * and a comparison with a time the application wrote goes the wrong way.
+ */
+const writtenAt = (name: string) =>
+    ts(name)
+        .notNull()
+        .$defaultFn(() => new Date());
+
 export const subscriptions = pgTable('subscriptions', {
     id: text('id').primaryKey(),
     tenantId: text('tenantId').notNull(),
@@ -72,7 +85,7 @@ export const subscriptions = pgTable('subscriptions', {
     pilotNote: text('pilotNote'),
     checkoutOfferId: text('checkoutOfferId'),
     packageSnapshot: jsonb('packageSnapshot'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
 
@@ -99,7 +112,7 @@ export const planVersions = pgTable('plan_versions', {
     endsAt: ts('endsAt'),
     createdByUserId: text('createdByUserId'),
     publishedByUserId: text('publishedByUserId'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
 
@@ -110,7 +123,7 @@ export const plans = pgTable('plans', {
     description: text('description'),
     icon: text('icon'),
     sortOrder: integer('sortOrder').notNull().default(0),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
     deletedAt: ts('deletedAt'),
 });
@@ -144,7 +157,7 @@ export const subscriptionContracts = pgTable('subscription_contracts', {
     subscriberSnapshot: jsonb('subscriberSnapshot').notNull(),
     issuerSnapshot: jsonb('issuerSnapshot'),
     partiesMigrated: boolean('partiesMigrated').notNull().default(false),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
 
@@ -168,7 +181,7 @@ export const contractLineItems = pgTable('contract_line_items', {
     featuresSnapshot: jsonb('featuresSnapshot').notNull(),
     quotaEffectsSnapshot: jsonb('quotaEffectsSnapshot').notNull(),
     metadata: jsonb('metadata'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
 });
 
 export const featureCatalogEntries = pgTable('feature_catalog_entries', {
@@ -191,7 +204,7 @@ export const featureCatalogEntries = pgTable('feature_catalog_entries', {
     plannedOnly: boolean('plannedOnly').notNull().default(false),
     i18n: jsonb('i18n').notNull().default({}),
     sortOrder: integer('sortOrder').notNull().default(0),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
     deletedAt: ts('deletedAt'),
 });
@@ -218,7 +231,7 @@ export const promoCodes = pgTable('promo_codes', {
     campaignTag: text('campaignTag'),
     revenueDeductionAccount: text('revenueDeductionAccount'),
     createdById: text('createdById').notNull(),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
     deletedAt: ts('deletedAt'),
 });
@@ -235,7 +248,7 @@ export const promoCodeRedemptions = pgTable('promo_code_redemptions', {
     startsAt: ts('startsAt').notNull(),
     endsAt: ts('endsAt'),
     status: text('status').notNull().default('ACTIVE'),
-    redeemedAt: ts('redeemedAt').notNull().defaultNow(),
+    redeemedAt: writtenAt('redeemedAt'),
     reversedAt: ts('reversedAt'),
 });
 
@@ -245,7 +258,7 @@ export const promoCodeHolds = pgTable('promo_code_holds', {
     checkoutOfferId: text('checkoutOfferId').notNull(),
     expiresAt: ts('expiresAt').notNull(),
     handedOverTx: bigint('handedOverTx', { mode: 'bigint' }),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
 });
 
 export const promoCodeValidationLogs = pgTable('promo_code_validation_logs', {
@@ -255,7 +268,7 @@ export const promoCodeValidationLogs = pgTable('promo_code_validation_logs', {
     ipHash: text('ipHash'),
     sessionId: text('sessionId'),
     result: text('result').notNull(),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
 });
 
 export const auditLogs = pgTable('audit_logs', {
@@ -269,7 +282,7 @@ export const auditLogs = pgTable('audit_logs', {
     actorTag: text('actorTag'),
     ipAddress: text('ipAddress'),
     userAgent: text('userAgent'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
 });
 
 export const superAdminUsers = pgTable('super_admin_users', {
@@ -282,7 +295,7 @@ export const superAdminUsers = pgTable('super_admin_users', {
     isActive: boolean('isActive').notNull().default(true),
     lastLoginAt: ts('lastLoginAt'),
     deletedAt: ts('deletedAt'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
 
@@ -308,7 +321,7 @@ export const bundles = pgTable('bundles', {
     icon: text('icon'),
     sortOrder: integer('sortOrder').notNull().default(0),
     i18n: jsonb('i18n').notNull(),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
     deletedAt: ts('deletedAt'),
 });
@@ -336,7 +349,7 @@ export const bundleVersions = pgTable('bundle_versions', {
     validUntil: ts('validUntil'),
     createdByUserId: text('createdByUserId'),
     publishedByUserId: text('publishedByUserId'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
 
@@ -355,7 +368,7 @@ export const subscriptionBundles = pgTable('subscription_bundles', {
     currentPeriodEnd: ts('currentPeriodEnd'),
     canceledAt: ts('canceledAt'),
     canceledEffectiveAt: ts('canceledEffectiveAt'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
 
@@ -409,7 +422,7 @@ export const subscribers = pgTable('subscribers', {
     country: text('country'),
     invoiceEmail: text('invoiceEmail'),
     migrated: boolean('migrated').notNull().default(false),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
     updatedAt: ts('updatedAt').notNull(),
 });
 
@@ -417,7 +430,7 @@ export const subscriberTenants = pgTable('subscriber_tenants', {
     id: text('id').primaryKey(),
     subscriberId: text('subscriberId').notNull(),
     tenantId: text('tenantId').notNull(),
-    linkedAt: ts('linkedAt').notNull().defaultNow(),
+    linkedAt: writtenAt('linkedAt'),
     unlinkedAt: ts('unlinkedAt'),
 });
 
@@ -445,7 +458,7 @@ export const subscriberPaymentMethodSetups = pgTable('subscriber_payment_method_
     gatewayAccount: text('gatewayAccount').notNull(),
     sessionRef: text('sessionRef').notNull(),
     customerRef: text('customerRef').notNull(),
-    startedAt: ts('startedAt').notNull().defaultNow(),
+    startedAt: writtenAt('startedAt'),
     completedAt: ts('completedAt'),
 });
 
@@ -457,7 +470,7 @@ export const paymentEventLog = pgTable('PaymentEventLog', {
     sessionId: text('sessionId'),
     status: text('status').notNull(),
     payload: jsonb('payload'),
-    processedAt: ts('processedAt').notNull().defaultNow(),
+    processedAt: writtenAt('processedAt'),
 });
 
 // The subscriber's account: one charge per contract line and period, written
@@ -478,7 +491,7 @@ export const subscriberLedgerEntries = pgTable('subscriber_ledger_entries', {
     currency: text('currency').notNull(),
     amountNet: numeric('amountNet', { precision: 10, scale: 2 }).notNull(),
     bookedAt: ts('bookedAt').notNull(),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
 });
 
 export const subscriberPaymentMethods = pgTable('subscriber_payment_methods', {
@@ -499,5 +512,5 @@ export const subscriberPaymentMethods = pgTable('subscriber_payment_methods', {
     status: text('status').notNull().default('ACTIVE'),
     confirmedAt: ts('confirmedAt').notNull(),
     replacedAt: ts('replacedAt'),
-    createdAt: ts('createdAt').notNull().defaultNow(),
+    createdAt: writtenAt('createdAt'),
 });

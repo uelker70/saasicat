@@ -815,7 +815,10 @@ account's first plan period that ends after it was agreed: where an offer was co
 code redeemed at onboarding was recorded in the first contract after it. Each discount counts from
 the earliest contract that records it, so one your application copies into contracts it writes
 itself does not start again. A window an earlier contract prices — one written during a trial
-before the code was redeemed — is that contract's, and the discount starts with the next period.
+before the code was redeemed — is that contract's, and the discount starts with the next period. A
+code redeemed at onboarding during a trial is recorded by the contract your application writes when
+it activates the subscription, through `ContractFreezePort.freezeOnPlanChange`: the platform writes
+none when a trial ends.
 
 An account with no charge yet begins with the window its subscription is in. Where the paid periods
 began is recorded nowhere a charge could be derived from — a contract may be concluded during a

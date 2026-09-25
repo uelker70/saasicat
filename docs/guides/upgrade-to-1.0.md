@@ -1866,6 +1866,14 @@ contract concluded from an offer.
 
 - **Nothing to change** where `contractFreeze` writes your contracts and `PromoCodesModule` is
   visible to `TenantBillingModule` — the same condition under which onboarding redeems a code.
+- **Activation after a trial is yours to write.** The platform writes no contract when a trial
+  ends; your application does, through `ContractFreezePort.freezeOnPlanChange`, and that contract
+  records the code. Without it, the code goes into whichever contract is written first after the
+  redemption, however much later that is.
+- **With `@saasicat/adapter-drizzle`**, the moments the database used to fill — `createdAt`,
+  `redeemedAt` and the others — are written on the application's clock. Left to the database, a
+  session outside UTC stored them hours off, because the canonical columns carry no time zone.
+  Rows written before keep what they have.
 - **Contracts you write yourself** record what you give them; the freeze does not touch them. The
   subscriber's account now reads their discount lines too: a line without the snapshot a
   generated one carries is taken off once, in the first period after the earliest contract that
