@@ -810,8 +810,12 @@ charge is written once for its contract line, period and origin. A period your j
 charged on the next call, one cycle at a time from where the account left off, at the price of the
 contract in force when it started. Nothing is charged during a trial, without a contract, before a
 period starts, or from the date a cancellation takes effect. A promo code's or a promotion's
-discount is charged for the periods it was concluded for, at the amount resolved then, counted from
-the account's first plan period that ends after it was concluded.
+discount is charged for the periods it was agreed for, at the amount resolved then, counted from the
+account's first plan period that ends after it was agreed: where an offer was concluded, or where a
+code redeemed at onboarding was recorded in the first contract after it. Each discount counts from
+the earliest contract that records it, so one your application copies into contracts it writes
+itself does not start again. A window an earlier contract prices — one written during a trial
+before the code was redeemed — is that contract's, and the discount starts with the next period.
 
 An account with no charge yet begins with the window its subscription is in. Where the paid periods
 began is recorded nowhere a charge could be derived from — a contract may be concluded during a
@@ -824,8 +828,7 @@ a contract line to be charged under.
 
 What it does not do yet: charge an immediate plan change — the difference an upgrade in the same
 rhythm adds to the period already charged (`SC-CHG-020`), or the new period an upgrade into a longer
-rhythm starts, less the unused rest (`SC-CHG-021`) — take off a promo code redeemed through the
-onboarding route, whose contract does not record it yet, collect anything, or show the account on a
+rhythm starts, less the unused rest (`SC-CHG-021`) — collect anything, or show the account on a
 screen.
 
 ## Admin Module

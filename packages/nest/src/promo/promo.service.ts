@@ -79,6 +79,17 @@ function notRedeemable(reason: PromoPreviewInvalidReason): BadRequestException {
 
 export type PreviewInvalid = { valid: false; reason: PreviewReason };
 
+/** A code as it was applied to a subscription when it was redeemed. */
+export interface RedeemedPromoCode {
+    code: string;
+    valueType: PromoCodeRecord['valueType'];
+    /** Decimal-as-string, as the redemption recorded it. */
+    value: string;
+    durationType: PromoCodeRecord['durationType'];
+    durationValue: number | null;
+    redeemedAt: Date;
+}
+
 export interface PreviewValid {
     valid: true;
     code: string;
@@ -600,6 +611,32 @@ export class PromoCodesService {
             },
             tx,
         );
+    }
+
+    /**
+     * The code redeemed for a subscription, with the values it was redeemed
+     * at, unless the redemption was reversed — or null.
+     *
+     * An expired redemption still counts. Its term is counted from the
+     * subscription's start, which lies before a trial, while a contract counts
+     * a discount from the first period that is paid: a code for one month
+     * redeemed in a thirty-day trial has expired before the customer has paid
+     * for anything. A code deleted since still names what was agreed, so it is
+     * read without the refusal `findOne` gives.
+     */
+    async redeemedCodeFor(subscriptionId: string): Promise<RedeemedPromoCode | null> {
+        const redemption = await this.redemptionRepo.findBySubscription(subscriptionId);
+        if (!redemption || redemption.status === 'REVERSED') return null;
+        const promo = await this.promoRepo.findById(redemption.promoCodeId);
+        if (!promo) return null;
+        return {
+            code: promo.code,
+            valueType: redemption.appliedValueType,
+            value: redemption.appliedValue,
+            durationType: redemption.appliedDurationType,
+            durationValue: redemption.appliedDurationValue,
+            redeemedAt: redemption.redeemedAt,
+        };
     }
 
     async reverse(subscriptionId: string): Promise<PromoCodeRedemptionRecord | null> {

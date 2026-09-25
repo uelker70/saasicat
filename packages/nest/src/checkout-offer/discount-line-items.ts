@@ -45,7 +45,7 @@ function linesWithDiscount(input: AppendImplicitDiscountLineItemInput): LineWith
         return lineItemsWithoutGeneratedDiscount;
     }
 
-    return [...lineItemsWithoutGeneratedDiscount, createDiscountLineItem(input, discountNet)];
+    return [...lineItemsWithoutGeneratedDiscount, generatedDiscountLine(input, discountNet)];
 }
 
 export function cloneCheckoutOfferLineItem(item: CheckoutOfferLineItem): CheckoutOfferLineItem {
@@ -66,10 +66,18 @@ function withGrossShares(lines: LineWithoutGross[], vatRate: number): CheckoutOf
     });
 }
 
-function createDiscountLineItem(
-    input: AppendImplicitDiscountLineItemInput,
+/**
+ * The discount line a promo code or a promotion becomes, marked as generated
+ * and carrying the snapshots it was built from — which say how long the
+ * discount runs. One form, whether an offer or a contract freeze writes it.
+ */
+export function generatedDiscountLine(
+    input: Pick<
+        AppendImplicitDiscountLineItemInput,
+        'billingCycle' | 'promotionSnapshots' | 'promoCodeSnapshot'
+    >,
     discountNet: number,
-): LineWithoutGross {
+): Omit<CheckoutOfferLineItem, 'priceGross'> {
     const promoCode = input.promoCodeSnapshot ?? null;
     const firstPromotion = input.promotionSnapshots?.[0] ?? null;
 

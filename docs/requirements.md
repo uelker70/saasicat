@@ -117,7 +117,7 @@ properties it has while doing it.
 | 8   | Trials, pilots and negotiated arrangements   | `SC-SPEC-…`  | 9       |
 | 9   | Prices, proration, tax and money             | `SC-PRIC-…`  | 58      |
 | 10  | What a tenant may do at runtime              | `SC-ENTL-…`  | 21      |
-| 11  | Promotional codes                            | `SC-PROMO-…` | 24      |
+| 11  | Promotional codes                            | `SC-PROMO-…` | 25      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
 | 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 506 entries: 🟢 436 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 507 entries: 🟢 437 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 506 entries: 🟢 436 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 506 requirements. Do not edit by hand:
+Generated from `requirements/` — 507 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -5794,8 +5794,12 @@ _Tested by:_
         - an offer concluded during a trial is discounted from the first paid period
         - a contract written between the conclusion and the first paid period does not take it away
         - an offer concluded as a period ends is discounted from the next one
-        - an offer concluded a moment after its window opened is discounted in that window
+        - an offer concluded a moment after its window opened is discounted in that window, where no
+          earlier contract prices it
         - an offer concluded while a charged period runs is discounted from the next one
+        - a code redeemed at onboarding is taken off from the contract that records it
+        - two discounts agreed at different times each run from their own contract
+        - a discount a later contract carries forward counts from where it first appeared
         - a contract written again later, which carries no discount line, does not end it
 
 <!-- END proof -->
@@ -7300,6 +7304,13 @@ _Tested by:_
     - but an unknown region on a known language is not unusable
     - buildLabel does not police the currency, and says why
     - and a percentage ignores the currency, as its option says
+- `packages/nest/tests/promo-service.test.js`
+    - the code a subscription redeemed, as the contract records it
+        - with the values it was redeemed at, not the code as it reads now
+        - a code deleted since still names what was agreed
+        - nothing for a reversed redemption, or none at all
+        - an expired one still counts: its term ran from before the trial, a contract counts from
+          the first paid period
 
 <!-- END proof -->
 
@@ -7499,6 +7510,39 @@ _Tested by:_
 - `packages/payment-stripe/tests/a-payment-method-is-set-up-in-stripes-own-form.test.js`
     - the form is opened at Stripe
         - the session can be confirmed until its end plus the three days Stripe retries a webhook
+
+<!-- END proof -->
+
+### SC-PROMO-025 — A code redeemed without an offer is recorded in the first contract after it
+
+🟢 💰 A code redeemed at onboarding, rather than concluded with an offer, is part of what was
+agreed, so the first contract written after the redemption records it: a discount line with the
+values the code was redeemed at (`SC-PROMO-015`), resolved against the plan the way an offer
+resolves it. That is the contract onboarding writes, or — where onboarding went into a trial and
+wrote none — the one written when the subscription is activated; the discount runs for its
+duration from the first period that is paid, however long the trial was. Contracts written after it
+do not repeat it, and a contract concluded from an offer that carried the code already records it.
+Where this stops: a reversed redemption is not recorded; neither is one where a contract written
+since the redemption does not record it, because that contract was the first and a later one does
+not start the discount again; and without the promo module nothing is redeemed to record.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-redeemed-code-reaches-the-contract.test.js`
+    - the contract freeze sees the redeemed code in a composed container
+        - where the promo module is visible to tenant billing, the contract records the code
+        - where it is not, the freeze is handed no promo service and records none
+- `packages/nest/tests/subscription-contract-freeze-service.test.js`
+    - a code redeemed without an offer is recorded in the first contract after it
+        - as a discount line resolved against the plan, with the values it was redeemed at
+        - an amount larger than the plan takes off the plan, not more
+        - not again once a contract records it — an earlier freeze or the offer it came with
+        - not where a contract written since the redemption does not record it
+        - nothing without a redemption, or for a subscription the adapter gives no id
 
 <!-- END proof -->
 

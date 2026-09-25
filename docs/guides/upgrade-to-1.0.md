@@ -1852,6 +1852,25 @@ as 100, an amount above the plan's gross price as that price.
 - **An admin page of your own** that switches a code to a one-off discount sends
   `durationValue: null` with it; the shipped dialog does.
 
+### A promo code redeemed at onboarding is in the contract
+
+A code redeemed through the onboarding route was stored as a redemption, and the contract written
+after it named only the plan and the add-ons, at the list price. The first contract written after a
+redemption now records the code (`SC-PROMO-025`): a generated discount line, with the values it was
+redeemed at and the amount resolved against the plan the way an offer resolves it, and the code in
+`promoCodeSnapshots`. That is the contract onboarding writes, or the one written at activation where
+onboarding went into a trial. The contracts after it do not repeat the line, and a contract concluded
+from an offer that carried the code already records it. The subscriber's account takes the discount
+off from there: it reads each discount from the earliest contract that records it, not only from a
+contract concluded from an offer.
+
+- **Nothing to change** where `contractFreeze` writes your contracts and `PromoCodesModule` is
+  visible to `TenantBillingModule` — the same condition under which onboarding redeems a code.
+- **Contracts you write yourself** record what you give them; the freeze does not touch them. The
+  subscriber's account now reads their discount lines too: a line without the snapshot a
+  generated one carries is taken off once, in the first period after the earliest contract that
+  records it.
+
 ### A bundle booking's rhythm is `MONTHLY` or `YEARLY`
 
 The platform writes a booking's `billingCycle` only as `MONTHLY` or `YEARLY`, and prices the booking

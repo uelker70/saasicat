@@ -1,8 +1,11 @@
 import { Inject, Injectable, Optional, UnprocessableEntityException } from '@nestjs/common';
 import type {
     BillingCycle,
+    CheckoutOfferPromoCodeSnapshot,
     CreateSubscriptionContractData,
     SubscriptionContractPriceSnapshot,
+    SubscriptionContractRecord,
+    SubscriptionUsagePort,
     TenantSubscriptionWritePort,
 } from '@saasicat/core';
 
@@ -12,7 +15,13 @@ import { SubscriptionContractService } from '../subscription-contract/subscripti
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
-import { SUBSCRIPTION_WRITE_PORT_TOKEN } from './tenant-billing.tokens.js';
+import {
+    SUBSCRIPTION_USAGE_PORT_TOKEN,
+    SUBSCRIPTION_WRITE_PORT_TOKEN,
+} from './tenant-billing.tokens.js';
+import { generatedDiscountLine } from '../checkout-offer/discount-line-items.js';
+import { buildLabel, promoCodeDiscountNet } from '../promo/calculator.js';
+import { PromoCodesService } from '../promo/promo.service.js';
 import {
     findPlan,
     isPlanNotSoldInCycle,
@@ -60,6 +69,14 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         @Optional()
         @Inject(SUBSCRIPTION_WRITE_PORT_TOKEN)
         writes: TenantSubscriptionWritePort | null = null,
+        // Both optional: without the promo module nothing is redeemed, and the
+        // subscription is how a redemption is found.
+        @Optional()
+        @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
+        private readonly subscriptions: SubscriptionUsagePort | null = null,
+        @Optional()
+        @Inject(PromoCodesService)
+        private readonly promoCodes: PromoCodesService | null = null,
     ) {
         // Said once, at start. A write that does not bind is wrong for every
         // tenant at once, and each freeze would refuse on its own — caught and
@@ -160,14 +177,21 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             metadata: null,
         };
 
+        const redeemed = await this.redeemedCodeNotYetRecorded(
+            tenantId,
+            planPriceNet,
+            billingCycle,
+            vatRate,
+        );
+
         // One recording for every line, plan and add-on alike: the currency,
         // the rate and each line's share of the tax are the installation's, so
         // the place that knows them writes them once rather than each source
         // carrying its own copy.
-        const lineItems = recordContractLinesMoney([planLineItem, ...bundles.lineItems], {
-            currency: catalog.currency,
-            taxRate: vatRate,
-        });
+        const lineItems = recordContractLinesMoney(
+            [planLineItem, ...bundles.lineItems, ...(redeemed ? [redeemed.line] : [])],
+            { currency: catalog.currency, taxRate: vatRate },
+        );
         // Each line keeps the rhythm it is billed in; the total states one
         // period of the contract's own rhythm, so a monthly add-on beside a
         // yearly plan counts twelve times rather than once.
@@ -227,6 +251,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
                 ...(leftOutBundleVersionIds.length > 0 ? { leftOutBundleVersionIds } : {}),
             },
             priceSnapshot,
+            promoCodeSnapshots: redeemed ? [redeemed.snapshot] : [],
             lineItems,
         };
 
@@ -234,4 +259,84 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         // The next read uses the new contract snapshot.
         this.entitlements.invalidateTenant(tenantId);
     }
+
+    /**
+     * The code redeemed for the tenant's subscription, as a discount line, where
+     * no contract of the tenant records it yet.
+     *
+     * The first contract written after a redemption records it — at onboarding,
+     * or at the activation after a trial, where onboarding wrote none — and the
+     * ones after it do not repeat it: the discount runs from where it was first
+     * agreed, for the duration on its snapshot, counted from the first period
+     * that is paid. A contract concluded from an offer that carried the code
+     * already records it. Nothing is recorded without the promo module, for a
+     * reversed redemption, or where a contract written since the redemption
+     * does not record it: that was the first one, written before contracts
+     * recorded codes or by the application itself, and a later contract does
+     * not start the discount again.
+     */
+    private async redeemedCodeNotYetRecorded(
+        tenantId: string,
+        planPriceNet: number,
+        billingCycle: BillingCycle,
+        vatRate: number,
+    ): Promise<{ line: PricedContractLineItem; snapshot: CheckoutOfferPromoCodeSnapshot } | null> {
+        if (!this.promoCodes || !this.subscriptions) return null;
+        const subscription = await this.subscriptions.findForTenant(tenantId);
+        if (!subscription?.id) return null;
+        const redeemed = await this.promoCodes.redeemedCodeFor(subscription.id);
+        if (!redeemed) return null;
+        const recorded = await this.contracts.list({ tenantId });
+        if (
+            recorded.some(
+                (contract) =>
+                    recordsPromoCode(contract, redeemed.code) ||
+                    contract.createdAt > redeemed.redeemedAt,
+            )
+        ) {
+            return null;
+        }
+
+        const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
+        const snapshot: CheckoutOfferPromoCodeSnapshot = {
+            code: redeemed.code,
+            label: buildLabel(redeemed, billingCycle),
+            valueType: redeemed.valueType,
+            value: Number(redeemed.value),
+            resolvedAmountNet: promoCodeDiscountNet(planPriceNet, vatRate, redeemed),
+            durationType: redeemed.durationType,
+            durationValue: redeemed.durationValue,
+        };
+        const line = generatedDiscountLine(
+            { billingCycle: cycle, promoCodeSnapshot: snapshot, promotionSnapshots: [] },
+            snapshot.resolvedAmountNet,
+        );
+        return {
+            snapshot,
+            line: {
+                kind: line.kind,
+                sourceKey: line.sourceKey,
+                sourceVersionId: line.sourceVersionId ?? null,
+                titleSnapshot: line.titleSnapshot,
+                descriptionSnapshot: line.descriptionSnapshot ?? null,
+                quantity: line.quantity,
+                unit: line.unit ?? null,
+                priceNet: line.priceNet,
+                billingCycle: cycle,
+                minimumTermUntil: null,
+                featuresSnapshot: [],
+                quotaEffectsSnapshot: {},
+                metadata: line.metadata ?? null,
+            },
+        };
+    }
+}
+
+function recordsPromoCode(contract: SubscriptionContractRecord, code: string): boolean {
+    return contract.promoCodeSnapshots.some(
+        (snapshot) =>
+            snapshot !== null &&
+            typeof snapshot === 'object' &&
+            (snapshot as { code?: unknown }).code === code,
+    );
 }

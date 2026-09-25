@@ -5,7 +5,7 @@
 // consuming apps (including those working purely via the wire format).
 
 import type { BillingCycle, PromoCodeDurationType, PromoCodeValueType } from '@saasicat/core';
-import { round2 } from './math.js';
+import { grossFromNet, netFromGross, round2 } from './math.js';
 
 /** Structural view of a PromoCode for the calculator functions.
  *
@@ -29,6 +29,22 @@ export function computeDiscountGross(
         return round2((plan.gross * v) / 100);
     }
     return round2(v);
+}
+
+/**
+ * What a code takes off a plan's net price, in net: the discount is computed on
+ * the gross, the way the customer was shown it, capped at the price, and
+ * converted back. An offer and a contract resolve a code the same way, or the
+ * two state different amounts for one agreement.
+ */
+export function promoCodeDiscountNet(
+    planNet: number,
+    vatRate: number,
+    code: Pick<PromoCodeForCalc, 'valueType' | 'value'>,
+): number {
+    const planGross = grossFromNet(planNet, vatRate);
+    const discountGross = Math.min(computeDiscountGross({ gross: planGross }, code), planGross);
+    return Math.min(planNet, netFromGross(discountGross, vatRate));
 }
 
 export function computeDiscountedGross(planGross: number, discountGross: number): number {
