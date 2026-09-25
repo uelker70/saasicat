@@ -7,7 +7,7 @@
 // @requirement SC-MKT-017 — One offer yields at most one contract, and only once its prices are frozen
 // @requirement SC-PRIC-012 — A contract mixing rhythms totals one period of its own rhythm
 
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTenantSubscriptionBundlesController } from '../dist/billing/index.js';
 
@@ -37,7 +37,7 @@ function buildSub() {
     };
 }
 
-function buildController({ contractFreeze = null } = {}) {
+function buildController({ contractFreeze = null, charges = null } = {}) {
     const Ctrl = buildTenantSubscriptionBundlesController();
     const serviceCalls = [];
     const service = {
@@ -56,6 +56,7 @@ function buildController({ contractFreeze = null } = {}) {
         { findForTenant: async () => buildSub() },
         (req) => req.user?.tenantId ?? null,
         contractFreeze,
+        charges,
     );
     return { ctrl, serviceCalls };
 }
@@ -125,4 +126,52 @@ test('a failed mutation triggers no freeze', async () => {
     );
     await assert.rejects(() => ctrl.add(REQ, { bundleVersionId: 'bv-1' }));
     assert.equal(freezeCalls.length, 0);
+});
+
+// @requirement SC-BUN-003 — The first period of a booking is short, and charged for exactly that stretch
+describe('an add-on booking brings the account up to date', () => {
+    const freeze = (calls) => ({
+        assertPartyFor: async () => {},
+        freezeOnPlanChange: async () => calls.push('freeze'),
+    });
+
+    test('after the contract takes the booking in', async () => {
+        const calls = [];
+        const { ctrl } = buildController({
+            contractFreeze: freeze(calls),
+            charges: { recordDueCharges: async (tenantId) => calls.push(`charges ${tenantId}`) },
+        });
+
+        await ctrl.add(REQ, { bundleVersionId: 'bv-1' });
+
+        assert.deepEqual(calls, ['freeze', 'charges t1']);
+    });
+
+    test('a journal that fails does not undo the booking', async () => {
+        const { ctrl, serviceCalls } = buildController({
+            contractFreeze: freeze([]),
+            charges: {
+                recordDueCharges: async () => {
+                    throw new Error('the journal is down');
+                },
+            },
+        });
+
+        const booked = await ctrl.add(REQ, { bundleVersionId: 'bv-1' });
+
+        assert.equal(booked.id, 'sb-1');
+        assert.equal(serviceCalls.length, 1);
+    });
+
+    test('a cancellation charges nothing new', async () => {
+        const calls = [];
+        const { ctrl } = buildController({
+            contractFreeze: freeze([]),
+            charges: { recordDueCharges: async () => calls.push('charges') },
+        });
+
+        await ctrl.cancel(REQ, 'sb-1');
+
+        assert.deepEqual(calls, []);
+    });
 });

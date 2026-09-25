@@ -75,6 +75,7 @@ export { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.r
 export { PrismaPromotionRepository } from './prisma-promotion.repository.js';
 export { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
 export { PrismaPaymentEventLog } from './prisma-payment-event-log.adapter.js';
+export { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.repository.js';
 export { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 export { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 export { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';

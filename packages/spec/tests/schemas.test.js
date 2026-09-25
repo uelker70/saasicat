@@ -16,7 +16,7 @@ import {
     planCatalogSchema,
     promoCodeSchema,
     auditEventSchema,
-    tenantLedgerSchema,
+    subscriberLedgerSchema,
 } from '../index.js';
 
 function makeAjv() {
@@ -281,44 +281,26 @@ test('and the type shells name what the entry points export', () => {
 });
 
 // ──────────────────────────────────────────────────────────────────
-// TenantLedgerEntry: the two kinds, and the account read model
+// SubscriberCharge: one charge in a subscriber's account
 // ──────────────────────────────────────────────────────────────────
 
 /** A charge with every required fact present. Each case below alters one. */
 const CHARGE = {
     id: '22222222-2222-2222-2222-222222222222',
+    subscriberId: 'subscriber-1',
     tenantId: 'tenant-1',
-    kind: 'charge',
     subscriptionId: 'sub-1',
-    origin: 'renewal',
-    originRef: 'sub-1',
-    periodStart: '2026-01-01T00:00:00Z',
-    periodEnd: '2026-02-01T00:00:00Z',
     contractId: 'contract-1',
     contractLineItemId: 'line-1',
+    origin: 'renewal',
+    source: 'plan',
+    sourceRef: 'sub-1',
+    periodStart: '2026-01-01T00:00:00Z',
+    periodEnd: '2026-02-01T00:00:00Z',
     currency: 'EUR',
     amountNet: 19.9,
-    taxRate: 19,
-    taxAmount: 3.78,
-    amountGross: 23.68,
     bookedAt: '2026-01-01T00:00:00Z',
     createdAt: '2026-01-01T00:00:01Z',
-};
-
-/**
- * The same for a payment: an external reference, no period, and no tax split —
- * the net, the rate and the tax belong to the charges it settles.
- */
-const PAYMENT = {
-    id: '33333333-3333-3333-3333-333333333333',
-    tenantId: 'tenant-1',
-    kind: 'payment',
-    externalReference: 'pi_3Nk2xQ',
-    settlesEntryId: CHARGE.id,
-    currency: 'EUR',
-    amountGross: 23.68,
-    bookedAt: '2026-01-03T09:12:00Z',
-    createdAt: '2026-01-03T09:12:01Z',
 };
 
 function without(entry, field) {
@@ -327,147 +309,58 @@ function without(entry, field) {
     return copy;
 }
 
-function ledgerEntryValidator() {
-    return makeAjv().compile(tenantLedgerSchema);
+function chargeValidator() {
+    return makeAjv().compile(subscriberLedgerSchema);
 }
 
-/**
- * A validator for one `$defs` entry.
- *
- * Not `{ ...tenantLedgerSchema, $ref }`: in 2020-12 a `$ref` applies BESIDE its
- * siblings rather than replacing them, so that form asks for the definition
- * AND the root's `oneOf` — under which an account matches neither branch. The
- * accept case fails, and the reject case passes for a reason that has nothing
- * to do with what it claims to check.
- */
-function ledgerDefinitionValidator(name) {
-    return makeAjv().compile({
-        $schema: tenantLedgerSchema.$schema,
-        $defs: tenantLedgerSchema.$defs,
-        $ref: `#/$defs/${name}`,
-    });
-}
-
-test('tenantLedger accepts a charge carrying its period, origin and money facts', () => {
-    const validate = ledgerEntryValidator();
+test('subscriberLedger accepts a charge carrying its period, origin, source and amount', () => {
+    const validate = chargeValidator();
     const ok = validate(CHARGE);
     assert.ok(ok, JSON.stringify(validate.errors, null, 2));
 });
 
-test('tenantLedger accepts a charge that names no contract', () => {
-    const validate = ledgerEntryValidator();
-    const ok = validate({ ...CHARGE, contractId: null, contractLineItemId: null });
-    assert.ok(ok, JSON.stringify(validate.errors, null, 2));
-});
-
-test('tenantLedger accepts a payment, which carries no period', () => {
-    const validate = ledgerEntryValidator();
-    const ok = validate(PAYMENT);
-    assert.ok(ok, JSON.stringify(validate.errors, null, 2));
-});
-
-test('tenantLedger accepts a payment on account, settling no named charge', () => {
-    const validate = ledgerEntryValidator();
-    const ok = validate({ ...PAYMENT, settlesEntryId: null });
-    assert.ok(ok, JSON.stringify(validate.errors, null, 2));
-});
-
-test('tenantLedger rejects a charge without an origin', () => {
-    assert.equal(ledgerEntryValidator()(without(CHARGE, 'origin')), false);
-});
-
-test('tenantLedger rejects an origin outside the catalogue of origins', () => {
-    assert.equal(ledgerEntryValidator()({ ...CHARGE, origin: 'refund' }), false);
-});
-
-test('tenantLedger rejects an empty originRef, which would not collide with itself', () => {
-    assert.equal(ledgerEntryValidator()({ ...CHARGE, originRef: '' }), false);
-});
-
-test('tenantLedger rejects a charge that names no period', () => {
-    assert.equal(ledgerEntryValidator()(without(CHARGE, 'periodStart')), false);
-});
-
-test('tenantLedger rejects a payment without an external reference', () => {
-    assert.equal(ledgerEntryValidator()(without(PAYMENT, 'externalReference')), false);
-});
-
-test('tenantLedger rejects a payment whose external reference is empty', () => {
-    assert.equal(ledgerEntryValidator()({ ...PAYMENT, externalReference: '' }), false);
-});
-
-test('tenantLedger rejects an entry that is neither a charge nor a payment', () => {
-    assert.equal(ledgerEntryValidator()({ ...CHARGE, kind: 'adjustment' }), false);
-});
-
-test('tenantLedger rejects a charge wearing a payment field', () => {
-    assert.equal(ledgerEntryValidator()({ ...CHARGE, externalReference: 'pi_3Nk2xQ' }), false);
-});
-
-test('tenantLedger rejects a payment that states a tax of its own', () => {
-    // A payment settles charges that already state theirs. Letting it carry a
-    // second answer is how an account comes to hold two totals for one tax.
-    assert.equal(ledgerEntryValidator()({ ...PAYMENT, taxRate: 19, taxAmount: 3.78 }), false);
-});
-
-test('tenantLedger rejects a currency that is not an ISO 4217 code', () => {
-    assert.equal(ledgerEntryValidator()({ ...CHARGE, currency: 'Euro' }), false);
-});
-
-test('tenantLedger rejects a tax rate above 100 per cent', () => {
-    assert.equal(ledgerEntryValidator()({ ...CHARGE, taxRate: 119 }), false);
-});
-
-test('tenantLedger accepts a credit, which is a negative charge', () => {
-    const validate = ledgerEntryValidator();
+test('subscriberLedger accepts a discount, which is a negative charge', () => {
+    const validate = chargeValidator();
     const ok = validate({
         ...CHARGE,
-        origin: 'credit',
-        originRef: CHARGE.id,
-        amountNet: -19.9,
-        taxAmount: -3.78,
-        amountGross: -23.68,
+        source: 'discount',
+        sourceRef: 'WELCOME20',
+        amountNet: -3.98,
     });
     assert.ok(ok, JSON.stringify(validate.errors, null, 2));
 });
 
-test('tenantLedger accepts an account with a balance, open items and history', () => {
-    const validate = ledgerDefinitionValidator('TenantAccount');
-    const ok = validate({
-        tenantId: 'tenant-1',
-        currency: 'EUR',
-        asOf: '2026-02-01T00:00:00Z',
-        chargedGross: 23.68,
-        paidGross: 0,
-        balanceGross: 23.68,
-        openItems: [
-            {
-                entryId: CHARGE.id,
-                origin: 'renewal',
-                periodStart: CHARGE.periodStart,
-                periodEnd: CHARGE.periodEnd,
-                currency: 'EUR',
-                amountGross: 23.68,
-                settledGross: 0,
-                openGross: 23.68,
-                dueAt: CHARGE.bookedAt,
-            },
-        ],
-        entries: [CHARGE, PAYMENT],
-    });
-    assert.ok(ok, JSON.stringify(validate.errors, null, 2));
+test('subscriberLedger rejects a charge that states a tax of its own', () => {
+    // The tax is the invoice's, decided by the tax adapter when the charge is
+    // invoiced; a second figure on the charge could differ from it by cents.
+    assert.equal(chargeValidator()({ ...CHARGE, taxRate: 19, taxAmount: 3.78 }), false);
 });
 
-test('tenantLedger rejects an account that does not say when its balance is true', () => {
-    const validate = ledgerDefinitionValidator('TenantAccount');
-    const ok = validate({
-        tenantId: 'tenant-1',
-        currency: 'EUR',
-        chargedGross: 0,
-        paidGross: 0,
-        balanceGross: 0,
-        openItems: [],
-        entries: [],
-    });
-    assert.equal(ok, false);
+test('subscriberLedger rejects a charge that names no contract line', () => {
+    assert.equal(chargeValidator()(without(CHARGE, 'contractLineItemId')), false);
+    assert.equal(chargeValidator()({ ...CHARGE, contractLineItemId: null }), false);
+});
+
+test('subscriberLedger rejects a charge without an origin', () => {
+    assert.equal(chargeValidator()(without(CHARGE, 'origin')), false);
+});
+
+test('subscriberLedger rejects an origin outside the catalogue of origins', () => {
+    assert.equal(chargeValidator()({ ...CHARGE, origin: 'refund' }), false);
+});
+
+test('subscriberLedger rejects a source outside the kinds of contract line', () => {
+    assert.equal(chargeValidator()({ ...CHARGE, source: 'tax' }), false);
+});
+
+test('subscriberLedger rejects an empty sourceRef, which would not collide with itself', () => {
+    assert.equal(chargeValidator()({ ...CHARGE, sourceRef: '' }), false);
+});
+
+test('subscriberLedger rejects a charge that names no period', () => {
+    assert.equal(chargeValidator()(without(CHARGE, 'periodStart')), false);
+});
+
+test('subscriberLedger rejects a currency that is not an ISO 4217 code', () => {
+    assert.equal(chargeValidator()({ ...CHARGE, currency: 'Euro' }), false);
 });

@@ -1482,6 +1482,48 @@ list that account again with its gateway bound, until its subscribers have a pay
 another one. Nothing in your file or your database has to change for this to be the restart that
 finds it.
 
+### A subscriber's account records its charges
+
+New and optional: a journal of what each subscriber owes, one charge per contract line and period,
+net, written once. It needs frozen contracts. To adopt it:
+
+1. Add `SubscriberLedgerEntry` from `prisma-fragments/15-subscriber-ledger.prisma` to your schema,
+   with the back-relations it names on `Subscriber`, `SubscriptionContract` and `ContractLineItem`.
+   Leave them out and `saasicat schema check` lists the model as not adopted.
+2. Run the migration once, before `db push` where you use one:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-a-subscriber-account-records-its-charges.postgres.sql
+    ```
+
+    It creates `subscriber_ledger_entries` and does nothing on a second run, or on a database
+    without contracts and subscribers.
+
+3. Configure `tenantBilling.chargeJournal` with the ledger repository beside `contractFreeze` —
+   `persistence.entitlement.subscriberLedgerRepository` from either shipped adapter. Without
+   `contractFreeze` the module refuses to start and says why.
+4. Call `SubscriberChargeService.recordDueCharges(tenantId)` where your application activates a
+   subscription, and from its renewal job both before it rolls the windows forward and after — and
+   roll them only when the first call succeeded. A window that moved on before anything charged it
+   is not charged afterwards. The platform calls it itself after onboarding and after an add-on
+   booking.
+5. Check that your `ContractFreezeSourcePort.loadBookedBundles` puts each booking's bundle version
+   on its line as `sourceVersionId`. The journal finds a booking's contract line by it, and a line
+   without it leaves the booking uncharged.
+
+Nothing is backfilled: the first call charges the period each subscription is in, and nothing before
+it. An add-on booked earlier is charged from that period on, and a discount concluded earlier counts
+its periods from there too — a once-only discount is then taken off that period again.
+
+Onboarding now writes the contract after the add-ons it books, so the contract names them. Before,
+it named only the plan until the next change wrote it again.
+
+- **A persistence contract harness** gains the `subscriberLedgerRepository` member, which needs
+  `subscriptionContractRepository` and `seed.createSubscriber` beside it; a harness without it
+  declares `gaps: ['subscriberLedger']`.
+- **`@saasicat/spec`** exports `subscriberLedgerSchema` in place of `tenantLedgerSchema`, and the
+  schema describes one charge: net, without payments. Nothing in the platform read the old one.
+
 ### The operator's own legal identity changes only as a declared correction
 
 `config/saas.yaml#issuer` names the legal entity on your side of every contract, and a contract

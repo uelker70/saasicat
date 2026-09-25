@@ -125,6 +125,16 @@ _Tested by:_
         - stepping back from January lands in December of the year before
         - a leap day retreats to the 28th, and forwards again to the 29th
         - the start it gives back is the boundary that leads to that end
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - an add-on is charged its short first period, then whole ones
+        - the first period for exactly that stretch of a whole month, the next in full
+        - an add-on no contract names yet is not charged, and is once one does
+        - a cancelled add-on is not charged from its effective date on
+- `packages/nest/tests/tenant-subscription-bundles-refreeze.test.js`
+    - an add-on booking brings the account up to date
+        - after the contract takes the booking in
+        - a journal that fails does not undo the booking
+        - a cancellation charges nothing new
 
 <!-- END proof -->
 

@@ -11,6 +11,7 @@ import { planCatalogSchema } from '@saasicat/spec';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import type {
     PlanCatalogSettings,
+    SubscriberLedgerRepository,
     SubscriberRepository,
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
@@ -28,6 +29,8 @@ import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
+import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
+import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
 import {
     CONTRACT_FREEZE_PORT_TOKEN,
@@ -218,6 +221,19 @@ export interface TenantBillingModuleOptions {
         subscriberRepository: ProviderSpec<SubscriberRepository>;
     };
 
+    /**
+     * Optional journal of the charges each subscriber's contracts give rise to
+     * (`SubscriberChargeService`). Needs `contractFreeze`: a charge points at a
+     * contract line, and the contracts and subscribers come from there.
+     *
+     * The platform brings an account up to date after onboarding and after an
+     * add-on booking; an application calls `recordDueCharges` where it writes
+     * a change itself — at activation and from its renewal job.
+     */
+    chargeJournal?: {
+        ledgerRepository: ProviderSpec<SubscriberLedgerRepository>;
+    };
+
     /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
     /** Optional user ID resolver. Default: `req.user.sub ?? req.user.id`. */
@@ -327,6 +343,23 @@ export class TenantBillingModule {
                 },
             );
         }
+        const hasChargeJournal = Boolean(options.chargeJournal);
+        if (options.chargeJournal) {
+            if (!options.contractFreeze) {
+                throw new Error(
+                    'TenantBillingModule: `chargeJournal` needs `contractFreeze` — a charge points ' +
+                        'at a line of a frozen contract, and the contracts and the subscribers they are ' +
+                        'concluded with come from there.',
+                );
+            }
+            providers.push(
+                asProvider(
+                    SUBSCRIBER_LEDGER_REPOSITORY_TOKEN,
+                    options.chargeJournal.ledgerRepository,
+                ),
+                SubscriberChargeService,
+            );
+        }
         if (options.tenantIdResolver) {
             providers.push({
                 provide: TENANT_ID_RESOLVER_TOKEN,
@@ -368,6 +401,7 @@ export class TenantBillingModule {
                 SUBSCRIPTION_WRITE_PORT_TOKEN,
                 ...(hasPendingPlanQueryPort ? [PendingPlanMaterializationService] : []),
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN] : []),
+                ...(hasChargeJournal ? [SubscriberChargeService] : []),
                 ...(options.extraExports ?? []),
             ],
         };

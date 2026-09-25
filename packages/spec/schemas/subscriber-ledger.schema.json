@@ -1,0 +1,100 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://saasicat.dev/schemas/subscriber-ledger.schema.json",
+    "title": "SubscriberCharge",
+    "description": "One charge in a subscriber's account: an amount that became due for a period, derived from a line of the contract in force. The journal is append-only — a charge is never updated, and a mistake is answered with a counter-entry rather than an edit, so the account says what happened rather than what somebody thinks today. A charge is net: the tax is decided by the tax adapter when the charge is invoiced, from the subscriber's origin on that day, and computed once per rate on the invoice.",
+    "type": "object",
+    "required": [
+        "id",
+        "subscriberId",
+        "tenantId",
+        "subscriptionId",
+        "contractId",
+        "contractLineItemId",
+        "origin",
+        "source",
+        "sourceRef",
+        "periodStart",
+        "periodEnd",
+        "currency",
+        "amountNet",
+        "bookedAt",
+        "createdAt"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The charge's own identifier. Never shown to a customer as an invoice number: invoice numbering is sequential, gapless and legally constrained per country, and an identifier somebody has already seen on a screen cannot become one later without confusion."
+        },
+        "subscriberId": {
+            "type": "string",
+            "description": "The party the contract is concluded with, whose account this is. It outlives the tenant."
+        },
+        "tenantId": {
+            "type": "string",
+            "description": "The tenant the subscription belonged to when the charge arose."
+        },
+        "subscriptionId": {
+            "type": "string",
+            "description": "The subscription the charge arose on. Part of the natural key."
+        },
+        "contractId": {
+            "type": "string",
+            "description": "The contract whose line the charge realises."
+        },
+        "contractLineItemId": {
+            "type": "string",
+            "description": "The contract line the charge came from, so that every invoice line can be traced back to what was agreed."
+        },
+        "origin": { "$ref": "#/$defs/SubscriberChargeOrigin" },
+        "source": { "$ref": "#/$defs/SubscriberChargeSource" },
+        "sourceRef": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Which thing of its source the charge is for, stable across contracts: the subscription id for the plan, the booking id for an add-on, the discount's key for a discount. Part of the natural key (subscriptionId, source, sourceRef, periodStart, origin), which is unique — a charge derived twice is written once."
+        },
+        "periodStart": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The start of the period the charge belongs to — the grouping key for an invoice."
+        },
+        "periodEnd": { "type": "string", "format": "date-time" },
+        "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO 4217, as the contract line records it — recorded per charge so that a charge written in 2026 still means what it meant after the configured currency changes."
+        },
+        "amountNet": {
+            "type": "number",
+            "description": "Net, rounded to the currency's decimal places once, when the charge is written; the written figure is the truth from then on. Negative for a discount."
+        },
+        "bookedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the amount became due. The account is ordered by this, not by when the row was written."
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+    },
+
+    "$defs": {
+        "SubscriberChargeOrigin": {
+            "type": "string",
+            "enum": [
+                "activation",
+                "renewal",
+                "planChange",
+                "bundleBooking",
+                "credit",
+                "correction"
+            ],
+            "description": "What made the charge arise. activation: the first period of a subscription. renewal: a later period. planChange: what an immediate plan change adds. bundleBooking: the first, short period of an add-on. credit: a decision that reduces what is owed. correction: a counter-entry reversing an earlier charge, which is how the append-only journal answers a mistake."
+        },
+        "SubscriberChargeSource": {
+            "type": "string",
+            "enum": ["plan", "bundle", "discount"],
+            "description": "Which kind of contract line the charge realises."
+        }
+    }
+}

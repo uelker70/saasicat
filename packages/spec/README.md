@@ -33,7 +33,7 @@ from there.
 | `schemas/plan-catalog.schema.json`      | App identity config format (`config/saas.yaml`)   |
 | `schemas/promo-code.schema.json`        | Promo code format incl. redemption lifecycle      |
 | `schemas/audit-event.schema.json`       | Audit log entry format                            |
-| `schemas/tenant-ledger.schema.json`     | A tenant's account: charges, payments, balance    |
+| `schemas/subscriber-ledger.schema.json` | One charge in a subscriber's account              |
 | `admin-api.openapi.yaml`                | NORMATIVE REST contract of the SuperAdmin backend |
 | `acceptance/`                           | HTTP test scenarios (stubs; runner planned)       |
 | `index.js` / `index.cjs` / `index.d.ts` | Re-exports for JS/TS consumers                    |

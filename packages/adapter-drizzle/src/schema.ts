@@ -460,6 +460,27 @@ export const paymentEventLog = pgTable('PaymentEventLog', {
     processedAt: ts('processedAt').notNull().defaultNow(),
 });
 
+// The subscriber's account: one charge per contract line and period, written
+// once. The DDL authority, the unique key a second derivation collides with,
+// is `subscriber_ledger_entries_subscriptionId_source_sourceRef_p_key`.
+export const subscriberLedgerEntries = pgTable('subscriber_ledger_entries', {
+    id: text('id').primaryKey(),
+    subscriberId: text('subscriberId').notNull(),
+    tenantId: text('tenantId').notNull(),
+    subscriptionId: text('subscriptionId').notNull(),
+    contractId: text('contractId').notNull(),
+    contractLineItemId: text('contractLineItemId').notNull(),
+    origin: text('origin').notNull(),
+    source: text('source').notNull(),
+    sourceRef: text('sourceRef').notNull(),
+    periodStart: ts('periodStart').notNull(),
+    periodEnd: ts('periodEnd').notNull(),
+    currency: text('currency').notNull(),
+    amountNet: numeric('amountNet', { precision: 10, scale: 2 }).notNull(),
+    bookedAt: ts('bookedAt').notNull(),
+    createdAt: ts('createdAt').notNull().defaultNow(),
+});
+
 export const subscriberPaymentMethods = pgTable('subscriber_payment_methods', {
     id: text('id').primaryKey(),
     subscriberId: text('subscriberId').notNull(),

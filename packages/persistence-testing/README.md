@@ -110,6 +110,7 @@ persistenceAdapterContract({
         'subscribers',
         'paymentEventLog',
         'subscriberPaymentMethods',
+        'subscriberLedger',
         'checkoutOffers',
         'appliedSettings',
     ],

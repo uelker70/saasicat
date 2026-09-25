@@ -6,14 +6,14 @@ import adminManifestSchema from './schemas/admin-manifest.schema.json' with { ty
 import planCatalogSchema from './schemas/plan-catalog.schema.json' with { type: 'json' };
 import promoCodeSchema from './schemas/promo-code.schema.json' with { type: 'json' };
 import auditEventSchema from './schemas/audit-event.schema.json' with { type: 'json' };
-import tenantLedgerSchema from './schemas/tenant-ledger.schema.json' with { type: 'json' };
+import subscriberLedgerSchema from './schemas/subscriber-ledger.schema.json' with { type: 'json' };
 
 export {
     adminManifestSchema,
     planCatalogSchema,
     promoCodeSchema,
     auditEventSchema,
-    tenantLedgerSchema,
+    subscriberLedgerSchema,
 };
 
 export const SCHEMAS = {
@@ -21,5 +21,5 @@ export const SCHEMAS = {
     planCatalog: planCatalogSchema,
     promoCode: promoCodeSchema,
     auditEvent: auditEventSchema,
-    tenantLedger: tenantLedgerSchema,
+    subscriberLedger: subscriberLedgerSchema,
 };

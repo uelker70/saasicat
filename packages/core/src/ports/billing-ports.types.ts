@@ -20,6 +20,7 @@ import type {
     SubscriberCorrectionResult,
     SubscriberRecord,
 } from '../subscriber.types.js';
+import type { NewSubscriberCharge, SubscriberChargeRecord } from '../subscriber-ledger.types.js';
 
 // -----------------------------------------------------------------------------
 // Billing repository and tenant self-service ports
@@ -310,6 +311,35 @@ export interface SubscriberRepository {
     ): Promise<SubscriberCorrectionResult | null>;
     /** Every correction of this subscriber, the latest first. */
     listCorrections(subscriberId: string): Promise<SubscriberCorrectionRecord[]>;
+}
+
+/**
+ * The subscriber's account: the charges that became due, one per contract line
+ * and period. Append-only — nothing here updates or deletes a charge, and a
+ * mistake is answered with a counter-entry (`SC-PRIC-020`).
+ *
+ * Owned by the subscriber rather than the tenant, so that it outlives the
+ * tenant it arose for (ADR 0012).
+ */
+export interface SubscriberLedgerRepository {
+    /**
+     * Writes the charges that are not there yet and returns them.
+     *
+     * A charge whose natural key — subscription, source, source reference,
+     * period start and origin — is already written is left as it is and not
+     * returned, however often it is derived and whoever derives it at the same
+     * time: the unique index decides, not a read before the write.
+     */
+    recordCharges(
+        charges: readonly NewSubscriberCharge[],
+        tx?: TransactionContext,
+    ): Promise<SubscriberChargeRecord[]>;
+
+    /** Every charge of one subscription, oldest period first. */
+    listBySubscription(
+        subscriptionId: string,
+        tx?: TransactionContext,
+    ): Promise<SubscriberChargeRecord[]>;
 }
 
 // -----------------------------------------------------------------------------

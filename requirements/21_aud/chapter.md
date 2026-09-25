@@ -127,10 +127,49 @@ _Source:_ #214
 
 ### SC-AUD-011 — A charge carries the period it belongs to
 
-🟡 _(Decided, not yet delivered.)_ Which charges belong on one invoice has to be derivable, and a set
+🟢 Which charges belong on one invoice has to be derivable, and a set
 of individually booked amounts with no grouping leaves that to guesswork.
 
 _Source:_ #214
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - every period is charged, at the price in force when it starts
+        - the first period is the activation, the next a renewal, each for its own period
+        - periods a renewal skipped are charged one by one, from where the account left off
+        - a later price applies to the periods that start under it, not before
+        - a window opened a moment before its contract is still charged under it
+        - a subscription older than its first charge starts with a renewal, not an activation
+        - a yearly plan is charged its yearly line
+        - a contract line in another rhythm prices nothing
+
+<!-- END proof -->
+
+### SC-AUD-017 — Every charge names the contract line it came from
+
+🟢 So the account can always be walked back to what was agreed, which is what an invoice line will
+be traced through (`SC-AUD-013`).
+
+_Source:_ #214 · #276
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-subscriber-account-records-its-charges.test.js`
+    - every period is charged, at the price in force when it starts
+        - the first period is the activation, the next a renewal, each for its own period
+        - periods a renewal skipped are charged one by one, from where the account left off
+        - a later price applies to the periods that start under it, not before
+        - a window opened a moment before its contract is still charged under it
+        - a subscription older than its first charge starts with a renewal, not an activation
+        - a yearly plan is charged its yearly line
+        - a contract line in another rhythm prices nothing
+
+<!-- END proof -->
 
 ### SC-AUD-012 — A contract carries both parties as they were when it was concluded
 

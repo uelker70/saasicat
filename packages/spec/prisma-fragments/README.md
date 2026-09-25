@@ -44,6 +44,7 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 | [`12-applied-settings.prisma`](12-applied-settings.prisma)           | `AppliedSettings`, `SettingsChange`                                                   |
 | [`13-subscriber.prisma`](13-subscriber.prisma)                       | `Subscriber`, `SubscriberTenant`, `SubscriberCorrection`                              |
 | [`14-payments.prisma`](14-payments.prisma)                           | `SubscriberPaymentMethod`, `SubscriberPaymentMethodSetup`, `PaymentEventLog`          |
+| [`15-subscriber-ledger.prisma`](15-subscriber-ledger.prisma)         | `SubscriberLedgerEntry`                                                               |
 
 ## How the consumer uses the fragments
 
