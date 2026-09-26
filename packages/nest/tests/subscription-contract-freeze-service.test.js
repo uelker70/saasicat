@@ -45,6 +45,9 @@ function makeService({
     catalogs = givenPlanCatalogSource(catalog),
     boundFor = () => boundPlanVersion(catalog.plans[0], 'pv-standard-3'),
     tenantHasSubscriber = true,
+    recordedContracts = [],
+    subscriptions = null,
+    promoCodes = null,
 } = {}) {
     const calls = { terminated: [], created: [], invalidated: 0, limitsFrom: [] };
     const entitlements = {
@@ -74,6 +77,9 @@ function makeService({
         async findActiveByTenantId() {
             return previousContract;
         },
+        async list() {
+            return recordedContracts;
+        },
         async terminate(id, data) {
             calls.terminated.push({ id, data });
         },
@@ -95,6 +101,9 @@ function makeService({
         entitlements,
         contracts,
         source,
+        undefined,
+        subscriptions,
+        promoCodes,
     );
     return { calls, service };
 }
@@ -671,4 +680,117 @@ test('a tenant without a subscriber is refused before the contract in force is c
     );
     assert.deepEqual(calls.terminated, [], 'the contract in force was closed anyway');
     assert.deepEqual(calls.created, []);
+});
+
+// @requirement SC-PROMO-025 — A code redeemed without an offer is recorded in the first contract after it
+describe('a code redeemed without an offer is recorded in the first contract after it', () => {
+    const FROM = new Date('2026-06-09T00:00:00.000Z');
+    const REDEEMED_AT = new Date('2026-05-10T00:00:00.000Z');
+    const redeemedWith = (overrides = {}) => ({
+        subscriptions: { findForTenant: async () => ({ id: 'sub-1' }) },
+        promoCodes: {
+            async redeemedCodeFor(subscriptionId) {
+                assert.equal(subscriptionId, 'sub-1');
+                return {
+                    code: 'WELCOME10',
+                    valueType: 'PERCENT',
+                    value: '10.00',
+                    durationType: 'ONCE',
+                    durationValue: null,
+                    redeemedAt: REDEEMED_AT,
+                    ...overrides,
+                };
+            },
+        },
+    });
+
+    test('as a discount line resolved against the plan, with the values it was redeemed at', async () => {
+        const { calls, service } = makeService(redeemedWith());
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', FROM);
+
+        const [contract] = calls.created;
+        const discount = contract.lineItems.find((item) => item.kind === 'discount');
+        // 10 % of 58.31 gross is 5.83, which is 4.90 net.
+        assert.equal(discount.priceNet, -4.9);
+        assert.equal(discount.sourceKey, 'WELCOME10');
+        assert.equal(discount.metadata.generated, true);
+        assert.equal(discount.metadata.promoCodeSnapshot.durationType, 'ONCE');
+        assert.equal(contract.priceSnapshot.discountNet, 4.9);
+        assert.equal(contract.priceSnapshot.totalNet, 44.1);
+        assert.deepEqual(
+            contract.promoCodeSnapshots.map(({ code, valueType, value, resolvedAmountNet }) => ({
+                code,
+                valueType,
+                value,
+                resolvedAmountNet,
+            })),
+            [{ code: 'WELCOME10', valueType: 'PERCENT', value: 10, resolvedAmountNet: 4.9 }],
+        );
+    });
+
+    test('an amount larger than the plan takes off the plan, not more', async () => {
+        const { calls, service } = makeService(
+            redeemedWith({ valueType: 'FIXED', value: '100.00' }),
+        );
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', FROM);
+
+        const discount = calls.created[0].lineItems.find((item) => item.kind === 'discount');
+        assert.equal(discount.priceNet, -49);
+    });
+
+    test('not again once a contract records it — an earlier freeze or the offer it came with', async () => {
+        const { calls, service } = makeService({
+            ...redeemedWith(),
+            recordedContracts: [
+                { promoCodeSnapshots: [{ code: 'WELCOME10' }], createdAt: REDEEMED_AT },
+            ],
+        });
+
+        await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', FROM);
+
+        assert.equal(
+            calls.created[0].lineItems.filter((item) => item.kind === 'discount').length,
+            0,
+        );
+        assert.deepEqual(calls.created[0].promoCodeSnapshots, []);
+    });
+
+    test('not where a contract written since the redemption does not record it', async () => {
+        for (const [createdAt, recorded] of [
+            [new Date(REDEEMED_AT.getTime() + 1), false],
+            [REDEEMED_AT, true],
+            [new Date('2026-01-01T00:00:00.000Z'), true],
+        ]) {
+            const { calls, service } = makeService({
+                ...redeemedWith(),
+                recordedContracts: [{ promoCodeSnapshots: [], createdAt }],
+            });
+
+            await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', FROM);
+
+            assert.equal(
+                calls.created[0].promoCodeSnapshots.length,
+                recorded ? 1 : 0,
+                `a contract written ${createdAt.toISOString()}`,
+            );
+        }
+    });
+
+    test('nothing without a redemption, or for a subscription the adapter gives no id', async () => {
+        for (const setup of [
+            { ...redeemedWith(), promoCodes: { redeemedCodeFor: async () => null } },
+            {
+                ...redeemedWith(),
+                subscriptions: { findForTenant: async () => ({ id: undefined }) },
+            },
+        ]) {
+            const { calls, service } = makeService(setup);
+
+            await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', FROM);
+
+            assert.deepEqual(calls.created[0].promoCodeSnapshots, []);
+        }
+    });
 });

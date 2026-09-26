@@ -37,8 +37,8 @@ import {
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
 } from '../catalog/catalog.tokens.js';
-import { computeDiscountGross } from '../promo/calculator.js';
-import { grossFromNet, netFromGross, round2 } from '../promo/math.js';
+import { promoCodeDiscountNet } from '../promo/calculator.js';
+import { grossFromNet, round2 } from '../promo/math.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { appendImplicitDiscountLineItem } from './discount-line-items.js';
 import { bundleVersionNotBookableReason } from './bundle-version-bookable.js';
@@ -379,12 +379,7 @@ export class CheckoutOfferPricing {
         );
         if (!preview.valid) throw promoCodeNotAccepted(preview.reason);
 
-        const planGross = grossFromNet(planNet, vatRate);
-        const discountGross = Math.min(
-            computeDiscountGross({ gross: planGross }, preview.discount),
-            planGross,
-        );
-        const resolvedAmountNet = Math.min(planNet, netFromGross(discountGross, vatRate));
+        const resolvedAmountNet = promoCodeDiscountNet(planNet, vatRate, preview.discount);
         return {
             code: preview.code,
             label: preview.label,

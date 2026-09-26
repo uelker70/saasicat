@@ -1852,6 +1852,59 @@ as 100, an amount above the plan's gross price as that price.
 - **An admin page of your own** that switches a code to a one-off discount sends
   `durationValue: null` with it; the shipped dialog does.
 
+### A promo code redeemed at onboarding is in the contract
+
+A code redeemed through the onboarding route was stored as a redemption, and the contract written
+after it named only the plan and the add-ons, at the list price. The first contract written after a
+redemption now records the code (`SC-PROMO-025`): a generated discount line, with the values it was
+redeemed at and the amount resolved against the plan the way an offer resolves it, and the code in
+`promoCodeSnapshots`. That is the contract onboarding writes, or the one written at activation where
+onboarding went into a trial. The contracts after it do not repeat the line, and a contract concluded
+from an offer that carried the code already records it. The subscriber's account takes the discount
+off from there: it reads each discount from the earliest contract that records it, not only from a
+contract concluded from an offer.
+
+- **Nothing to change** where `contractFreeze` writes your contracts and `PromoCodesModule` is
+  visible to `TenantBillingModule` — the same condition under which onboarding redeems a code.
+- **Activation after a trial is yours to write.** The platform writes no contract when a trial
+  ends; your application does, through `ContractFreezePort.freezeOnPlanChange`, and that contract
+  records the code. Without it, the code goes into whichever contract is written first after the
+  redemption, however much later that is.
+- **With `@saasicat/adapter-drizzle`**, the moments the database used to fill — `createdAt`,
+  `redeemedAt` and the others — are written on the application's clock. Left to the database, a
+  session outside UTC stored them hours off, because the canonical columns carry no time zone. A
+  plan version's end is compared with the application's clock too, rather than with the database's
+  `NOW()`.
+- **With `@saasicat/adapter-drizzle` and a database session outside UTC, convert the old
+  redemptions between the two versions.** The contract freeze compares a redemption's
+  `redeemedAt` with a contract's `createdAt`. Written before this version, `redeemedAt` is hours
+  off, and east of UTC an old code would be recorded, and its discount start, again. Check the
+  zone with `SHOW TimeZone` through the application's own connection, then run this once in a
+  session with that zone:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/adapter-drizzle/sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql
+    ```
+
+    Run it after the last instance of the old version has stopped and before the first instance
+    of the new one starts. The old version writes wall time, which the step no longer converts
+    once it has marked the column; the new version writes UTC, which the step would move. In a
+    rolling deployment there is no such moment, so pause onboarding for the step. It locks the
+    table while it runs, marks the column, and does nothing on a second run, whether after the
+    first or at the same time. In a session that is in UTC it converts nothing and marks nothing,
+    so a run there by mistake does not stand in the way of the right one. A redemption written in
+    the hour a zone repeats when its clocks go back can stay an hour off: that hour happened twice.
+    An installation whose application sessions are in UTC has nothing to convert and does not run
+    it at all; nor does one on `@saasicat/adapter-prisma`, since there both columns come from the
+    same clock, or one whose older rows were written by it. Run it by hand, once: in a hook that
+    runs on every deploy it stays armed wherever it never had anything to convert, and a later run
+    in another zone would move rows the new version wrote in UTC.
+
+- **Contracts you write yourself** record what you give them; the freeze does not touch them. The
+  subscriber's account now reads their discount lines too: a line without the snapshot a
+  generated one carries is taken off once, in the first period after the earliest contract that
+  records it.
+
 ### A bundle booking's rhythm is `MONTHLY` or `YEARLY`
 
 The platform writes a booking's `billingCycle` only as `MONTHLY` or `YEARLY`, and prices the booking

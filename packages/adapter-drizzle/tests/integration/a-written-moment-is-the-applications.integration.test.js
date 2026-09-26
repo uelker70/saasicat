@@ -1,0 +1,261 @@
+// A moment the adapter writes is the moment it was written, whatever time zone
+// the database session — or the application's host — runs in.
+//
+// The canonical columns are `timestamp` without a time zone. A value the
+// application writes through Drizzle carries its own instant; a value left to
+// the database's `now()` is stored as the session's wall time and read back as
+// UTC, and a `Date` handed to the driver as a raw parameter is serialised in
+// the process's zone, whose offset the column then drops. Under either zone
+// outside UTC such a moment is hours off. The contract freeze compares a
+// redemption's `redeemedAt` with a contract's `createdAt`, and a plan version
+// ends at its `endsAt`: both need one clock.
+//
+// Requires SAASICAT_TEST_DATABASE_URL pointing at a DISPOSABLE database.
+
+import { after, before, beforeEach, describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+import pg from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+
+import { DrizzlePlanRepository, DrizzlePromoCodeRedemptionRepository } from '../../dist/index.js';
+import { openDisposableDatabase } from './support/disposable-database.mjs';
+
+const ZONE = 'Europe/Berlin';
+// The application's host outside UTC as well, for the raw parameters.
+process.env.TZ = ZONE;
+
+const UPGRADE_STEP = new URL(
+    '../../sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql',
+    import.meta.url,
+);
+
+let pool;
+let berlin;
+let utc;
+let redemptions;
+let planVersionId;
+let promoCodeId;
+
+/** A UTC instant as the literal a `timestamp` column stores it as. */
+const utcWallTime = (at) => at.toISOString().replace('T', ' ').replace('Z', '');
+
+/** A subscription of a tenant of its own — one subscription per tenant. */
+async function aSubscription() {
+    const id = randomUUID();
+    await pool.query(
+        `INSERT INTO subscriptions
+           ("id","tenantId","plan","billingCycle","status","planVersionId","isPilot",
+            "createdAt","updatedAt")
+         VALUES ($1,$2,'PRO','MONTHLY','ACTIVE',$3,false,NOW(),NOW())`,
+        [id, randomUUID(), planVersionId],
+    );
+    return id;
+}
+
+function assertBetween(what, at, from, to) {
+    assert.ok(
+        at >= from && at <= to,
+        `${what}: ${at.toISOString()} is not between ${from.toISOString()} and ${to.toISOString()}`,
+    );
+}
+
+before(async () => {
+    ({ pool } = await openDisposableDatabase({ max: 2 }));
+    berlin = new pg.Pool({
+        connectionString: process.env.SAASICAT_TEST_DATABASE_URL,
+        max: 4,
+        options: `-c TimeZone=${ZONE}`,
+    });
+    utc = new pg.Pool({
+        connectionString: process.env.SAASICAT_TEST_DATABASE_URL,
+        max: 1,
+        options: '-c TimeZone=UTC',
+    });
+    redemptions = new DrizzlePromoCodeRedemptionRepository(drizzle(berlin));
+
+    planVersionId = randomUUID();
+    await pool.query(
+        `INSERT INTO plan_versions
+           ("id","planId","version","features","quotas","monthlyNet","yearlyNet","marketed",
+            "changeNote","nonRegressive","publishedAt","createdAt","updatedAt")
+         VALUES ($1,'PRO',1,'[]','{}','49.00','490.00',true,'seed',true,NOW(),NOW(),NOW())`,
+        [planVersionId],
+    );
+    promoCodeId = randomUUID();
+    await pool.query(
+        `INSERT INTO promo_codes ("id","code","valueType","value","updatedAt")
+         VALUES ($1,'WELCOME10','PERCENT','10.00',NOW())`,
+        [promoCodeId],
+    );
+});
+
+after(async () => {
+    await utc?.end();
+    await berlin?.end();
+    await pool?.end();
+});
+
+describe('a moment the adapter writes is the moment it was written', () => {
+    test('the session really runs outside UTC', async () => {
+        const { rows } = await berlin.query('SHOW TimeZone');
+        assert.equal(rows[0].TimeZone, ZONE);
+    });
+
+    test('a redemption is redeemed when it was written, not hours off', async () => {
+        const subscriptionId = await aSubscription();
+        const from = new Date();
+        const redemption = await redemptions.create({
+            promoCodeId,
+            subscriptionId,
+            tenantId: 't1',
+            appliedValueType: 'PERCENT',
+            appliedValue: '10.00',
+            appliedDurationType: 'ONCE',
+            appliedDurationValue: null,
+            startsAt: from,
+            endsAt: null,
+        });
+        const to = new Date();
+
+        const read = await redemptions.findBySubscription(subscriptionId);
+        assertBetween('returned by create', redemption.redeemedAt, from, to);
+        assertBetween('read back', read.redeemedAt, from, to);
+    });
+});
+
+describe('a terminated plan version ends when it ends, not hours before', () => {
+    const endingIn = async (planId, ms) => {
+        const endsAt = new Date(Date.now() + ms);
+        await pool.query(
+            `INSERT INTO plan_versions
+               ("id","planId","version","features","quotas","monthlyNet","yearlyNet","marketed",
+                "changeNote","nonRegressive","publishedAt","endsAt","createdAt","updatedAt")
+             VALUES ($1,$2,1,'[]','{}','49.00','490.00',true,'seed',true,NOW(),
+                     $3::timestamp,NOW(),NOW())`,
+            [randomUUID(), planId, utcWallTime(endsAt)],
+        );
+        return endsAt;
+    };
+
+    test('the latest live version is live until it ends', async () => {
+        await endingIn('ENDS-IN-AN-HOUR', 60 * 60 * 1000);
+
+        const live = await new DrizzlePlanRepository(drizzle(berlin)).findLatestLivePlanVersion(
+            'ENDS-IN-AN-HOUR',
+        );
+
+        assert.ok(live, 'a version ending in an hour is not live');
+    });
+
+    test('a version is bookable at a moment before it ends', async () => {
+        const endsAt = await endingIn('ENDS-LATER', 60 * 60 * 1000);
+        const repository = new DrizzlePlanRepository(drizzle(berlin), { validityWindows: true });
+
+        const bookable = await repository.findActivePlanVersion(
+            'ENDS-LATER',
+            new Date(endsAt.getTime() - 30 * 60 * 1000),
+        );
+
+        assert.ok(bookable, 'a version half an hour before its end is not bookable');
+    });
+});
+
+describe('the upgrade step moves a redemption written before this version to UTC', () => {
+    const step = readFileSync(UPGRADE_STEP, 'utf8');
+
+    /** A redemption written the way the adapter used to: `redeemedAt` left to `now()`. */
+    async function writtenTheOldWay() {
+        const subscriptionId = await aSubscription();
+        const from = new Date();
+        await berlin.query(
+            `INSERT INTO promo_code_redemptions
+               ("id","promoCodeId","subscriptionId","tenantId","appliedValueType","appliedValue",
+                "appliedDurationType","startsAt")
+             VALUES ($1,$2,$3,'t1','PERCENT','10.00','ONCE',NOW())`,
+            [randomUUID(), promoCodeId, subscriptionId],
+        );
+        const to = new Date();
+        const redeemedAt = async () =>
+            (await redemptions.findBySubscription(subscriptionId)).redeemedAt;
+        const written = await redeemedAt();
+        assert.ok(written > to, `the old write is not off at all: ${written.toISOString()}`);
+        return { from, to, redeemedAt };
+    }
+
+    async function waitUntilWaitingOnALock(pid) {
+        for (let attempt = 0; attempt < 100; attempt++) {
+            const { rows } = await pool.query(
+                'SELECT wait_event_type FROM pg_stat_activity WHERE pid = $1',
+                [pid],
+            );
+            if (rows[0]?.wait_event_type === 'Lock') return;
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        throw new Error(`session ${pid} never waited on a lock`);
+    }
+
+    const marked = async () =>
+        (
+            await pool.query(
+                `SELECT col_description('promo_code_redemptions'::regclass, attnum) AS mark
+                   FROM pg_attribute
+                  WHERE attrelid = 'promo_code_redemptions'::regclass AND attname = 'redeemedAt'`,
+            )
+        ).rows[0].mark;
+
+    // Each case starts from a column no run has converted yet.
+    beforeEach(async () => {
+        await pool.query('COMMENT ON COLUMN promo_code_redemptions."redeemedAt" IS NULL');
+    });
+
+    test('once, and a second run leaves it where the first put it', async () => {
+        const { from, to, redeemedAt } = await writtenTheOldWay();
+
+        await berlin.query(step);
+        const converted = await redeemedAt();
+        await berlin.query(step);
+
+        assertBetween('after the step', converted, from, to);
+        assert.equal((await redeemedAt()).toISOString(), converted.toISOString());
+    });
+
+    test('a run in UTC by mistake converts nothing and marks nothing, so the right run still converts', async () => {
+        const { from, to, redeemedAt } = await writtenTheOldWay();
+        const late = await redeemedAt();
+
+        await utc.query(step);
+
+        assert.equal((await redeemedAt()).toISOString(), late.toISOString());
+        assert.equal(await marked(), null);
+        await berlin.query(step);
+        assertBetween('after the right run', await redeemedAt(), from, to);
+    });
+
+    test('two runs at the same time convert it once', async () => {
+        const { from, to, redeemedAt } = await writtenTheOldWay();
+        const first = await berlin.connect();
+        const second = await berlin.connect();
+        try {
+            const {
+                rows: [{ pid }],
+            } = await second.query('SELECT pg_backend_pid() AS pid');
+            await first.query('BEGIN');
+            await first.query(step);
+            // The second run starts while the first has not committed, and the
+            // first commits only once the second is waiting on a lock — so the
+            // second has gone as far as it can before the first's work is visible.
+            const secondRun = second.query(step);
+            await waitUntilWaitingOnALock(pid);
+            await first.query('COMMIT');
+            await secondRun;
+        } finally {
+            first.release();
+            second.release();
+        }
+
+        assertBetween('after both runs', await redeemedAt(), from, to);
+    });
+});

@@ -250,12 +250,16 @@ function deriveBundleCharges(
 // ── The discount ─────────────────────────────────────────────────────────
 
 /**
- * What the concluded offer took off, charged beside each plan period it
- * applies to.
+ * What was agreed to be taken off, charged beside each plan period it applies
+ * to.
  *
- * Read from the contract the offer was concluded as, not from the one in
- * force: a contract written again later carries no discount line, and the
- * discount runs for the duration it was concluded with (`SC-PROMO-015`).
+ * Each discount is read from the contract it was agreed in — the earliest
+ * that records it — not from the one in force: a contract written again later
+ * carries no discount line, and the discount runs for the duration it was
+ * agreed with (`SC-PROMO-015`). A discount is agreed where an offer is
+ * concluded, or where a code redeemed at onboarding is recorded in the first
+ * contract after it (`SC-PROMO-025`); one an application carries forward into
+ * contracts it writes itself still counts from where it first appeared.
  * Which periods that is follows from the snapshot on the line: a promo code
  * for its duration — once, a number of months, or a number of billing cycles —
  * an `intro` or `freeMonths` promotion for its months, and a `percent` or
@@ -265,27 +269,19 @@ function deriveDiscountCharges(
     input: ChargeDerivationInput,
     planCharges: readonly NewSubscriberCharge[],
 ): NewSubscriberCharge[] {
-    const concluded =
-        [...input.contracts]
-            .filter((contract) => contract.originalOfferId !== null)
-            .sort(byEffectiveFrom)[0] ?? null;
-    if (!concluded) return [];
-    const discounts = concluded.lineItems.filter((item) => item.kind === 'discount');
-    if (discounts.length === 0) return [];
-
-    // Counted from the first plan period the offer applies to, whichever
-    // contract prices it: an offer concluded during a trial is discounted from
-    // the first period that is paid, and a contract written in between — an
-    // add-on booked in the trial — does not take the discount with it.
     const { subscription } = input;
-    const first = firstPeriodConcludedFor(concluded, input.written, planCharges);
-    if (!first) return [];
-
     const charges: NewSubscriberCharge[] = [];
-    for (const planCharge of planCharges) {
-        const index = cyclesBetween(first, planCharge.periodStart, subscription);
-        if (index === null) continue;
-        for (const line of discounts) {
+    for (const { contract, line } of discountsWhereAgreed(input.contracts)) {
+        // Counted from the first plan period the agreement applies to,
+        // whichever contract prices it: an offer concluded during a trial is
+        // discounted from the first period that is paid, and a contract
+        // written in between — an add-on booked in the trial — does not take
+        // the discount with it.
+        const first = firstPeriodConcludedFor(contract, input.written, planCharges);
+        if (!first) continue;
+        for (const planCharge of planCharges) {
+            const index = cyclesBetween(first, planCharge.periodStart, subscription);
+            if (index === null) continue;
             const amount = discountFor(
                 line,
                 index,
@@ -295,7 +291,7 @@ function deriveDiscountCharges(
             );
             if (amount === 0) continue;
             charges.push(
-                chargeOf(input, concluded, line, {
+                chargeOf(input, contract, line, {
                     origin: planCharge.origin,
                     source: 'discount',
                     sourceRef: line.sourceKey,
@@ -307,6 +303,23 @@ function deriveDiscountCharges(
         }
     }
     return charges;
+}
+
+/** Each discount line, with the earliest contract that records it. */
+function discountsWhereAgreed(
+    contracts: readonly SubscriptionContractRecord[],
+): { contract: SubscriptionContractRecord; line: ContractLineItemRecord }[] {
+    const agreed = new Map<
+        string,
+        { contract: SubscriptionContractRecord; line: ContractLineItemRecord }
+    >();
+    for (const contract of [...contracts].sort(byEffectiveFrom)) {
+        for (const line of contract.lineItems) {
+            if (line.kind !== 'discount' || agreed.has(line.sourceKey)) continue;
+            agreed.set(line.sourceKey, { contract, line });
+        }
+    }
+    return [...agreed.values()];
 }
 
 /** What a discount line takes off in the period `index` cycles after `first`, as a positive amount. */
@@ -488,11 +501,11 @@ function firstPlanPeriodStart(
 }
 
 /**
- * The start of the first plan period a concluded offer applies to, among those
- * already written and those about to be: one that ends after the offer was
- * concluded, and either starts after it or is priced by it. A period that
- * began under an earlier contract and is priced by it is that contract's, even
- * where the offer was concluded while it ran.
+ * The start of the first plan period an agreement applies to, among those
+ * already written and those about to be: one that ends after the contract
+ * recording it took effect, and either starts after that or is priced by it. A
+ * period that began under an earlier contract and is priced by it is that
+ * contract's, even where the agreement was made while it ran.
  */
 function firstPeriodConcludedFor(
     concluded: SubscriptionContractRecord,

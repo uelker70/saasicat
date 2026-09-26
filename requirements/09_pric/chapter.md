@@ -705,8 +705,12 @@ _Tested by:_
         - an offer concluded during a trial is discounted from the first paid period
         - a contract written between the conclusion and the first paid period does not take it away
         - an offer concluded as a period ends is discounted from the next one
-        - an offer concluded a moment after its window opened is discounted in that window
+        - an offer concluded a moment after its window opened is discounted in that window, where no
+          earlier contract prices it
         - an offer concluded while a charged period runs is discounted from the next one
+        - a code redeemed at onboarding is taken off from the contract that records it
+        - two discounts agreed at different times each run from their own contract
+        - a discount a later contract carries forward counts from where it first appeared
         - a contract written again later, which carries no discount line, does not end it
 
 <!-- END proof -->

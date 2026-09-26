@@ -553,7 +553,7 @@ describe('a discount is charged for the periods it was concluded for', () => {
         );
     });
 
-    test('an offer concluded a moment after its window opened is discounted in that window', async () => {
+    test('an offer concluded a moment after its window opened is discounted in that window, where no earlier contract prices it', async () => {
         const account = anAccount({ subscription: { startedAt: null } });
         await account.contract({
             effectiveFrom: new Date(utc('2026-01-01').getTime() + 40),
@@ -587,6 +587,89 @@ describe('a discount is charged for the periods it was concluded for', () => {
         assert.deepEqual(
             account.entries().filter(([, source]) => source === 'discount'),
             [['2026-02-01', 'discount', 'renewal', -9.8]],
+        );
+    });
+
+    test('a code redeemed at onboarding is taken off from the contract that records it', async () => {
+        const account = anAccount();
+        // Written by the freeze, not concluded from an offer.
+        await account.contract({
+            lineItems: [STANDARD(), discountLine(9.8, { promoCode: code('ONCE', null) })],
+        });
+
+        await account.charge(utc('2026-01-02'));
+
+        assert.deepEqual(
+            account.entries().filter(([, source]) => source === 'discount'),
+            [['2026-01-01', 'discount', 'activation', -9.8]],
+        );
+    });
+
+    test('two discounts agreed at different times each run from their own contract', async () => {
+        const account = anAccount();
+        await account.contract({
+            offer: 'offer-1',
+            lineItems: [STANDARD(), discountLine(9.8, { promoCode: code('ONCE', null) })],
+        });
+        await account.charge(utc('2026-01-02'));
+        await account.supersede(utc('2026-03-01'));
+        await account.contract({
+            effectiveFrom: utc('2026-03-01'),
+            offer: 'offer-2',
+            lineItems: [
+                STANDARD(),
+                discountLine(5, {
+                    promoCode: { ...code('ONCE', null), code: 'SPRING5', resolvedAmountNet: 5 },
+                }),
+            ],
+        });
+
+        for (const month of [1, 2]) {
+            account.roll(
+                new Date(Date.UTC(2026, month, 1)),
+                new Date(Date.UTC(2026, month + 1, 1)),
+            );
+            await account.charge(new Date(Date.UTC(2026, month, 1)));
+        }
+
+        assert.deepEqual(
+            account
+                .entries()
+                .filter(([, source]) => source === 'discount')
+                .map(([start, , , amount]) => [start, amount]),
+            [
+                ['2026-01-01', -9.8],
+                ['2026-03-01', -5],
+            ],
+        );
+    });
+
+    test('a discount a later contract carries forward counts from where it first appeared', async () => {
+        const account = anAccount();
+        const twoPeriods = () => discountLine(9.8, { promoCode: code('BILLING_CYCLES', 2) });
+        await account.contract({ lineItems: [STANDARD(), twoPeriods()] });
+        await account.charge(utc('2026-01-02'));
+        // An application that writes its own contracts copies the line on.
+        await account.supersede(utc('2026-02-01'));
+        await account.contract({
+            effectiveFrom: utc('2026-02-01'),
+            lineItems: [STANDARD(), twoPeriods()],
+        });
+
+        for (const month of [1, 2]) {
+            account.roll(
+                new Date(Date.UTC(2026, month, 1)),
+                new Date(Date.UTC(2026, month + 1, 1)),
+            );
+            await account.charge(new Date(Date.UTC(2026, month, 1)));
+        }
+
+        assert.deepEqual(
+            account
+                .entries()
+                .filter(([, source]) => source === 'discount')
+                .map(([start]) => start),
+            ['2026-01-01', '2026-02-01'],
         );
     });
 

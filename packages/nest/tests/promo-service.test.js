@@ -782,3 +782,62 @@ describe('a redemption and its discount stand or fall together', () => {
         assert.equal(runner.rolledBack, false);
     });
 });
+
+// @requirement SC-PROMO-015 — What a code promised when it was redeemed stays with the redemption
+describe('the code a subscription redeemed, as the contract records it', () => {
+    async function redeemed({ status = 'ACTIVE', deleted = false, redemption = true } = {}) {
+        const promoRepo = new FakePromoRepo();
+        const code = await promoRepo.create({ ...BASE_INPUT, value: '25.00' });
+        if (deleted) await promoRepo.softDelete(code.id);
+        const svc = buildSvc({
+            promoRepo,
+            redemptionRepo: {
+                ...NOOP_REDEMPTION_REPO,
+                async findBySubscription(subscriptionId) {
+                    if (!redemption || subscriptionId !== 'sub-1') return null;
+                    return {
+                        id: 'r1',
+                        promoCodeId: code.id,
+                        subscriptionId,
+                        tenantId: 't1',
+                        // Edited on the code since; the redemption keeps what was redeemed.
+                        appliedValueType: 'PERCENT',
+                        appliedValue: '20.00',
+                        appliedDurationType: 'MONTHS',
+                        appliedDurationValue: 3,
+                        startsAt: new Date('2026-01-01T00:00:00.000Z'),
+                        endsAt: new Date('2026-04-01T00:00:00.000Z'),
+                        status,
+                        redeemedAt: new Date('2026-01-01T00:00:00.000Z'),
+                        reversedAt: null,
+                    };
+                },
+            },
+        });
+        return svc.redeemedCodeFor('sub-1');
+    }
+
+    test('with the values it was redeemed at, not the code as it reads now', async () => {
+        assert.deepEqual(await redeemed(), {
+            code: 'BLACKFRIDAY25',
+            valueType: 'PERCENT',
+            value: '20.00',
+            durationType: 'MONTHS',
+            durationValue: 3,
+            redeemedAt: new Date('2026-01-01T00:00:00.000Z'),
+        });
+    });
+
+    test('a code deleted since still names what was agreed', async () => {
+        assert.equal((await redeemed({ deleted: true }))?.code, 'BLACKFRIDAY25');
+    });
+
+    test('nothing for a reversed redemption, or none at all', async () => {
+        assert.equal(await redeemed({ status: 'REVERSED' }), null);
+        assert.equal(await redeemed({ redemption: false }), null);
+    });
+
+    test('an expired one still counts: its term ran from before the trial, a contract counts from the first paid period', async () => {
+        assert.equal((await redeemed({ status: 'EXPIRED' }))?.code, 'BLACKFRIDAY25');
+    });
+});

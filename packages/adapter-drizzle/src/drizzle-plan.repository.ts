@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { and, asc, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type {
     CreatePlanData,
     CreatePlanVersionDraftData,
@@ -218,8 +218,10 @@ export class DrizzlePlanRepository implements PlanRepository {
                     isNull(planVersions.supersededAt),
                     // A version the operator terminated is not live, whatever
                     // its supersession says: `terminate` sets `endsAt` without
-                    // a successor to supersede it.
-                    or(isNull(planVersions.endsAt), sql`${planVersions.endsAt} > NOW()`),
+                    // a successor to supersede it. Compared with the
+                    // application's clock, which wrote it: the database's
+                    // `NOW()` reads the column in the session's zone.
+                    or(isNull(planVersions.endsAt), gt(planVersions.endsAt, new Date())),
                 ),
             )
             .orderBy(desc(planVersions.version))
@@ -254,7 +256,7 @@ export class DrizzlePlanRepository implements PlanRepository {
                         isNull(planVersions.validUntil),
                         gte(planVersions.validUntil, startOfUtcDay(asOf)),
                     ),
-                    or(isNull(planVersions.endsAt), sql`${planVersions.endsAt} > ${asOf}`),
+                    or(isNull(planVersions.endsAt), gt(planVersions.endsAt, asOf)),
                 ),
             )
             // `nulls last` so a version with no window loses to one that has a
