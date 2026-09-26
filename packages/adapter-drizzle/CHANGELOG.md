@@ -1,5 +1,107 @@
 # @saasicat/adapter-drizzle
 
+## 1.0.0-rc.22
+
+### Major Changes
+
+- 82c5ab6: A bundle booking's rhythm is `MONTHLY` or `YEARLY`
+
+    The platform writes a booking's `billingCycle` only as `MONTHLY` or `YEARLY`,
+    and prices a booking by asking whether it is `YEARLY` — yet the record typed it
+    as any string, so an implementation could hand back `'yearly'` and have the
+    booking priced monthly without a word.
+
+    - Breaking: `SubscriptionBundleRecord.billingCycle` and
+      `CreateSubscriptionBundleData.billingCycle` are `BillingCycle | null`.
+      `resolveBundlePriceNet`, `SubscriptionBundlesService.listForSubscription` and
+      `SubscriptionBundlePreviewContext.billingCycle` take a `BillingCycle`.
+    - Both shipped adapters read a booking through `toSubscriptionBundleRecord`,
+      new in `@saasicat/core`, which refuses a stored rhythm other than the two,
+      naming the row. A `SubscriptionBundleRepository` of your own can map its rows
+      with it. Every read of a booking is checked, the entitlement service's
+      included, so run the query in the upgrade guide before deploying: a row it
+      lists stops that tenant's feature and quota checks until it is corrected.
+    - Breaking: the persistence contract checks that refusal. A harness gives it
+      the `setBookingCycle` seed writer, or names `foreignBookingCycleSeed` in
+      `gaps`.
+
+### Minor Changes
+
+- 37899b2: A subscriber's account records the charges its contracts give rise to
+
+    A journal of what each subscriber owes (`SubscriberLedgerEntry`, optional):
+    one charge per contract line and period — the plan, each add-on booking, a
+    discount — derived from the contract in force, the billing windows and the
+    bookings, net, with its currency and period, and written once however often
+    and however concurrently it is derived (`SC-PRIC-053`). Every period is
+    charged at the price in force when it starts, a skipped one too
+    (`SC-PRIC-054`); nothing in a trial, without a contract, before a period
+    starts or from a cancellation's effective date (`SC-PRIC-055`). A charge
+    carries no tax; the invoice decides it (`SC-PRIC-056`). A discount is charged
+    for the periods it was concluded for (`SC-PRIC-057`). A charge is rounded
+    once and never edited (`SC-PRIC-018`, `SC-PRIC-020`). An account with no
+    charge yet begins with the window its subscription is in, and nothing before
+    it is guessed; an add-on is charged from its booking, but not from before the
+    account begins (`SC-PRIC-058`).
+
+    - `tenantBilling.chargeJournal: { ledgerRepository }` enables it beside
+      `contractFreeze`, and `SubscriberChargeService.recordDueCharges(tenantId)`
+      is what an application calls at activation and from its renewal job, before
+      it moves a window and after. The platform calls it after onboarding and
+      after an add-on booking, and where writing the contract after a booking
+      failed, the call writes it again.
+    - Onboarding writes the contract after the add-ons it books, so the contract
+      names them.
+    - `SubscriberLedgerRepository` in `@saasicat/core`, with both shipped adapters
+      (`persistence.entitlement.subscriberLedgerRepository`), the Prisma fragment
+      `15-subscriber-ledger.prisma` and the migration
+      `1.0-a-subscriber-account-records-its-charges.postgres.sql`.
+    - The persistence contract holds an adapter to it (`subscriberLedgerRepository`,
+      gap `subscriberLedger`).
+    - `@saasicat/spec` exports `subscriberLedgerSchema` in place of
+      `tenantLedgerSchema`, which nothing read.
+
+### Patch Changes
+
+- 8fec046: A promo code redeemed at onboarding is recorded in the contract
+
+    The contract written after onboarding redeemed a code named only the plan and
+    the add-ons, at the list price. The first contract written after a redemption
+    now records the code: a generated discount line with the values it was
+    redeemed at, resolved against the plan the way an offer resolves it, and the
+    code in `promoCodeSnapshots` (`SC-PROMO-025`). Where onboarding went into a
+    trial, that is the contract written at activation. Later contracts do not
+    repeat it, and a contract concluded from an offer with the code already
+    records it.
+
+    The subscriber's account takes it off: it reads each discount from the
+    earliest contract that records it, not only from a contract concluded from an
+    offer, so two discounts agreed at different times each run from their own
+    contract, and one carried forward into later contracts does not start again
+    (`SC-PRIC-057`).
+
+    - `PromoCodesService.redeemedCodeFor(subscriptionId)` returns the code a
+      subscription redeemed, with the values it was redeemed at, unless the
+      redemption was reversed. An expired redemption still counts: its term ran
+      from the subscription's start, before a trial, while a contract counts a
+      discount from the first period that is paid.
+    - `promoCodeDiscountNet` in `@saasicat/nest/promo` resolves what a code takes
+      off a plan's net price; offers and contracts use it alike.
+    - `@saasicat/adapter-drizzle` writes the moments the database used to fill —
+      `createdAt`, `redeemedAt` and the others — on the application's clock, and
+      compares a plan version's end with it. Left to the database, a session
+      outside UTC put them hours off, because the canonical columns carry no time
+      zone. An installation whose session runs outside UTC converts its old
+      redemptions once with
+      `sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql`, after the old
+      version has stopped and before the new one starts.
+
+- Updated dependencies [82c5ab6]
+- Updated dependencies [3663719]
+- Updated dependencies [37899b2]
+- Updated dependencies [123ea4d]
+    - @saasicat/core@1.0.0-rc.22
+
 ## 1.0.0-rc.21
 
 ### Major Changes

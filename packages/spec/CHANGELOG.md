@@ -1,5 +1,70 @@
 # @saasicat/spec
 
+## 1.0.0-rc.22
+
+### Minor Changes
+
+- 37899b2: A subscriber's account records the charges its contracts give rise to
+
+    A journal of what each subscriber owes (`SubscriberLedgerEntry`, optional):
+    one charge per contract line and period — the plan, each add-on booking, a
+    discount — derived from the contract in force, the billing windows and the
+    bookings, net, with its currency and period, and written once however often
+    and however concurrently it is derived (`SC-PRIC-053`). Every period is
+    charged at the price in force when it starts, a skipped one too
+    (`SC-PRIC-054`); nothing in a trial, without a contract, before a period
+    starts or from a cancellation's effective date (`SC-PRIC-055`). A charge
+    carries no tax; the invoice decides it (`SC-PRIC-056`). A discount is charged
+    for the periods it was concluded for (`SC-PRIC-057`). A charge is rounded
+    once and never edited (`SC-PRIC-018`, `SC-PRIC-020`). An account with no
+    charge yet begins with the window its subscription is in, and nothing before
+    it is guessed; an add-on is charged from its booking, but not from before the
+    account begins (`SC-PRIC-058`).
+
+    - `tenantBilling.chargeJournal: { ledgerRepository }` enables it beside
+      `contractFreeze`, and `SubscriberChargeService.recordDueCharges(tenantId)`
+      is what an application calls at activation and from its renewal job, before
+      it moves a window and after. The platform calls it after onboarding and
+      after an add-on booking, and where writing the contract after a booking
+      failed, the call writes it again.
+    - Onboarding writes the contract after the add-ons it books, so the contract
+      names them.
+    - `SubscriberLedgerRepository` in `@saasicat/core`, with both shipped adapters
+      (`persistence.entitlement.subscriberLedgerRepository`), the Prisma fragment
+      `15-subscriber-ledger.prisma` and the migration
+      `1.0-a-subscriber-account-records-its-charges.postgres.sql`.
+    - The persistence contract holds an adapter to it (`subscriberLedgerRepository`,
+      gap `subscriberLedger`).
+    - `@saasicat/spec` exports `subscriberLedgerSchema` in place of
+      `tenantLedgerSchema`, which nothing read.
+
+- 123ea4d: The operator sees a subscriber's charges on the tenant's page
+
+    Where the platform keeps a charge journal (`tenantBilling.chargeJournal`) and
+    shows tenants (`adminResources`), it serves `GET admin/tenants/:slug/charges`
+    behind the administration's guards and announces it in the manifest as
+    `charges.read`. `TenantDetailPage` then shows a section with the charges of the
+    tenant's subscriber, newest first: the title of each charge's contract line,
+    its period, what made it arise, when it became due, and its net amount — and
+    whose account it is, by customer number and legal name. There is no total:
+    without invoices and payments, a sum would be read as what is owed. Without
+    the journal, neither the route nor the section exists.
+
+    The read runs inside `RlsBypassPort`, because an operator's request is scoped
+    to no tenant. Where your ledger, subscriptions, contracts or subscribers carry
+    a row-level policy, your implementation of that port has to lift it there.
+
+    New exports: `SubscriberAccountService` and `SubscriberAccountModule` from
+    `@saasicat/nest/billing` — mounted by hand, the module needs `RlsBypassPort` in
+    scope and does not start without it — the `AdminSubscriberAccount` types and
+    `SUBSCRIBER_ACCOUNT_CAPABILITY` from `@saasicat/core`, `useTenantAccount` and
+    `tenantsResource.charges` from `@saasicat/ui-vue`.
+
+    `admin-api.openapi.yaml` resolves its references to the JSON Schemas from the
+    `schemas/` directory they ship in. The manifest response pointed beside it,
+    where no file is, so a bundler or client generator that dereferences the
+    document stopped there.
+
 ## 1.0.0-rc.21
 
 ### Major Changes

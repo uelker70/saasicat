@@ -1,5 +1,214 @@
 # @saasicat/nest
 
+## 1.0.0-rc.22
+
+### Major Changes
+
+- 82c5ab6: A bundle booking's rhythm is `MONTHLY` or `YEARLY`
+
+    The platform writes a booking's `billingCycle` only as `MONTHLY` or `YEARLY`,
+    and prices a booking by asking whether it is `YEARLY` — yet the record typed it
+    as any string, so an implementation could hand back `'yearly'` and have the
+    booking priced monthly without a word.
+
+    - Breaking: `SubscriptionBundleRecord.billingCycle` and
+      `CreateSubscriptionBundleData.billingCycle` are `BillingCycle | null`.
+      `resolveBundlePriceNet`, `SubscriptionBundlesService.listForSubscription` and
+      `SubscriptionBundlePreviewContext.billingCycle` take a `BillingCycle`.
+    - Both shipped adapters read a booking through `toSubscriptionBundleRecord`,
+      new in `@saasicat/core`, which refuses a stored rhythm other than the two,
+      naming the row. A `SubscriptionBundleRepository` of your own can map its rows
+      with it. Every read of a booking is checked, the entitlement service's
+      included, so run the query in the upgrade guide before deploying: a row it
+      lists stops that tenant's feature and quota checks until it is corrected.
+    - Breaking: the persistence contract checks that refusal. A harness gives it
+      the `setBookingCycle` seed writer, or names `foreignBookingCycleSeed` in
+      `gaps`.
+
+### Minor Changes
+
+- 2792605: A cancelled add-on's features and quotas end on its effective date
+
+    A contract written while an add-on's cancellation was declared recorded the
+    add-on in its entitlements, and nothing wrote the contract again when the date
+    arrived. Now the contract keeps the add-on's line, since it is billed until
+    then, leaves it out of the entitlements it records and names it there
+    (`leftOutBundleVersionIds`); the booking grants its features and quotas until
+    its effective date, counted once, and from that date nothing of it is granted
+    (`SC-BUN-034`). A cached answer is not served past that date either.
+
+    - `EntitlementService.computeContractLimits` answers what a contract frozen at
+      a moment records, and which add-ons it left out. The freeze calls it instead
+      of `computeLimits`; a stand-in for `EntitlementService` of your own provides
+      it.
+    - A snapshot that names nothing as left out — written before this release, or
+      by an application — covers every add-on its contract lists, as before, so a
+      cancelled add-on is counted once there and kept until the contract is written
+      again. The upgrade guide says how to write each one once.
+
+- e87c321: A subscriber's account charges an immediate plan change
+
+    The account now records what an immediate upgrade's preview quoted
+    (`SC-PRIC-059`). In the same rhythm that is the difference for the rest of the
+    period, beside the period's own charge. Into a longer rhythm it is the new
+    period in full, less the unused rest of the one it replaces at the price in
+    force just before the change, never below nothing. The renewals then run on
+    from the new period. Both are `planChange` charges, derived from the contract
+    and the window the change leaves behind, and the plan change route records
+    them right after it writes the contract.
+
+    A discount is charged on whole periods of the rhythm it was agreed in. The
+    difference an upgrade adds carries none. At the first change of rhythm after
+    it was agreed — an upgrade into a longer one, or a return at the end of a term
+    — what is left of the discount is taken off the new period, once, and no more
+    than that period costs (`SC-PRIC-060`).
+
+- 37899b2: A subscriber's account records the charges its contracts give rise to
+
+    A journal of what each subscriber owes (`SubscriberLedgerEntry`, optional):
+    one charge per contract line and period — the plan, each add-on booking, a
+    discount — derived from the contract in force, the billing windows and the
+    bookings, net, with its currency and period, and written once however often
+    and however concurrently it is derived (`SC-PRIC-053`). Every period is
+    charged at the price in force when it starts, a skipped one too
+    (`SC-PRIC-054`); nothing in a trial, without a contract, before a period
+    starts or from a cancellation's effective date (`SC-PRIC-055`). A charge
+    carries no tax; the invoice decides it (`SC-PRIC-056`). A discount is charged
+    for the periods it was concluded for (`SC-PRIC-057`). A charge is rounded
+    once and never edited (`SC-PRIC-018`, `SC-PRIC-020`). An account with no
+    charge yet begins with the window its subscription is in, and nothing before
+    it is guessed; an add-on is charged from its booking, but not from before the
+    account begins (`SC-PRIC-058`).
+
+    - `tenantBilling.chargeJournal: { ledgerRepository }` enables it beside
+      `contractFreeze`, and `SubscriberChargeService.recordDueCharges(tenantId)`
+      is what an application calls at activation and from its renewal job, before
+      it moves a window and after. The platform calls it after onboarding and
+      after an add-on booking, and where writing the contract after a booking
+      failed, the call writes it again.
+    - Onboarding writes the contract after the add-ons it books, so the contract
+      names them.
+    - `SubscriberLedgerRepository` in `@saasicat/core`, with both shipped adapters
+      (`persistence.entitlement.subscriberLedgerRepository`), the Prisma fragment
+      `15-subscriber-ledger.prisma` and the migration
+      `1.0-a-subscriber-account-records-its-charges.postgres.sql`.
+    - The persistence contract holds an adapter to it (`subscriberLedgerRepository`,
+      gap `subscriberLedger`).
+    - `@saasicat/spec` exports `subscriberLedgerSchema` in place of
+      `tenantLedgerSchema`, which nothing read.
+
+- 89ee3f4: An immediate upgrade runs inside the period already paid, or starts a longer
+  one today less the unused rest
+
+    An immediate upgrade opened a new period from the day of the change, which
+    moved the day the customer is billed on, while the preview charged the
+    difference over the old period — two answers for one change. For a move into a
+    longer rhythm the preview took the difference between a year's price and a
+    month's over what was left of the month: Standard at 49 a month to Pro at 990 a
+    year on day 15 of 30 was quoted at 470.50.
+
+    - In the same rhythm the period and the billing day stay, and the difference is
+      charged for what is left of it (`SC-CHG-020`, superseding `SC-CHG-003`).
+    - Into a longer rhythm the new period starts today, charged in full less the
+      unused rest of the old one at the price paid for it: 990 − 24.50 = 965.50
+      in the example (`SC-CHG-021`). The rest is never paid out.
+    - What was already paid is priced from the plan line of the contract in force,
+      not from today's catalogue, so a customer bought at 19 a month is credited at
+      19 after the plan went to 29. Without contracts the catalogue price stands.
+    - A subscription with no period yet is charged its first period in full, and
+      the preview says so.
+    - `ProrationDto` gains `basis` (`difference` or `newPeriod`) and `remainderNet`;
+      `computeNewPeriodCharge` is new beside `computeProration`. The plan change
+      wizard shows the full price and the rest it is reduced by, with three new
+      catalogue keys (`wizardNewPeriodLine`, `wizardRemainderLine`,
+      `wizardConfirmDueNow`).
+
+- 123ea4d: The operator sees a subscriber's charges on the tenant's page
+
+    Where the platform keeps a charge journal (`tenantBilling.chargeJournal`) and
+    shows tenants (`adminResources`), it serves `GET admin/tenants/:slug/charges`
+    behind the administration's guards and announces it in the manifest as
+    `charges.read`. `TenantDetailPage` then shows a section with the charges of the
+    tenant's subscriber, newest first: the title of each charge's contract line,
+    its period, what made it arise, when it became due, and its net amount — and
+    whose account it is, by customer number and legal name. There is no total:
+    without invoices and payments, a sum would be read as what is owed. Without
+    the journal, neither the route nor the section exists.
+
+    The read runs inside `RlsBypassPort`, because an operator's request is scoped
+    to no tenant. Where your ledger, subscriptions, contracts or subscribers carry
+    a row-level policy, your implementation of that port has to lift it there.
+
+    New exports: `SubscriberAccountService` and `SubscriberAccountModule` from
+    `@saasicat/nest/billing` — mounted by hand, the module needs `RlsBypassPort` in
+    scope and does not start without it — the `AdminSubscriberAccount` types and
+    `SUBSCRIBER_ACCOUNT_CAPABILITY` from `@saasicat/core`, `useTenantAccount` and
+    `tenantsResource.charges` from `@saasicat/ui-vue`.
+
+    `admin-api.openapi.yaml` resolves its references to the JSON Schemas from the
+    `schemas/` directory they ship in. The manifest response pointed beside it,
+    where no file is, so a bundler or client generator that dereferences the
+    document stopped there.
+
+### Patch Changes
+
+- 3663719: Answer a payment gateway that fails with SaaSiCat's own code
+
+    When the gateway fails while opening the form for a payment method — at
+    sign-up or when a tenant changes its payment method — or while reading a
+    callback back, the request is refused with `PAYMENT_GATEWAY_FAILED` and the
+    status 502, in the catalogue's wording. A form that failed to open records
+    nothing, and a callback that could not be read claims nothing, so the gateway
+    retries it. The failure's kind, code, status and request id go to the server
+    log, so the request can be found at the provider; an error the adapter wrote
+    itself, carrying no status, is logged with its message and stack.
+
+    - `PAYMENT_ERROR_CODES.PAYMENT_GATEWAY_FAILED` is new, with its English and
+      German message. A filter of your own that caught the gateway's errors on
+      these routes is no longer needed.
+    - A `PaymentGateway` of your own throws a failure as the provider reported it;
+      a signature that does not verify is still `PaymentCallbackRejectedError`.
+
+- 8fec046: A promo code redeemed at onboarding is recorded in the contract
+
+    The contract written after onboarding redeemed a code named only the plan and
+    the add-ons, at the list price. The first contract written after a redemption
+    now records the code: a generated discount line with the values it was
+    redeemed at, resolved against the plan the way an offer resolves it, and the
+    code in `promoCodeSnapshots` (`SC-PROMO-025`). Where onboarding went into a
+    trial, that is the contract written at activation. Later contracts do not
+    repeat it, and a contract concluded from an offer with the code already
+    records it.
+
+    The subscriber's account takes it off: it reads each discount from the
+    earliest contract that records it, not only from a contract concluded from an
+    offer, so two discounts agreed at different times each run from their own
+    contract, and one carried forward into later contracts does not start again
+    (`SC-PRIC-057`).
+
+    - `PromoCodesService.redeemedCodeFor(subscriptionId)` returns the code a
+      subscription redeemed, with the values it was redeemed at, unless the
+      redemption was reversed. An expired redemption still counts: its term ran
+      from the subscription's start, before a trial, while a contract counts a
+      discount from the first period that is paid.
+    - `promoCodeDiscountNet` in `@saasicat/nest/promo` resolves what a code takes
+      off a plan's net price; offers and contracts use it alike.
+    - `@saasicat/adapter-drizzle` writes the moments the database used to fill —
+      `createdAt`, `redeemedAt` and the others — on the application's clock, and
+      compares a plan version's end with it. Left to the database, a session
+      outside UTC put them hours off, because the canonical columns carry no time
+      zone. An installation whose session runs outside UTC converts its old
+      redemptions once with
+      `sql/1.0-a-redemption-is-redeemed-in-utc.postgres.sql`, after the old
+      version has stopped and before the new one starts.
+
+- Updated dependencies [82c5ab6]
+- Updated dependencies [3663719]
+- Updated dependencies [37899b2]
+- Updated dependencies [123ea4d]
+    - @saasicat/core@1.0.0-rc.22
+    - @saasicat/spec@1.0.0-rc.22
+
 ## 1.0.0-rc.21
 
 ### Major Changes

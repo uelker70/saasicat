@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/payment-stripe",
-    "version": "1.0.0-rc.21",
+    "version": "1.0.0-rc.22",
     "description": "Stripe payment gateway adapter for SaaSiCat: opens Stripe Checkout in setup mode for a card or a SEPA direct debit, verifies the webhook callback with the account's signing secret, and hands the platform the gateway's reference with the masked details. Implements the PaymentGateway port from @saasicat/core.",
     "type": "module",
     "main": "./dist/index.cjs",
