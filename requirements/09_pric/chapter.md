@@ -741,6 +741,76 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-PRIC-059 — An immediate upgrade is charged as it was quoted
+
+🟢 💰 The account records what the plan change quoted (`SC-CHG-020`, `SC-CHG-021`), derived from
+the contract and the window the change leaves behind. In the same rhythm it is the difference for
+what is left of the period, beside the period's own charge: Standard at 49 to Pro at 99 on day 15
+of 30 is 25.00. A further upgrade in the same period is charged from the price before it. Into a
+longer rhythm it is the new period in full, less the unused rest of the period it replaces, at the
+price in force just before the change: 990 − 24.50 = 965.50. That is never below nothing, and the
+renewals run on from the new period's end. A contract written again at the same price adds
+nothing, and nothing is paid out (`SC-PRIC-003`).
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-change-is-charged.test.js`
+    - an immediate upgrade in the same rhythm is charged the difference for the rest of the period
+        - Standard 49 to Pro 99 on day 15 of 30 costs 25.00 now, and the next renewal 99
+        - a contract written again at the same price adds nothing
+        - two upgrades in one period are each charged from the price before them
+        - a contract that takes effect as the period starts prices that period, and adds nothing
+        - nothing before the upgrade takes effect, and nothing after the subscription has ended
+        - a second call writes the difference no second time
+    - an immediate upgrade into a longer rhythm is charged the new period less the unused rest
+        - Standard 49 a month to Pro 990 a year on day 15 of 30 costs 965.50, and the year after 990
+        - the rest is valued at the price in force just before, an upgrade earlier in the month
+          included
+        - a rest larger than the new period costs nothing, and is never paid out
+        - a second call charges the new period no second time
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - an immediate upgrade brings the account up to date
+        - once, for the tenant, after the contract that prices the change is written
+        - a journal that fails does not undo the upgrade
+
+<!-- END proof -->
+
+### SC-PRIC-060 — A discount keeps to its rhythm, and what is left of it moves to the new period
+
+🟢 💰 A discount is charged on whole periods of the rhythm it was agreed in (`SC-PRIC-057`). The
+difference a same-rhythm upgrade adds carries none. When the rhythm changes, the discount's
+remainder is taken off the new period: what it would still have taken off the periods of its
+rhythm that start at or after the change, but no more than the new period costs. At 20 % for three
+months, which is 9.80 a month, a move to yearly during the first month takes 19.60 off the year. A
+discount agreed with the change itself treats the new period as its first.
+
+_Source:_ #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-plan-change-is-charged.test.js`
+    - a discount and a plan change
+        - the difference carries none; the discount runs on the whole periods for its duration
+        - an upgrade offer with its own code mid-period: the difference now, the code from the next
+          period
+        - into a longer rhythm, the months left of a code are taken off the new period
+        - the billing periods left are carried, and a one-off code that was used carries nothing
+        - what is carried takes no more off than the new period costs
+        - a code concluded with the change takes the new period as its first
+        - a discount carried into a longer rhythm does not come back when the rhythm returns
+        - a return to monthly takes what is left of a yearly discount off the first month, once
+        - a monthly discount whose rhythm changed in the trial moves whole to the first yearly
+          period, and not again
+        - a discount from the old rhythm takes nothing off the yearly renewals after the change
+
+<!-- END proof -->
+
 ### SC-PRIC-021 — An internal account reference is never shown to a customer as an invoice number
 
 🟡 _(Decided, not yet delivered.)_ Invoice numbering is sequential, unique and legally constrained

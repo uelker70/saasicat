@@ -226,9 +226,10 @@ export interface TenantBillingModuleOptions {
      * (`SubscriberChargeService`). Needs `contractFreeze`: a charge points at a
      * contract line, and the contracts and subscribers come from there.
      *
-     * The platform brings an account up to date after onboarding and after an
-     * add-on booking; an application calls `recordDueCharges` where it writes
-     * a change itself — at activation and from its renewal job.
+     * The platform brings an account up to date after onboarding, an
+     * immediate plan change and an add-on booking; an application calls
+     * `recordDueCharges` where it writes a change itself — at activation and
+     * from its renewal job.
      */
     chargeJournal?: {
         ledgerRepository: ProviderSpec<SubscriberLedgerRepository>;

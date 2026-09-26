@@ -476,6 +476,7 @@ export class TenantBillingController {
                 // contract it freezes still ends when the subscription does.
                 sub.canceledEffectiveAt ?? sub.canceledAt ?? null,
             );
+            await recordChargesAfter(this.charges, tenantId, 'a plan change', this.logger);
             await this.auditLog(req, userId, 'Subscription', tenantId, 'CHANGE_PLAN', {
                 fromPlan: sub.plan,
                 fromCycle: sub.billingCycle,

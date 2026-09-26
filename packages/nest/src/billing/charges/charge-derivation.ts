@@ -19,7 +19,7 @@ import type {
 
 import { advanceOneCycle, retreatOneCycle } from '../billing-period.js';
 import { bundleFirstPeriodStart } from '../bundle-period.js';
-import { computeProration } from '../proration.js';
+import { computeNewPeriodCharge, computeProration } from '../proration.js';
 
 /** A billing period, start inclusive, end exclusive. */
 export interface ChargePeriod {
@@ -55,12 +55,30 @@ export interface ChargeDerivationInput {
     written: readonly SubscriberChargeRecord[];
 }
 
-/** Charges written for a whole period rather than a part of one. */
+/**
+ * Charges written for a whole period rather than a part of one — including the
+ * new period an upgrade into a longer rhythm opens, which is charged as a
+ * `planChange`. The difference a same-rhythm upgrade adds is a `planChange`
+ * too, but for the rest of a period another charge already covers; see
+ * `isDifference`.
+ */
 const PERIOD_ORIGINS: readonly SubscriberChargeOrigin[] = [
     'activation',
     'renewal',
     'bundleBooking',
+    'planChange',
 ];
+
+/** A whole plan period, written or about to be, with the rhythm it is priced in. */
+interface PlanPeriod {
+    charge: Pick<
+        NewSubscriberCharge,
+        'contractId' | 'periodStart' | 'periodEnd' | 'origin' | 'amountNet' | 'bookedAt'
+    >;
+    rhythm: Rhythm;
+}
+
+type Rhythm = 'monthly' | 'yearly';
 
 /** How many cycles a derivation walks at most, so a corrupt date cannot hang it. */
 const MAX_CYCLES = 600;
@@ -82,9 +100,11 @@ const CENTS = 100;
  */
 export function deriveDueCharges(input: ChargeDerivationInput): NewSubscriberCharge[] {
     const planCharges = derivePlanCharges(input);
+    const periods = [...writtenPlanPeriods(input), ...planCharges.map(({ period }) => period)];
     return [
-        ...planCharges,
-        ...deriveDiscountCharges(input, planCharges),
+        ...planCharges.map(({ charge }) => charge),
+        ...deriveUpgradeDifferences(input, periods),
+        ...deriveDiscountCharges(input, planCharges, periods),
         ...deriveBundleCharges(input, accountStart(input)),
     ];
 }
@@ -121,11 +141,23 @@ export function bookingsTheContractMisses(
 
 // ── The plan ─────────────────────────────────────────────────────────────
 
-function derivePlanCharges(input: ChargeDerivationInput): NewSubscriberCharge[] {
+/** A plan charge about to be written, and the period it is. */
+interface DuePlanCharge {
+    charge: NewSubscriberCharge;
+    period: PlanPeriod;
+}
+
+function derivePlanCharges(input: ChargeDerivationInput): DuePlanCharge[] {
     const { subscription } = input;
     if (subscription.status === 'TRIAL') return [];
     const window = windowOf(subscription.currentPeriodStart, subscription.currentPeriodEnd);
     if (!window) return [];
+    const rhythm = rhythmOf(subscription.billingCycle);
+    const isPlanLine = (item: ContractLineItemRecord) =>
+        item.kind === 'plan' && item.billingCycle === rhythm;
+
+    const replaced = periodReplacedBy(window, input);
+    if (replaced) return newPeriodAfterChange(input, window, replaced, isPlanLine);
 
     const priced = periodsToCharge({
         window,
@@ -135,12 +167,7 @@ function derivePlanCharges(input: ChargeDerivationInput): NewSubscriberCharge[] 
         input,
         endsAt: subscription.endsAt,
     }).flatMap((period) => {
-        const found = lineFor(
-            input.contracts,
-            period,
-            (item) =>
-                item.kind === 'plan' && item.billingCycle === rhythmOf(subscription.billingCycle),
-        );
+        const found = lineFor(input.contracts, period, isPlanLine);
         return found ? [{ period, ...found }] : [];
     });
 
@@ -152,15 +179,181 @@ function derivePlanCharges(input: ChargeDerivationInput): NewSubscriberCharge[] 
     const opensSubscription = (period: ChargePeriod) =>
         holds(period, subscription.startedAt) ||
         holds(period, firstContract?.effectiveFrom ?? null);
-    return priced.map(({ period, contract, line }) =>
-        chargeOf(input, contract, line, {
+    return priced.map(({ period, contract, line }) => {
+        const charge = chargeOf(input, contract, line, {
             origin: opensSubscription(period) ? 'activation' : 'renewal',
             source: 'plan',
             sourceRef: subscription.id,
             period,
             amountNet: line.priceNet,
             bookedAt: period.start,
-        }),
+        });
+        return { charge, period: { charge, rhythm } };
+    });
+}
+
+// ── The plan change ──────────────────────────────────────────────────────
+
+/**
+ * The whole period the current window was opened inside, where it was: an
+ * upgrade into a longer rhythm starts its period on the day of the change
+ * (`SC-CHG-021`), inside one the journal already charged. Null where the
+ * window follows on from the journal.
+ */
+function periodReplacedBy(
+    window: ChargePeriod,
+    input: ChargeDerivationInput,
+): SubscriberChargeRecord | null {
+    const whole = input.written.filter((charge) =>
+        isWholePlanPeriod(charge, input.written, input.subscription.id),
+    );
+    return (
+        whole
+            .filter(
+                (charge) => charge.periodStart < window.start && window.start < charge.periodEnd,
+            )
+            .sort((a, b) => a.periodStart.getTime() - b.periodStart.getTime())[0] ?? null
+    );
+}
+
+/**
+ * The new period an upgrade into a longer rhythm opens: charged in full, less
+ * what is left of the period it replaces at the price that was paid for it,
+ * and never below nothing — the arithmetic the preview quoted (`SC-CHG-021`,
+ * `SC-PRIC-003`). The renewals after it run on from its end.
+ */
+function newPeriodAfterChange(
+    input: ChargeDerivationInput,
+    window: ChargePeriod,
+    replaced: SubscriberChargeRecord,
+    isPlanLine: (item: ContractLineItemRecord) => boolean,
+): DuePlanCharge[] {
+    const { subscription } = input;
+    if (!isChargeable(window, input, subscription.endsAt)) return [];
+    const found = lineFor(input.contracts, window, isPlanLine);
+    if (!found) return [];
+    const charge = chargeOf(input, found.contract, found.line, {
+        origin: 'planChange',
+        source: 'plan',
+        sourceRef: subscription.id,
+        period: window,
+        amountNet: computeNewPeriodCharge({
+            periodStart: replaced.periodStart,
+            periodEnd: replaced.periodEnd,
+            now: window.start,
+            currentPriceNet: pricePaidBefore(window.start, replaced, input.contracts),
+            targetPriceNet: found.line.priceNet,
+        }).prorataDeltaNet,
+        bookedAt: window.start,
+    });
+    return [{ charge, period: { charge, rhythm: rhythmOf(subscription.billingCycle) } }];
+}
+
+/**
+ * What the replaced period was being paid at when the change came: the plan
+ * line in force just before it, in that period's rhythm — so a same-rhythm
+ * upgrade earlier in the period counts, as the preview counts it — or, failing
+ * that, the line the period was charged under.
+ */
+function pricePaidBefore(
+    at: Date,
+    replaced: SubscriberChargeRecord,
+    contracts: readonly SubscriptionContractRecord[],
+): number {
+    const chargedUnder = lineById(contracts, replaced.contractLineItemId);
+    const rhythm = chargedUnder?.billingCycle;
+    const before = contractInForce(contracts, new Date(at.getTime() - 1));
+    const line = before?.lineItems.find(
+        (item) => item.kind === 'plan' && item.billingCycle === rhythm,
+    );
+    return line?.priceNet ?? chargedUnder?.priceNet ?? replaced.amountNet;
+}
+
+/**
+ * What an immediate upgrade in the same rhythm adds: for each contract that
+ * takes effect inside a whole plan period and names a dearer plan line in that
+ * period's rhythm than the one before it, the difference for what is left of
+ * the period (`SC-CHG-020`). A contract written again at the same price — an
+ * add-on booked, a code recorded — adds nothing, and nothing is ever given
+ * back (`SC-PRIC-003`).
+ */
+function deriveUpgradeDifferences(
+    input: ChargeDerivationInput,
+    periods: readonly PlanPeriod[],
+): NewSubscriberCharge[] {
+    const { subscription } = input;
+    const charges: NewSubscriberCharge[] = [];
+    for (const { charge: period, rhythm } of periods) {
+        const isPlanLine = (item: ContractLineItemRecord) =>
+            item.kind === 'plan' && item.billingCycle === rhythm;
+        for (const contract of input.contracts) {
+            const at = contract.effectiveFrom;
+            if (contract.status === 'scheduled') continue;
+            if (!(period.periodStart < at && at < period.periodEnd)) continue;
+            if (!isChargeable({ start: at, end: period.periodEnd }, input, subscription.endsAt)) {
+                continue;
+            }
+            const line = contract.lineItems.find(isPlanLine);
+            const before = contractInForce(input.contracts, new Date(at.getTime() - 1));
+            const lineBefore = before?.lineItems.find(isPlanLine);
+            if (!line || !lineBefore) continue;
+            const difference = computeProration({
+                periodStart: period.periodStart,
+                periodEnd: period.periodEnd,
+                now: at,
+                currentPriceNet: lineBefore.priceNet,
+                targetPriceNet: line.priceNet,
+            }).prorataDeltaNet;
+            if (difference <= 0) continue;
+            charges.push(
+                chargeOf(input, contract, line, {
+                    origin: 'planChange',
+                    source: 'plan',
+                    sourceRef: subscription.id,
+                    period: { start: at, end: period.periodEnd },
+                    amountNet: difference,
+                    bookedAt: at,
+                }),
+            );
+        }
+    }
+    return charges;
+}
+
+/** The whole plan periods the journal holds, with the rhythm each was priced in. */
+function writtenPlanPeriods(input: ChargeDerivationInput): PlanPeriod[] {
+    return input.written.flatMap((charge) => {
+        if (!isWholePlanPeriod(charge, input.written, input.subscription.id)) return [];
+        const line = lineById(input.contracts, charge.contractLineItemId);
+        return line ? [{ charge, rhythm: line.billingCycle }] : [];
+    });
+}
+
+/**
+ * Whether a written plan charge is a whole period rather than the difference
+ * a same-rhythm upgrade added: a difference always lies inside a whole period
+ * the journal holds, ending with it.
+ */
+function isWholePlanPeriod(
+    charge: SubscriberChargeRecord,
+    written: readonly SubscriberChargeRecord[],
+    subscriptionId: string,
+): boolean {
+    if (charge.source !== 'plan' || charge.sourceRef !== subscriptionId) return false;
+    if (!PERIOD_ORIGINS.includes(charge.origin)) return false;
+    return charge.origin !== 'planChange' || !isDifference(charge, written);
+}
+
+function isDifference(
+    charge: SubscriberChargeRecord,
+    written: readonly SubscriberChargeRecord[],
+): boolean {
+    return written.some(
+        (other) =>
+            other.source === 'plan' &&
+            other.sourceRef === charge.sourceRef &&
+            other.periodStart < charge.periodStart &&
+            sameInstant(other.periodEnd, charge.periodEnd),
     );
 }
 
@@ -267,29 +460,57 @@ function deriveBundleCharges(
  */
 function deriveDiscountCharges(
     input: ChargeDerivationInput,
-    planCharges: readonly NewSubscriberCharge[],
+    due: readonly DuePlanCharge[],
+    periods: readonly PlanPeriod[],
 ): NewSubscriberCharge[] {
     const { subscription } = input;
     const charges: NewSubscriberCharge[] = [];
     for (const { contract, line } of discountsWhereAgreed(input.contracts)) {
+        // A discount keeps to the rhythm it was agreed in: its amount was
+        // resolved for a period of that length.
+        const rhythm = line.billingCycle;
+        const cycle: BillingCycle = rhythm === 'yearly' ? 'YEARLY' : 'MONTHLY';
         // Counted from the first plan period the agreement applies to,
         // whichever contract prices it: an offer concluded during a trial is
         // discounted from the first period that is paid, and a contract
         // written in between — an add-on booked in the trial — does not take
         // the discount with it.
-        const first = firstPeriodConcludedFor(contract, input.written, planCharges);
+        const first = firstPeriodConcludedFor(contract, periods);
         if (!first) continue;
-        for (const planCharge of planCharges) {
-            const index = cyclesBetween(first, planCharge.periodStart, subscription);
-            if (index === null) continue;
-            const amount = discountFor(
-                line,
-                index,
-                first,
-                planCharge.periodStart,
-                subscription.anchorDay,
-            );
-            if (amount === 0) continue;
+        const anchorDay =
+            rhythm === rhythmOf(subscription.billingCycle)
+                ? subscription.anchorDay
+                : first.getUTCDate();
+        // The first change of rhythm after it was agreed ends it: what was
+        // left moves to that period, once, and a later return to its rhythm
+        // does not bring it back. Where the first period it applies to is
+        // already of the other rhythm — the rhythm changed in a trial — that
+        // period is the change, and all of it moves there.
+        const beganInItsRhythm = periods.some(
+            (period) => period.rhythm === rhythm && sameInstant(period.charge.periodStart, first),
+        );
+        const endedAt = beganInItsRhythm
+            ? firstPeriodStart(
+                  periods.filter(
+                      (period) => period.rhythm !== rhythm && period.charge.periodStart > first,
+                  ),
+              )
+            : first;
+        for (const { charge: planCharge, period } of due) {
+            const amount =
+                endedAt && planCharge.periodStart > endedAt
+                    ? 0
+                    : period.rhythm === rhythm
+                      ? discountInPeriod(line, first, planCharge.periodStart, cycle, anchorDay)
+                      : sameInstant(planCharge.periodStart, endedAt)
+                        ? // What is left of the discount is taken off the new
+                          // period, and no more than it costs.
+                          Math.min(
+                              discountLeftAt(line, first, planCharge.periodStart, cycle, anchorDay),
+                              planCharge.amountNet,
+                          )
+                        : 0;
+            if (amount <= 0) continue;
             charges.push(
                 chargeOf(input, contract, line, {
                     origin: planCharge.origin,
@@ -303,6 +524,43 @@ function deriveDiscountCharges(
         }
     }
     return charges;
+}
+
+/** What a discount takes off the period of its rhythm that starts at `periodStart`. */
+function discountInPeriod(
+    line: ContractLineItemRecord,
+    first: Date,
+    periodStart: Date,
+    cycle: BillingCycle,
+    anchorDay: number | null,
+): number {
+    const index = cyclesBetween(first, periodStart, cycle, anchorDay);
+    return index === null ? 0 : discountFor(line, index, first, periodStart, anchorDay);
+}
+
+/**
+ * What a discount would still have taken off the periods of its rhythm that
+ * start at or after `at`, had the rhythm not changed. The period running at
+ * `at` had its share with its own charge.
+ */
+function discountLeftAt(
+    line: ContractLineItemRecord,
+    first: Date,
+    at: Date,
+    cycle: BillingCycle,
+    anchorDay: number | null,
+): number {
+    let cents = 0;
+    let periodStart = first;
+    for (let index = 0; index < MAX_CYCLES; index++) {
+        const amount = discountFor(line, index, first, periodStart, anchorDay);
+        // Every part of a discount only ever stops applying, so the first
+        // period it takes nothing off is the end of it.
+        if (amount === 0) break;
+        if (periodStart >= at) cents += toCents(amount);
+        periodStart = advanceOneCycle(periodStart, cycle, anchorDay ?? undefined);
+    }
+    return cents / CENTS;
 }
 
 /** Each discount line, with the earliest contract that records it. */
@@ -509,15 +767,11 @@ function firstPlanPeriodStart(
  */
 function firstPeriodConcludedFor(
     concluded: SubscriptionContractRecord,
-    written: readonly SubscriberChargeRecord[],
-    due: readonly NewSubscriberCharge[],
+    periods: readonly PlanPeriod[],
 ): Date | null {
     const at = concluded.effectiveFrom;
     let first: Date | null = null;
-    const planPeriods = written.filter(
-        (charge) => charge.source === 'plan' && PERIOD_ORIGINS.includes(charge.origin),
-    );
-    for (const charge of [...planPeriods, ...due]) {
+    for (const { charge } of periods) {
         if (charge.periodEnd <= at) continue;
         if (charge.periodStart < at && charge.contractId !== concluded.id) continue;
         if (!first || charge.periodStart < first) first = charge.periodStart;
@@ -526,12 +780,17 @@ function firstPeriodConcludedFor(
 }
 
 /** How many whole cycles lie between `from` and `to`, or null where `to` is not on the walk. */
-function cyclesBetween(from: Date, to: Date, subscription: ChargedSubscription): number | null {
+function cyclesBetween(
+    from: Date,
+    to: Date,
+    cycle: BillingCycle,
+    anchorDay: number | null,
+): number | null {
     let at = from;
     for (let step = 0; step < MAX_CYCLES; step++) {
         if (at.getTime() === to.getTime()) return step;
         if (at > to) return null;
-        at = advanceOneCycle(at, subscription.billingCycle, subscription.anchorDay ?? undefined);
+        at = advanceOneCycle(at, cycle, anchorDay ?? undefined);
     }
     return null;
 }
@@ -642,8 +901,15 @@ function laterOf(a: Date, b: Date): Date {
     return b > a ? b : a;
 }
 
-function sameInstant(a: Date, b: Date): boolean {
-    return a.getTime() === b.getTime();
+function sameInstant(a: Date, b: Date | null): boolean {
+    return b !== null && a.getTime() === b.getTime();
+}
+
+function firstPeriodStart(periods: readonly PlanPeriod[]): Date | null {
+    return periods.reduce<Date | null>(
+        (first, { charge }) => (!first || charge.periodStart < first ? charge.periodStart : first),
+        null,
+    );
 }
 
 function holds(period: ChargePeriod, at: Date | null): boolean {
@@ -656,8 +922,19 @@ function earlierOf(a: Date | null, b: Date | null): Date | null {
     return a < b ? a : b;
 }
 
-function rhythmOf(cycle: BillingCycle): 'monthly' | 'yearly' {
+function rhythmOf(cycle: BillingCycle): Rhythm {
     return cycle === 'YEARLY' ? 'yearly' : 'monthly';
+}
+
+function lineById(
+    contracts: readonly SubscriptionContractRecord[],
+    id: string,
+): ContractLineItemRecord | null {
+    for (const contract of contracts) {
+        const line = contract.lineItems.find((item) => item.id === id);
+        if (line) return line;
+    }
+    return null;
 }
 
 function toCents(amount: number): number {

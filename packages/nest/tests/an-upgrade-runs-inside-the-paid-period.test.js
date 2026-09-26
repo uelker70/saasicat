@@ -122,7 +122,11 @@ function writePort() {
     };
 }
 
-async function upgradeThroughTheRoute(subscription, target) {
+async function upgradeThroughTheRoute(
+    subscription,
+    target,
+    { contractFreeze = null, charges = null } = {},
+) {
     const writes = writePort();
     const controller = new TenantBillingController(
         entitlements,
@@ -132,6 +136,16 @@ async function upgradeThroughTheRoute(subscription, target) {
         writes,
         () => 't1',
         () => 'u1',
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        contractFreeze,
+        null,
+        undefined,
+        charges,
     );
     await controller.changePlan({ user: { tenantId: 't1', sub: 'u1' }, headers: {} }, target);
     assert.equal(writes.immediate.length, 1, 'the upgrade was not made today');
@@ -310,5 +324,53 @@ describe('the unused rest at its edges', () => {
         const dto = charge(JAN_1, 490, 490);
         assert.equal(dto.prorataDeltaNet, 0);
         assert.equal(dto.isFree, false);
+    });
+});
+
+// @requirement SC-PRIC-059 — An immediate upgrade is charged as it was quoted
+describe('an immediate upgrade brings the account up to date', () => {
+    function recorded(events, { fails = false } = {}) {
+        return {
+            contractFreeze: {
+                async assertPartyFor() {},
+                async freezeOnPlanChange() {
+                    events.push('contract');
+                },
+            },
+            charges: {
+                async recordDueCharges(tenantId) {
+                    events.push(`charges for ${tenantId}`);
+                    if (fails) throw new Error('the journal is down');
+                    return [];
+                },
+            },
+        };
+    }
+
+    test('once, for the tenant, after the contract that prices the change is written', async () => {
+        const events = [];
+        const [start, end] = runningWindow();
+
+        await upgradeThroughTheRoute(
+            starterMonthly(start, end),
+            { plan: 'STANDARD', billingCycle: 'MONTHLY' },
+            recorded(events),
+        );
+
+        assert.deepEqual(events, ['contract', 'charges for t1']);
+    });
+
+    test('a journal that fails does not undo the upgrade', async () => {
+        const events = [];
+        const [start, end] = runningWindow();
+
+        const write = await upgradeThroughTheRoute(
+            starterMonthly(start, end),
+            { plan: 'STANDARD', billingCycle: 'MONTHLY' },
+            recorded(events, { fails: true }),
+        );
+
+        assert.equal(write.planId, 'STANDARD');
+        assert.deepEqual(events, ['contract', 'charges for t1']);
     });
 });
