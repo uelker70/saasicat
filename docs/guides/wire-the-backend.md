@@ -785,9 +785,9 @@ tenantBilling: {
 },
 ```
 
-The platform brings an account up to date where it writes a change itself: after onboarding and
-after an add-on booking. Your application calls it where it writes one — when it activates a
-subscription, and from the job that renews billing periods:
+The platform brings an account up to date where it writes a change itself: after onboarding, an
+immediate plan change and an add-on booking. Your application calls it where it writes one — when
+it activates a subscription, and from the job that renews billing periods:
 
 ```ts
 import { SubscriberChargeService } from '@saasicat/nest/billing';
@@ -832,8 +832,8 @@ a contract line to be charged under.
 An immediate upgrade is charged as its preview quoted it (`SC-PRIC-059`). In the same rhythm that
 is the difference for the rest of the period, beside the period's own charge. Into a longer rhythm
 it is the new period less the unused rest of the one it replaces. A discount stays with the rhythm
-it was agreed in; when the rhythm changes, what is left of it comes off the new period
-(`SC-PRIC-060`).
+it was agreed in; at the first change of rhythm after it was agreed, what is left of it comes off
+the new period, once (`SC-PRIC-060`).
 
 What it does not do yet: collect anything, or show the account on a screen.
 

@@ -5861,6 +5861,10 @@ _Tested by:_
           included
         - a rest larger than the new period costs nothing, and is never paid out
         - a second call charges the new period no second time
+- `packages/nest/tests/an-upgrade-runs-inside-the-paid-period.test.js`
+    - an immediate upgrade brings the account up to date
+        - once, for the tenant, after the contract that prices the change is written
+        - a journal that fails does not undo the upgrade
 
 <!-- END proof -->
 
@@ -5888,6 +5892,8 @@ _Tested by:_
         - the billing periods left are carried, and a one-off code that was used carries nothing
         - what is carried takes no more off than the new period costs
         - a code concluded with the change takes the new period as its first
+        - a discount carried into a longer rhythm does not come back when the rhythm returns
+        - a return to monthly takes what is left of a yearly discount off the first month, once
         - a discount from the old rhythm takes nothing off the yearly renewals after the change
 
 <!-- END proof -->

@@ -40,10 +40,10 @@ function endOf(subscription: SubscriptionUsageRecord): Date | null {
  * Keeps a subscriber's account up to date: the charges its contracts give rise
  * to, one per contract line and period.
  *
- * The platform calls it where it writes a change itself — onboarding and an
- * add-on booking. An application calls it where it writes one: when it
- * activates a subscription, and from the job that renews periods. However often
- * it runs, each charge is written once.
+ * The platform calls it where it writes a change itself — onboarding, an
+ * immediate plan change and an add-on booking. An application calls it where
+ * it writes one: when it activates a subscription, and from the job that renews
+ * periods. However often it runs, each charge is written once.
  */
 @Injectable()
 export class SubscriberChargeService {

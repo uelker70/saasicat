@@ -1505,8 +1505,8 @@ net, written once. It needs frozen contracts. To adopt it:
 4. Call `SubscriberChargeService.recordDueCharges(tenantId)` where your application activates a
    subscription, and from its renewal job both before it rolls the windows forward and after — and
    roll them only when the first call succeeded. A window that moved on before anything charged it
-   is not charged afterwards. The platform calls it itself after onboarding and after an add-on
-   booking.
+   is not charged afterwards. The platform calls it itself after onboarding, an immediate plan
+   change and an add-on booking.
 5. Check that your `ContractFreezeSourcePort.loadBookedBundles` puts each booking's bundle version
    on its line as `sourceVersionId`. The journal finds a booking's contract line by it, and a line
    without it leaves the booking uncharged.

@@ -484,18 +484,28 @@ function deriveDiscountCharges(
             rhythm === rhythmOf(subscription.billingCycle)
                 ? subscription.anchorDay
                 : first.getUTCDate();
+        // The first change of rhythm after it was agreed ends it: what was
+        // left moves to that period, once, and a later return to its rhythm
+        // does not bring it back.
+        const endedAt = firstPeriodStart(
+            periods.filter(
+                (period) => period.rhythm !== rhythm && period.charge.periodStart > first,
+            ),
+        );
         for (const { charge: planCharge, period } of due) {
             const amount =
-                period.rhythm === rhythm
-                    ? discountInPeriod(line, first, planCharge.periodStart, cycle, anchorDay)
-                    : planCharge.origin === 'planChange'
-                      ? // The rhythm changed: what is left of the discount is
-                        // taken off the new period, and no more than it costs.
-                        Math.min(
-                            discountLeftAt(line, first, planCharge.periodStart, cycle, anchorDay),
-                            planCharge.amountNet,
-                        )
-                      : 0;
+                endedAt && planCharge.periodStart > endedAt
+                    ? 0
+                    : period.rhythm === rhythm
+                      ? discountInPeriod(line, first, planCharge.periodStart, cycle, anchorDay)
+                      : sameInstant(planCharge.periodStart, endedAt)
+                        ? // What is left of the discount is taken off the new
+                          // period, and no more than it costs.
+                          Math.min(
+                              discountLeftAt(line, first, planCharge.periodStart, cycle, anchorDay),
+                              planCharge.amountNet,
+                          )
+                        : 0;
             if (amount <= 0) continue;
             charges.push(
                 chargeOf(input, contract, line, {
@@ -887,8 +897,15 @@ function laterOf(a: Date, b: Date): Date {
     return b > a ? b : a;
 }
 
-function sameInstant(a: Date, b: Date): boolean {
-    return a.getTime() === b.getTime();
+function sameInstant(a: Date, b: Date | null): boolean {
+    return b !== null && a.getTime() === b.getTime();
+}
+
+function firstPeriodStart(periods: readonly PlanPeriod[]): Date | null {
+    return periods.reduce<Date | null>(
+        (first, { charge }) => (!first || charge.periodStart < first ? charge.periodStart : first),
+        null,
+    );
 }
 
 function holds(period: ChargePeriod, at: Date | null): boolean {

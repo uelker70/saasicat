@@ -350,6 +350,63 @@ describe('a discount and a plan change', () => {
         assert.deepEqual(discountEntries(account), [['2026-04-16', 'planChange', -99]]);
     });
 
+    test('a discount carried into a longer rhythm does not come back when the rhythm returns', async () => {
+        const account = await discountedFromApril(code('MONTHS', 24));
+        const end = yearlyFrom(account, '2026-04-16');
+        await changedOn(account, '2026-04-16', [PRO_YEARLY()]);
+        await account.charge(utc('2026-04-16'));
+
+        // A year on, the move back to monthly the term allows.
+        Object.assign(account.subscription, { billingCycle: 'MONTHLY', billingAnchorDay: 16 });
+        await changedOn(account, '2027-04-16', [STANDARD()]);
+        account.roll(end, utc('2027-05-16'));
+        await account.charge(end);
+
+        // Twenty-three months were carried; none of them twice.
+        assert.deepEqual(discountEntries(account), [
+            ['2026-04-01', 'activation', -9.8],
+            ['2026-04-16', 'planChange', -225.4],
+        ]);
+    });
+
+    test('a return to monthly takes what is left of a yearly discount off the first month, once', async () => {
+        const account = anAccount({
+            subscription: {
+                billingCycle: 'YEARLY',
+                startedAt: utc('2026-04-01'),
+                currentPeriodStart: utc('2026-04-01'),
+                currentPeriodEnd: utc('2027-04-01'),
+            },
+        });
+        await account.contract({
+            effectiveFrom: utc('2026-04-01'),
+            offer: 'offer-yearly',
+            lineItems: [
+                PRO_YEARLY(),
+                {
+                    ...discountLine(99, {
+                        promoCode: { ...code('BILLING_CYCLES', 2), resolvedAmountNet: 99 },
+                    }),
+                    billingCycle: 'yearly',
+                },
+            ],
+        });
+        await account.charge(utc('2026-04-01'));
+
+        Object.assign(account.subscription, { billingCycle: 'MONTHLY' });
+        await changedOn(account, '2027-04-01', [STANDARD()]);
+        account.roll(utc('2027-04-01'), utc('2027-05-01'));
+        await account.charge(utc('2027-04-01'));
+        account.roll(utc('2027-05-01'), utc('2027-06-01'));
+        await account.charge(utc('2027-05-01'));
+
+        // One yearly share of 99 was left; the first month costs 49.
+        assert.deepEqual(discountEntries(account), [
+            ['2026-04-01', 'activation', -99],
+            ['2027-04-01', 'renewal', -49],
+        ]);
+    });
+
     test('a discount from the old rhythm takes nothing off the yearly renewals after the change', async () => {
         const account = await discountedFromApril(code('MONTHS', 24));
         const end = yearlyFrom(account, '2026-04-16');
