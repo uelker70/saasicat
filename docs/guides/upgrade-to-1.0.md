@@ -1894,8 +1894,11 @@ contract concluded from an offer.
     first or at the same time. In a session that is in UTC it converts nothing and marks nothing,
     so a run there by mistake does not stand in the way of the right one. A redemption written in
     the hour a zone repeats when its clocks go back can stay an hour off: that hour happened twice.
-    An installation on `@saasicat/adapter-prisma` does not run it, since there both columns come
-    from the same clock, and neither does one whose older rows were written by it.
+    An installation whose application sessions are in UTC has nothing to convert and does not run
+    it at all; nor does one on `@saasicat/adapter-prisma`, since there both columns come from the
+    same clock, or one whose older rows were written by it. Run it by hand, once: in a hook that
+    runs on every deploy it stays armed wherever it never had anything to convert, and a later run
+    in another zone would move rows the new version wrote in UTC.
 
 - **Contracts you write yourself** record what you give them; the freeze does not touch them. The
   subscriber's account now reads their discount lines too: a line without the snapshot a

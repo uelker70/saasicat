@@ -14,9 +14,12 @@
 -- instance of the old version has stopped and before the first instance of the
 -- new one starts. The old version keeps writing wall time, which a marked
 -- column no longer converts; the new version writes UTC, which this would move.
--- In a rolling deployment, pause onboarding for the step. An installation on
--- @saasicat/adapter-prisma does not run it — there both columns come from the
--- same clock — and neither does one whose older rows were written by it.
+-- In a rolling deployment, pause onboarding for the step. An installation whose
+-- application sessions are in UTC has nothing to convert and does not run it;
+-- nor does one on @saasicat/adapter-prisma — there both columns come from the
+-- same clock — or one whose older rows were written by it. Run it by hand, not
+-- from a hook on every deploy: where it never had anything to convert it stays
+-- armed, and a later run in another zone would move rows written in UTC.
 --
 -- Converting a wall time is exact except in the hour a zone repeats when its
 -- clocks go back: that hour happened twice, and PostgreSQL picks one of the

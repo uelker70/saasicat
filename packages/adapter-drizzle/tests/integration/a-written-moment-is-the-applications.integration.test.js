@@ -185,6 +185,18 @@ describe('the upgrade step moves a redemption written before this version to UTC
         return { from, to, redeemedAt };
     }
 
+    async function waitUntilWaitingOnALock(pid) {
+        for (let attempt = 0; attempt < 100; attempt++) {
+            const { rows } = await pool.query(
+                'SELECT wait_event_type FROM pg_stat_activity WHERE pid = $1',
+                [pid],
+            );
+            if (rows[0]?.wait_event_type === 'Lock') return;
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        throw new Error(`session ${pid} never waited on a lock`);
+    }
+
     const marked = async () =>
         (
             await pool.query(
@@ -227,11 +239,16 @@ describe('the upgrade step moves a redemption written before this version to UTC
         const first = await berlin.connect();
         const second = await berlin.connect();
         try {
+            const {
+                rows: [{ pid }],
+            } = await second.query('SELECT pg_backend_pid() AS pid');
             await first.query('BEGIN');
             await first.query(step);
-            // The second run starts while the first has not committed.
+            // The second run starts while the first has not committed, and the
+            // first commits only once the second is waiting on a lock — so the
+            // second has gone as far as it can before the first's work is visible.
             const secondRun = second.query(step);
-            await new Promise((resolve) => setTimeout(resolve, 200));
+            await waitUntilWaitingOnALock(pid);
             await first.query('COMMIT');
             await secondRun;
         } finally {
