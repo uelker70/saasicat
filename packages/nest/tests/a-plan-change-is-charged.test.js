@@ -407,6 +407,37 @@ describe('a discount and a plan change', () => {
         ]);
     });
 
+    test('a monthly discount whose rhythm changed in the trial moves whole to the first yearly period', async () => {
+        const account = anAccount({
+            subscription: {
+                status: 'TRIAL',
+                startedAt: utc('2026-03-20'),
+                currentPeriodStart: null,
+                currentPeriodEnd: null,
+            },
+        });
+        // Concluded in the trial for Standard monthly, at 20 % for 3 months.
+        await account.contract({
+            effectiveFrom: utc('2026-03-20'),
+            offer: 'offer-1',
+            lineItems: [STANDARD(), discountLine(9.8, { promoCode: code('MONTHS', 3) })],
+        });
+        // Still in the trial, the customer moves to Pro yearly.
+        await changedOn(account, '2026-03-25', [PRO_YEARLY()]);
+        assert.deepEqual(await account.charge(utc('2026-03-26')), []);
+
+        Object.assign(account.subscription, {
+            status: 'ACTIVE',
+            billingCycle: 'YEARLY',
+            startedAt: utc('2026-04-01'),
+        });
+        account.roll(utc('2026-04-01'), utc('2027-04-01'));
+        await account.charge(utc('2026-04-01'));
+
+        assert.deepEqual(planEntries(account), [['2026-04-01', 'activation', 990]]);
+        assert.deepEqual(discountEntries(account), [['2026-04-01', 'activation', -29.4]]);
+    });
+
     test('a discount from the old rhythm takes nothing off the yearly renewals after the change', async () => {
         const account = await discountedFromApril(code('MONTHS', 24));
         const end = yearlyFrom(account, '2026-04-16');
