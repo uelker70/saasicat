@@ -1,5 +1,70 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.22
+
+### Minor Changes
+
+- 89ee3f4: An immediate upgrade runs inside the period already paid, or starts a longer
+  one today less the unused rest
+
+    An immediate upgrade opened a new period from the day of the change, which
+    moved the day the customer is billed on, while the preview charged the
+    difference over the old period — two answers for one change. For a move into a
+    longer rhythm the preview took the difference between a year's price and a
+    month's over what was left of the month: Standard at 49 a month to Pro at 990 a
+    year on day 15 of 30 was quoted at 470.50.
+
+    - In the same rhythm the period and the billing day stay, and the difference is
+      charged for what is left of it (`SC-CHG-020`, superseding `SC-CHG-003`).
+    - Into a longer rhythm the new period starts today, charged in full less the
+      unused rest of the old one at the price paid for it: 990 − 24.50 = 965.50
+      in the example (`SC-CHG-021`). The rest is never paid out.
+    - What was already paid is priced from the plan line of the contract in force,
+      not from today's catalogue, so a customer bought at 19 a month is credited at
+      19 after the plan went to 29. Without contracts the catalogue price stands.
+    - A subscription with no period yet is charged its first period in full, and
+      the preview says so.
+    - `ProrationDto` gains `basis` (`difference` or `newPeriod`) and `remainderNet`;
+      `computeNewPeriodCharge` is new beside `computeProration`. The plan change
+      wizard shows the full price and the rest it is reduced by, with three new
+      catalogue keys (`wizardNewPeriodLine`, `wizardRemainderLine`,
+      `wizardConfirmDueNow`).
+
+- 123ea4d: The operator sees a subscriber's charges on the tenant's page
+
+    Where the platform keeps a charge journal (`tenantBilling.chargeJournal`) and
+    shows tenants (`adminResources`), it serves `GET admin/tenants/:slug/charges`
+    behind the administration's guards and announces it in the manifest as
+    `charges.read`. `TenantDetailPage` then shows a section with the charges of the
+    tenant's subscriber, newest first: the title of each charge's contract line,
+    its period, what made it arise, when it became due, and its net amount — and
+    whose account it is, by customer number and legal name. There is no total:
+    without invoices and payments, a sum would be read as what is owed. Without
+    the journal, neither the route nor the section exists.
+
+    The read runs inside `RlsBypassPort`, because an operator's request is scoped
+    to no tenant. Where your ledger, subscriptions, contracts or subscribers carry
+    a row-level policy, your implementation of that port has to lift it there.
+
+    New exports: `SubscriberAccountService` and `SubscriberAccountModule` from
+    `@saasicat/nest/billing` — mounted by hand, the module needs `RlsBypassPort` in
+    scope and does not start without it — the `AdminSubscriberAccount` types and
+    `SUBSCRIBER_ACCOUNT_CAPABILITY` from `@saasicat/core`, `useTenantAccount` and
+    `tenantsResource.charges` from `@saasicat/ui-vue`.
+
+    `admin-api.openapi.yaml` resolves its references to the JSON Schemas from the
+    `schemas/` directory they ship in. The manifest response pointed beside it,
+    where no file is, so a bundler or client generator that dereferences the
+    document stopped there.
+
+### Patch Changes
+
+- Updated dependencies [82c5ab6]
+- Updated dependencies [3663719]
+- Updated dependencies [37899b2]
+- Updated dependencies [123ea4d]
+    - @saasicat/core@1.0.0-rc.22
+
 ## 1.0.0-rc.21
 
 ### Minor Changes

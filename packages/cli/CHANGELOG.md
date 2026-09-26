@@ -1,5 +1,21 @@
 # @saasicat/cli
 
+## 1.0.0-rc.22
+
+### Patch Changes
+
+- Updated dependencies [82c5ab6]
+- Updated dependencies [2792605]
+- Updated dependencies [3663719]
+- Updated dependencies [e87c321]
+- Updated dependencies [37899b2]
+- Updated dependencies [8fec046]
+- Updated dependencies [89ee3f4]
+- Updated dependencies [123ea4d]
+    - @saasicat/core@1.0.0-rc.22
+    - @saasicat/nest@1.0.0-rc.22
+    - @saasicat/spec@1.0.0-rc.22
+
 ## 1.0.0-rc.21
 
 ### Major Changes
