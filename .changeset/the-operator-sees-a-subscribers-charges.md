@@ -22,7 +22,8 @@ to no tenant. Where your ledger, subscriptions, contracts or subscribers carry
 a row-level policy, your implementation of that port has to lift it there.
 
 New exports: `SubscriberAccountService` and `SubscriberAccountModule` from
-`@saasicat/nest/billing`, the `AdminSubscriberAccount` types and
+`@saasicat/nest/billing` — mounted by hand, the module needs `RlsBypassPort` in
+scope and does not start without it — the `AdminSubscriberAccount` types and
 `SUBSCRIBER_ACCOUNT_CAPABILITY` from `@saasicat/core`, `useTenantAccount` and
 `tenantsResource.charges` from `@saasicat/ui-vue`.
 

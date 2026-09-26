@@ -6,7 +6,6 @@ import {
     Get,
     Inject,
     Module,
-    Optional,
     Param,
     type Type,
     UseGuards,
@@ -23,7 +22,9 @@ export interface SubscriberAccountModuleOptions {
     /**
      * Must bring `AdminResourcesService` and `SubscriberAccountService` into
      * scope — the modules that already provide them, passed as the very objects
-     * the application imports, so that no adapter is built a second time.
+     * the application imports, so that no adapter is built a second time. The
+     * `RlsBypassPort` has to be visible too; `SaaSiCatModule` provides it
+     * globally.
      */
     imports: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
 }
@@ -37,11 +38,12 @@ function buildSubscriberAccountController(guards: Array<Type<CanActivate>>): Typ
             private readonly tenants: AdminResourcesService,
             @Inject(SubscriberAccountService)
             private readonly accounts: SubscriberAccountService,
-            // Provided by the platform's admin module; optional so that the
-            // module can be built without it.
-            @Optional()
+            // Required rather than optional: without it the read would run in
+            // the request's row-level scope, and an account a policy hides
+            // reads exactly like an empty one. Missing, the module does not
+            // start.
             @Inject(RLS_BYPASS_PORT_TOKEN)
-            private readonly rlsBypass: RlsBypassPort | null = null,
+            private readonly rlsBypass: RlsBypassPort,
         ) {}
 
         /**
@@ -56,7 +58,7 @@ function buildSubscriberAccountController(guards: Array<Type<CanActivate>>): Typ
                 const tenant = await this.tenants.getTenantDetail(slug);
                 return this.accounts.accountOf(tenant.id);
             };
-            return this.rlsBypass ? this.rlsBypass.runWithBypass(read) : read();
+            return this.rlsBypass.runWithBypass(read);
         }
     }
 

@@ -760,6 +760,9 @@ _Tested by:_
         - the tenant is found and its journal read outside the tenants' row-level policy
         - the journal the route reads is the one the platform writes to, built once
         - without ${without}, neither the route nor the capability exists
+    - mounted by hand
+        - without the bypass port, it refuses to start rather than read in a tenant scope
+        - with it, it starts
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
     - the tenant detail shows the subscriber's account
         - whose account it is, and each charge in the order the platform serves them

@@ -13,6 +13,8 @@ import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { BILLING_ERROR_CODES } from '@saasicat/core';
 
+import { RLS_BYPASS_PORT_TOKEN, AdminResourcesService } from '../dist/admin/index.js';
+import { SubscriberAccountModule, SubscriberAccountService } from '../dist/billing/index.js';
 import { AdminManifestService, SaaSiCatModule } from '../dist/platform/index.js';
 import { ARCHIVE, anAccount, discountLine, line, utc } from './helpers/charge-journal.js';
 import { controllersIn, handlersOf } from './helpers/operator-routes.js';
@@ -392,4 +394,47 @@ describe("the account is served beside the tenant's detail", () => {
             await platform.moduleRef.close();
         });
     }
+});
+
+// @requirement SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
+describe('mounted by hand', () => {
+    /** The two services the route needs, from a module standing in for the platform's. */
+    const services = {
+        module: class PlatformServices {},
+        providers: [
+            { provide: AdminResourcesService, useValue: {} },
+            { provide: SubscriberAccountService, useValue: {} },
+        ],
+        exports: [AdminResourcesService, SubscriberAccountService],
+    };
+
+    test('without the bypass port, it refuses to start rather than read in a tenant scope', async () => {
+        await assert.rejects(
+            () =>
+                Test.createTestingModule({
+                    imports: [SubscriberAccountModule.forRoot({ guards: [], imports: [services] })],
+                }).compile(),
+            /RlsBypassPort/,
+        );
+    });
+
+    test('with it, it starts', async () => {
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                {
+                    module: class Bypass {},
+                    global: true,
+                    providers: [
+                        {
+                            provide: RLS_BYPASS_PORT_TOKEN,
+                            useValue: { runWithBypass: (fn) => fn() },
+                        },
+                    ],
+                    exports: [RLS_BYPASS_PORT_TOKEN],
+                },
+                SubscriberAccountModule.forRoot({ guards: [], imports: [services] }),
+            ],
+        }).compile();
+        await moduleRef.close();
+    });
 });
