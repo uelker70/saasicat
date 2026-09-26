@@ -46,13 +46,16 @@ function buildSubscriberAccountController(guards: Array<Type<CanActivate>>): Typ
 
         /**
          * The charges of the tenant's subscriber. An operator's request is
-         * scoped to no tenant, so the read runs outside any row-level policy
-         * the application keeps its tenants apart with.
+         * scoped to no tenant, so finding the tenant and reading its account
+         * both run outside any row-level policy the application keeps its
+         * tenants apart with.
          */
         @Get('tenants/:slug/charges')
-        async chargesOf(@Param('slug') slug: string): Promise<AdminSubscriberAccount> {
-            const tenant = await this.tenants.getTenantDetail(slug);
-            const read = (): Promise<AdminSubscriberAccount> => this.accounts.accountOf(tenant.id);
+        chargesOf(@Param('slug') slug: string): Promise<AdminSubscriberAccount> {
+            const read = async (): Promise<AdminSubscriberAccount> => {
+                const tenant = await this.tenants.getTenantDetail(slug);
+                return this.accounts.accountOf(tenant.id);
+            };
             return this.rlsBypass ? this.rlsBypass.runWithBypass(read) : read();
         }
     }

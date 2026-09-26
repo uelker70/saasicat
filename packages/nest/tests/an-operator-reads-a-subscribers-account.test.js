@@ -207,7 +207,7 @@ const PLAN_CATALOG = {
  * inside the bypass frame and how often the adapter was built.
  */
 async function aPlatform({ journal = true, adminResources = true } = {}) {
-    const seen = { built: 0, reads: [] };
+    const seen = { built: 0, lookups: [], reads: [] };
     let bypassed = 0;
     const rlsBypass = {
         async runWithBypass(fn) {
@@ -246,8 +246,10 @@ async function aPlatform({ journal = true, adminResources = true } = {}) {
     };
     const tenants = {
         listTenants: async () => [],
-        getTenantDetail: async (slug) =>
-            slug === 'northwind' ? { id: 't-northwind', slug, name: 'Northwind' } : null,
+        async getTenantDetail(slug) {
+            seen.lookups.push({ slug, bypassed: bypassed > 0 });
+            return slug === 'northwind' ? { id: 't-northwind', slug, name: 'Northwind' } : null;
+        },
         setTenantActive: async () => null,
         listUsers: async () => [],
         listAudit: async () => [],
@@ -357,11 +359,12 @@ describe("the account is served beside the tenant's detail", () => {
         await platform.moduleRef.close();
     });
 
-    test("the journal is read outside the tenants' row-level policy", async () => {
+    test("the tenant is found and its journal read outside the tenants' row-level policy", async () => {
         const platform = await aPlatform();
 
         await platform.chargesOf('northwind');
 
+        assert.deepEqual(platform.seen.lookups, [{ slug: 'northwind', bypassed: true }]);
         assert.deepEqual(platform.seen.reads, [
             { subscriptionId: 'sub-northwind', bypassed: true },
         ]);

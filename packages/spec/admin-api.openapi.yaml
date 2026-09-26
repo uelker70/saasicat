@@ -125,7 +125,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: 'admin-manifest.schema.json'
+                                $ref: 'schemas/admin-manifest.schema.json'
                 '304':
                     description: Unchanged since ETag
                 '403':
@@ -1960,7 +1960,7 @@ components:
                         type: object
                         required: [charge, title]
                         properties:
-                            charge: { $ref: 'subscriber-ledger.schema.json' }
+                            charge: { $ref: 'schemas/subscriber-ledger.schema.json' }
                             title:
                                 type: string
                                 nullable: true

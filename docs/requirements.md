@@ -9513,7 +9513,7 @@ _Tested by:_
     - the account is served beside the tenant's detail
         - with a journal and the tenants, the route answers and the manifest announces it
         - an unknown tenant is answered as not found, by code
-        - the journal is read outside the tenants' row-level policy
+        - the tenant is found and its journal read outside the tenants' row-level policy
         - the journal the route reads is the one the platform writes to, built once
         - without ${without}, neither the route nor the capability exists
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
@@ -16141,6 +16141,11 @@ _Tested by:_
 - `tests/no-dangling-doc-refs.test.js`
     - the sweep actually reaches the source tree
     - no shipped file cites a document from the private planning repo
+- `tests/openapi-refs-resolve.test.js`
+    - the OpenAPI document
+        - carries references at all, so the checks below have something to check
+        - names only files that exist beside it
+        - points only at nodes it contains
 
 <!-- END proof -->
 

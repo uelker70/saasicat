@@ -25,3 +25,8 @@ New exports: `SubscriberAccountService` and `SubscriberAccountModule` from
 `@saasicat/nest/billing`, the `AdminSubscriberAccount` types and
 `SUBSCRIBER_ACCOUNT_CAPABILITY` from `@saasicat/core`, `useTenantAccount` and
 `tenantsResource.charges` from `@saasicat/ui-vue`.
+
+`admin-api.openapi.yaml` resolves its references to the JSON Schemas from the
+`schemas/` directory they ship in. The manifest response pointed beside it,
+where no file is, so a bundler or client generator that dereferences the
+document stopped there.
