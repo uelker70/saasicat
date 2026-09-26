@@ -56,6 +56,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             subscriptionBundleRepository: REPO,
             subscriptionContractRepository: REPO,
             subscriberRepository: REPO,
+            subscriberLedgerRepository: REPO,
         },
         adminResources: { resources: REPO },
         promo: {
@@ -73,6 +74,10 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             app: { name: 'Probe', version: '0.0.1' },
             currency: 'EUR',
             vatRate: 19,
+            tenantBilling: {
+                cancellationNoticeDays: { monthly: 0, yearly: 0 },
+                selfServiceBlockedPlans: { asTarget: [], asSource: [] },
+            },
             plans: [],
         },
         controller: { guards },
@@ -80,6 +85,18 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
         persistence,
         catalog: { featureUiRegistry: {} },
         adminResources: true,
+        tenantBilling: {
+            authGuards: guards,
+            // Tenant billing resolves its guards from its own scope, where an
+            // application provides them.
+            extraProviders: guards,
+            contractFreeze: {
+                sourcePort: PORT,
+                subscriptionContractRepository: REPO,
+                subscriberRepository: REPO,
+            },
+            chargeJournal: { ledgerRepository: REPO },
+        },
         promoCodes: true,
         setup: true,
         adminStats: {

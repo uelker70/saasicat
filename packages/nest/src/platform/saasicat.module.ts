@@ -50,6 +50,7 @@ import {
     resolveCatalog,
 } from './compose/base.js';
 import { composeModuleExports } from './compose/module-exports.js';
+import { servesSubscriberAccounts } from './compose/subscriber-account.js';
 import { composeTenantManifest } from './compose/tenant-manifest.js';
 import { composeEnforcementRuntime, resolvePlanResolution } from './compose/enforcement-runtime.js';
 import {
@@ -190,6 +191,7 @@ export class SaaSiCatModule {
                 catalogConfig,
                 adminResourcesConfig,
                 promoCodesConfig,
+                servesSubscriberAccounts(options),
             );
             lightweightProviders.push({
                 provide: STANDARD_MANIFEST_REGISTRATION_TOKEN,

@@ -14,13 +14,13 @@ import { resolveBundleRepository } from './bundle-repository-source.js';
 import { optionsOf, type CompositionContext } from './context.js';
 
 /**
- * The tenant's own billing surface — and the only composer that writes to
- * `ctx.shared`.
+ * The tenant's own billing surface.
  *
- * Three things it resolves are needed by whoever runs after it: the normalised
- * auth guards, the usage port, and whether it took the app's quota providers
- * into its own scope. Registering those a second time elsewhere would give two
- * instances of one `QuotaProvider`, which is two counters over the same rows.
+ * Four things it resolves are needed by whoever runs after it: the normalised
+ * auth guards, the usage port, whether it took the app's quota providers into
+ * its own scope, and the module itself. Registering those a second time
+ * elsewhere would give two instances of one `QuotaProvider`, which is two
+ * counters over the same rows.
  */
 export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
     const config = ctx.options.tenantBilling;
@@ -43,32 +43,30 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
     ctx.shared.authGuards = normalizeTenantAuthGuards(authGuards);
     ctx.shared.subscriptionUsagePort = subscriptionUsagePort ?? tenantSlice?.subscriptionUsagePort;
 
-    return [
-        TenantBillingModule.forRoot({
-            ...tenantOptions,
-            authGuards: ctx.shared.authGuards,
-            // The same adapter `SubscriptionBundleModule` gets. That module
-            // exports the token, but it is a sibling import here rather than an
-            // ancestor, so its exports never reach this module's providers —
-            // and the plan-change rule that reads bookings would resolve to
-            // "none" and allow the move it exists to refuse.
-            subscriptionBundleRepository: ctx.persistence?.entitlement
-                ?.subscriptionBundleRepository as
-                ProviderSpec<SubscriptionBundleRepository> | undefined,
-            subscriptionUsagePort: ctx.shared
-                .subscriptionUsagePort as ProviderSpec<SubscriptionUsagePort>,
-            usageSnapshotPort:
-                usageSnapshotPort ??
-                tenantSlice?.usageSnapshotPort ??
-                quotaUsageSnapshotProvider(quotaProviders),
-            subscriptionWritePort:
-                subscriptionWritePort ??
-                (tenantSlice?.subscriptionWritePort as ProviderSpec<TenantSubscriptionWritePort>),
-            imports: tenantImports ?? ctx.options.imports,
-            extraProviders: [...quotaProviders, ...(extraProviders ?? [])],
-            extraExports: [...quotaProviders, ...(extraExports ?? [])],
-        }),
-    ];
+    ctx.shared.tenantBillingModule = TenantBillingModule.forRoot({
+        ...tenantOptions,
+        authGuards: ctx.shared.authGuards,
+        // The same adapter `SubscriptionBundleModule` gets. That module
+        // exports the token, but it is a sibling import here rather than an
+        // ancestor, so its exports never reach this module's providers —
+        // and the plan-change rule that reads bookings would resolve to
+        // "none" and allow the move it exists to refuse.
+        subscriptionBundleRepository: ctx.persistence?.entitlement?.subscriptionBundleRepository as
+            ProviderSpec<SubscriptionBundleRepository> | undefined,
+        subscriptionUsagePort: ctx.shared
+            .subscriptionUsagePort as ProviderSpec<SubscriptionUsagePort>,
+        usageSnapshotPort:
+            usageSnapshotPort ??
+            tenantSlice?.usageSnapshotPort ??
+            quotaUsageSnapshotProvider(quotaProviders),
+        subscriptionWritePort:
+            subscriptionWritePort ??
+            (tenantSlice?.subscriptionWritePort as ProviderSpec<TenantSubscriptionWritePort>),
+        imports: tenantImports ?? ctx.options.imports,
+        extraProviders: [...quotaProviders, ...(extraProviders ?? [])],
+        extraExports: [...quotaProviders, ...(extraExports ?? [])],
+    });
+    return [ctx.shared.tenantBillingModule];
 }
 
 /**

@@ -22,6 +22,7 @@ import {
 } from './optional-modules.js';
 import { composePayments } from './payments.js';
 import { composePromoCodes } from './promo-codes.js';
+import { composeSubscriberAccount } from './subscriber-account.js';
 import { composeSubscriptionBundles, composeTenantBilling } from './tenant-billing.js';
 
 /** One feature's contribution: the modules it adds, or none. */
@@ -41,6 +42,8 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeAdminStats,
     composeCheckoutOffer,
     composeSubscriptionContract,
+    // After the admin resources and tenant billing: it imports both.
+    composeSubscriberAccount,
 ];
 
 /** Every module the enabled features contribute, in composer order. */

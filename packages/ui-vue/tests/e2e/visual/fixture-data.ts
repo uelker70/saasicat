@@ -47,7 +47,10 @@ export const FIXTURE_MANIFEST: AdminManifest = {
         vatRate: 19,
         plans: [],
     },
-    capabilities: {},
+    // Only what a page asks for by name: the charges section on the tenant
+    // detail is shown where the platform announces it, and a fixture that does
+    // not would leave the section unrendered and unmeasured.
+    capabilities: { 'charges.read': true },
     navigation: { standardPages: {} },
     // Real KPI cards, not an empty list: `AdminStatistics` and `AdminKpi` are
     // exactly the primitives the token migration rewrites, so a dashboard that
@@ -933,6 +936,54 @@ const TENANT_DETAIL = {
     users: [],
 };
 
+const accountCharge = (id: string, overrides: Record<string, unknown>) => ({
+    id,
+    subscriberId: 's-0001',
+    tenantId: 't-0001',
+    subscriptionId: 'sub-0001',
+    contractId: 'k-0001',
+    contractLineItemId: `l-${id}`,
+    origin: 'renewal',
+    source: 'plan',
+    sourceRef: 'sub-0001',
+    periodStart: '2026-02-01T00:00:00.000Z',
+    periodEnd: '2026-03-01T00:00:00.000Z',
+    currency: 'EUR',
+    amountNet: 99,
+    bookedAt: '2026-02-01T00:00:00.000Z',
+    createdAt: '2026-02-01T00:00:00.000Z',
+    ...overrides,
+});
+
+// A plan, an add-on and a discount in one period, and the short first period
+// of the add-on before it: every kind of line the section distinguishes, and a
+// negative amount.
+const TENANT_ACCOUNT = {
+    holder: { id: 's-0001', customerNumber: 'K-10001', legalName: 'Northwind Ltd' },
+    entries: [
+        { charge: accountCharge('ch-4', {}), title: 'Pro' },
+        {
+            charge: accountCharge('ch-3', { source: 'bundle', amountNet: 10 }),
+            title: 'Archive',
+        },
+        {
+            charge: accountCharge('ch-2', { source: 'discount', amountNet: -19.8 }),
+            title: 'WELCOME20 · 20 %',
+        },
+        {
+            charge: accountCharge('ch-1', {
+                origin: 'bundleBooking',
+                source: 'bundle',
+                amountNet: 3.55,
+                periodStart: '2026-01-21T00:00:00.000Z',
+                periodEnd: '2026-02-01T00:00:00.000Z',
+                bookedAt: '2026-01-21T00:00:00.000Z',
+            }),
+            title: 'Archive',
+        },
+    ],
+};
+
 const EMAIL_ROW = {
     id: 'e-1',
     fromEmail: 'noreply@fixture.test',
@@ -1040,6 +1091,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/promo-codes', PROMO_ROWS],
     ['/api/admin/promo-codes/WELCOME20', PROMO_DETAIL],
     ['/api/admin/tenants/northwind', TENANT_DETAIL],
+    ['/api/admin/tenants/northwind/charges', TENANT_ACCOUNT],
     ['/api/admin/pilots', PILOT_ROWS],
     // The page loads both lists. Deliberately empty and registered as such: an
     // unregistered path is a named gap, and the review strip carries no surface

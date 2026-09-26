@@ -764,7 +764,9 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     settings: Object.keys(settingsResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
-    tenants: [LIST_OP],
+    // `charges` is platform-served with no admin-client twin, like the
+    // settings: its request is pinned in `tests/tenant-charges-resource.test.js`.
+    tenants: [LIST_OP, 'charges'],
 };
 
 describe('the comparison covers the whole roster', () => {

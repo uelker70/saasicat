@@ -368,6 +368,28 @@ paths:
                         application/json:
                             schema: { $ref: '#/components/schemas/SubscriptionDetail' }
 
+    /tenants/{slug}/charges:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [subscriptions]
+            summary: The charges of the tenant's subscriber, newest first
+            description: >-
+                Served where the platform keeps a charge journal
+                (`tenantBilling.chargeJournal`) and shows tenants
+                (`adminResources`); the manifest announces it as `charges.read`.
+                Read only, and net: a charge's tax is decided when it is
+                invoiced. No total — without invoices and payments, a sum would
+                be read as what is owed.
+            responses:
+                '200':
+                    description: The account
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminSubscriberAccount' }
+                '404':
+                    description: No tenant with this slug (`TENANT_NOT_FOUND`)
+
     # ────────────────────────────────────────────────────────
     # Users
     # ────────────────────────────────────────────────────────
@@ -1914,6 +1936,38 @@ components:
                     items: { type: string }
                 promoRedemption:
                     $ref: '#/components/schemas/PromoRedemptionDto'
+
+        AdminSubscriberAccount:
+            type: object
+            required: [holder, entries]
+            properties:
+                holder:
+                    type: object
+                    nullable: true
+                    description: Whose account it is; null for a tenant that has no subscriber.
+                    required: [id, customerNumber, legalName]
+                    properties:
+                        id: { type: string }
+                        customerNumber: { type: string }
+                        legalName: { type: string }
+                entries:
+                    type: array
+                    description: >-
+                        Newest first — by when each charge became due, then by
+                        its period, then the plan before its add-ons before its
+                        discounts.
+                    items:
+                        type: object
+                        required: [charge, title]
+                        properties:
+                            charge: { $ref: 'subscriber-ledger.schema.json' }
+                            title:
+                                type: string
+                                nullable: true
+                                description: >-
+                                    The contract line's title as it was when the
+                                    contract was concluded; null where that line
+                                    cannot be read.
 
         # ────────── User ──────────
         AdminUserRow:

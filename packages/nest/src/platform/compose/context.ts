@@ -17,7 +17,7 @@
 // it was invisible; here it is a named field with a comment on it, and the
 // order it implies is stated in `compose/index.ts`.
 
-import type { CanActivate, Type } from '@nestjs/common';
+import type { CanActivate, DynamicModule, Type } from '@nestjs/common';
 import type { SaaSiCatPersistenceAdapter, SubscriptionUsagePort } from '@saasicat/core';
 
 import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
@@ -26,12 +26,13 @@ import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
 import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
 
 /**
- * What `tenantBilling` resolved and its two dependants need.
+ * What `tenantBilling` resolved and its dependants need.
  *
- * Mutable, and the only mutable thing here: `composeTenantBilling` writes it,
- * `composeSubscriptionBundles` and the entitlement runtime read it. A composer
- * that runs before tenant billing sees the initial values, which is correct —
- * there was no tenant billing to resolve anything.
+ * Mutable, and the only mutable thing here: `composeTenantBilling` and
+ * `composeAdminResources` write it; `composeSubscriptionBundles`,
+ * `composeSubscriberAccount` and the entitlement runtime read it. A composer
+ * that runs before them sees the initial values, which is correct — there was
+ * nothing resolved yet.
  */
 export interface SharedTenantBinding {
     /** Normalised `authGuards`, shared with the bundle controller. */
@@ -47,6 +48,14 @@ export interface SharedTenantBinding {
      * `QuotaProvider` are two counters over the same rows.
      */
     quotaProvidersHostedByTenantBilling: boolean;
+    /**
+     * The modules that hold the administration's tenants and the tenant's
+     * billing, as the very objects the platform imports. A module that needs
+     * what they provide imports these objects: Nest builds a module once per
+     * object, so the adapters inside are not instantiated a second time.
+     */
+    adminResourcesModule?: DynamicModule;
+    tenantBillingModule?: DynamicModule;
 }
 
 /**

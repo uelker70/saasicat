@@ -73,6 +73,16 @@
                     />
                 </AdminSection>
 
+                <!-- The subscriber's charges, where the platform keeps a journal -->
+                <TenantCharges
+                    v-if="account.available.value"
+                    :account="account.data.value"
+                    :pending="account.pending.value"
+                    :error="account.error.value"
+                    :retry="account.reload"
+                    :format-date="formatDateResolved"
+                />
+
                 <slot name="extra-cards" :data="data" :reload="load" />
             </template>
         </AdminBody>
@@ -112,12 +122,15 @@ import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
+import TenantCharges from '../internal/tenant-detail/TenantCharges.vue';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';
 import TenantUsers from '../internal/tenant-detail/TenantUsers.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDialog.vue';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
+import { useTenantAccount } from '../vue/use-tenant-account.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
 export type { TenantDetailData, UsageField } from '../internal/tenant-detail/types.js';
@@ -226,6 +239,15 @@ watch(tenantSlug, () => {
 });
 
 defineExpose({ reload: load });
+
+// Whether the charges are served is the manifest's to say. The shell holds it;
+// `options.manifest` wins where an app passes one, as it does for the actions.
+const shellManifest = useSuperAdminManifest();
+const account = useTenantAccount(
+    tenantSlug,
+    computed(() => props.options?.manifest ?? shellManifest),
+    tenants,
+);
 
 function defaultFormatDate(value: string | null | undefined): string {
     if (!value) return '—';
