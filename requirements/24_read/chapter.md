@@ -301,6 +301,11 @@ _Tested by:_
 - `tests/no-dangling-doc-refs.test.js`
     - the sweep actually reaches the source tree
     - no shipped file cites a document from the private planning repo
+- `tests/openapi-refs-resolve.test.js`
+    - the OpenAPI document
+        - carries references at all, so the checks below have something to check
+        - names only files that exist beside it
+        - points only at nodes it contains
 
 <!-- END proof -->
 

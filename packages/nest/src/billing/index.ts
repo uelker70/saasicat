@@ -71,6 +71,11 @@ export * from './plan-change-preview.service.js';
 export * from './pending-plan-materialization.service.js';
 export * from './contract-freeze.tokens.js';
 export * from './subscription-contract-freeze.service.js';
+export {
+    SubscriberAccountModule,
+    type SubscriberAccountModuleOptions,
+} from './charges/subscriber-account.module.js';
+export { SubscriberAccountService } from './charges/subscriber-account.service.js';
 export { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 export { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 export * from './trial-carryover.js';

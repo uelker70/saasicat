@@ -168,7 +168,10 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    and must run RLS-exempt: `countActiveByPlanKey`, and the two the boot checks
    make before anything is served — `listRunningIssuers` and `accountsInUse`.
    Both of those go through `RlsBypassPort` outside any request, so an
-   implementation of it that needs a request context fails at start.
+   implementation of it that needs a request context fails at start. The
+   operator's read of one tenant's account (`SubscriberAccountService`) is the
+   administration's, not a tenant's, and runs inside `RlsBypassPort` within the
+   operator's request.
 7. **Plan changes keep the concrete contract binding consistent.** Adapters
    that declare atomic plan-binding support update the semantic `plan`, its
    active `planVersionId` and stale pending-version state in one transaction.

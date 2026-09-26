@@ -4,7 +4,7 @@
 // The journal fake holds the natural key the way the unique index does, so a
 // test that derives a charge twice sees what an adapter would do with it.
 
-import { SubscriberChargeService } from '../../dist/billing/index.js';
+import { SubscriberAccountService, SubscriberChargeService } from '../../dist/billing/index.js';
 import { FakeSubscriptionContractRepository } from '../../dist/testing/index.js';
 
 export const PARTIES = {
@@ -124,14 +124,17 @@ export function anAccount({
     const contracts = new FakeSubscriptionContractRepository();
     const bookings = [];
     const ledger = journal();
+    const subscribers = { findByTenantId: async () => subscriber };
+    const subscriptions = { findForTenant: async () => subscription };
     const service = new SubscriberChargeService(
         ledger,
         contracts,
-        { findByTenantId: async () => subscriber },
-        { findForTenant: async () => subscription },
+        subscribers,
+        subscriptions,
         { listBySubscription: async () => bookings },
         freeze,
     );
+    const reader = new SubscriberAccountService(ledger, contracts, subscribers, subscriptions);
     return {
         subscription,
         bookings,
@@ -169,6 +172,10 @@ export function anAccount({
             if (running) {
                 await contracts.terminate(running.id, { effectiveUntil: at, status: 'superseded' });
             }
+        },
+        /** The account as the operator reads it. */
+        read() {
+            return reader.accountOf('t1');
         },
         /** Brings the account up to date at `now`, as the application's call does. */
         charge(now) {

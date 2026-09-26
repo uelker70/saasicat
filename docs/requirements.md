@@ -120,7 +120,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 25      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 28      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 25      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -132,7 +132,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 509 entries: 🟢 439 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 510 entries: 🟢 440 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 509 entries: 🟢 439 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 509 requirements. Do not edit by hand:
+Generated from `requirements/` — 510 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9171,6 +9171,14 @@ _Tested by:_
         - reads exactly the endpoint the card declares
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
+    - the tenant detail shows the subscriber's account
+        - whose account it is, and each charge in the order the platform serves them
+        - an amount is shown in the currency it was charged in
+        - a tenant without a subscriber says so
+        - a read that fails says so, and a retry asks again
+        - without the capability, nothing is asked and no section is shown
+        - a manifest the app passes in its options is the one asked
 - `packages/ui-vue/tests/manifest-loader.test.js`
     - ManifestLoader.load — first call
         - GET without If-None-Match, persists body + ETag
@@ -9259,6 +9267,14 @@ _Tested by:_
         - an instance context wins over the app context for that page only
         - binding one operation leaves the others on the platform implementation
         - an unknown resource says so instead of returning something inert
+- `packages/ui-vue/tests/use-tenant-account.test.js`
+    - useTenantAccount
+        - where the manifest announces the account, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - a manifest that arrives later brings the account with it
+        - another tenant is another account
+        - without a tenant, nothing is asked
+        - a read that fails leaves an error and no account
 
 <!-- END proof -->
 
@@ -9464,6 +9480,67 @@ sign-up names the subscriber it was joined to, so `SC-ADM-021`'s one record show
 whole history. A subscriber with a live tenant is not joined to a second one.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-ADM-028 — An operator reads a subscriber's charges beside its tenant
+
+🟢 🔒 The tenant's page shows the charges of its subscriber's account, newest first: each with
+the title its contract line had when the contract was concluded, its period, what made it arise,
+when it became due, and its net amount in its currency. The section names whose account it is, by
+customer number and legal name, and says so when the tenant has no subscriber. It is read only and
+shows no total: without invoices and payments, a sum would be read as what is owed (`SC-ADM-023`).
+It is offered only where the installation keeps a journal of charges (`SC-ADM-015`), only the
+platform administrator reaches it (`SC-ADM-001`), and it reads past the tenants' row-level policy
+the way the administration does (`SC-SEC-003`). Once the subscriber's record exists (`SC-ADM-021`),
+the account is part of it.
+
+_Source:_ #276 · #318
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/an-operator-reads-a-subscribers-account.test.js`
+    - the operator reads a subscriber's account
+        - newest first, and within one due date the plan, then its add-ons, then its discounts
+        - each charge as the journal holds it, its dates as the wire carries them
+        - a charge under a superseded contract keeps the title that contract gave it
+        - a charge whose contract line cannot be read is shown without a title
+        - names whose account it is by customer number and legal name
+        - a tenant without a subscriber has an account with no holder
+        - a tenant without a subscription has no charges
+    - two charges due at the same moment
+        - the one for the later period comes first
+    - the account is served beside the tenant's detail
+        - with a journal and the tenants, the route answers and the manifest announces it
+        - an unknown tenant is answered as not found, by code
+        - the tenant is found and its journal read outside the tenants' row-level policy
+        - the journal the route reads is the one the platform writes to, built once
+        - without ${without}, neither the route nor the capability exists
+    - mounted by hand
+        - without the bypass port, it refuses to start rather than read in a tenant scope
+        - with it, it starts
+- `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
+    - the tenant detail shows the subscriber's account
+        - whose account it is, and each charge in the order the platform serves them
+        - an amount is shown in the currency it was charged in
+        - a tenant without a subscriber says so
+        - a read that fails says so, and a retry asks again
+        - without the capability, nothing is asked and no section is shown
+        - a manifest the app passes in its options is the one asked
+- `packages/ui-vue/tests/tenant-charges-resource.test.js`
+    - tenantsResource.charges
+        - asks for the tenant's charges, with its slug escaped
+        - an answer with no account is an error, not an account with no charges
+- `packages/ui-vue/tests/use-tenant-account.test.js`
+    - useTenantAccount
+        - where the manifest announces the account, it is read for the tenant
+        - with ${label}, nothing is asked and nothing is shown
+        - a manifest that arrives later brings the account with it
+        - another tenant is another account
+        - without a tenant, nothing is asked
+        - a read that fails leaves an error and no account
+
+<!-- END proof -->
 
 ## 15. Working in the interface
 
@@ -16067,6 +16144,11 @@ _Tested by:_
 - `tests/no-dangling-doc-refs.test.js`
     - the sweep actually reaches the source tree
     - no shipped file cites a document from the private planning repo
+- `tests/openapi-refs-resolve.test.js`
+    - the OpenAPI document
+        - carries references at all, so the checks below have something to check
+        - names only files that exist beside it
+        - points only at nodes it contains
 
 <!-- END proof -->
 

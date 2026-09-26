@@ -835,7 +835,20 @@ it is the new period less the unused rest of the one it replaces. A discount sta
 it was agreed in; at the first change of rhythm after it was agreed, what is left of it comes off
 the new period, once (`SC-PRIC-060`).
 
-What it does not do yet: collect anything, or show the account on a screen.
+With `adminResources` on as well, the operator reads an account beside its tenant. The platform
+serves `GET admin/tenants/:slug/charges` behind the same guards as the other tenant routes of the
+administration and announces it in the manifest as `charges.read`; `TenantDetailPage` then shows the
+charges newest first — each with the title of its contract line, its period, what made it arise,
+when it became due and its net amount — and whose account it is, by customer number and legal name
+(`SC-ADM-028`). There is no total: without invoices and payments, a sum would be read as what is
+owed. Without the journal, neither the route nor the section exists.
+
+An operator's request is scoped to no tenant, so the platform reads the account inside
+`RlsBypassPort`. If `subscriber_ledger_entries`, your subscriptions, contracts or subscribers carry
+a row-level policy, your implementation of that port has to lift it there, as it does for the
+other reads the administration makes.
+
+What it does not do yet: collect anything, or show a tenant its own account.
 
 ## Admin Module
 

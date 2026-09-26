@@ -11,14 +11,20 @@
 //
 // `detail`, `suspend` and `reactivate` mirror `createAdminResourceClient`,
 // which is what `TenantDetailPage` receives them through today. Slugs are
-// encoded on the way into the path there, so they are encoded here.
+// encoded on the way into the path there, so they are encoded here. `charges`
+// has no twin there: the page reads it through this descriptor alone.
 
-import type { AdminTenantDetail, TenantDto, TenantListFilter } from '@saasicat/core';
+import type {
+    AdminSubscriberAccount,
+    AdminTenantDetail,
+    TenantDto,
+    TenantListFilter,
+} from '@saasicat/core';
 
 import { mfaHeader } from '../mfa-header.js';
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { defineListOp, type ListFilterOf } from './list-resource.js';
-import { requestJson } from './resource-request.js';
+import { requestJson, requestJsonBody } from './resource-request.js';
 
 /** What the tenants list can be narrowed by. The page number is not a filter. */
 export type TenantsListFilter = ListFilterOf<TenantListFilter>;
@@ -56,4 +62,15 @@ export const tenantsResource = defineResource('tenants', {
             headers: mfaHeader(mfaCode),
         });
     },
+
+    /**
+     * The charges of the tenant's subscriber, newest first. Served only where
+     * the manifest announces `charges.read`.
+     */
+    charges: async (http, ctx, slug: string): Promise<AdminSubscriberAccount> =>
+        requestJsonBody<AdminSubscriberAccount>(
+            http,
+            `${tenantUrl(ctx, slug)}/charges`,
+            'The account returned no body',
+        ),
 });

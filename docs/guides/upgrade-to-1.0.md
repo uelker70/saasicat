@@ -1510,6 +1510,11 @@ net, written once. It needs frozen contracts. To adopt it:
 5. Check that your `ContractFreezeSourcePort.loadBookedBundles` puts each booking's bundle version
    on its line as `sourceVersionId`. The journal finds a booking's contract line by it, and a line
    without it leaves the booking uncharged.
+6. With `adminResources` on, the tenant's detail page shows the account to the operator, served as
+   `GET admin/tenants/:slug/charges` and announced as `charges.read`; nothing is mounted for it. The
+   read runs inside `RlsBypassPort`, so where the ledger, the subscriptions, the contracts or the
+   subscribers carry a row-level policy, check that your implementation of that port lifts it —
+   otherwise the section shows an empty account.
 
 Nothing is backfilled: the first call charges the period each subscription is in, and nothing before
 it. An add-on booked earlier is charged from that period on, and a discount concluded earlier counts

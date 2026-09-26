@@ -29,6 +29,7 @@ import { PlanChangePreviewService } from './plan-change-preview.service.js';
 import { PLAN_CATALOG_SETTINGS_TOKEN } from './plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from './subscription-bundles.tokens.js';
 import { PendingPlanMaterializationService } from './pending-plan-materialization.service.js';
+import { SubscriberAccountService } from './charges/subscriber-account.service.js';
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
@@ -229,7 +230,8 @@ export interface TenantBillingModuleOptions {
      * The platform brings an account up to date after onboarding, an
      * immediate plan change and an add-on booking; an application calls
      * `recordDueCharges` where it writes a change itself — at activation and
-     * from its renewal job.
+     * from its renewal job. `SubscriberAccountService` reads an account back
+     * for the operator.
      */
     chargeJournal?: {
         ledgerRepository: ProviderSpec<SubscriberLedgerRepository>;
@@ -359,6 +361,7 @@ export class TenantBillingModule {
                     options.chargeJournal.ledgerRepository,
                 ),
                 SubscriberChargeService,
+                SubscriberAccountService,
             );
         }
         if (options.tenantIdResolver) {
@@ -402,7 +405,7 @@ export class TenantBillingModule {
                 SUBSCRIPTION_WRITE_PORT_TOKEN,
                 ...(hasPendingPlanQueryPort ? [PendingPlanMaterializationService] : []),
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN] : []),
-                ...(hasChargeJournal ? [SubscriberChargeService] : []),
+                ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
                 ...(options.extraExports ?? []),
             ],
         };

@@ -88,7 +88,7 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 25      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 27      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 28      |
 | 15  | Working in the interface                     | `SC-UI-…`    | 25      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
@@ -100,7 +100,7 @@ properties it has while doing it.
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 509 entries: 🟢 439 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 510 entries: 🟢 440 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
