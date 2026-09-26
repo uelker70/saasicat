@@ -829,10 +829,13 @@ booking's bundle version as `sourceVersionId` on its line, which is how the jour
 writing the contract failed after a booking, the next call writes it again, so that the booking has
 a contract line to be charged under.
 
-What it does not do yet: charge an immediate plan change — the difference an upgrade in the same
-rhythm adds to the period already charged (`SC-CHG-020`), or the new period an upgrade into a longer
-rhythm starts, less the unused rest (`SC-CHG-021`) — collect anything, or show the account on a
-screen.
+An immediate upgrade is charged as its preview quoted it (`SC-PRIC-059`). In the same rhythm that
+is the difference for the rest of the period, beside the period's own charge. Into a longer rhythm
+it is the new period less the unused rest of the one it replaces. A discount stays with the rhythm
+it was agreed in; when the rhythm changes, what is left of it comes off the new period
+(`SC-PRIC-060`).
+
+What it does not do yet: collect anything, or show the account on a screen.
 
 ## Admin Module
 
