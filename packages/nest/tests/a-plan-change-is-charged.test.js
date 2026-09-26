@@ -407,7 +407,7 @@ describe('a discount and a plan change', () => {
         ]);
     });
 
-    test('a monthly discount whose rhythm changed in the trial moves whole to the first yearly period', async () => {
+    test('a monthly discount whose rhythm changed in the trial moves whole to the first yearly period, and not again', async () => {
         const account = anAccount({
             subscription: {
                 status: 'TRIAL',
@@ -435,6 +435,18 @@ describe('a discount and a plan change', () => {
         await account.charge(utc('2026-04-01'));
 
         assert.deepEqual(planEntries(account), [['2026-04-01', 'activation', 990]]);
+        assert.deepEqual(discountEntries(account), [['2026-04-01', 'activation', -29.4]]);
+
+        // A year on, back to monthly: the discount had all of it already.
+        Object.assign(account.subscription, { billingCycle: 'MONTHLY' });
+        await changedOn(account, '2027-04-01', [STANDARD()]);
+        for (const month of [3, 4, 5]) {
+            account.roll(
+                new Date(Date.UTC(2027, month, 1)),
+                new Date(Date.UTC(2027, month + 1, 1)),
+            );
+            await account.charge(new Date(Date.UTC(2027, month, 1)));
+        }
         assert.deepEqual(discountEntries(account), [['2026-04-01', 'activation', -29.4]]);
     });
 

@@ -475,14 +475,7 @@ function deriveDiscountCharges(
         // discounted from the first period that is paid, and a contract
         // written in between — an add-on booked in the trial — does not take
         // the discount with it.
-        const inItsRhythm = firstPeriodConcludedFor(
-            contract,
-            periods.filter((period) => period.rhythm === rhythm),
-        );
-        // Where the rhythm changed before it had a period of its own — in a
-        // trial — its first period is of the other rhythm, and all of it
-        // moves there.
-        const first = inItsRhythm ?? firstPeriodConcludedFor(contract, periods);
+        const first = firstPeriodConcludedFor(contract, periods);
         if (!first) continue;
         const anchorDay =
             rhythm === rhythmOf(subscription.billingCycle)
@@ -490,12 +483,16 @@ function deriveDiscountCharges(
                 : first.getUTCDate();
         // The first change of rhythm after it was agreed ends it: what was
         // left moves to that period, once, and a later return to its rhythm
-        // does not bring it back.
-        const endedAt = inItsRhythm
+        // does not bring it back. Where the first period it applies to is
+        // already of the other rhythm — the rhythm changed in a trial — that
+        // period is the change, and all of it moves there.
+        const beganInItsRhythm = periods.some(
+            (period) => period.rhythm === rhythm && sameInstant(period.charge.periodStart, first),
+        );
+        const endedAt = beganInItsRhythm
             ? firstPeriodStart(
                   periods.filter(
-                      (period) =>
-                          period.rhythm !== rhythm && period.charge.periodStart > inItsRhythm,
+                      (period) => period.rhythm !== rhythm && period.charge.periodStart > first,
                   ),
               )
             : first;

@@ -5895,7 +5895,7 @@ _Tested by:_
         - a discount carried into a longer rhythm does not come back when the rhythm returns
         - a return to monthly takes what is left of a yearly discount off the first month, once
         - a monthly discount whose rhythm changed in the trial moves whole to the first yearly
-          period
+          period, and not again
         - a discount from the old rhythm takes nothing off the yearly renewals after the change
 
 <!-- END proof -->
