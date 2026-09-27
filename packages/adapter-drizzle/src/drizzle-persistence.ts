@@ -10,6 +10,7 @@ import { DrizzleAppliedSettingsRepository } from './drizzle-applied-settings.rep
 import { DrizzleAuditAdapter } from './drizzle-audit.adapter.js';
 import { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
 import { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
+import { DrizzleMaintenanceWindowRepository } from './drizzle-maintenance-window.repository.js';
 import { DrizzleMfaAdapter } from './drizzle-mfa.adapter.js';
 import { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';
 import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
@@ -116,6 +117,7 @@ export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCat
             auditStats: provide((client) => new DrizzleAuditStatsAdapter(client)),
             superAdminProvisioning: buildProvisioning(db, options.passwordHasher),
             appliedSettings: provide((client) => new DrizzleAppliedSettingsRepository(client)),
+            maintenanceWindows: provide((client) => new DrizzleMaintenanceWindowRepository(client)),
         },
         entitlement: {
             subscriptionRepository: provide((client) => new DrizzleSubscriptionRepository(client)),

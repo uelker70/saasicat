@@ -79,5 +79,6 @@ export { PrismaSubscriberLedgerRepository } from './prisma-subscriber-ledger.rep
 export { PrismaSubscriberPaymentMethodRepository } from './prisma-subscriber-payment-method.repository.js';
 export { PrismaSubscriberRepository } from './prisma-subscriber.repository.js';
 export { PrismaAppliedSettingsRepository } from './prisma-applied-settings.repository.js';
+export { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
 export { type PrismaModelDelegateLike } from './prisma-client-token.js';
 export * from './admin-resources-schema.js';

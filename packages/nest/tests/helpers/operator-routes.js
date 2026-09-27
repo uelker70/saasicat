@@ -41,6 +41,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
             transactionRunner: PORT,
             superAdminProvisioning: PORT,
             auditStats: PORT,
+            maintenanceWindows: PORT,
         },
         catalog: {
             planRepository: REPO,
@@ -105,6 +106,7 @@ export function everythingOnOptions(guards = [SignedInGuard]) {
         },
         subscriptionContract: true,
         tenantManifest: true,
+        maintenance: true,
         defaultPlanId: 'STARTER',
     };
 }

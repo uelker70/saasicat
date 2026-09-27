@@ -739,6 +739,13 @@ _Tested by:_
         - a listing is by the recorded order and passes the acknowledgement filter and the limit
           through
         - an acknowledgement is one guarded update, so the first one stands
+- `packages/adapter-prisma/tests/prisma-maintenance-window.repository.test.js`
+    - PrismaMaintenanceWindowRepository
+        - the open window is the one that has not ended, read column by column
+        - recent windows are the newest first, up to the limit
+        - opening leaves the refusal to the index, under an id of its own
+        - a move is guarded on the window being open and at the stage the caller read
+        - a move that matched nothing answers null and reads nothing back
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so

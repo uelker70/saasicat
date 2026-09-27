@@ -38,17 +38,18 @@ Start here if you have not used SaaSiCat before.
 
 ## Guides
 
-| Guide                                                                      | When                                                                  |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [Wire the backend](guides/wire-the-backend.md)                             | Adding the platform modules to your NestJS app.                       |
-| [Build the admin frontend](guides/build-the-admin-frontend.md)             | Adding the SuperAdmin UI, or understanding what the scaffolder wrote. |
-| [Integrate into an existing app](guides/integrate-into-an-existing-app.md) | Your app already wired the fine-grained modules by hand.              |
-| [Extend your CLI](guides/extend-your-cli.md)                               | Adding platform commands to your own CLI.                             |
-| [Mount behind Express](guides/mount-behind-express.md)                     | Your HTTP stack is Express, with or without Nest.                     |
-| [Self-registration](guides/self-registration.md)                           | Letting customers sign themselves up.                                 |
-| [Verify your integration](guides/verify-your-integration.md)               | You think you are done.                                               |
-| [Troubleshooting](guides/troubleshooting.md)                               | Something is wrong and the message is not obvious.                    |
-| [Upgrade to 1.0](guides/upgrade-to-1.0.md)                                 | Coming from a 0.x release.                                            |
+| Guide                                                                                            | When                                                                  |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| [Wire the backend](guides/wire-the-backend.md)                                                   | Adding the platform modules to your NestJS app.                       |
+| [Build the admin frontend](guides/build-the-admin-frontend.md)                                   | Adding the SuperAdmin UI, or understanding what the scaffolder wrote. |
+| [Integrate into an existing app](guides/integrate-into-an-existing-app.md)                       | Your app already wired the fine-grained modules by hand.              |
+| [Extend your CLI](guides/extend-your-cli.md)                                                     | Adding platform commands to your own CLI.                             |
+| [Mount behind Express](guides/mount-behind-express.md)                                           | Your HTTP stack is Express, with or without Nest.                     |
+| [Self-registration](guides/self-registration.md)                                                 | Letting customers sign themselves up.                                 |
+| [Take the application offline for a deploy](guides/take-the-application-offline-for-a-deploy.md) | A migration must not race with requests, and tenants should be told.  |
+| [Verify your integration](guides/verify-your-integration.md)                                     | You think you are done.                                               |
+| [Troubleshooting](guides/troubleshooting.md)                                                     | Something is wrong and the message is not obvious.                    |
+| [Upgrade to 1.0](guides/upgrade-to-1.0.md)                                                       | Coming from a 0.x release.                                            |
 
 ## Reference
 

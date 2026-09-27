@@ -22,6 +22,11 @@ const CATALOGUES = [
     ],
     ['PROMO_ERROR_CODES', 'Promo codes', 'Redemption, validity and limits.'],
     ['SETTINGS_ERROR_CODES', 'Settings', 'The record of the applied configuration.'],
+    [
+        'MAINTENANCE_ERROR_CODES',
+        'Maintenance',
+        'The lock that refuses tenant requests, and the operator routes around it.',
+    ],
 ];
 
 export const TARGET = 'docs/reference/error-codes.md';

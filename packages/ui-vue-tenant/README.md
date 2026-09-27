@@ -97,6 +97,20 @@ anyone else, so show its navigation entry to the same users. The invoices and
 the account will arrive inside it, and a page that mounts it now changes nothing
 when they do.
 
+Where the platform keeps maintenance windows, wrap the whole application — the sign-in page
+included — in `MaintenanceGate`. It announces a window ahead of time and, while the lock holds,
+shows one maintenance page instead of the application:
+
+```vue
+<MaintenanceGate :http="http" api-base="/api">
+    <router-view />
+</MaintenanceGate>
+```
+
+Hand each refused response to `reportMaintenanceRefusal(status, body)` from `@saasicat/ui-vue`, so
+the page appears the moment a request is refused rather than at the next poll. The guide is
+[Take the application offline for a deploy](../../docs/guides/take-the-application-offline-for-a-deploy.md).
+
 Import the platform theme once in your app so these components pick up the
 design tokens:
 

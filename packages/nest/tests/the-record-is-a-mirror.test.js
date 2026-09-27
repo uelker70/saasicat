@@ -108,13 +108,16 @@ describe('the applied-settings port', () => {
         //   - the error envelope, likewise;
         //   - the audit logger — the one hop out, into `admin/`: it WRITES the
         //     acknowledgement to the trail through an `@Optional()` service,
-        //     and reads nothing back.
+        //     and reads nothing back;
+        //   - the mark that keeps the screen reachable while the application
+        //     is locked for maintenance, which is metadata and reads nothing.
         const ALLOWED = [
             '/billing/plan-catalog.module.js',
             '/core/di.js',
             '/core/email.tokens.js',
             '/core/web-audit.js',
             '/errors/coded-error.js',
+            '/maintenance/allow-during-maintenance.js',
         ];
         for (const file of sourceFiles(join(SRC, MIRROR_DIR))) {
             const text = readFileSync(file, 'utf8');

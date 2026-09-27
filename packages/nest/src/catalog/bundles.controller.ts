@@ -32,6 +32,7 @@ import {
     UpdateBundleDto,
     UpdateBundleVersionDraftDto,
 } from './dto/bundles.dto.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 /**
  * Builds the controller class at boot time with the guards configured by the
@@ -39,6 +40,7 @@ import {
  */
 export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/bundles')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedBundlesController {
         constructor(
@@ -117,6 +119,7 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
  */
 export function buildBundleVersionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/bundle-versions')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedBundleVersionsController {
         constructor(

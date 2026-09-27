@@ -42,7 +42,11 @@ import { IssuerIdentityCheck, IssuerIdentityInspector } from './issuer-identity.
 
 export * from './module-options.js';
 import { assertConfiguration } from './validation/validate.js';
-import { composeFeatures, type CompositionContext } from './compose/index.js';
+import {
+    composeFeatures,
+    type CompositionContext,
+    maintenanceGuardProviders,
+} from './compose/index.js';
 import {
     composeBaseModules,
     composePlanCatalog,
@@ -184,7 +188,10 @@ export class SaaSiCatModule {
         // `@EnforceQuota` take effect right after the mega-module import.
         // Condition: PlanResolver or defaultPlanId.
         // ------------------------------------------------------------------
-        const lightweightProviders: Provider[] = [];
+        // The maintenance lock first: global guards run in the order they are
+        // registered, and a request refused for maintenance must not have its
+        // entitlements read before it is refused (`compose/maintenance.ts`).
+        const lightweightProviders: Provider[] = [...maintenanceGuardProviders(composition)];
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
         if (options.autoManifest !== false) {
             const contribution = buildStandardManifestContribution(

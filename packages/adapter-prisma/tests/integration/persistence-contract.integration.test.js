@@ -36,6 +36,7 @@ import {
     PrismaPromoCodeRepository,
     PrismaPromoSubscriptionLookup,
     PrismaAppliedSettingsRepository,
+    PrismaMaintenanceWindowRepository,
     PrismaPaymentEventLog,
     PrismaSubscriberPaymentMethodRepository,
     PrismaSubscriberLedgerRepository,
@@ -133,6 +134,7 @@ const PLATFORM_TABLES = [
     'super_admin_users',
     'applied_settings',
     'settings_changes',
+    'maintenance_windows',
     'subscriber_payment_methods',
     'subscriber_payment_method_setups',
     '"PaymentEventLog"',
@@ -180,6 +182,7 @@ function createHarness() {
             subscriberPaymentMethodRepository: new PrismaSubscriberPaymentMethodRepository(prisma),
             subscriberLedgerRepository: new PrismaSubscriberLedgerRepository(prisma),
             appliedSettings: new PrismaAppliedSettingsRepository(prisma),
+            maintenanceWindows: new PrismaMaintenanceWindowRepository(prisma),
         },
         seed: {
             async createPlanVersion(input) {

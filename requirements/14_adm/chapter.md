@@ -389,6 +389,9 @@ _Tested by:_
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
+- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
+    - the screen the administration offers
+        - one that does not, does not — so the screen is not offered
 - `packages/nest/tests/tenant-manifest.test.js`
     - TenantManifestService
         - returns a snapshot with filtered NavItems (feature gate)
@@ -415,6 +418,9 @@ _Tested by:_
         - reads exactly the endpoint the card declares
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - the lock strip in the administration’s shell
+        - an installation that keeps no windows is not asked about them
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
     - the tenant detail shows the subscriber's account
         - whose account it is, and each charge in the order the platform serves them
@@ -511,6 +517,9 @@ _Tested by:_
         - an instance context wins over the app context for that page only
         - binding one operation leaves the others on the platform implementation
         - an unknown resource says so instead of returning something inert
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - the shell asking whether tenants are locked out
+        - asks nothing where the installation keeps no windows
 - `packages/ui-vue/tests/use-tenant-account.test.js`
     - useTenantAccount
         - where the manifest announces the account, it is read for the tenant
@@ -783,5 +792,70 @@ _Tested by:_
         - another tenant is another account
         - without a tenant, nothing is asked
         - a read that fails leaves an error and no account
+
+<!-- END proof -->
+
+### SC-ADM-029 — Locking tenants out and letting them back in needs the second factor in the administration
+
+🟢 🔒 Like suspending a tenant (`SC-SEC-013`), the route checks it itself, and the shipped
+administration asks for the code and for a confirmation that says every tenant will be locked out.
+The command line cannot ask a deploy script for a code: it takes the operator's identity and, against
+production, a confirmation a script gives with `--yes`, and it records the action like every other
+(`SC-AUD-001`). Announcing, moving and cancelling a window lock nobody out and need neither.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - what a writing command asks of the operator
+        - an identity and the production confirmation — and no second factor
+        - reading the status asks for nothing
+- `packages/ui-vue/tests/maintenance-resource.test.js`
+    - maintenanceResource
+        - overview asks for the windows
+        - announce posts the times and the message, and no second factor
+        - reschedule patches the window, with its id escaped
+        - cancel posts to the window
+        - lock and unlock carry the second factor
+        - an overview that answers nothing is an error, not an empty page
+        - every operation this descriptor declares has a case above
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - locking from the administration
+        - asks for a confirmation that says every tenant is locked out, then for the code
+        - a declined confirmation sends nothing and asks for no code
+        - a cancelled code sends nothing
+        - a lock that already held is said as such, not as a new lock
+        - a refused lock is reported, and nothing claims it held
+        - unlocking asks again, and says when there was nothing to unlock
+
+<!-- END proof -->
+
+### SC-ADM-030 — While tenants are locked out, every page of the administration says so
+
+🟢 With the moment the lock began and the announced end, and louder once that end has passed, so an
+operator who forgot to unlock is told wherever they are in the administration.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - the lock strip in the administration’s shell
+        - while tenants are locked out, the shell says so, with a way to the page
+        - past the announced end it asks the operator to unlock
+        - an announced window, or nothing, shows no strip
+        - an installation that keeps no windows is not asked about them
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - the shell asking whether tenants are locked out
+        - knows a lock at once, and asks again every interval
+        - an announced window is no lock
+        - stops asking when the shell unmounts
+        - asks nothing where the installation keeps no windows
+        - a failed read keeps what it knew rather than hiding the lock
 
 <!-- END proof -->

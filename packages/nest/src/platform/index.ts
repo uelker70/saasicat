@@ -13,6 +13,7 @@ export {
     type SaaSiCatAdminResourcesOptions,
     type SaaSiCatCatalogOptions,
     type SaaSiCatCheckoutOfferOptions,
+    type SaaSiCatMaintenanceOptions,
     type SaaSiCatModuleOptions,
     type SaaSiCatPromoCodesOptions,
     type SaaSiCatSetupOptions,

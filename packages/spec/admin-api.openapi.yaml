@@ -58,6 +58,7 @@ tags:
     - name: manifest
     - name: catalog
     - name: settings
+    - name: maintenance
 
 security:
     - bearerAuth: []
@@ -1406,6 +1407,146 @@ paths:
                 '404':
                     description: No recorded change has this id (`SETTINGS_CHANGE_NOT_FOUND`)
 
+    # ── Maintenance windows (MaintenanceModule, packages/nest/src/maintenance/*) ──
+    #
+    # An operator announces a window, locks the application for a deploy and
+    # unlocks it. The announced times are what tenants are told; they never
+    # start or end the lock. These routes stay reachable while the lock holds.
+    # The status a tenant's page reads is `GET /public/maintenance`, outside
+    # this document's prefix.
+
+    /maintenance:
+        get:
+            tags: [maintenance]
+            summary: The open window, if any, and the ones before it
+            responses:
+                '200':
+                    description: The overview, read fresh
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/MaintenanceOverview' }
+        post:
+            tags: [maintenance]
+            summary: Announce a window to the tenants
+            description: >-
+                Locks nobody out. Refused while another window is open. The application hears
+                of it through its `MaintenanceNotificationPort`, where it binds one. Audited as
+                MAINTENANCE_WINDOW_ANNOUNCE.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/MaintenanceAnnouncement' }
+            responses:
+                '201':
+                    description: The window, announced
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/MaintenanceWindowView' }
+                '400':
+                    description: >-
+                        A time without its zone (`MAINTENANCE_TIME_INVALID`), an end not after the
+                        start (`MAINTENANCE_WINDOW_END_NOT_AFTER_START`) or in the past
+                        (`MAINTENANCE_WINDOW_END_IN_PAST`), a message too long
+                        (`MAINTENANCE_MESSAGE_TOO_LONG`)
+                '409':
+                    description: Another window is open (`MAINTENANCE_WINDOW_ALREADY_OPEN`)
+
+    /maintenance/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        patch:
+            tags: [maintenance]
+            summary: Move the open window, or change its message
+            description: >-
+                What is left out stays; `message: null` takes the message away. A locked window
+                keeps its start and may still move its expected end. Audited as
+                MAINTENANCE_WINDOW_RESCHEDULE.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/MaintenanceRevision' }
+            responses:
+                '200':
+                    description: The window as it now stands
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/MaintenanceWindowView' }
+                '400':
+                    description: As for announcing
+                '404':
+                    description: No open window has this id (`MAINTENANCE_WINDOW_NOT_OPEN`)
+                '409':
+                    description: The window is locked and its start cannot move (`MAINTENANCE_WINDOW_LOCKED`)
+
+    /maintenance/{id}/cancel:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        post:
+            tags: [maintenance]
+            summary: Call off an announced window
+            description: Audited as MAINTENANCE_WINDOW_CANCEL. A locked window is ended by unlocking it.
+            responses:
+                '201':
+                    description: The window, cancelled
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/MaintenanceWindowView' }
+                '404':
+                    description: No open window has this id (`MAINTENANCE_WINDOW_NOT_OPEN`)
+                '409':
+                    description: The window is locked (`MAINTENANCE_WINDOW_LOCKED`)
+
+    /maintenance/lock:
+        post:
+            tags: [maintenance]
+            summary: Lock every tenant out
+            description: >-
+                Locks the open window, or opens one locked at once where none is open. Locking what
+                is locked changes nothing and says so. Takes effect in every process within
+                `takesEffectWithinSeconds`. Audited as MAINTENANCE_LOCK.
+            x-mfa-required: true
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/MaintenanceLockRequest' }
+            responses:
+                '201':
+                    description: The lock
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/MaintenanceLockView' }
+                '400':
+                    description: An end without its zone or in the past
+                '404':
+                    description: The window named is not the open one (`MAINTENANCE_WINDOW_NOT_OPEN`)
+
+    /maintenance/unlock:
+        post:
+            tags: [maintenance]
+            summary: Let tenants back in
+            description: >-
+                Ends the locked window. Where nothing is locked it changes nothing and says so; an
+                announced window is left as it is. Audited as MAINTENANCE_UNLOCK.
+            x-mfa-required: true
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                windowId:
+                                    { type: string, description: The window the operator means }
+            responses:
+                '201':
+                    description: What the unlock did
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/MaintenanceUnlockView' }
+                '404':
+                    description: The window named is not the open one (`MAINTENANCE_WINDOW_NOT_OPEN`)
+
     # ── Discovery (scan/status, outside /catalog) ──
     /discovery:
         get:
@@ -1513,6 +1654,123 @@ components:
                     }
                 before: { description: 'Absent where the leaf did not exist before' }
                 after: { description: 'Absent where the leaf no longer exists' }
+
+        # ────────── Maintenance windows (packages/core/src/maintenance-window.types.ts) ──────────
+        MaintenanceWindowView:
+            type: object
+            required:
+                [
+                    id,
+                    status,
+                    startsAt,
+                    endsAt,
+                    message,
+                    createdAt,
+                    createdBy,
+                    lockedAt,
+                    lockedBy,
+                    endedAt,
+                    endedBy,
+                    overrun,
+                    lapsed,
+                ]
+            properties:
+                id: { type: string }
+                status: { type: string, enum: [announced, locked, ended, cancelled] }
+                startsAt:
+                    {
+                        type: [string, 'null'],
+                        format: date-time,
+                        description: 'The announced start; null for a window locked without being announced',
+                    }
+                endsAt:
+                    {
+                        type: [string, 'null'],
+                        format: date-time,
+                        description: 'The announced, expected end; null where nobody said',
+                    }
+                message: { type: [string, 'null'], description: 'Shown to the tenants as written' }
+                createdAt: { type: string, format: date-time }
+                createdBy: { type: string, description: 'An actor tag, as the audit log writes it' }
+                lockedAt: { type: [string, 'null'], format: date-time }
+                lockedBy: { type: [string, 'null'] }
+                endedAt: { type: [string, 'null'], format: date-time }
+                endedBy: { type: [string, 'null'] }
+                overrun: { type: boolean, description: 'Locked, and past its announced end' }
+                lapsed:
+                    {
+                        type: boolean,
+                        description: 'Announced, never locked, and past its announced end: tenants no longer see it',
+                    }
+
+        MaintenanceOverview:
+            type: object
+            required: [open, recent, takesEffectWithinSeconds]
+            properties:
+                open:
+                    oneOf:
+                        - $ref: '#/components/schemas/MaintenanceWindowView'
+                        - type: 'null'
+                recent:
+                    type: array
+                    description: 'Newest first, the open one included'
+                    items: { $ref: '#/components/schemas/MaintenanceWindowView' }
+                takesEffectWithinSeconds:
+                    { type: integer, description: 'How long a lock takes to reach every process' }
+
+        MaintenanceAnnouncement:
+            type: object
+            required: [startsAt, endsAt]
+            properties:
+                startsAt:
+                    {
+                        type: string,
+                        description: 'Date and time with its zone, e.g. 2026-10-02T22:00+02:00',
+                    }
+                endsAt:
+                    {
+                        type: string,
+                        description: 'Date and time with its zone; after startsAt, and ahead',
+                    }
+                message: { type: [string, 'null'], maxLength: 500 }
+
+        MaintenanceRevision:
+            type: object
+            properties:
+                startsAt: { type: string, description: 'Date and time with its zone' }
+                endsAt: { type: string, description: 'Date and time with its zone' }
+                message:
+                    { type: [string, 'null'], maxLength: 500, description: 'null takes it away' }
+
+        MaintenanceLockRequest:
+            type: object
+            properties:
+                windowId:
+                    {
+                        type: string,
+                        description: 'The window the operator means; left out, the open one or a new one',
+                    }
+                endsAt: { type: string, description: 'The expected end, with its zone' }
+                message: { type: [string, 'null'], maxLength: 500 }
+
+        MaintenanceLockView:
+            type: object
+            required: [window, alreadyLocked, takesEffectWithinSeconds]
+            properties:
+                window: { $ref: '#/components/schemas/MaintenanceWindowView' }
+                alreadyLocked:
+                    { type: boolean, description: 'The lock already held; nothing changed' }
+                takesEffectWithinSeconds: { type: integer }
+
+        MaintenanceUnlockView:
+            type: object
+            required: [window, wasLocked]
+            properties:
+                window:
+                    oneOf:
+                        - $ref: '#/components/schemas/MaintenanceWindowView'
+                        - type: 'null'
+                wasLocked: { type: boolean }
 
         # ────────── Catalog V2 (DTO = SSOT: packages/nest/src/catalog/dto/*) ──────────
         CatalogPlanCreate:

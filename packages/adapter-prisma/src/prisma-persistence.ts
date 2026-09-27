@@ -21,6 +21,7 @@ import {
 } from './prisma-bundle.repository.js';
 import { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
 import { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
+import { PrismaMaintenanceWindowRepository } from './prisma-maintenance-window.repository.js';
 import { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
 import { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 import { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.adapter.js';
@@ -58,6 +59,7 @@ interface CanonicalPersistencePrisma extends PrismaLike {
     marketingSettings: unknown;
     appliedSettings: unknown;
     settingsChange: unknown;
+    maintenanceWindow: unknown;
     subscriber: unknown;
     subscriberTenant: unknown;
     subscriberCorrection: unknown;
@@ -151,6 +153,9 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPe
             superAdminProvisioning: buildProvisioning(client, options.passwordHasher),
             appliedSettings: provide(
                 (prisma) => new PrismaAppliedSettingsRepository(canonical(prisma)),
+            ),
+            maintenanceWindows: provide(
+                (prisma) => new PrismaMaintenanceWindowRepository(canonical(prisma)),
             ),
         },
         entitlement: {

@@ -18,6 +18,7 @@
 --   prisma-fragments/13-subscriber.prisma
 --   prisma-fragments/14-payments.prisma
 --   prisma-fragments/15-subscriber-ledger.prisma
+--   prisma-fragments/16-maintenance-window.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -706,6 +707,22 @@ CREATE TABLE "subscriber_ledger_entries" (
     CONSTRAINT "subscriber_ledger_entries_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "maintenance_windows" (
+    "id" TEXT NOT NULL,
+    "startsAt" TIMESTAMP(3),
+    "endsAt" TIMESTAMP(3),
+    "message" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdBy" TEXT NOT NULL,
+    "lockedAt" TIMESTAMP(3),
+    "lockedBy" TEXT,
+    "endedAt" TIMESTAMP(3),
+    "endedBy" TEXT,
+
+    CONSTRAINT "maintenance_windows_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -940,6 +957,9 @@ CREATE INDEX "subscriber_ledger_entries_contractLineItemId_idx" ON "subscriber_l
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriber_ledger_entries_subscriptionId_source_sourceRef_p_key" ON "subscriber_ledger_entries"("subscriptionId", "source", "sourceRef", "periodStart", "origin");
 
+-- CreateIndex
+CREATE INDEX "maintenance_windows_createdAt_idx" ON "maintenance_windows"("createdAt");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -1048,6 +1068,15 @@ ALTER TABLE applied_settings
     DROP CONSTRAINT IF EXISTS applied_settings_is_a_singleton;
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
+
+-- At most ONE maintenance window is open — announced or locked, not yet ended.
+--
+-- The index is on a constant, so every open row carries the same key and a
+-- second one collides. A window that ended leaves the index and makes room for
+-- the next. Two operators locking at the same moment therefore land one window,
+-- because the second insert meets the first and is told a window is open.
+CREATE UNIQUE INDEX IF NOT EXISTS maintenance_windows_one_open
+    ON maintenance_windows ((true)) WHERE "endedAt" IS NULL;
 
 -- A subscriber is live for at most ONE tenant, and a tenant has at most ONE
 -- live subscriber. A link that ended keeps its row with `unlinkedAt` set, so the

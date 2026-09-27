@@ -120,19 +120,19 @@ properties it has while doing it.
 | 11  | Promotional codes                            | `SC-PROMO-…` | 25      |
 | 12  | Self-registration                            | `SC-REG-…`   | 22      |
 | 13  | The public catalogue, checkout and contracts | `SC-MKT-…`   | 26      |
-| 14  | Administration and access to it              | `SC-ADM-…`   | 28      |
-| 15  | Working in the interface                     | `SC-UI-…`    | 25      |
+| 14  | Administration and access to it              | `SC-ADM-…`   | 30      |
+| 15  | Working in the interface                     | `SC-UI-…`    | 26      |
 | 16  | Configuring and running an installation      | `SC-CFG-…`   | 36      |
 | 17  | Accessibility                                | `SC-A11Y-…`  | 12      |
 | 18  | Language and wording                         | `SC-LANG-…`  | 13      |
 | 19  | Security and keeping tenants apart           | `SC-SEC-…`   | 14      |
 | 20  | What is kept, and what is never written down | `SC-PRIV-…`  | 18      |
 | 21  | Answering the question afterwards            | `SC-AUD-…`   | 17      |
-| 22  | Repeating an operation safely                | `SC-OPS-…`   | 11      |
+| 22  | Repeating an operation safely                | `SC-OPS-…`   | 15      |
 | 23  | Compatibility and upgrading                  | `SC-COMP-…`  | 15      |
 | 24  | Being understandable to a stranger           | `SC-READ-…`  | 8       |
 
-Of 510 entries: 🟢 440 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
+Of 517 entries: 🟢 447 stand today, 🟡 65 decided but not yet delivered, ⚪ 0 drafts,
 🔵 4 superseded, 🔴 1 withdrawn.
 
 🟡 **Decided, not yet delivered** — [SC-SCOPE-011](#sc-scope-011--saasicat-invoices-subscriptions-and-collects-payment-through-a-payment-gateway),
@@ -208,7 +208,7 @@ Of 510 entries: 🟢 440 stand today, 🟡 65 decided but not yet delivered, ⚪
 
 🔴 **Withdrawn** — [SC-REG-016](#sc-reg-016--the-account-the-tenant-and-the-subscription-are-created-together-or-not-at-all)
 
-Generated from `requirements/` — 510 requirements. Do not edit by hand:
+Generated from `requirements/` — 517 requirements. Do not edit by hand:
 `node scripts/requirements/index.mjs --write`.
 
 ## 1. The product and its boundary
@@ -9145,6 +9145,9 @@ _Tested by:_
         - validate reads the manifest before it judges it
 - `packages/nest/tests/admin-resources.test.js`
     - AdminResourcesService keeps tenant actions and writes their audit entry
+- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
+    - the screen the administration offers
+        - one that does not, does not — so the screen is not offered
 - `packages/nest/tests/tenant-manifest.test.js`
     - TenantManifestService
         - returns a snapshot with filtered NavItems (feature gate)
@@ -9171,6 +9174,9 @@ _Tested by:_
         - reads exactly the endpoint the card declares
         - a reading, not a rendering — the timestamp comes back unformatted
         - a body with no recognised number reads as null, not as a failure
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - the lock strip in the administration’s shell
+        - an installation that keeps no windows is not asked about them
 - `packages/ui-vue/tests/component/tenant-detail-shows-the-account.test.ts`
     - the tenant detail shows the subscriber's account
         - whose account it is, and each charge in the order the platform serves them
@@ -9267,6 +9273,9 @@ _Tested by:_
         - an instance context wins over the app context for that page only
         - binding one operation leaves the others on the platform implementation
         - an unknown resource says so instead of returning something inert
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - the shell asking whether tenants are locked out
+        - asks nothing where the installation keeps no windows
 - `packages/ui-vue/tests/use-tenant-account.test.js`
     - useTenantAccount
         - where the manifest announces the account, it is read for the tenant
@@ -9539,6 +9548,71 @@ _Tested by:_
         - another tenant is another account
         - without a tenant, nothing is asked
         - a read that fails leaves an error and no account
+
+<!-- END proof -->
+
+### SC-ADM-029 — Locking tenants out and letting them back in needs the second factor in the administration
+
+🟢 🔒 Like suspending a tenant (`SC-SEC-013`), the route checks it itself, and the shipped
+administration asks for the code and for a confirmation that says every tenant will be locked out.
+The command line cannot ask a deploy script for a code: it takes the operator's identity and, against
+production, a confirmation a script gives with `--yes`, and it records the action like every other
+(`SC-AUD-001`). Announcing, moving and cancelling a window lock nobody out and need neither.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - what a writing command asks of the operator
+        - an identity and the production confirmation — and no second factor
+        - reading the status asks for nothing
+- `packages/ui-vue/tests/maintenance-resource.test.js`
+    - maintenanceResource
+        - overview asks for the windows
+        - announce posts the times and the message, and no second factor
+        - reschedule patches the window, with its id escaped
+        - cancel posts to the window
+        - lock and unlock carry the second factor
+        - an overview that answers nothing is an error, not an empty page
+        - every operation this descriptor declares has a case above
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - locking from the administration
+        - asks for a confirmation that says every tenant is locked out, then for the code
+        - a declined confirmation sends nothing and asks for no code
+        - a cancelled code sends nothing
+        - a lock that already held is said as such, not as a new lock
+        - a refused lock is reported, and nothing claims it held
+        - unlocking asks again, and says when there was nothing to unlock
+
+<!-- END proof -->
+
+### SC-ADM-030 — While tenants are locked out, every page of the administration says so
+
+🟢 With the moment the lock began and the announced end, and louder once that end has passed, so an
+operator who forgot to unlock is told wherever they are in the administration.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - the lock strip in the administration’s shell
+        - while tenants are locked out, the shell says so, with a way to the page
+        - past the announced end it asks the operator to unlock
+        - an announced window, or nothing, shows no strip
+        - an installation that keeps no windows is not asked about them
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - the shell asking whether tenants are locked out
+        - knows a lock at once, and asks again every interval
+        - an announced window is no lock
+        - stops asking when the shell unmounts
+        - asks nothing where the installation keeps no windows
+        - a failed read keeps what it knew rather than hiding the lock
 
 <!-- END proof -->
 
@@ -9825,6 +9899,15 @@ _Tested by:_
         - load() fills manifest
         - reload() discards cache + loads fresh
         - clearCache() sets manifest to null
+- `packages/ui-vue/tests/maintenance-resource.test.js`
+    - maintenanceResource
+        - overview asks for the windows
+        - announce posts the times and the message, and no second factor
+        - reschedule patches the window, with its id escaped
+        - cancel posts to the window
+        - lock and unlock carry the second factor
+        - an overview that answers nothing is an error, not an empty page
+        - every operation this descriptor declares has a case above
 - `packages/ui-vue/tests/resources-match-the-composables.test.js`
     - the list descriptors match the list composables
         - ${resource.name}: ${testCase.name}
@@ -11353,6 +11436,45 @@ and a credit on the account is never called by the name German VAT law reserves 
 recipient writes: Guthaben, not Gutschrift.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-UI-026 — A tenant locked out for maintenance sees one page that says so, and carries on afterwards
+
+🟢 Instead of each action failing on its own, the application shows a maintenance page with the
+expected end — or that it is taking longer than announced — and the operator's message. It notices by
+itself when the lock is lifted and returns the tenant to the screen they were on, still signed in. A
+request the lock refused on its way is not dropped silently: the page says that what the tenant was
+doing was not carried out.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/use-maintenance-status.test.js`
+    - recognising the lock’s refusal
+        - a 503 with the code MAINTENANCE is one, with the window it carries
+        - a refusal that carries no window still means the lock holds
+        - another status, another code or a page that is not JSON is not
+        - a report reaches every listener until it stops listening
+    - the status a tenant’s page reads
+        - asks the status route under the given base, once at first
+        - asks again every minute, and every quarter of a minute while locked
+        - what cannot be asked leaves what was known standing
+        - a reported refusal locks at once and is remembered until the lock is lifted
+        - stops asking, and stops listening, when the page goes
+- `packages/ui-vue-tenant/tests/component/a-locked-out-tenant-sees-one-page.test.ts`
+    - the maintenance gate
+        - with nothing announced, the application and nothing else
+        - an installation that keeps no windows answers 404, and the application runs
+        - a window ahead is announced above the application, with the operator’s message
+        - while the lock holds, one page with the expected end — and no application behind it
+        - past its announced end, it says it is taking longer
+        - once the lock is lifted, the tenant is back on the screen it was on
+        - a refused request switches to the page at once and says it was not carried out
+        - a 503 that is not the lock’s — a proxy’s, say — is not taken for maintenance
+
+<!-- END proof -->
 
 ## 16. Configuring and running an installation
 
@@ -14170,6 +14292,16 @@ installations.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - what the operator does not wait on
+        - an audit log that cannot be written does not undo the lock
+
+<!-- END proof -->
+
 ### SC-AUD-005 — Serious actions are marked as serious
 
 🟢 Suspending a tenant, acting as one, publishing or ending a plan version, cancelling a
@@ -14345,6 +14477,11 @@ Deployments fail and get retried; containers restart; a pipeline step is run aga
 is written from the operator's side and says what they can repeat without holding their breath.
 The requirement behind all of it: SaaSiCat keeps no ledger of which migrations have run, so every
 one of them has to be safe to run twice.
+
+Some migrations must not run beside the application at all: one that moves rows, or removes what the
+version still running reads. For those the operator takes the application out of service for the
+length of the deploy, and tells the tenants first. The lock that does it has to outlast the restart
+it protects, and it ends when the operator says so.
 
 ### SC-OPS-001 — An operator can retry a failed deployment
 
@@ -14725,6 +14862,215 @@ _Source:_ `docs/reference/options.md`
 is one of the places where confusing them costs money.
 
 _Source:_ internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - times are read with their zone
+        - a time without one is refused, naming the flag
+        - an offset and a Z both name a moment
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - the times a form sends
+        - what the input shows is read back as the same moment, with its zone
+
+<!-- END proof -->
+
+### SC-OPS-012 — An operator announces a maintenance window, and tenants see it before it begins
+
+🟢 The operator gives a start, an expected end and, if they like, a message — in the
+administration or from the command line — and can move the window or cancel it until it is locked.
+From then on every tenant sees it above the application and on the sign-in page, in the viewer's
+own time zone and language, with the message as the operator wrote it. An installation has one
+open window at a time, so the next is announced once this one is over. No lead time is enforced,
+because an emergency deploy has to lock at once, and an announced window whose end passes without a
+lock is no longer shown. Mail is the application's: SaaSiCat tells it when a window is announced,
+moved or cancelled, and the application writes to its own users in its own words and their language
+(`SC-LANG-001`).
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - announcing, moving and cancelling from the command line
+        - an announcement needs both times
+        - a second announcement is a conflict a script can branch on
+        - moving and cancelling act on the open window, and refuse where none is
+        - the status says what is announced, and what is locked
+- `packages/nest/tests/a-maintenance-lock-refuses-tenant-requests.test.js`
+    - the lock, on ${platform.name}
+        - an announced window locks nobody out, and the status says it is coming
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - announcing a window
+        - records it open, tells the application, and audits who announced it
+        - a tenant is shown it from the moment it is announced
+        - a second window is refused while one is open
+        - its end has to be after its start — one millisecond is enough, none is not
+        - an end that has already passed is refused, a start in the past is not
+        - the message is kept as written, trimmed, and at most its limit long
+        - a message of nothing but spaces is no message
+    - moving and cancelling an announced window
+        - moving it tells the application what it was and what it is now
+        - a form saved as it was moves nothing, and tells nobody
+        - a locked window saved with its own start is not refused for moving it
+        - taking the message away is a change, leaving it out is not
+        - a move that ends it before it starts is refused, and the window stays as it was
+        - a window that is not the open one cannot be moved or cancelled
+        - cancelling ends it without a lock, tells the application, and frees the slot
+        - a cancelled window cannot be cancelled again
+        - an announcement whose end passed without a lock is no longer shown to tenants
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - MaintenancePage
+        - with nothing open, it offers to announce a window or to lock at once
+        - an announced window shows what tenants were told, and can be locked, moved or cancelled
+        - an announcement whose end passed without a lock is flagged for cancelling
+        - a locked window says since when, offers to unlock, and says so louder past its end
+        - cancelling asks first, then cancels the window it is shown
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - announcing, moving and cancelling
+        - cancelling asks first and needs no code
+        - a declined cancellation sends nothing
+        - announcing sends the window and reads the windows again
+        - a refused announcement rejects, so the form keeps what was typed and says why
+- `packages/ui-vue-tenant/tests/component/a-locked-out-tenant-sees-one-page.test.ts`
+    - the maintenance gate
+        - with nothing announced, the application and nothing else
+        - an installation that keeps no windows answers 404, and the application runs
+        - a window ahead is announced above the application, with the operator’s message
+        - while the lock holds, one page with the expected end — and no application behind it
+        - past its announced end, it says it is taking longer
+        - once the lock is lifted, the tenant is back on the screen it was on
+        - a refused request switches to the page at once and says it was not carried out
+        - a 503 that is not the lock’s — a proxy’s, say — is not taken for maintenance
+
+<!-- END proof -->
+
+### SC-OPS-013 — While the lock holds, no tenant request reaches the application
+
+🟢 Every request is refused with `503`, the code `MAINTENANCE`, a `Retry-After` and the announced
+end, before SaaSiCat's own checks read anything. Four things pass: the administration, the
+maintenance status the tenant's pages read, a route the application marks as available during
+maintenance — its health and readiness probes, say — and a platform administrator whose sign-in the
+application has already established, so the operator can try the new version before letting tenants
+back in. A payment provider's callback is refused like any other request and retried by the
+provider, so that no write races the migration. SaaSiCat's own scheduled jobs skip their run while
+the lock holds, and the application's ask `isLocked()` before theirs. Where it stops: the command
+line does not go through HTTP and is not held; a guard the application registered globally before
+SaaSiCat's runs first, so an authentication that reads its session from the database still does;
+and a version starting inside the window runs its own start-up as usual.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-maintenance-lock-refuses-tenant-requests.test.js`
+    - the lock, on ${platform.name}
+        - without a lock a tenant request goes through, and its entitlements are read
+        - while the lock holds › a tenant request is refused with 503, the code and when to try
+          again
+        - while the lock holds › a request nobody signed in to is refused for maintenance, not for
+          its sign-in
+        - while the lock holds › a route the application marks — its health probe — still answers
+        - while the lock holds › the status a tenant’s page reads answers, to nobody in particular
+        - while the lock holds › the administration answers the operator
+        - while the lock holds › a platform administrator can try the application before letting
+          tenants in
+        - while the lock holds › past its announced end it says so, and asks the client back in a
+          minute
+- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
+    - the platform’s own scheduled jobs
+        - the promotional code sweep skips its run while the lock holds
+        - and runs once it is unlocked, or where maintenance is off
+        - the expired sign-up cleanup skips its run while the lock holds
+- `packages/nest/tests/the-administration-stays-reachable-during-maintenance.test.js`
+    - the routes a maintenance lock lets through
+        - the graph mounts the administration, the tenant routes and the status route
+        - every controller of the administration passes
+        - no other controller does, except the status a tenant’s page reads
+
+<!-- END proof -->
+
+### SC-OPS-014 — The lock begins and ends when somebody says so, not when the clock does
+
+🟢 The deploy script, the command line or the administration locks and unlocks. The announced times
+are what tenants are told and what `Retry-After` says; a lock that outlasts its announced end tells
+tenants that it is taking longer than announced, rather than letting them back onto a half-migrated
+schema, and the administration and `<app> doctor` report it so that a forgotten lock is found.
+Locking what is locked, or unlocking what is not, reports the state that already holds
+(`SC-OPS-007`).
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - `maintenance off`
+        - lets tenants back in, and says when there was nothing to unlock
+    - `&lt;app&gt; doctor` about the lock
+        - without maintenance turned on there is nothing to report
+        - nothing open, or a window ahead, is fine
+        - a lock is reported while it holds, and louder once its announced end has passed
+        - an announcement whose end passed without a lock is named for cancelling
+        - a table the lock cannot be read from is an error
+- `packages/nest/tests/a-maintenance-lock-refuses-tenant-requests.test.js`
+    - the lock, on ${platform.name}
+        - once unlocked, tenants are back
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - locking and unlocking are the operator’s, not the clock’s
+        - an announced window does not lock by itself when its start comes
+        - locking takes the announced window, and it holds past its announced end
+        - with nothing announced, locking opens a window that is locked at once
+        - locking what is locked changes nothing and says so
+        - a lock meant for a window that is no longer the open one is refused
+        - a lock stating an end that has passed is refused
+        - a lock that lands while this one is being written is reported as already held
+        - a locked window keeps its start, and may still move its expected end
+        - a locked window is ended by unlocking, not by cancelling
+        - unlocking ends the window and lets tenants back in
+        - unlocking what is not locked changes nothing, and leaves an announcement standing
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - MaintenancePage
+        - a locked window says since when, offers to unlock, and says so louder past its end
+
+<!-- END proof -->
+
+### SC-OPS-015 — The lock survives a restart, and the version being replaced honours it too
+
+🟢 It is kept in the application's database, in a table whose shape a deploy the lock protects does
+not change, so the version being replaced and the one replacing it both read it, and a backup taken
+inside the window restores with the lock on. Each process reads it at most a few seconds late, and
+the command that locks returns only once every process has had that long, plus a grace for requests
+already under way. It protects only a deploy whose running version already knows it: an installation
+deploys the release that brings it once, normally, before its first locked deploy.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - `maintenance on` returns once every process has seen the lock
+        - it waits the time a process may keep an answer, plus the grace for requests under way
+        - a grace of its own is waited instead, zero included
+        - a lock that has held long enough already is not waited for again
+        - a grace that is not a number of seconds is refused before anything is locked
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - what another process of the application makes of it
+        - a lock reaches a process that asked before it, within the time it may keep an answer
+        - a burst of requests after the answer aged asks the table once
+        - a lock known to hold is not dropped because one read failed
+        - a process that never read the lock lets requests through while the table cannot answer
+
+<!-- END proof -->
 
 ## 23. Compatibility and upgrading
 
@@ -15465,6 +15811,13 @@ _Tested by:_
         - a listing is by the recorded order and passes the acknowledgement filter and the limit
           through
         - an acknowledgement is one guarded update, so the first one stands
+- `packages/adapter-prisma/tests/prisma-maintenance-window.repository.test.js`
+    - PrismaMaintenanceWindowRepository
+        - the open window is the one that has not ended, read column by column
+        - recent windows are the newest first, up to the limit
+        - opening leaves the refusal to the index, under an id of its own
+        - a move is guarded on the window being open and at the stage the caller read
+        - a move that matched nothing answers null and reads nothing back
 - `packages/core/tests/canonical-rows-become-records.test.js`
     - a plan row becomes a plan record
         - dates leave as ISO strings, and an undeleted plan says so

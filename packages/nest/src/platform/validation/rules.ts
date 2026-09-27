@@ -310,6 +310,18 @@ const RULE_SPECS: readonly RuleSpec[] = [
             '`persistence.core.auditStats`.',
     },
     {
+        id: 'maintenance.requires-windows-port',
+        when: (c) => Boolean(c.options.maintenance),
+        assert: (c) =>
+            Boolean(
+                optionsOf(c.options.maintenance)?.windows ?? bundle(c)?.core.maintenanceWindows,
+            ),
+        message:
+            'maintenance is enabled, but there is nowhere to keep the windows. Set ' +
+            '`maintenance.windows` or use a bundle providing ' +
+            '`persistence.core.maintenanceWindows` — both shipped adapters do.',
+    },
+    {
         id: 'subscription-contract.requires-repository',
         when: (c) => Boolean(c.options.subscriptionContract),
         assert: (c) =>

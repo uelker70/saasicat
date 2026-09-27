@@ -1281,6 +1281,30 @@ model SettingsChange {
 }
 
 // =============================================================================
+// Maintenance windows (16-maintenance-window.prisma)
+// =============================================================================
+//
+// Announced to the tenants, locked for a deploy, ended when the operator
+// unlocks. At most one is open at a time — held by the partial unique index the
+// entrypoint applies from @saasicat/spec/sql/constraints.postgres.sql.
+
+model MaintenanceWindow {
+    id        String    @id @default(uuid())
+    startsAt  DateTime?
+    endsAt    DateTime?
+    message   String?
+    createdAt DateTime  @default(now())
+    createdBy String
+    lockedAt  DateTime?
+    lockedBy  String?
+    endedAt   DateTime?
+    endedBy   String?
+
+    @@index([createdAt])
+    @@map("maintenance_windows")
+}
+
+// =============================================================================
 // Subscriber — the party a contract is concluded with (13-subscriber.prisma)
 // =============================================================================
 

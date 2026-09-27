@@ -14,6 +14,7 @@ import { composeAdminResources } from './admin-resources.js';
 import { composeCatalog } from './catalog.js';
 import type { CompositionContext } from './context.js';
 import { composeEntitlement } from './entitlement.js';
+import { composeMaintenance } from './maintenance.js';
 import {
     composeAdminStats,
     composeCheckoutOffer,
@@ -44,6 +45,7 @@ export const FEATURE_COMPOSERS: readonly Composer[] = [
     composeSubscriptionContract,
     // After the admin resources and tenant billing: it imports both.
     composeSubscriberAccount,
+    composeMaintenance,
 ];
 
 /** Every module the enabled features contribute, in composer order. */
@@ -52,4 +54,5 @@ export function composeFeatures(ctx: CompositionContext): DynamicModule[] {
 }
 
 export * from './context.js';
+export { maintenanceGuardProviders } from './maintenance.js';
 export * from './tenant-bindings.js';

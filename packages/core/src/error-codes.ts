@@ -429,6 +429,28 @@ export const SETTINGS_ERROR_CODES = {
 } as const;
 export type SettingsErrorCode = (typeof SETTINGS_ERROR_CODES)[keyof typeof SETTINGS_ERROR_CODES];
 
+/** Codes of maintenance windows: the lock's refusal, and the operator's routes. */
+export const MAINTENANCE_ERROR_CODES = {
+    /** The application is locked for maintenance; the body carries the window. */
+    MAINTENANCE: 'MAINTENANCE',
+    /** A window is already open: move or cancel it before announcing another. */
+    MAINTENANCE_WINDOW_ALREADY_OPEN: 'MAINTENANCE_WINDOW_ALREADY_OPEN',
+    /** No open window has this id — it ended, or it never existed. */
+    MAINTENANCE_WINDOW_NOT_OPEN: 'MAINTENANCE_WINDOW_NOT_OPEN',
+    /** The window is locked: its start is history, and unlocking is what ends it. */
+    MAINTENANCE_WINDOW_LOCKED: 'MAINTENANCE_WINDOW_LOCKED',
+    /** The announced end is not after the announced start. */
+    MAINTENANCE_WINDOW_END_NOT_AFTER_START: 'MAINTENANCE_WINDOW_END_NOT_AFTER_START',
+    /** The announced end has already passed. */
+    MAINTENANCE_WINDOW_END_IN_PAST: 'MAINTENANCE_WINDOW_END_IN_PAST',
+    /** A time without its zone, or not a date and time at all; `field` names which. */
+    MAINTENANCE_TIME_INVALID: 'MAINTENANCE_TIME_INVALID',
+    /** The message is longer than `MAINTENANCE_MESSAGE_MAX_LENGTH`. */
+    MAINTENANCE_MESSAGE_TOO_LONG: 'MAINTENANCE_MESSAGE_TOO_LONG',
+} as const;
+export type MaintenanceErrorCode =
+    (typeof MAINTENANCE_ERROR_CODES)[keyof typeof MAINTENANCE_ERROR_CODES];
+
 /**
  * Every exception code the platform emits, in one object.
  *
@@ -447,6 +469,7 @@ export const PLATFORM_ERROR_CODES = {
     ...REGISTRATION_ERROR_CODES,
     ...PAYMENT_ERROR_CODES,
     ...SETTINGS_ERROR_CODES,
+    ...MAINTENANCE_ERROR_CODES,
 } as const;
 
 export type PlatformErrorCode =
@@ -459,7 +482,8 @@ export type PlatformErrorCode =
     | SubscriberErrorCode
     | RegistrationErrorCode
     | PaymentErrorCode
-    | SettingsErrorCode;
+    | SettingsErrorCode
+    | MaintenanceErrorCode;
 
 /**
  * Shape of a coded error response.

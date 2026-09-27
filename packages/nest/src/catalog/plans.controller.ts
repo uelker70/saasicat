@@ -39,9 +39,11 @@ import {
     TerminatePlanVersionDto,
     UpdatePlanVersionDraftDto,
 } from './dto/plan-versions.dto.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/plans')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedPlansController {
         constructor(
@@ -145,6 +147,7 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
  */
 export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/plan-versions')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedPlanVersionsController {
         constructor(

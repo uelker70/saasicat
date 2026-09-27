@@ -26,9 +26,11 @@ import {
     ListMarketingProjectionsQueryDto,
     UpdateMarketingProjectionDto,
 } from './dto/marketing-projections.dto.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 export function buildMarketingProjectionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/marketing-projections')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedMarketingProjectionsController {
         constructor(

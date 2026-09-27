@@ -7,6 +7,11 @@ is written from the operator's side and says what they can repeat without holdin
 The requirement behind all of it: SaaSiCat keeps no ledger of which migrations have run, so every
 one of them has to be safe to run twice.
 
+Some migrations must not run beside the application at all: one that moves rows, or removes what the
+version still running reads. For those the operator takes the application out of service for the
+length of the deploy, and tells the tenants first. The lock that does it has to outlast the restart
+it protects, and it ends when the operator says so.
+
 ### SC-OPS-001 — An operator can retry a failed deployment
 
 🟢 Every shipped migration applied a second time either does nothing, or refuses with a sentence
@@ -386,3 +391,212 @@ _Source:_ `docs/reference/options.md`
 is one of the places where confusing them costs money.
 
 _Source:_ internal engineering guidelines
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - times are read with their zone
+        - a time without one is refused, naming the flag
+        - an offset and a Z both name a moment
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - the times a form sends
+        - what the input shows is read back as the same moment, with its zone
+
+<!-- END proof -->
+
+### SC-OPS-012 — An operator announces a maintenance window, and tenants see it before it begins
+
+🟢 The operator gives a start, an expected end and, if they like, a message — in the
+administration or from the command line — and can move the window or cancel it until it is locked.
+From then on every tenant sees it above the application and on the sign-in page, in the viewer's
+own time zone and language, with the message as the operator wrote it. An installation has one
+open window at a time, so the next is announced once this one is over. No lead time is enforced,
+because an emergency deploy has to lock at once, and an announced window whose end passes without a
+lock is no longer shown. Mail is the application's: SaaSiCat tells it when a window is announced,
+moved or cancelled, and the application writes to its own users in its own words and their language
+(`SC-LANG-001`).
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - announcing, moving and cancelling from the command line
+        - an announcement needs both times
+        - a second announcement is a conflict a script can branch on
+        - moving and cancelling act on the open window, and refuse where none is
+        - the status says what is announced, and what is locked
+- `packages/nest/tests/a-maintenance-lock-refuses-tenant-requests.test.js`
+    - the lock, on ${platform.name}
+        - an announced window locks nobody out, and the status says it is coming
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - announcing a window
+        - records it open, tells the application, and audits who announced it
+        - a tenant is shown it from the moment it is announced
+        - a second window is refused while one is open
+        - its end has to be after its start — one millisecond is enough, none is not
+        - an end that has already passed is refused, a start in the past is not
+        - the message is kept as written, trimmed, and at most its limit long
+        - a message of nothing but spaces is no message
+    - moving and cancelling an announced window
+        - moving it tells the application what it was and what it is now
+        - a form saved as it was moves nothing, and tells nobody
+        - a locked window saved with its own start is not refused for moving it
+        - taking the message away is a change, leaving it out is not
+        - a move that ends it before it starts is refused, and the window stays as it was
+        - a window that is not the open one cannot be moved or cancelled
+        - cancelling ends it without a lock, tells the application, and frees the slot
+        - a cancelled window cannot be cancelled again
+        - an announcement whose end passed without a lock is no longer shown to tenants
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - MaintenancePage
+        - with nothing open, it offers to announce a window or to lock at once
+        - an announced window shows what tenants were told, and can be locked, moved or cancelled
+        - an announcement whose end passed without a lock is flagged for cancelling
+        - a locked window says since when, offers to unlock, and says so louder past its end
+        - cancelling asks first, then cancels the window it is shown
+- `packages/ui-vue/tests/use-maintenance.test.js`
+    - announcing, moving and cancelling
+        - cancelling asks first and needs no code
+        - a declined cancellation sends nothing
+        - announcing sends the window and reads the windows again
+        - a refused announcement rejects, so the form keeps what was typed and says why
+- `packages/ui-vue-tenant/tests/component/a-locked-out-tenant-sees-one-page.test.ts`
+    - the maintenance gate
+        - with nothing announced, the application and nothing else
+        - an installation that keeps no windows answers 404, and the application runs
+        - a window ahead is announced above the application, with the operator’s message
+        - while the lock holds, one page with the expected end — and no application behind it
+        - past its announced end, it says it is taking longer
+        - once the lock is lifted, the tenant is back on the screen it was on
+        - a refused request switches to the page at once and says it was not carried out
+        - a 503 that is not the lock’s — a proxy’s, say — is not taken for maintenance
+
+<!-- END proof -->
+
+### SC-OPS-013 — While the lock holds, no tenant request reaches the application
+
+🟢 Every request is refused with `503`, the code `MAINTENANCE`, a `Retry-After` and the announced
+end, before SaaSiCat's own checks read anything. Four things pass: the administration, the
+maintenance status the tenant's pages read, a route the application marks as available during
+maintenance — its health and readiness probes, say — and a platform administrator whose sign-in the
+application has already established, so the operator can try the new version before letting tenants
+back in. A payment provider's callback is refused like any other request and retried by the
+provider, so that no write races the migration. SaaSiCat's own scheduled jobs skip their run while
+the lock holds, and the application's ask `isLocked()` before theirs. Where it stops: the command
+line does not go through HTTP and is not held; a guard the application registered globally before
+SaaSiCat's runs first, so an authentication that reads its session from the database still does;
+and a version starting inside the window runs its own start-up as usual.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-maintenance-lock-refuses-tenant-requests.test.js`
+    - the lock, on ${platform.name}
+        - without a lock a tenant request goes through, and its entitlements are read
+        - while the lock holds › a tenant request is refused with 503, the code and when to try
+          again
+        - while the lock holds › a request nobody signed in to is refused for maintenance, not for
+          its sign-in
+        - while the lock holds › a route the application marks — its health probe — still answers
+        - while the lock holds › the status a tenant’s page reads answers, to nobody in particular
+        - while the lock holds › the administration answers the operator
+        - while the lock holds › a platform administrator can try the application before letting
+          tenants in
+        - while the lock holds › past its announced end it says so, and asks the client back in a
+          minute
+- `packages/nest/tests/maintenance-is-wired-where-it-is-turned-on.test.js`
+    - the platform’s own scheduled jobs
+        - the promotional code sweep skips its run while the lock holds
+        - and runs once it is unlocked, or where maintenance is off
+        - the expired sign-up cleanup skips its run while the lock holds
+- `packages/nest/tests/the-administration-stays-reachable-during-maintenance.test.js`
+    - the routes a maintenance lock lets through
+        - the graph mounts the administration, the tenant routes and the status route
+        - every controller of the administration passes
+        - no other controller does, except the status a tenant’s page reads
+
+<!-- END proof -->
+
+### SC-OPS-014 — The lock begins and ends when somebody says so, not when the clock does
+
+🟢 The deploy script, the command line or the administration locks and unlocks. The announced times
+are what tenants are told and what `Retry-After` says; a lock that outlasts its announced end tells
+tenants that it is taking longer than announced, rather than letting them back onto a half-migrated
+schema, and the administration and `<app> doctor` report it so that a forgotten lock is found.
+Locking what is locked, or unlocking what is not, reports the state that already holds
+(`SC-OPS-007`).
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - `maintenance off`
+        - lets tenants back in, and says when there was nothing to unlock
+    - `&lt;app&gt; doctor` about the lock
+        - without maintenance turned on there is nothing to report
+        - nothing open, or a window ahead, is fine
+        - a lock is reported while it holds, and louder once its announced end has passed
+        - an announcement whose end passed without a lock is named for cancelling
+        - a table the lock cannot be read from is an error
+- `packages/nest/tests/a-maintenance-lock-refuses-tenant-requests.test.js`
+    - the lock, on ${platform.name}
+        - once unlocked, tenants are back
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - locking and unlocking are the operator’s, not the clock’s
+        - an announced window does not lock by itself when its start comes
+        - locking takes the announced window, and it holds past its announced end
+        - with nothing announced, locking opens a window that is locked at once
+        - locking what is locked changes nothing and says so
+        - a lock meant for a window that is no longer the open one is refused
+        - a lock stating an end that has passed is refused
+        - a lock that lands while this one is being written is reported as already held
+        - a locked window keeps its start, and may still move its expected end
+        - a locked window is ended by unlocking, not by cancelling
+        - unlocking ends the window and lets tenants back in
+        - unlocking what is not locked changes nothing, and leaves an announcement standing
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - MaintenancePage
+        - a locked window says since when, offers to unlock, and says so louder past its end
+
+<!-- END proof -->
+
+### SC-OPS-015 — The lock survives a restart, and the version being replaced honours it too
+
+🟢 It is kept in the application's database, in a table whose shape a deploy the lock protects does
+not change, so the version being replaced and the one replacing it both read it, and a backup taken
+inside the window restores with the lock on. Each process reads it at most a few seconds late, and
+the command that locks returns only once every process has had that long, plus a grace for requests
+already under way. It protects only a deploy whose running version already knows it: an installation
+deploys the release that brings it once, normally, before its first locked deploy.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/maintenance-cli-flow.test.js`
+    - `maintenance on` returns once every process has seen the lock
+        - it waits the time a process may keep an answer, plus the grace for requests under way
+        - a grace of its own is waited instead, zero included
+        - a lock that has held long enough already is not waited for again
+        - a grace that is not a number of seconds is refused before anything is locked
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - what another process of the application makes of it
+        - a lock reaches a process that asked before it, within the time it may keep an answer
+        - a burst of requests after the answer aged asks the table once
+        - a lock known to hold is not dropped because one read failed
+        - a process that never read the lock lets requests through while the table cannot answer
+
+<!-- END proof -->

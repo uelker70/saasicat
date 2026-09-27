@@ -138,6 +138,19 @@ where it decides only whether the start continues at all. The `CHECK` on
 `applied_settings.id` is what holds the table to one row; the column default only
 lands a caller that omits the id on the right one.
 
+### Maintenance
+
+| Entity                                      | Identity / uniqueness                             | Notes                                                                                                                                                                                                   |
+| ------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MaintenanceWindow` (`maintenance_windows`) | `id`; at most one open row (partial unique index) | One row per window: the announced `startsAt`/`endsAt` and `message`, `lockedAt`/`lockedBy` once locked, `endedAt`/`endedBy` once unlocked or cancelled. `startsAt` is null for a window locked at once. |
+
+**Read by two versions at once.** While a window is locked, the version being
+replaced and the one replacing it both read this table on their requests, so its
+shape is part of the contract between two releases: it gains columns, and never
+in a deploy the lock protects. The announced times are what tenants were told;
+they never start or end the lock. The guide is
+[Take the application offline for a deploy](../guides/take-the-application-offline-for-a-deploy.md).
+
 ## Transactional invariants (what adapters must guarantee)
 
 These are the behaviors `@saasicat/persistence-testing` verifies against a
@@ -206,6 +219,12 @@ heldCount < maxRedemptions)` — as a single guarded UPDATE, exactly-once under
     ones it wrote. The unique index decides, not a read before the write, so
     derivations running at the same time write each charge once between them.
     Nothing updates or deletes a charge.
+11. **At most one maintenance window is open, and every move is guarded.**
+    `MaintenanceWindowPort.open` inserts only where no window is open — the
+    partial unique index decides, so two operators locking at the same moment
+    land one window — and `update` changes a window only while it is still open
+    and at the stage the caller read. An unlock and a lock issued together
+    therefore cannot both land on one window.
 
 ## Capability requirements
 

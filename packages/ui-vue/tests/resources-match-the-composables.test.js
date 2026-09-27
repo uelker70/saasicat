@@ -26,6 +26,7 @@ import {
     createAdminResourceClient,
     discoveryResource,
     emailHistoryResource,
+    maintenanceResource,
     marketingResource,
     pilotsResource,
     platformEmailResource,
@@ -762,6 +763,8 @@ const COVERED_BY_THE_OLDER_COMPARISONS = {
     // `tests/settings-resource.test.js`, which carries its own completeness
     // assertion.
     settings: Object.keys(settingsResource.ops),
+    // The same for maintenance windows: `tests/maintenance-resource.test.js`.
+    maintenance: Object.keys(maintenanceResource.ops),
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
     // `charges` is platform-served with no admin-client twin, like the

@@ -177,6 +177,12 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // state, the change card and the values table are all on the screen.
     }),
     visualCase({
+        id: 'maintenance',
+        load: () => import('../../../src/pages/MaintenancePage.vue'),
+        // Reads `/api/admin/maintenance` from the registry: a locked window with
+        // its message, and an ended and a cancelled one before it.
+    }),
+    visualCase({
         id: 'dashboard',
         load: () => import('../../../src/pages/DashboardPage.vue'),
         // Nothing: the manifest comes from `SUPER_ADMIN_MANIFEST_KEY` and the

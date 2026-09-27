@@ -10,6 +10,7 @@ import type {
     AuditQueryPort,
     BundleRepository,
     CheckoutOfferRepository,
+    MaintenanceWindowPort,
     MfaPort,
     PaymentEventLog,
     PersistenceCapabilities,
@@ -128,6 +129,15 @@ export interface ContractAdapterInstances {
      * same change.
      */
     appliedSettings?: AppliedSettingsPort;
+    /**
+     * Enables the maintenance window scenarios: at most one window open however
+     * many operators open one at once, and every move guarded on the stage the
+     * caller read. Both are what the lock rests on — an adapter that let two
+     * windows open would leave the platform reading one of them at random, and
+     * one whose move ignored the stage would let an unlock and a lock issued
+     * together both land.
+     */
+    maintenanceWindows?: MaintenanceWindowPort;
 }
 
 /** Fixture writers — implemented per adapter against its own schema. */
@@ -246,7 +256,8 @@ export type ContractGap =
     | 'subscriberPaymentMethods'
     | 'subscriberLedger'
     | 'checkoutOffers'
-    | 'appliedSettings';
+    | 'appliedSettings'
+    | 'maintenanceWindows';
 
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */

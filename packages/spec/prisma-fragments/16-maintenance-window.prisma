@@ -1,0 +1,47 @@
+// =============================================================================
+// SaaS platform Prisma fragment: MaintenanceWindow
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// One row per maintenance window: announced to the tenants ahead of time,
+// locked while a deploy runs a migration that must not race with requests, and
+// ended when the operator says so. A window can also be locked at once without
+// having been announced, which leaves `startsAt` null.
+//
+// While a window is locked, every running version of the application reads this
+// table on its requests — the one being replaced as well as the one replacing
+// it. Its shape is therefore part of the contract between two releases: it
+// gains columns, and never in a deploy the lock protects.
+//
+// At most ONE window is open (not yet ended) at a time. Prisma cannot express a
+// partial unique index; the one that holds it is in
+// sql/constraints.postgres.sql, and it is what makes two operators locking at
+// the same moment land one window rather than two.
+//
+// Optional: adopt it where `maintenance` is turned on in
+// `SaaSiCatModule.forRoot`, which refuses to start without a place to keep
+// windows.
+
+model MaintenanceWindow {
+    id        String    @id @default(uuid())
+    // What the tenants were told: the announced start and the expected end.
+    // Neither starts or ends the lock — that is the operator's command.
+    startsAt  DateTime?
+    endsAt    DateTime?
+    // The operator's words to the tenants, shown as written.
+    message   String?
+    // When the window was recorded — announced, or locked at once — and by whom
+    // (an actor tag, as the audit log writes it).
+    createdAt DateTime  @default(now())
+    createdBy String
+    // Null while the window is only announced.
+    lockedAt  DateTime?
+    lockedBy  String?
+    // Set when the window is over: unlocked, or cancelled before it locked.
+    endedAt   DateTime?
+    endedBy   String?
+
+    @@index([createdAt])
+    @@map("maintenance_windows")
+}

@@ -283,6 +283,15 @@ _Tested by:_
         - load() fills manifest
         - reload() discards cache + loads fresh
         - clearCache() sets manifest to null
+- `packages/ui-vue/tests/maintenance-resource.test.js`
+    - maintenanceResource
+        - overview asks for the windows
+        - announce posts the times and the message, and no second factor
+        - reschedule patches the window, with its id escaped
+        - cancel posts to the window
+        - lock and unlock carry the second factor
+        - an overview that answers nothing is an error, not an empty page
+        - every operation this descriptor declares has a case above
 - `packages/ui-vue/tests/resources-match-the-composables.test.js`
     - the list descriptors match the list composables
         - ${resource.name}: ${testCase.name}
@@ -1811,3 +1820,42 @@ and a credit on the account is never called by the name German VAT law reserves 
 recipient writes: Guthaben, not Gutschrift.
 
 _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-record.md`
+
+### SC-UI-026 — A tenant locked out for maintenance sees one page that says so, and carries on afterwards
+
+🟢 Instead of each action failing on its own, the application shows a maintenance page with the
+expected end — or that it is taking longer than announced — and the operator's message. It notices by
+itself when the lock is lifted and returns the tenant to the screen they were on, still signed in. A
+request the lock refused on its way is not dropped silently: the page says that what the tenant was
+doing was not carried out.
+
+_Source:_ #329
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/ui-vue/tests/use-maintenance-status.test.js`
+    - recognising the lock’s refusal
+        - a 503 with the code MAINTENANCE is one, with the window it carries
+        - a refusal that carries no window still means the lock holds
+        - another status, another code or a page that is not JSON is not
+        - a report reaches every listener until it stops listening
+    - the status a tenant’s page reads
+        - asks the status route under the given base, once at first
+        - asks again every minute, and every quarter of a minute while locked
+        - what cannot be asked leaves what was known standing
+        - a reported refusal locks at once and is remembered until the lock is lifted
+        - stops asking, and stops listening, when the page goes
+- `packages/ui-vue-tenant/tests/component/a-locked-out-tenant-sees-one-page.test.ts`
+    - the maintenance gate
+        - with nothing announced, the application and nothing else
+        - an installation that keeps no windows answers 404, and the application runs
+        - a window ahead is announced above the application, with the operator’s message
+        - while the lock holds, one page with the expected end — and no application behind it
+        - past its announced end, it says it is taking longer
+        - once the lock is lifted, the tenant is back on the screen it was on
+        - a refused request switches to the page at once and says it was not carried out
+        - a 503 that is not the lock’s — a proxy’s, say — is not taken for maintenance
+
+<!-- END proof -->

@@ -305,6 +305,19 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     [FEATURE_NOT_LICENSED]: 'Feature {featureKeys} is not included in the current plan.',
     // ── settings ──
     SETTINGS_CHANGE_NOT_FOUND: 'No recorded settings change has this id.',
+    // ── maintenance ──
+    MAINTENANCE: 'The application is under maintenance.',
+    MAINTENANCE_WINDOW_ALREADY_OPEN:
+        'A maintenance window is already open. Move or cancel it before announcing another.',
+    MAINTENANCE_WINDOW_NOT_OPEN: 'No open maintenance window has this id.',
+    MAINTENANCE_WINDOW_LOCKED:
+        'This maintenance window is locked. Its start cannot move, and unlocking is what ends it.',
+    MAINTENANCE_WINDOW_END_NOT_AFTER_START:
+        'The end of a maintenance window has to be after its start.',
+    MAINTENANCE_WINDOW_END_IN_PAST: 'The end of a maintenance window cannot be in the past.',
+    MAINTENANCE_TIME_INVALID:
+        'The {field} has to be a date and time with its zone, such as 2026-10-02T22:00+02:00.',
+    MAINTENANCE_MESSAGE_TOO_LONG: 'The message may be at most {max} characters long.',
 };
 
 /** Values available for interpolation into a message template. */

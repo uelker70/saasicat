@@ -11,6 +11,7 @@ import { dashboardMessages } from './messages/dashboard.js';
 import { discoveryMessages } from './messages/discovery.js';
 import { emailMessages } from './messages/email.js';
 import { errorsMessages } from './messages/errors.js';
+import { maintenanceMessages } from './messages/maintenance.js';
 import { marketingMessages } from './messages/marketing.js';
 import { navMessages } from './messages/nav.js';
 import { pilotsMessages } from './messages/pilots.js';
@@ -45,6 +46,7 @@ export type SaMessages = {
     readonly pilots: (typeof pilotsMessages)['de'];
     readonly email: (typeof emailMessages)['de'];
     readonly settings: (typeof settingsMessages)['de'];
+    readonly maintenance: (typeof maintenanceMessages)['de'];
 };
 
 /** Shape of app-side string overrides (deep partial of the catalog). */
@@ -71,6 +73,7 @@ function catalogFor(locale: SaBuiltinLocale): SaMessages {
         pilots: pilotsMessages[locale],
         email: emailMessages[locale],
         settings: settingsMessages[locale],
+        maintenance: maintenanceMessages[locale],
     };
 }
 

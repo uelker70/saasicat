@@ -141,7 +141,8 @@
                         "marketingCatalog": { "$ref": "#/$defs/StandardPageDef" },
                         "platformEmail": { "$ref": "#/$defs/StandardPageDef" },
                         "platformEmailHistory": { "$ref": "#/$defs/StandardPageDef" },
-                        "settings": { "$ref": "#/$defs/StandardPageDef" }
+                        "settings": { "$ref": "#/$defs/StandardPageDef" },
+                        "maintenance": { "$ref": "#/$defs/StandardPageDef" }
                     }
                 },
                 "projectPages": {

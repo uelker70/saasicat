@@ -9,7 +9,7 @@ them against the canonical schema already.
 Why the seam is here, and what an adapter may and may not decide:
 [ADR 0007](../explanation/adr/0007-ports-and-adapters.md).
 
-Generated from `packages/core/src/ports` — 18 ports. Do not edit by hand:
+Generated from `packages/core/src/ports` — 20 ports. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Administration
@@ -178,6 +178,27 @@ Adapter for MFA secret persistence.
 | `getSecret(userId: string): Promise<string \| null>`               | Returns the stored TOTP secret or null.               |
 | `setSecret(userId: string, secret: string \| null): Promise<void>` | Persists or deletes (null) the TOTP secret.           |
 | `isEnabled(userId: string): Promise<boolean>`                      | The platform calls this during the mfa-setup command. |
+
+## Maintenance
+
+### `MaintenanceWindowPort`
+
+Keeps the maintenance windows, in the application's own database.
+
+| Member                                                                                                                              | What it does                                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `findOpen(): Promise<MaintenanceWindowRecord \| null>`                                                                              | The open window — announced or locked, not yet over — or null.                          |
+| `listRecent(limit: number): Promise<MaintenanceWindowRecord[]>`                                                                     | The most recently recorded windows first, open or over; at most `limit` of them.        |
+| `open(window: NewMaintenanceWindow): Promise<MaintenanceWindowRecord \| null>`                                                      | Records a new open window and returns it as stored — the id is the adapter's to assign. |
+| `update( id: string, stage: MaintenanceWindowStage, changes: MaintenanceWindowChanges, ): Promise<MaintenanceWindowRecord \| null>` | Applies `changes` to window `id`, provided it is still open and at `stage`.             |
+
+### `MaintenanceNotificationPort`
+
+Hears when a window is announced, moved or cancelled, so the application can write to its users.
+
+| Member                                                        | What it does |
+| ------------------------------------------------------------- | ------------ |
+| `windowChanged(event: MaintenanceWindowEvent): Promise<void>` | —            |
 
 ## Configuration
 

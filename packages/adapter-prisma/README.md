@@ -100,6 +100,7 @@ PromoCodesModule.forRoot({
 | `PrismaSubscriptionContractRepository`   | `SubscriptionContractRepository`   | `subscription_contracts`, `contract_line_items`                     |
 | `PrismaSubscriberLedgerRepository`       | `SubscriberLedgerRepository`       | `subscriber_ledger_entries`                                         |
 | `PrismaAppliedSettingsRepository`        | `AppliedSettingsPort`              | `applied_settings`, `settings_changes`                              |
+| `PrismaMaintenanceWindowRepository`      | `MaintenanceWindowPort`            | `maintenance_windows`                                               |
 
 Not shipped (custom adapters stay yours): registration persistence,
 consumer-specific payment/invoice integrations, and `FirstTimeCustomerCheck`.

@@ -25,6 +25,10 @@ export type {
 export * from './onboarding.types.js';
 export * from './plan-catalog.types.js';
 export * from './applied-settings.types.js';
+export * from './maintenance-window.types.js';
+export * from './maintenance-window-mapping.js';
+export * from './maintenance-window-views.js';
+export * from './zoned-instant.js';
 export {
     CATALOGUE_KEYS,
     canonicalJson,
@@ -36,7 +40,7 @@ export * from './plan-catalog-import.types.js';
 export * from './plan-stem.types.js';
 export * from './plan-version-lifecycle.types.js';
 export * from './plan-version-row.types.js';
-// The nine domain port barrels, listed here rather than behind one of their
+// The domain port barrels, listed here rather than behind one of their
 // own: this package publishes `.` and nothing else, so a barrel between them
 // and this file could only ever serve imports that its `exports` map refuses.
 export * from './ports/core-ports.types.js';
@@ -48,6 +52,7 @@ export * from './ports/checkout-ports.types.js';
 export * from './ports/persistence-ports.types.js';
 export * from './ports/payment-ports.types.js';
 export * from './ports/settings-ports.types.js';
+export * from './ports/maintenance-ports.types.js';
 export * from './promo-code.types.js';
 export * from './error-codes.js';
 export * from './errors.js';

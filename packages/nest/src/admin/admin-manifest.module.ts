@@ -38,6 +38,7 @@ import {
 } from './admin-manifest.service.js';
 import { AdminPublicBootController } from './admin-public-boot.controller.js';
 import { PLATFORM_CORE_MANIFEST_CONTRIBUTION } from './manifest-core.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 type ConfigSpec =
     AdminManifestConfig | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
@@ -122,6 +123,7 @@ function buildManifestController(
     const reloadChain = [...guards, ...reloadGuards];
 
     @Controller('admin')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedAdminManifestController {
         // Explicit @Inject instead of type reflection: tsup/esbuild do not emit

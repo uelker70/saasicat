@@ -1,6 +1,7 @@
 import { type CanActivate, Controller, Get, Inject, type Type, UseGuards } from '@nestjs/common';
 import { AdminStatsService, type AdminStatsSnapshot } from './admin-stats.service.js';
 import { SuperAdminGuard } from './super-admin.guard.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 // AdminStatsController — `GET /admin/stats/dashboard` for the SuperAdmin
 // dashboard page. SuperAdminGuard guards against tenant access. App-specific
@@ -9,6 +10,7 @@ import { SuperAdminGuard } from './super-admin.guard.js';
 // delivers the generic subscription/promo/audit aggregates.
 
 @Controller('admin/stats')
+@AllowDuringMaintenance()
 @UseGuards(SuperAdminGuard)
 export class AdminStatsController {
     // Explicit @Inject instead of type reflection: tsup/esbuild do not emit
@@ -25,6 +27,7 @@ export class AdminStatsController {
 /** Builds the stats controller with an explicit, ordered authentication chain. */
 export function buildAdminStatsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/stats')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedAdminStatsController {
         constructor(@Inject(AdminStatsService) private readonly stats: AdminStatsService) {}

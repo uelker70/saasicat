@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 180 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 188 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -259,3 +259,18 @@ The record of the applied configuration.
 | Code                        | Shipped English text                     |
 | --------------------------- | ---------------------------------------- |
 | `SETTINGS_CHANGE_NOT_FOUND` | No recorded settings change has this id. |
+
+## Maintenance
+
+The lock that refuses tenant requests, and the operator routes around it.
+
+| Code                                     | Shipped English text                                                                     |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `MAINTENANCE`                            | The application is under maintenance.                                                    |
+| `MAINTENANCE_MESSAGE_TOO_LONG`           | The message may be at most {max} characters long.                                        |
+| `MAINTENANCE_TIME_INVALID`               | The {field} has to be a date and time with its zone, such as 2026-10-02T22:00+02:00.     |
+| `MAINTENANCE_WINDOW_ALREADY_OPEN`        | A maintenance window is already open. Move or cancel it before announcing another.       |
+| `MAINTENANCE_WINDOW_END_IN_PAST`         | The end of a maintenance window cannot be in the past.                                   |
+| `MAINTENANCE_WINDOW_END_NOT_AFTER_START` | The end of a maintenance window has to be after its start.                               |
+| `MAINTENANCE_WINDOW_LOCKED`              | This maintenance window is locked. Its start cannot move, and unlocking is what ends it. |
+| `MAINTENANCE_WINDOW_NOT_OPEN`            | No open maintenance window has this id.                                                  |

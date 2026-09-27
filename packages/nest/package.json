@@ -158,8 +158,8 @@
         "test": "node --test 'tests/*.test.js'"
     },
     "dependencies": {
-        "@saasicat/spec": "workspace:^",
         "@saasicat/core": "workspace:^",
+        "@saasicat/spec": "workspace:^",
         "ajv": "^8.17.1",
         "ajv-formats": "^3.0.1",
         "js-yaml": "^4.3.2",
@@ -177,6 +177,8 @@
     "devDependencies": {
         "@nestjs/common": "^11.0.0",
         "@nestjs/core": "^11.0.0",
+        "@nestjs/platform-express": "^11.1.28",
+        "@nestjs/platform-fastify": "^11.2.6",
         "@nestjs/schedule": "^6.0.0",
         "@nestjs/testing": "^11.1.28",
         "@swc/core": "^1.15.33",

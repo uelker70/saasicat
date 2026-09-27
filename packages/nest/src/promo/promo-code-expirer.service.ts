@@ -5,6 +5,7 @@ import type {
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
 } from '@saasicat/core';
+import { MaintenanceService } from '../maintenance/maintenance.service.js';
 import {
     PROMO_CODE_HOLD_REPOSITORY_TOKEN,
     PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN,
@@ -28,6 +29,11 @@ export class PromoCodeExpirer {
         @Optional()
         @Inject(PROMO_CODE_HOLD_REPOSITORY_TOKEN)
         private readonly holds: PromoCodeHoldRepository | null = null,
+        // Last and optional, so the shape this class was published with still
+        // constructs it; without it, maintenance is not on and nothing pauses.
+        @Optional()
+        @Inject(MaintenanceService)
+        private readonly maintenance: MaintenanceService | null = null,
     ) {}
 
     @Cron(CronExpression.EVERY_DAY_AT_3AM, {
@@ -35,6 +41,14 @@ export class PromoCodeExpirer {
         timeZone: 'Europe/Berlin',
     })
     async expirePromoCodes(): Promise<void> {
+        // A run skipped under a maintenance lock is caught up by the next one:
+        // what is due then includes what was due now.
+        if (await this.maintenance?.isLocked()) {
+            this.logger.log(
+                'PromoCodeExpirer: skipped, the application is locked for maintenance.',
+            );
+            return;
+        }
         const now = new Date();
         const codes = await this.promoRepo.expireDueCodes(now);
         const redemptions = await this.redemptionRepo.expireDueRedemptions(now);

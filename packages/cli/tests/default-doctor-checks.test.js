@@ -6,6 +6,7 @@ import {
     AdminManifestDoctorCheck,
     DiscoverySnapshotDoctorCheck,
     IssuerIdentityDoctorCheck,
+    MaintenanceDoctorCheck,
     PlanCatalogDoctorCheck,
     PLATFORM_DOCTOR_CHECK_PROVIDERS,
     UserPortDoctorCheck,
@@ -231,6 +232,7 @@ describe('PLATFORM_DOCTOR_CHECK_PROVIDERS', () => {
             UserPortDoctorCheck,
             AdminManifestDoctorCheck,
             IssuerIdentityDoctorCheck,
+            MaintenanceDoctorCheck,
         ]);
     });
 });
