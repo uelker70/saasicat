@@ -150,6 +150,35 @@ describe('the status a tenant’s page reads', () => {
         scope.stop();
     });
 
+    test('a poll that started before a reported refusal does not put the page back', async () => {
+        // The poll reaches a process still serving its answer from before the
+        // lock, and answers after the refusal has been reported.
+        let release;
+        const pending = new Promise((resolve) => {
+            release = resolve;
+        });
+        const asked = [];
+        const http = async (url) => {
+            asked.push(url);
+            await pending;
+            return {
+                status: 200,
+                headers: { get: () => 'application/json' },
+                json: async () => ({ state: 'none' }),
+                text: async () => '{"state":"none"}',
+            };
+        };
+        const scope = effectScope();
+        const state = scope.run(() => useMaintenanceStatus({ http }));
+        reportMaintenanceRefusal(503, { code: 'MAINTENANCE', maintenance: LOCKED });
+        release();
+        await settled();
+        assert.equal(asked.length, 1);
+        assert.equal(state.status.value.state, 'locked');
+        assert.equal(state.refused.value, true);
+        scope.stop();
+    });
+
     test('stops asking, and stops listening, when the page goes', async () => {
         mock.timers.enable({ apis: ['setTimeout'] });
         const { state, asked, scope } = watching(() => [200, { state: 'none' }]);

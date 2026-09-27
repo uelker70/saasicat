@@ -53,6 +53,10 @@ export function useMaintenanceStatus(
     const refused = ref(false);
     let timer: ReturnType<typeof setTimeout> | null = null;
     let disposed = false;
+    // Moved by every reported refusal. A poll started before one may answer
+    // after it — from a process still serving its answer from before the lock —
+    // and must not put back what the refusal just replaced.
+    let generation = 0;
 
     function schedule(): void {
         if (timer !== null) clearTimeout(timer);
@@ -62,11 +66,12 @@ export function useMaintenanceStatus(
     }
 
     async function refresh(): Promise<void> {
+        const askedAt = generation;
         try {
             const response = await http(url);
             if (response.status === 200) {
                 const body: unknown = await response.json();
-                if (isStatus(body)) {
+                if (isStatus(body) && askedAt === generation) {
                     status.value = body;
                     if (body.state !== 'locked') refused.value = false;
                 }
@@ -83,6 +88,7 @@ export function useMaintenanceStatus(
     }
 
     const stopHearing = onMaintenanceRefusal((locked) => {
+        generation += 1;
         status.value = locked;
         refused.value = true;
         schedule();
