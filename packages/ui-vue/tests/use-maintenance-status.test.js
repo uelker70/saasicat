@@ -17,7 +17,14 @@ import {
     useMaintenanceStatus,
 } from '../dist/index.js';
 
-afterEach(() => mock.timers.reset());
+// Stopped here rather than at the end of each case: a case that fails an
+// assertion never reaches its own `scope.stop()`, and the composable's timer
+// would then keep the process — and the failing run — alive for ever.
+const scopes = [];
+afterEach(() => {
+    for (const scope of scopes.splice(0)) scope.stop();
+    mock.timers.reset();
+});
 
 const LOCKED = {
     state: 'locked',
@@ -54,6 +61,7 @@ function statusRoute(answer) {
 function watching(answer, options = {}) {
     const { http, asked } = statusRoute(answer);
     const scope = effectScope();
+    scopes.push(scope);
     const state = scope.run(() => useMaintenanceStatus({ http, apiBase: '/api/', ...options }));
     return { state, asked, scope };
 }
@@ -169,6 +177,7 @@ describe('the status a tenant’s page reads', () => {
             };
         };
         const scope = effectScope();
+        scopes.push(scope);
         const state = scope.run(() => useMaintenanceStatus({ http }));
         reportMaintenanceRefusal(503, { code: 'MAINTENANCE', maintenance: LOCKED });
         release();

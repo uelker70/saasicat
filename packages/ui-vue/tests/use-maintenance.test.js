@@ -18,7 +18,14 @@ import {
     useMaintenanceLockWatch,
 } from '../dist/index.js';
 
-afterEach(() => mock.timers.reset());
+// Stopped here rather than at the end of each case: a case that fails an
+// assertion never reaches its own `scope.stop()`, and the composable's timer
+// would then keep the process — and the failing run — alive for ever.
+const scopes = [];
+afterEach(() => {
+    for (const scope of scopes.splice(0)) scope.stop();
+    mock.timers.reset();
+});
 
 const OPEN = { id: 'w-1', status: 'announced', overrun: false };
 const LOCKED = { id: 'w-1', status: 'locked', overrun: false, lockedAt: '2026-10-02T20:03:00Z' };
@@ -202,6 +209,7 @@ describe('the shell asking whether tenants are locked out', () => {
             },
         };
         const scope = effectScope();
+        scopes.push(scope);
         const watch = scope.run(() =>
             useMaintenanceLockWatch(ref(enabled ? resource : null), 30_000),
         );
