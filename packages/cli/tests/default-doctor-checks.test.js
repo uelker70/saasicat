@@ -4,6 +4,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     AdminManifestDoctorCheck,
+    ContractFeaturesDoctorCheck,
     DiscoverySnapshotDoctorCheck,
     IssuerIdentityDoctorCheck,
     MaintenanceDoctorCheck,
@@ -233,6 +234,7 @@ describe('PLATFORM_DOCTOR_CHECK_PROVIDERS', () => {
             AdminManifestDoctorCheck,
             IssuerIdentityDoctorCheck,
             MaintenanceDoctorCheck,
+            ContractFeaturesDoctorCheck,
         ]);
     });
 });

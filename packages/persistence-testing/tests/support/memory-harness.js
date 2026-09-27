@@ -472,7 +472,7 @@ export function createMemoryHarness() {
                 subscriberId: data.parties.subscriberId,
                 subscriber: structuredClone(data.parties.subscriber),
                 issuer: structuredClone(data.parties.issuer),
-                partiesMigrated: false,
+                partiesMigrated: data.partiesMigrated ?? false,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,
@@ -555,6 +555,21 @@ export function createMemoryHarness() {
             if (!row) throw new Error(`SubscriptionContract '${contractId}' not found.`);
             row.effectiveUntil = data.effectiveUntil;
             if (data.status !== null) row.status = data.status;
+            row.updatedAt = FIXED_NOW;
+            return withLines(row);
+        },
+        async supersede(contractId, data) {
+            const row = state.contracts.find((candidate) => candidate.id === contractId);
+            // The condition the adapters put on their update: in force under
+            // an active status, and ending when the caller read it.
+            const endedAsRead =
+                (row?.effectiveUntil?.getTime() ?? null) ===
+                (data.readEffectiveUntil?.getTime() ?? null);
+            if (!row || !ACTIVE_CONTRACT_STATUSES.includes(row.status) || !endedAsRead) {
+                return null;
+            }
+            row.effectiveUntil = data.at;
+            row.status = 'superseded';
             row.updatedAt = FIXED_NOW;
             return withLines(row);
         },

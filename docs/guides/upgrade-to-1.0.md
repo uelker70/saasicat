@@ -1977,6 +1977,34 @@ controller under `admin` stays reachable while the lock holds, and the administr
 - **`TenantPlanSectionI18n`** gains seven `maintenance*` strings. A catalogue you build whole adds
   them; one that overrides single strings needs nothing.
 
+### An operator can carry a changed feature vocabulary into running contracts
+
+New: `<app> doctor` names the contracts in force whose frozen features hold a key the application no
+longer knows, or lack one the versions they cover grant today, and `<app> contracts refresh` writes
+a successor for each — features only by default, or `--full`, which re-freezes the contract and
+refuses where the money would change. It previews first and writes only with `--apply`. Register
+`ContractRefreshCliFlow`, `ContractsCommands` and `ContractsRefreshCommand` in your CLI where tenant
+billing freezes contracts; the guide says when to use it and when a `replaces` declaration is the
+better answer: [Change the feature vocabulary](change-the-feature-vocabulary.md).
+
+- **A `SubscriptionContractRepository` of your own** gains `supersede`. It ends the contract as
+  `superseded` only while its status is `active` or `scheduled` and its `effectiveUntil` is still
+  the one the caller read, in one conditional statement, on the caller's transaction where it
+  passes one, and returns `null` otherwise. `create` takes `partiesMigrated` and writes it. Both
+  shipped adapters have them, and the persistence contract holds yours to them, two concurrent
+  writers included.
+- **A plan change and the refresh write a successor on one transaction** with the end of the contract
+  it replaces, and only while that contract is as it was read. Where it moved on twice in between,
+  or where none is in force at its moment but a contract of the tenant begins after it, the change
+  is refused with `SUBSCRIPTION_CONTRACT_CHANGED` and nothing is written.
+  `SaaSiCatModule.forRoot` passes its transaction runner. An application wiring `TenantBillingModule`
+  or `SubscriptionContractModule` itself passes `transactionRunner`: without one the two writes are
+  separate, and two writers at the same moment can still leave two contracts in force.
+- **`EntitlementService.computeContractLimits`** no longer reads the contract in force: it answers
+  what a contract frozen now records, measured without the one it would replace.
+- **`PLATFORM_DOCTOR_CHECK_PROVIDERS`** gains `ContractFeaturesDoctorCheck`. Where contracts are not
+  frozen it says so and passes.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

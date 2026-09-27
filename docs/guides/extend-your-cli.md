@@ -47,6 +47,10 @@ Optional but strongly recommended integration for ops workflows.
         MaintenanceCancelCommand,
         MaintenanceOnCommand,
         MaintenanceOffCommand,
+        // Where tenant billing freezes contracts (`contractFreeze`):
+        ContractRefreshCliFlow,
+        ContractsCommands,
+        ContractsRefreshCommand,
     ],
 })
 export class CliModule {}
@@ -64,11 +68,16 @@ myapp manifest hash                                          # for CI pinning
 myapp manifest check                                         # drift detection
 myapp maintenance on --until 2026-10-02T23:00+02:00 --yes    # before a migration
 myapp maintenance off --yes                                  # after the health check
+myapp contracts refresh --all                                # what a new vocabulary would change
 ```
 
 The `maintenance` commands ask for no second factor: a deploy script has nobody to type one. They
 ask for the identity and, against production, `--yes`. See
 [Take the application offline for a deploy](take-the-application-offline-for-a-deploy.md).
+
+`contracts refresh` shows what carrying a changed feature vocabulary into the contracts in force
+would change, and writes it only with `--apply`. See
+[Change the feature vocabulary](change-the-feature-vocabulary.md).
 
 **Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):
 `0=ok`, `1=user-error`, `2=identity`, `3=mfa`, `4=connectivity`, `5=permission`,

@@ -42,6 +42,7 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionRecord,
     SubscriptionRepository,
+    SupersedeSubscriptionContractData,
     TerminateSubscriptionContractData,
     TransactionContext,
     TransactionRunner,
@@ -298,7 +299,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             subscriberId: data.parties.subscriberId,
             subscriber: { ...data.parties.subscriber },
             issuer: data.parties.issuer ? { ...data.parties.issuer } : null,
-            partiesMigrated: false,
+            partiesMigrated: data.partiesMigrated ?? false,
             status: data.status ?? 'active',
             effectiveFrom: new Date(data.effectiveFrom),
             effectiveUntil: data.effectiveUntil ? new Date(data.effectiveUntil) : null,
@@ -341,6 +342,24 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
             // leaves the active window when `effectiveUntil` passes.
             status: data.status ?? existing.status,
             effectiveUntil: new Date(data.effectiveUntil),
+            updatedAt: new Date(),
+        };
+        this.byId.set(contractId, updated);
+        return this.cloneRecord(updated);
+    }
+
+    async supersede(
+        contractId: string,
+        data: SupersedeSubscriptionContractData,
+    ): Promise<SubscriptionContractRecord | null> {
+        const existing = this.byId.get(contractId);
+        if (!existing) return null;
+        if (existing.status !== 'active' && existing.status !== 'scheduled') return null;
+        if (existing.effectiveUntil?.getTime() !== data.readEffectiveUntil?.getTime()) return null;
+        const updated: SubscriptionContractRecord = {
+            ...existing,
+            status: 'superseded',
+            effectiveUntil: new Date(data.at),
             updatedAt: new Date(),
         };
         this.byId.set(contractId, updated);

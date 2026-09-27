@@ -98,6 +98,7 @@ export function composeCheckoutOffer({
 /** The frozen record of what a tenant agreed to. */
 export function composeSubscriptionContract({
     options,
+    adapters,
     persistence,
 }: CompositionContext): DynamicModule[] {
     if (!options.subscriptionContract) return [];
@@ -113,6 +114,9 @@ export function composeSubscriptionContract({
                 config.subscriberRepository ??
                 (persistence?.entitlement
                     ?.subscriberRepository as SubscriptionContractModuleOptions['subscriberRepository']),
+            transactionRunner:
+                config.transactionRunner ??
+                (adapters.transactionRunner as SubscriptionContractModuleOptions['transactionRunner']),
             imports: config.imports ?? options.imports,
         }),
     ];

@@ -17,6 +17,7 @@ import { NEW_PAYMENT_METHODS_SOURCE_TOKEN } from '../dist/catalog/index.js';
 import { DISCOVERY_APP_INFO_TOKEN } from '../dist/discovery/index.js';
 import { PaymentGatewayRegistry } from '../dist/payments/index.js';
 import { CHECKOUT_OFFER_TRANSACTION_RUNNER_TOKEN } from '../dist/checkout-offer/index.js';
+import { CONTRACT_TRANSACTION_RUNNER_TOKEN } from '../dist/subscription-contract/index.js';
 
 // Two properties the decomposition exists to keep, asked as behaviour.
 //
@@ -311,6 +312,60 @@ describe('the catalogue composer', () => {
     // @requirement SC-MKT-025 — The public catalogue says what a new payment method is taken with
     test('a catalogue without payments is told that none are taken, not left to guess', () => {
         assert.equal(newPaymentMethodsSource(withPublicMarketing({ payments: false })), null);
+    });
+});
+
+describe('a successor contract is written with the end of the one it replaces', () => {
+    // A plan change and an operator's refresh end the contract in force and
+    // write its successor. Without the platform's runner the two are written
+    // one after the other, and a failure between them leaves the tenant with
+    // no contract in force.
+    function runnerOf(ctx, moduleName) {
+        const mounted = composeFeatures(ctx).find((m) => m.module.name === moduleName);
+        return mounted?.providers.find(
+            (provider) => provider.provide === CONTRACT_TRANSACTION_RUNNER_TOKEN,
+        );
+    }
+
+    test('tenant billing that freezes contracts gets the platform’s runner', () => {
+        const ctx = everythingOn();
+        ctx.options.tenantBilling = {
+            ...ctx.options.tenantBilling,
+            contractFreeze: {
+                sourcePort: PORT,
+                subscriptionContractRepository: REPO,
+                subscriberRepository: REPO,
+            },
+        };
+        assert.equal(runnerOf(ctx, 'TenantBillingModule')?.useValue, REPO);
+    });
+
+    test('an application naming its own runner keeps it', () => {
+        const own = {};
+        const ctx = everythingOn();
+        ctx.options.tenantBilling = {
+            ...ctx.options.tenantBilling,
+            contractFreeze: {
+                sourcePort: PORT,
+                subscriptionContractRepository: REPO,
+                subscriberRepository: REPO,
+                transactionRunner: own,
+            },
+        };
+        assert.equal(runnerOf(ctx, 'TenantBillingModule')?.useValue, own);
+    });
+
+    test('the contract module mounted on its own gets it too', () => {
+        const ctx = everythingOn();
+        ctx.persistence = {
+            ...PERSISTENCE,
+            entitlement: {
+                ...PERSISTENCE.entitlement,
+                subscriptionContractRepository: REPO,
+                subscriberRepository: REPO,
+            },
+        };
+        assert.equal(runnerOf(ctx, 'SubscriptionContractModule')?.useValue, REPO);
     });
 });
 

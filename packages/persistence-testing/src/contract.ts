@@ -2773,6 +2773,170 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(await contracts.findByOriginalOfferId('offer-nobody-concluded'), null);
         });
 
+        test('a contract is superseded only while it is as the caller read it', async (t) => {
+            // A plan change and an operator's refresh both read the contract in
+            // force and write a successor. The condition on the write is what
+            // keeps the second of them from superseding it again — and from
+            // superseding one whose end a cancellation declared in between.
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Nachfolge GmbH' });
+            const parties = partiesWith(subscriberId, 'Nachfolge GmbH');
+            const at = new Date('2026-03-01T00:00:00.000Z');
+            const running = await contracts.create(contractFromOffer('offer-superseded', parties));
+
+            assert.equal(
+                await contracts.supersede(running.id, {
+                    at,
+                    readEffectiveUntil: new Date('2026-12-31T00:00:00.000Z'),
+                }),
+                null,
+                'superseded against an end it does not have',
+            );
+            const superseded = await contracts.supersede(running.id, {
+                at,
+                readEffectiveUntil: null,
+            });
+            assert.equal(superseded?.status, 'superseded');
+            assert.equal(superseded?.effectiveUntil?.toISOString(), at.toISOString());
+            assert.equal(superseded?.lineItems.length, 1, 'with its lines');
+            assert.equal(
+                await contracts.supersede(running.id, { at, readEffectiveUntil: null }),
+                null,
+                'superseded twice',
+            );
+            assert.equal(
+                (await contracts.findById(running.id))?.effectiveUntil?.toISOString(),
+                at.toISOString(),
+            );
+
+            // A contract whose end a cancellation declared, read by two writers,
+            // and superseded by the first at exactly that end: the end the
+            // second read is still there, and only the status tells it that
+            // the contract has moved on.
+            const capped = await contracts.create(contractFromOffer('offer-capped', parties));
+            const endsAt = new Date('2026-12-31T00:00:00.000Z');
+            await contracts.terminate(capped.id, { effectiveUntil: endsAt, status: null });
+            const first = await contracts.supersede(capped.id, {
+                at: endsAt,
+                readEffectiveUntil: endsAt,
+            });
+            assert.equal(first?.status, 'superseded', 'a capped contract read with its end');
+            assert.equal(
+                await contracts.supersede(capped.id, { at, readEffectiveUntil: endsAt }),
+                null,
+                'superseded again by a writer that read the same end',
+            );
+            assert.equal(
+                (await contracts.findById(capped.id))?.effectiveUntil?.toISOString(),
+                endsAt.toISOString(),
+            );
+        });
+
+        test('two writers superseding one contract at once end with one successor', async (t) => {
+            const { adapter, seed } = harness;
+            const contracts = adapter.subscriptionContractRepository;
+            if (!contracts || !seed.createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            if (!adapter.capabilities.transactions) {
+                t.skip('adapter declares no transaction capability');
+                return;
+            }
+            const { subscriberId } = await seed.createSubscriber({ legalName: 'Wettlauf GmbH' });
+            const parties = partiesWith(subscriberId, 'Wettlauf GmbH');
+            const running = await contracts.create(contractFromOffer('offer-raced', parties));
+            const at = new Date('2026-04-01T00:00:00.000Z');
+            const successor = (offerId: string): NewSubscriptionContractData => ({
+                ...contractFromOffer(offerId, parties),
+                tenantId: running.tenantId,
+                effectiveFrom: at,
+            });
+
+            const written = await Promise.all(
+                ['offer-raced-a', 'offer-raced-b'].map((offerId) =>
+                    adapter.transactionRunner.run(async (tx) => {
+                        const ended = await contracts.supersede(
+                            running.id,
+                            { at, readEffectiveUntil: null },
+                            tx,
+                        );
+                        return ended ? contracts.create(successor(offerId), tx) : null;
+                    }),
+                ),
+            );
+
+            assert.equal(written.filter(Boolean).length, 1, 'exactly one successor');
+            const inForce = await contracts.list({ tenantId: running.tenantId, asOf: at });
+            assert.equal(inForce.length, 1, 'one contract in force');
+        });
+
+        test('a supersession written on a transaction is undone with it', async (t) => {
+            const { adapter, seed } = harness;
+            const contracts = adapter.subscriptionContractRepository;
+            if (!contracts || !seed.createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            if (!adapter.capabilities.transactions) {
+                t.skip('adapter declares no transaction capability');
+                return;
+            }
+            const { subscriberId } = await seed.createSubscriber({ legalName: 'Rückroll GmbH' });
+            const running = await contracts.create(
+                contractFromOffer(
+                    'offer-supersede-rolled-back',
+                    partiesWith(subscriberId, 'Rückroll GmbH'),
+                ),
+            );
+
+            await assert.rejects(
+                adapter.transactionRunner.run(async (tx) => {
+                    await contracts.supersede(
+                        running.id,
+                        { at: new Date('2026-05-01T00:00:00.000Z'), readEffectiveUntil: null },
+                        tx,
+                    );
+                    throw new Error('the successor could not be written');
+                }),
+            );
+            const still = await contracts.findById(running.id);
+            assert.equal(still?.status, 'active');
+            assert.equal(still?.effectiveUntil, null, 'the supersession outlived its transaction');
+        });
+
+        test('a successor that takes over a copy the migration made stays marked as one', async (t) => {
+            // A successor may keep the parties of the contract it replaces. Where
+            // those were copied by the migration rather than agreed, the mark
+            // goes with them, or the copy passes for what was agreed one
+            // contract later.
+            const contracts = harness.adapter.subscriptionContractRepository;
+            const createSubscriber = harness.seed.createSubscriber;
+            if (!contracts || !createSubscriber) {
+                missing(t, 'subscriptionContracts');
+                return;
+            }
+            const { subscriberId } = await createSubscriber({ legalName: 'Kopie GmbH' });
+            const parties = partiesWith(subscriberId, 'Kopie GmbH');
+
+            const marked = await contracts.create({
+                ...contractFromOffer('offer-parties-migrated', parties),
+                partiesMigrated: true,
+            });
+            const agreed = await contracts.create(
+                contractFromOffer('offer-parties-agreed', parties),
+            );
+
+            assert.equal(marked.partiesMigrated, true);
+            assert.equal((await contracts.findById(marked.id))?.partiesMigrated, true);
+            assert.equal(agreed.partiesMigrated, false);
+        });
+
         // -------------------------------------------------------------
         // Subscribers — the party a contract is concluded with
         // -------------------------------------------------------------

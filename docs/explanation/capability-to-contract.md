@@ -58,7 +58,9 @@ contract.
 
 The contract is the source of truth for billing and entitlements. When a
 customer changes plans, SaaSiCat creates a new contract and keeps the old one
-as history. Catalog edits never silently rewrite a running subscription.
+as history. Catalog edits never silently rewrite a running subscription — the
+names of its features included; what to do when those change is
+[Change the feature vocabulary](../guides/change-the-feature-vocabulary.md).
 
 ## 5. Enforcement: apply the contract in the application
 

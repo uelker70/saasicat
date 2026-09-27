@@ -291,6 +291,14 @@ export const CONTRACT_ERROR_CODES = {
     SUBSCRIPTION_CONTRACT_NOT_FOUND: 'SUBSCRIPTION_CONTRACT_NOT_FOUND',
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'NO_ACTIVE_SUBSCRIPTION_CONTRACT',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: 'SUBSCRIPTION_CONTRACT_ALREADY_CLOSED',
+    /**
+     * A successor would run beside another contract of the tenant: the
+     * contract in force moved while it was being written — another successor
+     * took its place, or a cancellation capped it — and kept moving on a
+     * second attempt, or a contract begins after the moment the successor
+     * would take effect. Nothing was written.
+     */
+    SUBSCRIPTION_CONTRACT_CHANGED: 'SUBSCRIPTION_CONTRACT_CHANGED',
 } as const;
 
 export type ContractErrorCode = (typeof CONTRACT_ERROR_CODES)[keyof typeof CONTRACT_ERROR_CODES];

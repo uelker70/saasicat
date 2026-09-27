@@ -14,6 +14,7 @@
 //   - audit-tail-flow:     AuditTailFlow for `<app> audit tail`
 //   - doctor-flow:         DoctorFlow + DoctorCheck interface
 //   - maintenance-cli-flow: MaintenanceCliFlow for `<app> maintenance …`
+//   - contract-refresh-cli-flow: ContractRefreshCliFlow for `<app> contracts refresh`
 //   - manifest-cli-flow:   ManifestCliFlow + ManifestCheck interface
 //   - manifest-checks:     DEFAULT_MANIFEST_CHECKS (10 platform defaults)
 //   - migration-constraints: where the non-DSL constraints go in a migration
@@ -61,5 +62,7 @@ export * from './audit.command.js';
 export * from './doctor.command.js';
 export * from './maintenance-cli-flow.js';
 export * from './maintenance.command.js';
+export * from './contract-refresh-cli-flow.js';
+export * from './contracts.command.js';
 export * from './discovery.command.js';
 export * from './user.command.js';

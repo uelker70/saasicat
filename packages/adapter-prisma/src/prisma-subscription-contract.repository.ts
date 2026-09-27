@@ -6,6 +6,7 @@ import type {
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
+    SupersedeSubscriptionContractData,
     TerminateSubscriptionContractData,
     TransactionContext,
 } from '@saasicat/core';
@@ -146,6 +147,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
                 tenantId: data.tenantId,
                 subscriberId: data.parties.subscriberId,
                 subscriberSnapshot: data.parties.subscriber,
+                partiesMigrated: data.partiesMigrated ?? false,
                 status: data.status ?? 'active',
                 effectiveFrom: data.effectiveFrom,
                 effectiveUntil: data.effectiveUntil ?? null,
@@ -210,6 +212,31 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
             include: { lineItems: true },
         });
         return toSubscriptionContractRecord(row, row.lineItems);
+    }
+
+    async supersede(
+        contractId: string,
+        data: SupersedeSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null> {
+        const db = this.db(tx);
+        // One conditional statement: PostgreSQL re-reads the row under its lock
+        // before it writes, so a second caller superseding the same contract
+        // finds the first one's status here and counts nothing.
+        const { count } = await db.subscriptionContract.updateMany({
+            where: {
+                id: contractId,
+                status: { in: [...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES] },
+                effectiveUntil: data.readEffectiveUntil,
+            },
+            data: { effectiveUntil: data.at, status: 'superseded' },
+        });
+        if (count === 0) return null;
+        const row = await db.subscriptionContract.findUnique({
+            where: { id: contractId },
+            include: { lineItems: true },
+        });
+        return row ? toSubscriptionContractRecord(row, row.lineItems) : null;
     }
 }
 

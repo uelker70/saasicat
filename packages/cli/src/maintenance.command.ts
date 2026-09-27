@@ -8,6 +8,7 @@ import {
     type MaintenanceCommandOptions,
     type RescheduleOptions,
 } from './maintenance-cli-flow.js';
+import { OperatorCommand } from './operator-command.js';
 
 // Shared `<app> maintenance …` commands. Binds `MaintenanceCliFlow` to the
 // nest-commander CLI; register these classes in the providers of the CLI
@@ -19,18 +20,7 @@ interface StatusFlags {
 }
 
 /** The options every writing sub-command shares. */
-abstract class WritingCommand<T extends MaintenanceCommandOptions> extends CommandRunner {
-    abstract run(args: string[], flags: T): Promise<void>;
-
-    @Option({ flags: '--as <email>', description: 'act as this operator' })
-    parseAs(v: string): string {
-        return v;
-    }
-    @Option({ flags: '-y, --yes', description: 'confirm against production without asking' })
-    parseYes(): boolean {
-        return true;
-    }
-}
+abstract class WritingCommand<T extends MaintenanceCommandOptions> extends OperatorCommand<T> {}
 
 @Injectable()
 @SubCommand({ name: 'status', description: 'The open maintenance window, if any' })

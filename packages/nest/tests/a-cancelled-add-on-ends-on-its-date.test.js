@@ -18,6 +18,7 @@ import {
     givenPlanCatalogSource,
 } from '../dist/billing/index.js';
 import { EntitlementService } from '../dist/entitlement/index.js';
+import { SubscriptionContractService } from '../dist/subscription-contract/index.js';
 import {
     FakePlanVersionRepository,
     FakeSubscriptionContractRepository,
@@ -121,13 +122,12 @@ function tenant() {
     const freeze = new SubscriptionContractFreezeService(
         givenPlanCatalogSource(CATALOG),
         entitlements,
-        {
-            assertPartyFor: async () => {},
-            findActiveByTenantId: (tenantId, asOf) =>
-                contracts.findActiveByTenantId(tenantId, asOf),
-            terminate: (id, data) => contracts.terminate(id, data),
-            create: (data) => contracts.create({ ...data, parties: PARTIES }),
-        },
+        // The real contract service over the in-memory store, with every
+        // tenant's subscriber answering with the same parties.
+        new SubscriptionContractService(contracts, {
+            requireForTenant: async () => ({ id: PARTIES.subscriberId }),
+            contractPartiesFor: async () => PARTIES,
+        }),
         {
             findBoundPlanVersion: async () => boundPlanVersion(STANDARD, 'pv-standard'),
             loadBookedBundles: async () => ({
@@ -155,13 +155,13 @@ function tenant() {
     return {
         contracts,
         entitlements,
-        async book(bundleVersionId) {
+        async book(bundleVersionId, at = BOOKED) {
             bookings.push({
                 id: `sb-${bundleVersionId}`,
                 bundleVersionId,
                 canceledEffectiveAt: null,
             });
-            await writeContract(BOOKED);
+            await writeContract(at);
         },
         async cancel(bundleVersionId) {
             bookings.find((b) => b.bundleVersionId === bundleVersionId).canceledEffectiveAt = ENDS;
@@ -235,7 +235,8 @@ describe('an add-on cancelled under a contract', () => {
     test('an add-on beside it that is not cancelled runs on', async () => {
         const t = tenant();
         await t.book('bv-archive');
-        await t.book('bv-team');
+        // A moment later: a contract cannot end at the moment it began.
+        await t.book('bv-team', new Date(BOOKED.getTime() + 1));
         await t.cancel('bv-archive');
 
         const before = await t.grants(BEFORE);
@@ -294,15 +295,18 @@ describe('a contract that recorded the add-on in its own entitlements', () => {
         assert.equal(limits.quotas.storageGb, 25, 'the add-on’s quota was counted twice');
     });
 
-    test('does not report the add-on as left out, since it is in there', async () => {
-        // A snapshot written from such an answer would name the add-on while
-        // containing it, and the booking would then count it a second time.
+    test('a contract frozen beside it leaves the add-on out, and names it', async () => {
+        // A freeze is measured without the contract it replaces, so what the
+        // one in force contains does not reach its successor. A snapshot that
+        // named the add-on while containing it would have the booking count it
+        // a second time; this one leaves it out and names it, and the booking
+        // grants it once until its date.
         const t = await underAContractThatContainsIt();
 
         const answer = await t.entitlements.computeContractLimits('t1', BEFORE, CATALOG);
 
-        assert.equal(answer.limits.quotas.storageGb, 25);
-        assert.deepEqual(answer.leftOutBundleVersionIds, []);
+        assert.equal(answer.limits.quotas.storageGb, 5);
+        assert.deepEqual(answer.leftOutBundleVersionIds, ['bv-archive']);
     });
 });
 

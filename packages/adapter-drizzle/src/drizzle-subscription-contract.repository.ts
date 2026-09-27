@@ -8,6 +8,7 @@ import type {
     SubscriptionContractFilter,
     SubscriptionContractRecord,
     SubscriptionContractRepository,
+    SupersedeSubscriptionContractData,
     TerminateSubscriptionContractData,
     TransactionContext,
 } from '@saasicat/core';
@@ -144,6 +145,7 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
                     subscriberId: data.parties.subscriberId,
                     subscriberSnapshot: data.parties.subscriber,
                     issuerSnapshot: data.parties.issuer,
+                    partiesMigrated: data.partiesMigrated ?? false,
                     createdAt: now,
                     updatedAt: now,
                 })
@@ -216,6 +218,34 @@ export class DrizzleSubscriptionContractRepository implements SubscriptionContra
             .returning();
         if (!rows[0]) throw new Error(`SubscriptionContract '${contractId}' not found.`);
         return (await this.withLineItems(this.db, rows))[0];
+    }
+
+    async supersede(
+        contractId: string,
+        data: SupersedeSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null> {
+        const db = resolveDb(this.db, tx);
+        // One conditional statement: PostgreSQL re-reads the row under its lock
+        // before it writes, so a second caller superseding the same contract
+        // finds the first one's status here and returns nothing.
+        const rows = await db
+            .update(subscriptionContracts)
+            .set({ effectiveUntil: data.at, status: 'superseded', updatedAt: new Date() })
+            .where(
+                and(
+                    eq(subscriptionContracts.id, contractId),
+                    inArray(subscriptionContracts.status, [
+                        ...ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES,
+                    ]),
+                    data.readEffectiveUntil === null
+                        ? isNull(subscriptionContracts.effectiveUntil)
+                        : eq(subscriptionContracts.effectiveUntil, data.readEffectiveUntil),
+                ),
+            )
+            .returning();
+        if (!rows[0]) return null;
+        return (await this.withLineItems(db, rows))[0];
     }
 
     /**

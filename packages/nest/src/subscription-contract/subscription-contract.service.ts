@@ -3,6 +3,7 @@ import {
     Inject,
     Injectable,
     NotFoundException,
+    Optional,
     UnprocessableEntityException,
 } from '@nestjs/common';
 import type {
@@ -10,6 +11,7 @@ import type {
     CheckoutOfferRow,
     ContractLineItemRecord,
     CreateSubscriptionContractData,
+    SubscriptionContractParties,
     InvoiceLineItemSnapshot,
     NewContractLineItemData,
     SubscriptionContractInvoiceSnapshot,
@@ -18,6 +20,7 @@ import type {
     SubscriptionContractRepository,
     TerminateSubscriptionContractData,
     TransactionContext,
+    TransactionRunner,
 } from '@saasicat/core';
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
@@ -27,7 +30,10 @@ import {
     type PricedContractLineItem,
     recordContractLinesMoney,
 } from './contract-line-item-money.js';
-import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
+import {
+    CONTRACT_TRANSACTION_RUNNER_TOKEN,
+    SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
+} from './subscription-contract.tokens.js';
 import {
     assertContractWindow,
     assertLinesAddUp,
@@ -35,7 +41,41 @@ import {
     assertOnePlanLine,
     assertTaxRatePercent,
 } from './contract-refusals.js';
-import { CONTRACT_ERROR_CODES } from '@saasicat/core';
+import { ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES, CONTRACT_ERROR_CODES } from '@saasicat/core';
+
+/**
+ * How often a successor is written against the contract in force read again,
+ * after the first one moved in between. One race — a plan change beside an
+ * operator's refresh — needs a second look; a third would be two writers
+ * taking turns.
+ */
+export const SUCCESSOR_ATTEMPTS = 2;
+
+/** The refusal after the contract in force moved on every attempt. */
+export function contractChanged(tenantId: string): ConflictException {
+    return new ConflictException({
+        code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_CHANGED,
+        message:
+            `The contracts of tenant '${tenantId}' changed while a successor was being written, ` +
+            'or one begins after the moment it would take effect, so it would run beside ' +
+            'another. Nothing was written.',
+        params: { tenantId },
+    });
+}
+
+/** A recorded line as the data that writes it: everything but what the store assigned. */
+function lineDataOf(line: ContractLineItemRecord): NewContractLineItemData {
+    const { id: _id, contractId: _contractId, createdAt: _createdAt, ...data } = line;
+    return data;
+}
+
+function partiesOf(contract: SubscriptionContractRecord): SubscriptionContractParties {
+    return {
+        subscriberId: contract.subscriberId,
+        subscriber: { ...contract.subscriber },
+        issuer: contract.issuer ? { ...contract.issuer } : null,
+    };
+}
 
 export interface CreateContractFromOfferOptions {
     tenantId: string;
@@ -46,6 +86,16 @@ export interface CreateContractFromOfferOptions {
     termsSnapshot?: Record<string, unknown> | null;
 }
 
+export interface SuccessorOptions {
+    /**
+     * Take the parties over from the contract replaced instead of copying them
+     * afresh from the subscriber and `config/saas.yaml` — for a successor that
+     * changes what the contract grants and not who it is between. A copy the
+     * migration made stays marked as one.
+     */
+    keepParties?: boolean;
+}
+
 @Injectable()
 export class SubscriptionContractService {
     constructor(
@@ -54,6 +104,9 @@ export class SubscriptionContractService {
         // tsup build has no emitDecoratorMetadata — class type args explicitly @Inject.
         @Inject(SubscriberService)
         private readonly subscribers: SubscriberService,
+        @Optional()
+        @Inject(CONTRACT_TRANSACTION_RUNNER_TOKEN)
+        private readonly transactions: TransactionRunner | null = null,
     ) {}
 
     list(filter: Parameters<SubscriptionContractRepository['list']>[0]) {
@@ -77,6 +130,34 @@ export class SubscriptionContractService {
         asOf = new Date(),
     ): Promise<SubscriptionContractRecord | null> {
         return this.repo.findActiveByTenantId(tenantId, asOf);
+    }
+
+    findById(contractId: string): Promise<SubscriptionContractRecord | null> {
+        return this.repo.findById(contractId);
+    }
+
+    /**
+     * The contract restated as the data that writes it — its lines, prices,
+     * snapshots and window as they are. What a successor that changes one
+     * thing starts from, so that everything else is copied rather than
+     * recomposed.
+     */
+    dataOf(contract: SubscriptionContractRecord): CreateSubscriptionContractData {
+        return this.cloneCreateData({
+            tenantId: contract.tenantId,
+            status: contract.status,
+            effectiveFrom: contract.effectiveFrom,
+            effectiveUntil: contract.effectiveUntil,
+            originalOfferId: contract.originalOfferId,
+            originalPlanVersionId: contract.originalPlanVersionId,
+            originalBundleVersionIds: contract.originalBundleVersionIds,
+            entitlementSnapshot: contract.entitlementSnapshot,
+            priceSnapshot: { ...contract.priceSnapshot },
+            promotionSnapshots: contract.promotionSnapshots,
+            promoCodeSnapshots: contract.promoCodeSnapshots,
+            termsSnapshot: contract.termsSnapshot,
+            lineItems: contract.lineItems.map(lineDataOf),
+        });
     }
 
     async getActiveInvoiceSnapshotForTenant(
@@ -146,19 +227,81 @@ export class SubscriptionContractService {
         terminateAt: Date,
     ): Promise<{ previous: SubscriptionContractRecord | null; next: SubscriptionContractRecord }> {
         const nextData = { ...data, tenantId, effectiveFrom: data.effectiveFrom ?? terminateAt };
-        // Checked before the previous contract is closed: `create` checks again,
-        // but a refusal there would come after a termination nothing can undo.
-        this.assertCreateData(nextData);
-        await this.assertPartyFor(tenantId);
-        const previous = await this.repo.findActiveByTenantId(tenantId, terminateAt);
-        if (previous) {
-            await this.terminate(previous.id, {
-                effectiveUntil: terminateAt,
-                status: 'superseded',
-            });
+        for (let attempt = 0; attempt < SUCCESSOR_ATTEMPTS; attempt++) {
+            const previous = await this.repo.findActiveByTenantId(tenantId, terminateAt);
+            const next = await this.writeSuccessor(previous, nextData, terminateAt);
+            if (next) return { previous, next };
         }
-        const next = await this.create(nextData);
-        return { previous, next };
+        throw contractChanged(tenantId);
+    }
+
+    /**
+     * Writes `next` as the successor of `previous`, which ends at `at` as
+     * `superseded` — both on one transaction where the installation binds a
+     * runner, and only while `previous` is still as the caller read it. `null`,
+     * with nothing written, where it moved in between: another successor took
+     * its place, or a cancellation capped it. The caller reads again and
+     * decides afresh, because what it composed was measured against a contract
+     * that is no longer the one in force.
+     *
+     * With no contract to replace, it writes only where no contract of the
+     * tenant runs from `at` on. Finding none in force at `at` is not the same
+     * as finding none: another writer whose moment came a little later may
+     * have superseded the contract and written its successor from that later
+     * moment, and an open-ended successor from `at` would then run beside it.
+     * That check sees the other writer's successor only where its two writes
+     * land together, which takes the transaction runner; without one it can
+     * look between them and find nothing.
+     *
+     * Everything that can refuse `next` is asked before either write, so a
+     * refusal never lands after the contract it replaces has ended.
+     */
+    async writeSuccessor(
+        previous: SubscriptionContractRecord | null,
+        next: CreateSubscriptionContractData,
+        at: Date,
+        options: SuccessorOptions = {},
+    ): Promise<SubscriptionContractRecord | null> {
+        this.assertCreateData(next);
+        if (previous) this.assertTerminable(previous, { effectiveUntil: at, status: 'superseded' });
+        const kept = options.keepParties && previous ? previous : null;
+        if (!kept) await this.assertPartyFor(next.tenantId);
+        const write = async (
+            tx?: TransactionContext,
+        ): Promise<SubscriptionContractRecord | null> => {
+            if (previous) {
+                const superseded = await this.repo.supersede(
+                    previous.id,
+                    { at, readEffectiveUntil: previous.effectiveUntil },
+                    tx,
+                );
+                if (!superseded) return null;
+            } else if (await this.runsFrom(next.tenantId, at)) {
+                return null;
+            }
+            const parties = kept
+                ? partiesOf(kept)
+                : await this.subscribers.contractPartiesFor(next.tenantId, tx);
+            return this.repo.create(
+                {
+                    ...this.cloneCreateData(next),
+                    parties,
+                    ...(kept ? { partiesMigrated: kept.partiesMigrated } : {}),
+                },
+                tx,
+            );
+        };
+        return this.transactions ? this.transactions.run(write) : write();
+    }
+
+    /** Whether a contract of the tenant is in force at `at` or begins after it. */
+    private async runsFrom(tenantId: string, at: Date): Promise<boolean> {
+        const contracts = await this.repo.list({ tenantId });
+        return contracts.some(
+            (contract) =>
+                ACTIVE_SUBSCRIPTION_CONTRACT_STATUSES.includes(contract.status) &&
+                (contract.effectiveUntil === null || contract.effectiveUntil > at),
+        );
     }
 
     createDataFromOffer(
