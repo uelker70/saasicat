@@ -1,5 +1,91 @@
 # @saasicat/adapter-prisma
 
+## 1.0.0-rc.23
+
+### Minor Changes
+
+- a748f74: An operator can carry a changed feature vocabulary into running contracts
+
+    A contract keeps the feature keys it was frozen with, so a key renamed, added
+    or dropped in a plan version afterwards does not reach it. `<app> doctor` now
+    names each contract in force whose frozen features hold a key neither the code
+    nor the catalogue knows, or lack one the versions it covers grant today and no
+    `replaces` declaration carries it to (`SC-ENTL-022`). It changes nothing.
+
+    `<app> contracts refresh --all` (or `--contract <id>`) shows, per contract,
+    what carrying the vocabulary over would change — features, quotas, price, tax
+    rate, currency — and writes only with `--apply` (`SC-ENTL-023`). By default it
+    replaces the frozen features alone and copies the lines, prices, terms and the
+    parties agreed. `--full` re-freezes the contract the way a plan change does,
+    which also leaves out an add-on whose cancellation is declared, and refuses
+    every contract whose price, tax rate or currency would change. Either way the
+    contract in force is kept, superseded, beside its successor, and the audit log
+    records it. Guide: "Change the feature vocabulary".
+
+    - `ContractRefreshService` (tenant billing, where `contractFreeze` is on) and,
+      in `@saasicat/cli`, `ContractRefreshCliFlow`, `ContractsCommands`,
+      `ContractsRefreshCommand` and `ContractFeaturesDoctorCheck`, which joins
+      `PLATFORM_DOCTOR_CHECK_PROVIDERS` and passes where contracts are not frozen.
+    - `SubscriptionContractRepository.supersede` ends a contract only while it is
+      still as the caller read it — its status and its `effectiveUntil` — in one
+      conditional statement, on the caller's transaction where it passes one. A
+      repository of your own adds it; both shipped adapters have it, and the
+      persistence contract holds it to two concurrent writers. `create` writes
+      `partiesMigrated`.
+    - A plan change now writes its successor and the end of the contract it
+      replaces on one transaction, and refuses with `SUBSCRIPTION_CONTRACT_CHANGED`
+      rather than leave two contracts in force: where the contract moved twice in
+      between, or where, with none in force at its moment, a contract of the tenant
+      begins after it. `SaaSiCatModule.forRoot` passes its transaction runner;
+      `contractFreeze.transactionRunner` and the `SubscriptionContractModule`
+      option of the same name take one where the modules are wired by hand —
+      without one the two writes are separate, and that guarantee does not hold.
+    - `EntitlementService.computeContractLimits` no longer reads the contract in
+      force: it answers what a contract frozen now records.
+
+- da4b3b3: An operator announces a maintenance window and locks the application for a
+  deploy
+
+    For a migration that transforms data or removes what the running version
+    reads, an operator announces a window to the tenants, locks the application
+    for the length of the deploy, and unlocks once the new version is healthy
+    (`SC-OPS-012` to `SC-OPS-015`). Optional: `maintenance: true` in
+    `SaaSiCatModule.forRoot`.
+
+    - While the lock holds, every tenant request is refused with `503`, the code
+      `MAINTENANCE`, a `Retry-After` and the announced end, by a global guard
+      registered ahead of the feature guard. The administration, the status route
+      `GET /public/maintenance`, routes marked `@AllowDuringMaintenance()` and a
+      signed-in platform administrator pass; payment callbacks are refused and
+      retried by the provider. SaaSiCat's two scheduled jobs skip their run, and
+      `MaintenanceService.isLocked()` is what an application's own jobs ask.
+    - The lock begins and ends only on command. The announced times are what
+      tenants are told; a lock past its end says it is taking longer. Locking what
+      is locked and unlocking what is not change nothing and say so.
+    - `maintenance_windows` keeps one row per window, at most one open, in both
+      shipped adapters (`persistence.core.maintenanceWindows`), with the Prisma
+      fragment `16-maintenance-window.prisma` and the migration
+      `1.0-maintenance-windows-are-kept.postgres.sql`. The persistence contract
+      holds an adapter to it (`maintenanceWindows`).
+    - The administration gains a **Maintenance** page, and a strip on every page
+      while tenants are locked out. Locking and unlocking there need a
+      confirmation and the second factor (`SC-ADM-029`, `SC-ADM-030`).
+    - `@saasicat/cli` adds `maintenance status|announce|reschedule|cancel|on|off`
+      — `on` returns once every process has had time to see the lock — and a
+      `doctor` check that reports a lock and a lapsed announcement.
+    - `@saasicat/ui-vue-tenant` adds `MaintenanceGate`: the announcement above the
+      application and its sign-in page, one maintenance page while the lock holds,
+      and the application again once it is lifted (`SC-UI-026`).
+      `reportMaintenanceRefusal` switches it at once from an HTTP interceptor.
+    - An optional `MaintenanceNotificationPort` hears of a window announced, moved
+      or cancelled, so the application can mail its users.
+
+### Patch Changes
+
+- Updated dependencies [a748f74]
+- Updated dependencies [da4b3b3]
+    - @saasicat/core@1.0.0-rc.23
+
 ## 1.0.0-rc.22
 
 ### Major Changes
