@@ -105,31 +105,43 @@ async function cliErrorOf(fn) {
 
 // @requirement SC-OPS-015 — The lock survives a restart, and the version being replaced honours it too
 describe('`maintenance on` returns once every process has seen the lock', () => {
+    const fullWait = (MAINTENANCE_STATE_MAX_AGE_SECONDS + DEFAULT_DRAIN_SECONDS) * 1000;
+
     test('it waits the time a process may keep an answer, plus the grace for requests under way', async () => {
         const { flow, slept, service } = setUp();
         const outcome = await flow.on({ yes: true });
         assert.equal(outcome.alreadyLocked, false);
         assert.equal(await service.isLocked(), true);
-        const expected = (MAINTENANCE_STATE_MAX_AGE_SECONDS + DEFAULT_DRAIN_SECONDS) * 1000;
-        assert.equal(slept.length, 1);
-        assert.ok(slept[0] > expected - 1000 && slept[0] <= expected, `waited ${slept[0]} ms`);
+        assert.deepEqual(slept, [fullWait]);
+        assert.equal(outcome.waitedMs, fullWait);
     });
 
     test('a grace of its own is waited instead, zero included', async () => {
         const { flow, slept } = setUp();
         await flow.on({ yes: true, drain: 0 });
-        const expected = MAINTENANCE_STATE_MAX_AGE_SECONDS * 1000;
-        assert.ok(slept[0] > expected - 1000 && slept[0] <= expected, `waited ${slept[0]} ms`);
+        assert.deepEqual(slept, [MAINTENANCE_STATE_MAX_AGE_SECONDS * 1000]);
     });
 
-    test('a lock that has held long enough already is not waited for again', async () => {
+    test('the wait starts once the lock is written, not at the moment the lock records', async (t) => {
+        t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+        const { flow, slept, port } = setUp();
+        const open = port.open.bind(port);
+        port.open = async (window) => {
+            t.mock.timers.tick(2000);
+            return open(window);
+        };
+        const outcome = await flow.on({ yes: true });
+        assert.ok(Date.now() - outcome.window.lockedAt.getTime() >= 2000, 'the write took its time');
+        assert.deepEqual(slept, [fullWait]);
+    });
+
+    test('a lock that already held is waited for from this call too', async () => {
         const { flow, slept, port } = setUp();
         await flow.on({ yes: true });
         port.windows[0].lockedAt = inMinutes(-5);
         const again = await flow.on({ yes: true });
         assert.equal(again.alreadyLocked, true);
-        assert.equal(again.waitedMs, 0);
-        assert.equal(slept.length, 1);
+        assert.deepEqual(slept, [fullWait, fullWait]);
     });
 
     test('a grace that is not a number of seconds is refused before anything is locked', async () => {

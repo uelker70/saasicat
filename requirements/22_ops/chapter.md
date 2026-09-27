@@ -594,11 +594,14 @@ _Tested by:_
     - `maintenance on` returns once every process has seen the lock
         - it waits the time a process may keep an answer, plus the grace for requests under way
         - a grace of its own is waited instead, zero included
-        - a lock that has held long enough already is not waited for again
+        - the wait starts once the lock is written, not at the moment the lock records
+        - a lock that already held is waited for from this call too
         - a grace that is not a number of seconds is refused before anything is locked
 - `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
     - what another process of the application makes of it
         - a lock reaches a process that asked before it, within the time it may keep an answer
+        - an answer that took its time to arrive ages from when it was asked
+        - a read still on its way when this process locks does not undo the lock
         - a burst of requests after the answer aged asks the table once
         - a lock known to hold is not dropped because one read failed
         - a process that never read the lock lets requests through while the table cannot answer

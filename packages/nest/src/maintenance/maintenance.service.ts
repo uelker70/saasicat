@@ -65,6 +65,12 @@ const NOTIFICATION_TIMEOUT_MS = 30_000;
 
 const MAX_AGE_MS = MAINTENANCE_STATE_MAX_AGE_SECONDS * 1000;
 
+/** A question this process put to the database: its place in line, and when. */
+interface Question {
+    order: number;
+    at: number;
+}
+
 /** What an operator announces. */
 export interface MaintenanceAnnouncement {
     startsAt: Date;
@@ -108,8 +114,16 @@ export interface MaintenanceUnlockOutcome {
 @Injectable()
 export class MaintenanceService {
     private readonly logger = new Logger('SaaSiCat.Maintenance');
-    /** The open window as this process last read it, and when. */
-    private known: { window: MaintenanceWindowRecord | null; readAt: number } | null = null;
+    /**
+     * The open window as this process last learned it, dated from when it asked
+     * rather than from when the answer arrived. The database may have answered
+     * from any moment in between, and a later date would keep a lock unseen for
+     * longer than `MAINTENANCE_STATE_MAX_AGE_SECONDS` — past the moment
+     * `maintenance on` returns and the migration starts.
+     */
+    private known: { window: MaintenanceWindowRecord | null; asked: Question } | null = null;
+    /** How many questions this process has asked, so that answers are kept in the order asked. */
+    private questions = 0;
     /** One read at a time: a burst of requests after the answer aged asks once. */
     private reading: Promise<MaintenanceWindowRecord | null> | null = null;
     /** Whether the last read failed, so a failing database is logged once, not per request. */
@@ -139,7 +153,7 @@ export class MaintenanceService {
      * the same database.
      */
     async openWindow(): Promise<MaintenanceWindowRecord | null> {
-        if (this.known && Date.now() - this.known.readAt < MAX_AGE_MS) return this.known.window;
+        if (this.known && Date.now() - this.known.asked.at < MAX_AGE_MS) return this.known.window;
         this.reading ??= this.readOpen().finally(() => {
             this.reading = null;
         });
@@ -167,10 +181,9 @@ export class MaintenanceService {
     /** The open window and the ones before it, read fresh. */
     async overview(): Promise<MaintenanceOverview> {
         const [open, recent] = await Promise.all([
-            this.windows.findOpen(),
+            this.findOpenAndRemember(),
             this.windows.listRecent(RECENT_WINDOWS),
         ]);
-        this.remember(open);
         const now = new Date();
         return {
             open: open ? maintenanceWindowViewOf(open, now) : null,
@@ -186,6 +199,7 @@ export class MaintenanceService {
     ): Promise<MaintenanceWindowRecord> {
         const now = new Date();
         assertTimes(announcement.startsAt, announcement.endsAt, now);
+        const asked = this.ask();
         const opened = await this.windows.open({
             startsAt: announcement.startsAt,
             endsAt: announcement.endsAt,
@@ -200,7 +214,7 @@ export class MaintenanceService {
                 codedError(MAINTENANCE_ERROR_CODES.MAINTENANCE_WINDOW_ALREADY_OPEN),
             );
         }
-        this.remember(opened);
+        this.remember(opened, asked);
         await this.record(actor, opened, 'MAINTENANCE_WINDOW_ANNOUNCE', {
             startsAt: opened.startsAt?.toISOString(),
             endsAt: opened.endsAt?.toISOString(),
@@ -252,9 +266,10 @@ export class MaintenanceService {
             // otherwise tell every tenant that a window moved which did not.
             if (Object.keys(changes).length === 0) return open;
 
+            const asked = this.ask();
             const moved = await this.windows.update(open.id, stage, changes);
             if (!moved) continue;
-            this.remember(moved);
+            this.remember(moved, asked);
             await this.record(actor, moved, 'MAINTENANCE_WINDOW_RESCHEDULE', {
                 before: revisionOf(open),
                 after: revisionOf(moved),
@@ -276,12 +291,13 @@ export class MaintenanceService {
                     codedError(MAINTENANCE_ERROR_CODES.MAINTENANCE_WINDOW_LOCKED),
                 );
             }
+            const asked = this.ask();
             const cancelled = await this.windows.update(open.id, 'announced', {
                 endedAt: new Date(),
                 endedBy: actorTagOf(actor),
             });
             if (!cancelled) continue;
-            this.remember(null);
+            this.remember(null, asked);
             await this.record(actor, cancelled, 'MAINTENANCE_WINDOW_CANCEL');
             this.notify({ kind: 'cancelled', window: cancelled });
             return cancelled;
@@ -304,16 +320,14 @@ export class MaintenanceService {
         const message = messageOf(request.message);
         const tag = actorTagOf(actor);
         for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-            const open = await this.windows.findOpen();
+            const open = await this.findOpenAndRemember();
             if (request.windowId !== undefined && open?.id !== request.windowId) {
                 throw new NotFoundException(
                     codedError(MAINTENANCE_ERROR_CODES.MAINTENANCE_WINDOW_NOT_OPEN),
                 );
             }
-            if (open && stageOf(open) === 'locked') {
-                this.remember(open);
-                return { window: open, alreadyLocked: true };
-            }
+            if (open && stageOf(open) === 'locked') return { window: open, alreadyLocked: true };
+            const asked = this.ask();
             const locked = open
                 ? await this.windows.update(open.id, 'announced', {
                       lockedAt: now,
@@ -331,7 +345,7 @@ export class MaintenanceService {
                       lockedBy: tag,
                   });
             if (!locked) continue;
-            this.remember(locked);
+            this.remember(locked, asked);
             await this.record(actor, locked, 'MAINTENANCE_LOCK', {
                 endsAt: locked.endsAt?.toISOString() ?? null,
                 announced: locked.startsAt !== null,
@@ -352,16 +366,14 @@ export class MaintenanceService {
         request: { windowId?: string },
         actor: AdminActor,
     ): Promise<MaintenanceUnlockOutcome> {
-        const open = await this.windows.findOpen();
+        const open = await this.findOpenAndRemember();
         if (request.windowId !== undefined && open?.id !== request.windowId) {
             throw new NotFoundException(
                 codedError(MAINTENANCE_ERROR_CODES.MAINTENANCE_WINDOW_NOT_OPEN),
             );
         }
-        if (!open || stageOf(open) !== 'locked') {
-            this.remember(open);
-            return { window: open, wasLocked: false };
-        }
+        if (!open || stageOf(open) !== 'locked') return { window: open, wasLocked: false };
+        const asked = this.ask();
         // Bound to the lock this call read, and not retried against whatever is
         // open next: a write that finds it no longer locked means another unlock
         // ended it first, and the window open by now may be a lock a later deploy
@@ -371,10 +383,10 @@ export class MaintenanceService {
             endedBy: actorTagOf(actor),
         });
         if (!ended) {
-            this.remember(await this.windows.findOpen());
+            await this.findOpenAndRemember();
             return { window: null, wasLocked: false };
         }
-        this.remember(null);
+        this.remember(null, asked);
         await this.record(actor, ended, 'MAINTENANCE_UNLOCK', {
             lockedAt: ended.lockedAt?.toISOString() ?? null,
         });
@@ -385,13 +397,15 @@ export class MaintenanceService {
 
     private async readOpen(): Promise<MaintenanceWindowRecord | null> {
         try {
-            const window = await this.windows.findOpen();
-            this.remember(window);
+            const window = await this.findOpenAndRemember();
             if (this.readFailing) {
                 this.readFailing = false;
                 this.logger.log('The maintenance lock can be read again.');
             }
-            return window;
+            // A later question may have been answered while this one was on its
+            // way — an operator's lock on this process, say. The requests waiting
+            // on this read are decided on that answer, not on the older one.
+            return this.known ? this.known.window : window;
         } catch (error) {
             if (!this.readFailing) {
                 this.readFailing = true;
@@ -407,14 +421,33 @@ export class MaintenanceService {
         }
     }
 
-    /** What this process knows now, as of this moment. */
-    private remember(window: MaintenanceWindowRecord | null): void {
-        this.known = { window, readAt: Date.now() };
+    /** The open window, read now and remembered as of the moment it was asked for. */
+    private async findOpenAndRemember(): Promise<MaintenanceWindowRecord | null> {
+        const asked = this.ask();
+        const open = await this.windows.findOpen();
+        this.remember(open, asked);
+        return open;
+    }
+
+    /** Takes the next place in line, before a question goes to the database. */
+    private ask(): Question {
+        this.questions += 1;
+        return { order: this.questions, at: Date.now() };
+    }
+
+    /**
+     * What this process knows from now on — unless it already holds the answer
+     * to a question asked later, which an earlier answer arriving late must not
+     * undo.
+     */
+    private remember(window: MaintenanceWindowRecord | null, asked: Question): void {
+        if (this.known && this.known.asked.order > asked.order) return;
+        this.known = { window, asked };
     }
 
     /** The open window if it has `id`; refused otherwise. */
     private async findOpenWith(id: string): Promise<MaintenanceWindowRecord> {
-        const open = await this.windows.findOpen();
+        const open = await this.findOpenAndRemember();
         if (!open || open.id !== id) {
             throw new NotFoundException(
                 codedError(MAINTENANCE_ERROR_CODES.MAINTENANCE_WINDOW_NOT_OPEN),

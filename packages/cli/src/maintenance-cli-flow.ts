@@ -115,8 +115,14 @@ export class MaintenanceCliFlow {
 
     /**
      * Locks, then waits until every process has had time to see the lock and
-     * the requests it let through before have had time to finish. A lock that
-     * already held waits only for what is left of that time.
+     * the requests it let through before have had time to finish.
+     *
+     * The wait starts when the lock call returns, the first moment this command
+     * itself knows the lock can be read. `lockedAt` is earlier: it is taken
+     * before the write commits, and a process reading in between still answers
+     * "unlocked". A lock that already held is waited for the same way, because
+     * its `lockedAt` shares that flaw and was written by another machine's
+     * clock besides — a retried script pays the wait once more.
      */
     async on(
         options: LockOptions,
@@ -134,10 +140,8 @@ export class MaintenanceCliFlow {
         const outcome = await refusalsAsCliErrors(() =>
             this.maintenance.lock({ endsAt, message: options.message }, actor),
         );
-        const lockedAt = outcome.window.lockedAt?.getTime() ?? Date.now();
-        const settledAt = lockedAt + (MAINTENANCE_STATE_MAX_AGE_SECONDS + drain) * 1000;
-        const waitedMs = Math.max(0, settledAt - Date.now());
-        if (waitedMs > 0) await this.sleep(waitedMs);
+        const waitedMs = (MAINTENANCE_STATE_MAX_AGE_SECONDS + drain) * 1000;
+        await this.sleep(waitedMs);
         return { ...outcome, waitedMs };
     }
 

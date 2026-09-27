@@ -450,6 +450,32 @@ describe('what another process of the application makes of it', () => {
         assert.equal(await process.isLocked(), true, 'asks again once its answer is that old');
     });
 
+    test('an answer that took its time to arrive ages from when it was asked', async () => {
+        mock.timers.enable({ apis: ['Date'], now: Date.now() });
+        const port = new FakeMaintenanceWindowPort();
+        const process = new MaintenanceService(port, null, null);
+        const release = port.holdNextRead();
+        const asked = process.isLocked();
+        port.lockBehindTheServicesBack(new Date());
+        mock.timers.tick(3000);
+        release();
+        assert.equal(await asked, false, 'the database answered before the lock');
+
+        mock.timers.tick(MAINTENANCE_STATE_MAX_AGE_SECONDS * 1000 - 3000);
+        assert.equal(await process.isLocked(), true, 'aged from the question, not the reply');
+    });
+
+    test('a read still on its way when this process locks does not undo the lock', async () => {
+        const port = new FakeMaintenanceWindowPort();
+        const process = new MaintenanceService(port, null, null);
+        const release = port.holdNextRead();
+        const asked = process.isLocked();
+        await process.lock({}, OPERATOR);
+        release();
+        assert.equal(await asked, true, 'the requests waiting on it are decided on the lock');
+        assert.equal(await process.isLocked(), true, 'and the late answer is not kept over it');
+    });
+
     test('a burst of requests after the answer aged asks the table once', async () => {
         const port = new FakeMaintenanceWindowPort();
         const process = new MaintenanceService(port, null, null);

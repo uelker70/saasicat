@@ -14,12 +14,29 @@ export class FakeMaintenanceWindowPort {
     /** Moves to refuse before one lands: a stand-in for another operator getting there first. */
     refuseNextUpdates = 0;
     #next = 0;
+    #heldRead = null;
 
     async findOpen() {
         this.reads += 1;
         if (this.failReads) throw this.failReads;
         const open = this.windows.find((window) => window.endedAt === null);
-        return open ? { ...open } : null;
+        const answer = open ? { ...open } : null;
+        const held = this.#heldRead;
+        this.#heldRead = null;
+        if (held) await held;
+        return answer;
+    }
+
+    /**
+     * Holds the next read's reply back until the returned function is called, as
+     * a slow database would: it answers what was open when it was asked.
+     */
+    holdNextRead() {
+        let release;
+        this.#heldRead = new Promise((resolve) => {
+            release = resolve;
+        });
+        return release;
     }
 
     async listRecent(limit) {
