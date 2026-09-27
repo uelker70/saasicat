@@ -243,6 +243,18 @@ export interface TenantPlanSectionI18n {
     billingDetailsSaveFailed: string;
     /** `{field}` is the label of the field the server refused. */
     billingDetailsFieldInvalid: string;
+    /** A window announced ahead: `{start}` and `{end}`, in the reader's zone. */
+    maintenanceAnnounced: string;
+    maintenanceTitle: string;
+    /** While locked, with the announced end: `{end}`. */
+    maintenanceUntil: string;
+    /** While locked, with no end announced. */
+    maintenanceNoEnd: string;
+    /** Locked past the announced end. */
+    maintenanceOverrun: string;
+    /** A request of the page was refused on its way. */
+    maintenanceRefused: string;
+    maintenanceResumes: string;
     /**
      * Texts for the coded blockers and warnings a plan-change preview returns,
      * keyed by `BILLING_ERROR_CODES`. Sits here rather than in a prop of its
@@ -487,6 +499,15 @@ export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     billingDetailsLoadFailed: 'Die Rechnungsdaten konnten nicht geladen werden.',
     billingDetailsSaveFailed: 'Die Rechnungsdaten konnten nicht gespeichert werden.',
     billingDetailsFieldInvalid: '{field} ist nicht gültig.',
+    maintenanceAnnounced: 'Geplante Wartung von {start} bis {end}.',
+    maintenanceTitle: 'Wartung',
+    maintenanceUntil:
+        'Die Anwendung wird gerade gewartet und ist voraussichtlich ab {end} wieder da.',
+    maintenanceNoEnd: 'Die Anwendung wird gerade gewartet und ist bald wieder da.',
+    maintenanceOverrun: 'Die Wartung dauert länger als angekündigt.',
+    maintenanceRefused:
+        'Was gerade getan wurde, ist nicht ausgeführt worden. Bitte nach der Wartung wiederholen.',
+    maintenanceResumes: 'Diese Seite geht von selbst weiter, sobald die Wartung vorbei ist.',
     issueMessages: ERROR_MESSAGES_DE,
 };
 
@@ -719,6 +740,14 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
     billingDetailsLoadFailed: 'The billing details could not be loaded.',
     billingDetailsSaveFailed: 'The billing details could not be saved.',
     billingDetailsFieldInvalid: '{field} is not valid.',
+    maintenanceAnnounced: 'Planned maintenance from {start} to {end}.',
+    maintenanceTitle: 'Under maintenance',
+    maintenanceUntil: 'The application is being maintained and is expected back at {end}.',
+    maintenanceNoEnd: 'The application is being maintained and will be back shortly.',
+    maintenanceOverrun: 'The maintenance is taking longer than announced.',
+    maintenanceRefused:
+        'What was just done was not carried out. Please repeat it once maintenance is over.',
+    maintenanceResumes: 'This page carries on by itself once the maintenance is over.',
     issueMessages: ERROR_MESSAGES_EN,
 };
 

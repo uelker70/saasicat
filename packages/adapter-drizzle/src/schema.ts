@@ -398,6 +398,21 @@ export const settingsChanges = pgTable('settings_changes', {
     acknowledgedBy: text('acknowledgedBy'),
 });
 
+// Maintenance windows — one row per window, at most one of them open. The
+// partial unique index that holds the one is in constraints.postgres.sql.
+export const maintenanceWindows = pgTable('maintenance_windows', {
+    id: text('id').primaryKey(),
+    startsAt: ts('startsAt'),
+    endsAt: ts('endsAt'),
+    message: text('message'),
+    createdAt: writtenAt('createdAt'),
+    createdBy: text('createdBy').notNull(),
+    lockedAt: ts('lockedAt'),
+    lockedBy: text('lockedBy'),
+    endedAt: ts('endedAt'),
+    endedBy: text('endedBy'),
+});
+
 // ---------------------------------------------------------------------------
 // Subscribers — the party a contract is concluded with
 // ---------------------------------------------------------------------------

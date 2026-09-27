@@ -14,9 +14,11 @@ import {
 
 import { MarketingSettingsService } from './marketing-settings.service.js';
 import { UpdateMarketingSettingsDto } from './dto/marketing-settings.dto.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 export function buildMarketingSettingsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/marketing-settings')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedMarketingSettingsController {
         constructor(

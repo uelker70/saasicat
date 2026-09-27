@@ -21,9 +21,11 @@ import {
 
 import { PromotionsService } from './promotions.service.js';
 import { CreatePromotionDto, UpdatePromotionDto } from './dto/promotions.dto.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 export function buildPromotionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/promotions')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedPromotionsController {
         constructor(

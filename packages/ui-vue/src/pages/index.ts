@@ -37,6 +37,7 @@ export const adminPages = {
     DashboardPage: () => import('./DashboardPage.vue'),
     DiscoveryPage: () => import('./DiscoveryPage.vue'),
     EmailHistoryPage: () => import('./EmailHistoryPage.vue'),
+    MaintenancePage: () => import('./MaintenancePage.vue'),
     MarketingCatalogPage: () => import('./MarketingCatalogPage.vue'),
     PilotsPage: () => import('./PilotsPage.vue'),
     PlansPage: () => import('./PlansPage.vue'),
@@ -98,6 +99,7 @@ export const STANDARD_ADMIN_ROUTES: ReadonlyArray<{
     { path: 'platform-email', page: 'PlatformEmailPage' },
     { path: 'email-history', page: 'EmailHistoryPage' },
     { path: 'settings', page: 'SettingsPage' },
+    { path: 'maintenance', page: 'MaintenancePage' },
 ];
 
 /**

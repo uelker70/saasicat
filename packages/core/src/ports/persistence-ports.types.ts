@@ -50,6 +50,7 @@ import type {
 } from './promo-ports.types.js';
 import type { PlanCatalogImportSink, PlanCatalogReadSink } from '../plan-catalog-import.types.js';
 import type { AppliedSettingsPort } from './settings-ports.types.js';
+import type { MaintenanceWindowPort } from './maintenance-ports.types.js';
 
 /** Class reference usable as a DI token (e.g. the consumer's `PrismaService`). */
 export type PersistenceClassRef = abstract new (...args: never[]) => unknown;
@@ -120,6 +121,13 @@ export interface SaaSiCatPersistenceCore {
      * platform says once at boot that it is not recording.
      */
     appliedSettings?: PersistenceProvider<AppliedSettingsPort>;
+    /**
+     * Where maintenance windows are kept (`maintenance` in
+     * `SaaSiCatModule.forRoot`). Optional so an adapter written before it
+     * existed keeps working; an installation that turns maintenance on without
+     * one is refused at start-up.
+     */
+    maintenanceWindows?: PersistenceProvider<MaintenanceWindowPort>;
 }
 
 /** Repositories for the entitlement/contract loop (`EntitlementModule`). */

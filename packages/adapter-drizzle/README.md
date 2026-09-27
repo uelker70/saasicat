@@ -79,7 +79,8 @@ atomic `claimSlot`/`releaseSlot`/`markExhaustedIfFull` and the slots held for
 checkouts, audit
 write/query/stats, MFA, RLS bypass, SuperAdmin bootstrap
 (`PASSWORD_HASHER_TOKEN`), plan-catalog read/import sinks, the record of the
-applied settings, and the `ZeroPromoRevenueDeductionAggregator` default. Not shipped: contracts,
+applied settings, the maintenance windows, and the `ZeroPromoRevenueDeductionAggregator` default.
+Not shipped: contracts,
 bundle bookings, registration, tenant-billing write ports,
 `FirstTimeCustomerCheck` — same as the Prisma adapter.
 

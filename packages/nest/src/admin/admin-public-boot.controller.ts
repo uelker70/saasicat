@@ -2,12 +2,14 @@ import { Controller, Get, Inject } from '@nestjs/common';
 import type { PublicBootResponse } from '@saasicat/core';
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifest.config.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 // Public boot endpoint — no auth, returns only minimal branding data
 // for the SuperAdmin UI login page. Deliberately just the required subset
 // (key/displayName/logoUrl/environment) — prevents app topology leak before login.
 
 @Controller('admin')
+@AllowDuringMaintenance()
 @SaaSiCatPublicRoute()
 export class AdminPublicBootController {
     constructor(@Inject(ADMIN_MANIFEST_CONFIG) private readonly config: AdminManifestConfig) {}

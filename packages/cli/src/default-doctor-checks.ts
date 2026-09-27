@@ -17,13 +17,17 @@
 //   5. **`platform.issuer-identity`** — the issuer in `config/saas.yaml` is the
 //      legal entity the installation recorded, and says how many contracts a
 //      change of it would have to be declared against.
+//   6. **`platform.maintenance`** — whether tenants are locked out, since when
+//      and past which announced end; an announcement that lapsed without a
+//      lock; a table the lock cannot be read from.
 //
 
-import { Inject, Injectable, type Type } from '@nestjs/common';
+import { Inject, Injectable, Optional, type Type } from '@nestjs/common';
 import {
     AdminManifestService,
     DISCOVERY_SNAPSHOT_TOKEN,
     IssuerIdentityInspector,
+    MaintenanceService,
     PLAN_CATALOG_SOURCE_TOKEN,
     type DiscoverySnapshot,
     type PlanCatalogSource,
@@ -219,6 +223,70 @@ export class IssuerIdentityDoctorCheck implements DoctorCheck {
 }
 
 /**
+ * Whether tenants are locked out, and whether they should still be.
+ *
+ * A lock ends only when somebody says so (`SC-OPS-014`), so a deploy that died
+ * after `maintenance on` leaves every tenant outside until an operator notices.
+ * This is one of the two places that notice for them; the administration is
+ * the other. A lock in place is reported as a warning even while a deploy is
+ * running — tenants cannot work, and that is never nothing.
+ */
+@Injectable()
+export class MaintenanceDoctorCheck implements DoctorCheck {
+    readonly id = 'platform.maintenance';
+    readonly label = 'Maintenance lock';
+    constructor(
+        @Optional()
+        @Inject(MaintenanceService)
+        private readonly maintenance: MaintenanceService | null = null,
+    ) {}
+
+    async run(): Promise<DoctorCheckResult> {
+        if (!this.maintenance) {
+            return { severity: 'ok', message: 'Maintenance windows are not turned on.' };
+        }
+        let open;
+        try {
+            ({ open } = await this.maintenance.overview());
+        } catch (err) {
+            return {
+                severity: 'error',
+                message:
+                    `The maintenance windows cannot be read, so a lock would protect no deploy: ` +
+                    `${err instanceof Error ? err.message : String(err)}`,
+            };
+        }
+        if (!open) return { severity: 'ok', message: 'No maintenance window is open.' };
+        if (open.status === 'locked') {
+            return {
+                severity: 'warning',
+                message: open.overrun
+                    ? `Tenants have been locked out since ${open.lockedAt}, and the announced end ` +
+                      `${open.endsAt} has passed. Unlock with \`maintenance off\` once the deploy is through.`
+                    : `Tenants are locked out since ${open.lockedAt}` +
+                      (open.endsAt
+                          ? `, announced until ${open.endsAt}.`
+                          : ', with no end announced.'),
+                details: { windowId: open.id, lockedBy: open.lockedBy },
+            };
+        }
+        if (open.lapsed) {
+            return {
+                severity: 'warning',
+                message:
+                    `A window was announced for ${open.startsAt} to ${open.endsAt} and never locked; ` +
+                    'its end has passed. Cancel it — it stands in the way of the next announcement.',
+                details: { windowId: open.id },
+            };
+        }
+        return {
+            severity: 'ok',
+            message: `A window is announced for ${open.startsAt} to ${open.endsAt}.`,
+        };
+    }
+}
+
+/**
  * Default list that consumers can spread in `CliContextModule.forRoot({ doctorChecks })`:
  *
  * ```ts
@@ -238,4 +306,5 @@ export const PLATFORM_DOCTOR_CHECK_PROVIDERS: Array<Type<DoctorCheck>> = [
     UserPortDoctorCheck,
     AdminManifestDoctorCheck,
     IssuerIdentityDoctorCheck,
+    MaintenanceDoctorCheck,
 ];

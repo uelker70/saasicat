@@ -30,9 +30,11 @@ import {
     UpdateCatalogEntryBaseDto,
     UpdateCatalogEntryI18nDto,
 } from './dto/catalog-entries.dto.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedCatalogEntriesController {
         constructor(

@@ -4,6 +4,7 @@
             <q-icon name="warning" size="14px" />
             <strong>PRODUCTION</strong> — {{ msg.header.productionWarning }}
         </div>
+        <MaintenanceLockBanner :enabled="maintenanceEnabled" :to="maintenanceRoute" />
 
         <q-header elevated class="sa-admin-header">
             <q-toolbar class="q-py-sm">
@@ -99,8 +100,14 @@
 <script setup lang="ts">
 import { computed, inject, ref, getCurrentInstance } from 'vue';
 import { useRoute } from 'vue-router';
-import type { AdminManifest, StandardPageKey } from '@saasicat/core';
-import { buildRoutes, buildSidebar, defaultSectionOrder } from '../client/nav-builder.js';
+import { MAINTENANCE_CAPABILITY, type AdminManifest, type StandardPageKey } from '@saasicat/core';
+import {
+    DEFAULT_STANDARD_PAGE_ROUTES,
+    buildRoutes,
+    buildSidebar,
+    defaultSectionOrder,
+} from '../client/nav-builder.js';
+import MaintenanceLockBanner from '../internal/maintenance/MaintenanceLockBanner.vue';
 import LocaleSwitcher from '../ui/page/LocaleSwitcher.vue';
 import ThemeSwitcher from '../ui/page/ThemeSwitcher.vue';
 import { SUPER_ADMIN_BRAND_KEY, SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
@@ -227,6 +234,14 @@ const injectedBrand = inject(SUPER_ADMIN_BRAND_KEY, null);
 // components do not have to be wrapped just to thread the prop through.
 const injectedManifest = inject(SUPER_ADMIN_MANIFEST_KEY, null);
 const activeManifest = computed(() => props.manifest ?? injectedManifest?.() ?? null);
+
+// The lock strip, where the installation keeps maintenance windows.
+const maintenanceEnabled = computed(
+    () => activeManifest.value?.capabilities?.[MAINTENANCE_CAPABILITY] === true,
+);
+const maintenanceRoute = computed(
+    () => props.standardPageRoutes?.maintenance ?? DEFAULT_STANDARD_PAGE_ROUTES.maintenance,
+);
 const brand = computed(() => ({
     logoText: props.brandLogoText ?? injectedBrand?.logoText ?? '',
     name: props.brandName ?? injectedBrand?.name ?? '',

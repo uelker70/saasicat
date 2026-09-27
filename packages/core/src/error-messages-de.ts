@@ -314,4 +314,18 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     [FEATURE_NOT_LICENSED]: 'Das Feature {featureKeys} ist im aktuellen Plan nicht enthalten.',
     // ── settings ──
     SETTINGS_CHANGE_NOT_FOUND: 'Keine aufgezeichnete Einstellungsänderung hat diese ID.',
+    // ── maintenance ──
+    MAINTENANCE: 'Die Anwendung wird gerade gewartet.',
+    MAINTENANCE_WINDOW_ALREADY_OPEN:
+        'Es ist bereits ein Wartungsfenster offen. Verschiebe oder streiche es, bevor du ein weiteres ankündigst.',
+    MAINTENANCE_WINDOW_NOT_OPEN: 'Kein offenes Wartungsfenster hat diese ID.',
+    MAINTENANCE_WINDOW_LOCKED:
+        'Dieses Wartungsfenster ist gesperrt. Sein Beginn lässt sich nicht mehr verschieben, und beendet wird es durch Entsperren.',
+    MAINTENANCE_WINDOW_END_NOT_AFTER_START:
+        'Das Ende eines Wartungsfensters muss nach seinem Beginn liegen.',
+    MAINTENANCE_WINDOW_END_IN_PAST:
+        'Das Ende eines Wartungsfensters darf nicht in der Vergangenheit liegen.',
+    MAINTENANCE_TIME_INVALID:
+        '{field} muss Datum und Uhrzeit mit Zeitzone sein, etwa 2026-10-02T22:00+02:00.',
+    MAINTENANCE_MESSAGE_TOO_LONG: 'Die Nachricht darf höchstens {max} Zeichen lang sein.',
 };

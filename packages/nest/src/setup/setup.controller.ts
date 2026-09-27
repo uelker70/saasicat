@@ -10,6 +10,7 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-vali
 
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { SetupService } from './setup.service.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 class SetupDto {
     @IsString()
@@ -40,6 +41,7 @@ class SetupConfirmMfaDto {
 }
 
 @Controller('admin/setup')
+@AllowDuringMaintenance()
 @SaaSiCatPublicRoute()
 export class SetupController {
     constructor(private readonly setup: SetupService) {}

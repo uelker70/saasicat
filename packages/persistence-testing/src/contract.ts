@@ -15,6 +15,7 @@ import type {
     AppliedSettingsValues,
     ConfirmedPaymentMethod,
     CreateCheckoutOfferData,
+    NewMaintenanceWindow,
     CreateSubscriberData,
     NewContractLineItemData,
     NewSubscriptionContractData,
@@ -355,6 +356,10 @@ const CONTRACT_GAPS: Record<
     appliedSettings: {
         reason: 'adapter provides no AppliedSettingsPort',
         present: ({ adapter }) => Boolean(adapter.appliedSettings),
+    },
+    maintenanceWindows: {
+        reason: 'adapter provides no MaintenanceWindowPort',
+        present: ({ adapter }) => Boolean(adapter.maintenanceWindows),
     },
 };
 
@@ -4465,6 +4470,222 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
             assert.equal(
                 await port.acknowledgeChange('no-such-change', 'web:ops@example.com:s1', seenAt),
                 null,
+            );
+        });
+
+        // -------------------------------------------------------------
+        // Maintenance windows — at most one open, and every move guarded
+        // -------------------------------------------------------------
+
+        const ANNOUNCED_AT = new Date('2026-10-01T09:15:00.123Z');
+        const WINDOW_STARTS = new Date('2026-10-02T20:00:00.000Z');
+        const WINDOW_ENDS = new Date('2026-10-02T21:00:00.000Z');
+        const LOCKED_AT = new Date('2026-10-02T20:03:07.456Z');
+        const UNLOCKED_AT = new Date('2026-10-02T21:20:00.789Z');
+        const OPERATOR = 'web:ops@example.com:s1';
+        const announcement = (
+            overrides: Partial<NewMaintenanceWindow> = {},
+        ): NewMaintenanceWindow => ({
+            startsAt: WINDOW_STARTS,
+            endsAt: WINDOW_ENDS,
+            message: 'Upgrade to 2.3',
+            createdAt: ANNOUNCED_AT,
+            createdBy: OPERATOR,
+            lockedAt: null,
+            lockedBy: null,
+            ...overrides,
+        });
+
+        test('no window is open before one is announced', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            assert.equal(await port.findOpen(), null);
+            assert.deepEqual(await port.listRecent(10), []);
+        });
+
+        test('an announced window comes back as written, and is the open one', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            const opened = await port.open(announcement());
+            assert.ok(opened?.id, 'the adapter assigns the id');
+            const open = await port.findOpen();
+            assert.equal(open?.id, opened.id);
+            assert.equal(open?.startsAt?.toISOString(), WINDOW_STARTS.toISOString());
+            assert.equal(open?.endsAt?.toISOString(), WINDOW_ENDS.toISOString());
+            // To the millisecond: the moment an operator announced is what the
+            // record answers "when were they told" with.
+            assert.equal(open?.createdAt.toISOString(), ANNOUNCED_AT.toISOString());
+            assert.equal(open?.createdBy, OPERATOR);
+            assert.equal(open?.message, 'Upgrade to 2.3');
+            assert.equal(open?.lockedAt, null);
+            assert.equal(open?.lockedBy, null);
+            assert.equal(open?.endedAt, null);
+            assert.equal(open?.endedBy, null);
+        });
+
+        test('a window locked at once keeps its missing announcement as null, not as an empty value', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            await port.open(
+                announcement({
+                    startsAt: null,
+                    endsAt: null,
+                    message: null,
+                    lockedAt: LOCKED_AT,
+                    lockedBy: 'cli:ops@example.com:deploy-host',
+                }),
+            );
+            const open = await port.findOpen();
+            assert.equal(open?.startsAt, null);
+            assert.equal(open?.endsAt, null);
+            assert.equal(open?.message, null);
+            assert.equal(open?.lockedAt?.toISOString(), LOCKED_AT.toISOString());
+            assert.equal(open?.lockedBy, 'cli:ops@example.com:deploy-host');
+        });
+
+        test('a second window is refused while one is open, and the first stands', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            const first = await port.open(announcement());
+            assert.equal(await port.open(announcement({ message: 'the second' })), null);
+            assert.equal((await port.findOpen())?.id, first?.id);
+            assert.equal((await port.listRecent(10)).length, 1);
+        });
+
+        test('of several windows opened at once, exactly one lands', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            // Two operators — or a deploy script and an operator — locking at
+            // the same moment. Issued together, so on a real database they meet
+            // on the index rather than queue in the test.
+            const opened = await Promise.all(
+                [1, 2, 3].map((n) => port.open(announcement({ message: `attempt ${n}` }))),
+            );
+            const landed = opened.filter((window) => window !== null);
+            assert.equal(landed.length, 1, 'exactly one window is open');
+            assert.equal((await port.findOpen())?.id, landed[0]?.id);
+        });
+
+        test('a move names the stage it expects, and a window at another stage is left as it was', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            const window = await port.open(announcement());
+            assert.ok(window);
+            // Expecting a lock that is not there: nothing moves.
+            assert.equal(await port.update(window.id, 'locked', { endedAt: UNLOCKED_AT }), null);
+            assert.equal((await port.findOpen())?.endedAt, null);
+
+            const locked = await port.update(window.id, 'announced', {
+                lockedAt: LOCKED_AT,
+                lockedBy: OPERATOR,
+            });
+            assert.equal(locked?.lockedAt?.toISOString(), LOCKED_AT.toISOString());
+            assert.equal(locked?.lockedBy, OPERATOR);
+            assert.equal(locked?.message, 'Upgrade to 2.3', 'what the change did not name is kept');
+
+            // Locked now: a move that still expects the announcement is refused.
+            assert.equal(
+                await port.update(window.id, 'announced', { startsAt: UNLOCKED_AT }),
+                null,
+            );
+            assert.equal(
+                (await port.findOpen())?.startsAt?.toISOString(),
+                WINDOW_STARTS.toISOString(),
+            );
+            assert.equal(await port.update('no-such-window', 'announced', { message: 'x' }), null);
+        });
+
+        test('of two locks issued at once, exactly one moves the window', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            const window = await port.open(announcement());
+            assert.ok(window);
+            const attempts = await Promise.all(
+                ['web:a@example.com:s1', 'cli:b@example.com:host'].map((actor) =>
+                    port.update(window.id, 'announced', { lockedAt: LOCKED_AT, lockedBy: actor }),
+                ),
+            );
+            const moved = attempts.filter((result) => result !== null);
+            assert.equal(moved.length, 1, 'exactly one lock lands');
+            assert.equal((await port.findOpen())?.lockedBy, moved[0]?.lockedBy);
+        });
+
+        test('an ended window is no longer open, cannot be moved, and makes room for the next', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            const window = await port.open(announcement());
+            assert.ok(window);
+            await port.update(window.id, 'announced', { lockedAt: LOCKED_AT, lockedBy: OPERATOR });
+            const ended = await port.update(window.id, 'locked', {
+                endedAt: UNLOCKED_AT,
+                endedBy: OPERATOR,
+            });
+            assert.equal(ended?.endedAt?.toISOString(), UNLOCKED_AT.toISOString());
+            assert.equal(ended?.endedBy, OPERATOR);
+            assert.equal(await port.findOpen(), null);
+
+            assert.equal(await port.update(window.id, 'locked', { endedAt: new Date() }), null);
+            assert.equal(
+                (await port.listRecent(1))[0]?.endedAt?.toISOString(),
+                UNLOCKED_AT.toISOString(),
+                'unlocking again leaves the first end in place',
+            );
+
+            const next = await port.open(announcement({ createdAt: UNLOCKED_AT }));
+            assert.ok(next, 'the next window opens once the last one ended');
+            assert.equal((await port.findOpen())?.id, next.id);
+        });
+
+        test('recent windows are listed newest first, the ended ones included, up to the limit', async (t) => {
+            const port = harness.adapter.maintenanceWindows;
+            if (!port) {
+                missing(t, 'maintenanceWindows');
+                return;
+            }
+            const ids: string[] = [];
+            for (const [index, day] of ['01', '02', '03'].entries()) {
+                const created = new Date(`2026-10-${day}T08:00:00.000Z`);
+                const window = await port.open(announcement({ createdAt: created }));
+                assert.ok(window);
+                ids.push(window.id);
+                if (index < 2) {
+                    await port.update(window.id, 'announced', {
+                        endedAt: created,
+                        endedBy: OPERATOR,
+                    });
+                }
+            }
+            assert.deepEqual(
+                (await port.listRecent(10)).map((w) => w.id),
+                [...ids].reverse(),
+            );
+            assert.deepEqual(
+                (await port.listRecent(2)).map((w) => w.id),
+                [ids[2], ids[1]],
             );
         });
     });

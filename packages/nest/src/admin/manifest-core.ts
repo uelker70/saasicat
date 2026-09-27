@@ -73,6 +73,10 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             // because the page is mounted and the route answers either way;
             // `includeSettingsController` only says who serves it.
             settings: { enabled: true, requiredCapability: 'settings.read' },
+            // Maintenance windows. The capability comes from the maintenance
+            // module itself, so the page appears exactly where windows are
+            // kept.
+            maintenance: { enabled: true, requiredCapability: 'maintenance.manage' },
         },
     },
     tenants: {

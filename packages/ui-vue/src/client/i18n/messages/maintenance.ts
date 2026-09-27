@@ -1,0 +1,181 @@
+// translation-catalogue: the German half of this file is German on purpose.
+import { defineMessages } from '../define.js';
+
+export const maintenanceMessages = defineMessages(
+    {
+        title: 'Wartung',
+        subtitle: 'Mandanten vorab informieren und die Anwendung für einen Deploy sperren.',
+        announce: 'Wartungsfenster ankündigen',
+        lockNow: 'Jetzt sperren',
+        loadFailed: 'Die Wartungsfenster konnten nicht geladen werden.',
+        open: {
+            title: 'Offenes Wartungsfenster',
+            none: 'Kein Wartungsfenster offen.',
+            noneHint:
+                'Ein angekündigtes Fenster sehen die Mandanten sofort als Hinweis in der Anwendung und auf der Anmeldeseite. Gesperrt wird erst, wenn jemand sperrt — hier, per CLI oder im Deploy-Skript.',
+            startsAt: 'Beginn',
+            endsAt: 'Voraussichtliches Ende',
+            message: 'Nachricht',
+            announcedBy: 'Angekündigt von',
+            lockedAt: 'Gesperrt seit',
+            lockedBy: 'Gesperrt von',
+            notAnnounced: 'ohne Ankündigung gesperrt',
+            lapsed: 'Das angekündigte Ende ist vorbei, ohne dass gesperrt wurde. Die Mandanten sehen das Fenster nicht mehr; es steht aber dem nächsten im Weg — streichen oder verschieben.',
+            locked: 'Alle Mandanten sind ausgesperrt seit {since}.',
+            overrun:
+                'Das angekündigte Ende {end} ist vorbei. Die Mandanten lesen, dass es länger dauert als angekündigt.',
+            takesEffect: 'Eine Sperre erreicht jeden Prozess innerhalb von {seconds} Sekunden.',
+            lock: 'Sperren',
+            unlock: 'Entsperren',
+            reschedule: 'Verschieben',
+            cancel: 'Streichen',
+        },
+        status: {
+            announced: 'Angekündigt',
+            locked: 'Gesperrt',
+            ended: 'Beendet',
+            cancelled: 'Gestrichen',
+        },
+        recent: {
+            title: 'Bisherige Fenster',
+            empty: 'Noch kein Wartungsfenster.',
+            status: 'Status',
+            startsAt: 'Angekündigt für',
+            lockedAt: 'Gesperrt',
+            endedAt: 'Beendet',
+            by: 'Von',
+        },
+        form: {
+            announceTitle: 'Wartungsfenster ankündigen',
+            rescheduleTitle: 'Wartungsfenster verschieben',
+            lockTitle: 'Jetzt sperren',
+            lockSubtitle:
+                'Ohne Ankündigung, für einen Deploy, der nicht warten kann. Die Mandanten sehen sofort die Wartungsseite.',
+            startsAt: 'Beginn',
+            endsAt: 'Voraussichtliches Ende',
+            message: 'Nachricht an die Mandanten (optional)',
+            zone: 'Zeiten in {zone}',
+            submitAnnounce: 'Ankündigen',
+            submitSave: 'Speichern',
+            announced: 'Wartungsfenster angekündigt.',
+            rescheduled: 'Wartungsfenster verschoben.',
+        },
+        confirm: {
+            lockTitle: 'Alle Mandanten aussperren?',
+            lockMessage:
+                'Jede Anfrage eines Mandanten wird abgelehnt, bis entsperrt wird — auch über das angekündigte Ende hinaus. Administration, CLI und die Health-Probes der Anwendung bleiben erreichbar.',
+            lockConfirm: 'Aussperren',
+            unlockTitle: 'Mandanten wieder hereinlassen?',
+            unlockMessage:
+                'Die Mandanten arbeiten sofort wieder mit der laufenden Version. Erst entsperren, wenn der Deploy durch ist.',
+            unlockConfirm: 'Entsperren',
+            cancelTitle: 'Angekündigtes Fenster streichen?',
+            cancelMessage:
+                'Die Mandanten sehen den Hinweis nicht mehr, und die Anwendung erfährt von der Streichung.',
+            cancelConfirm: 'Streichen',
+            locked: 'Gesperrt. Jeder Prozess sieht die Sperre spätestens nach {seconds} Sekunden.',
+            alreadyLocked: 'Die Sperre bestand bereits.',
+            unlocked: 'Entsperrt — die Mandanten sind wieder drin.',
+            nothingLocked: 'Es war nichts gesperrt.',
+            cancelled: 'Wartungsfenster gestrichen.',
+            mfaLock: 'Zweiter Faktor, um alle Mandanten auszusperren',
+            mfaUnlock: 'Zweiter Faktor, um die Mandanten wieder hereinzulassen',
+        },
+        banner: {
+            locked: 'Wartung: Die Mandanten sind ausgesperrt seit {since}.',
+            lockedUntil:
+                'Wartung: Die Mandanten sind ausgesperrt seit {since}, angekündigt bis {end}.',
+            overrun:
+                'Wartung: Die Mandanten sind seit {since} ausgesperrt, und das angekündigte Ende {end} ist vorbei. Entsperren nicht vergessen.',
+            open: 'Zur Wartung',
+        },
+    },
+    {
+        title: 'Maintenance',
+        subtitle: 'Tell the tenants ahead of time, and lock the application for a deploy.',
+        announce: 'Announce a window',
+        lockNow: 'Lock now',
+        loadFailed: 'The maintenance windows could not be loaded.',
+        open: {
+            title: 'Open maintenance window',
+            none: 'No maintenance window is open.',
+            noneHint:
+                'Tenants see an announced window at once, in the application and on the sign-in page. Nothing is locked until somebody locks — here, from the command line, or in the deploy script.',
+            startsAt: 'Starts',
+            endsAt: 'Expected end',
+            message: 'Message',
+            announcedBy: 'Announced by',
+            lockedAt: 'Locked since',
+            lockedBy: 'Locked by',
+            notAnnounced: 'locked without an announcement',
+            lapsed: 'The announced end has passed without a lock. Tenants no longer see the window, but it stands in the way of the next one — cancel or move it.',
+            locked: 'Every tenant is locked out since {since}.',
+            overrun:
+                'The announced end {end} has passed. Tenants are told it is taking longer than announced.',
+            takesEffect: 'A lock reaches every process within {seconds} seconds.',
+            lock: 'Lock',
+            unlock: 'Unlock',
+            reschedule: 'Move',
+            cancel: 'Cancel',
+        },
+        status: {
+            announced: 'Announced',
+            locked: 'Locked',
+            ended: 'Ended',
+            cancelled: 'Cancelled',
+        },
+        recent: {
+            title: 'Earlier windows',
+            empty: 'No maintenance window yet.',
+            status: 'Status',
+            startsAt: 'Announced for',
+            lockedAt: 'Locked',
+            endedAt: 'Ended',
+            by: 'By',
+        },
+        form: {
+            announceTitle: 'Announce a maintenance window',
+            rescheduleTitle: 'Move the maintenance window',
+            lockTitle: 'Lock now',
+            lockSubtitle:
+                'Without an announcement, for a deploy that cannot wait. Tenants see the maintenance page at once.',
+            startsAt: 'Starts',
+            endsAt: 'Expected end',
+            message: 'Message to the tenants (optional)',
+            zone: 'Times in {zone}',
+            submitAnnounce: 'Announce',
+            submitSave: 'Save',
+            announced: 'Maintenance window announced.',
+            rescheduled: 'Maintenance window moved.',
+        },
+        confirm: {
+            lockTitle: 'Lock every tenant out?',
+            lockMessage:
+                'Every tenant request is refused until somebody unlocks — past the announced end too. The administration, the command line and the application’s health probes stay reachable.',
+            lockConfirm: 'Lock out',
+            unlockTitle: 'Let the tenants back in?',
+            unlockMessage:
+                'Tenants work with the running version at once. Unlock only once the deploy is through.',
+            unlockConfirm: 'Unlock',
+            cancelTitle: 'Cancel the announced window?',
+            cancelMessage:
+                'Tenants no longer see the notice, and the application is told it was cancelled.',
+            cancelConfirm: 'Cancel window',
+            locked: 'Locked. Every process sees the lock within {seconds} seconds.',
+            alreadyLocked: 'The lock already held.',
+            unlocked: 'Unlocked — the tenants are back.',
+            nothingLocked: 'Nothing was locked.',
+            cancelled: 'Maintenance window cancelled.',
+            mfaLock: 'Second factor to lock every tenant out',
+            mfaUnlock: 'Second factor to let the tenants back in',
+        },
+        banner: {
+            locked: 'Maintenance: tenants are locked out since {since}.',
+            lockedUntil:
+                'Maintenance: tenants are locked out since {since}, announced until {end}.',
+            overrun:
+                'Maintenance: tenants have been locked out since {since}, and the announced end {end} has passed. Remember to unlock.',
+            open: 'Go to maintenance',
+        },
+    },
+);

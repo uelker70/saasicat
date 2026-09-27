@@ -63,6 +63,7 @@ export function createMemoryHarness() {
         checkoutOffers: [],
         appliedSettings: null,
         settingsChanges: [],
+        maintenanceWindows: [],
     });
 
     let transactionCounter = 0;
@@ -1038,6 +1039,45 @@ export function createMemoryHarness() {
         },
     };
 
+    /**
+     * Maintenance windows: at most one open, as the partial unique index keeps
+     * it, and every move conditional on the stage the caller read.
+     */
+    const maintenanceWindows = {
+        async findOpen() {
+            const open = state.maintenanceWindows.find((row) => row.endedAt === null);
+            return open ? structuredClone(open) : null;
+        },
+        async listRecent(limit) {
+            const rows = [...state.maintenanceWindows].sort(
+                (a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1),
+            );
+            return structuredClone(rows.slice(0, limit));
+        },
+        async open(window) {
+            if (state.maintenanceWindows.some((row) => row.endedAt === null)) return null;
+            const row = {
+                id: nextId('window'),
+                ...structuredClone(window),
+                endedAt: null,
+                endedBy: null,
+            };
+            state.maintenanceWindows.push(row);
+            return structuredClone(row);
+        },
+        async update(id, stage, changes) {
+            const row = state.maintenanceWindows.find(
+                (candidate) =>
+                    candidate.id === id &&
+                    candidate.endedAt === null &&
+                    (candidate.lockedAt !== null) === (stage === 'locked'),
+            );
+            if (!row) return null;
+            Object.assign(row, structuredClone(changes));
+            return structuredClone(row);
+        },
+    };
+
     // Checkout offers. `consume` decides on the write whether the offer is still
     // open, as a conditional update does, so two callers cannot both consume it.
     const checkoutOfferRepository = {
@@ -1154,6 +1194,7 @@ export function createMemoryHarness() {
             subscriberRepository,
             checkoutOfferRepository,
             appliedSettings,
+            maintenanceWindows,
         },
         seed,
         async reset() {

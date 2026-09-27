@@ -24,6 +24,7 @@ import {
 import { CATALOG_ERROR_CODES } from '@saasicat/core';
 
 import { PlanCatalogImporterService } from './plan-catalog-importer.service.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 export class PlanCatalogImportDto {
     @IsString()
@@ -59,6 +60,7 @@ function isUnreadableDocument(error: unknown): boolean {
 
 export function buildPlanCatalogImporterController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/billing/plan-catalog')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedPlanCatalogImporterController {
         constructor(

@@ -1943,6 +1943,40 @@ the row. Null still means a booking made before the column existed, billed in th
   harnesses do it with one update. A harness without it declares
   `gaps: ['foreignBookingCycleSeed']`.
 
+### An operator can lock the application for a deploy
+
+New and optional: a maintenance window an operator announces to the tenants, and a lock that
+refuses every tenant request while a migration runs. To adopt it:
+
+1. Add `MaintenanceWindow` from `prisma-fragments/16-maintenance-window.prisma` to your schema.
+2. Run the migration once, before `db push` where you use one, and apply `constraints.postgres.sql`
+   after the push — the partial unique index that allows one open window is one `db push` does
+   not know:
+
+    ```bash
+    psql "$DATABASE_URL" -f node_modules/@saasicat/spec/sql/1.0-maintenance-windows-are-kept.postgres.sql
+    ```
+
+3. Set `maintenance: true` in `SaaSiCatModule.forRoot`. Both shipped adapters provide
+   `persistence.core.maintenanceWindows`; without a place to keep windows the start is refused
+   (`maintenance.requires-windows-port`).
+4. Mark your health and readiness probes with `@AllowDuringMaintenance()`, have your scheduled jobs
+   ask `MaintenanceService.isLocked()`, wrap the tenant's application in `MaintenanceGate`, and
+   register the `maintenance` commands in your CLI. The guide says how:
+   [Take the application offline for a deploy](take-the-application-offline-for-a-deploy.md).
+5. Deploy it once, normally, before the first deploy you lock.
+
+With it on, SaaSiCat registers a global guard ahead of its feature guard, every platform
+controller under `admin` stays reachable while the lock holds, and the administration offers a
+**Maintenance** page and shows a strip on every page while tenants are locked out.
+
+- **A persistence contract harness** gains the `maintenanceWindows` member; a harness without it
+  declares `gaps: ['maintenanceWindows']`.
+- **`PLATFORM_DOCTOR_CHECK_PROVIDERS`** gains `MaintenanceDoctorCheck`, which reports a lock and an
+  announcement that lapsed. Where maintenance is off it says so and passes.
+- **`TenantPlanSectionI18n`** gains seven `maintenance*` strings. A catalogue you build whole adds
+  them; one that overrides single strings needs nothing.
+
 ## What the codemod leaves to you
 
 1. **`FEATURE_UI_REGISTRY_TOKEN` imported from `@saasicat/nest`** — pick the entry you mean.

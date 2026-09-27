@@ -9,7 +9,7 @@ A failing boot names each rule by id and links back to this page.
 This file is generated from `PLATFORM_RULES` in
 `@saasicat/nest/platform`. Change the rule, not the page.
 
-There are 21 rules, in 12 areas.
+There are 22 rules, in 13 areas.
 
 ## core
 
@@ -91,6 +91,14 @@ Setup is enabled, but no provisioningPort is available. Set
 AdminStats is enabled, but no auditStatsPort is available. Set
 `adminStats.auditStatsPort` or use a bundle providing
 `persistence.core.auditStats`.
+
+## maintenance
+
+### maintenance.requires-windows-port
+
+Maintenance is enabled, but there is nowhere to keep the windows. Set
+`maintenance.windows` or use a bundle providing
+`persistence.core.maintenanceWindows` — both shipped adapters do.
 
 ## subscription-contract
 

@@ -34,6 +34,7 @@ import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { EnforceMfa } from './enforce-mfa.decorator.js';
+import { AllowDuringMaintenance } from '../maintenance/allow-during-maintenance.js';
 
 export const ADMIN_RESOURCES_PORT_TOKEN = Symbol.for('saasicat/nest/AdminResourcesPort');
 
@@ -153,6 +154,7 @@ function actorFromRequest(request: AdminRequest): AdminActor {
 
 function buildAdminResourcesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
+    @AllowDuringMaintenance()
     @UseGuards(...guards)
     class GeneratedAdminResourcesController {
         constructor(

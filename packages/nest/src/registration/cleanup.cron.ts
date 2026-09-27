@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+import { MaintenanceService } from '../maintenance/maintenance.service.js';
 import { PendingRegistrationService } from './pending-registration.service.js';
 
 /**
@@ -18,10 +19,24 @@ import { PendingRegistrationService } from './pending-registration.service.js';
 export class RegistrationCleanupCron {
     private readonly logger = new Logger(RegistrationCleanupCron.name);
 
-    constructor(private readonly service: PendingRegistrationService) {}
+    constructor(
+        private readonly service: PendingRegistrationService,
+        // Optional: without it maintenance is not on, and nothing pauses.
+        @Optional()
+        @Inject(MaintenanceService)
+        private readonly maintenance: MaintenanceService | null = null,
+    ) {}
 
     @Cron('15 4 * * *', { timeZone: 'Europe/Berlin' })
     async runDaily(): Promise<void> {
+        // Skipped under a maintenance lock; the next run deletes what is
+        // expired by then, which includes what was expired now.
+        if (await this.maintenance?.isLocked()) {
+            this.logger.log(
+                'Pending registration cleanup skipped: the application is locked for maintenance.',
+            );
+            return;
+        }
         await this.runCleanup();
     }
 

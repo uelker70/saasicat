@@ -28,6 +28,9 @@ const LASTING = [
     'POST admin/catalog/bundle-versions/:id/publish',
     'POST admin/catalog/plan-versions/:id/publish',
     'POST admin/catalog/plan-versions/:id/terminate',
+    // Every tenant locked out at once, and let back in (`SC-ADM-029`).
+    'POST admin/maintenance/lock',
+    'POST admin/maintenance/unlock',
     'POST admin/tenants/:slug/reactivate',
     'POST admin/tenants/:slug/suspend',
 ];

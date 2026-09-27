@@ -36,6 +36,7 @@ export * from './checkout-offer/index.js';
 export * from './subscription-contract/index.js';
 export * from './subscriber/index.js';
 export * from './settings/index.js';
+export * from './maintenance/index.js';
 
 // High-level composition is also exported from the root entry so existing
 // consumers that already inject root-entry classes can migrate incrementally
@@ -52,6 +53,7 @@ export {
     type SaaSiCatAdminStatsOptions,
     type SaaSiCatCatalogOptions,
     type SaaSiCatCheckoutOfferOptions,
+    type SaaSiCatMaintenanceOptions,
     type SaaSiCatModuleOptions,
     type SaaSiCatPromoCodesOptions,
     type SaaSiCatSetupOptions,

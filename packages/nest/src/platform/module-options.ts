@@ -63,6 +63,7 @@ import type { LoadPlanCatalogOptions } from '../billing/plan-catalog-loader.js';
 import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution.js';
 import { type PromoCodesModuleOptions } from '../promo/promo.module.js';
 import { type SetupModuleOptions } from '../setup/setup.module.js';
+import { type MaintenanceModuleOptions } from '../maintenance/maintenance.module.js';
 import { type CheckoutOfferModuleOptions } from '../checkout-offer/checkout-offer.module.js';
 import {
     type PaymentsModuleOptions,
@@ -250,6 +251,15 @@ export interface SaaSiCatPromoCodesOptions extends Omit<
      * controller can still delegate its validation to the platform.
      */
     adminController?: false;
+}
+
+/** Maintenance windows, deriving where they are kept from persistence by default. */
+export interface SaaSiCatMaintenanceOptions extends Pick<
+    MaintenanceModuleOptions,
+    'notifications' | 'includeAdminController'
+> {
+    /** Where windows are kept; the persistence bundle's `core.maintenanceWindows` by default. */
+    windows?: MaintenanceModuleOptions['windows'];
 }
 
 /** First-run setup, deriving the provisioning adapter from persistence by default. */
@@ -554,6 +564,17 @@ export interface SaaSiCatModuleOptions {
      * `persistence.entitlement.subscriptionContractRepository`.
      */
     subscriptionContract?: false | true | SaaSiCatSubscriptionContractOptions;
+    /**
+     * Maintenance windows: an operator announces one, tenants see it coming,
+     * and while it is locked every tenant request is refused with `503` and the
+     * code `MAINTENANCE`. `true` keeps windows through
+     * `persistence.core.maintenanceWindows`; pass an object to bind them
+     * elsewhere, or to hear of an announcement so the application can mail its
+     * users. Turning it on registers a global guard ahead of the platform's
+     * feature guard; mark the routes that must stay reachable — health and
+     * readiness probes — with `@AllowDuringMaintenance()`.
+     */
+    maintenance?: false | true | SaaSiCatMaintenanceOptions;
     /**
      * Enable the tenant manifest — the app UI gets a filtered manifest per
      * tenant with features, quotas and visible navigation. Requires that

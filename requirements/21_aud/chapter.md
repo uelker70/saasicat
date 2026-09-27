@@ -75,6 +75,16 @@ installations.
 
 _Source:_ release 1.0.0-rc.6
 
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/nest/tests/a-maintenance-window-is-announced-locked-and-ended.test.js`
+    - what the operator does not wait on
+        - an audit log that cannot be written does not undo the lock
+
+<!-- END proof -->
+
 ### SC-AUD-005 — Serious actions are marked as serious
 
 🟢 Suspending a tenant, acting as one, publishing or ending a plan version, cancelling a

@@ -23,10 +23,10 @@
 // subscription IS their tenant's admin. A real app takes this from the token.
 
 import axios from 'axios';
-import { createAxiosHttpClient } from '@saasicat/ui-vue';
+import { createAxiosHttpClient, reportMaintenanceRefusal } from '@saasicat/ui-vue';
 
 const SESSION_KEY = 'notesapp-web-tenant';
-const API_BASE = '/api/v1';
+export const API_BASE = '/api/v1';
 const DEMO_TENANT_HEADER = 'x-demo-tenant';
 const DEMO_ROLE_HEADER = 'x-demo-role';
 const DEMO_ROLE = 'TENANT_ADMIN';
@@ -57,6 +57,15 @@ api.interceptors.request.use((cfg) => {
         cfg.headers[DEMO_ROLE_HEADER] = DEMO_ROLE;
     }
     return cfg;
+});
+
+// A request the maintenance lock refused switches the page to the maintenance
+// notice at once, rather than at the gate's next poll, and the notice says that
+// what the tenant was doing was not carried out.
+api.interceptors.response.use(undefined, (error: unknown) => {
+    const response = (error as { response?: { status: number; data: unknown } }).response;
+    if (response) reportMaintenanceRefusal(response.status, response.data);
+    return Promise.reject(error);
 });
 
 /**

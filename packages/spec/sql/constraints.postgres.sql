@@ -47,6 +47,15 @@ ALTER TABLE applied_settings
 ALTER TABLE applied_settings
     ADD CONSTRAINT applied_settings_is_a_singleton CHECK ("id" = 'installation');
 
+-- At most ONE maintenance window is open — announced or locked, not yet ended.
+--
+-- The index is on a constant, so every open row carries the same key and a
+-- second one collides. A window that ended leaves the index and makes room for
+-- the next. Two operators locking at the same moment therefore land one window,
+-- because the second insert meets the first and is told a window is open.
+CREATE UNIQUE INDEX IF NOT EXISTS maintenance_windows_one_open
+    ON maintenance_windows ((true)) WHERE "endedAt" IS NULL;
+
 -- A subscriber is live for at most ONE tenant, and a tenant has at most ONE
 -- live subscriber. A link that ended keeps its row with `unlinkedAt` set, so the
 -- tenants a subscriber had before stay in its history. Two partial unique

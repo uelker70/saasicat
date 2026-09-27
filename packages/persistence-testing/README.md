@@ -113,6 +113,7 @@ persistenceAdapterContract({
         'subscriberLedger',
         'checkoutOffers',
         'appliedSettings',
+        'maintenanceWindows',
     ],
 });
 ```

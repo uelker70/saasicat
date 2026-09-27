@@ -83,6 +83,14 @@ export class WebAuditLogger {
         );
     }
 
+    /**
+     * The actor behind a request, for a service that records the action
+     * itself: the same derivation the log line and the tag use.
+     */
+    actorFromRequest(req: unknown): AdminActor {
+        return this.buildActor(req);
+    }
+
     private buildActor(req: unknown): AdminActor {
         const userId = this.resolveUserId(req) ?? 'unknown';
         const email =

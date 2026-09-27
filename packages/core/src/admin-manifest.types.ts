@@ -84,7 +84,8 @@ export type StandardPageKey =
     | 'marketingCatalog'
     | 'platformEmail'
     | 'platformEmailHistory'
-    | 'settings';
+    | 'settings'
+    | 'maintenance';
 
 export interface StandardPageDef {
     enabled: boolean;

@@ -1053,6 +1053,55 @@ const APPLIED_SETTINGS = {
     ],
 };
 
+/**
+ * Maintenance windows: one locked, with its message and its announced end, and
+ * two before it — one that ended and one called off — so the banner, the facts,
+ * the unlock action and every pill tone of the table are on the screen.
+ */
+const LOCKED_WINDOW = {
+    id: 'window-3',
+    status: 'locked',
+    startsAt: '2026-01-15T21:00:00.000Z',
+    endsAt: '2026-01-15T22:00:00.000Z',
+    message: 'Upgrade to 2.3 — the invoice screen gains a PDF preview.',
+    createdAt: '2026-01-13T09:00:00.000Z',
+    createdBy: 'web:ops@example.com:s-1',
+    lockedAt: '2026-01-15T21:03:00.000Z',
+    lockedBy: 'cli:ops@example.com:deploy-runner',
+    endedAt: null,
+    endedBy: null,
+    overrun: false,
+    lapsed: false,
+};
+const MAINTENANCE_OVERVIEW = {
+    open: LOCKED_WINDOW,
+    recent: [
+        LOCKED_WINDOW,
+        {
+            ...LOCKED_WINDOW,
+            id: 'window-2',
+            status: 'ended',
+            startsAt: '2026-01-08T21:00:00.000Z',
+            endsAt: '2026-01-08T21:30:00.000Z',
+            lockedAt: '2026-01-08T21:01:00.000Z',
+            endedAt: '2026-01-08T21:24:00.000Z',
+            endedBy: 'cli:ops@example.com:deploy-runner',
+        },
+        {
+            ...LOCKED_WINDOW,
+            id: 'window-1',
+            status: 'cancelled',
+            startsAt: '2026-01-02T21:00:00.000Z',
+            endsAt: '2026-01-02T22:00:00.000Z',
+            lockedAt: null,
+            lockedBy: null,
+            endedAt: '2026-01-02T10:00:00.000Z',
+            endedBy: 'web:ops@example.com:s-1',
+        },
+    ],
+    takesEffectWithinSeconds: 5,
+};
+
 /** Routing table. Matched EXACTLY — see `respondTo` for why. */
 const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/boot', BOOT],
@@ -1062,6 +1111,7 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/audit', AUDIT_ROWS],
     ['/api/admin/subscriptions', SUBSCRIPTION_ROWS],
     ['/api/admin/settings', APPLIED_SETTINGS],
+    ['/api/admin/maintenance', MAINTENANCE_OVERVIEW],
     // The full snapshot, not an empty stand-in. It used to be one, because the
     // pages that render a scan were handed `FIXTURE_DISCOVERY` as a prop and
     // nothing read this route for its contents. They fetch it now: an empty

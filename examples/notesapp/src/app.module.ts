@@ -8,6 +8,7 @@ import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
 import { DemoAuthGuard } from './auth/demo-auth.guard';
 import { DemoAuthModule } from './auth/demo-auth.module';
 import { DemoPasswordHasher } from './auth/demo-password.hasher';
+import { HealthController } from './health.controller';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
@@ -73,6 +74,12 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                 promoCodes: true,
                 quotaProviders: [NotesQuotaProvider],
                 tenantManifest: true,
+                // Maintenance windows: announced from the administration or
+                // `<app> maintenance`, and while one is locked every tenant
+                // request is refused with 503. The health route below is marked
+                // as reachable during maintenance, so a deploy's health gate
+                // still gets its answer.
+                maintenance: true,
             }),
         ),
 
@@ -80,6 +87,7 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
         // Manifest contribution + KPI endpoints for the SuperAdmin UI.
         NotesAdminModule,
     ],
+    controllers: [HealthController],
     providers: [
         // Maps LimitExceededError from @EnforceQuota to HTTP 402 + quota payload.
         { provide: APP_FILTER, useClass: LimitExceededFilter },
