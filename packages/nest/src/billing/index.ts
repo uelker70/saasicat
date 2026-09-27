@@ -71,6 +71,8 @@ export * from './plan-change-preview.service.js';
 export * from './pending-plan-materialization.service.js';
 export * from './contract-freeze.tokens.js';
 export * from './subscription-contract-freeze.service.js';
+export * from './contract-refresh.js';
+export * from './contract-refresh.service.js';
 export {
     SubscriberAccountModule,
     type SubscriberAccountModuleOptions,

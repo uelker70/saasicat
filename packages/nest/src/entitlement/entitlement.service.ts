@@ -86,8 +86,12 @@ export interface ContractLimits {
 }
 
 interface AnswerOptions {
-    /** Leaves out the add-ons whose cancellation is declared. */
-    leaveOutCancelled?: boolean;
+    /**
+     * Answers what a contract frozen now records: the add-ons whose
+     * cancellation is declared left out, and the contract in force not read —
+     * a successor is measured without the agreement it replaces.
+     */
+    freezing?: boolean;
 }
 
 export interface EnforceLimitInput<T> {
@@ -202,7 +206,9 @@ export class EntitlementService {
 
     /**
      * What a contract frozen at `now` records as its entitlements: what
-     * `computeLimits` grants, less the add-ons whose cancellation is declared.
+     * `computeLimits` would grant with no contract in force, less the add-ons
+     * whose cancellation is declared. The contract in force is not read, so a
+     * successor can be composed — and shown — before the one it replaces ends.
      *
      * Those are granted until their effective date by the booking rather than
      * by the contract (`mergeSubscriptionBundlesIntoLimits`), so their end
@@ -221,9 +227,58 @@ export class EntitlementService {
             now,
             catalog,
             undefined,
-            { leaveOutCancelled: true },
+            { freezing: true },
         );
         return { limits, leftOutBundleVersionIds };
+    }
+
+    /**
+     * The features a contract of the tenant covering exactly `bundleVersionIds`
+     * records when frozen now, and the plan version they are read from — or
+     * `null` where the tenant has no subscription. They are the plan version
+     * the subscription is bound to and those add-on versions, each as its row
+     * reads today, with the subscription's own arrangement — aliased and
+     * filtered the way every grant is.
+     *
+     * The add-ons are the ones the caller names, not the bookings running now:
+     * a vocabulary carried into a contract changes what the add-ons it already
+     * covers are called, not which add-ons it covers. Quotas are not asked
+     * for, for the same reason.
+     */
+    async contractFeaturesFor(
+        tenantId: string,
+        bundleVersionIds: Iterable<string>,
+        catalog: PlanCatalog,
+    ): Promise<{ planVersionId: string; features: Set<string> } | null> {
+        const sub = await this.subscriptions.findByTenantId(tenantId);
+        if (!sub) return null;
+        const features = new Set<string>(sub.planVersion.features);
+        for (const id of bundleVersionIds) {
+            const version = this.bundles ? await this.bundles.findVersionById(id) : null;
+            if (!version) {
+                throw new Error(
+                    `The contract covers add-on version '${id}', which cannot be read` +
+                        (this.bundles ? '.' : ': no BundleRepository is configured.'),
+                );
+            }
+            for (const feature of version.features) features.add(feature);
+        }
+        for (const feature of sub.customLimits?.features ?? []) features.add(feature);
+        return {
+            planVersionId: sub.planVersionId,
+            features: this.asGrantable(catalog, { plan: sub.plan, quotas: {}, features }).features,
+        };
+    }
+
+    /**
+     * `features` with every successor a `replaces` declaration carries them to —
+     * what a contract holding them is granted beyond its own keys.
+     */
+    withReplacements(features: ReadonlySet<string>): Set<string> {
+        return new Set(
+            this.replaceFeatureAliases({ plan: '', quotas: {}, features: new Set(features) })
+                .features,
+        );
     }
 
     /**
@@ -320,7 +375,7 @@ export class EntitlementService {
         }
 
         const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
-        const leftOut = options.leaveOutCancelled ? bundles.filter(isCancellationDeclared) : [];
+        const leftOut = options.freezing ? bundles.filter(isCancellationDeclared) : [];
         const counted = bundles.filter((booking) => !leftOut.includes(booking));
         const leftOutBundleVersionIds = leftOut.map((booking) => booking.bundleVersionId);
         const nextBookingEnd = firstAfter(
@@ -328,7 +383,9 @@ export class EntitlementService {
             counted.map((booking) => booking.canceledEffectiveAt),
         );
 
-        const contract = await this.findActiveContract(sub.tenantId, now, tx);
+        const contract = options.freezing
+            ? null
+            : await this.findActiveContract(sub.tenantId, now, tx);
         if (contract) {
             // Bundles booked after the contract was signed take effect
             // immediately — otherwise the purchase stays without consequence
@@ -344,13 +401,9 @@ export class EntitlementService {
                     now,
                 ),
             );
-            // An add-on the contract covers is in its snapshot, cancelled or
-            // not, so it is in these limits and was not left out of them.
-            return {
-                limits,
-                nextBookingEnd,
-                leftOutBundleVersionIds: leftOutBundleVersionIds.filter((id) => !covered.has(id)),
-            };
+            // Nothing is left out here: only a freeze leaves an add-on out,
+            // and a freeze does not read the contract it replaces.
+            return { limits, nextBookingEnd, leftOutBundleVersionIds: [] };
         }
 
         const effectivePlan = resolveEntitlementPlan(sub, this.resolutionConfig ?? {}, now);

@@ -11,7 +11,6 @@ import { MAINTENANCE_STATE_MAX_AGE_SECONDS } from '@saasicat/core';
 import { MaintenanceService } from '@saasicat/nest';
 
 import {
-    CliError,
     DEFAULT_DRAIN_SECONDS,
     MaintenanceAnnounceCommand,
     MaintenanceCancelCommand,
@@ -23,6 +22,7 @@ import {
     MaintenanceRescheduleCommand,
     MaintenanceStatusCommand,
 } from '../dist/index.js';
+import { cliErrorOf, printed, recordingContext } from './helpers/operator-cli.js';
 
 /** The port, in memory: one window open at most, moves guarded on the stage read. */
 class MemoryWindows {
@@ -57,29 +57,9 @@ class MemoryWindows {
     }
 }
 
-/** The CLI context, recording what each command asked of it. */
-function context() {
-    const asked = [];
-    return {
-        asked,
-        resolveIdentity(as) {
-            asked.push('identity');
-            const email = as ?? 'ops@example.com';
-            return { email, host: 'deploy-host', actor: `cli:${email}:deploy-host` };
-        },
-        async ensureSuperAdmin() {
-            asked.push('super-admin');
-            return { id: 'user-ops' };
-        },
-        async ensureProductionConfirmation({ yes }) {
-            asked.push(yes ? 'confirmed with --yes' : 'confirmation');
-        },
-    };
-}
-
 function setUp() {
     const port = new MemoryWindows();
-    const ctx = context();
+    const ctx = recordingContext();
     const service = new MaintenanceService(port, null, null);
     const flow = new MaintenanceCliFlow(ctx, service);
     const slept = [];
@@ -91,17 +71,6 @@ function setUp() {
 
 const inMinutes = (minutes) => new Date(Date.now() + minutes * 60_000);
 const zoned = (date) => date.toISOString().replace('Z', '+00:00');
-
-/** The CliError `fn` threw. */
-async function cliErrorOf(fn) {
-    try {
-        await fn();
-    } catch (error) {
-        assert.ok(error instanceof CliError, `expected a CliError, got ${error}`);
-        return error;
-    }
-    assert.fail('expected a CliError');
-}
 
 // @requirement SC-OPS-015 — The lock survives a restart, and the version being replaced honours it too
 describe('`maintenance on` returns once every process has seen the lock', () => {
@@ -317,20 +286,6 @@ describe('`<app> doctor` about the lock', () => {
 // What each command prints, and the options it reads — the part a deploy
 // script's log shows and an operator's shell parses.
 describe('the `maintenance` commands', () => {
-    async function printed(command, flags = {}) {
-        const chunks = [];
-        const write = process.stdout.write;
-        process.stdout.write = (chunk) => {
-            chunks.push(String(chunk));
-            return true;
-        };
-        try {
-            await command.run([], flags);
-        } finally {
-            process.stdout.write = write;
-        }
-        return chunks.join('');
-    }
     const times = () => ({
         starts: inMinutes(60).toISOString(),
         ends: inMinutes(90).toISOString(),

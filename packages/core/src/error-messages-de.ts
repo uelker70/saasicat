@@ -264,6 +264,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'Kein aktiver Abo-Vertrag für Mandant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED:
         "SubscriptionContract '{contractId}' ist bereits geschlossen",
+    SUBSCRIPTION_CONTRACT_CHANGED:
+        "Die Verträge von Mandant '{tenantId}' haben sich geändert, während ein Nachfolger geschrieben wurde, oder einer beginnt nach dem Zeitpunkt, ab dem er gälte, sodass er neben einem anderen liefe. Es wurde nichts geschrieben.",
     // ── subscriber ──
     SUBSCRIBER_REQUIRED:
         "Mandant '{tenantId}' hat keinen Vertragspartner. Ohne ihn wird nichts vereinbart oder berechnet: Zuerst muss der Vertragspartner des Mandanten angelegt werden.",

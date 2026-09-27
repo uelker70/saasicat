@@ -171,6 +171,13 @@ export interface CreateSubscriptionContractData {
 /** What a repository writes: the contract as asked for, with the parties the platform copied. */
 export interface NewSubscriptionContractData extends CreateSubscriptionContractData {
     parties: SubscriptionContractParties;
+    /**
+     * The parties are a copy the migration made rather than what was agreed —
+     * set where a successor takes them over from a contract that says so, so
+     * that the copy is not passed off as agreed one contract later. Absent
+     * means `false`.
+     */
+    partiesMigrated?: boolean;
 }
 
 export interface TerminateSubscriptionContractData {
@@ -189,6 +196,20 @@ export interface TerminateSubscriptionContractData {
      * then", and a status is how it says "it is over now".
      */
     status: Extract<SubscriptionContractStatus, 'terminated' | 'superseded'> | null;
+}
+
+/**
+ * Ends a contract because a successor takes its place — on the condition that
+ * it is still as the caller read it.
+ */
+export interface SupersedeSubscriptionContractData {
+    /** When the successor takes over; written as the contract's `effectiveUntil`. */
+    at: Date;
+    /**
+     * The `effectiveUntil` the caller read. A contract whose end moved since —
+     * a cancellation capped it, or ended it — is not superseded.
+     */
+    readEffectiveUntil: Date | null;
 }
 
 export interface SubscriptionContractFilter {

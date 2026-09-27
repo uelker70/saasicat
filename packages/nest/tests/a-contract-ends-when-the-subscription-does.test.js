@@ -59,6 +59,14 @@ function contractStore() {
             if (data.status !== null) row.status = data.status;
             return row;
         },
+        async writeSuccessor(previous, data, at) {
+            if (previous) {
+                assert.equal(previous.id, row.id);
+                row.effectiveUntil = at;
+                row.status = 'superseded';
+            }
+            return this.create(data);
+        },
     };
 }
 

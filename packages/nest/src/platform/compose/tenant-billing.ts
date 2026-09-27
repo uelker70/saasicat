@@ -3,6 +3,7 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
+    TransactionRunner,
 } from '@saasicat/core';
 
 import { SubscriptionBundleModule } from '../../billing/subscription-bundles.module.js';
@@ -62,6 +63,14 @@ export function composeTenantBilling(ctx: CompositionContext): DynamicModule[] {
         subscriptionWritePort:
             subscriptionWritePort ??
             (tenantSlice?.subscriptionWritePort as ProviderSpec<TenantSubscriptionWritePort>),
+        // The platform's runner, unless the application names its own: a
+        // successor contract and the end of the one it replaces are written
+        // on one transaction.
+        contractFreeze: tenantOptions.contractFreeze && {
+            transactionRunner: ctx.adapters.transactionRunner as
+                ProviderSpec<TransactionRunner> | undefined,
+            ...tenantOptions.contractFreeze,
+        },
         imports: tenantImports ?? ctx.options.imports,
         extraProviders: [...quotaProviders, ...(extraProviders ?? [])],
         extraExports: [...quotaProviders, ...(extraExports ?? [])],

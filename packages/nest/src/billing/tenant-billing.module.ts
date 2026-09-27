@@ -17,11 +17,15 @@ import type {
     SubscriptionContractRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
+    TransactionRunner,
     UsageSnapshotPort,
 } from '@saasicat/core';
 import { subscriberProviders } from '../subscriber/subscriber.module.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
-import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
+import {
+    CONTRACT_TRANSACTION_RUNNER_TOKEN,
+    SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
+} from '../subscription-contract/subscription-contract.tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';
@@ -33,6 +37,7 @@ import { SubscriberAccountService } from './charges/subscriber-account.service.j
 import { SubscriberChargeService } from './charges/subscriber-charge.service.js';
 import { SUBSCRIBER_LEDGER_REPOSITORY_TOKEN } from './charges/subscriber-charge.tokens.js';
 import { SubscriptionContractFreezeService } from './subscription-contract-freeze.service.js';
+import { ContractRefreshService } from './contract-refresh.service.js';
 import {
     CONTRACT_FREEZE_PORT_TOKEN,
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,
@@ -220,6 +225,13 @@ export interface TenantBillingModuleOptions {
          * for a tenant without a subscriber is refused before anything changes.
          */
         subscriberRepository: ProviderSpec<SubscriberRepository>;
+        /**
+         * The transaction a successor contract is written on together with the
+         * end of the one it replaces. `SaaSiCatModule` passes its own. Without
+         * one the two are written one after the other, and two writers at the
+         * same moment can leave two contracts in force.
+         */
+        transactionRunner?: ProviderSpec<TransactionRunner>;
     };
 
     /**
@@ -340,11 +352,21 @@ export class TenantBillingModule {
                 ),
                 ...subscriberProviders(options.contractFreeze.subscriberRepository),
                 SubscriptionContractService,
+                SubscriptionContractFreezeService,
                 {
                     provide: CONTRACT_FREEZE_PORT_TOKEN,
-                    useClass: SubscriptionContractFreezeService,
+                    useExisting: SubscriptionContractFreezeService,
                 },
+                ContractRefreshService,
             );
+            if (options.contractFreeze.transactionRunner) {
+                providers.push(
+                    asProvider(
+                        CONTRACT_TRANSACTION_RUNNER_TOKEN,
+                        options.contractFreeze.transactionRunner,
+                    ),
+                );
+            }
         }
         const hasChargeJournal = Boolean(options.chargeJournal);
         if (options.chargeJournal) {
@@ -404,7 +426,7 @@ export class TenantBillingModule {
                 USAGE_SNAPSHOT_PORT_TOKEN,
                 SUBSCRIPTION_WRITE_PORT_TOKEN,
                 ...(hasPendingPlanQueryPort ? [PendingPlanMaterializationService] : []),
-                ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN] : []),
+                ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN, ContractRefreshService] : []),
                 ...(hasChargeJournal ? [SubscriberChargeService, SubscriberAccountService] : []),
                 ...(options.extraExports ?? []),
             ],

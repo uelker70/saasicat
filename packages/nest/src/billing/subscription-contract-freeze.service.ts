@@ -11,7 +11,11 @@ import type {
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
-import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
+import {
+    contractChanged,
+    SUCCESSOR_ATTEMPTS,
+    SubscriptionContractService,
+} from '../subscription-contract/subscription-contract.service.js';
 import { PLAN_CATALOG_SOURCE_TOKEN } from './plan-catalog.module.js';
 import type { PlanCatalogSource } from './plan-catalog-source.js';
 import { planDefFromVersion } from './plan-catalog-from-snapshot.js';
@@ -122,15 +126,50 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         effectiveFrom: Date,
         endsAt: Date | null = null,
     ): Promise<void> {
+        const data = await this.composeOnPlanChange(
+            tenantId,
+            newPlan,
+            billingCycle,
+            effectiveFrom,
+            endsAt,
+        );
+        for (let attempt = 0; attempt < SUCCESSOR_ATTEMPTS; attempt++) {
+            const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
+            const written = await this.contracts.writeSuccessor(previous, data, effectiveFrom);
+            if (written) {
+                // The next read uses the new contract snapshot.
+                this.entitlements.invalidateTenant(tenantId);
+                return;
+            }
+        }
+        throw contractChanged(tenantId);
+    }
+
+    /**
+     * The contract `freezeOnPlanChange` would write, and nothing written: the
+     * plan version the subscription is bound to, the add-ons booked, the
+     * catalogue's rate and currency, and a promotional code not yet recorded —
+     * checked the way a contract is checked before it is written.
+     *
+     * Public so that an operator's refresh can show a full re-freeze before it
+     * makes one, measured by the same rules a plan change is.
+     */
+    async composeOnPlanChange(
+        tenantId: string,
+        newPlan: string,
+        billingCycle: BillingCycle,
+        effectiveFrom: Date,
+        endsAt: Date | null = null,
+    ): Promise<CreateSubscriptionContractData> {
         const cycle: 'monthly' | 'yearly' = billingCycle === 'YEARLY' ? 'yearly' : 'monthly';
         // The catalogue gives the rate, the currency and the name the plan is
         // sold under, and it is the reading the entitlement snapshot below is
         // filtered against.
         const catalog = await this.catalogs.current();
         const vatRate = catalog.vatRate;
-        // Before the previous contract is closed below: the new one records this
+        // Checked before anything is written: the new contract records this
         // rate, this window and a plan sold in this cycle, and a refusal after
-        // the termination would leave no contract.
+        // the contract in force had ended would leave the tenant with none.
         assertTaxRatePercent('catalog.vatRate', vatRate);
         assertContractWindow(effectiveFrom, endsAt);
         // What the plan line records — id, price, features, quotas — is the
@@ -206,21 +245,10 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             totalGross: totals.totalGross,
         };
 
-        // The lines depend on nothing the termination changes, so they are checked
-        // before it, for the same reason as the rate and the window above.
+        // The lines are checked here for the same reason as the rate and the
+        // window above.
         assertOnePlanLine(lineItems);
         assertNoNegativeDiscount({ priceSnapshot });
-
-        // Terminate the old active contract so that `computeContractLimits` takes the
-        // catalog path (otherwise it would read back the OLD frozen snapshot).
-        const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
-        if (previous) {
-            await this.contracts.terminate(previous.id, {
-                effectiveUntil: effectiveFrom,
-                status: 'superseded',
-            });
-        }
-        this.entitlements.invalidateTenant(tenantId);
 
         // What the tenant would get without the freeze, less the add-ons whose
         // cancellation is declared: those keep their line until their effective
@@ -254,10 +282,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
             promoCodeSnapshots: redeemed ? [redeemed.snapshot] : [],
             lineItems,
         };
-
-        await this.contracts.create(data);
-        // The next read uses the new contract snapshot.
-        this.entitlements.invalidateTenant(tenantId);
+        return data;
     }
 
     /**

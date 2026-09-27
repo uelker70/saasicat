@@ -140,6 +140,108 @@ _Tested by:_
 
 <!-- END proof -->
 
+### SC-ENTL-022 — An operator is told which running contracts hold a feature vocabulary left behind
+
+🟢 A contract keeps the feature keys it was frozen with, so a key renamed, dropped or added in a plan
+version afterwards does not reach it (`SC-ENTL-021`). `<app> doctor` names each contract in force
+whose frozen features hold a key that neither the application's code nor the catalogue knows any
+more, or lack a feature that the plan version its subscription is bound to and the add-on versions
+it covers grant today and that no `replaces` declaration carries one of its keys to. It names them
+and changes nothing.
+
+_Source:_ #73
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/contracts-refresh-cli-flow.test.js`
+    - `&lt;app&gt; doctor` about the contracts in force
+        - without frozen contracts there is nothing to look at
+        - contracts on today’s vocabulary pass
+        - a contract behind is a warning that names it, its keys, and the command to look further
+        - it names five and counts the rest
+        - a contract that could not be compared is a warning with its reason, never a pass
+        - contracts that cannot be read are an error
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - what `doctor` is told
+        - a contract frozen before a rename holds a key the code dropped and lacks its successor
+        - a replaces declaration that carries the old key over leaves nothing to report
+        - a contract frozen with today’s vocabulary is not reported
+        - a contract whose features today cannot be read is named as such, not passed as current
+        - inspecting writes nothing
+- `packages/nest/tests/what-a-contract-refresh-would-change.test.js`
+    - the vocabulary a contract has fallen behind
+        - a frozen key nothing knows is unknown; a key granted today and not frozen is missing
+        - a renamed key a replaces declaration carries over is neither
+
+<!-- END proof -->
+
+### SC-ENTL-023 — An operator carries a changed vocabulary into running contracts, seeing it first
+
+🟢 Only on the operator's command, for the contracts named or for every contract in force — never by
+itself (`SC-ENTL-021`). For each contract the command first shows what it would change: its
+features, quotas, price, tax rate and currency. It writes only when asked a second time. By default
+it replaces the frozen features alone, with those the plan version and the add-on versions the
+contract covers grant today, and copies the lines, prices, terms and parties as they stand. Asked to
+re-freeze in full, it composes the features, quotas and lines the way a plan change would — which
+also leaves out an add-on whose cancellation is declared — while keeping what the contract agreed
+beyond money, such as its terms and its minimum terms, and refuses each contract whose price, tax
+rate or currency would change, naming it for a decision by hand: a price edited into a plan version
+in place does not reach a customer this way. Either way the contract in force is kept, superseded,
+beside the successor that replaces it (`SC-AUD-007`).
+
+_Source:_ #73
+
+<!-- BEGIN proof -->
+
+_Tested by:_
+
+- `packages/cli/tests/contracts-refresh-cli-flow.test.js`
+    - the preview is the command, and the write is the second one
+        - without --apply it previews, asks who is asking, and asks for no confirmation
+        - --apply writes, after the confirmation production asks for
+        - --full asks for a full re-freeze
+        - a selection is required, and only one kind of it — refused before anything is read
+    - what it prints and which exit code a script sees
+        - a preview names each change and says that nothing was written
+        - an apply that wrote everything exits 0 and names the successor
+        - one contract refused or moved makes the exit code 6, after the others were written
+        - the command runs the preview without --apply and the write with it, and sets the exit code
+        - --contract repeats, and --output json prints the results as they are
+- `packages/nest/tests/a-successor-replaces-the-contract-in-force.test.js`
+    - a successor that copies its lines as they stand
+        - gives rise to no charge of its own, in its first period or after
+- `packages/nest/tests/an-operator-carries-a-vocabulary-into-running-contracts.test.js`
+    - carrying the features over
+        - the preview shows the change and writes nothing
+        - applied, a successor grants the new key and the contract it replaces is kept, superseded
+        - lines, prices, terms, window and quotas are copied as they stand
+        - the parties are the ones agreed, not a correction made since — and a migrated copy stays
+          marked
+        - a contract whose features are already today’s is left as it is
+        - a subscription bound to another version than the contract records is refused, and named
+        - the quotas of a cancelled add-on stay: replacing features changes nothing it counts
+        - the refresh is in the audit log, with the contract it replaced
+    - re-freezing in full
+        - leaves a cancelled add-on out of the snapshot, names it, and keeps billing it
+        - a price edited into the plan version in place is refused, named, and not written
+        - a tax rate changed in the configuration is refused
+        - a currency changed in the configuration is refused
+        - keeps the terms, the offer and each line’s minimum term the contract agreed
+        - with the money unchanged, it carries the renamed feature too
+    - what the refresh is asked about
+        - a contract named that is not in force is refused, and so is one that does not exist
+        - a contract that moves between the read and the write is left alone, and said so
+- `packages/nest/tests/what-a-contract-refresh-would-change.test.js`
+    - money
+        - a successor that charges the same is no change, whatever version its lines name
+        - a price edited into the version is named, on the total and on the line
+        - a tax rate and a currency are changes of their own
+        - a line on one side only is named with its price
+
+<!-- END proof -->
+
 ### SC-ENTL-005 — A request for something the contract does not include is refused
 
 🟢 🔒 And the refusal may carry what would unlock it, so the tenant is told how to proceed rather than

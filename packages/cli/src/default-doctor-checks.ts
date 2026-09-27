@@ -4,7 +4,7 @@
 // in `CliContextModule.forRoot()` — analogous to
 // `DEFAULT_MANIFEST_CHECKS`.
 //
-// Five platform checks:
+// Seven platform checks:
 //
 //   1. **`platform.plan-catalog`** — `PLAN_CATALOG_SOURCE_TOKEN` is available in
 //      DI, reads, and the catalogue it reads contains at least one plan.
@@ -20,11 +20,17 @@
 //   6. **`platform.maintenance`** — whether tenants are locked out, since when
 //      and past which announced end; an announcement that lapsed without a
 //      lock; a table the lock cannot be read from.
+//   7. **`platform.contract-features`** — the contracts in force whose frozen
+//      features hold a key the application no longer knows, or lack one the
+//      versions they cover grant today (`SC-ENTL-022`). Reports and changes
+//      nothing; `<app> contracts refresh` carries the vocabulary over.
 //
 
 import { Inject, Injectable, Optional, type Type } from '@nestjs/common';
 import {
     AdminManifestService,
+    ContractRefreshService,
+    type ContractRefreshPreview,
     DISCOVERY_SNAPSHOT_TOKEN,
     IssuerIdentityInspector,
     MaintenanceService,
@@ -286,6 +292,109 @@ export class MaintenanceDoctorCheck implements DoctorCheck {
     }
 }
 
+/** How many contracts the check's message names before it stops naming them. */
+const CONTRACTS_NAMED = 5;
+
+/**
+ * The contracts in force whose frozen vocabulary has fallen behind the
+ * application's (`SC-ENTL-022`).
+ *
+ * A warning rather than an error: a contract keeps what it was frozen with by
+ * design, and whether to carry a renamed feature into it is the operator's
+ * decision, made with `<app> contracts refresh` after a look at what it would
+ * change.
+ */
+@Injectable()
+export class ContractFeaturesDoctorCheck implements DoctorCheck {
+    readonly id = 'platform.contract-features';
+    readonly label = 'Contract features against the vocabulary';
+    constructor(
+        @Optional()
+        @Inject(ContractRefreshService)
+        private readonly refresh: ContractRefreshService | null = null,
+    ) {}
+
+    async run(): Promise<DoctorCheckResult> {
+        if (!this.refresh) {
+            return { severity: 'ok', message: 'Contracts are not frozen in this installation.' };
+        }
+        let report;
+        try {
+            report = await this.refresh.inspect();
+        } catch (err) {
+            return {
+                severity: 'error',
+                message: `The contracts in force cannot be read: ${err instanceof Error ? err.message : String(err)}`,
+            };
+        }
+        if (report.stale.length === 0 && report.unreadable.length === 0) {
+            return {
+                severity: 'ok',
+                message: `${report.inForce} contract(s) in force, each granting the vocabulary the application has.`,
+            };
+        }
+        const parts: string[] = [];
+        if (report.stale.length > 0) {
+            parts.push(
+                `${report.stale.length} of ${report.inForce} contract(s) in force grant a ` +
+                    `vocabulary the application has left: ${named(report.stale, vocabularyOf)}. ` +
+                    '`<app> contracts refresh --all` shows what carrying it over would change.',
+            );
+        }
+        if (report.unreadable.length > 0) {
+            parts.push(
+                `${report.unreadable.length} contract(s) in force could not be compared, so ` +
+                    `nothing is known about their vocabulary: ${named(report.unreadable, reasonOf)}.`,
+            );
+        }
+        return {
+            severity: 'warning',
+            message: parts.join(' '),
+            details: {
+                contracts: report.stale.map((contract) => ({
+                    id: contract.contractId,
+                    tenantId: contract.tenantId,
+                    unknown: contract.vocabulary.unknown,
+                    missing: contract.vocabulary.missing,
+                })),
+                unreadable: report.unreadable.map((contract) => ({
+                    id: contract.contractId,
+                    tenantId: contract.tenantId,
+                    reason: reasonOf(contract),
+                })),
+            },
+        };
+    }
+}
+
+/** Up to `CONTRACTS_NAMED` contracts, each with what `describe` says of it, and the rest counted. */
+function named(
+    contracts: readonly ContractRefreshPreview[],
+    describe: (contract: ContractRefreshPreview) => string,
+): string {
+    const listed = contracts
+        .slice(0, CONTRACTS_NAMED)
+        .map(
+            (contract) =>
+                `${contract.contractId} (tenant ${contract.tenantId}: ${describe(contract)})`,
+        )
+        .join(', ');
+    const more = contracts.length - CONTRACTS_NAMED;
+    return more > 0 ? `${listed} and ${more} more` : listed;
+}
+
+function vocabularyOf({ vocabulary }: ContractRefreshPreview): string {
+    return [
+        ...(vocabulary.unknown.length > 0 ? [`unknown ${vocabulary.unknown.join(', ')}`] : []),
+        ...(vocabulary.missing.length > 0 ? [`missing ${vocabulary.missing.join(', ')}`] : []),
+    ].join('; ');
+}
+
+function reasonOf({ refusal }: ContractRefreshPreview): string {
+    if (refusal?.code === 'NO_SUBSCRIPTION') return 'its tenant has no subscription';
+    return refusal?.code === 'REFUSED' ? refusal.reason : 'not read';
+}
+
 /**
  * Default list that consumers can spread in `CliContextModule.forRoot({ doctorChecks })`:
  *
@@ -307,4 +416,5 @@ export const PLATFORM_DOCTOR_CHECK_PROVIDERS: Array<Type<DoctorCheck>> = [
     AdminManifestDoctorCheck,
     IssuerIdentityDoctorCheck,
     MaintenanceDoctorCheck,
+    ContractFeaturesDoctorCheck,
 ];

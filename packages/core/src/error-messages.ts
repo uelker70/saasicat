@@ -260,6 +260,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     SUBSCRIPTION_CONTRACT_NOT_FOUND: "SubscriptionContract '{contractId}' not found",
     NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'No active subscription contract for tenant {tenantId}',
     SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: "SubscriptionContract '{contractId}' is already closed",
+    SUBSCRIPTION_CONTRACT_CHANGED:
+        "The contracts of tenant '{tenantId}' changed while a successor was being written, or one begins after the moment it would take effect, so it would run beside another. Nothing was written.",
     // ── subscriber ──
     SUBSCRIBER_REQUIRED:
         "Tenant '{tenantId}' has no subscriber. Nothing is agreed or charged without the party to it: create the tenant's subscriber first.",

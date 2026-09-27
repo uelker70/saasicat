@@ -10,6 +10,7 @@ import type {
     RunningContractIssuers,
     SubscriptionContractFilter,
     SubscriptionContractRecord,
+    SupersedeSubscriptionContractData,
     TerminateSubscriptionContractData,
 } from '../subscription-contract.types.js';
 import type {
@@ -229,6 +230,26 @@ export interface SubscriptionContractRepository {
         contractId: string,
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord>;
+    /**
+     * Ends a contract at `data.at` with the status `superseded`, where it is
+     * still as the caller read it: `active` or `scheduled`, and ending when it
+     * ended then. `null`, with nothing written, where it has moved since —
+     * another successor took its place, or a cancellation capped or ended it.
+     *
+     * The condition belongs to the write rather than to a read before it. Two
+     * callers superseding one contract at once — a plan change and an
+     * operator's refresh, say — then end with one successor: the second write
+     * finds the status the first one left and changes nothing, where a read
+     * followed by a plain update would give the tenant two contracts in force.
+     *
+     * With `tx`, written on that transaction and undone with it, so that the
+     * successor written beside it lands with it or not at all.
+     */
+    supersede(
+        contractId: string,
+        data: SupersedeSubscriptionContractData,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null>;
     /**
      * The contracts concluded and not yet over, with the issuer each was
      * concluded under: how many there are, and the first `limit` of them,

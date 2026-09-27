@@ -87,6 +87,13 @@ function makeService({
             calls.created.push(data);
             return { id: 'new-contract', ...data };
         },
+        // Supersedes `previous` from `at` and writes `data` — recorded as the
+        // two writes it stands for, so that a refusal is seen writing neither.
+        async writeSuccessor(previous, data, at) {
+            if (previous) calls.terminated.push({ id: previous.id, at });
+            calls.created.push(data);
+            return { id: 'new-contract', ...data };
+        },
     };
     const source = {
         async findBoundPlanVersion() {
@@ -271,7 +278,7 @@ test('supersedes the previous active contract before creating the new one', asyn
 
     assert.equal(calls.terminated.length, 1);
     assert.equal(calls.terminated[0].id, 'old-1');
-    assert.equal(calls.terminated[0].data.status, 'superseded');
+    assert.equal(calls.terminated[0].at.toISOString(), '2026-06-09T00:00:00.000Z');
     assert.equal(calls.created[0].priceSnapshot.billingCycle, 'yearly');
 });
 
