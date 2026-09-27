@@ -10,6 +10,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import MaintenanceWindowDialog from '../../src/internal/maintenance/MaintenanceWindowDialog.vue';
 import AdminLayout from '../../src/layouts/AdminLayout.vue';
 import MaintenancePage from '../../src/pages/MaintenancePage.vue';
 import { mountWithQuasar } from '../../src/testing/mount-with-quasar.js';
@@ -219,5 +220,42 @@ describe('the lock strip in the administration’s shell', () => {
         const wrapper = mountLayout(LOCKED, false);
         await settle();
         expect(wrapper.text()).not.toMatch(/locked out since|ausgesperrt seit/);
+    });
+});
+
+// @requirement SC-OPS-012
+describe('moving a window in the dialog', () => {
+    test('saving only a new message sends only the message, however precise the window’s times', async () => {
+        const sent: unknown[] = [];
+        // Announced from the command line, to the second.
+        const window = {
+            ...WINDOW,
+            startsAt: '2026-10-02T20:00:30.000Z',
+            endsAt: '2026-10-02T21:00:45.000Z',
+        };
+        const wrapper = mountWithQuasar(MaintenanceWindowDialog as never, {
+            attachTo: document.body,
+            props: {
+                modelValue: true,
+                window,
+                announce: async () => {},
+                reschedule: async (id: string, input: unknown) => {
+                    sent.push([id, input]);
+                },
+            },
+        });
+        mounted.push(wrapper);
+        await settle();
+        const message = document.querySelector('textarea') as HTMLTextAreaElement;
+        message.value = 'Upgrade to 2.4';
+        message.dispatchEvent(new Event('input'));
+        await settle();
+        const save = [...document.querySelectorAll('button')].find((b) =>
+            /(Save|Speichern)$/.test(b.textContent?.trim() ?? ''),
+        );
+        expect(save, 'a save button').toBeDefined();
+        save!.click();
+        await settle();
+        expect(sent).toEqual([['w-1', { message: 'Upgrade to 2.4' }]]);
     });
 });

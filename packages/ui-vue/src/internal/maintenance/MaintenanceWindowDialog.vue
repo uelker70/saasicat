@@ -38,6 +38,7 @@ import { MAINTENANCE_MESSAGE_MAX_LENGTH, type MaintenanceWindowView } from '@saa
 import { formatMessage } from '../../client/i18n/format.js';
 import {
     browserTimeZone,
+    changedInstant,
     instantOfLocalInput,
     localInputOf,
 } from '../../client/maintenance-times.js';
@@ -89,18 +90,23 @@ const complete = computed(() =>
 );
 
 async function onSubmit(): Promise<void> {
-    const startsAt = instantOfLocalInput(form.startsAt) ?? undefined;
-    const endsAt = instantOfLocalInput(form.endsAt) ?? undefined;
     const message = form.message.trim() === '' ? null : form.message;
     if (!props.window) {
         // `complete` has held both times before the button could be pressed.
-        await props.announce({ startsAt: startsAt ?? '', endsAt: endsAt ?? '', message });
+        await props.announce({
+            startsAt: instantOfLocalInput(form.startsAt) ?? '',
+            endsAt: instantOfLocalInput(form.endsAt) ?? '',
+            message,
+        });
         return;
     }
-    await props.reschedule(props.window.id, {
-        ...(locked.value ? {} : { startsAt }),
-        endsAt,
-        message,
+    // Only what the person changed: a field left as it was sends nothing, so
+    // saving moves no time the form could not show to the second.
+    const window = props.window;
+    await props.reschedule(window.id, {
+        ...(locked.value ? {} : { startsAt: changedInstant(form.startsAt, window.startsAt) }),
+        endsAt: changedInstant(form.endsAt, window.endsAt),
+        ...(message === window.message ? {} : { message }),
     });
 }
 </script>

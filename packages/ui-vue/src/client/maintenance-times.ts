@@ -39,3 +39,14 @@ export function instantOfLocalInput(value: string): string | null {
     const moment = new Date(value);
     return Number.isNaN(moment.getTime()) ? null : moment.toISOString();
 }
+
+/**
+ * What a time field sends when a window is moved: nothing where it still shows
+ * what the window had, and the instant otherwise. The input shows minutes, and a
+ * window announced from the command line carries seconds — saving it for its
+ * message alone must not move it.
+ */
+export function changedInstant(value: string, had: string | null | undefined): string | undefined {
+    if (value === localInputOf(had)) return undefined;
+    return instantOfLocalInput(value) ?? undefined;
+}

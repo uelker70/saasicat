@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { effectScope, nextTick, ref } from 'vue';
 
 import {
+    changedInstant,
     instantOfLocalInput,
     localInputOf,
     useMaintenance,
@@ -189,6 +190,14 @@ describe('the times a form sends', () => {
         const local = localInputOf(iso);
         assert.match(local, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
         assert.equal(instantOfLocalInput(local), iso);
+    });
+
+    test('a field left as it was sends nothing, even where the window carries seconds', () => {
+        const had = '2026-10-02T20:00:30.500Z';
+        assert.equal(changedInstant(localInputOf(had), had), undefined);
+        const moved = localInputOf('2026-10-02T21:15:00.000Z');
+        assert.equal(changedInstant(moved, had), '2026-10-02T21:15:00.000Z');
+        assert.equal(changedInstant('', null), undefined);
     });
 
     test('nothing typed, or nothing readable, sends no time', () => {
