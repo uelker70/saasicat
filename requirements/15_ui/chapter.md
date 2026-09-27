@@ -1853,6 +1853,7 @@ _Tested by:_
         - asks again every minute, and every quarter of a minute while locked
         - what cannot be asked leaves what was known standing
         - a reported refusal locks at once and is remembered until the lock is lifted
+        - a poll that started before a reported refusal does not put the page back
         - stops asking, and stops listening, when the page goes
 - `packages/ui-vue-tenant/tests/component/a-locked-out-tenant-sees-one-page.test.ts`
     - the maintenance gate

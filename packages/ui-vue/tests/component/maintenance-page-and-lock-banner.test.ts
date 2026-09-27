@@ -223,7 +223,7 @@ describe('the lock strip in the administration’s shell', () => {
     });
 });
 
-// @requirement SC-OPS-012
+// @requirement SC-OPS-012 — An operator announces a maintenance window, and tenants see it before it begins
 describe('moving a window in the dialog', () => {
     test('saving only a new message sends only the message, however precise the window’s times', async () => {
         const sent: unknown[] = [];

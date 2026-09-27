@@ -460,6 +460,8 @@ _Tested by:_
         - a locked window says since when, offers to unlock, and says so louder past its end
         - a resource of the application’s own that answers another shape does not take the page down
         - cancelling asks first, then cancels the window it is shown
+    - moving a window in the dialog
+        - saving only a new message sends only the message, however precise the window’s times
 - `packages/ui-vue/tests/use-maintenance.test.js`
     - announcing, moving and cancelling
         - cancelling asks first and needs no code
@@ -565,6 +567,7 @@ _Tested by:_
         - a locked window keeps its start, and may still move its expected end
         - a locked window is ended by unlocking, not by cancelling
         - unlocking ends the window and lets tenants back in
+        - an unlock that lost to another one does not end the lock a later deploy took
         - unlocking what is not locked changes nothing, and leaves an announcement standing
 - `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
     - MaintenancePage
