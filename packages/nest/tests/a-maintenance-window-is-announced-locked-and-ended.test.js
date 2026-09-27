@@ -398,6 +398,29 @@ describe('locking and unlocking are the operator’s, not the clock’s', () => 
         assert.equal(audit.entries.at(-1).action, 'MAINTENANCE_UNLOCK');
     });
 
+    test('an unlock that lost to another one does not end the lock a later deploy took', async () => {
+        const { service, port } = setUp();
+        await service.lock({}, OPERATOR);
+        const [first] = port.windows;
+        // Between this unlock's read and its write, another unlock ends the
+        // lock, and the next deploy takes one of its own.
+        const update = port.update.bind(port);
+        port.update = async (...args) => {
+            port.update = update;
+            Object.assign(first, {
+                endedAt: new Date(),
+                endedBy: 'cli:other@example.com:elsewhere',
+            });
+            port.lockBehindTheServicesBack();
+            return update(...args);
+        };
+        const outcome = await service.unlock({}, OPERATOR);
+        assert.deepEqual(outcome, { window: null, wasLocked: false });
+        const second = port.windows.find((window) => window.id !== first.id);
+        assert.equal(second.endedAt, null, 'the later lock still holds');
+        assert.equal(await new MaintenanceService(port, null, null).isLocked(), true);
+    });
+
     test('unlocking what is not locked changes nothing, and leaves an announcement standing', async () => {
         const { service, audit } = setUp();
         const window = await service.announce(announcement(), OPERATOR);

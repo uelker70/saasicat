@@ -352,31 +352,33 @@ export class MaintenanceService {
         request: { windowId?: string },
         actor: AdminActor,
     ): Promise<MaintenanceUnlockOutcome> {
-        for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-            const open = await this.windows.findOpen();
-            if (request.windowId !== undefined && open?.id !== request.windowId) {
-                throw new NotFoundException(
-                    codedError(MAINTENANCE_ERROR_CODES.MAINTENANCE_WINDOW_NOT_OPEN),
-                );
-            }
-            if (!open || stageOf(open) !== 'locked') {
-                this.remember(open);
-                return { window: open, wasLocked: false };
-            }
-            const ended = await this.windows.update(open.id, 'locked', {
-                endedAt: new Date(),
-                endedBy: actorTagOf(actor),
-            });
-            if (!ended) continue;
-            this.remember(null);
-            await this.record(actor, ended, 'MAINTENANCE_UNLOCK', {
-                lockedAt: ended.lockedAt?.toISOString() ?? null,
-            });
-            return { window: ended, wasLocked: true };
-        }
         const open = await this.windows.findOpen();
-        this.remember(open);
-        return { window: open, wasLocked: false };
+        if (request.windowId !== undefined && open?.id !== request.windowId) {
+            throw new NotFoundException(
+                codedError(MAINTENANCE_ERROR_CODES.MAINTENANCE_WINDOW_NOT_OPEN),
+            );
+        }
+        if (!open || stageOf(open) !== 'locked') {
+            this.remember(open);
+            return { window: open, wasLocked: false };
+        }
+        // Bound to the lock this call read, and not retried against whatever is
+        // open next: a write that finds it no longer locked means another unlock
+        // ended it first, and the window open by now may be a lock a later deploy
+        // took for its own migration.
+        const ended = await this.windows.update(open.id, 'locked', {
+            endedAt: new Date(),
+            endedBy: actorTagOf(actor),
+        });
+        if (!ended) {
+            this.remember(await this.windows.findOpen());
+            return { window: null, wasLocked: false };
+        }
+        this.remember(null);
+        await this.record(actor, ended, 'MAINTENANCE_UNLOCK', {
+            lockedAt: ended.lockedAt?.toISOString() ?? null,
+        });
+        return { window: ended, wasLocked: true };
     }
 
     // -----------------------------------------------------------------
