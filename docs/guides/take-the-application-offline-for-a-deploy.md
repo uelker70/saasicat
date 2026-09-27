@@ -81,7 +81,10 @@ Where it stops:
 
     Tenants see an announced window above the application. While the lock holds they see one
     maintenance page instead of failing actions, and a request the lock refused is reported as not
-    carried out. Once the lock is lifted the application comes back on the screen they were on.
+    carried out. Once the lock is lifted the application comes back on the screen they were on,
+    loaded afresh. Input they had not sent when the lock began is not kept — the application is
+    unmounted under the lock, so that nothing of it stays above the maintenance page — which is
+    what the announcement ahead of the window is for.
 
 6. **The command line.** Register `MaintenanceCommands`, its six sub-commands and
    `MaintenanceCliFlow` from `@saasicat/cli` in your CLI module (see

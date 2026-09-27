@@ -25,6 +25,13 @@ import './ui/tenant-ui.css';
 // holds it renders the maintenance page instead, and the application again
 // once the lock is lifted, on the screen the tenant was on (`SC-UI-026`).
 //
+// The application is unmounted under the lock rather than hidden. Hidden, it
+// would keep its dialogs and notifications above the maintenance page — a UI
+// framework teleports them out of any wrapper — keep sending requests the lock
+// refuses, and come back showing what it had loaded before the migration. The
+// price is input the tenant had not sent when the lock began: it is not kept,
+// and the announcement above the application is their notice to finish first.
+//
 // Where the application's HTTP client hands each response to
 // `reportMaintenanceRefusal`, the page appears the moment a request is
 // refused rather than at the next poll, and says the request was not carried

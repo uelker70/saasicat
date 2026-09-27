@@ -11449,9 +11449,10 @@ _Source:_ #276 · `docs/explanation/adr/0012-the-subscriber-owns-the-commercial-
 
 🟢 Instead of each action failing on its own, the application shows a maintenance page with the
 expected end — or that it is taking longer than announced — and the operator's message. It notices by
-itself when the lock is lifted and returns the tenant to the screen they were on, still signed in. A
-request the lock refused on its way is not dropped silently: the page says that what the tenant was
-doing was not carried out.
+itself when the lock is lifted and returns the tenant to the screen they were on, still signed in and
+loaded afresh; input not yet sent when the lock began is not kept, which the announcement ahead of
+the window gives notice of. A request the lock refused on its way is not dropped silently: the page
+says that what the tenant was doing was not carried out.
 
 _Source:_ #329
 
