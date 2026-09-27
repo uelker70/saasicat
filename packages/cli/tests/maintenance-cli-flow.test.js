@@ -131,7 +131,10 @@ describe('`maintenance on` returns once every process has seen the lock', () => 
             return open(window);
         };
         const outcome = await flow.on({ yes: true });
-        assert.ok(Date.now() - outcome.window.lockedAt.getTime() >= 2000, 'the write took its time');
+        assert.ok(
+            Date.now() - outcome.window.lockedAt.getTime() >= 2000,
+            'the write took its time',
+        );
         assert.deepEqual(slept, [fullWait]);
     });
 
