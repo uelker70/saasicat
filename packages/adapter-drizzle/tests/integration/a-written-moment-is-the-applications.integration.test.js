@@ -177,7 +177,10 @@ describe('the upgrade step moves a redemption written before this version to UTC
              VALUES ($1,$2,$3,'t1','PERCENT','10.00','ONCE',NOW())`,
             [randomUUID(), promoCodeId, subscriptionId],
         );
-        const to = new Date();
+        // One millisecond past the last one this process read: `now()` carries
+        // microseconds, and the `timestamp(3)` column rounds them to the nearest
+        // millisecond, so the stored moment can land up to half of one after it.
+        const to = new Date(Date.now() + 1);
         const redeemedAt = async () =>
             (await redemptions.findBySubscription(subscriptionId)).redeemedAt;
         const written = await redeemedAt();
