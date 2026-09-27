@@ -145,7 +145,11 @@ export class MaintenanceService {
 
     /**
      * The open window as this process knows it — at most
-     * `MAINTENANCE_STATE_MAX_AGE_SECONDS` old.
+     * `MAINTENANCE_STATE_MAX_AGE_SECONDS` old when it says nothing is locked.
+     * An answer that arrives older than that is asked again rather than acted
+     * on, so a database that cannot answer in time keeps a request waiting
+     * instead of admitting it on a reply that may predate a lock. A lock is
+     * acted on however old: it errs on the side of the migration.
      *
      * A read that fails leaves the last answer standing: a lock known to hold
      * is not dropped because the database missed one question, and a process
@@ -397,7 +401,8 @@ export class MaintenanceService {
 
     private async readOpen(): Promise<MaintenanceWindowRecord | null> {
         try {
-            const window = await this.findOpenAndRemember();
+            let window = await this.findOpenAndRemember();
+            while (this.heldTooLongToLetThrough()) window = await this.findOpenAndRemember();
             if (this.readFailing) {
                 this.readFailing = false;
                 this.logger.log('The maintenance lock can be read again.');
@@ -419,6 +424,18 @@ export class MaintenanceService {
             }
             return this.known?.window ?? null;
         }
+    }
+
+    /**
+     * Whether what this process holds says nothing is locked, and was asked for
+     * too long ago to act on — the lock may have committed, and
+     * `maintenance on` returned, while the answer was on its way.
+     */
+    private heldTooLongToLetThrough(): boolean {
+        if (!this.known) return false;
+        const { window, asked } = this.known;
+        if (window !== null && maintenanceWindowStatusOf(window) === 'locked') return false;
+        return Date.now() - asked.at >= MAX_AGE_MS;
     }
 
     /** The open window, read now and remembered as of the moment it was asked for. */

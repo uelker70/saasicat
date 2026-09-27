@@ -601,6 +601,8 @@ _Tested by:_
     - what another process of the application makes of it
         - a lock reaches a process that asked before it, within the time it may keep an answer
         - an answer that took its time to arrive ages from when it was asked
+        - an answer too old to act on when it arrives is asked for again
+        - a lock is acted on however late its answer arrives
         - a read still on its way when this process locks does not undo the lock
         - a burst of requests after the answer aged asks the table once
         - a lock known to hold is not dropped because one read failed
