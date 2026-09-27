@@ -119,6 +119,29 @@ describe('MaintenancePage', () => {
         expect(late.text()).toMatch(/has passed|ist vorbei/);
     });
 
+    // @requirement SC-UI-020 — A page never takes the whole screen down because data arrived in an unexpected shape
+    test('a resource of the application’s own that answers another shape does not take the page down', async () => {
+        for (const odd of [
+            { open: null, recent: 'not a list', takesEffectWithinSeconds: 5 },
+            { open: null },
+        ]) {
+            const wrapper = mountWithQuasar(MaintenancePage as never, {
+                global: {
+                    provide: {
+                        ...provideStubResources({
+                            maintenance: { overview: async () => odd },
+                        } as never),
+                        [SUPER_ADMIN_NOTIFY_KEY as symbol]: () => {},
+                    },
+                },
+            });
+            mounted.push(wrapper);
+            await settle();
+            expect(wrapper.text()).toMatch(/Maintenance|Wartung/);
+            expect(wrapper.text()).toMatch(/No maintenance window|Kein Wartungsfenster/);
+        }
+    });
+
     test('cancelling asks first, then cancels the window it is shown', async () => {
         const cancelled: string[] = [];
         const { wrapper, questions } = mountPage(WINDOW, {

@@ -36,6 +36,26 @@ export interface MaintenanceLockInput {
     message?: string | null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Whether a body is the overview it claims to be. Read at the boundary rather
+ * than trusted: an older backend, a proxy's JSON error page or a stub answers
+ * 200 with something else, and a page that read `recent.length` off it took its
+ * route down instead of showing its error (`SC-UI-020`).
+ */
+export function isMaintenanceOverview(value: unknown): value is MaintenanceOverview {
+    return (
+        isRecord(value) &&
+        Array.isArray(value.recent) &&
+        value.recent.every(isRecord) &&
+        (value.open === null || isRecord(value.open)) &&
+        typeof value.takesEffectWithinSeconds === 'number'
+    );
+}
+
 function maintenanceUrl(ctx: ResourceContext): string {
     return `${ctx.apiBase}/maintenance`;
 }
@@ -45,12 +65,17 @@ function windowUrl(ctx: ResourceContext, id: string): string {
 }
 
 export const maintenanceResource = defineResource('maintenance', {
-    overview: async (http, ctx): Promise<MaintenanceOverview> =>
-        requestJsonBody<MaintenanceOverview>(
+    overview: async (http, ctx): Promise<MaintenanceOverview> => {
+        const body = await requestJsonBody<unknown>(
             http,
             maintenanceUrl(ctx),
             'GET /maintenance answered with no body',
-        ),
+        );
+        if (!isMaintenanceOverview(body)) {
+            throw new Error('GET /maintenance answered with a body that is not an overview');
+        }
+        return body;
+    },
 
     announce: async (
         http,

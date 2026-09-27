@@ -105,7 +105,7 @@
 
             <AdminSection :title="msg.recent.title">
                 <AdminEmptyState
-                    v-if="overview && overview.recent.length === 0"
+                    v-if="overview && recentRows.length === 0"
                     :title="msg.recent.empty"
                     size="inline"
                 />
@@ -218,7 +218,9 @@ function openDialog(window: MaintenanceWindowView | null): void {
 }
 
 const recentRows = computed(() =>
-    (overview.value?.recent ?? []).map((window) => ({
+    // The resource checks the shape; a resource an application put in its place
+    // may not, and a list that is not one must not take the route down.
+    (Array.isArray(overview.value?.recent) ? overview.value.recent : []).map((window) => ({
         id: window.id,
         status: window.status,
         announcedFor: window.startsAt ? `${at(window.startsAt)} – ${at(window.endsAt)}` : '—',

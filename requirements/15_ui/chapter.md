@@ -291,6 +291,7 @@ _Tested by:_
         - cancel posts to the window
         - lock and unlock carry the second factor
         - an overview that answers nothing is an error, not an empty page
+        - an overview that is not one is refused at the boundary, not handed to the page
         - every operation this descriptor declares has a case above
 - `packages/ui-vue/tests/resources-match-the-composables.test.js`
     - the list descriptors match the list composables
@@ -1595,6 +1596,12 @@ _Source:_ release 0.24.1
 
 _Tested by:_
 
+- `packages/ui-vue/tests/component/maintenance-page-and-lock-banner.test.ts`
+    - MaintenancePage
+        - a resource of the application’s own that answers another shape does not take the page down
+- `packages/ui-vue/tests/maintenance-resource.test.js`
+    - maintenanceResource
+        - an overview that is not one is refused at the boundary, not handed to the page
 - `packages/ui-vue/tests/use-async-action.test.js`
     - useAsyncAction — the happy path
         - resolves what the action returned

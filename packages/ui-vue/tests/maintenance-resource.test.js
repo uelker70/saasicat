@@ -118,6 +118,24 @@ describe('maintenanceResource', () => {
         await assert.rejects(() => bound(http).overview(), /no body/);
     });
 
+    // @requirement SC-UI-020 — A page never takes the whole screen down because data arrived in an unexpected shape
+    test('an overview that is not one is refused at the boundary, not handed to the page', async () => {
+        for (const body of [
+            [],
+            {},
+            { open: null, recent: 'x', takesEffectWithinSeconds: 5 },
+            { open: 'x', recent: [], takesEffectWithinSeconds: 5 },
+            { open: null, recent: [], takesEffectWithinSeconds: '5' },
+        ]) {
+            const { http } = recordingHttp(body);
+            await assert.rejects(
+                () => bound(http).overview(),
+                /not an overview/,
+                JSON.stringify(body),
+            );
+        }
+    });
+
     test('every operation this descriptor declares has a case above', () => {
         assert.deepEqual(Object.keys(maintenanceResource.ops).sort(), [
             'announce',

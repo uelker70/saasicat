@@ -821,6 +821,7 @@ _Tested by:_
         - cancel posts to the window
         - lock and unlock carry the second factor
         - an overview that answers nothing is an error, not an empty page
+        - an overview that is not one is refused at the boundary, not handed to the page
         - every operation this descriptor declares has a case above
 - `packages/ui-vue/tests/use-maintenance.test.js`
     - locking from the administration

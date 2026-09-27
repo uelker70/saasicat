@@ -458,6 +458,7 @@ _Tested by:_
         - an announced window shows what tenants were told, and can be locked, moved or cancelled
         - an announcement whose end passed without a lock is flagged for cancelling
         - a locked window says since when, offers to unlock, and says so louder past its end
+        - a resource of the application’s own that answers another shape does not take the page down
         - cancelling asks first, then cancels the window it is shown
 - `packages/ui-vue/tests/use-maintenance.test.js`
     - announcing, moving and cancelling
