@@ -50,6 +50,12 @@ overrides:
     # multipart parsing. Reached through @nestjs/platform-express, which pins
     # 2.2.0 exactly; here that is the test harness and examples/notesapp.
     multer: '^2.3.0'
+    # GHSA-w2qp-rph6-63g4: schema validation bypass through root primitive
+    # coercion. GHSA-3m5p-2c4r-xxw2: X-Forwarded-* spoofing under a trustProxy
+    # hop count. Reached only through @nestjs/platform-fastify, which pins
+    # 5.11.3 exactly and is a devDependency of @saasicat/nest for the HTTP tests
+    # that run on both platforms — nothing a consumer installs carries it.
+    fastify: '^5.12.1'
     # GHSA-2883-xcg3-v3hh: `maxTotalMergeKeys` does not bound the work an empty
     # merge source causes. @saasicat/nest already requires 4.3.2; this lifts the
     # copy json-schema-to-typescript still resolves for the type codegen.
