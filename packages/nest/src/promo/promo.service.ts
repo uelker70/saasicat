@@ -756,8 +756,16 @@ export class PromoCodesService {
     }
 
     /**
-     * Lazy expiry: sets codes whose validUntil has passed to EXPIRED.
-     * Called before every find/preview — defense-in-depth alongside the cron.
+     * Lazy expiry: sets codes whose validUntil has passed, and redemptions
+     * whose term has ended, to EXPIRED. Called before every find/preview —
+     * defense-in-depth alongside the cron.
+     *
+     * It runs in the caller's context, not under the RLS bypass, and reaches
+     * what that context reaches: where a row policy is forced, the redemptions
+     * of the caller's own tenant, and none from a request without one. Every
+     * tenant is `PromoCodeExpirer`'s to reach, under the bypass. A request —
+     * a preview on a public sign-up page among them — does not write across
+     * tenants to spare the job a day's lag.
      */
     private async lazyExpire(): Promise<void> {
         const now = new Date();
